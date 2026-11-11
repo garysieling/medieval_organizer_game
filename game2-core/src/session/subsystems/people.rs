@@ -60,10 +60,24 @@ impl Game {
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
         self.died_on.push(None);
-        self.log_villager(self.villagers.len() - 1,
-            format!("t{}: a child is born - {}.", tick, vill_name(self.villagers.len() - 1)));
-        note_story(&mut self.tales, &mut self.tales_told, &mut self.log, self.villagers.len() - 1, tick,
-            crate::sim::story::EventKind::Birth, format!("{} is born.", vill_name(self.villagers.len() - 1)));
+        self.log_villager_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+            self.villagers.len() - 1,
+            format!(
+                "t{}: a child is born - {}.",
+                tick,
+                vill_name(self.villagers.len() - 1)
+            ),
+        );
+        note_story(
+            &mut self.tales,
+            &mut self.tales_told,
+            &mut self.log,
+            self.villagers.len() - 1,
+            tick,
+            crate::sim::story::EventKind::Birth,
+            format!("{} is born.", vill_name(self.villagers.len() - 1)),
+        );
         // and the neighbours mark it: a small celebration at the house
         if let Some(p) = self.world.get_component::<Pos>(home) {
             self.local_celebration(tick, (p.x, p.y), None, "a new child");
@@ -145,8 +159,15 @@ impl Game {
                 }
             }
         }
-        self.log_villager(self.villagers.len() - 1,
-            format!("t{}: a stranger settles - {} has come to town.", tick, vill_name(self.villagers.len() - 1)));
+        self.log_villager_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+            self.villagers.len() - 1,
+            format!(
+                "t{}: a stranger settles - {} has come to town.",
+                tick,
+                vill_name(self.villagers.len() - 1)
+            ),
+        );
     }
 
     /// A name off the roster: the line and every index that pointed at
@@ -324,9 +345,21 @@ impl Game {
                 h.owner = kin;
                 h.stories.push(format!("passed from the dead, day {}", tick));
             }
-            self.log_entity(kin, format!("t{}: {} by old hands passes to {} - a thing made to outlast.",
-                tick, name, self.name_of(kin)));
-            self.say(kin, "It's mine now. I'd rather have them back.", CHAT_BUBBLE_SECS);
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                kin,
+                format!(
+                    "t{}: {} by old hands passes to {} - a thing made to outlast.",
+                    tick,
+                    name,
+                    self.name_of(kin)
+                ),
+            );
+            self.say(
+                kin,
+                "It's mine now. I'd rather have them back.",
+                CHAT_BUBBLE_SECS,
+            );
         }
         if tick % 90 != 60 { return; }
         // a masterwork: the surest hands in the village lay one down
@@ -366,7 +399,16 @@ impl Game {
         self.world.add_component(item, villager::Heirloom {
             maker, owner: maker, name, born_tick: tick, stories });
         self.heirlooms.push(item);
-        self.log_entity(maker, format!("t{}: {} lays down {} - a thing made to outlast its maker.", tick, self.name_of(maker), name));
+        self.log_entity_ev(
+            EvTag::new(Thread::Craft, Valence::Positive, Sev::Notable),
+            maker,
+            format!(
+                "t{}: {} lays down {} - a thing made to outlast its maker.",
+                tick,
+                self.name_of(maker),
+                name
+            ),
+        );
     }
 
     /// The painter's trade: a pot of paint becomes a bright hall -
@@ -393,9 +435,20 @@ impl Game {
                     .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)));
         if let Some(b) = target {
             self.painted.push((b, tick));
-            let name = self.world.get_component::<Building>(b).map(|bb| bb.name.clone()).unwrap_or_default();
-            self.log.push_at_who(format!("t{}: {} gets its colors - the paint shop's work shows.", tick, name),
-                toast_spot(&self.world, b), None);
+            let name = self
+                .world
+                .get_component::<Building>(b)
+                .map(|bb| bb.name.clone())
+                .unwrap_or_default();
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Craft, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: {} gets its colors - the paint shop's work shows.",
+                    tick, name
+                ),
+                toast_spot(&self.world, b),
+                None,
+            );
             if Some(b) == org_hall {
                 self.record_power(crate::sim::organized_power::ActionQuality::Transactional);
             }
@@ -486,7 +539,11 @@ impl Game {
                 .or_else(|| self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i).to_string()))
                 .unwrap_or_else(|| "a youngster".into());
             let trade = vocation::vocation_name(voc).to_lowercase();
-            self.log_entity(v, format!("t{}: {} takes up the {}.", tick, name, trade));
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                v,
+                format!("t{}: {} takes up the {}.", tick, name, trade),
+            );
             self.toasts.push_at((format!("{} comes of age - a {}!", name, trade), tick + 30),
                 toast_spot(&self.world, v));
             // the parish makes a Christian of them first - the rite at
@@ -520,8 +577,16 @@ impl Game {
                 if let Some(vx) = self.world.get_component_mut::<crate::game::lifecycle::Vitality>(v) {
                     vx.cause_of_death.get_or_insert_with(|| "old age".into());
                 }
-                self.log_entity(v, format!("t{}: {} dies at {} winters, of old age.", tick,
-                    vill_name(i), years.round() as u32));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Notable),
+                    v,
+                    format!(
+                        "t{}: {} dies at {} winters, of old age.",
+                        tick,
+                        vill_name(i),
+                        years.round() as u32
+                    ),
+                );
             }
         }
         // the dead give up their beds - but not before the heirs have
@@ -565,9 +630,18 @@ impl Game {
             let oe = self.seats[seat].org;
             let took = crate::game::organizing::harvest_together(&mut self.world, oe);
             if took > 0 {
-                let oname = self.world.get_component::<Organization>(oe)
-                    .map(|o| o.name.clone()).unwrap_or_default();
-                self.log.push(format!("t{}: {} takes the harvest in together - {} share the lift.", tick, oname, took));
+                let oname = self
+                    .world
+                    .get_component::<Organization>(oe)
+                    .map(|o| o.name.clone())
+                    .unwrap_or_default();
+                self.log.push_ev(
+                    EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable),
+                    format!(
+                        "t{}: {} takes the harvest in together - {} share the lift.",
+                        tick, oname, took
+                    ),
+                );
             }
         }
     }
@@ -598,8 +672,15 @@ impl Game {
             self.crop_noted = true;
             let stored: u32 = self.world.query::<FoodSource>().iter()
                 .filter_map(|&e| self.world.get_component::<FoodSource>(e))
-                .map(|f| f.servings).sum();
-            self.log.push(format!("t{}: the first ears come in - {} servings stand in store.", tick, stored));
+                .map(|f| f.servings)
+                .sum();
+            self.log.push_ev(
+                EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: the first ears come in - {} servings stand in store.",
+                    tick, stored
+                ),
+            );
         }
     }
 
@@ -617,7 +698,13 @@ impl Game {
         let after = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(
             self.seats[0].org).map(|p| p.capacity).unwrap_or(0.0);
         if before >= 0.05 && after < 0.05 {
-            self.log.push(format!("t{}: the cause's muscle has gone soft - the habit of meeting is lost.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                format!(
+                    "t{}: the cause's muscle has gone soft - the habit of meeting is lost.",
+                    tick
+                ),
+            );
         }
     }
 
@@ -655,7 +742,16 @@ impl Game {
             let names: Vec<String> = mourners.iter().take(3)
                 .map(|&m| self.name_of(m)).collect();
             if !names.is_empty() {
-                self.log_entity(d, format!("t{}: {} mourn {}.", tick, names.join(" and "), self.name_of(d)));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Minor),
+                    d,
+                    format!(
+                        "t{}: {} mourn {}.",
+                        tick,
+                        names.join(" and "),
+                        self.name_of(d)
+                    ),
+                );
             }
             for m in mourners {
                 record_episode(&mut self.world, m, Episode { with: d, kind: EpisodeKind::Loss });
@@ -762,8 +858,22 @@ impl Game {
                 if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold += 2.0; }
             }
             let (an, bn) = (self.name_of(a), self.name_of(b));
-            self.log_entity(a, format!("t{}: {} brought {} and {} together{}.", tick, who, an, bn,
-                if feuded { " - a match the families won't like" } else { "" }));
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                a,
+                format!(
+                    "t{}: {} brought {} and {} together{}.",
+                    tick,
+                    who,
+                    an,
+                    bn,
+                    if feuded {
+                        " - a match the families won't like"
+                    } else {
+                        ""
+                    }
+                ),
+            );
             // a brokered match is power shown in the street
             if let Some(pe) = broker {
                 if pe == self.player { self.record_power(crate::sim::organized_power::ActionQuality::Transactional); }
@@ -782,7 +892,14 @@ impl Game {
             if !bad_blood {
                 crate::game::feuds::spawn_feud(&mut self.world, b, a, "a turned-down suit");
                 let (an, bn) = (self.name_of(a), self.name_of(b));
-                self.log_entity(b, format!("t{}: {} won't forget {}'s cold answer - bad blood now.", tick, an, bn));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Minor),
+                    b,
+                    format!(
+                        "t{}: {} won't forget {}'s cold answer - bad blood now.",
+                        tick, an, bn
+                    ),
+                );
             }
         }
     }

@@ -50,7 +50,14 @@ impl Game {
                 crate::game::feuds::FeudStatus::Burning if last != Some(crate::game::feuds::FeudStatus::Burning) => {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Burning);
                     let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
-                    self.log_entity(offender, format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, offense));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Notable),
+                        offender,
+                        format!(
+                            "t{}: bad blood runs hot between {} and {} - {}.",
+                            tick, an, bn, offense
+                        ),
+                    );
                     self.rep_apply(offender, RepAction::BadDeed);
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
@@ -60,14 +67,31 @@ impl Game {
                     }
                     // open conflict breaks the offender's sworn word:
                     // you can't aid a neighbour with one fist raised
-                    for other in crate::game::contracts::break_all_pacts(&mut self.world, offender) {
-                        self.log_entity(other, format!("t{}: the pact between {} and {} is torn.", tick, bn, self.name_of(other)));
+                    for other in crate::game::contracts::break_all_pacts(&mut self.world, offender)
+                    {
+                        self.log_entity_ev(
+                            EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Notable),
+                            other,
+                            format!(
+                                "t{}: the pact between {} and {} is torn.",
+                                tick,
+                                bn,
+                                self.name_of(other)
+                            ),
+                        );
                     }
                 }
                 crate::game::feuds::FeudStatus::Resolved if last != Some(crate::game::feuds::FeudStatus::Resolved) => {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Resolved);
                     let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
-                    self.log_entity(offender, format!("t{}: the feud between {} and {} is put to rest.", tick, an, bn));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+                        offender,
+                        format!(
+                            "t{}: the feud between {} and {} is put to rest.",
+                            tick, an, bn
+                        ),
+                    );
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
                             note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
@@ -287,10 +311,20 @@ impl Game {
         }
         desires::add_grievance(&mut self.world, v, desires::Problem::Doctrine, tick + 180);
         let at = self.world.get_component::<Pos>(v).map(|p| (p.x, p.y));
-        self.log.push_at_who(format!("t{}: {} takes the green word - a fellowship is born of {}.",
-            tick, name, kind), at, None);
-        self.say(v, routine::GREEN_WORD[(routine::mix(v, tick) as usize) % routine::GREEN_WORD.len()],
-            TALK_BUBBLE_SECS * 2);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+            format!(
+                "t{}: {} takes the green word - a fellowship is born of {}.",
+                tick, name, kind
+            ),
+            at,
+            None,
+        );
+        self.say(
+            v,
+            routine::GREEN_WORD[(routine::mix(v, tick) as usize) % routine::GREEN_WORD.len()],
+            TALK_BUBBLE_SECS * 2,
+        );
         // the parish answers: the priest denounces from the door, and a
         // strict parish reaches for the first rung of shame
         if let Some(p) = self.world.get_component::<Congregation>(self.congregation).and_then(|c| c.leader) {
@@ -334,7 +368,12 @@ impl Game {
                 if !c.members.contains(&v) { c.members.push(v); }
             }
             let at = self.world.get_component::<Pos>(v).map(|p| (p.x, p.y));
-            self.log.push_at_who(format!("t{}: {} takes the green word.", tick, name), at, None);
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                format!("t{}: {} takes the green word.", tick, name),
+                at,
+                None,
+            );
         }
     }
 
@@ -346,18 +385,40 @@ impl Game {
         self.sanctioned.push((v, s, tick + 60));
         match s {
             Sanction::Gossip => {
-                self.log_entity(v, format!("t{}: the talk turns on {}.", tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                    v,
+                    format!("t{}: the talk turns on {}.", tick, name),
+                );
                 // the words they reach for, flourished
                 self.say(v, &format!("They call me {}.", gossip_insult(v as usize)), TALK_BUBBLE_SECS);
             }
             Sanction::Shun => {
-                self.log_entity(v, format!("t{}: {} gets the cold shoulder - no one sits with them.", tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Notable),
+                    v,
+                    format!(
+                        "t{}: {} gets the cold shoulder - no one sits with them.",
+                        tick, name
+                    ),
+                );
             }
             Sanction::Boycott => {
-                self.log_entity(v, format!("t{}: nobody buys from {} - the boycott bites.", tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Economy, Valence::Negative, Sev::Notable),
+                    v,
+                    format!("t{}: nobody buys from {} - the boycott bites.", tick, name),
+                );
             }
             Sanction::Picket => {
-                self.log_entity(v, format!("t{}: a crowd at {}'s door - they can't work for the press.", tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                    v,
+                    format!(
+                        "t{}: a crowd at {}'s door - they can't work for the press.",
+                        tick, name
+                    ),
+                );
                 self.say(v, "Let me through - I've work to do!", TALK_BUBBLE_SECS);
                 // the log line made good: the neighbours come, signs in hand
                 self.call_picket(v, tick);
@@ -370,11 +431,15 @@ impl Game {
                     // the rung was recorded before the crowd answered -
                     // a sentence never served is no rung at all
                     self.sanctioned.retain(|(e, s, _)| !(*e == v && *s == Sanction::Stocks));
-                    self.log_entity(v, format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
+                    self.log_entity_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Notable), v, format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
                     self.say(v, "They wronged me, and you all saw it.", TALK_BUBBLE_SECS);
                 } else {
                     self.rep_apply(v, RepAction::Betrayal);
-                    self.log_entity(v, format!("t{}: {} sits in the stocks by the store.", tick, name));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                        v,
+                        format!("t{}: {} sits in the stocks by the store.", tick, name),
+                    );
                     // the stocks stand by the market - pick their tile the
                     // first time a sentence needs it, and it stands after
                     if self.stocks_tile.is_none() {
@@ -390,7 +455,14 @@ impl Game {
                 }
             }
             Sanction::Exile => {
-                self.log_entity(v, format!("t{}: the village turns {} out - nothing left for them here.", tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Major),
+                    v,
+                    format!(
+                        "t{}: the village turns {} out - nothing left for them here.",
+                        tick, name
+                    ),
+                );
                 self.send(v, Goal::Exile);
             }
         }
@@ -445,7 +517,7 @@ impl Game {
         // coming a few days before it lands - time to gather, to bargain,
         // or to hide the grain
         if tick % 120 == 76 {
-            self.log.push(format!("t{}: word on the road - the bailiff rides this way. A writ comes down in a few days.", tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable), format!("t{}: word on the road - the bailiff rides this way. A writ comes down in a few days.", tick));
         }
         if tick % 120 != 80 { return; }
         let kind = (tick / 120) % 4;
@@ -463,12 +535,31 @@ impl Game {
                 if let Some(b) = self.world.get_component_mut::<Building>(self.market_food) {
                     let _ = household::take_stock(b, "grain", take);
                 }
-                self.log.push_at_who(format!("t{}: a bailiff's writ - the castle levies {} grain{}.{}",
-                    tick, take,
-                    if bargained { " - the org talks him down" } else { "" },
-                    if mult > 1 { " Double, for the last defiance." } else { "" }),
-                    toast_spot(&self.world, self.market_food), None);
-                self.notices.push(("writ".into(), format!("the castle levies {} grain", take), tick + 7));
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Law, Valence::Negative, Sev::Major),
+                    format!(
+                        "t{}: a bailiff's writ - the castle levies {} grain{}.{}",
+                        tick,
+                        take,
+                        if bargained {
+                            " - the org talks him down"
+                        } else {
+                            ""
+                        },
+                        if mult > 1 {
+                            " Double, for the last defiance."
+                        } else {
+                            ""
+                        }
+                    ),
+                    toast_spot(&self.world, self.market_food),
+                    None,
+                );
+                self.notices.push((
+                    "writ".into(),
+                    format!("the castle levies {} grain", take),
+                    tick + 7,
+                ));
                 if let Some(b) = self.world.get_component_mut::<Building>(self.market_food) {
                     b.flyer = Some(format!("levy: {} grain due", take));
                 }
@@ -485,9 +576,24 @@ impl Game {
                         p.gold -= cut; taken += cut;
                     }
                 }
-                self.log.push(format!("t{}: a bailiff's writ - a fee of {:.0} gold off the village.{}",
-                    tick, taken, if bargained { " Halved - the org's word counts." } else { "" }));
-                self.notices.push(("writ".into(), format!("a fee of {:.0} gold off the village", taken), tick + 7));
+                self.log.push_ev(
+                    EvTag::new(Thread::Law, Valence::Negative, Sev::Major),
+                    format!(
+                        "t{}: a bailiff's writ - a fee of {:.0} gold off the village.{}",
+                        tick,
+                        taken,
+                        if bargained {
+                            " Halved - the org's word counts."
+                        } else {
+                            ""
+                        }
+                    ),
+                );
+                self.notices.push((
+                    "writ".into(),
+                    format!("a fee of {:.0} gold off the village", taken),
+                    tick + 7,
+                ));
             }
             3 => {
                 // the drink levy: the castle's share of every barrel in
@@ -504,7 +610,7 @@ impl Game {
                         }
                     }
                 }
-                self.log.push(format!("t{}: a bailiff's writ - the castle's share of the barrel, {} measures off the village's drink.{}",
+                self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), format!("t{}: a bailiff's writ - the castle's share of the barrel, {} measures off the village's drink.{}",
                     tick, taken,
                     if bargained { " Halved - the org's word counts." } else { "" }));
                 self.notices.push(("writ".into(), format!("the castle's share of the barrel: {} measures", taken), tick + 7));
@@ -538,7 +644,7 @@ impl Game {
                             self.martyr_grave = Some((p.x.round() as i32, p.y.round() as i32));
                         }
                         self.repression_debt = 0;
-                        self.log_entity(m, format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
+                        self.log_entity_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), m, format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
                         // mass grief: everyone saw it
                         for v in self.villagers.iter().take(8).copied().collect::<Vec<_>>() {
                             if !villager::is_dead(&self.world, v) {
@@ -550,10 +656,25 @@ impl Game {
                         if let Some(at) = at { self.mark_radicalized(at, tick); }
                     } else if member && self.lord_esteem > 0.7 {
                         self.repression_debt += 1;
-                        self.log_entity(m, format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));
+                        self.log_entity_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Major), m, format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));
                     } else {
-                        self.log_entity(m, format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
-                        for _ in 0..2 { desires::add_grievance(&mut self.world, m, desires::Problem::WritBorne, tick + 60); }
+                        self.log_entity_ev(
+                            EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                            m,
+                            format!(
+                                "t{}: a summons - {} is taken for questioning.",
+                                tick,
+                                self.name_of(m)
+                            ),
+                        );
+                        for _ in 0..2 {
+                            desires::add_grievance(
+                                &mut self.world,
+                                m,
+                                desires::Problem::WritBorne,
+                                tick + 60,
+                            );
+                        }
                         // taken to the castle - held, not gone: the org
                         // ransoms them or the ladder climbs. The march
                         // out goes first - it's the last errand they run
@@ -613,7 +734,13 @@ impl Game {
             }
         }
         if marked > 0 {
-            self.log.push(format!("t{}: the wronged remember - {} will hear the cause's call.", tick, marked));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: the wronged remember - {} will hear the cause's call.",
+                    tick, marked
+                ),
+            );
         }
     }
 
@@ -660,8 +787,13 @@ impl Game {
                 // the walk out is spent with the ransom - else the exile
                 // leg outruns the pardon and arrives a driving-out
                 self.travels.retain(|t| t.who != who);
-                self.log_entity(who, format!("t{}: the org pays the ransom - {} walks home.", tick, name));
-                if let Some(home) = household::home_of(&self.world, who).or(Some(self.market_food)) {
+                self.log_entity_ev(
+                    EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                    who,
+                    format!("t{}: the org pays the ransom - {} walks home.", tick, name),
+                );
+                if let Some(home) = household::home_of(&self.world, who).or(Some(self.market_food))
+                {
                     self.send(who, Goal::HeadHome(home));
                 }
             } else {
@@ -670,7 +802,14 @@ impl Game {
                 if let Some(i) = self.villagers.iter().position(|&x| x == who) {
                     self.died_on[i] = Some(tick);
                 }
-                self.log_entity(who, format!("t{}: no ransom came - {} is hanged at the castle.", tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Law, Valence::Negative, Sev::Major),
+                    who,
+                    format!(
+                        "t{}: no ransom came - {} is hanged at the castle.",
+                        tick, name
+                    ),
+                );
             }
         }
     }
@@ -690,12 +829,27 @@ impl Game {
                 self.send_far(m, door, Goal::HeadHome(home));
             }
         }
-        if let Some(rc) = self.world.get_component::<crate::game::dungeon::ReleaseOf>(m).map(|r| r.campaign) {
-            self.world.remove_component::<crate::game::campaign::Campaign>(rc);
-            self.world.remove_component::<crate::game::campaign::CampaignMeeting>(rc);
-            self.world.remove_component::<crate::game::dungeon::ReleaseOf>(m);
+        if let Some(rc) = self
+            .world
+            .get_component::<crate::game::dungeon::ReleaseOf>(m)
+            .map(|r| r.campaign)
+        {
+            self.world
+                .remove_component::<crate::game::campaign::Campaign>(rc);
+            self.world
+                .remove_component::<crate::game::campaign::CampaignMeeting>(rc);
+            self.world
+                .remove_component::<crate::game::dungeon::ReleaseOf>(m);
         }
-        self.log_entity(m, format!("t{}: the cell stands open - {} walks home.", tick, self.name_of(m)));
+        self.log_entity_ev(
+            EvTag::new(Thread::Law, Valence::Positive, Sev::Notable),
+            m,
+            format!(
+                "t{}: the cell stands open - {} walks home.",
+                tick,
+                self.name_of(m)
+            ),
+        );
     }
 
     pub fn guards_tick(&mut self, tick: u64) {
@@ -730,7 +884,10 @@ impl Game {
                     .unwrap_or_else(|| members.contains(&m));
                 if ours { self.free_prisoner(m, tick); }
             }
-            self.log.push(format!("t{}: the knights ride home - the tour is done.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor),
+                format!("t{}: the knights ride home - the tour is done.", tick),
+            );
         }
     }
 
@@ -755,8 +912,17 @@ impl Game {
                 crate::game::dungeon::press(&mut self.world, v, 0.02);
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
                     let name = self.name_of(v);
-                    self.log_entity(v, format!("t{}: the village never stopped asking - {} walks free.", tick, name));
-                    if let Some(home) = household::home_of(&self.world, v).or(Some(self.market_food)) {
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Law, Valence::Positive, Sev::Notable),
+                        v,
+                        format!(
+                            "t{}: the village never stopped asking - {} walks free.",
+                            tick, name
+                        ),
+                    );
+                    if let Some(home) =
+                        household::home_of(&self.world, v).or(Some(self.market_food))
+                    {
                         self.send(v, Goal::HeadHome(home));
                     }
                 }
@@ -787,8 +953,13 @@ impl Game {
         }
         self.record_power(crate::sim::organized_power::ActionQuality::Transactional);
         if tick % 90 == 20 {
-            self.log.push_at_who(format!("t{}: they keep a vigil at the martyr's grave.", tick),
-                self.martyr_grave.map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5)), None);
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                format!("t{}: they keep a vigil at the martyr's grave.", tick),
+                self.martyr_grave
+                    .map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5)),
+                None,
+            );
         }
     }
 
@@ -817,7 +988,13 @@ impl Game {
             let succ = org_pick.or(kin_pick);
             self.seats[seat].player_passed = true;
             let Some(succ) = succ else {
-                self.log.push(format!("t{}: the work dies with them - no hands left to take it up.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: the work dies with them - no hands left to take it up.",
+                        tick
+                    ),
+                );
                 continue;
             };
             // the purse passes; the name and the work are theirs to make
@@ -829,8 +1006,19 @@ impl Game {
             });
             let name = self.name_of(succ);
             self.seats[seat].player = succ;
-            self.log_entity(succ, format!("t{}: the work goes on - {} takes up the organizing.", tick, name));
-            self.say(succ, "The work goes on. Someone has to.", CHAT_BUBBLE_SECS * 2);
+            self.log_entity_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                succ,
+                format!(
+                    "t{}: the work goes on - {} takes up the organizing.",
+                    tick, name
+                ),
+            );
+            self.say(
+                succ,
+                "The work goes on. Someone has to.",
+                CHAT_BUBBLE_SECS * 2,
+            );
         }
     }
 
@@ -845,11 +1033,29 @@ impl Game {
                 self.pending_discovery = None;
                 self.disclosure_made = true;
                 let name = self.name_of(who);
-                self.log_entity(who, format!("t{}: {} whispers it about - {}. The word's out now.", tick, name, found));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                    who,
+                    format!(
+                        "t{}: {} whispers it about - {}. The word's out now.",
+                        tick, name, found
+                    ),
+                );
                 if self.lord_esteem > 0.4 {
                     // an org worth the name stands with its own
-                    self.log_entity(who, format!("t{}: the village stands with {} - the truth was theirs to say.", tick, name));
-                    self.say(who, "I said what I saw. That's all I did.", CHAT_BUBBLE_SECS * 2);
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                        who,
+                        format!(
+                            "t{}: the village stands with {} - the truth was theirs to say.",
+                            tick, name
+                        ),
+                    );
+                    self.say(
+                        who,
+                        "I said what I saw. That's all I did.",
+                        CHAT_BUBBLE_SECS * 2,
+                    );
                 } else {
                     // no one to stand with him: the threatened move - and
                     // the ladder's there for a man who talks treason
@@ -890,7 +1096,7 @@ impl Game {
             }
             if self.numeracy != Numeracy::Positional && self.translator_days >= 90 {
                 self.numeracy = Numeracy::Positional;
-                self.log_entity(c, format!("t{}: the village counts the clerk's way now - the foreign reckonings are done.", tick));
+                self.log_entity_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable), c, format!("t{}: the village counts the clerk's way now - the foreign reckonings are done.", tick));
             }
         }
         // the lord's estimate creeps toward what's shown - perceived, not raw
@@ -912,7 +1118,12 @@ impl Game {
                 (1, false) => format!("word comes down - {} slips their minds", oname),
                 _ => format!("word comes down - the castle's forgot {} ever met", oname),
             };
-            self.log.push(format!("t{}: {}.", tick, word));
+            let ev = if up {
+                EvTag::new(Thread::Law, Valence::Negative, Sev::Notable)
+            } else {
+                EvTag::new(Thread::Law, Valence::Positive, Sev::Minor)
+            };
+            self.log.push_ev(ev, format!("t{}: {}.", tick, word));
         }
     }
 
@@ -938,14 +1149,27 @@ impl Game {
             // what they can afford picks the observance: the gentry's
             // door stands open, a tradesman's neighbours call, and a
             // poor soul's day is a meal and a kind word
-            let gentry = self.world.get_component::<Craft>(v)
-                .map(|c| matches!(c.vocation, Vocation::Knight | Vocation::Priest)).unwrap_or(false);
-            let gregarious = self.world.get_component::<crate::sim::psychology::Personality>(v)
-                .map(|p| p.extraversion > 0.6).unwrap_or(false);
-            let scale = if gentry || gregarious { "the whole lane calls" }
-                else if self.world.get_component::<Craft>(v).is_some() { "the neighbours drop by" }
-                else { "a meal and a kind word" };
-            self.log.push(format!("t{}: it's {}'s birthday - {}.", tick, name, scale));
+            let gentry = self
+                .world
+                .get_component::<Craft>(v)
+                .map(|c| matches!(c.vocation, Vocation::Knight | Vocation::Priest))
+                .unwrap_or(false);
+            let gregarious = self
+                .world
+                .get_component::<crate::sim::psychology::Personality>(v)
+                .map(|p| p.extraversion > 0.6)
+                .unwrap_or(false);
+            let scale = if gentry || gregarious {
+                "the whole lane calls"
+            } else if self.world.get_component::<Craft>(v).is_some() {
+                "the neighbours drop by"
+            } else {
+                "a meal and a kind word"
+            };
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                format!("t{}: it's {}'s birthday - {}.", tick, name, scale),
+            );
             // and the day's own gladness: the celebrant's want for the
             // gathering's warmth finds its satisfaction
             if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) {
@@ -969,9 +1193,17 @@ impl Game {
         // word of the feast travels the roads: a traveller whose round
         // was near comes for the crowd (#1073)
         self.draw_for_the_gathering(tick);
-        self.log.push_at_who(format!("t{}: {} - the village gathers at the market.", tick, feast),
-            toast_spot(&self.world, self.market_food), None);
-        self.notices.push(("feast".into(), format!("{} - the village gathers at the market", feast), tick + 3));
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Visitor, Valence::Positive, Sev::Notable),
+            format!("t{}: {} - the village gathers at the market.", tick, feast),
+            toast_spot(&self.world, self.market_food),
+            None,
+        );
+        self.notices.push((
+            "feast".into(),
+            format!("{} - the village gathers at the market", feast),
+            tick + 3,
+        ));
         // the good stock comes out: bread, honey, whatever the stalls held
         let mut loaves = 0u32;
         for &be in &self.building_entities.clone() {
@@ -1144,7 +1376,13 @@ impl Game {
         let route = self.street_route(head, 30);
         if route.len() < 4 { return; }
         self.start_parade(folk, route, None);
-        self.log.push(format!("t{}: the cause carries it - the village walks the win in.", self.tick));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Positive, Sev::Major),
+            format!(
+                "t{}: the cause carries it - the village walks the win in.",
+                self.tick
+            ),
+        );
     }
 }
 
@@ -1190,7 +1428,7 @@ impl Game {
                 self.world.remove_component::<crate::game::dungeon::CastleHeld>(v);
                 self.world.remove_component::<crate::game::dungeon::ReleaseCampaign>(v);
                 let name = self.name_of(v);
-                self.log_entity(v, format!("t{}: {} slips the cell and is gone - the road takes whoever the cell couldn't.", tick, name));
+                self.log_entity_ev(EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable), v, format!("t{}: {} slips the cell and is gone - the road takes whoever the cell couldn't.", tick, name));
                 self.toasts.push(("one slipped the cell".into(), tick + 40));
                 if let Some(home) = household::home_of(&self.world, v).or(Some(self.market_food)) {
                     if let Some(p) = self.world.get_component::<Pos>(home).copied() {
@@ -1216,7 +1454,15 @@ impl Game {
             let Some(u) = self.world.get_component::<villager::InStocks>(v).map(|s| s.until) else { continue };
             if tick >= u {
                 self.world.remove_component::<villager::InStocks>(v);
-                self.log_entity(v, format!("t{}: {} walks free of the stocks - the sentence's run, the shame's not.", tick, self.name_of(v)));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable),
+                    v,
+                    format!(
+                        "t{}: {} walks free of the stocks - the sentence's run, the shame's not.",
+                        tick,
+                        self.name_of(v)
+                    ),
+                );
                 continue;
             }
             // pinned and fed: the body stays, the belly's seen to - the
@@ -1244,7 +1490,16 @@ impl Game {
                 if let Some(p) = self.world.get_component_mut::<Purse>(who) {
                     let cut = (p.gold * 0.25).min(p.gold);
                     p.gold -= cut;
-                    self.log_entity(who, format!("t{}: fined {:.0} gold under the law - {}.", tick, cut, self.name_of(who)));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                        who,
+                        format!(
+                            "t{}: fined {:.0} gold under the law - {}.",
+                            tick,
+                            cut,
+                            self.name_of(who)
+                        ),
+                    );
                 }
             }
             "assembly" => {
@@ -1308,14 +1563,23 @@ impl Game {
         };
         if !cult && orthodoxy > 0.7 && charismatic && isolated {
             cult = true;
-            self.log.push(format!("t{}: the parish turns inward - the flock follows its shepherd past the village's edge.", tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the parish turns inward - the flock follows its shepherd past the village's edge.", tick));
             for m in &members { self.world.add_component(*m, crate::sim::religion::Cultish); }
         } else if cult && orthodoxy < 0.5 {
             // institutionalized: the fire burns out, the flock comes
             // back to the village's own fold
             cult = false;
-            for m in &members { self.world.remove_component::<crate::sim::religion::Cultish>(*m); }
-            self.log.push(format!("t{}: the fire burns out - the parish is the village's own again.", tick));
+            for m in &members {
+                self.world
+                    .remove_component::<crate::sim::religion::Cultish>(*m);
+            }
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: the fire burns out - the parish is the village's own again.",
+                    tick
+                ),
+            );
         }
         self.world.get_component_mut::<crate::sim::religion::Congregation>(ce)
             .map(|c| c.cultish = cult);
@@ -1350,7 +1614,13 @@ impl Game {
         // at once, the Reformation's own day
         if self.rng.below(50000) == 0 {
             crate::game::relic::expose_all(&mut self.world);
-            self.log.push(format!("t{}: a denunciation! The relics are exposed - the pilgrims' faith empties.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Negative, Sev::Major),
+                format!(
+                    "t{}: a denunciation! The relics are exposed - the pilgrims' faith empties.",
+                    tick
+                ),
+            );
         }
     }
 }
@@ -1376,9 +1646,20 @@ impl Game {
             crate::sim::psychology::record_episode(&mut self.world, d.witness,
                 crate::sim::psychology::Episode { with: d.victim, kind: crate::sim::psychology::EpisodeKind::Remembrance });
             if d.weight > 0.4 {
-                desires::add_grievance(&mut self.world, d.victim, desires::Problem::Loss, d.due + 30);
+                desires::add_grievance(
+                    &mut self.world,
+                    d.victim,
+                    desires::Problem::Loss,
+                    d.due + 30,
+                );
             }
-            self.log.push(format!("t{}: the choice comes home - someone remembers what was carried out first.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                format!(
+                    "t{}: the choice comes home - someone remembers what was carried out first.",
+                    tick
+                ),
+            );
             fired.push(i);
         }
         for i in fired.into_iter().rev() { self.dilemma_debts.remove(i); }
@@ -1579,7 +1860,7 @@ impl Game {
                 self.lord_strength = RETURN_STRENGTH;
                 self.lord_flow = RETURN_FLOW;
                 self.repression_debt += 2;
-                self.log.push(format!("t{}: a new bailiff rides in under the old writ - the reach reimposed at a price, and the village remembers how it broke.", tick));
+                self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!("t{}: a new bailiff rides in under the old writ - the reach reimposed at a price, and the village remembers how it broke.", tick));
             }
             return;
         }
@@ -1618,7 +1899,7 @@ impl Game {
             self.vacuum_filler = filler;
             let name = filler.and_then(|f| self.world.get_component::<crate::sim::community::Organization>(f)
                 .map(|o| o.name.clone())).unwrap_or_else(|| "no one".into());
-            self.log.push(format!("t{}: the writ runs out - the lord's arm no longer reaches the village, and the village answers to {}.", tick, name));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Major), format!("t{}: the writ runs out - the lord's arm no longer reaches the village, and the village answers to {}.", tick, name));
             return;
         }
         // and the self-organization: the lord's own low reach feeds
@@ -1672,7 +1953,13 @@ impl Game {
         if self.storyteller.is_none() && self.arc_phase == 0 {
             self.storyteller = Some(tick);
             self.arc_phase = 1;
-            self.log.push(format!("t{}: the teller's own setup - a threat looms on the horizon.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: the teller's own setup - a threat looms on the horizon.",
+                    tick
+                ),
+            );
             return;
         }
         // the arc's own phases: the setup escalates, the climax
@@ -1683,17 +1970,26 @@ impl Game {
                 if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
                     o.capacity = (o.capacity + 0.05).min(1.0);
                 }
-                self.log.push(format!("t{}: the arc's own escalation - the pressure's own build.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: the arc's own escalation - the pressure's own build.",
+                        tick
+                    ),
+                );
             }
             2 => { // the climax's own firing
                 self.arc_phase = 3;
-                self.log.push(format!("t{}: the arc's own climax - the event's own firing.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: the arc's own climax - the event's own firing.", tick),
+                );
             }
             _ => { // the resolution's own close - the teller rests
                 if self.arc_phase == 3 {
                     self.arc_phase = 0;
                     self.storyteller = None;
-                    self.log.push(format!("t{}: the arc's own resolution - the story closes, and the teller rests.", tick));
+                    self.log.push_ev(EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor), format!("t{}: the arc's own resolution - the story closes, and the teller rests.", tick));
                 }
             }
         }
@@ -1711,7 +2007,7 @@ impl Game {
         // celebration's own juice - the dry spell's own answer
         if self.comeback.is_some() && self.celebration.is_none() {
             self.celebration = Some(tick);
-            self.log.push(format!("t{}: the village's own celebration - the win's own moment, the drought's own answer.", tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the village's own celebration - the win's own moment, the drought's own answer.", tick));
         }
         // the drought-breaker: at the long stretch the calendar's own
         // payoff fires - the "end on success" that keeps the promise
@@ -1720,7 +2016,13 @@ impl Game {
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
                 o.capacity = (o.capacity + 0.1).min(1.0);
             }
-            self.log.push(format!("t{}: the drought-breaker lands - the long stretch ends on a win.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                format!(
+                    "t{}: the drought-breaker lands - the long stretch ends on a win.",
+                    tick
+                ),
+            );
         }
     }
 
@@ -1742,7 +2044,13 @@ impl Game {
         let words = (self.fluent * 20.0) as usize;
         if words > self.learned_words {
             self.learned_words = words;
-            self.log.push(format!("t{}: a word settles in the ear - the outlander's own speech glossing itself.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: a word settles in the ear - the outlander's own speech glossing itself.",
+                    tick
+                ),
+            );
         }
     }
 
@@ -1781,7 +2089,7 @@ impl Game {
                 taken += 1;
             }
         }
-        self.log.push(format!("t{}: the mob rises - the pitchforks and the torches, and the soldiers ride in after. The peasants never win.", tick));
+        self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Major), format!("t{}: the mob rises - the pitchforks and the torches, and the soldiers ride in after. The peasants never win.", tick));
     }
 
     /// The road's own caravan: the trade between two sites - the
@@ -1801,7 +2109,7 @@ impl Game {
             .and_then(|l| self.world.get_component::<Watcher>(l))
             .map(|w| w.paranoia >= 0.7).unwrap_or(false));
         if bandits {
-            self.log.push(format!("t{}: the caravan's taken on the road - the bandits' own risk, the goods never reached the far market.", tick));
+            self.log.push_ev(EvTag::new(Thread::Economy, Valence::Negative, Sev::Notable), format!("t{}: the caravan's taken on the road - the bandits' own risk, the goods never reached the far market.", tick));
             return;
         }
         // the far market's own pay: the caravan's own goods sell at
@@ -1809,7 +2117,13 @@ impl Game {
         if let Some(org) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
             org.resources += 15.0;
         }
-        self.log.push(format!("t{}: the caravan reaches the far market - the road's own trade, the goods sold.", tick));
+        self.log.push_ev(
+            EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable),
+            format!(
+                "t{}: the caravan reaches the far market - the road's own trade, the goods sold.",
+                tick
+            ),
+        );
     }
 
     /// The horizon's own war: the conflict between two sites - the
@@ -1841,7 +2155,7 @@ impl Game {
                 l.grievances.push((crate::game::desires::Problem::Loss, tick + 60));
             }
         }
-        self.log.push(format!("t{}: the levies are called - the lords' own conflict, and the villagers' own due paid.", tick));
+        self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!("t{}: the levies are called - the lords' own conflict, and the villagers' own due paid.", tick));
     }
 
     /// The village's own comings and goings: the hunger's own push
@@ -1865,7 +2179,7 @@ impl Game {
                 self.world.remove_component::<crate::game::villager::Villager>(gone);
             }
             self.emigration += 1;
-            self.log.push(format!("t{}: a household walks off the map - the hunger's own push takes them to the next town.", tick));
+            self.log.push_ev(EvTag::new(Thread::Economy, Valence::Negative, Sev::Notable), format!("t{}: a household walks off the map - the hunger's own push takes them to the next town.", tick));
             return;
         }
         // the prosperity's own pull: the stores' own plenty draws a
@@ -1874,7 +2188,13 @@ impl Game {
         let plenty = self.soil_quality >= 0.7 && starving == 0;
         if plenty && tick % 90 == 27 {
             self.emigration = self.emigration.saturating_sub(1);
-            self.log.push(format!("t{}: a stranger comes down the road - the stores' own plenty draws them in.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: a stranger comes down the road - the stores' own plenty draws them in.",
+                    tick
+                ),
+            );
         }
     }
 
@@ -1924,7 +2244,7 @@ impl Game {
         if let Some(org) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
             org.resources += 10.0;
         }
-        self.log.push(format!("t{}: the windfall's own turn - a bountiful harvest, and the cause's own ebb lifts.", tick));
+        self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable), format!("t{}: the windfall's own turn - a bountiful harvest, and the cause's own ebb lifts.", tick));
     }
 
     /// The fiber's own making: the weaver's own skill scales the
@@ -2006,7 +2326,7 @@ impl Game {
         // and the separation's own pressure rises on the lapse
         if self.incense <= 0.0 {
             self.separation_pressure = (self.separation_pressure + 0.02).min(1.0);
-            self.log.push(format!("t{}: the censer hangs cold - the church's own supply's lapsed, and the sacred's own mark's faded.", tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Minor), format!("t{}: the censer hangs cold - the church's own supply's lapsed, and the sacred's own mark's faded.", tick));
         }
     }
 
@@ -2037,7 +2357,7 @@ impl Game {
                 l.grievances.push((crate::game::desires::Problem::Loss, tick + 60));
             }
         }
-        self.log.push(format!("t{}: the raiders come over the ridge - the take falls on the village's own purses, and the castle's own answer's what it is.", tick));
+        self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), format!("t{}: the raiders come over the ridge - the take falls on the village's own purses, and the castle's own answer's what it is.", tick));
     }
 
     /// The field's own memory: the three-field's own cycle - every
@@ -2059,7 +2379,7 @@ impl Game {
         // quality scales what the yield can answer
         let day_in_year = tick % 360;
         if day_in_year >= 90 && day_in_year < 120 && self.soil_quality < 0.5 {
-            self.log.push(format!("t{}: the spring's own gap - the stores run thin before the first harvest, and the soil's own answer's thin with them.", tick));
+            self.log.push_ev(EvTag::new(Thread::Economy, Valence::Negative, Sev::Notable), format!("t{}: the spring's own gap - the stores run thin before the first harvest, and the soil's own answer's thin with them.", tick));
         }
     }
 
@@ -2080,7 +2400,7 @@ impl Game {
             // finish lifts the skill - the masterwork's own worth
             if c.stage >= 3 && c.skill < 0.6 {
                 c.skill = 0.6;
-                self.log.push(format!("t{}: the masterwork's own finish - the stages' own making lands, the piece worth the name.", tick));
+                self.log.push_ev(EvTag::new(Thread::Craft, Valence::Positive, Sev::Notable), format!("t{}: the masterwork's own finish - the stages' own making lands, the piece worth the name.", tick));
             }
         }
     }
@@ -2100,7 +2420,13 @@ impl Game {
             // apprentice's own cap
             if c.apprentice_years >= 7 && c.skill < 0.4 {
                 c.skill = 0.4;
-                self.log.push(format!("t{}: the journeyman's own ceremony - the term's done, the piece's made.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Craft, Valence::Positive, Sev::Notable),
+                    format!(
+                        "t{}: the journeyman's own ceremony - the term's done, the piece's made.",
+                        tick
+                    ),
+                );
             }
         }
     }
@@ -2121,7 +2447,7 @@ impl Game {
                 let n = o.members.len() / 4;
                 for _ in 0..n { o.members.pop(); }
             }
-            self.log.push(format!("t{}: the prophet's own capture - the succession's knife-fight costs a quarter of the cause.", tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Major), format!("t{}: the prophet's own capture - the succession's knife-fight costs a quarter of the cause.", tick));
         }
         // the cover's own withdrawal: the shield that grants the
         // governing capacity can be pulled - the dependency's the
@@ -2132,7 +2458,7 @@ impl Game {
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
                 o.capacity = (o.capacity - 0.15).max(0.0);
             }
-            self.log.push(format!("t{}: the cover's withdrawn - the institution pulls its own shield, and the governing capacity goes with it.", tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the cover's withdrawn - the institution pulls its own shield, and the governing capacity goes with it.", tick));
         }
     }
 
@@ -2149,7 +2475,13 @@ impl Game {
                 .map(|d| d.heresy_vector.len() >= 3).unwrap_or(false);
         if !stalled { return; }
         self.council = Some(tick);
-        self.log.push(format!("t{}: the fold's own stall - a council's called to break what the silence can't.", tick));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+            format!(
+                "t{}: the fold's own stall - a council's called to break what the silence can't.",
+                tick
+            ),
+        );
     }
 
     /// The spirit's own marking: a villager whose own devotion burns
@@ -2171,7 +2503,7 @@ impl Game {
             });
         let Some(_m) = best else { return };
         self.mystic = Some(tick);
-        self.log.push(format!("t{}: a mystic walks the lanes - the spirit's own marking, and the fold must answer.", tick));
+        self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), format!("t{}: a mystic walks the lanes - the spirit's own marking, and the fold must answer.", tick));
     }
 
     /// The desk's own making: the school produces the subjects it
@@ -2285,7 +2617,7 @@ impl Game {
             .map(|w| w.paranoia >= 0.5).unwrap_or(false));
         if !watched { return; }
         self.incorporation_offer = Some(tick);
-        self.log.push(format!("t{}: a charter offered - the crown's own legal status for the fold, and the gold that comes with it.", tick));
+        self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), format!("t{}: a charter offered - the crown's own legal status for the fold, and the gold that comes with it.", tick));
     }
 
     /// The stack's own work: the logistics accrue on the org's own
@@ -2317,7 +2649,7 @@ impl Game {
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
                 o.capacity = (o.capacity - 0.05).max(0.0);
             }
-            self.log.push(format!("t{}: the untrained room takes the plant's bait - the discipline wasn't there to hold.", tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the untrained room takes the plant's bait - the discipline wasn't there to hold.", tick));
         }
     }
 
@@ -2353,7 +2685,13 @@ impl Game {
             .map(|w| w.paranoia >= 0.7).unwrap_or(false));
         if offered && !self.locally_sponsored && self.institutions > 0 {
             self.institutions -= 1;
-            self.log.push(format!("t{}: a patron's own offer - one of the pillars drifts toward the powerful.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                format!(
+                    "t{}: a patron's own offer - one of the pillars drifts toward the powerful.",
+                    tick
+                ),
+            );
         }
     }
 
@@ -2390,7 +2728,13 @@ impl Game {
                     w.legitimacy = (w.legitimacy - 0.05).max(0.0);
                 }
             }
-            self.log.push(format!("t{}: they ban the posting, and the ban's the story - the frame was ready.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                format!(
+                    "t{}: they ban the posting, and the ban's the story - the frame was ready.",
+                    tick
+                ),
+            );
         }
     }
 
@@ -2408,7 +2752,7 @@ impl Game {
             .map(|d| d.critical_agency < 0.2 && d.internalized_domination > 0.5)
             .unwrap_or(false);
         if brittle {
-            self.log.push(format!("t{}: the cold-anger screen - the brittle one can't take the criticism, and steps back.", tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor), format!("t{}: the cold-anger screen - the brittle one can't take the criticism, and steps back.", tick));
         }
         // the dependence's own growth: the longer the leader holds,
         // the more the cause leans - and the more the taking would cost
@@ -2504,8 +2848,15 @@ impl Game {
         let stage = self.inquisition.unwrap_or(0);
         let org = self.org;
         match stage {
-            0 => { // the summons: the call to answer lands
-                self.log.push(format!("t{}: a summons to answer - the lord's own questions begin.", tick));
+            0 => {
+                // the summons: the call to answer lands
+                self.log.push_ev(
+                    EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable),
+                    format!(
+                        "t{}: a summons to answer - the lord's own questions begin.",
+                        tick
+                    ),
+                );
             }
             1 => { // the harvest: the grace/amnesty takes the weak
                 if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
@@ -2555,7 +2906,7 @@ impl Game {
             let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
             if w.paranoia < 0.5 { continue; }
             self.parley = Some(tick);
-            self.log.push(format!("t{}: a herald under a white flag - the lord offers to talk. The flag's own honor's the question.", tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable), format!("t{}: a herald under a white flag - the lord offers to talk. The flag's own honor's the question.", tick));
             return;
         }
     }
@@ -2612,7 +2963,13 @@ impl Game {
                 b.security = (b.security - damage).max(0.0);
             }
         }
-        self.log.push(format!("t{}: the de-oathing ceremony - the members' hands loosen, but nobody's taken.", tick));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+            format!(
+                "t{}: the de-oathing ceremony - the members' hands loosen, but nobody's taken.",
+                tick
+            ),
+        );
     }
 
     /// The creed's own scoring: a council settles a position - the
@@ -2667,7 +3024,7 @@ impl Game {
             if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
                 c.orthodoxy = (c.orthodoxy - 0.2).max(0.0);
             }
-            self.log.push(format!("t{}: the fold splits on its own weight - a second way of praying walks out the door.", tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the fold splits on its own weight - a second way of praying walks out the door.", tick));
         }
         // the lord's own silence: the interdict's own drain on the flock
         if self.interdict {
@@ -2733,7 +3090,7 @@ impl Game {
             // already spent, the org's thinner for the winning
             if days >= 15 {
                 self.lawfare = None;
-                self.log.push(format!("t{}: the court finds for the cause - but the org's thinner for the winning of it.", tick));
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the court finds for the cause - but the org's thinner for the winning of it.", tick));
             }
             return;
         }
@@ -2748,7 +3105,7 @@ impl Game {
             let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
             if w.paranoia < 0.5 { continue; }
             self.lawfare = Some((tick, tick));
-            self.log.push(format!("t{}: a summons on parchment - the lord's own court calls the cause to answer. The fees begin.", tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!("t{}: a summons on parchment - the lord's own court calls the cause to answer. The fees begin.", tick));
             return;
         }
     }
@@ -2780,7 +3137,7 @@ impl Game {
         // the oath's own stake: at high penetration and a curse-backed
         // oath, the discovered oath's a crime against the org itself
         if self.penetration > 0.6 && self.oath_intensity >= 2 {
-            self.log.push(format!("t{}: the eyes find the oath's own writing - the secret's a charge now, not a whisper.", tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), format!("t{}: the eyes find the oath's own writing - the secret's a charge now, not a whisper.", tick));
         }
     }
 
@@ -2814,7 +3171,10 @@ impl Game {
             crate::sim::religion::CollapseMode::Deadline => "the fold's own date comes",
             crate::sim::religion::CollapseMode::Institutionalization => "the fold becomes a sect",
         };
-        self.log.push(format!("t{}: {} - the cage breaks its own way.", tick, name));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Positive, Sev::Major),
+            format!("t{}: {} - the cage breaks its own way.", tick, name),
+        );
     }
 
     /// The cult's own drift: a hard head and a strict orthodoxy push
@@ -2900,7 +3260,7 @@ impl Game {
                     if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
                         o.members.push(v);
                     }
-                    self.log.push(format!("t{}: an intermediary comes over - the broker reads the ground for the cause.", tick));
+                    self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor), format!("t{}: an intermediary comes over - the broker reads the ground for the cause.", tick));
                     self.world.remove_component::<crate::game::vocation::Broker>(v);
                     continue;
                 }
@@ -2980,7 +3340,13 @@ impl Game {
                 mm.form = if annulled { 1 } else { 2 };
             }
             if annulled {
-                self.log.push(format!("t{}: the union's declared never-was - the church's own reading of it.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: the union's declared never-was - the church's own reading of it.",
+                        tick
+                    ),
+                );
             } else {
                 // the deserter's own claim falls to the stayer: the
                 // purse and the stock stay with the one who kept the roof
@@ -2991,7 +3357,7 @@ impl Game {
                         sp.gold += share;
                     }
                 }
-                self.log.push(format!("t{}: a spouse walks - the deserter's claim falls to the one who kept the roof.", tick));
+                self.log.push_ev(EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Notable), format!("t{}: a spouse walks - the deserter's claim falls to the one who kept the roof.", tick));
             }
         }
     }
@@ -3018,7 +3384,13 @@ impl Game {
                 if let Some(h) = self.world.get_component_mut::<crate::sim::illness::Health>(v) {
                     h.condition = (h.condition - 0.15).max(0.1);
                 }
-                self.log.push(format!("t{}: the trade's own toll shows - the dust's in the bones now.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: the trade's own toll shows - the dust's in the bones now.",
+                        tick
+                    ),
+                );
             }
         }
     }
@@ -3061,7 +3433,7 @@ impl Game {
                         w.paranoia = (w.paranoia + 0.3).min(1.0);
                     }
                 }
-                self.log.push(format!("t{}: the emergency's just how things are now - the ban's the season, not the news.", tick));
+                self.log.push_ev(EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor), format!("t{}: the emergency's just how things are now - the ban's the season, not the news.", tick));
             }
             return;
         }
@@ -3085,7 +3457,7 @@ impl Game {
             self.emergency = Some((tick, tick + 20 + self.counter_intel as u64 * 4));
             self.witnesses = 0;
             self.suppression_arc = 3;
-            self.log.push(format!("t{}: a brawl at the granary - the lord calls it the cause's own doing and bans the square. The clock runs.", tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), format!("t{}: a brawl at the granary - the lord calls it the cause's own doing and bans the square. The clock runs.", tick));
             return;
         }
     }
@@ -3113,7 +3485,13 @@ impl Game {
                         self.world.add_component(m, crate::game::campaign::Plant(l));
                         self.plant = Some(m);
                         self.suppression_arc = 2;
-                        self.log.push(format!("t{}: a new face joins the cause - quiet, keeps to the edges.", tick));
+                        self.log.push_ev(
+                            EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                            format!(
+                                "t{}: a new face joins the cause - quiet, keeps to the edges.",
+                                tick
+                            ),
+                        );
                     }
                     return;
                 }
@@ -3127,7 +3505,7 @@ impl Game {
                     .map(|cc| cc.phase == crate::game::campaign::CampaignPhase::Action).unwrap_or(false));
             if acting {
                 self.proposal = Some(tick);
-                self.log.push(format!("t{}: one of them's for the torch - burn the lord's stores, they say, now while the eyes are on us.", tick));
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), format!("t{}: one of them's for the torch - burn the lord's stores, they say, now while the eyes are on us.", tick));
             }
         }
     }
@@ -3157,7 +3535,13 @@ impl Game {
                 from: l, role: crate::game::campaign::Role::Chair,
                 binding, offered: tick });
             self.suppression_arc = 1;
-            self.log.push(format!("t{}: the lord's man carries an offer - a seat on the board for the cause.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                format!(
+                    "t{}: the lord's man carries an offer - a seat on the board for the cause.",
+                    tick
+                ),
+            );
             return;
         }
     }
@@ -3201,7 +3585,14 @@ impl Game {
                     else { continue };
                 c.members.retain(|&x| x != m);
                 self.world.add_component(m, Apostate);
-                self.log.push(format!("t{}: {} walks out of the fold - the grievances outgrew the faith.", tick, self.name_of(m)));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: {} walks out of the fold - the grievances outgrew the faith.",
+                        tick,
+                        self.name_of(m)
+                    ),
+                );
             }
         }
     }
@@ -3239,7 +3630,13 @@ impl Game {
             if let Some(n) = next {
                 c.phase = n;
                 if n == crate::game::campaign::CampaignPhase::Action {
-                    self.log.push(format!("t{}: the campaign's season turns - the demands go to the street.", tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                        format!(
+                            "t{}: the campaign's season turns - the demands go to the street.",
+                            tick
+                        ),
+                    );
                 } else if n == crate::game::campaign::CampaignPhase::Listening {
                     done.push(e); // a settled campaign ends its season
                 }
@@ -3307,7 +3704,7 @@ impl Game {
             if w.paranoia > 0.6 && (tick.wrapping_mul(31).wrapping_add(l as u64)) % 1000 < 2 {
                 w.legitimacy = (w.legitimacy - 0.2).max(0.0);
                 w.paranoia = 0.0;
-                self.log.push(format!("t{}: the watchers are caught in the open - the lord's eyes cost him his standing.", tick));
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the watchers are caught in the open - the lord's eyes cost him his standing.", tick));
             }
         }
     }

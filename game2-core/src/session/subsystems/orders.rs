@@ -77,8 +77,13 @@ impl Game {
                     self.sites[si].treasury -= DAUGHTER_COST;
                     self.sites[fi].treasury += DAUGHTER_COST;
                     self.sites[fi].mother = Some(si);
-                    self.log.push(format!("t{}: {} plants a daughter house at {} under the same rule.",
-                        tick, o.charter, self.sites[fi].name));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                        format!(
+                            "t{}: {} plants a daughter house at {} under the same rule.",
+                            tick, o.charter, self.sites[fi].name
+                        ),
+                    );
                 }
             }
 
@@ -91,7 +96,7 @@ impl Game {
                     self.sites[liege].treasury += take;
                 }
                 let grabber = self.sites[si].liege.map(|l| self.sites[l].name).unwrap_or("the crown");
-                self.log.push(format!("t{}: {}'s men descended on {} and carried off the strongboxes - {:.0} gold for {}.",
+                self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), format!("t{}: {}'s men descended on {} and carried off the strongboxes - {:.0} gold for {}.",
                     tick, grabber, self.sites[si].name, take, grabber));
                 o.risk = 0.15;
             }

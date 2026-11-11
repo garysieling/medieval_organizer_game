@@ -46,7 +46,7 @@ impl Game {
             }).count();
             if strangers / folk > MIGRANT_SHARE || wives >= WIVES_SPEAKING {
                 self.petition = Some(Petition { started: tick, answer_on: tick + ANSWER_DAYS });
-                self.log.push(format!("t{}: the wives' petition goes up to the castle - drink's toll on the village, and the strangers who bring it.", tick));
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), format!("t{}: the wives' petition goes up to the castle - drink's toll on the village, and the strangers who bring it.", tick));
             }
         }
         let Some(p) = self.petition else { return };
@@ -54,10 +54,10 @@ impl Game {
         self.petition = None;
         if self.lord_esteem >= LORD_BAR {
             self.ordinance = Some(Ordinance { passed_on: tick, price_mult: 1.5, licensed: true });
-            self.log.push(format!("t{}: the lord grants the ordinance - drink dearer, earlier closing, no license no barrels.", tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Notable), format!("t{}: the lord grants the ordinance - drink dearer, earlier closing, no license no barrels.", tick));
         } else {
             self.repression_debt += 1;
-            self.log.push(format!("t{}: the petition comes back refused - the lord owes the wives nothing he can see.", tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!("t{}: the petition comes back refused - the lord owes the wives nothing he can see.", tick));
         }
     }
 }

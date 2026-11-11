@@ -1,0 +1,57 @@
+=== BALANCE TEST (seed 42, 400 days) ===
+
+-- fun (75%) --
+  [ OK ] time_to_first_reward       1.00 days     target 0.00-40.00   Civ's one-more-turn hook needs an early payoff; stream 1 puts it <=40t, red >80t
+  [ OK ] beat_density               7.00 beats/10d target 2.00-8.00   decision_density 2-6/10d, recalibrated 2-8 after beats went valence-only and the village grew livelier (births, migrants, rare events): healthy runs read ~6.5
+  [ OK ] flatline_max               1.00 days     target 0.00-20.00   the fun rubric's standing rule: 10+ ticks with no change is the 'would alt-tab here' line
+  [FAIL] time_to_first_growth     400.00 days     target 0.00-120.00   org_growth_shape S-curve: first member by ~day 80-150; no growth at 250 reads as stalled
+
+-- balance (71%) --
+  [WARN] econ_gold_spread          10.61 top/mean target 0.50-8.00   wealth concentration: some spread is natural; >8x the mean is a sealed economy (prices sit on a fixed table, so the purse is the pulse)
+  [WARN] hunger_pressure            0.01 share    target 0.05-0.30   the review's pressure band: 0.05-0.30 of the village seeking food on a mean day; ~0 reads as a food system that never bites, >0.6 sustained is famine
+  [ OK ] starving_peak              0.00 share    target 0.00-0.05   the hard red line: anyone at <=10 hunger is in real trouble; >15% of the village there is a crisis
+  [ OK ] stockout_share             0.03 share    target 0.00-0.20   empty store most days is a food-chain softlock; scarcity is pressure, absence is a wall
+  [FAIL] food_cover_days            0.41 days     target 2.00-30.00   stock buffer coverage: under half a day per villager is famine-adjacent; the review wants a real buffer
+  [ OK ] mortality_per_100d         0.00 deaths/100d target 0.00-3.00   starvation+illness mortality ~1-8%/yr: >3/100d sustained is attrition a player can't attribute
+  [ OK ] world_liveliness           1.00 share    target 0.60-1.00   stuck-state detection: <5% flat windows is the review's line; a frozen sim can't teach
+
+-- narrative (88%) --
+  [WARN] beat_interval_cv           1.23 cv       target 0.30-1.20   the arcs review: CV 0.3-0.8 reads as drama, ~0 is a metronome, very high is dead air + pile-ups
+  [ OK ] live_threads               9.00 count    target 3.00-9.00   braided subplots: median 2-4 concurrent threads is the soap-opera floor, >6 is soup
+  [ OK ] resolution_rate            0.99 share    target 0.30-1.00   >=0.7 of threats resolve is the arcs review's bar; below a third answered, stories dangle
+  [ OK ] dead_air_max               9.00 days     target 0.00-60.00   event_drought <=60t with a >100t flag from the fun review - a valley, not a void
+
+-- reward (90%) --
+  [ OK ] reward_interval_cv         1.10 cv       target 0.50-1.20   VI-schedule flesh over the FI skeleton: reward intervals CV 0.5-1.2, metronome goes flat
+  [ OK ] reward_drought_max        11.00 days     target 0.00-60.00   the extinction window: >90d rewardless is where real players walk (K5/K6)
+  [WARN] valence_ratio              2.05 pos/neg  target 2.50-5.00   loss aversion ~2:1 + the 5:1 praise line: 2.5-5 good per bad is hard-but-fair; <1 is cruelty
+  [ OK ] punishment_warn            0.62 share    target 0.50-1.00   natural consequences need warning: writ before knights; <0.5 reads as arbitrary, breeds helplessness
+  [ OK ] shaping_slope              0.91 ratio    target 0.50-5.00   successive approximations: pressure ramps with the run - per head now, so growth doesn't read as rigging; >5x back-half spike does
+
+-- OKRs --
+  3/4  the run holds attention - payoff early, world alive, no dead stretches
+  4/7  hard but legible - scarcity without softlock, prices that breathe, losses that attribute
+  3/4  the village tells stories - braided threads on an irregular rhythm that resolve
+  4/5  rewards train the player - variable cadence, no extinction drought, fair warning before foul
+
+-- red flags --
+  ! time_to_first_growth = 400.00 days (target 0.00-120.00)
+  ! food_cover_days = 0.41 days (target 2.00-30.00)
+
+overall: 81/100 - rewarding - the game pays its debts
+-- last log lines --
+  t399: 13 keep the green word at the market cross.
+  t399: 3 keep the old rite in the grove.
+  t399: light rain begins
+  t399: You walk over to Willa.
+  t399: You walk over to Willa.
+  t399: You walk over to Willa.
+  t399: You walk over to Willa.
+  t399: You walk over to Willa.
+  t400: a child is born - a newcomer.
+  t400: the petition comes back refused - the lord owes the wives nothing he can see.
+  t400: the winter sets in hard - and looks to stay.
+  t400: Aldric has a small job going - pick them to hear it.
+  t400: rain begins
+  t400: Tilda tells Fenwick - word spreads of a stranger organizing
+  t400: You walk over to Willa.

@@ -78,23 +78,37 @@ impl Game {
         let s = spec(id);
         match id {
             EventId::RatPlague => {
-                self.log.push(format!("t{}: a plague of rats - they're in the thatch, the larders, everywhere.", self.tick));
-                self.toasts.push(("A plague of rats".into(), self.tick + 40));
+                self.log.push_ev(
+                    EvTag::new(Thread::Beast, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: a plague of rats - they're in the thatch, the larders, everywhere.",
+                        self.tick
+                    ),
+                );
+                self.toasts
+                    .push(("A plague of rats".into(), self.tick + 40));
             }
             EventId::WildBoar => {
-                self.log.push(format!("t{}: a wild boar's rooting about the beds - keep clear of her, she's no fool's game.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Beast, Valence::Neutral, Sev::Notable), format!("t{}: a wild boar's rooting about the beds - keep clear of her, she's no fool's game.", self.tick));
                 self.toasts.push(("A wild boar".into(), self.tick + 40));
             }
             EventId::OwlInTower => {
-                self.log.push(format!("t{}: an owl's moved into the tower - the mice had best learn quiet ways.", self.tick));
-                self.toasts.push(("An owl in the tower".into(), self.tick + 40));
+                self.log.push_ev(
+                    EvTag::new(Thread::Beast, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: an owl's moved into the tower - the mice had best learn quiet ways.",
+                        self.tick
+                    ),
+                );
+                self.toasts
+                    .push(("An owl in the tower".into(), self.tick + 40));
             }
             EventId::FishRun => {
-                self.log.push(format!("t{}: a fish run - the reach is alive with them, thick enough to grab with two hands.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Beast, Valence::Positive, Sev::Notable), format!("t{}: a fish run - the reach is alive with them, thick enough to grab with two hands.", self.tick));
                 self.toasts.push(("A fish run".into(), self.tick + 40));
             }
             EventId::CaterpillarYear => {
-                self.log.push(format!("t{}: a caterpillar year - the leaves are lacework, and the kids are out picking them off.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Beast, Valence::Negative, Sev::Minor), format!("t{}: a caterpillar year - the leaves are lacework, and the kids are out picking them off.", self.tick));
                 self.toasts.push(("A caterpillar year".into(), self.tick + 40));
                 // the kids have sport of it while the grown-ups fret
                 for &v in &self.villagers.clone() {
@@ -103,7 +117,12 @@ impl Game {
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
                 }
             }
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -124,7 +143,7 @@ impl Game {
             EventId::FoxInYard => {
                 if self.hens.is_empty() {
                     // the fox is seen all the same - nothing for it here
-                    self.log.push(format!("t{}: a fox slinks through the yard in the night - nothing for it here.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Beast, Valence::Neutral, Sev::Minor), format!("t{}: a fox slinks through the yard in the night - nothing for it here.", self.tick));
                 } else {
                     // a hen gone and the house grieves her - the same
                     // way the fox night does it, on a spare stream so
@@ -147,7 +166,7 @@ impl Game {
                     if let Some(&a) = crate::game::livestock::flock(&self.world, h).first() {
                         self.world.destroy_entity(a);
                         self.hens.retain(|&e| e != a);
-                        self.log.push_at_who(format!("t{}: a hawk stoops - a shadow falls on the green, and a hen's gone with it.", self.tick),
+                        self.log.push_ev_at_who(EvTag::new(Thread::Beast, Valence::Negative, Sev::Notable), format!("t{}: a hawk stoops - a shadow falls on the green, and a hen's gone with it.", self.tick),
                             toast_spot(&self.world, h), None);
                         // the folk see the shadow fall - the house grieves
                         // her the same as the night's take; the dead
@@ -160,8 +179,15 @@ impl Game {
                         }
                     }
                 } else {
-                    self.log.push_at_who(format!("t{}: a hawk stoops on the green - and finds the yard empty.", self.tick),
-                        toast_spot(&self.world, self.market_food), None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Beast, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: a hawk stoops on the green - and finds the yard empty.",
+                            self.tick
+                        ),
+                        toast_spot(&self.world, self.market_food),
+                        None,
+                    );
                 }
                 self.toasts.push(("A hawk stoops!".into(), self.tick + 40));
             }
@@ -173,7 +199,7 @@ impl Game {
                     p.next_ready = p.next_ready.max(self.tick + 60);
                 }
                 self.travels.retain(|t| !matches!(t.goal, Goal::ForageShroom(_)));
-                self.log.push(format!("t{}: locusts - the air's alive with them, and where they pass there's nothing green.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Beast, Valence::Negative, Sev::Notable), format!("t{}: locusts - the air's alive with them, and where they pass there's nothing green.", self.tick));
                 self.toasts.push(("Locusts!".into(), self.tick + 40));
             }
             EventId::Starlings => {
@@ -183,7 +209,7 @@ impl Game {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
                 }
-                self.log.push(format!("t{}: a murmuration - ten thousand wings writing on the sky, and nobody's eyes are on their work.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Beast, Valence::Neutral, Sev::Minor), format!("t{}: a murmuration - ten thousand wings writing on the sky, and nobody's eyes are on their work.", self.tick));
                 self.toasts.push(("A murmuration".into(), self.tick + 40));
             }
             EventId::BeeTree => {
@@ -216,11 +242,22 @@ impl Game {
                         }
                         self.say(o, "Worth every sting!", CHAT_BUBBLE_SECS);
                     }
-                    self.log.push_at_who(format!("t{}: a bee tree found - the combs come back dripping, stings and all.", self.tick),
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Beast, Valence::Positive, Sev::Minor),
+                        format!(
+                            "t{}: a bee tree found - the combs come back dripping, stings and all.",
+                            self.tick
+                        ),
                         toast_spot(&self.world, h),
                         occ.and_then(|o| self.villagers.iter().position(|&v| v == o)));
                 } else {
-                    self.log.push(format!("t{}: a bee tree's humming in the wood - nobody ventures the combs.", self.tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Beast, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: a bee tree's humming in the wood - nobody ventures the combs.",
+                            self.tick
+                        ),
+                    );
                 }
                 self.toasts.push(("A bee tree".into(), self.tick + 40));
             }
@@ -238,7 +275,7 @@ impl Game {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 10);
                 }
-                self.log.push_at_who(format!("t{}: a deer in the fields - a doe at dawn, grazing the beds slow, and the folk watch from the hedge.", self.tick),
+                self.log.push_ev_at_who(EvTag::new(Thread::Beast, Valence::Neutral, Sev::Minor), format!("t{}: a deer in the fields - a doe at dawn, grazing the beds slow, and the folk watch from the hedge.", self.tick),
                     deer_at, None);
                 self.toasts.push(("A deer in the fields".into(), self.tick + 40));
             }
@@ -260,21 +297,38 @@ impl Game {
                             household::take_stock(&mut b, &g.clone(), 2);
                         }
                     }
-                    self.log.push_at_who(format!("t{}: a mob of crows - they drop on the village in a black storm, and rise laughing.", self.tick),
+                    self.log.push_ev_at_who(EvTag::new(Thread::Beast, Valence::Neutral, Sev::Minor), format!("t{}: a mob of crows - they drop on the village in a black storm, and rise laughing.", self.tick),
                         toast_spot(&self.world, h), None);
                 } else {
                     // nothing stocked: they strip a bed instead
                     let beds_at = if !self.gardens.is_empty() {
                         let gi = (roll as usize / 3) % self.gardens.len();
                         self.gardens[gi].2 *= 0.6;
-                        Some((self.gardens[gi].1.0 as f32 + 0.5, self.gardens[gi].1.1 as f32 + 0.5))
-                    } else { None };
-                    self.log.push_at_who(format!("t{}: a mob of crows - they drop on the beds and strip what they find.", self.tick),
-                        beds_at, None);
+                        Some((
+                            self.gardens[gi].1 .0 as f32 + 0.5,
+                            self.gardens[gi].1 .1 as f32 + 0.5,
+                        ))
+                    } else {
+                        None
+                    };
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Beast, Valence::Negative, Sev::Minor),
+                        format!(
+                            "t{}: a mob of crows - they drop on the beds and strip what they find.",
+                            self.tick
+                        ),
+                        beds_at,
+                        None,
+                    );
                 }
                 self.toasts.push(("A mob of crows".into(), self.tick + 40));
             }
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -298,9 +352,16 @@ impl Game {
                     pets::adopt(&mut self.world, pet, m);
                     self.pets.push((pet, Species::Dog, (0.7, 0.4)));
                     desires::satisfy(&mut self.world, m, Want::Love, tick + 60);
-                    self.log_entity(m, format!("t{}: the stray won't go - {} has a dog now.", tick, name));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                        m,
+                        format!("t{}: the stray won't go - {} has a dog now.", tick, name),
+                    );
                 } else {
-                    self.log.push(format!("t{}: the stray drifts on down the road.", tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!("t{}: the stray drifts on down the road.", tick),
+                    );
                 }
             }
             EventId::StrayCat => {
@@ -326,9 +387,15 @@ impl Game {
                     self.pets.push((e, Species::Cat, (0.7, 0.4)));
                     // she's yours now - the event lets its figure go, so
                     // the road doesn't walk her off and destroy her
-                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == EventId::StrayCat) { r.e = None; }
-                    self.log.push_at_who(format!("t{}: the cat's made her choice - she's yours now.", tick),
-                        toast_spot(&self.world, e), None);
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == EventId::StrayCat) {
+                        r.e = None;
+                    }
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                        format!("t{}: the cat's made her choice - she's yours now.", tick),
+                        toast_spot(&self.world, e),
+                        None,
+                    );
                 } else {
                     // the loneliest hearth takes her in - cats decide too;
                     // a hearth behind bars is no hearth to her
@@ -348,9 +415,19 @@ impl Game {
                         pets::adopt(&mut self.world, pet, m);
                         self.pets.push((pet, Species::Cat, (0.7, 0.4)));
                         desires::satisfy(&mut self.world, m, Want::Love, tick + 60);
-                        self.log_entity(m, format!("t{}: the cat's made her choice - {} has a cat now.", tick, name));
+                        self.log_entity_ev(
+                            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                            m,
+                            format!(
+                                "t{}: the cat's made her choice - {} has a cat now.",
+                                tick, name
+                            ),
+                        );
                     } else {
-                        self.log.push(format!("t{}: the cat slips off the way she came.", tick));
+                        self.log.push_ev(
+                            EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                            format!("t{}: the cat slips off the way she came.", tick),
+                        );
                     }
                 }
             }

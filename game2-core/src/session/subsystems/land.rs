@@ -165,8 +165,16 @@ impl Game {
                     && self.world.get_component::<crate::sim::illness::SmallpoxVaccine>(v).is_none()) {
                     let v = self.villagers[i];
                     let d = self.world.create_entity();
-                    self.world.add_component(d, Disease::new(DiseaseKind::Smallpox, v, 0.8));
-                    self.log.push(format!("t{}: the speckled monster comes to {} - the pox is in the village.", tick, vill_name(i)));
+                    self.world
+                        .add_component(d, Disease::new(DiseaseKind::Smallpox, v, 0.8));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Illness, Valence::Negative, Sev::Major),
+                        format!(
+                            "t{}: the speckled monster comes to {} - the pox is in the village.",
+                            tick,
+                            vill_name(i)
+                        ),
+                    );
                 }
             }
             // the ague rides the autumn air off the marshes: homes by the
@@ -325,8 +333,17 @@ impl Game {
                 if c.workplace == Some(e) { c.workplace = None; }
             }
         }
-        self.log.push_at_who(format!("t{}: the {} is {} - the street will miss it.", self.tick, name, how), at, None);
-        self.toasts.push_at((format!("The {} is {}!", name, how), self.tick + 40), at);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Economy, Valence::Negative, Sev::Minor),
+            format!(
+                "t{}: the {} is {} - the street will miss it.",
+                self.tick, name, how
+            ),
+            at,
+            None,
+        );
+        self.toasts
+            .push_at((format!("The {} is {}!", name, how), self.tick + 40), at);
     }
 
     /// Whatever's alight on the map runs its course: spreading a tile a
@@ -407,8 +424,23 @@ impl Game {
             }
         }
         if !lit.is_empty() || !out.is_empty() {
-            let at = self.fire.burning.keys().next().map(|&(bx, by)| (bx as f32 + 0.5, by as f32 + 0.5));
-            self.log.push_at_who(format!("t{}: fire on the meadow - {} tiles alight, {} burnt out.", tick, lit.len(), out.len()), at, None);
+            let at = self
+                .fire
+                .burning
+                .keys()
+                .next()
+                .map(|&(bx, by)| (bx as f32 + 0.5, by as f32 + 0.5));
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Fire, Valence::Negative, Sev::Notable),
+                format!(
+                    "t{}: fire on the meadow - {} tiles alight, {} burnt out.",
+                    tick,
+                    lit.len(),
+                    out.len()
+                ),
+                at,
+                None,
+            );
         }
     }
 
@@ -466,7 +498,14 @@ impl Game {
         }
         if !self.fire_line_called && !self.fire_crew.is_empty() {
             self.fire_line_called = true;
-            self.log.push(format!("t{}: the bucket line forms - {} to the river!", self.tick, self.fire_crew.len()));
+            self.log.push_ev(
+                EvTag::new(Thread::Fire, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: the bucket line forms - {} to the river!",
+                    self.tick,
+                    self.fire_crew.len()
+                ),
+            );
         }
     }
 
@@ -641,7 +680,13 @@ impl Game {
         let Some(kind) = kind else { return };
         if self.sky.is_some() { return; }
         self.sky = Some((kind, tick + 3));
-        self.log.push(format!("t{}: a {} rides over the walls - everyone looks up.", tick, kind));
+        self.log.push_ev(
+            EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor),
+            format!(
+                "t{}: a {} rides over the walls - everyone looks up.",
+                tick, kind
+            ),
+        );
         for &v in &self.villagers.clone() {
             if villager::is_dead(&self.world, v) { continue; }
             // each reads it by what they carry
@@ -678,12 +723,24 @@ impl Game {
         // and the word of it comes first: ten days out, the wise say
         // winter'll run long - the village hears the lean months coming
         if tick % 730 == 390 {
-            self.log.push(format!("t{}: the wise say winter'll run long this year - best lay by.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: the wise say winter'll run long this year - best lay by.",
+                    tick
+                ),
+            );
         }
         if self.harsh_winter && !was {
-            self.log.push(format!("t{}: the winter sets in hard - and looks to stay.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable),
+                format!("t{}: the winter sets in hard - and looks to stay.", tick),
+            );
         }
         if !self.harsh_winter { return; }
+        if !self.harsh_winter {
+            return;
+        }
         // the snow keeps on
         if self.precip.is_none() { self.precip = Some(crate::sim::precipitation::PrecipKind::Flurries); }
         // the store thins
@@ -722,7 +779,13 @@ impl Game {
                         }
                     }
                     self.record_power(crate::sim::organized_power::ActionQuality::Transformational);
-                    self.log.push(format!("t{}: the village pulls together - the org shares out what it has.", tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                        format!(
+                            "t{}: the village pulls together - the org shares out what it has.",
+                            tick
+                        ),
+                    );
                 }
             } else {
                 // someone to blame: the herb-wife first, then the
@@ -734,7 +797,7 @@ impl Game {
                 if let Some(s) = scapegoat {
                     desires::add_grievance(&mut self.world, s, desires::Problem::Blamed, tick + 45);
                     if tick % 60 == 10 {
-                        self.log.push(format!("t{}: thin stores make thin tempers - they're saying things of the herb-wife.", tick));
+                        self.log.push_ev(EvTag::new(Thread::Economy, Valence::Negative, Sev::Minor), format!("t{}: thin stores make thin tempers - they're saying things of the herb-wife.", tick));
                     }
                 }
             }
@@ -762,8 +825,15 @@ impl Game {
                 if self.map.trees.iter().any(|&(tx, ty)|
                     (p.x.round() as i32 - tx).abs() <= 1 && (p.y.round() as i32 - ty).abs() <= 1) {
                     self.apply_penalty(i, v, "poaching", tick);
-                    self.log_entity(v, format!("t{}: {} taken poaching in the chase - the sheriff answers.",
-                        tick, self.name_of(v)));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                        v,
+                        format!(
+                            "t{}: {} taken poaching in the chase - the sheriff answers.",
+                            tick,
+                            self.name_of(v)
+                        ),
+                    );
                     break;
                 }
             }
@@ -793,15 +863,27 @@ impl Game {
         }
         for i in done.into_iter().rev() {
             let site = self.construction_sites.remove(i);
-            let b = self.country_building(site.kind, "the new work".into(),
-                site.tile.0, site.tile.1);
-            self.log.push(format!("t{}: the work stands at last - the village's {} roof rises.", tick, b));
+            let b =
+                self.country_building(site.kind, "the new work".into(), site.tile.0, site.tile.1);
+            self.log.push_ev(
+                EvTag::new(Thread::Craft, Valence::Positive, Sev::Notable),
+                format!(
+                    "t{}: the work stands at last - the village's {} roof rises.",
+                    tick, b
+                ),
+            );
             self.built_count += 1;
         }
         // a site whose crew never came goes to weather: the log names it once
         for site in self.construction_sites.iter_mut() {
             if site.stalled_days == 7 {
-                self.log.push(format!("t{}: the work on the new ground stands unfinished - no hands came.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Craft, Valence::Negative, Sev::Minor),
+                    format!(
+                        "t{}: the work on the new ground stands unfinished - no hands came.",
+                        tick
+                    ),
+                );
             }
         }
     }
@@ -830,7 +912,13 @@ impl Game {
                 if let Some(c) = self.world.get_component_mut::<crate::game::villager::Crop>(ce) {
                     if c.growth > 0.0 {
                         c.growth = 0.0;
-                        self.log.push(format!("t{}: the water takes a field - the year's work's under it.", tick));
+                        self.log.push_ev(
+                            EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable),
+                            format!(
+                                "t{}: the water takes a field - the year's work's under it.",
+                                tick
+                            ),
+                        );
                     }
                 }
             }

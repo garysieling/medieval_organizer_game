@@ -46,7 +46,8 @@ impl Game {
         });
         let at = prophetic::prophet_tile(&self.world, self.prophet_movement.as_ref().unwrap())
             .map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5));
-        self.log.push_at_who(
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
             format!("t{}: {} has taken the calling - and names the day it all comes due.", tick, self.name_of(prophet)),
             at, None);
     }
@@ -97,7 +98,8 @@ impl Game {
         }
         // the day draws near: the closer the deadline, the louder the word
         if !remnant && left > 0 && (left == 14 || left == 7 || left == 1) {
-            self.log.push_at_who(
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
                 format!("t{}: {} says the day is {} off - the crowd can barely wait.", tick, name, left),
                 Some((at.0 as f32 + 0.5, at.1 as f32 + 0.5)), None);
         }
@@ -117,7 +119,13 @@ impl Game {
                 self.world.remove_component::<Follower>(v);
             }
             self.prophet_movement = None;
-            self.log.push(format!("t{}: the named day came and went - the crowd drifts back to its work.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                format!(
+                    "t{}: the named day came and went - the crowd drifts back to its work.",
+                    tick
+                ),
+            );
         } else {
             // the remnant: most leave, the hardened few stay and the
             // vision grows teeth
@@ -130,8 +138,10 @@ impl Game {
                     self.world.remove_component::<Follower>(v);
                 }
             }
-            if let Some(m) = &mut self.prophet_movement { m.remnant = true; }
-            self.log.push(format!("t{}: the day failed - but {} won't hear it, and the few who stayed grow harder.", tick, name));
+            if let Some(m) = &mut self.prophet_movement {
+                m.remnant = true;
+            }
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the day failed - but {} won't hear it, and the few who stayed grow harder.", tick, name));
         }
     }
 
@@ -161,7 +171,7 @@ impl Game {
                 self.world.add_component(v, Follower { since: tick, remnant });
                 joined += 1;
             }
-            self.log.push_at_who(
+            self.log.push_ev_at_who(EvTag::new(Thread::Org, Valence::Negative, Sev::Major),
                 format!("t{}: they made a martyr of {} - and the grave draws a crowd the man never did.", tick, name),
                 at.map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5)), None);
         } else {
@@ -171,7 +181,7 @@ impl Game {
                 self.world.remove_component::<Follower>(v);
             }
             self.prophet_movement = None;
-            self.log.push(format!("t{}: with {} gone the fire goes out of them - the crowd's just neighbours again.", tick, name));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor), format!("t{}: with {} gone the fire goes out of them - the crowd's just neighbours again.", tick, name));
         }
     }
 }

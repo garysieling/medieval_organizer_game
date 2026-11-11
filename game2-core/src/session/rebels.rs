@@ -233,7 +233,7 @@ impl Game {
             for &v in &members {
                 if !villager::is_dead(&self.world, v) { self.plan_rebel_day(v, self.tick, &mut rng); }
             }
-            self.log.push_at_who(format!("t{}: rebels come out of the trees at {} - the escort stands to them and they melt away.", self.tick, name),
+            self.log.push_ev_at_who(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!("t{}: rebels come out of the trees at {} - the escort stands to them and they melt away.", self.tick, name),
                 Some((at.0, at.1)), self.villagers.iter().position(|&x| x == who));
             return;
         }
@@ -303,9 +303,16 @@ impl Game {
         } else {
             format!("t{}: rebels fall on {} on the road - {} is scattered: nothing comes through.", self.tick, name, what)
         };
-        self.log.push_at_who(line, Some((at.0, at.1)),
-            self.villagers.iter().position(|&x| x == who));
-        self.toasts.push_at((format!("Rebels hit {} on the road!", name), self.tick + 40), Some((at.0, at.1)));
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+            line,
+            Some((at.0, at.1)),
+            self.villagers.iter().position(|&x| x == who),
+        );
+        self.toasts.push_at(
+            (format!("Rebels hit {} on the road!", name), self.tick + 40),
+            Some((at.0, at.1)),
+        );
         if spoils {
             let tile = self.cache_spot(at_tile).unwrap();
             self.rebel_stores.push(RebelStore { tile, goods: took, gold,

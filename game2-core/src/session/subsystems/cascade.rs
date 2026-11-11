@@ -133,7 +133,8 @@ impl Game {
         }
         for (kind, beat) in beats {
             self.cascade_tale.push(crate::sim::story::StoryEvent { tick, kind, description: beat.clone() });
-            self.log.push(format!("t{}: {}.", tick, beat));
+            self.log
+                .push_ev(EvTag::for_kind(kind), format!("t{}: {}.", tick, beat));
         }
         // the tale is a working window: forget the settled dominos, cap the rest
         self.cascade_tale.retain(|e| tick.saturating_sub(e.tick) <= TALE_DAYS);
@@ -152,6 +153,12 @@ impl Game {
         }
         let Some(st) = crate::sim::story::detect_cascade(&self.cascade_tale) else { return };
         self.cascade_named_at = Some(tick);
-        self.log.push(format!("t{}: they will speak of this stretch as {}.", tick, st.title));
+        self.log.push_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Notable),
+            format!(
+                "t{}: they will speak of this stretch as {}.",
+                tick, st.title
+            ),
+        );
     }
 }

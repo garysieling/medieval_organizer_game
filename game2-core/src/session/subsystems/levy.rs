@@ -27,13 +27,19 @@ impl Game {
         if self.imperial_project.is_none() && tick % 360 == 45 && self.rng.below(3) == 0 {
             self.imperial_project = Some(ImperialProject { until: tick + LEVY_DAYS,
                 rate: LEVY_RATE, eased_until: 0 });
-            self.log.push(format!("t{}: the emperor's collector rides through - the crown levies the stores for a great work far away.", tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!("t{}: the emperor's collector rides through - the crown levies the stores for a great work far away.", tick));
         }
         let Some(proj) = self.imperial_project.as_ref() else { return };
         let (until, rate, mut eased) = (proj.until, proj.rate, proj.eased_until);
         if tick >= until {
             self.imperial_project = None;
-            self.log.push(format!("t{}: the collector's road turns back - the emperor's levy is lifted.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Positive, Sev::Notable),
+                format!(
+                    "t{}: the collector's road turns back - the emperor's levy is lifted.",
+                    tick
+                ),
+            );
             return;
         }
         // the org presses the lord to intercede: standing enough, and
@@ -44,7 +50,13 @@ impl Game {
             if presses && self.lord_esteem >= 0.5 && tick % 10 == 0 && self.rng.below(3) == 0 {
                 eased = tick + EASE_DAYS;
                 self.imperial_project.as_mut().unwrap().eased_until = eased;
-                self.log.push(format!("t{}: the lord intercedes with the crown - the levy eases for a stretch.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Law, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: the lord intercedes with the crown - the levy eases for a stretch.",
+                        tick
+                    ),
+                );
             }
         }
         // the crown's cart: the take rides the road as real provisions
@@ -74,8 +86,13 @@ impl Game {
             .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32))
             .unwrap_or(self.sites[si].centre);
         if self.send_far(rider, door, Goal::LevyCart(si)) {
-            self.log.push(format!("t{}: the crown's cart loads for {} - {} provisions out of the store.", tick,
-                self.sites[si].name, took));
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                format!(
+                    "t{}: the crown's cart loads for {} - {} provisions out of the store.",
+                    tick, self.sites[si].name, took
+                ),
+            );
         }
     }
 }

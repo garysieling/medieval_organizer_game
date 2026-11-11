@@ -42,8 +42,13 @@ impl Game {
                     title: st.title.clone(), build_until: tick + BUILD_DAYS, stood_on: None,
                     kind: MonumentKind::Column });
                 self.map.occupy(spot.0, spot.1);
-                self.log.push(format!("t{}: {}'s lord pays for a monument to {} - {}. It rises at the cross.",
-                    tick, self.sites[ci].name, name, st.title));
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Notable),
+                    format!(
+                        "t{}: {}'s lord pays for a monument to {} - {}. It rises at the cross.",
+                        tick, self.sites[ci].name, name, st.title
+                    ),
+                );
                 break;
             }
         }
@@ -68,17 +73,27 @@ impl Game {
                 title: format!("the ring of {}", oname), build_until: tick + CIRCLE_BUILD_DAYS,
                 stood_on: None, kind: MonumentKind::Circle });
             self.map.occupy(spot.0, spot.1);
-            self.log.push(format!("t{}: {} resolves to raise a ring of stones - the stones stand on the hill by the village.",
+            self.log.push_ev(EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor), format!("t{}: {} resolves to raise a ring of stones - the stones stand on the hill by the village.",
                 tick, oname));
         }
         // it stands when its days are done
         for m in self.monuments.iter_mut().filter(|m| m.stood_on.is_none() && tick >= m.build_until) {
             m.stood_on = Some(tick);
             if m.kind == MonumentKind::Circle {
-                self.log.push(format!("t{}: the stones stand - {}'s ring is raised on the hill.", tick, m.title));
+                self.log.push_ev(
+                    EvTag::new(Thread::Craft, Valence::Positive, Sev::Notable),
+                    format!(
+                        "t{}: the stones stand - {}'s ring is raised on the hill.",
+                        tick, m.title
+                    ),
+                );
             } else {
-                let name = if m.honoree == usize::MAX { "the one who moved on" } else { vill_name(m.honoree) };
-                self.log.push(format!("t{}: the monument stands - {} is remembered. {}'s stone rises at the cross.",
+                let name = if m.honoree == usize::MAX {
+                    "the one who moved on"
+                } else {
+                    vill_name(m.honoree)
+                };
+                self.log.push_ev(EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable), format!("t{}: the monument stands - {} is remembered. {}'s stone rises at the cross.",
                     tick, name, name));
             }
         }

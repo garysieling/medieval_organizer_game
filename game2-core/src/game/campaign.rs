@@ -217,7 +217,7 @@ fn reveals_of(world: &World, member: Entity, tick: u64) -> Vec<Reveal> {
 /// the framing by.
 pub fn stake_for(world: &World, member: Entity, tag: &IssueTag, tick: u64) -> Option<Reveal> {
     reveals_of(world, member, tick).into_iter()
-        .find(|r| desires::issue_tag(world, member, r) == *tag)
+        .find(|r| desires::tag_stands(tag, &desires::issue_tag(world, member, r)))
 }
 
 /// The candidate a member votes for: the one whose tag matches their
@@ -235,7 +235,7 @@ fn vote_for(world: &World, member: Entity, candidates: &[IssueTag], tick: u64) -
     // Most matching stakes wins; an equal match keeps the recommended order
     let mut best: Option<(usize, &IssueTag)> = None;
     for c in candidates {
-        let n = tags.iter().filter(|t| *t == c).count();
+        let n = tags.iter().filter(|t| desires::tag_stands(c, t)).count();
         if n > 0 && best.map(|(b, _)| n > b).unwrap_or(true) { best = Some((n, c)); }
     }
     best.map(|(_, c)| c.clone())
@@ -1204,5 +1204,50 @@ mod tests {
         hold_campaign_meeting(&mut w, c, 8);
         assert!(w.get_component::<OrganizedPower>(o).unwrap().capacity > before,
             "a meeting people actually attend builds the muscle");
+    }
+    #[test]
+    fn test_clustered_tags_put_the_theme_on_the_ballot() {
+        // grievances in one cluster gather under the platform's name;
+        // a thinner issue keeps its own (#1072)
+        let ps = desires::platforms(&[
+            "the taxes".to_string(), "the fevers".to_string(),
+            "the bailiff's writ".to_string(), "the vote".to_string()]);
+        assert_eq!(ps.len(), 3);
+        assert_eq!(ps[0].0, "hard times under the lord's hand");
+        assert_eq!(ps[0].1, vec!["the taxes".to_string(), "the bailiff's writ".to_string()]);
+        assert_eq!(ps[1].0, "the fevers", "a lone tag stays its own thin issue");
+        assert_eq!(ps[2].0, "the vote", "the suffrage keeps its own name");
+
+        // a member's stake in any constituent tag stands for the theme
+        let mut w = World::new();
+        let taxed = member(&mut w);
+        add_grievance(&mut w, taxed, Problem::Taxed, 100);
+        let written = member(&mut w);
+        add_grievance(&mut w, written, Problem::WritBorne, 100);
+        let o = org(&mut w, &[taxed, written]);
+        let candidates = vec!["hard times under the lord's hand".to_string(), "the fevers".to_string()];
+        let vote = hold_issue_vote(&w, o, &candidates, Framing::SharedGrievance, 10).unwrap();
+        assert_eq!(vote.winner, "hard times under the lord's hand",
+            "the tax grievance and the writ both stand for the lord's-hand theme");
+        assert!(vote.ballots.iter().all(|b| b.stake.is_some()),
+            "every voter's stake resolves inside the theme");
+        assert!(stake_for(&w, taxed, &vote.winner, 10).is_some(),
+            "the platform's name reaches a constituent stake");
+    }
+
+    #[test]
+    fn test_a_theme_outvotes_its_own_thin_tags() {
+        // the platform gathers stakes its separate tags would have
+        // split: taxed + writ outvote the single fever (#1072)
+        let mut w = World::new();
+        let (a, b, c) = (member(&mut w), member(&mut w), member(&mut w));
+        add_grievance(&mut w, a, Problem::Taxed, 100);
+        add_grievance(&mut w, b, Problem::WritBorne, 100);
+        add_grievance(&mut w, c, Problem::Sick, 100);
+        let o = org(&mut w, &[a, b, c]);
+        let candidates = vec!["the fevers".to_string(), "hard times under the lord's hand".to_string()];
+        let vote = hold_issue_vote(&w, o, &candidates, Framing::SharedGrievance, 10).unwrap();
+        assert_eq!(vote.winner, "hard times under the lord's hand",
+            "two clustered stakes beat one thin one even recommended second");
     }
 }

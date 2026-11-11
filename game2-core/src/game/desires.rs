@@ -345,6 +345,86 @@ pub fn issue_name(tag: IssueTag) -> String {
     }
 }
 
+/// The themes an organizer reads into a tangle of grievances (#1072):
+/// (key, the platform's name, the issue bases that fold into it). A
+/// campaign fights a theme, not a thin tag - "the sickness and what it
+/// took", not "the sour gut". Trade-scoped tags cluster on their base.
+/// The faith and the suffrage keep their own names - a conversion
+/// campaign's issue IS the faith's own and the vote's marker must read
+/// back literally.
+const CLUSTERS: &[(&str, &str, &[&str])] = &[
+    ("bread", "the bread that runs short",
+     &["hunger", "the empty pot", "the bad bread"]),
+    ("sickness", "the sickness and what it took",
+     &["the fevers", "the sour gut", "the grief", "the loss"]),
+    ("lords_hand", "hard times under the lord's hand",
+     &["the taxes", "the bailiff's writ", "the death duty", "poverty",
+       "the reckoning that didn't add up"]),
+    ("safety", "folk who can't sleep safe",
+     &["security", "the thieves", "the wolves", "the rowdy", "the dark"]),
+    ("shelter", "roofs and warm hearths",
+     &["housing", "cold hearths"]),
+    ("trades", "the trades squeezed dry",
+     &["workplaces", "materials", "tools", "apprenticeship", "mastery",
+       "restlessness", "empty shops", "the overseers' cut", "honest work's stink"]),
+    ("land", "the land turning hard",
+     &["the shrinking wood", "the drowned pit", "the stinking reach", "the long winter"]),
+    ("hearts", "the village's weary heart",
+     &["loneliness", "music", "comfort", "the drink", "the road's pull"]),
+    ("children", "the little ones' lot",
+     &["child labor", "joy"]),
+];
+
+/// The cluster key a tag folds into (a scoped tag counts on its base -
+/// "materials (baker)" gathers with the trades); None for a tag no
+/// theme owns - it keeps its own name on the ballot
+pub fn cluster_of(tag: &IssueTag) -> Option<&'static str> {
+    let base = tag.split_once(" (").map(|(b, _)| b).unwrap_or(tag.as_str());
+    CLUSTERS.iter().find(|(_, _, ts)| ts.contains(&base)).map(|(k, _, _)| *k)
+}
+
+/// The platform name for a cluster key
+fn cluster_name(key: &'static str) -> &'static str {
+    CLUSTERS.iter().find(|(k, _, _)| *k == key).map(|(_, n, _)| *n).unwrap_or(key)
+}
+
+/// The cluster a synthesized platform name speaks for (a ballot
+/// candidate that is a theme reads back to its key; anything else
+/// isn't a platform at all)
+pub fn platform_of(tag: &IssueTag) -> Option<&'static str> {
+    CLUSTERS.iter().find(|(_, n, _)| tag == n).map(|(k, _, _)| *k)
+}
+
+/// Whether a member's tag counts toward a ballot candidate: an exact
+/// match, or the member's tag folds into the theme the candidate names
+/// (#1072 - a voter's sour gut stands for the sickness platform)
+pub fn tag_stands(candidate: &IssueTag, tag: &IssueTag) -> bool {
+    if candidate == tag { return true; }
+    platform_of(candidate).map(|k| cluster_of(tag) == Some(k)).unwrap_or(false)
+}
+
+/// What the ballot names: the issues as the organizer frames them, one
+/// candidate per cluster holding two or more issues (the candidate is
+/// the platform's name), each thinner issue keeping its own tag.
+/// Order follows the issues' order - the cluster lands where its first
+/// issue stood. Returns (candidate, its member tags) pairs.
+pub fn platforms(issues: &[IssueTag]) -> Vec<(IssueTag, Vec<IssueTag>)> {
+    let mut slots: Vec<(Option<&'static str>, Vec<IssueTag>)> = vec![];
+    for t in issues {
+        match cluster_of(t) {
+            Some(k) => match slots.iter_mut().find(|(s, _)| *s == Some(k)) {
+                Some((_, ts)) => ts.push(t.clone()),
+                None => slots.push((Some(k), vec![t.clone()])),
+            },
+            None => slots.push((None, vec![t.clone()])),
+        }
+    }
+    slots.into_iter().map(|(k, ts)| match k {
+        Some(k) if ts.len() > 1 => (cluster_name(k).to_string(), ts),
+        _ => (ts[0].clone(), ts),
+    }).collect()
+}
+
 /// How a want reads on a character card once revealed
 pub fn want_label(w: Want) -> &'static str {
     match w {

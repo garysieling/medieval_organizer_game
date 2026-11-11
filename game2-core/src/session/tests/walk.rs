@@ -5,21 +5,56 @@ fn put_player(game: &mut Game, x: f32, y: f32) {
 }
 
 #[test]
-fn test_the_player_cant_walk_into_a_building_but_can_go_round_behind() {
+fn test_the_player_walks_straight_through_a_town_building() {
     let mut game = Game::new();
-    // a building with open ground to the west and behind it - the town
-    // is built up enough that the first cottage won't do
+    // a building with open ground either side along +x
     let (bx, by, _) = *game.buildings.iter().find(|&&(bx, by, _)| {
-        game.walkable(bx - 1.0, by) && game.walkable(bx - 2.0, by)
-            && [(bx - 1.0, by), (bx, by - 1.0)].iter().any(|&(x, y)| game.walkable(x, y))
-    }).expect("a building with open ground behind it");
-    // walking straight at it (along +x) stops at the building's tile
+        game.walkable(bx - 1.0, by) && game.walkable(bx - 2.0, by) && game.walkable(bx + 1.0, by)
+    }).expect("a building with open ground either side");
+    // walking straight at it goes through it and out the far side - a
+    // building's walls are for the village, not the player's feet
     put_player(&mut game, bx - 2.0, by);
-    for _ in 0..60 { game.walk(1.0, 0.0); }
+    for _ in 0..90 { game.walk(1.0, 0.0); }
     let (px, _) = game.player_pos();
-    assert!(px.round() < bx, "walked into the building at {} (player at {})", bx, px);
-    // but the tiles behind it (farther from the viewer) are open ground
-    assert!([(bx - 1.0, by), (bx, by - 1.0)].iter().any(|&(x, y)| game.walkable(x, y)), "can't get behind the building");
+    assert!(px.round() > bx, "the player didn't get through the building at {} (stuck at {})", bx, px);
+}
+
+#[test]
+fn test_a_seat_stuck_inside_a_building_walks_out() {
+    // the bug this fix is for: a seat that ends up on a building's tile
+    // (a house raised round them, a bad spawn) could never step off -
+    // every neighbour read unwalkable and they were pinned for good
+    let mut game = Game::new();
+    let (bx, by, _) = *game.buildings.iter().find(|&&(bx, by, _)| {
+        game.walkable(bx - 1.0, by) || game.walkable(bx + 1.0, by) || game.walkable(bx, by - 1.0) || game.walkable(bx, by + 1.0)
+    }).expect("a building with a way out");
+    // at least one direction must let them leave the tile entirely
+    let can_leave = [(1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)].iter().any(|&(dx, dy)| {
+        put_player(&mut game, bx, by);
+        for _ in 0..30 { game.walk(dx, dy); }
+        let (px, py) = game.player_pos();
+        (px.round() as i32, py.round() as i32) != (bx.round() as i32, by.round() as i32)
+    });
+    assert!(can_leave, "the seat is still trapped on the building tile ({},{})", bx, by);
+}
+
+#[test]
+fn test_the_player_still_cant_walk_through_a_wall() {
+    let mut game = Game::new();
+    // a real wall tile (not a gate - those stay open) with open ground
+    // beside it to stand on
+    let (wx, wy) = game.map.walls.iter()
+        .filter(|&&(_, piece)| !matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY))
+        .map(|&((x, y), _)| (x, y))
+        .find(|&(x, y)| game.map.is_occupied(x, y)
+            && (game.walkable_for(0, x as f32 - 1.0, y as f32) || game.walkable_for(0, x as f32 + 1.0, y as f32)))
+        .expect("a wall tile with open ground beside it");
+    let side = if game.walkable_for(0, wx as f32 - 1.0, wy as f32) { -1.0 } else { 1.0 };
+    put_player(&mut game, wx as f32 + side, wy as f32);
+    for _ in 0..60 { game.walk(-side, 0.0); }
+    let (px, py) = game.player_pos();
+    assert!((px.round() as i32, py.round() as i32) != (wx, wy),
+        "the player walked through the wall at ({},{}) to ({:.1},{:.1})", wx, wy, px, py);
 }
 
 #[test]
@@ -61,9 +96,10 @@ fn test_roads_are_quicker() {
 }
 
 #[test]
-fn test_a_fast_clock_still_stops_at_a_building() {
-    // at speed 16 a frame's stride is over two tiles: the wall between
-    // here and the far side must still be walked, not leapt
+fn test_a_fast_clock_crosses_a_building_cleanly() {
+    // at speed 16 a frame's stride is over two tiles: the building's
+    // tile must still be stepped through, not hopped past and not
+    // caught inside either - half-tile steps carry them cleanly across
     let mut game = Game::new();
     game.speed = 16;
     let (bx, by, _) = *game.buildings.iter().find(|&&(bx, by, _)| {
@@ -72,7 +108,7 @@ fn test_a_fast_clock_still_stops_at_a_building() {
     put_player(&mut game, bx - 3.0, by);
     for _ in 0..60 { game.walk(1.0, 0.0); }
     let (px, _) = game.player_pos();
-    assert!(px.round() < bx, "a fast stride leapt the building at {} (player at {})", bx, px);
+    assert!(px.round() > bx, "a fast stride stalled on the building at {} (player at {})", bx, px);
 }
 
 #[test]

@@ -696,7 +696,7 @@ impl Game {
             trains: self.travels.iter()
                 .filter(|t| matches!(t.goal, Goal::Cart(_) | Goal::Levy(..)
                     | Goal::Deliver(_) | Goal::Remit(..) | Goal::Owe(..)
-                    | Goal::Gift(..)))
+                    | Goal::Gift(..) | Goal::LevyCart(_)))
                 .filter_map(|t| world.get_component::<Pos>(t.who)
                     .map(|p| (p.x, p.y))).collect(),
         }

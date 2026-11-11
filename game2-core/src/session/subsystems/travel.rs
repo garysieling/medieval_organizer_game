@@ -34,7 +34,7 @@ impl Game {
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
             Goal::Gather(..) => return false, // gathers go through send_gather
             Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(..) | Goal::Post(_)
-            | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..) => return false, // country walks go through send_far
+            | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..) | Goal::LevyCart(_) => return false, // country walks go through send_far
             Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
             Goal::AttendRite => return false, // rites walk to their tile through send_tile_walk
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
@@ -282,7 +282,8 @@ impl Game {
         }
         // no ride, no flag: whoever's off the road seeks food again
         let stray: Vec<Entity> = self.world.query::<villager::OnTheRoad>().iter().copied()
-            .filter(|&w| !self.travels.iter().any(|t| t.who == w && matches!(t.goal, Goal::Remit(..))))
+            .filter(|&w| !self.travels.iter().any(|t| t.who == w
+                && matches!(t.goal, Goal::Remit(..) | Goal::LevyCart(_))))
             .collect();
         for w in stray { self.world.remove_component::<villager::OnTheRoad>(w); }
     }
@@ -625,6 +626,7 @@ impl Game {
             Goal::Owe(from, to, gold) => self.arrive_owe(who, from, to, gold),
             Goal::Gift(from, to) => self.arrive_gift(who, from, to),
             Goal::Escort(from, to) => self.arrive_escort(who, from, to),
+            Goal::LevyCart(castle) => self.arrive_levy_cart(who, castle),
             Goal::TendGarden(gi) => {
                 // weeding and picking: the bed yields into the house's
                 // stock, and the tending itself is a small joy

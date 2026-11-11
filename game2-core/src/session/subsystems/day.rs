@@ -2,6 +2,10 @@
 
 use crate::session::*;
 
+/// The stalls' fees: the share of the takings the market's own claim
+/// keeps home while its interest stands (#970)
+const STALLS_FEES_SHARE: f32 = 0.4;
+
 impl Game {
     /// The town's business each day: work, errands, the tax round, the
     /// trader's restock, the odd minstrel, a tune in the street
@@ -142,12 +146,29 @@ impl Game {
                     self.send(c, Goal::CollectTax(target));
                 }
             }
-            // and rides out with the takings: the lord's cut is the
-            // lord's - his books hand it over, whatever his own purse
-            // holds, and what's his stays his
+            // and rides out with the takings: the claim's holder takes
+            // the stalls' fees first - the market's own people keep the
+            // market's own share while the interest stands (#970). The
+            // lord's cut is the lord's - his books hand it over,
+            // whatever his own purse holds, and what's his stays his
             if tick % 60 == 45 && self.takings > 0.0 {
-                let remit = self.takings;
-                if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold -= remit.min(p.gold); }
+                let mut remit = self.takings;
+                // the claim on the stream: the market's people keep the
+                // stalls' fees in the market's own coffers - the ride's
+                // destination is whoever holds the claim
+                let claimant = self.market_claimant();
+                if let Some(f) = claimant {
+                    let fees = (remit * STALLS_FEES_SHARE).min(remit - 1.0).max(0.0);
+                    if fees > 0.0 {
+                        if let Some(o) = self.world.get_component_mut::<Organization>(f) {
+                            o.resources += fees;
+                        }
+                        remit -= fees;
+                        let name = self.world.get_component::<Organization>(f)
+                            .map(|o| o.name.clone()).unwrap_or_else(|| "the market".into());
+                        self.log.push(format!("t{}: the stalls' fees stay in the market - {:.0} gold to {}.", tick, fees, name));
+                    }
+                }
                 self.takings = 0.0;
                 self.log.push(format!("t{}: the collector rides to the castle - {:.0} gold of the lord's cut goes over the wall.", tick, remit));
                 // and he rides it there himself: the road to the nearest
@@ -162,7 +183,29 @@ impl Game {
                         .and_then(|&k| self.world.get_component::<Pos>(k).copied())
                         .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32))
                         .unwrap_or(self.sites[si].centre);
-                    let _ = self.send_far(c, door, Goal::Remit(si, remit));
+                    let paid = self.world.get_component_mut::<Purse>(c)
+                        .map(|p| { let n = remit.min(p.gold); p.gold -= n; n }).unwrap_or(0.0);
+                    if self.send_far(c, door, Goal::Remit(si, remit)) {
+                        // the claim's own people see its gold home: two
+                        // of the market's ride escort while the interest
+                        // holds the claim - a convoy the road can test
+                        if let Some(f) = claimant {
+                            if let Some(fac) = self.world.get_component::<crate::sim::factions::Faction>(f) {
+                                let guards: Vec<Entity> = crate::sim::factions::members_of(&self.world, fac)
+                                    .into_iter().filter(|&v| v != c
+                                        && self.site_of(v).is_none()
+                                        && !crate::game::dungeon::unavailable(&self.world, v)
+                                        && !self.travels.iter().any(|t| t.who == v))
+                                    .take(2).collect();
+                                for gd in guards { let _ = self.send_far(gd, door, Goal::Escort(usize::MAX, si)); }
+                            }
+                        }
+                    } else {
+                        // no road home for it: the lord's share goes back
+                        // on the books - the fees the market kept stay kept
+                        self.takings += remit;
+                        if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold += paid; }
+                    }
                 }
             }
         }
@@ -476,10 +519,10 @@ impl Game {
                 // he gets there
                 self.travels.retain(|t| t.who != v
                     || matches!(t.goal, Goal::Exile | Goal::Remit(..) | Goal::Owe(..)
-                        | Goal::Gift(..) | Goal::Escort(..)));
+                        | Goal::Gift(..) | Goal::Escort(..) | Goal::LevyCart(_)));
                 let mut fed = false;
                 if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile | Goal::Remit(..)
-                    | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..))) {
+                    | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..) | Goal::LevyCart(_))) {
                     let at_store = self.world.get_component::<Pos>(self.store_of(v))
                         .zip(self.world.get_component::<Pos>(v))
                         .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)

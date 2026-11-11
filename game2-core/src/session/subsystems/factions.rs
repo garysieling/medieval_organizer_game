@@ -54,4 +54,16 @@ impl Game {
         self.world.query::<Faction>().iter().any(|&e|
             self.world.get_component::<Faction>(e).map(|f| f.kind == kind).unwrap_or(false))
     }
+
+    /// Who holds the claim on the market's own stream - the stalls'
+    /// fees. The faction whose people run the market holds it while any
+    /// of them stand: its claim names the fees outright (#970)
+    pub fn market_claimant(&self) -> Option<Entity> {
+        self.factions.iter().copied().find(|&e| {
+            self.world.get_component::<Faction>(e)
+                .filter(|f| f.kind == FactionKind::Market)
+                .map(|f| !members_of(&self.world, f).is_empty())
+                .unwrap_or(false)
+        })
+    }
 }

@@ -724,7 +724,8 @@ impl Game {
                 path.push(to);
                 self.travels.retain(|t| t.who != who);
                 self.travels.push(Travel { who, path, goal });
-                if matches!(self.travels.last().map(|t| &t.goal), Some(Goal::Remit(..))) {
+                if matches!(self.travels.last().map(|t| &t.goal),
+                        Some(Goal::Remit(..) | Goal::LevyCart(_))) {
                     self.world.add_component(who, villager::OnTheRoad);
                 }
                 // a knight takes the horse for the long roads - the mount
@@ -1207,6 +1208,30 @@ impl Game {
         let (from_name, to_name) = (self.sites.get(from).map(|s| s.name).unwrap_or("the castle"),
             self.sites.get(to).map(|s| s.name).unwrap_or("the holding"));
         self.log.push(format!("t{}: {}'s gift train comes into {} - {:.0} gold for the treasury.", self.tick, from_name, to_name, gold));
+        let home = household::home_of(&self.world, who);
+        let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
+            .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+        if let (Some(h), Some(d)) = (home, door) {
+            self.send_far(who, d, Goal::HeadHome(h));
+        }
+    }
+
+    /// The crown's cart stands at the keep: the provisions into its
+    /// stores like the steward's own, the carter fed and sent home (#970)
+    pub(super) fn arrive_levy_cart(&mut self, who: Entity, castle: usize) {
+        let n = self.world.get_component_mut::<Satchel>(who)
+            .and_then(|s| s.goods.remove("provisions")).unwrap_or(0);
+        if let Some(store) = self.sites.get(castle).map(|s| s.store) {
+            if self.world.get_component::<Hunger>(who).map(|h| h.value < 70.0).unwrap_or(false) {
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) {
+                    if f.servings > 0 {
+                        f.servings -= 1;
+                        if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                    }
+                }
+            }
+            if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) { f.servings += n; }
+        }
         let home = household::home_of(&self.world, who);
         let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
             .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));

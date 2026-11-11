@@ -79,6 +79,10 @@ fn test_a_caravan_ambushed_turns_for_home_and_may_leave_a_cache() {
     for day in 1..=300u64 {
         g.travels.retain(|t| !matches!(t.goal, Goal::Cart(_)));
         g.travels.push(Travel { who, path: vec![], goal: Goal::Cart(si) });
+        // a laden cart - a take only counts when there's something to take
+        if let Some(s) = g.world.get_component_mut::<Satchel>(who) {
+            *s.goods.entry("wheat".into()).or_insert(0) = 3;
+        }
         put_at(&mut g, who, wild);
         put_at(&mut g, band, (wild.0 + 1, wild.1));
         g.tick = day;
@@ -124,7 +128,7 @@ fn test_a_cache_left_too_long_is_gone() {
     let mut g = game_with_rebels();
     let tile = g.rebel_camps[0];
     g.rebel_stores.push(rebels::RebelStore {
-        tile, goods: vec![("wheat", 2)], until: g.tick + 5 });
+        tile, goods: vec![("wheat", 2)], gold: 0.0, until: g.tick + 5 });
     let pe = g.seats[0].player;
     put_at(&mut g, pe, tile);
     g.update_ctx_actions_at(0);

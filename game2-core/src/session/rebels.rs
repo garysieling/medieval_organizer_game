@@ -14,13 +14,15 @@ use super::*;
 pub struct Rebel { pub band: usize }
 
 /// A cache a band leaves at the woods' edge after a good hit: stolen
-/// goods for whoever finds them first - the player's Take verb when
-/// they stand by it
+/// goods and lifted gold for whoever finds them first - the player's
+/// Take verb when they stand by it
 #[derive(Debug, Clone)]
 pub struct RebelStore {
     pub tile: (i32, i32),
     /// (good, count) pairs - satchel goods' own names
     pub goods: Vec<(&'static str, u32)>,
+    /// coin taken out of a gold ride (#970)
+    pub gold: f32,
     /// pickable until this day
     pub until: u64,
 }
@@ -37,13 +39,29 @@ const RAID_REACH: f32 = 3.0;
 const REBEL_REACH: i32 = 16;
 /// How many days a left cache keeps, plus a few
 const CACHE_DAYS: u64 = 6;
+/// An escort standing this close answers the ambush for its convoy
+const ESCORT_REACH: f32 = 8.0;
+/// The escort roll's own salt - kept off REBEL_SALT so an escort's
+/// answer doesn't move the band's ambush rolls
+const ESCORT_SALT: u64 = 0xE5C0_7EAD;
 
 /// The goals that carry the country's wealth on the road - carts,
-/// provisions rides, remittances and the tribute trains. Escort rides
-/// guard but carry nothing, and a Levy rides empty out
+/// provisions rides, remittances, the crown's levy cart and the
+/// tribute trains. Escort rides guard but carry nothing, and a Levy
+/// rides empty out
 fn raid_goal(g: &Goal) -> bool {
     matches!(g, Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_)
-        | Goal::Remit(..) | Goal::Owe(..) | Goal::Gift(..))
+        | Goal::Remit(..) | Goal::Owe(..) | Goal::Gift(..) | Goal::LevyCart(_))
+}
+
+/// Which site a raid goal is bound for - the village is MAX, same
+/// sentinel the market's escorts carry
+fn dest_site(g: &Goal) -> usize {
+    match g {
+        Goal::Remit(to, _) | Goal::Owe(_, to, _) | Goal::Gift(_, to)
+        | Goal::Deliver(to) | Goal::LevyCart(to) => *to,
+        _ => usize::MAX,
+    }
 }
 
 /// A stable u64 for one (band, traveler, day, salt) meeting - the same
@@ -189,21 +207,43 @@ impl Game {
         for (ti, band) in hits { self.rob_caravan(ti, band); }
     }
 
-    /// The band falls on the caravan: the cargo goes, the carrier turns
-    /// for home, the band scatters back into the trees - and now and
-    /// then a cache is left where the fight was
+    /// The band falls on the caravan: a riding escort may drive them
+    /// off; else the claimant loses the cargo either way - carried off
+    /// to a cache when the haul's worth hiding, scattered when it
+    /// isn't (#970)
     fn rob_caravan(&mut self, ti: usize, band: usize) {
         let Some(t) = self.travels.get(ti) else { return };
         let (who, goal) = (t.who, t.goal.clone());
         let Some(at) = self.world.get_component::<Pos>(who).map(|p| (p.x, p.y)) else { return };
         let at_tile = (at.0.round() as i32, at.1.round() as i32);
+        let name = self.villagers.iter().position(|&x| x == who).map(vill_name).unwrap_or("a traveller");
+        // the convoy's escort answers first: a guard bound for the same
+        // door standing close enough reads the ambush and stands to it
+        let escorted = self.travels.iter().any(|e| e.who != who
+            && matches!(e.goal, Goal::Escort(_, to) if to == dest_site(&goal))
+            && !villager::is_dead(&self.world, e.who)
+            && self.world.get_component::<Pos>(e.who)
+                .map(|p| (p.x - at.0).powi(2) + (p.y - at.1).powi(2) <= ESCORT_REACH * ESCORT_REACH)
+                .unwrap_or(false));
+        if escorted && Rng(meet_seed(band, who, self.tick, ESCORT_SALT)).below(100) < 60 {
+            let members: Vec<Entity> = self.villagers.iter().copied()
+                .filter(|&v| self.world.get_component::<Rebel>(v).map(|r| r.band) == Some(band))
+                .collect();
+            let mut rng = Rng(meet_seed(band, who, self.tick, REBEL_SALT ^ 0x5CA7_1A9E));
+            for &v in &members {
+                if !villager::is_dead(&self.world, v) { self.plan_rebel_day(v, self.tick, &mut rng); }
+            }
+            self.log.push_at_who(format!("t{}: rebels come out of the trees at {} - the escort stands to them and they melt away.", self.tick, name),
+                Some((at.0, at.1)), self.villagers.iter().position(|&x| x == who));
+            return;
+        }
         // turn them back first: if the road home can't be had the band
         // lets them pass - the take only counts when the errand's off
         let home_door = household::home_of(&self.world, who)
             .and_then(|h| self.world.get_component::<Pos>(h).copied()
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32))
                 .map(|d| (h, d)));
-        let Some((home, door)) = home_door else { return };
+        let Some((home, door)) = home_door else { return; };
         if !self.send_far(who, door, Goal::HeadHome(home)) { return; }
         // the take: what the goal says is riding, out of the satchel -
         // the gold goals carry their take in the errand itself, so
@@ -211,7 +251,7 @@ impl Game {
         let mut took: Vec<(&'static str, u32)> = vec![];
         let keys: &[&'static str] = match &goal {
             Goal::Cart(_) => &["wheat", "ore"],
-            Goal::Deliver(_) => &["provisions"],
+            Goal::Deliver(_) | Goal::LevyCart(_) => &["provisions"],
             Goal::Gift(..) => &["wheat", "tools"],
             _ => &[],
         };
@@ -220,6 +260,10 @@ impl Game {
                 if let Some(n) = s.goods.remove(k) { if n > 0 { took.push((k, n)); } }
             }
         }
+        let gold = match &goal {
+            Goal::Remit(_, g) | Goal::Owe(.., g) => *g,
+            _ => 0.0,
+        };
         // the band melts back into the woods
         let members: Vec<Entity> = self.villagers.iter().copied()
             .filter(|&v| self.world.get_component::<Rebel>(v).map(|r| r.band) == Some(band))
@@ -228,32 +272,37 @@ impl Game {
         for &v in &members {
             if !villager::is_dead(&self.world, v) { self.plan_rebel_day(v, self.tick, &mut rng); }
         }
-        let name = self.villagers.iter().position(|&x| x == who).map(vill_name).unwrap_or("a traveller");
         let what = match &goal {
             Goal::Cart(_) => "the cart's load",
             Goal::Levy(..) => "the steward's ride",
             Goal::Deliver(_) => "the provisions",
+            Goal::LevyCart(_) => "the crown's cart",
             Goal::Remit(..) | Goal::Owe(..) => "the gold",
             Goal::Gift(..) => "the gift train",
             _ => "the errand",
         };
-        let line = if took.is_empty() {
+        // spoils or denial: the claimant loses it either way - the band
+        // profits only when the take's worth hiding in the trees
+        let spoils = (!took.is_empty() || gold > 0.0)
+            && rng.below(100) < 55
+            && self.cache_spot(at_tile).is_some();
+        let line = if took.is_empty() && gold == 0.0 {
             format!("t{}: rebels fall on {} on the road - {} is turned back.", self.tick, name, what)
-        } else {
+        } else if spoils {
             let goods = took.iter().map(|&(g, n)| format!("{} {}", n, g)).collect::<Vec<_>>().join(" and ");
-            format!("t{}: rebels fall on {} on the road - {} gone: {}.", self.tick, name, what, goods)
+            let taken = if gold > 0.0 && !goods.is_empty() { format!("{:.0} gold and {}", gold, goods) }
+                else if gold > 0.0 { format!("{:.0} gold", gold) } else { goods };
+            format!("t{}: rebels fall on {} on the road - {} carried off: {}.", self.tick, name, what, taken)
+        } else {
+            format!("t{}: rebels fall on {} on the road - {} is scattered: nothing comes through.", self.tick, name, what)
         };
         self.log.push_at_who(line, Some((at.0, at.1)),
             self.villagers.iter().position(|&x| x == who));
         self.toasts.push_at((format!("Rebels hit {} on the road!", name), self.tick + 40), Some((at.0, at.1)));
-        // a good haul leaves a cache in the trees for whoever comes looking
-        if rng.below(100) < 45 {
-            if let Some(tile) = self.cache_spot(at_tile) {
-                let mut goods = vec![("wheat", 2 + rng.below(3) as u32)];
-                if rng.below(2) == 0 { goods.push(("tools", 1 + rng.below(2) as u32)); }
-                if rng.below(3) == 0 { goods.push(("cloth", 1 + rng.below(2) as u32)); }
-                self.rebel_stores.push(RebelStore { tile, goods, until: self.tick + CACHE_DAYS + rng.below(6) as u64 });
-            }
+        if spoils {
+            let tile = self.cache_spot(at_tile).unwrap();
+            self.rebel_stores.push(RebelStore { tile, goods: took, gold,
+                until: self.tick + CACHE_DAYS + rng.below(6) as u64 });
         }
     }
 

@@ -127,6 +127,10 @@ Also: `"Idle"`, `"WorkDay"`, `"JoinOrg"`, `{"TalkTo":{"e":51}}`,
 `{"Gather":{"good":"wood","x":40,"y":12}}`, `{"Press":{"prisoner":61}}`.
 Entities (`e`, `seller`, `shop`...) are the numbers `Obs` reports.
 
+`"TakeNotice"` accepts the market board's oldest posted job where it
+hangs - the asker needn't be near. It only works standing at the board
+(the `board` position in `Obs`), and only while a job is posted.
+
 ### Pick (humans)
 
 Take a card off the roster the `Welcome` dealt: it rewrites your
@@ -418,7 +422,8 @@ and (in `me`) its own trade, home, bench and wants.
  "near_buildings":[{"e":37,"name":"the bakery","kind":"shop","dist":2.0}],
  "satchel":[["bread",2]],"walking":false,"held":false,"orgs":[],"campaigns":[],"burning":[],
  "me":{"trade":"baker","level":"Journeyman","home":15,"bench":37,"bench_stock":[["bread",4]],
-       "needs":"grain","wants":["Joy","BetterTools"]}}
+       "needs":"grain","wants":["Joy","BetterTools"]},
+ "notices":[["quest","Greta asks for help - the board carries it"]],"board":[40.0,20.0]}
 ```
 
 `me` is what the villager knows of themself: their trade and its rung, their
@@ -430,6 +435,11 @@ appear.
 People in `near` include `job_offer` when they have a current odd job to take.
 `near_animals` lists nearby flock and yard animals with their position and
 whether the agent can tame them.
+
+`notices` holds the market board's live postings as `(kind, text)` pairs -
+`quest`, `writ`, `feast`, `ban` - but only while the villager stands close
+enough to read it. `board` is where it stands, always, so walking there is a
+decision rather than a hunt; `TakeNotice` accepts the oldest posted job at it.
 
 ### CmdDone, Denied, Pong
 

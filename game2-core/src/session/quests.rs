@@ -233,17 +233,26 @@ impl Game {
         let Some(i) = self.pending_quests.iter().position(|q| q.giver == v) else {
             return "They haven't got anything to ask you.".into();
         };
+        let quest = self.take_pending_quest(seat, i);
+        // the log keeps it third-person; the bubble over their head is the ask
+        format!("{}: \"{}\"", self.name_of(v), self.quest_ask_line(&quest))
+    }
+
+    /// The job's yours once it's off the begging list: the asker's ask
+    /// lands as a PlayerQuest on the seat, they say it aloud, and they
+    /// rest a while before they beg again. The call site's already
+    /// checked the seat's free and the list's live - at the ear for a
+    /// spoken ask, at the board for a posted one
+    pub(in crate::session) fn take_pending_quest(&mut self, seat: usize, i: usize) -> PlayerQuest {
         let q = self.pending_quests.remove(i);
         let stage = if q.pickup.is_some() { QuestStage::ToFetch } else { QuestStage::ToCarry };
         let quest = PlayerQuest {
             giver: q.giver, kind: q.kind, target: q.target, stage, pickup: q.pickup,
             expires: self.tick + QUEST_DAYS };
-        let ask = self.quest_ask_line(&quest);
-        self.say(v, &ask, TALK_BUBBLE_SECS * 2);
-        self.seats[seat].quest = Some(quest);
-        self.quest_rest.insert(v, self.tick + REST_DAYS);
-        // the log keeps it third-person; the bubble over their head is the ask
-        format!("{}: \"{}\"", self.name_of(v), ask)
+        self.say(q.giver, &self.quest_ask_line(&quest), TALK_BUBBLE_SECS * 2);
+        self.seats[seat].quest = Some(quest.clone());
+        self.quest_rest.insert(q.giver, self.tick + REST_DAYS);
+        quest
     }
 
     /// What they ask for, in their own words - the bubble on accepting

@@ -328,8 +328,92 @@ pub(crate) const MARK_SICK: (&str, (u8, u8, u8), &str) = ("+", (140, 230, 110), 
 
 pub(crate) const MAP_MARKS: [(&str, (u8, u8, u8), &str); 4] = [MARK_HUNGRY, MARK_FOOD, MARK_BUSY, MARK_SICK];
 
+/// The generated icon (assets/rd/icons) that stands in for each MAP_MARKS
+/// glyph, in the same order
+pub(crate) const MARK_ICONS: [&str; 4] = ["icon-hungry", "icon-finding-food", "icon-busy", "icon-sick"];
+
 /// The legend's row, between the log box and the bottom of the window
 pub(crate) const LEGEND_Y: i32 = 627;
+
+/// A generated icon in a `size` px box at (x, y): returns whether it
+/// drew, so the caller can fall back to its text glyph
+pub(crate) fn draw_icon(buf: &mut Buffer, icon: Option<&Sprite>, x: i32, y: i32, size: i32) -> bool {
+    match icon {
+        Some(s) => {
+            let w = (s.width as f32 * size as f32 / s.height as f32).round().max(1.0) as usize;
+            s.blit_resized(buf, x + (size - w as i32) / 2, y, w, size as usize);
+            true
+        }
+        None => false,
+    }
+}
+
+/// The icon standing in for a mark glyph: the sprite where it loaded,
+/// the text mark otherwise - centred on the same spot
+pub(crate) fn draw_mark(buf: &mut Buffer, icon: Option<&Sprite>, mark: &str, rgb: (u8, u8, u8), x: i32, y: i32) {
+    if !draw_icon(buf, icon, x - 5, y - 3, 10) {
+        draw_text_outlined(buf, x, y, mark, rgb.0, rgb.1, rgb.2);
+    }
+}
+
+/// Which generated icon a sky line takes: the PrecipKind to its icon-
+/// token, or None where the day carries no weather mark
+pub(crate) fn precip_icon(k: game2_core::sim::precipitation::PrecipKind) -> &'static str {
+    use game2_core::sim::precipitation::PrecipKind::*;
+    match k {
+        Drizzle => "icon-drizzle",
+        LightRain | Showers | Rain => "icon-rain",
+        HeavyRain => "icon-heavy-rain",
+        Flurries | Snow => "icon-snow",
+        HeavySnow => "icon-heavy-snow",
+    }
+}
+
+/// The icon tokens for session::action_buttons(), in its order
+pub(crate) const ACTION_ICONS: [&str; 3] = ["icon-talk", "icon-recruit", "icon-build"];
+
+/// The icon a contextual action's button takes: only the acts a token
+/// clearly reads for get one ("" = none, the label carries it alone)
+pub(crate) fn ctx_icon(act: game2_core::session::CtxAct) -> &'static str {
+    use game2_core::session::CtxAct::*;
+    match act {
+        Recruit => "icon-recruit",
+        Gather | Meet | March => "icon-organize",
+        MendHall | School | Brigade => "icon-build",
+        _ => "",
+    }
+}
+
+/// Which event icon a log line takes, by the word it names. Ordered:
+/// "cellar" must see a cellar-thief line before "thief" does
+pub(crate) fn event_icon(text: &str) -> Option<&'static str> {
+    const EVENT_ICONS: &[(&[&str], &str)] = &[
+        (&["aurora"], "event-aurora"),
+        (&["blood moon"], "event-blood-moon"),
+        (&["dark noon"], "event-dark-noon"),
+        (&["meteor"], "event-meteor-shower"),
+        (&["mirage"], "event-mirage"),
+        (&["lightning"], "event-lightning"),
+        (&["foundling"], "event-foundling"),
+        (&["quarrel"], "event-quarrel"),
+        (&["lost child"], "event-lost-child"),
+        (&["brawl"], "event-alehouse-brawl"),
+        (&["assize"], "event-assize"),
+        (&["cellar"], "event-cellar-thief"),
+        (&["drought"], "event-drought"),
+        (&["first snow"], "event-first-snow"),
+        (&["flood"], "event-flood"),
+        (&["hail"], "event-hailstorm"),
+        (&["heat wave"], "event-heat-wave"),
+        (&["indian summer"], "event-indian-summer"),
+        (&["late frost"], "event-late-frost"),
+        (&["thaw"], "event-thaw"),
+        (&["windstorm"], "event-windstorm"),
+        (&["thief", "thieves"], "event-thief"),
+    ];
+    let low = text.to_lowercase();
+    EVENT_ICONS.iter().find(|(keys, _)| keys.iter().any(|k| low.contains(k))).map(|(_, t)| *t)
+}
 
 /// Green when high, amber in the middle, red when low (0..=1)
 pub(crate) fn meter_colour(frac: f32) -> (u8, u8, u8) {
@@ -363,11 +447,13 @@ pub(crate) fn draw_hearts(buf: &mut Buffer, x: i32, y: i32, hearts: f32, max: us
     }
 }
 
-/// A small labelled meter: label, bar filled to `frac`, then a note
-pub(crate) fn draw_meter(buf: &mut Buffer, x: i32, y: i32, label: &str, frac: f32, note: &str) {
+/// A small labelled meter: icon where the set has one, label, bar
+/// filled to `frac`, then a note
+pub(crate) fn draw_meter(buf: &mut Buffer, x: i32, y: i32, icon: Option<&Sprite>, label: &str, frac: f32, note: &str) {
     const BAR_X: i32 = 44;
     const BAR_W: i32 = 70;
-    draw_text(buf, x, y, label, 200, 200, 200);
+    let label_x = x + if draw_icon(buf, icon, x, y - 3, 12) { 14 } else { 0 };
+    draw_text(buf, label_x, y, label, 200, 200, 200);
     buf.rect(x + BAR_X, y, BAR_W, 6, 30, 30, 45);
     let (r, g, b) = meter_colour(frac);
     buf.rect(x + BAR_X, y, (frac.clamp(0.0, 1.0) * BAR_W as f32) as i32, 6, r, g, b);

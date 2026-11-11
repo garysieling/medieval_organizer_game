@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433779,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 1.03,
+ "request_id": "6c8b660a-5cb5-4493-863a-aa9a45367d50",
+ "outputs_retained_until": 1794520168,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 1.03
+ },
+ "id": "event-thaw-03f09edb",
+ "prompt": "small game UI icon of dripping icicle melting into a puddle, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:49:40",
+ "seconds": 11.2
+}

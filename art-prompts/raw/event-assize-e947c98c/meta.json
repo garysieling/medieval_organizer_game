@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433549,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 5.35,
+ "request_id": "6e1179d8-177b-48dd-8199-87997a4207d1",
+ "outputs_retained_until": 1794519938,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 5.35
+ },
+ "id": "event-assize-e947c98c",
+ "prompt": "small game UI icon of weighing scales with a loaf and a tankard, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:45:50",
+ "seconds": 11.4
+}

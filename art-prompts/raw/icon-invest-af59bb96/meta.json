@@ -1,0 +1,27 @@
+{
+ "created_at": 1794432988,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 13.99,
+ "request_id": "d56907c9-9643-4545-a4bd-1b31e8bef612",
+ "outputs_retained_until": 1794519359,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 13.99
+ },
+ "id": "icon-invest-af59bb96",
+ "prompt": "small game UI icon of gold coins into a pot, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:36:29",
+ "seconds": 29.4
+}

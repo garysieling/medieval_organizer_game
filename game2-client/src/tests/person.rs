@@ -6,10 +6,14 @@ use crate::*;
 #[test]
 fn test_people_sprites_load_at_villager_height() {
     let art = Art::load_fs("../assets", 0);
-    assert_eq!(art.people.len(), PEOPLE_SPRITES.len(),
+    // the postings and trades, plus the rare visitors' slugs (#693)
+    assert_eq!(art.people.len(), PEOPLE_SPRITES.len() + game2_core::session::events::VISIT_SLUGS.len(),
         "every generated people figure loads: {:?}", art.people.iter().map(|(n, _)| n).collect::<Vec<_>>());
     for (name, s) in &art.people {
-        assert!((18..=30).contains(&s.height), "{} is {}px tall - should read as a villager (~24)", name, s.height);
+        // visitors came out at walk-figure height (~35px); the village
+        // stills were resampled to @24
+        let cap = if game2_core::session::events::VISIT_SLUGS.contains(&name.as_str()) { 40 } else { 30 };
+        assert!((18..=cap).contains(&s.height), "{} is {}px tall - should read as a person (~24-35)", name, s.height);
         assert!(s.pixels.chunks(4).any(|p| p[3] == 0), "{}: background not keyed out", name);
     }
     // the sexed trades come in pairs, the postings bare

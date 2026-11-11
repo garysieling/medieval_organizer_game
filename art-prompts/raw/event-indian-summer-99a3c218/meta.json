@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433699,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 2.71,
+ "request_id": "4bc094aa-ced6-4daa-8e7a-8b6e5bae009b",
+ "outputs_retained_until": 1794520086,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 2.71
+ },
+ "id": "event-indian-summer-99a3c218",
+ "prompt": "small game UI icon of golden warm haze over autumn fields, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:48:20",
+ "seconds": 13.1
+}

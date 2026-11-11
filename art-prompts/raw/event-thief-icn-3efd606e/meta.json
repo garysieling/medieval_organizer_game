@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433792,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 0.79,
+ "request_id": "ff8bb3e9-9fff-4c5e-8067-5824e6803713",
+ "outputs_retained_until": 1794520179,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 0.79
+ },
+ "id": "event-thief-icn-3efd606e",
+ "prompt": "small game UI icon of shadowed hand lifting a jar, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:49:52",
+ "seconds": 12.4
+}

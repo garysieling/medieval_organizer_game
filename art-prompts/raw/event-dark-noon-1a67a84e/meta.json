@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433617,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 4.39,
+ "request_id": "c97a86a3-d0a6-48be-bc5b-382f9e11d90c",
+ "outputs_retained_until": 1794520006,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 4.39
+ },
+ "id": "event-dark-noon-1a67a84e",
+ "prompt": "small game UI icon of black disc of an eclipse over a pale sky, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:46:58",
+ "seconds": 11.5
+}

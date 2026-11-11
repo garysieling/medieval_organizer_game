@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433677,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 3.19,
+ "request_id": "f047c5b8-14d7-4341-9a10-61ed1412385c",
+ "outputs_retained_until": 1794520064,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 3.19
+ },
+ "id": "event-hailstorm-480c176f",
+ "prompt": "small game UI icon of white hailstones bouncing off a roof, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:47:58",
+ "seconds": 12.9
+}

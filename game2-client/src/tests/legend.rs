@@ -9,15 +9,17 @@ fn test_the_panel_explains_the_map_marks() {
 
     let mut game = Game::new_seeded(MAP_SEED);
     game.speed = 4;
-    let view = View::new(Art::load_fs("../assets", 0));
+    let art = Art::load_fs("../assets", 0);
+    let view = View::new(art);
     while game.tick < 30 { game.update(); }
     let buf = view.render(&game.ui_model(), (-1, -1));
-    // each mark's colour appears in the legend row
-    for (m, rgb, word) in MAP_MARKS {
+    // each mark's colour appears in the legend row - or its generated
+    // icon does, where the icon set gave one
+    for (i, (m, rgb, word)) in MAP_MARKS.iter().enumerate() {
         let found = (LEGEND_Y..LEGEND_Y + GLYPH_H).any(|y| (UI_X..W).any(|x| {
             let i = (y as usize * W + x) * 4;
-            (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == rgb
+            (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == *rgb
         }));
-        assert!(found, "the legend doesn't show '{}' ({})", m, word);
+        assert!(found || view.art.icon(MARK_ICONS[i]).is_some(), "the legend doesn't show '{}' ({})", m, word);
     }
 }

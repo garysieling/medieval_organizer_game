@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433356,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 9.43,
+ "request_id": "684eb3eb-057f-44bc-84ce-3d3c4dde6dc9",
+ "outputs_retained_until": 1794519746,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 9.43
+ },
+ "id": "icon-finding-food-3b4521be",
+ "prompt": "small game UI icon of basket with bread loaf, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:42:37",
+ "seconds": 10.1
+}

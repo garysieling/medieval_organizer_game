@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433537,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 5.59,
+ "request_id": "6b4a1808-91d9-484c-b1e3-f6a79ecea737",
+ "outputs_retained_until": 1794519923,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 5.59
+ },
+ "id": "event-alehouse-brawl-93c2a390",
+ "prompt": "small game UI icon of two tankards clashing, spilled ale, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:45:38",
+ "seconds": 14.7
+}

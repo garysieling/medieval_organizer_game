@@ -21,6 +21,7 @@ mod graveyard;
 mod hearts;
 mod help;
 mod hud;
+mod icons;
 mod inspector;
 mod intro;
 mod label;

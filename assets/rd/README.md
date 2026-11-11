@@ -274,3 +274,23 @@ until the sim knows a villager's Sex (#681). Unmapped figures
 (archer, king, mage, minstrel, plague-doctor, ...) load dormant.
 `toolmaker-f` came out as a whole workbench scene; its `--force`
 regen (raw ...-20261111152416) is a smith holding hot work.
+
+## icons
+
+Issue #691: the P0 icon set - 37 `rd_mini__skill_icon` prompts (n=4
+variants, clearest kept) plus 22 `events/icons` and the goods sheet.
+Exported flat to `assets/rd/icons/` as `icon-<slug>.png`,
+`event-<slug>.png`, `good-<slug>.png`; a name that didn't come back
+leaves its text glyph standing (draw_icon's None arm).
+
+The goods sheet (`rd_pro__inventory_items`, goods-sheet-644710b6) comes
+back on a white lattice, not a plain field - the border fill keys the
+white but not the grey gridlines, so the cells are blob-detected on
+non-light-neutral pixels and cropped per blob (16 items, r<row>c<col>
+by blob centre, names from the GOODS list order).
+
+Variant picks per icon are the ones that read at 10-14px; re-picking is
+a copy out of `art-prompts/raw/<id>/<0-3>.png`. Unwired tokens (dead,
+grieving, happy, cold, injured, invest, inspect, wait, trust, mood,
+faith, power, gold meters, storm/fog/overcast sky, sun, most events)
+load dormant for whoever wires them.

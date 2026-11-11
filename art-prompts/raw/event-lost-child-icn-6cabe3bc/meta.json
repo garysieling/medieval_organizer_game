@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433730,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 1.99,
+ "request_id": "cc47d444-70ef-4018-ae1f-1464a9581b90",
+ "outputs_retained_until": 1794520121,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 1.99
+ },
+ "id": "event-lost-child-icn-6cabe3bc",
+ "prompt": "small game UI icon of small empty shoe beside a path, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:48:51",
+ "seconds": 9.7
+}

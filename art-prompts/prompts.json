@@ -8,10 +8,1423 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 214,
-  "est_total_usd": 37.94
+  "count": 303,
+  "est_total_usd": 56.36
  },
  "prompts": [
+  {
+   "id": "event-alehouse-brawl-93c2a390",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event alehouse brawl",
+   "prompt": "small game UI icon of two tankards clashing, spilled ale, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-assize-e947c98c",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event assize",
+   "prompt": "small game UI icon of weighing scales with a loaf and a tankard, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-aurora-26ad8ff2",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event aurora",
+   "prompt": "small game UI icon of green aurora ribbons over a village at night, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-blood-moon-933be15c",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event blood moon",
+   "prompt": "small game UI icon of large red moon over rooftops, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-cellar-thief-c53befce",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event cellar thief",
+   "prompt": "small game UI icon of dark figure slipping out of a cellar door with a sack, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-dark-noon-1a67a84e",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event dark noon",
+   "prompt": "small game UI icon of black disc of an eclipse over a pale sky, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-drought-b56bee44",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event drought",
+   "prompt": "small game UI icon of cracked dry earth under a pale sun, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-first-snow-acd8aa20",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event first snow",
+   "prompt": "small game UI icon of first thin snowflakes over a cottage, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-flood-c05a7fca",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event flood",
+   "prompt": "small game UI icon of brown river water risen over a bank, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-foundling-icn-b425f819",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event foundling icn",
+   "prompt": "small game UI icon of basket with a swaddled bundle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-hailstorm-480c176f",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event hailstorm",
+   "prompt": "small game UI icon of white hailstones bouncing off a roof, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-heat-wave-9572e189",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event heat wave",
+   "prompt": "small game UI icon of shimmering heat lines over dry crops, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-indian-summer-99a3c218",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event indian summer",
+   "prompt": "small game UI icon of golden warm haze over autumn fields, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-late-frost-04a5d118",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event late frost",
+   "prompt": "small game UI icon of white frost on a green sprout, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-lightning-717fe433",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event lightning",
+   "prompt": "small game UI icon of a single lightning bolt striking a field, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-lost-child-icn-6cabe3bc",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event lost child icn",
+   "prompt": "small game UI icon of small empty shoe beside a path, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-meteor-shower-2155f2df",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event meteor shower",
+   "prompt": "small game UI icon of streaking meteors in a night sky, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-mirage-544deb21",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event mirage",
+   "prompt": "small game UI icon of shimmering false city on the horizon, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-quarrel-icn-0f42edb5",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event quarrel icn",
+   "prompt": "small game UI icon of two raised fists face to face, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-thaw-03f09edb",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event thaw",
+   "prompt": "small game UI icon of dripping icicle melting into a puddle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-thief-icn-3efd606e",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event thief icn",
+   "prompt": "small game UI icon of shadowed hand lifting a jar, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-windstorm-418a5877",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event windstorm",
+   "prompt": "small game UI icon of bent trees and flying thatch in wind, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-build-66e1be52",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon build",
+   "prompt": "small game UI icon of mallet and wooden beam, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-inspect-41581a0b",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon inspect",
+   "prompt": "small game UI icon of magnifying glass over a face, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-invest-af59bb96",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon invest",
+   "prompt": "small game UI icon of gold coins into a pot, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-organize-4a0fc1fb",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon organize",
+   "prompt": "small game UI icon of raised fist with banner, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-recruit-9d797f6f",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon recruit",
+   "prompt": "small game UI icon of clasped handshake, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-talk-e3097146",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon talk",
+   "prompt": "small game UI icon of speech bubble, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-wait-6063425e",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon wait",
+   "prompt": "small game UI icon of hourglass, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "good-blocks-92a5620d",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good blocks",
+   "prompt": "small game item icon of dressed stone blocks",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-bread-5f6af63a",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good bread",
+   "prompt": "small game item icon of round bread loaf",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-cloth-b415e4e7",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good cloth",
+   "prompt": "small game item icon of rolled bolt of cloth",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-faith-3f1d9ce8",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good faith",
+   "prompt": "small game item icon of candle flame in holder",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-flour-dccf75d0",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good flour",
+   "prompt": "small game item icon of cloth sack of flour",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-garments-def4fce5",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good garments",
+   "prompt": "small game item icon of folded clothes stack",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-glass-9aca0a72",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good glass",
+   "prompt": "small game item icon of leaded glass pane",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-gold-96ed2295",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good gold",
+   "prompt": "small game item icon of pile of gold coins",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-ink-7360252d",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good ink",
+   "prompt": "small game item icon of ink pot with quill",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-lute-d9a77594",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good lute",
+   "prompt": "small game item icon of wooden lute",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-pamphlets-066f56a9",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good pamphlets",
+   "prompt": "small game item icon of folded printed pamphlet",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-paper-d9ed2a0e",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good paper",
+   "prompt": "small game item icon of stack of paper sheets",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-pigment-0c9d65f9",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good pigment",
+   "prompt": "small game item icon of pots of coloured pigment",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-sand-696ef674",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good sand",
+   "prompt": "small game item icon of small pile of sand",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-security-75140163",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good security",
+   "prompt": "small game item icon of small shield",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-stone-81d68549",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good stone",
+   "prompt": "small game item icon of cut stone block",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-tools-7680fa0e",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good tools",
+   "prompt": "small game item icon of hammer and chisel crossed",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-wheat-bcc296a0",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good wheat",
+   "prompt": "small game item icon of wheat sheaf",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-wood-b7055167",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good wood",
+   "prompt": "small game item icon of stack of logs",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "goods-sheet-644710b6",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "goods sheet",
+   "prompt": "inventory item sheet: wheat sheaf, bread loaf, flour sack, stone block, log stack, sand pile, paper, ink pot, pamphlet, pigment pots, cloth bolt, glass pane, garments, hammer tools, lute, gold coins",
+   "request": {
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call draws a matched set; include_downloadable_data returns the item atlas"
+  },
+  {
+   "id": "icon-faith-85d2ed91",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon faith",
+   "prompt": "small game UI icon of lit candle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-gold-29451986",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon gold",
+   "prompt": "small game UI icon of gold coin stack, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-health-564ed4a3",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon health",
+   "prompt": "small game UI icon of red heart, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-hunger-9508a3bd",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon hunger",
+   "prompt": "small game UI icon of bread loaf, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-mood-c2d13ad6",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon mood",
+   "prompt": "small game UI icon of sun behind small cloud, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-power-c4187156",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon power",
+   "prompt": "small game UI icon of raised banner on pole, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-trust-73e6f253",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon trust",
+   "prompt": "small game UI icon of two joined hands, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-autumn-3e5e3a91",
+   "tier": "p0",
+   "group": "icons/seasons",
+   "title": "icon autumn",
+   "prompt": "small game UI icon of orange maple leaf, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-spring-46030de0",
+   "tier": "p0",
+   "group": "icons/seasons",
+   "title": "icon spring",
+   "prompt": "small game UI icon of sprouting seedling with flower, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-summer-25ecfbcf",
+   "tier": "p0",
+   "group": "icons/seasons",
+   "title": "icon summer",
+   "prompt": "small game UI icon of golden wheat sheaf and sun, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-winter-4f941d54",
+   "tier": "p0",
+   "group": "icons/seasons",
+   "title": "icon winter",
+   "prompt": "small game UI icon of bare branch with snow, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-busy-fdfcd209",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon busy",
+   "prompt": "small game UI icon of hammer mid-swing, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-cold-621d2a39",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon cold",
+   "prompt": "small game UI icon of blue snowflake, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-dead-f61f5104",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon dead",
+   "prompt": "small game UI icon of small skull, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-finding-food-3b4521be",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon finding food",
+   "prompt": "small game UI icon of basket with bread loaf, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-grieving-e3922e2a",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon grieving",
+   "prompt": "small game UI icon of wilted flower, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-happy-f8d37953",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon happy",
+   "prompt": "small game UI icon of smiling sun face, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-hungry-4ceb9208",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon hungry",
+   "prompt": "small game UI icon of empty bowl with spoon, warning feel, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-injured-4bc46d86",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon injured",
+   "prompt": "small game UI icon of bandaged arm, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-sick-92df90ab",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon sick",
+   "prompt": "small game UI icon of green face with sweat drop, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "ui-button-c5bf7b01",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui button",
+   "prompt": "wooden game button, unpressed, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-end-screen-c3c99989",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui end screen",
+   "prompt": "quiet dusk view of a medieval village, lamps lit, end-of-game mood",
+   "request": {
+    "prompt_style": "rd_pro__painterly",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ui-hud-bar-7a7d8edb",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui hud bar",
+   "prompt": "game HUD strip: resource counters with icon slots, meter frames, season and date display, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-inventory-grid-ccb897f8",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui inventory grid",
+   "prompt": "empty inventory grid panel with item slots and a character paper-doll frame, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-log-box-637d32e2",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui log box",
+   "prompt": "long thin parchment scroll log box, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-panel-e028fe6e",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui panel",
+   "prompt": "carved wooden-framed parchment UI panel, empty centre, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-title-keyart-8651a36f",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui title keyart",
+   "prompt": "sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art",
+   "request": {
+    "prompt_style": "rd_pro__painterly",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ui-ui-kit-8349cf27",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui ui kit",
+   "prompt": "complete medieval game UI kit: buttons, sliders, panels, knobs, checkboxes, scroll bars, matching carved wood and parchment, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-villager-card-c74542c4",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui villager card",
+   "prompt": "character card panel with portrait frame and stat rows, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-window-set-b4b2586c",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui window set",
+   "prompt": "set of matching medieval game windows: title bar, dialog box, tooltip, modal frame, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "icon-drizzle-7e180c5d",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon drizzle",
+   "prompt": "small game UI icon of pale cloud with fine slanting drizzle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-fog-6c76f6da",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon fog",
+   "prompt": "small game UI icon of low fog bank swallowing a rooftop, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-heavy-rain-aa8537ee",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon heavy rain",
+   "prompt": "small game UI icon of dark storm cloud with heavy rain, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-heavy-snow-ee1a9201",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon heavy snow",
+   "prompt": "small game UI icon of blizzard cloud, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-overcast-8e788526",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon overcast",
+   "prompt": "small game UI icon of flat grey cloud, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-rain-2b017fed",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon rain",
+   "prompt": "small game UI icon of grey cloud with rain streaks, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-rainbow-7248914e",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon rainbow",
+   "prompt": "small game UI icon of rainbow arc over small cloud, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-snow-dfa3832b",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon snow",
+   "prompt": "small game UI icon of white cloud with snowflakes, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-storm-1fa52396",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon storm",
+   "prompt": "small game UI icon of cloud with lightning bolt, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-sun-eecfc994",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon sun",
+   "prompt": "small game UI icon of bright sun, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
   {
    "id": "decor-marginalia-hybrid-4d9b2961",
    "tier": "p1",

@@ -272,7 +272,7 @@ impl Game {
         let pool = deduped;
         let mut invited: Vec<Entity> = pool.iter()
             .filter(|&&(e, promised)| org::shows_up(&self.world, pe, e, venue, promised,
-                (self.rng.next() % 1000) as f32 / 1000.0))
+                (self.rng.next() % 1000) as f32 / 1000.0, self.tick))
             .map(|&(e, _)| e).collect();
         invited.truncate(10);
         if invited.is_empty() {

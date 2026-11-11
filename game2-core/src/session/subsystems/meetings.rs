@@ -11,7 +11,7 @@ impl Game {
     pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize, record: u64, roles: (bool, bool, bool, bool, bool)) -> String {
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
         let members_before = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()).unwrap_or_default();
-        let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited);
+        let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited, self.tick);
         // the attendees' meeting lesson comes out of house_meeting itself;
         // here a seated campaign hand practices their seat's craft, and the
         // host's HouseMeeting grows by running the room

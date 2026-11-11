@@ -1270,7 +1270,7 @@ impl Game {
                 for v in self.villagers.iter().copied().collect::<Vec<_>>() {
                     if self.world.get_component::<Pos>(v).zip(self.world.get_component::<Pos>(player))
                         .map(|(a, b)| (a.x - b.x).abs() + (a.y - b.y).abs() < 12.0).unwrap_or(false) {
-                        crate::game::player::note_conversation(&mut self.world, player, v);
+                        crate::game::player::note_conversation(&mut self.world, player, v, tick);
                     }
                 }
                 self.log.push(format!("t{}: you stand in the gathering - the day's rite counts for you.", tick));

@@ -208,11 +208,17 @@ impl Game {
                     Some(Activity::SeekingFood) => 1, Some(Activity::Idle) | None => 0, _ => 2 },
                 bond: false, look: 0, sign: signs.get(v).copied(),
                 mounted: world.get_component::<villager::Mounted>(*v).is_some(),
+                // a face not spoken to lately greys toward the dim end;
+                // a stranger (no talk on the ledger) stays bright (#1069)
+                stale: world.get_component::<crate::game::player::TalkCount>(*v)
+                    .and_then(|c| c.last_day_by.get(&self.seats[seat].player).copied())
+                    .map(|d| (self.tick.saturating_sub(d) as f32 / NAME_FADE_DAYS).min(1.0))
+                    .unwrap_or(0.0),
             });
         }
         for (i, v) in self.rivals.iter().enumerate() {
             if let Some(p) = world.get_component::<Pos>(*v) {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: *v, kind: PKind::Rival(i), pos: (p.x, p.y),
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: *v, kind: PKind::Rival(i), pos: (p.x, p.y),
                     label: Some(RIVAL_NAMES[i].to_string()), find: find_key(RIVAL_NAMES[i]),
                     dead: false, kid: false,
                     selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
@@ -220,7 +226,7 @@ impl Game {
         }
         let (px, py) = self.player_pos_at(seat);
         let avatar = world.get_component::<crate::game::player::Avatar>(self.seats[seat].player);
-        people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: self.seats[seat].player, kind: PKind::Player, pos: (px, py),
+        people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: self.seats[seat].player, kind: PKind::Player, pos: (px, py),
             label: None, find: world.get_component::<PlayerCharacter>(self.seats[seat].player)
                 .map(|p| find_key(&p.name)).unwrap_or_default(),
             dead: false, kid: avatar.map(|a| a.kid).unwrap_or(false),
@@ -228,57 +234,57 @@ impl Game {
             look: avatar.map(|a| a.look as u8).unwrap_or(0) });
         for (i, (x, y)) in self.guards.iter().copied()
             .chain(self.posted.iter().map(|p| (p.1, p.2))).enumerate() {
-            people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: 0, kind: PKind::Guard(i), pos: (x, y),
+            people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: 0, kind: PKind::Guard(i), pos: (x, y),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         }
-        people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: 0, kind: PKind::Priest, pos: self.priest,
+        people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: 0, kind: PKind::Priest, pos: self.priest,
             label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         if let Some((tx, ty)) = self.traveller_pos() {
-            people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: 0, kind: PKind::Traveller, pos: (tx, ty),
+            people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: 0, kind: PKind::Traveller, pos: (tx, ty),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         }
         if let Some(d) = &self.doctor {
             if let Some(p) = self.world.get_component::<Pos>(d.e).copied() {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: d.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: d.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the plague doctor".into()), dead: false, kid: false, selected: false, in_reach: false,
                     hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
             }
         }
         if let Some(m) = &self.minstrel {
             if let Some(p) = world.get_component::<Pos>(m.e) {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the minstrel".into()), find: find_key("the minstrel"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
         if let Some(m) = &self.pedlar {
             if let Some(p) = world.get_component::<Pos>(m.e) {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the pedlar".into()), find: find_key("the pedlar"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
         for c in &self.couriers {
             if let Some(p) = world.get_component::<Pos>(c.e) {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the courier".into()), find: find_key("the courier"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
         if let Some(c) = &self.circus {
             if let Some(p) = world.get_component::<Pos>(c.e) {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the circus".into()), find: find_key("the circus"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
             // the troupe around him: no labels - they're the camp's
             // background, not its news
             for &m in &c.members {
                 if let Some(p) = world.get_component::<Pos>(m) {
-                    people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: m, kind: PKind::Traveller, pos: (p.x, p.y),
+                    people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: m, kind: PKind::Traveller, pos: (p.x, p.y),
                         label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
                 }
             }
         }
         if let Some(b) = &self.ink_boiler {
             if let Some(p) = world.get_component::<Pos>(b.e) {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: b.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: b.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the ink-boiler".into()), find: find_key("the ink-boiler"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
@@ -292,17 +298,17 @@ impl Game {
                 events::Fig::Traveller => PKind::Traveller,
                 events::Fig::Pet(s) => PKind::Pet(s),
             };
-            people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e, kind, pos: (p.x, p.y),
+            people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e, kind, pos: (p.x, p.y),
                 label: Some(spec.name.into()), find: find_key(spec.name), dead: false, kid: false, selected: false,
                 in_reach: false, hungry: false, sick: false, act_mark: 0,
                 bond: world.get_component::<Pet>(e).map(|p| p.bond_strength >= 0.5).unwrap_or(false), look: 0 });
         }
         for &(x, y) in &self.gulls {
-            people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: 0, kind: PKind::Gull, pos: (x, y),
+            people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: 0, kind: PKind::Gull, pos: (x, y),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         }
         let hen_t = (self.frame_n / 12) as f32;
-        people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: 0, kind: PKind::Chicken,
+        people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: 0, kind: PKind::Chicken,
             pos: (self.chicken_at.0 + hen_t.cos() * 0.5, self.chicken_at.1 + (hen_t * 1.7).sin() * 0.4),
             label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         for (pet_e, species, (ox, oy)) in &self.pets {
@@ -313,7 +319,7 @@ impl Game {
                     .or_else(|| world.get_component::<Pos>(pet.owner.unwrap_or(self.villagers[0]))
                         .map(|p| (p.x + ox, p.y + oy)));
                 if let Some((x, y)) = at {
-                    people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: *pet_e, kind: PKind::Pet(*species),
+                    people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: *pet_e, kind: PKind::Pet(*species),
                         pos: (x, y), label: None, dead: false, kid: false,
                         selected: false, in_reach: false, hungry: false, sick: false,
                         act_mark: 0, bond: pet.bond_strength > 0.5, look: 0, find: String::new() });
@@ -322,14 +328,14 @@ impl Game {
         }
         for &a in &self.flock {
             if let (Some(l), Some(p)) = (world.get_component::<Livestock>(a), world.get_component::<Pos>(a)) {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: a, kind: if l.kind == LivestockKind::Sheep { PKind::Sheep } else { PKind::Goat },
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: a, kind: if l.kind == LivestockKind::Sheep { PKind::Sheep } else { PKind::Goat },
                     pos: (p.x, p.y), label: None, dead: false, kid: false, selected: false,
                     in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
             }
         }
         for &a in &self.hens {
             if let Some(p) = world.get_component::<Pos>(a) {
-                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: a, kind: PKind::Chicken, pos: (p.x, p.y), label: None,
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: a, kind: PKind::Chicken, pos: (p.x, p.y), label: None,
                     dead: false, kid: false, selected: false, in_reach: false,
                     hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
             }
@@ -1574,6 +1580,11 @@ pub(in crate::session) const CARD_X: i32 = 18;
 /// The right edge card text may reach, in the same space
 pub(in crate::session) const CARD_RX: i32 = 366;
 /// A card row's pitch
+/// How long a spoken-to name takes to grey out fully: a catch-up
+/// inside ~two months reads fresh, an old contact fades toward the
+/// dim end rather than snapping dark (#1069)
+pub(crate) const NAME_FADE_DAYS: f32 = 60.0;
+
 const CARD_ROW: i32 = 11;
 /// The LIFE paragraph's cap: a life's longest telling earns a trailing
 /// "..." rather than a card that swallows the map

@@ -147,9 +147,9 @@ fn test_the_card_names_the_tie_between_you() {
 fn test_the_card_names_how_warm_they_are() {
     let mut g = Game::new();
     let v = g.villagers[7];
-    crate::game::player::note_conversation(&mut g.world, g.seats[0].player, v);
-    crate::game::player::note_conversation(&mut g.world, g.seats[0].player, v);
-    crate::game::player::note_conversation(&mut g.world, g.seats[0].player, v);
+    crate::game::player::note_conversation(&mut g.world, g.seats[0].player, v, g.tick);
+    crate::game::player::note_conversation(&mut g.world, g.seats[0].player, v, g.tick);
+    crate::game::player::note_conversation(&mut g.world, g.seats[0].player, v, g.tick);
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);
     let bio = card_text(&ins);

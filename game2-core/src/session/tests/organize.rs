@@ -509,6 +509,56 @@ fn test_asking_someone_to_bring_friends_is_a_yes_or_a_no() {
 }
 
 #[test]
+fn test_the_promised_parts_of_a_meeting_actually_happen() {
+    use crate::game::organizing::MeetingPlan;
+    let mut game = Game::new();
+    *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    let (host, snacker, noter, opener, singer, closer) =
+        (game.villagers[1], game.villagers[2], game.villagers[3], game.villagers[4], game.villagers[5], game.villagers[6]);
+    for (i, v) in game.villagers.clone().into_iter().enumerate() {
+        *game.world.get_component_mut::<Pos>(v).unwrap() =
+            if i == 1 { Pos { x: 17.0, y: 16.0 } } else { Pos { x: 16.0 + (i % 5) as f32, y: 14.0 + (i / 5) as f32 * 0.5 } };
+    }
+    plan_ready_meeting(&mut game, host, (17.0, 16.0), &[]);
+    {
+        let plan = game.world.get_component_mut::<MeetingPlan>(game.org).unwrap();
+        plan.snacks = Some(snacker); plan.notes = Some(noter); plan.opener = Some(opener);
+        plan.song = Some(singer); plan.closer = Some(closer);
+    }
+    game.call_meeting();
+    while game.meeting.as_ref().map(|m| m.lines.is_empty()).unwrap_or(false) { game.update(); }
+    let m = game.meeting.as_ref().expect("the meeting's under way");
+    // every part happens, in its place: the opener's welcome first,
+    // the bread and the song along the way, the notes and the
+    // send-off last - and the song fills the music-want it promised
+    assert_eq!(m.lines[0].0, opener, "the opener speaks first: {:?}", m.lines.first());
+    assert!(m.lines[0].1.contains("you came"), "a welcome, not the host's question: {}", m.lines[0].1);
+    assert!(m.lines.iter().any(|&(w, ref t)| w == snacker && t.contains("Bread's on the table")), "the bread goes round");
+    assert!(m.lines.iter().any(|&(w, ref t)| w == singer && t.contains("road to the fair")), "the song is sung");
+    assert!(m.lines.iter().any(|&(w, ref t)| w == noter && t.contains("keep the word")), "the notes keep it");
+    assert_eq!(m.lines.last().unwrap().0, closer, "the closer sends them off");
+    assert!(crate::game::desires::is_satisfied(&game.world, singer, crate::game::desires::Want::Music, game.tick),
+        "the song warmed the room's music-want");
+    // a promised part whose keeper never made it stays un-kept
+    let mut game2 = Game::new();
+    *game2.world.get_component_mut::<Pos>(game2.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    let (host2, song2) = (game2.villagers[1], game2.villagers[9]);
+    for (i, v) in game2.villagers.clone().into_iter().enumerate() {
+        *game2.world.get_component_mut::<Pos>(v).unwrap() =
+            if i == 1 { Pos { x: 17.0, y: 16.0 } } else { Pos { x: 16.0 + (i % 5) as f32, y: 14.0 + (i / 5) as f32 * 0.5 } };
+    }
+    plan_ready_meeting(&mut game2, host2, (17.0, 16.0), &[]);
+    // the singer promised but sits in the cells: no song is sung
+    game2.world.get_component_mut::<MeetingPlan>(game2.org).unwrap().song = Some(song2);
+    game2.world.add_component(song2, crate::game::dungeon::Imprisoned { since: game2.tick, charge: "the lord's suspicion".into() });
+    game2.call_meeting();
+    while game2.meeting.as_ref().map(|m| m.lines.is_empty()).unwrap_or(false) { game2.update(); }
+    let m2 = game2.meeting.as_ref().expect("the meeting's under way");
+    assert!(!m2.roles.3, "a song whose singer's held sings nothing");
+    assert!(m2.lines.iter().all(|(_, t)| !t.contains("road to the fair")), "no song aired");
+}
+
+#[test]
 fn test_the_committed_bring_a_friend_along() {
     use crate::game::organizing::MeetingPlan;
     use crate::game::relationships::{Relationship, RelKind};

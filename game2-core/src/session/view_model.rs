@@ -1537,11 +1537,19 @@ impl Game {
             needs: livelihood::needs_input(&self.world, who).map(String::from),
             wants,
         };
+        // the market board: its spot is common knowledge, its postings
+        // only read while you stand before them
+        let board = self.world.get_component::<Pos>(self.market_food).map(|q| (q.x, q.y));
+        let notices: Vec<(String, String)> = if board.map(|b|
+            ((b.0 - p.x).powi(2) + (b.1 - p.y).powi(2)).sqrt() < 8.0).unwrap_or(false) {
+            self.notices.iter().filter(|(_, _, u)| self.tick < *u)
+                .map(|(k, t, _)| (k.clone(), t.clone())).collect()
+        } else { vec![] };
         Some(AgentObs {
             tick: self.tick, you: who, pos: (p.x, p.y), gold, hunger, busy,
             near, near_animals, near_buildings, satchel,
             walking: self.travels.iter().any(|t| t.who == who),
-            held, orgs, campaigns, burning, me,
+            held, orgs, campaigns, burning, me, notices, board,
         })
     }
 }

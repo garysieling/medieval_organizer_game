@@ -455,6 +455,26 @@ impl Game {
                 crate::game::dungeon::press(&mut self.world, prisoner, 0.1);
                 Ok(())
             }
+            AgentCmd::TakeNotice => {
+                // you can only take what you can read: the board's the
+                // medium, so the asker needn't be within earshot
+                let Some(bp) = self.world.get_component::<Pos>(self.market_food).map(|q| (q.x, q.y))
+                    else { return Err("no board".into()) };
+                let p = self.world.get_component::<Pos>(who).map(|p| (p.x, p.y)).unwrap_or(bp);
+                if ((bp.0 - p.0).powi(2) + (bp.1 - p.1).powi(2)).sqrt() >= 8.0 {
+                    return Err("too far off to read the board".into());
+                }
+                if self.seats[seat].quest.is_some() {
+                    return Err("you've already got a job on - see it through first".into());
+                }
+                if self.pending_quests.is_empty() {
+                    return Err("nothing's posted you could take".into());
+                }
+                // the oldest posting goes first, same as the board reads
+                self.take_pending_quest(seat, 0);
+                self.log.push(format!("t{}: {} takes a job off the board.", self.tick, self.name_of(who)));
+                Ok(())
+            }
             AgentCmd::Context { action, target } => self.agent_context_action(seat, action, target),
         }
     }

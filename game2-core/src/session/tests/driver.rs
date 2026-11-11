@@ -8,6 +8,7 @@ fn obs() -> AgentObs {
         busy: Some("Idle".into()), near: vec![], near_animals: vec![], near_buildings: vec![],
         satchel: vec![], walking: false, held: false,
         orgs: vec![], campaigns: vec![], burning: vec![], me: Default::default(),
+        notices: vec![], board: None,
     }
 }
 

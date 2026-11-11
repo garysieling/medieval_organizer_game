@@ -332,3 +332,49 @@ fn test_a_kid_can_run_an_errand_for_the_print_shop() {
     assert!((g.world.get_component::<Purse>(kid).unwrap().gold - kid_gold - pay).abs() < 0.01,
         "the kid earns the pay");
 }
+
+/// The board's postings reach an agent who stands close enough to read
+/// them - and a take lands the job where it hangs, the asker nowhere near
+#[test]
+fn an_agent_reads_the_board_and_takes_its_oldest_posting() {
+    use crate::session::quests::{PendingQuest, QuestKind, QuestTarget};
+    let mut g = Game::new();
+    let who = g.villagers[0];
+    let giver = g.villagers[1];
+    let bp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+    // a posting on the board: a note somebody's asked about
+    g.pending_quests.push(PendingQuest {
+        giver, kind: QuestKind::Note, target: QuestTarget::Villager(g.villagers[2]),
+        pickup: None, expires: g.tick + 10,
+    });
+    g.notices.push(("quest".into(), "someone asks for help - the board carries it".into(), g.tick + 14));
+    let seat = g.add_agent_seat(who);
+    // the opening job's been heard out - the slot's free for a begging one
+    g.seats[seat].quest = None;
+    // stood at the board: the posting reads plain
+    *g.world.get_component_mut::<Pos>(who).unwrap() = bp;
+    let obs = g.agent_obs(seat).unwrap();
+    assert_eq!(obs.board, Some((bp.x, bp.y)));
+    assert_eq!(obs.notices, vec![("quest".to_string(),
+        "someone asks for help - the board carries it".to_string())]);
+    // standing back: the board's spot is known, its postings aren't
+    *g.world.get_component_mut::<Pos>(who).unwrap() = Pos { x: bp.x + 12.0, y: bp.y };
+    let obs = g.agent_obs(seat).unwrap();
+    assert!(obs.notices.is_empty(), "too far to read the board");
+    assert_eq!(obs.board, Some((bp.x, bp.y)), "but a villager knows where it hangs");
+    assert!(g.agent_command(seat, AgentCmd::TakeNotice).is_err(), "the take needs the read");
+    // and at the board the oldest job comes off it
+    *g.world.get_component_mut::<Pos>(who).unwrap() = bp;
+    g.agent_command(seat, AgentCmd::TakeNotice).unwrap();
+    assert!(g.seats[seat].quest.as_ref().map(|q| q.giver == giver).unwrap_or(false),
+        "the posted job's the seat's now");
+    assert!(g.pending_quests.is_empty(), "off the begging list");
+    assert!(g.agent_command(seat, AgentCmd::TakeNotice).is_err(), "already on a job");
+    // another reader at the board finds nothing left to take
+    let who2 = g.villagers[3];
+    *g.world.get_component_mut::<Pos>(who2).unwrap() = bp;
+    let seat2 = g.add_agent_seat(who2);
+    g.seats[seat2].quest = None;
+    assert_eq!(g.agent_command(seat2, AgentCmd::TakeNotice),
+        Err("nothing's posted you could take".into()));
+}

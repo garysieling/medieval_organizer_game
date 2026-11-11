@@ -159,6 +159,13 @@ pub struct AgentObs {
     /// people's wants stay theirs (the probe's, not the agent's)
     #[serde(default)]
     pub me: ObsSelf,
+    /// The market board's postings - (kind, text) like the market panel
+    /// shows, and only while you stand close enough to read them
+    #[serde(default)]
+    pub notices: Vec<(String, String)>,
+    /// Where the board stands, so walking there is a decision, not a hunt
+    #[serde(default)]
+    pub board: Option<(f32, f32)>,
 }
 
 /// An agent's villager's knowledge of themself, to plan by rather than
@@ -260,4 +267,7 @@ pub enum AgentCmd {
     /// for actions such as TakeJob, Recruit, Errand, or PairUp; actions that
     /// use the agent's own position can leave it empty.
     Context { action: AgentAction, target: Option<Entity> },
+    /// Take the board's oldest posted job - a quest advertised on the
+    /// notice board is accepted where it hangs, not at the asker's door
+    TakeNotice,
 }

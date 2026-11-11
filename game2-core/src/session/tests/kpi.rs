@@ -54,6 +54,32 @@ fn public_kpis_count_what_the_frame_shows() {
 }
 
 #[test]
+fn stock_food_counts_the_whole_village_table() {
+    let mut g = Game::new();
+    assert!(!g.crop_fields.is_empty(), "the village has fields to eat");
+    let stock = |g: &Game| g.secret_kpis().iter()
+        .find(|(k, _)| *k == "stock.food").map(|(_, v)| *v).unwrap();
+    let set = |g: &mut Game, e: Entity, n: u32| {
+        g.world.get_component_mut::<villager::FoodSource>(e).unwrap().servings = n;
+    };
+    // the market runs bare but a field stands stocked - a hungry soul
+    // walks to it, so the gauge has to see it (the old census read the
+    // market pile alone and reported famine on a full table)
+    let market = g.market_food;
+    let fields: Vec<_> = g.crop_fields.clone();
+    set(&mut g, market, 0);
+    for (i, &f) in fields.iter().enumerate() { set(&mut g, f, if i == 0 { 40 } else { 0 }); }
+    assert_eq!(stock(&g), 40.0, "a stocked field is still food on the village table");
+    // and the other settlements' granaries - full, but somebody else's
+    // table a world away - don't prop the village's cover up
+    set(&mut g, fields[0], 0);
+    assert_eq!(stock(&g), 0.0);
+    assert!(g.sites.iter().all(|s| g.world.get_component::<villager::FoodSource>(s.store)
+        .map(|f| f.servings > 0).unwrap_or(false)),
+        "the granaries still hold - they just aren't the village's table");
+}
+
+#[test]
 fn an_agent_gets_its_own_seat_and_kpis() {
     let mut g = Game::new();
     let Some(i) = g.free_villager() else { return };

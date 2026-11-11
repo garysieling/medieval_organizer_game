@@ -25,8 +25,17 @@ impl Game {
             .map(|b| b.stock.get("grain").copied().unwrap_or(0)).unwrap_or(0) as f64;
         let bread = self.world.get_component::<Building>(self.market_food)
             .map(|b| b.stock.get("bread").copied().unwrap_or(0)).unwrap_or(0) as f64;
-        let food = self.world.get_component::<villager::FoodSource>(self.market_food)
-            .map(|f| f.servings).unwrap_or(0) as f64;
+        // the village table: the market store plus the crop fields -
+        // the same pools Goal::Eat reaches for first. The rivals' and
+        // the settlements' granaries are a bare-table fallback, not the
+        // village's own cover (and a far full granary nobody can walk to
+        // must not read as food on hand)
+        let food: u32 = std::iter::once(self.market_food)
+            .chain(self.crop_fields.iter().copied())
+            .filter_map(|f| self.world.get_component::<villager::FoodSource>(f))
+            .map(|f| f.servings)
+            .sum();
+        let food = food as f64;
         // the village's gold: mean purse and the top/mean spread - the
         // economy's pulse while prices sit on a fixed table
         let purses: Vec<f32> = self.villagers.iter()

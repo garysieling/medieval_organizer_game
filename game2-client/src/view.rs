@@ -1143,12 +1143,15 @@ impl View {
             draw_button(&mut buf, b, hover, reason.is_some());
         }
         // a greyed reason reads on one line under the band - beside its
-        // button it would land on the neighbouring column
-        if let Some(r) = ctx_btns.iter()
-            .find(|(b, _)| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
-            .and_then(|(_, r)| r.as_deref()) {
-            let bottom = ctx_btns.iter().map(|(b, _)| b.y + b.h).max().unwrap_or(CTX_BAND_Y);
-            draw_text(&mut buf, UI_X as i32 + 18, bottom + 4, r, 255, 180, 140);
+        // button it would land on the neighbouring column; a button with
+        // nothing barring it shows its hint there instead (#1071)
+        if let Some(i) = ctx_btns.iter()
+            .position(|(b, _)| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h) {
+            if let Some(r) = ctx_btns[i].1.map(|s| s.as_str())
+                .or_else(|| m.ctx_hint.get(i).and_then(|h| h.as_deref())) {
+                let bottom = ctx_btns.iter().map(|(b, _)| b.y + b.h).max().unwrap_or(CTX_BAND_Y);
+                draw_text(&mut buf, UI_X as i32 + 18, bottom + 4, r, 255, 180, 140);
+            }
         }
 
         // the bond ledger: the reward for keeping company - who the

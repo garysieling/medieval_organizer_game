@@ -514,6 +514,11 @@ pub struct UiModel {
     /// `ctx_button`'s static labels
     #[serde(default)]
     pub ctx_labels: Vec<String>,
+    /// What pressing each ctx button does, told ahead - the hover line
+    /// that doesn't bar the press, same index order as `ctx`; absent
+    /// from older servers
+    #[serde(default)]
+    pub ctx_hint: Vec<Option<String>>,
     pub inspector: Option<InspectorV>,
     pub panel: PanelV,
     /// Mill stands at the map's mill tile when the art has a mill

@@ -32,6 +32,11 @@ mod ordinal_tests {
 /// The chest's price for outfitting a brigade: the buckets,
 /// the bell, and the first crew's share
 const BRIGADE_COST: f32 = 30.0;
+/// What the treasury pays to raise the schoolhouse - the ask's
+/// hidden while the chest's short of it
+const SCHOOL_FOUND_COST: f32 = 30.0;
+/// A teacher's season's wage from the chest
+const SCHOOL_TEACHER_COST: f32 = 10.0;
 
 impl Game {
     /// Why action button `i` can't be used right now, if it can't: Build's
@@ -580,9 +585,22 @@ impl Game {
         if self.tame_animal_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::Tame);
         }
-        // the schoolhouse: raise it once, then keep a teacher in it
+        // the schoolhouse: raise it once, then keep a teacher in it. The
+        // ask shows only where the thing's done - near the market plot
+        // it'd rise on, or the schoolhouse once it stands - and only
+        // while the treasury could cover the press (#1071)
         if self.school.is_none() || self.teacher.is_none() {
-            self.seats[seat].ctx_actions.push(CtxAct::School);
+            let cost = if self.school.is_none() { SCHOOL_FOUND_COST } else { SCHOOL_TEACHER_COST };
+            let covered = self.world.get_component::<Organization>(self.seats[seat].org)
+                .map(|o| o.resources >= cost).unwrap_or(false);
+            let site = self.school
+                .and_then(|s| self.world.get_component::<Pos>(s).copied())
+                .or_else(|| self.world.get_component::<Pos>(self.market_food).copied());
+            let (px, py) = self.player_pos_at(seat);
+            let near = site.map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= MEETING_REACH).unwrap_or(false);
+            if covered && near {
+                self.seats[seat].ctx_actions.push(CtxAct::School);
+            }
         }
         // caps in the shade: standing by a flushed patch offers the
         // picking - and what the belly's learned shows up in why it won't
@@ -1864,11 +1882,23 @@ impl Game {
         "The brigade's chartered - the chest bought the buckets, and the bell has hands.".into()
     }
 
+    /// What pressing a ctx button does, told ahead - the hover line that
+    /// doesn't bar the press (#1071). None when nothing needs explaining.
+    pub fn ctx_hint_at(&self, _seat: usize, act: CtxAct) -> Option<String> {
+        match act {
+            CtxAct::School if self.school.is_none() =>
+                Some(format!("the treasury raises the schoolhouse by the market - {:.0} gold", SCHOOL_FOUND_COST)),
+            CtxAct::School if self.teacher.is_none() =>
+                Some(format!("send for a teacher for the season - {:.0} gold", SCHOOL_TEACHER_COST)),
+            _ => None,
+        }
+    }
+
     fn school_at(&mut self, seat: usize) -> String {
         let oe = self.seats[seat].org;
         if self.school.is_none() {
             let paid = self.world.get_component_mut::<Organization>(oe)
-                .map(|o| if o.resources < 30.0 { false } else { o.resources -= 30.0; true })
+                .map(|o| if o.resources < SCHOOL_FOUND_COST { false } else { o.resources -= SCHOOL_FOUND_COST; true })
                 .unwrap_or(false);
             if !paid { return "the treasury can't raise it.".into() }
             self.found_school();
@@ -1877,7 +1907,7 @@ impl Game {
         }
         if self.teacher.is_none() {
             let paid = self.world.get_component_mut::<Organization>(oe)
-                .map(|o| if o.resources < 10.0 { false } else { o.resources -= 10.0; true })
+                .map(|o| if o.resources < SCHOOL_TEACHER_COST { false } else { o.resources -= SCHOOL_TEACHER_COST; true })
                 .unwrap_or(false);
             if !paid { return "the treasury can't send for anyone.".into() }
             self.hire_teacher(90);

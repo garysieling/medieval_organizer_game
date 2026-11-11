@@ -308,6 +308,10 @@ const WALK_SPEED: f32 = 7.0 / FPS as f32;
 /// How much faster the player goes on a road, and slower through woods
 const ROAD_SPEEDUP: f32 = 1.8;
 const WOODS_SLOWDOWN: f32 = 0.6;
+/// Wading the ford, for feet and for path-choice alike: slower than the
+/// woods, far dearer than the dry way over (#1074)
+const WADE_SLOWDOWN: f32 = 0.4;
+const FORD_WADE: f32 = 9.0;
 /// How far from the player (in tiles) to look for a free building site
 const BUILD_SEARCH: i32 = 8;
 
@@ -1846,7 +1850,7 @@ impl Game {
             let (tx, ty) = (x.round() as i32, y.round() as i32);
             let built = self.map.is_occupied(tx, ty)
                 || self.buildings.iter().any(|(bx, by, _)| bx.round() as i32 == tx && by.round() as i32 == ty);
-            !built && matches!(self.map.get(tx, ty), Some(Tile::Water) | Some(Tile::River))
+            !built && matches!(self.map.get(tx, ty), Some(Tile::Water) | Some(Tile::River) | Some(Tile::Ford))
         } else {
             self.walkable(x, y)
         }

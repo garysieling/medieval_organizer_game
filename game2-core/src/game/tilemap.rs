@@ -21,6 +21,9 @@ pub enum Tile {
     River,
     /// Where a road crosses the river
     Bridge,
+    /// A shallow stretch a body can wade - slow going, but a crossing
+    /// where the bridge isn't (#1074)
+    Ford,
 }
 
 /// Height bands of the terrain: below WATER_LEVEL is sea, then grass, hills
@@ -68,6 +71,12 @@ pub struct Layout {
     pub river: Vec<(i32, i32)>,
     /// The bridge goes on the river tile nearest here where the river runs straight
     pub bridge_near: (i32, i32),
+    /// More bridges, each placed on the straight river tile nearest its
+    /// anchor - the main crossing's not the only dry way over (#1074)
+    pub extra_bridges: Vec<(i32, i32)>,
+    /// Fords seeded near demand (the mill, the farm lane): each lands
+    /// on the river tile nearest its anchor - wadeable, never fast
+    pub fords: Vec<(i32, i32)>,
     pub fields: Vec<(i32, i32, Tile)>,
     /// Where each building wants to stand
     pub buildings: Vec<(i32, i32)>,
@@ -268,6 +277,8 @@ impl TileMap {
             settlement_houses: vec![], gates: vec![], hub: layout.road_hub, rev: 0 };
         map.carve_river(&layout.river);
         map.place_bridge(layout.bridge_near);
+        for &n in &layout.extra_bridges { map.place_bridge(n); }
+        for &n in &layout.fords { map.place_ford(n); }
         for &(x, y, crop) in &layout.fields {
             if map.get(x, y) == Some(Tile::Grass) { map.set(x, y, crop); }
         }
@@ -521,7 +532,7 @@ impl TileMap {
     /// recorded there so the road doesn't end up with a tree still drawn on
     /// top of it.
     pub fn pave(&mut self, x: i32, y: i32) {
-        if !matches!(self.get(x, y), Some(Tile::Bridge) | Some(Tile::Water) | Some(Tile::River) | None) && !self.is_occupied(x, y) {
+        if !matches!(self.get(x, y), Some(Tile::Bridge) | Some(Tile::Water) | Some(Tile::River) | Some(Tile::Ford) | None) && !self.is_occupied(x, y) {
             self.set(x, y, Tile::Road);
             self.trees.retain(|&t| t != (x, y));
         }
@@ -591,8 +602,8 @@ impl TileMap {
     /// Whether the river runs straight through (x, y) along x (true), along
     /// y (false), or isn't a straight run there (None)
     fn straight_river(&self, x: i32, y: i32) -> Option<bool> {
-        let wet = |dx: i32, dy: i32| matches!(self.get(x + dx, y + dy), Some(Tile::River) | Some(Tile::Water) | Some(Tile::Bridge));
-        let dry = |dx: i32, dy: i32| matches!(self.get(x + dx, y + dy), Some(t) if t != Tile::River && t != Tile::Water);
+        let wet = |dx: i32, dy: i32| matches!(self.get(x + dx, y + dy), Some(Tile::River) | Some(Tile::Water) | Some(Tile::Bridge) | Some(Tile::Ford));
+        let dry = |dx: i32, dy: i32| matches!(self.get(x + dx, y + dy), Some(t) if t != Tile::River && t != Tile::Water && t != Tile::Ford);
         if wet(-1, 0) && wet(1, 0) && dry(0, -1) && dry(0, 1) { Some(true) }
         else if wet(0, -1) && wet(0, 1) && dry(-1, 0) && dry(1, 0) { Some(false) }
         else { None }
@@ -610,6 +621,21 @@ impl TileMap {
         if let Some(((x, y), _)) = best { self.set(x, y, Tile::Bridge); }
     }
 
+    /// A ford goes where the river's nearest the demand: the nearest
+    /// river tile to the anchor, straight or not - a wading stretch
+    /// needs no squared banks (#1074)
+    fn place_ford(&mut self, near: (i32, i32)) {
+        let mut best: Option<((i32, i32), i32)> = None;
+        for y in 0..self.height as i32 {
+            for x in 0..self.width as i32 {
+                if self.get(x, y) != Some(Tile::River) { continue; }
+                let d = (x - near.0).abs() + (y - near.1).abs();
+                if best.map(|(_, bd)| d < bd).unwrap_or(true) { best = Some(((x, y), d)); }
+            }
+        }
+        if let Some(((x, y), _)) = best { self.set(x, y, Tile::Ford); }
+    }
+
     /// Whether a road may step from `a` onto `b`: over dry, unbuilt ground
     /// (not through fields), or across the bridge at right angles to the river
     fn road_step_ok(&self, a: (i32, i32), b: (i32, i32), goal: (i32, i32)) -> bool {
@@ -621,7 +647,7 @@ impl TileMap {
         let enters_ok = match self.get(b.0, b.1) {
             Some(Tile::Bridge) => across(b),
             Some(Tile::Grass) | Some(Tile::Hill) | Some(Tile::Rock) | Some(Tile::Road) => !self.is_occupied(b.0, b.1) || b == goal,
-            _ => b == goal && !matches!(self.get(b.0, b.1), Some(Tile::Water) | Some(Tile::River) | None),
+            _ => b == goal && !matches!(self.get(b.0, b.1), Some(Tile::Water) | Some(Tile::River) | Some(Tile::Ford) | None),
         };
         leaves_ok && enters_ok
     }
@@ -680,7 +706,7 @@ impl TileMap {
         let tile = self.get(x, y)?;
         let joins = |t: Option<Tile>| match tile {
             Tile::Road => matches!(t, Some(Tile::Road) | Some(Tile::Bridge)),
-            Tile::River => matches!(t, Some(Tile::River) | Some(Tile::Bridge) | Some(Tile::Water)),
+            Tile::River => matches!(t, Some(Tile::River) | Some(Tile::Bridge) | Some(Tile::Water) | Some(Tile::Ford)),
             _ => false,
         };
         match tile {

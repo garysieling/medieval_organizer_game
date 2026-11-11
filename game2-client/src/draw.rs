@@ -259,6 +259,8 @@ pub(crate) fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
         Tile::Corn => land((200, 160, 60)),
         Tile::Road => land((229, 143, 77)),
         Tile::Bridge => (229, 143, 77),
+        // a ford reads as a pale, wadeable stretch of the water (#1074)
+        Tile::Ford => season_colour(0.18, season),
     }
 }
 

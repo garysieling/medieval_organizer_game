@@ -141,6 +141,9 @@ impl Game {
             // a tile under the water doesn't take a step - the flood
             // routes folk round the wetting, not through it
             if flood.flooded(x, y) { return f32::INFINITY; }
+            // the ford takes the wade, worn or not: a well-trodden
+            // shallows is still a river to cross (#1074)
+            if map.get(x, y) == Some(Tile::Ford) { return FORD_WADE; }
             // roads aren't free for the planner: advance_travels prices
             // a step by the trail actually recorded on the tile, so a
             // road only earns its keep once folk have worn it in too
@@ -233,7 +236,9 @@ impl Game {
                 .filter(|c| self.tick < c.until)
                 .map(|c| match c.kind { "a lame leg" => 0.6, "no sight" => 1.0, _ => 0.7 }).unwrap_or(1.0);
             let ride = if riders.contains(&t.who) || mounted.contains(&t.who) { country::RIDE_PACE } else { 1.0 };
-            let stride = MEETING_WALK * pace / trails::movement_cost(1.0, worn, TRAIL_K) * slow * ride;
+            // a ford tile in the walk costs the wade itself (#1074)
+            let wade = if self.map.get(t.path[0].0, t.path[0].1) == Some(Tile::Ford) { WADE_SLOWDOWN } else { 1.0 };
+            let stride = MEETING_WALK * pace / trails::movement_cost(1.0, worn, TRAIL_K) * slow * ride * wade;
             let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
             // spend the frame's stride on every waypoint it reaches: a fast
             // clock still walks the tiles between, it doesn't leap them

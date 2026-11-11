@@ -37,7 +37,14 @@ impl Game {
         let gold_top = purses.iter().copied().fold(0.0f32, f32::max);
         let org_members = self.world.get_component::<Organization>(self.org)
             .map(|o| o.members.len()).unwrap_or(0);
-        let sanctioned = self.sanctioned.len();
+        // souls living under a real sanction (the cold shoulder or
+        // worse) - a bad word going round is village weather, not a
+        // sanction, and overlapping rungs still count the one soul
+        let sanctioned = self.sanctioned.iter()
+            .filter(|(_, s, _)| *s >= Sanction::Shun)
+            .map(|(e, _, _)| *e)
+            .collect::<crate::engine::det::HashSet<_>>()
+            .len();
         let tree_cover = sorted_sum(self.land.tree_cover.values().copied()) / self.land.tree_cover.len().max(1) as f32;
         // the organizer's hidden craft: practiced at a 1-1, turning out a
         // room, running a meeting - the player never sees these, tests do

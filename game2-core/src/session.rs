@@ -1359,6 +1359,10 @@ pub struct Game {
     pub reach: Vec<(i32, i32)>,
     /// (who, the rung they're on, the day it ends) - the ladder of shame
     pub sanctioned: Vec<(Entity, Sanction, u64)>,
+    /// The pile size each soul's shame last answered for: the ladder
+    /// speaks on a growing heap, not the same grievances twice - a lapsed
+    /// sanction stays lapsed until they earn fresh blame past this mark
+    pub sanction_seen: crate::engine::det::HashMap<Entity, usize>,
     /// Pickets and marches in progress: the crowd, the rally, the signs
     pub protests: Vec<routine::Protest>,
     /// The worst state each feud was announced at, so the log tells its

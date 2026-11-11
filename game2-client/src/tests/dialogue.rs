@@ -106,6 +106,51 @@ fn test_a_house_meeting_ends_in_the_organizers_call_not_a_done_deal() {
 }
 
 #[test]
+fn test_the_numbered_rows_take_the_digit_keys() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    let c = g.convo_panel_at(0).expect("the talk on the conversation box");
+    assert!(c.leave && !c.options.is_empty());
+    // a digit presses the reply drawn beside it
+    match digit_cmd(Some(&c), 0) {
+        Some(Command::TalkPick(Some(0))) => {}
+        other => panic!("a digit mid-talk picked: {:?}", other),
+    }
+    // past the drawn rows a digit is swallowed - not a villager pick
+    assert!(digit_cmd(Some(&c), c.options.len()).is_none());
+    // and with no box open the digit picks a villager, as ever
+    match digit_cmd(None, 0) {
+        Some(Command::Select(0)) => {}
+        other => panic!("a digit with no talk picked: {:?}", other),
+    }
+    // X and Escape take the offered leave - the pick the "x)" row clicks
+    assert!(c.leave || g.talk_panel_at(0).in_talk, "the leave is offered somewhere");
+    g.command(Command::TalkPick(None));
+    assert!(g.seats[0].talk.is_none(), "the leave was taken");
+}
+
+#[test]
+fn test_the_calls_rows_take_the_digit_keys_too() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    org_ready(&mut g);
+    let came = g.villagers[..3].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    let c = g.convo_panel_at(0).expect("the call on the box");
+    assert!(c.decides && c.options.len() == 4);
+    // the founding call's framings answer digits as Decide, not TalkPick
+    match digit_cmd(Some(&c), 3) {
+        Some(Command::Decide(3)) => {}
+        other => panic!("a digit on the call picked: {:?}", other),
+    }
+    assert!(digit_cmd(Some(&c), 8).is_none(), "a digit with no row is swallowed");
+    // and the digit decides what the click does
+    g.command(Command::Decide(3));
+    assert!(g.seats[0].pending_founding.is_none());
+}
+
+#[test]
 fn test_the_conversation_box_draws_its_buttons() {
     let p = ConvoPanelV {
         title: "THE HARVESTERS - YOUR CALL".into(),

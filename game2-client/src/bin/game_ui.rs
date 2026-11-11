@@ -8,7 +8,7 @@ use minifb::{Key, Window, WindowOptions, MouseMode, Scale, ScaleMode};
 use game2_core::engine::render::Buffer;
 use game2_client::{self as client, Art, EventCam, View};
 use game2_core::session::{
-    self, ClientKind, ClientMsg, Command, Game, SceneCache, ServerMsg, UiModel, MAP_TILES,
+    self, ClientKind, ClientMsg, Command, ConvoPanelV, Game, SceneCache, ServerMsg, UiModel, MAP_TILES,
 };
 
 const W: usize = session::W;
@@ -147,7 +147,7 @@ const TALK_DBL: std::time::Duration = std::time::Duration::from_millis(350);
 /// Map this frame's window input to Commands (shared by local and remote play).
 /// `talk_armed` marks the last lone T press: a second one inside TALK_DBL
 /// with nothing between them is a double-tap - let the pick go, don't talk
-fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, f32), minimap_hit: bool, typing: bool, talk_armed: &mut Option<std::time::Instant>) -> Vec<Command> {
+fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, f32), minimap_hit: bool, typing: bool, talk_armed: &mut Option<std::time::Instant>, convo: Option<&ConvoPanelV>, leave: bool) -> Vec<Command> {
     // the find box has the keys: no game input gets through while it types
     if typing { return vec![]; }
     let mut cmds: Vec<Command> = vec![];
@@ -172,8 +172,22 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
             }
         }
     }
+    // the conversation box's rows are numbered: while it's open the
+    // digits press them (a reply, or the call's framing) and a digit
+    // with no row is swallowed, not a villager pick under the box. A
+    // press, not a hold - a held key would talk the whole way through
     for (n, k) in [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5, Key::Key6, Key::Key7, Key::Key8].iter().enumerate() {
-        if window.is_key_down(*k) { cmds.push(Command::Select(n)); }
+        let hit = if convo.is_some() { window.is_key_pressed(*k, minifb::KeyRepeat::No) }
+            else { window.is_key_down(*k) };
+        if hit {
+            if let Some(c) = client::talk::digit_cmd(convo, n) { cmds.push(c); }
+        }
+    }
+    // a talk on offer takes X or Escape as your leave - the same pick
+    // the "x)" row clicks through
+    if leave && (window.is_key_pressed(Key::X, minifb::KeyRepeat::No)
+        || window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No)) {
+        cmds.push(Command::TalkPick(None));
     }
     let (mut dx, mut dy) = (0.0, 0.0);
     if window.is_key_down(Key::W) { dy -= 1.0; }
@@ -263,9 +277,13 @@ fn main() {
     // the event camera: which civic event has it, and the eased centre
     let mut event_cam = EventCam::default();
 
+    // a Talk on offer draws "x) Take your leave": Escape presses it too,
+    // ahead of the quit - the cancel layer sits before the door
+    let mut leave_offered = false;
+
     // Escape is a tap, not a hold: while the find box has the keys its
     // Escape lets go of them instead of quitting
-    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus && picker.is_none() && intro.is_none()) {
+    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus && picker.is_none() && intro.is_none() && !leave_offered) {
         let frame_at = std::time::Instant::now();
         // a refusal (a wrong join secret, a full village) ends the session
         // with the server's reason, not a silent title card
@@ -404,6 +422,11 @@ fn main() {
             (None, Some(g)) => { g.update(); Some(g.ui_model()) }
             (None, None) => None,
         };
+        // a talk under way offers leave on either box it shows on -
+        // the convo box's "x)", or the TALK panel's when a call's
+        // standing over the talk
+        leave_offered = cur_model.as_ref().map(|m|
+            m.convo.as_ref().map(|p| p.leave).unwrap_or(false) || m.talk.in_talk).unwrap_or(false);
 
         // the sim asked the camera somewhere - an introduction's name:
         // centre on them and lean in, once per ask
@@ -521,7 +544,8 @@ fn main() {
         present(&mut window, &buf);
 
         // input -> commands -> local game or the wire
-        let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus, &mut talk_armed);
+        let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus, &mut talk_armed,
+            cur_model.as_ref().and_then(|m| m.convo.as_ref()), leave_offered);
         // a hidden button (Recruit, before there's a campaign) can't be pressed
         if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
         if clicked && !on_minimap && !swallow_click {

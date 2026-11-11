@@ -90,6 +90,9 @@ impl Game {
                 let bond = shortfall * BOND_SHARE;
                 if let Some(p) = self.world.get_component_mut::<Purse>(voucher) { p.gold -= shortfall + bond; }
                 self.vouches.push(Vouch { voucher, debtor: v, bond, owed: shortfall, made_on: tick });
+                // gold put up against a neighbour's word is aid risked (#950)
+                crate::game::virtue::witness(&mut self.world, voucher,
+                    crate::game::virtue::MoralAct::SharedAid, 0.5);
                 self.log.push(format!("t{}: {} stands surety for {} - the fine's paid, and gold's put up against the word.", tick, vname, name));
             } else {
                 self.log_entity(v, format!("t{}: {} can't pay the rule's fine - the village remembers it.", tick, name));
@@ -104,6 +107,9 @@ impl Game {
         // just now made for this fine doesn't default on the spot
         if let Some(i) = self.vouches.iter().position(|u| u.debtor == v && u.made_on < tick) {
             let u = self.vouches.remove(i);
+            // the word they gave their voucher's spent: broken (#950)
+            crate::game::virtue::witness(&mut self.world, v,
+                crate::game::virtue::MoralAct::BrokeWord, 1.0);
             let short = u.owed - u.bond;
             if short > 0.001 {
                 let vname = named(self, u.voucher);
@@ -231,6 +237,9 @@ impl Game {
             if self.vouches[i].owed <= 0.001 {
                 if let Some(p) = self.world.get_component_mut::<Purse>(voucher) { p.gold += bond; }
                 self.log.push(format!("t{}: {} has made good - {}'s bond comes home.", tick, named(self, debtor), named(self, voucher)));
+                // the word was kept, and it cost them a weekly share (#950)
+                crate::game::virtue::witness(&mut self.world, debtor,
+                    crate::game::virtue::MoralAct::KeptWord, 1.0);
                 done.push(i);
             }
         }

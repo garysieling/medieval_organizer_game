@@ -199,6 +199,71 @@ const SMALL_GREET: Exchange = Exchange {
     ],
 };
 
+/// What a settled soul's name earns on the road (#950): the virtues are
+/// never a score anyone reads, but a marked life gets greeted by what
+/// the village knows of it. These fire late in the cascade - a trade, a
+/// circumstance or a bond always speaks first - and pass the talk back
+/// to the common smalltalk once the name's been said
+const VIRTUE_GOOD_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting"],
+    calls: &["Well met, {other} - thy table's never bare to a neighbor, they say.", "God's peace, {other}. Half the village owes thee a meal, by the telling.", "Ah, {other} - the soul that asks after folk's pots before their own.", "Fair day, {other}. Thy good name walks ahead of thee."],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Greet, concepts: &["greeting"],
+            lines: &["Thou'rt kind to say so, {other}.", "A neighbor's a neighbor - the saints ask no more.", "Well met, friend. The talk's kinder than the truth.", "And a fair day to thee for saying it."],
+            then: Some(SMALL_CHAT), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.45, bias: &[(Proud, 2.5)],
+            act: Act::Remark, concepts: &["greeting"],
+            lines: &["Aye, folk say what folk say.", "Kind words cost nothing, {other}.", "The road's full of talk; I keep my own ledger.", "Well enough."],
+            then: Some(SMALL_CHAT), end: None,
+        },
+    ],
+};
+
+const VIRTUE_DEVOUT_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "concern:faith"],
+    calls: &["God's peace, {other} - the bell finds thee on thy knees more oft than not, they say.", "Well met, {other}. Thy faith's a lamp the whole parish sees.", "Fair day, {other} - fresh from the service, like as not.", "The saints keep thee, {other}, as thou keepest them."],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Greet, concepts: &["greeting", "concern:faith"],
+            lines: &["And His peace on thee, {other}.", "The day's not whole without the words, friend.", "Kind of thee to mark it. Well met.", "The saints watch us all alike - I only bow the sooner."],
+            then: Some(SMALL_CHAT), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[(Proud, 2.5)],
+            act: Act::Remark, concepts: &["greeting"],
+            lines: &["A soul's business is its own, {other}.", "Aye. Well, the day's the day's.", "The church keeps my hours; I keep my own counsel.", "Well met."],
+            then: Some(SMALL_CHAT), end: None,
+        },
+    ],
+};
+
+const VIRTUE_COLD_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting"],
+    calls: &["{other}. Thou'rt about, then.", "Well met, {other} - if well it be.", "Morrow, {other}. Thy gate was shut to the bailiff's widow last week, I hear.", "Ah. {other}. Keep thy weather to thyself."],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Remark, concepts: &["greeting"],
+            lines: &["Is there aught thou needest, {other}?", "The day is what it is.", "Aye, well met then.", "Speak thy piece and have done, friend."],
+            then: Some(SMALL_CHAT), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.55, bias: &[(Hotheaded, 2.5), (Proud, 2.0)],
+            act: Act::PushBack, concepts: &["greeting"],
+            lines: &["My gate's my own affair, {other}.", "I owe the whole village nothing, mark me.", "Cold? I've a fire like any man's.", "Wag thy tongue elsewhere, {other}."],
+            then: Some(SMALL_CHAT), end: None,
+        },
+    ],
+};
+
 const SICK_THANKS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:sickness", "aid"],
@@ -2527,6 +2592,18 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: "the_bond_coleader",
             criteria: &[Has("self:status:coleader"), Has("any:status:coleader")],
             root: &COLEADER_GREET, rejoin: Some(&BOND_CHAT) },
+        // a marked soul's name greets ahead of smalltalk (#950): single
+        // criterion and declared late, so a trade, a circumstance or a
+        // bond outranks it - the name only speaks when nothing else does
+        DialogueTree { name: "the_good_name",
+            criteria: &[Has("other:status:kind_soul")],
+            root: &VIRTUE_GOOD_GREET, rejoin: Some(&SMALL_CHAT) },
+        DialogueTree { name: "the_devout_soul",
+            criteria: &[Has("other:status:devout")],
+            root: &VIRTUE_DEVOUT_GREET, rejoin: Some(&SMALL_CHAT) },
+        DialogueTree { name: "the_cold_one",
+            criteria: &[Has("other:status:hard")],
+            root: &VIRTUE_COLD_GREET, rejoin: Some(&SMALL_CHAT) },
         DialogueTree { name: "village_smalltalk", criteria: &[],
             root: &SMALL_GREET, rejoin: Some(&SMALL_CHAT) },
     ]
@@ -2575,6 +2652,16 @@ pub fn backstory(s: &Speaker) -> String {
             "cold" => "Their hearth went out and fuel is spent.".into(),
             "elder" => "Eighty winters of village memories are in their bones.".into(),
             "newborn" => "A new babe was born to their house this month.".into(),
+            // the soul's name, read not as a score but as what folk
+            // have learned to expect of them (#950)
+            "kind_soul" => "Their table's never bare to a neighbor.".into(),
+            "upright" => "They deal straight where another man would bend.".into(),
+            "steady" => "Nothing much ruffles them.".into(),
+            "shrewd" => "They weigh a thing thrice before they speak on it.".into(),
+            "devout" => "They keep the holy days like a second trade.".into(),
+            "hopeful" => "They expect the morning to bring good.".into(),
+            "bold" => "They step forward when the rest step back.".into(),
+            "hard" => "Their door stays shut when a neighbor's pot runs empty.".into(),
             "smith" => "They work the village anvil and forge.".into(),
             "miller" => "They run the watermill at the weir.".into(),
             "baker" => "They tend the communal bread oven.".into(),

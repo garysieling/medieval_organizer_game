@@ -880,6 +880,11 @@ pub fn resolve_pledges(world: &mut World, campaign: Entity, tick: u64) -> Vec<Pl
             // the room's banked consent doesn't survive a broken word
             crate::game::campaign_arc::record_consent(world, campaign, false);
         }
+        // and the word lands on the soul that gave it: kept grows,
+        // broken wears - the room remembers either way (#950)
+        crate::game::virtue::witness(world, l,
+            if any_broken { crate::game::virtue::MoralAct::BrokeWord }
+            else { crate::game::virtue::MoralAct::KeptWord }, 1.0);
     }
     results.into_iter().map(|(_, _, v)| v).collect()
 }

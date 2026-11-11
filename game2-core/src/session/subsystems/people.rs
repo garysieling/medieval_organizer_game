@@ -248,6 +248,10 @@ impl Game {
             // the visit: a bond kept warm, and the walk there counted
             relationships::record_interaction(&mut self.world, checker, relationships::Interaction {
                 other: v, kind: relationships::InteractionKind::Conversation, intensity: 1.2 });
+            // sitting with the afflicted is comfort given - the soul
+            // remembers the morning it cost (#950)
+            crate::game::virtue::witness(&mut self.world, checker,
+                crate::game::virtue::MoralAct::Comforted, 1.0);
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 8);
             if tick % 21 == 2 {
                 self.say(checker, match cond {

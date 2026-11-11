@@ -1489,6 +1489,9 @@ pub struct Game {
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,
+    /// The powers the village grows on its own - faction-tagged
+    /// Organizations whose people are read from the world, never stored
+    pub factions: Vec<Entity>,
     /// The lord's counter-offer when one stands - a seat on the board,
     /// binding or performative - waits on the player's pick
     pub seat_offer: Option<crate::game::campaign::SeatOffer>,

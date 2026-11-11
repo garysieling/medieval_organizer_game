@@ -1501,6 +1501,8 @@ impl Game {
         for e in self.world.query::<Organization>().iter() {
             let Some(o) = self.world.get_component::<Organization>(*e) else { continue };
             if o.name == "-" || !(o.members.contains(&who) || o.leader == who) { continue; }
+            // a faction is a power center, not a banner you march under
+            if self.world.get_component::<crate::sim::factions::Faction>(*e).is_some() { continue; }
             orgs.push(o.name.clone());
             if let Some(issue) = crate::game::campaign::campaign_of(&self.world, *e)
                 .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))

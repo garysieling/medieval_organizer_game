@@ -58,6 +58,9 @@ pub struct InfluenceSystem;
 impl crate::engine::ecs::System for InfluenceSystem {
     fn run(&mut self, world: &mut World) {
         for o in world.query::<Organization>() {
+            // a faction's people are read, not stored: its pool is set by
+            // the weekly accounting, not the member rolls it doesn't keep
+            if world.get_component::<crate::sim::factions::Faction>(o).is_some() { continue; }
             // The dead leave the rolls: they lend no sway and aren't counted
             // as members (villager::is_dead also sees the windowed game's
             // Dead marker, since it removes Health on death)

@@ -224,6 +224,7 @@ mod trail;
 mod uprising;
 mod vermin;
 mod visitors;
+mod vaccination;
 mod village;
 mod walk;
 mod war;

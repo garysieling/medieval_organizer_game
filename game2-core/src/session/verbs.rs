@@ -1904,6 +1904,12 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the Act's officer waits on his answer: the scratch, the
+        // fine, or the village's own counter-institution
+        if let Some(offer) = self.vax_offer.take() {
+            self.resolve_vaccination(offer, pick);
+            return;
+        }
         // the compliance work's its own answer: spend the cause's own
         // resources to satisfy the lord's postings, else the burden
         // ticks the capacity down

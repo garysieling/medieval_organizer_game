@@ -156,6 +156,19 @@ impl Game {
                     }
                 }
             }
+            // the speckled monster comes rarely, in the cold months: a
+            // traveller's gift that the Act's scratch, or the Leicester
+            // method where the Act's refused, exists to answer
+            if DiseaseKind::Smallpox.in_season(day) && self.rng.below(1000) < 3 {
+                if let Some(i) = self.villagers.iter().position(|&v|
+                    !villager::is_dead(&self.world, v) && disease_of(&self.world, v).is_none()
+                    && self.world.get_component::<crate::sim::illness::SmallpoxVaccine>(v).is_none()) {
+                    let v = self.villagers[i];
+                    let d = self.world.create_entity();
+                    self.world.add_component(d, Disease::new(DiseaseKind::Smallpox, v, 0.8));
+                    self.log.push(format!("t{}: the speckled monster comes to {} - the pox is in the village.", tick, vill_name(i)));
+                }
+            }
             // the ague rides the autumn air off the marshes: homes by the
             // river shake with it when the season turns, and it keeps
             // coming back - beating it barely teaches the body

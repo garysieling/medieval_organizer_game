@@ -61,6 +61,18 @@ pub enum EventId {
     BerryYear, MushroomFlush, StormWashUp, ProdigalSon,
     // the moral knot: a man walks in carrying two ways to be wrong
     Dilemma,
+    // the state's own answer to the pox: a traveling officer reads the
+    // vaccination act on the square - once a save, the answer stands
+    VaccinationAct,
+}
+
+/// The vaccination act's officer waiting on the square: the answer's
+/// three ways - the scratch for the infants, the fine for the
+/// refusers, or the village's own counter-institution
+#[derive(Debug)]
+pub struct VaxOffer {
+    /// the officer riding the district
+    pub authority: Entity,
 }
 
 /// The moral knot the burdened man brings: two ways to be wrong, and
@@ -250,6 +262,7 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: StormWashUp, name: "a storm's leavings", kind: Moment, fig: Fig::Traveller, gap: 400, span: 300, stay: 0, cry: "" },
     EventSpec { id: ProdigalSon, name: "a prodigal returns", kind: Visitor, fig: Fig::Traveller, gap: 520, span: 400, stay: 6, cry: "Is this still-? I've come a long way." },
     EventSpec { id: Dilemma, name: "the burdened man", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 150, stay: 4, cry: "Two ways to be wrong - who\'ll hear me?" },
+    EventSpec { id: VaccinationAct, name: "the vaccination act", kind: Visitor, fig: Fig::Traveller, gap: 500, span: 350, stay: 12, cry: "The Act's officer rides through - the lancet waits on the square." },
     EventSpec { id: SeaMonster, name: "the deep one", kind: Moment, fig: Fig::Traveller, gap: 500, span: 360, stay: 0, cry: "" },
 ];
 
@@ -338,7 +351,7 @@ pub enum Group { Road, Sky, Beasts, IllLuck, Findings }
 /// The family an event belongs to
 pub fn group(id: EventId) -> Group {
     match id {
-        Dilemma => Group::Road,
+        Dilemma | VaccinationAct => Group::Road,
         Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger => Group::Road,
         Hailstorm | HeatWave | Drought | Flood | LightningStrike | LateFrost | IndianSummer | FirstSnow | Thaw | Aurora | MeteorShower | BloodMoon | DarkNoon | WindStorm | Mirage | SeaMonster => Group::Sky,
         WolfAtFold | FoxInYard | HawkStoops | StrayDog | StrayCat | RatPlague | Locusts | CaterpillarYear | Starlings | BeeTree | DeerInFields | WildBoar | OwlInTower | CrowsMob | FishRun => Group::Beasts,
@@ -510,7 +523,7 @@ impl Game {
     }
 
     /// The moment the figure reaches its pitch: a cry, a show, a knock
-    fn event_arrived(&mut self, id: EventId) {
+    pub(in crate::session) fn event_arrived(&mut self, id: EventId) {
         let s = spec(id);
         let e = self.rare.iter().find(|r| r.id == id).and_then(|r| r.e);
         let pitch = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at)
@@ -531,6 +544,18 @@ impl Game {
                             debt: 0.3, victim },
                     ] });
                 self.log.push_at_who(format!("t{}: {} sets his knot down at the market - two ways to be wrong.", self.tick, s.name), pitch, None);
+            }
+            EventId::VaccinationAct => {
+                if self.vax_done {
+                    // the Act's been answered once - the officer's
+                    // round is a formality now, the answer stands
+                    self.log.push_at_who(format!("t{}: {} rides through - the Act's answer stands.", self.tick, s.name), pitch, None);
+                } else {
+                    self.vax_offer = Some(VaxOffer { authority: e.unwrap_or(0) });
+                    if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
+                    self.log.push_at_who(format!("t{}: {} reads the vaccination act on the square - the lancet's offered for the infants, the refusers pay the fine, and a third way's whispered in the crowd.", self.tick, s.name), pitch, None);
+                    self.toasts.push_at(("The Vaccination Act".into(), self.tick + 40), pitch);
+                }
             }
             EventId::Tinker => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }

@@ -1049,6 +1049,15 @@ pub struct Game {
     pub dilemma: Option<crate::session::events::MoralKnot>,
     pub dilemma_debts: Vec<crate::session::events::DilemmaDebt>,
 
+    /// The vaccination act's officer waiting on the square for his
+    /// answer - the scratch, the fine, or the Leicester way
+    pub vax_offer: Option<crate::session::events::VaxOffer>,
+    /// The Act's been answered once - it doesn't come round again
+    pub vax_done: bool,
+    /// The day the player backed the Leicester way: the village takes
+    /// up its own counter-institution a few days on, not at the pick
+    pub leicester_backing: Option<u64>,
+
     /// Where the boats are moored: the riverbank tiles the water holds
     /// them at - the player boards one and it takes the river
     pub boats: Vec<(i32, i32)>,

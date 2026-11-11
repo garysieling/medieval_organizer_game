@@ -53,3 +53,36 @@ fn test_ctx_buttons_on_a_real_frame() {
         assert!(b.y >= CTX_BAND_Y && b.y + b.h <= 452, "{:?} sits in the band", m.ctx[i]);
     }
 }
+
+/// "The school" was a mystery button (#1071): hovering it tells what
+/// the press does - and a hinted button isn't greyed like a blocked one
+#[test]
+fn test_the_school_button_shows_its_hint_on_hover() {
+    use game2_core::game::villager::Pos;
+    use game2_core::sim::community::Organization;
+    let mut game = Game::new_seeded(MAP_SEED);
+    let view = View::new(Art::load_fs("../assets", 0));
+    let mp = game.world.get_component::<Pos>(game.market_food).copied().unwrap();
+    game.world.get_component_mut::<Organization>(game.org).unwrap().resources = 100.0;
+    *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: mp.x + 1.0, y: mp.y };
+    game.update_ctx_actions();
+    let m = game.ui_model();
+    let i = m.ctx.iter().position(|a| *a == CtxAct::School).expect("no school ask beside the market");
+    let btns = ctx_buttons(&m.ctx);
+    let b = &btns[i];
+    let bottom = btns.iter().map(|b| b.y + b.h).max().unwrap();
+    // unhovered the button keeps its live colour - a hint is not a block
+    let buf = view.render(&m, (-1, -1));
+    let px = ((b.y + 4) as usize * W + (b.x + 4) as usize) * 4;
+    assert_eq!((buf.pixels[px], buf.pixels[px + 1], buf.pixels[px + 2]), b.color, "a hinted button drew greyed");
+    // hovering draws the hint line under the band
+    let buf = view.render(&m, (b.x + 4, b.y + 4));
+    let mut hint_ink = false;
+    for y in (bottom + 4)..(bottom + 12) {
+        for x in (UI_X as i32 + 18)..(UI_X as i32 + 300) {
+            let i2 = (y as usize * W + x as usize) * 4;
+            if (buf.pixels[i2], buf.pixels[i2 + 1], buf.pixels[i2 + 2]) == (255, 180, 140) { hint_ink = true; }
+        }
+    }
+    assert!(hint_ink, "no hint line drawn under the band on hover");
+}

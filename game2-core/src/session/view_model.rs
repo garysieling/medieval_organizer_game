@@ -583,6 +583,8 @@ impl Game {
             blocked, ctx: self.seats[seat].ctx_actions.clone(),
             ctx_blocked: self.seats[seat].ctx_actions.iter()
                 .map(|a| self.ctx_blocker_at(seat, *a)).collect(),
+            ctx_hint: self.seats[seat].ctx_actions.iter()
+                .map(|a| self.ctx_hint_at(seat, *a)).collect(),
             inspector,
             panel: PanelV {
                 name: my_name, gold: my_gold,

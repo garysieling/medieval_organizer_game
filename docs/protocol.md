@@ -248,6 +248,11 @@ servers send bare strings in `log`; those read as unclickable lines.
 {"text":"t641: drizzle begins"}
 ```
 
+`ctx_hint` says what pressing each context action does, one entry per
+`ctx` index (`null` when nothing needs explaining) - the hover line
+that doesn't bar the press, unlike `ctx_blocked` which both greys and
+disables. Older servers omit it; read it as no hints.
+
 `focus` is the sim's camera ask, or absent: `[x, y, frame]` - where to
 look and the frame it was asked on, so a client can answer each ask
 once (an introduction's name, say). Older servers omit it; read it as

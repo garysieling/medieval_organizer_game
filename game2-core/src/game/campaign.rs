@@ -217,7 +217,7 @@ fn reveals_of(world: &World, member: Entity, tick: u64) -> Vec<Reveal> {
 /// the framing by.
 pub fn stake_for(world: &World, member: Entity, tag: &IssueTag, tick: u64) -> Option<Reveal> {
     reveals_of(world, member, tick).into_iter()
-        .find(|r| desires::issue_tag(world, member, r) == *tag)
+        .find(|r| desires::covers(tag, &desires::issue_tag(world, member, r)))
 }
 
 /// The candidate a member votes for: the one whose tag matches their
@@ -235,7 +235,7 @@ fn vote_for(world: &World, member: Entity, candidates: &[IssueTag], tick: u64) -
     // Most matching stakes wins; an equal match keeps the recommended order
     let mut best: Option<(usize, &IssueTag)> = None;
     for c in candidates {
-        let n = tags.iter().filter(|t| *t == c).count();
+        let n = tags.iter().filter(|t| desires::covers(c, t)).count();
         if n > 0 && best.map(|(b, _)| n > b).unwrap_or(true) { best = Some((n, c)); }
     }
     best.map(|(_, c)| c.clone())
@@ -910,6 +910,56 @@ mod tests {
         let m = w.create_entity();
         w.add_component(m, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         m
+    }
+
+    #[test]
+    fn test_two_issues_in_a_theme_make_a_platform() {
+        // two tags under one theme synthesize to the platform; the
+        // lone ones stand as themselves, first-heard order throughout
+        let issues = vec!["the taxes".to_string(), "poverty".to_string(), "the fevers".to_string()];
+        assert_eq!(desires::synthesize(&issues),
+            vec!["hard times under the lord's hand".to_string(), "the fevers".to_string()]);
+        // a trade-scoped tag clusters by its base
+        let issues = vec!["materials (baker)".to_string(), "tools".to_string(), "the taxes".to_string()];
+        assert_eq!(desires::synthesize(&issues),
+            vec!["a living that's hard to make".to_string(), "the taxes".to_string()]);
+        // and one in a theme is just itself
+        let issues = vec!["the taxes".to_string(), "the fevers".to_string()];
+        assert_eq!(desires::synthesize(&issues), issues);
+    }
+
+    #[test]
+    fn test_the_issues_panel_groups_under_the_platform() {
+        let issues = vec!["the taxes".to_string(), "the fevers".to_string(), "the bailiff's writ".to_string()];
+        assert_eq!(desires::platform_lines(&issues), vec![
+            "hard times under the lord's hand".to_string(),
+            "  - the tax collector's cut".to_string(),
+            "  - the bailiff's writ".to_string(),
+            "the fevers".to_string(),
+        ]);
+    }
+
+    #[test]
+    fn test_a_platform_carries_the_members_of_its_theme() {
+        let mut w = World::new();
+        let taxed = member(&mut w);
+        add_grievance(&mut w, taxed, Problem::Taxed, 100);
+        let broke = member(&mut w);
+        add_grievance(&mut w, broke, Problem::Broke, 100);
+        let sick = member(&mut w);
+        add_grievance(&mut w, sick, Problem::Sick, 100);
+        let o = org(&mut w, &[taxed, broke, sick]);
+        // the platform gathers the taxed and the broke under one
+        // banner; the fevers stand alone
+        let candidates = vec!["hard times under the lord's hand".to_string(), "the fevers".to_string()];
+        let vote = hold_issue_vote(&w, o, &candidates, Framing::SharedGrievance, 10).unwrap();
+        assert_eq!(vote.winner, "hard times under the lord's hand");
+        assert_eq!(vote.ballots[0].choice.as_deref(), Some("hard times under the lord's hand"),
+            "a stake in a member tag counts toward the theme");
+        assert_eq!(vote.ballots[0].stake.is_some(), true,
+            "and the stake itself is found under the platform");
+        assert_eq!(vote.ballots[1].choice.as_deref(), Some("hard times under the lord's hand"));
+        assert_eq!(vote.ballots[2].choice.as_deref(), Some("the fevers"));
     }
 
     #[test]

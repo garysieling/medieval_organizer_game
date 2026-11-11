@@ -134,7 +134,7 @@ pub fn note_conversation(world: &mut World, speaker: Entity, target: Entity, day
 pub fn sympathizes(world: &World, campaign: Entity, target: Entity) -> bool {
     world.get_component::<crate::game::campaign::Campaign>(campaign)
         .map(|c| world.get_component::<crate::game::reactions::Sympathized>(target)
-            .map(|s| s.issues.iter().any(|(i, _)| *i == c.issue)).unwrap_or(false))
+            .map(|s| s.issues.iter().any(|(i, _)| crate::game::desires::covers(&c.issue, i))).unwrap_or(false))
         .unwrap_or(false)
 }
 

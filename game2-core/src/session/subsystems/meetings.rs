@@ -108,7 +108,7 @@ impl Game {
             .unwrap_or(0);
         if living < 3 { return None; }
         let issues = self.world.get_component::<desires::Organizer>(self.seats[seat].player)
-            .map(|o| o.issues.clone()).unwrap_or_default();
+            .map(|o| desires::synthesize(&o.issues)).unwrap_or_default();
         if issues.is_empty() { return None; }
         let vote = campaign::hold_issue_vote(&self.world, org, &issues, campaign::Framing::SharedGrievance, self.tick)?;
         let oname = self.world.get_component::<Organization>(org).map(|o| o.name.clone()).unwrap_or_default();

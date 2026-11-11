@@ -193,6 +193,7 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                     }
                     let living = members.iter().filter(|&&m| !super::villager::is_dead(world, m)).count();
                     if living < 3 { return "Three members make a cause worth a vote.".into(); }
+                    let issues = super::desires::synthesize(&issues);
                     match campaign::hold_issue_vote(world, org, &issues, campaign::Framing::SharedGrievance, tick) {
                         Some(vote) => {
                             let c = campaign::found_campaign(world, org, &vote,

@@ -162,7 +162,7 @@ pub fn arc_facts(world: &World, campaign: Entity, tick: u64) -> Facts {
         let woken = world.query::<Sympathized>().into_iter()
             .filter(|&v| !o.members.contains(&v) && v != o.leader && !unavailable(world, v))
             .filter(|&v| world.get_component::<Sympathized>(v)
-                .map(|s| s.issues.iter().any(|(i, _)| *i == issue)).unwrap_or(false))
+                .map(|s| s.issues.iter().any(|(i, _)| crate::game::desires::covers(&issue, i))).unwrap_or(false))
             .count();
         if woken >= ALLIES_AT { f.insert("arc:allies"); }
     }

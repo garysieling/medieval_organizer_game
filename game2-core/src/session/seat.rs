@@ -445,7 +445,7 @@ impl Game {
                     .map(|c| c.issue.clone());
                 let Some(issue) = issue else { return Err("no cause to sign on with".into()) };
                 let woken = self.world.get_component::<crate::game::reactions::Sympathized>(who)
-                    .map(|s| s.issues.iter().any(|(i, _)| *i == issue)).unwrap_or(false);
+                    .map(|s| s.issues.iter().any(|(i, _)| crate::game::desires::covers(&issue, i))).unwrap_or(false);
                 let own = crate::game::campaign::stake_for(&self.world, who, &issue, self.tick).is_some();
                 if !(woken || own) { return Err("the cause hasn't reached you - come to a meeting first".into()); }
                 if let Some(o) = self.world.get_component_mut::<Organization>(oe) { o.members.push(who); }

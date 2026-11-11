@@ -377,7 +377,7 @@ impl Game {
             }))
             .collect();
         let issues: Vec<String> = world.get_component::<Organizer>(self.seats[seat].player)
-            .map(|o| o.issues.iter().map(|t| desires::issue_name(t.clone())).collect()).unwrap_or_default();
+            .map(|o| desires::platform_lines(&o.issues)).unwrap_or_default();
         // a player seat drives a PlayerCharacter; an agent seat drives a plain
         // villager, whose panel is their own name and purse
         let me = self.seats[seat].player;

@@ -89,7 +89,7 @@ pub fn join(world: &mut World, campaign_e: Entity, person: Entity) -> bool {
     if world.get_component::<Organization>(org)
         .map(|o| o.members.contains(&person)).unwrap_or(false) { return false; }
     let sympathetic = world.get_component::<Sympathized>(person)
-        .map(|s| s.issues.iter().any(|(i, _)| *i == issue)).unwrap_or(false);
+        .map(|s| s.issues.iter().any(|(i, _)| crate::game::desires::covers(&issue, i))).unwrap_or(false);
     let own_stake = campaign::stake_for(world, person, &issue, 0).is_some();
     if !sympathetic && !own_stake { return false; }
     if let Some(o) = world.get_component_mut::<Organization>(org) {

@@ -345,6 +345,99 @@ pub fn issue_name(tag: IssueTag) -> String {
     }
 }
 
+/// The themes the organizer's issues gather under. A tag alone names a
+/// grievance; two or more in one theme name a platform - the thing a
+/// campaign can actually carry. Static and authored: the map is the
+/// tuning surface (#1072). (cluster id, platform name, member base-tags)
+const ISSUE_CLUSTERS: &[(&str, &str, &[&str])] = &[
+    ("the lord's hand", "hard times under the lord's hand",
+        &["the taxes", "the death duty", "the bailiff's writ",
+          "the reckoning that didn't add up", "the overseers' cut", "poverty"]),
+    ("bread", "bread on the table",
+        &["hunger", "the empty pot", "the drink"]),
+    ("the sickness", "the sickness and what it took",
+        &["the fevers", "the sour gut", "the bad bread", "the loss", "the grief"]),
+    ("the night", "the night and what walks it",
+        &["security", "the thieves", "the rowdy", "the wolves", "the dark"]),
+    ("the work", "a living that's hard to make",
+        &["workplaces", "apprenticeship", "materials", "tools", "mastery",
+          "restlessness", "honest work's stink", "empty shops", "child labor"]),
+    ("the spirit", "the soul and its solace",
+        &["faith", "the true faith", "music", "joy", "comfort",
+          "loneliness", "the road's pull"]),
+    ("the land", "hard ground and a long winter",
+        &["housing", "cold hearths", "the shrinking wood", "the drowned pit",
+          "the stinking reach", "the long winter"]),
+];
+
+/// The cluster a tag's base belongs to, if any - a trade-scoped tag
+/// clusters by its base ("materials (baker)" sits with "materials")
+fn cluster_of(tag: &IssueTag) -> Option<&'static str> {
+    let base = tag.split_once(" (").map(|(b, _)| b).unwrap_or(tag.as_str());
+    ISSUE_CLUSTERS.iter().find(|(_, _, ts)| ts.contains(&base)).map(|(c, _, _)| *c)
+}
+
+/// The platform a tag would stand under once its theme gathers
+pub fn platform_for(tag: &IssueTag) -> Option<&'static str> {
+    cluster_of(tag).map(|c| ISSUE_CLUSTERS.iter().find(|(cc, _, _)| *cc == c).unwrap().1)
+}
+
+/// Whether a candidate issue - a bare tag or a platform name - covers a
+/// member's tag: exactly, or as the theme the tag gathers under
+pub fn covers(candidate: &IssueTag, tag: &IssueTag) -> bool {
+    *candidate == *tag || platform_for(tag).map(|p| p == candidate.as_str()).unwrap_or(false)
+}
+
+/// The issues as the room would put them: two or more under one theme
+/// become the theme - a platform a campaign can carry; the lone ones
+/// stand as themselves. First-heard order holds throughout
+pub fn synthesize(issues: &[IssueTag]) -> Vec<IssueTag> {
+    // slots hold the first-heard order: a tag, or a cluster's first seat
+    let mut slots: Vec<Option<IssueTag>> = vec![];
+    let mut clusters: Vec<(&'static str, IssueTag, usize)> = vec![];
+    for t in issues {
+        match cluster_of(t) {
+            Some(c) => match clusters.iter_mut().find(|(cc, _, _)| *cc == c) {
+                Some((_, _, n)) => *n += 1,
+                None => { clusters.push((c, t.clone(), 1)); slots.push(None); }
+            },
+            None => slots.push(Some(t.clone())),
+        }
+    }
+    let mut cluster_slots = clusters.iter();
+    slots.iter().map(|s| match s {
+        Some(t) => t.clone(),
+        None => {
+            let (c, first, n) = cluster_slots.next().unwrap();
+            if *n >= 2 {
+                ISSUE_CLUSTERS.iter().find(|(cc, _, _)| cc == c).unwrap().1.to_string()
+            } else { first.clone() }
+        }
+    }).collect()
+}
+
+/// The issues panel's read: a platform line with its member issues
+/// beneath, the lone ones as themselves - first-heard order throughout
+pub fn platform_lines(issues: &[IssueTag]) -> Vec<String> {
+    let mut out: Vec<String> = vec![];
+    let mut done: Vec<&'static str> = vec![];
+    for t in issues {
+        match (cluster_of(t), platform_for(t)) {
+            (Some(c), Some(p)) if !done.contains(&c) => {
+                let members: Vec<&IssueTag> = issues.iter()
+                    .filter(|m| cluster_of(m) == Some(c)).collect();
+                if members.len() < 2 { out.push(issue_name(t.clone())); continue; }
+                done.push(c);
+                out.push(p.to_string());
+                for m in members { out.push(format!("  - {}", issue_name(m.clone()))); }
+            }
+            (Some(c), _) if done.contains(&c) => {}
+            _ => out.push(issue_name(t.clone())),
+        }
+    }
+    out
+}
+
 /// How a want reads on a character card once revealed
 pub fn want_label(w: Want) -> &'static str {
     match w {

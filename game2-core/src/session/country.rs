@@ -643,7 +643,9 @@ impl Game {
         self.world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
         self.world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-        self.world.add_component(v, personality_from_seed(i as u64 * 7 + 3));
+        let traits = personality_from_seed(i as u64 * 7 + 3);
+        self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
+        self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
         self.world.add_component(v, Known::default());
         match voc {

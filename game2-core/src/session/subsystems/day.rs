@@ -332,6 +332,7 @@ impl Game {
         crate::timed!("sim.phase", self.phase_tick(tick));
         crate::timed!("sim.surveil", self.surveillance_tick(tick));
         crate::timed!("sim.dilemma", self.dilemma_tick(tick));
+        crate::timed!("sim.virtue", self.virtue_tick(tick));
         crate::timed!("sim.leicester", self.leicester_tick(tick));
         crate::timed!("sim.bits", self.bits_tick(tick));
         crate::timed!("sim.exit", self.exit_tick(tick));

@@ -1364,7 +1364,15 @@ impl Game {
         for (i, d) in self.dilemma_debts.iter().enumerate() {
             if tick < d.due { continue }
             // the witness remembers the pick - and the victim's owed the
-            // weight of it, for good or ill
+            // weight of it, for good or ill. The answering soul carries
+            // it on their character too: sparing the innocent grows the
+            // merciful, laying the weight on hardens them (#950)
+            let act = if d.weight > 0.4 {
+                crate::game::virtue::MoralAct::LaidTheWeight
+            } else {
+                crate::game::virtue::MoralAct::SparedTheInnocent
+            };
+            crate::game::virtue::witness(&mut self.world, d.witness, act, 1.0);
             crate::sim::psychology::record_episode(&mut self.world, d.witness,
                 crate::sim::psychology::Episode { with: d.victim, kind: crate::sim::psychology::EpisodeKind::Remembrance });
             if d.weight > 0.4 {
@@ -1374,6 +1382,63 @@ impl Game {
             fired.push(i);
         }
         for i in fired.into_iter().rev() { self.dilemma_debts.remove(i); }
+    }
+
+    /// The ordinary folk's hard moments (#950): when a bonded neighbor
+    /// goes hungry under a roof that isn't, the better-off faces the
+    /// share/keep fork. The traits they carry lean the pick, their
+    /// settled character weights it - a kind soul shares more often
+    /// than a stingy one, and each choice bends the soul a little. A
+    /// rare thing: one fork a day out of every few hundred villagers
+    pub(in crate::session) fn virtue_tick(&mut self, tick: u64) {
+        use crate::game::virtue::{self, MoralAct, Virtue};
+        use crate::game::{desires, relationships, traits};
+        for &v in &self.villagers {
+            if crate::session::routine::mix(v, tick) % 241 != 0 { continue; }
+            // nothing to give if the pot's bare at home
+            if desires::problems_of(&self.world, v, tick).contains(&desires::Problem::Hungry) { continue; }
+            // a bonded neighbor who IS hungry: the fork needs a face
+            let mut needy = None;
+            for r in relationships::bonds_of(&self.world, v) {
+                let Some(rel) = self.world.get_component::<relationships::Relationship>(r) else { continue };
+                if rel.strength < 0.4 { continue; }
+                let o = if rel.from == v { rel.other } else { rel.from };
+                if o == v || !self.villagers.contains(&o) { continue; }
+                if desires::problems_of(&self.world, o, tick).contains(&desires::Problem::Hungry) { needy = Some(o); break; }
+            }
+            let Some(o) = needy else { continue };
+            // the pick: charity pulls to share, prudence to keep, and the
+            // traits lean - a kind soul's table is open more often
+            let (charity, prudence) = self.world.get_component::<virtue::Virtues>(v)
+                .map(|vs| (vs.get(Virtue::Charity), vs.get(Virtue::Prudence)))
+                .unwrap_or((0.5, 0.5));
+            let lean = self.world.get_component::<traits::Personality>(v)
+                .map(|p| p.traits.iter().map(|t| match t {
+                    traits::Trait::Kind => 0.15,
+                    traits::Trait::Stingy => -0.15,
+                    traits::Trait::Pious => 0.05,
+                    _ => 0.0,
+                }).sum::<f32>()).unwrap_or(0.0);
+            let roll = (crate::session::routine::mix(v, tick ^ 0x5EED) % 1000) as f32 / 1000.0 - 0.5;
+            if charity - prudence + lean + roll * 0.1 > 0.0 {
+                // a place at their table: the want fed a week, a warm
+                // memory between them, the soul bent toward charity
+                desires::satisfy(&mut self.world, o, desires::Want::GoodFood, tick + 7);
+                crate::sim::psychology::record_episode(&mut self.world, o,
+                    crate::sim::psychology::Episode { with: v, kind: crate::sim::psychology::EpisodeKind::Warmth });
+                virtue::witness(&mut self.world, v, MoralAct::SharedAid, 1.0);
+                // whoever stood near enough to see carries the smaller share
+                if let Some(at) = self.world.get_component::<Pos>(v).map(|p| (p.x, p.y)) {
+                    let near: Vec<Entity> = self.villagers.iter().copied().filter(|&w| {
+                        w != v && w != o && self.world.get_component::<Pos>(w)
+                            .map(|p| (p.x - at.0).abs() + (p.y - at.1).abs() <= 6.0).unwrap_or(false)
+                    }).collect();
+                    for w in near { virtue::witness(&mut self.world, w, MoralAct::WitnessedKindness, 1.0); }
+                }
+            } else {
+                virtue::witness(&mut self.world, v, MoralAct::RefusedAid, 1.0);
+            }
+        }
     }
 
     /// The shared story: folk who witnessed the same thing carry a bit

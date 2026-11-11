@@ -10,29 +10,46 @@ impl Game {
         if tick % 7 != 4 { return; }
         // drop lapsed sanctions; the cold shoulder doesn't last forever
         self.sanctioned.retain(|(_, _, until)| tick < *until);
-        // the most-grieved soul in the village
-        let target = self.villagers.iter().copied()
-            .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)
-                && self.world.get_component::<TownRole>(v).is_none())
-            .map(|v| (v, self.world.get_component::<InnerLife>(v)
-                .map(|l| l.grievances.iter().filter(|(_, u)| tick < *u).count()).unwrap_or(0)))
-            .filter(|(_, n)| *n >= 3)
-            .max_by_key(|(_, n)| *n);
-        let Some((v, n)) = target else { return };
+        // the most-grieved soul in the village - and how far clear of
+        // the rest they stand: shame needs a wretch apart, not a village
+        // that's all miserable together
+        let mut best: Option<(Entity, usize)> = None;
+        let mut second = 0usize;
+        for v in self.villagers.iter().copied() {
+            if crate::game::dungeon::unavailable(&self.world, v)
+                || self.world.get_component::<TownRole>(v).is_some() { continue; }
+            let n = self.world.get_component::<InnerLife>(v)
+                .map(|l| l.grievances.iter().filter(|(_, u)| tick < *u).count())
+                .unwrap_or(0);
+            if n < 3 { continue; }
+            match best {
+                None => best = Some((v, n)),
+                Some((_, m)) if n > m => { second = m; best = Some((v, n)); }
+                Some(_) => second = second.max(n),
+            }
+        }
+        let Some((v, n)) = best else { return };
+        if n < second + 2 { return; }
         let current = self.sanctioned.iter().filter(|(e, _, _)| *e == v)
             .map(|(_, s, _)| *s).max();
         let next = sanctions::rung_for(n);
+        // the pile the village already answered for - a lapsed shame
+        // only reopens on a bigger heap, not the same sins twice
+        let seen = self.sanction_seen.get(&v).copied().unwrap_or(0);
         // one rung at a time, and only upward
         let step = match (current, next) {
             // blame earns a bad word first; the ladder is climbed
-            (None, Some(_)) => Some(Sanction::Gossip),
+            (None, Some(_)) if n > seen => Some(Sanction::Gossip),
             (Some(cur), Some(want)) if want > cur => {
                 let i = sanctions::LADDER.iter().position(|s| *s == cur).unwrap_or(0);
                 Some(sanctions::LADDER[(i + 1).min(5)])
             }
             _ => None,
         };
-        if let Some(s) = step { self.apply_sanction(v, s, tick); }
+        if let Some(s) = step {
+            self.sanction_seen.insert(v, n);
+            self.apply_sanction(v, s, tick);
+        }
     }
 
     /// Bad blood made visible: a feud that turns hot is the village's

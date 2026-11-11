@@ -104,3 +104,91 @@ fn test_the_stocks_hold_their_body() {
     assert!(g.sanctioned.iter().any(|(e, _s, u)| *e == v && *u >= 100),
         "the shame didn't outlast the stocks");
 }
+
+#[test]
+fn test_a_lapsed_shame_doesnt_reopen_on_the_same_sins() {
+    // #1141: a villager's pile is answered once - the cold shoulder
+    // lapses and stays lapsed until they earn *fresh* blame
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied().find(|&v|
+        g.world.get_component::<TownRole>(v).is_none()).unwrap();
+    let mut grieve_long = |n: usize, tick: u64| {
+        let kinds = [desires::Problem::Blamed, desires::Problem::Broke,
+            desires::Problem::Smelly, desires::Problem::SourGut];
+        for i in 0..n {
+            desires::add_grievance(&mut g.world, v, kinds[i % kinds.len()], tick + 120);
+        }
+    };
+    grieve_long(4, 4);
+    g.sanction_tick(4);
+    assert!(g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Gossip),
+        "the pile earns its bad word");
+    // the word lapses - and the same stale pile can't earn it again
+    g.sanction_tick(67);
+    assert!(!g.sanctioned.iter().any(|(e, _, _)| *e == v),
+        "the same sins shouldn't bring the shame back");
+}
+
+#[test]
+fn test_fresh_blame_reopens_the_ladder() {
+    // #1141's other half: a bigger heap is a new offense, not the old
+    // one returning - the village answers it again
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied().find(|&v|
+        g.world.get_component::<TownRole>(v).is_none()).unwrap();
+    let kinds = [desires::Problem::Blamed, desires::Problem::Broke,
+        desires::Problem::Smelly, desires::Problem::SourGut,
+        desires::Problem::NoHome, desires::Problem::Taxed];
+    for i in 0..4 {
+        desires::add_grievance(&mut g.world, v, kinds[i], 4 + 120);
+    }
+    g.sanction_tick(4);
+    // it lapses, then the pile grows past what the village answered
+    g.sanction_tick(67);
+    assert!(!g.sanctioned.iter().any(|(e, _, _)| *e == v), "the lapse should stand");
+    desires::add_grievance(&mut g.world, v, kinds[4], 67 + 120);
+    g.sanction_tick(74);
+    assert!(g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Gossip),
+        "fresh blame earns a fresh bad word");
+}
+
+#[test]
+fn test_a_village_all_miserable_together_shames_no_one() {
+    // #1141: the cold shoulder lands on the soul who stands apart -
+    // two souls grieved alike share the misery, nobody's a wretch
+    let mut g = Game::new();
+    let mut souls = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<TownRole>(v).is_none());
+    let (a, b) = (souls.next().unwrap(), souls.next().unwrap());
+    let kinds = [desires::Problem::Blamed, desires::Problem::Broke,
+        desires::Problem::Smelly, desires::Problem::SourGut,
+        desires::Problem::NoHome, desires::Problem::Taxed];
+    for i in 0..4 { desires::add_grievance(&mut g.world, a, kinds[i], 4 + 60); }
+    for i in 0..3 { desires::add_grievance(&mut g.world, b, kinds[i], 4 + 60); }
+    g.sanction_tick(4);
+    assert!(g.sanctioned.is_empty(),
+        "4 against the next soul's 3 is no clear wretch - the village just suffers");
+    // pull one clear of the rest and the village finds its mark
+    desires::add_grievance(&mut g.world, a, kinds[4], 4 + 60);
+    desires::add_grievance(&mut g.world, a, kinds[5], 4 + 60);
+    g.sanction_tick(11);
+    assert!(g.sanctioned.iter().any(|(e, s, _)| *e == a && *s == Sanction::Gossip),
+        "the soul who stands apart earns the talk");
+}
+
+#[test]
+fn test_the_gauge_counts_souls_under_the_shoulder() {
+    // #1141: the KPI's "sanctioned" is souls living the cold shoulder
+    // or worse - a bad word going round isn't a sanction, and
+    // overlapping rungs are still the one soul
+    let mut g = Game::new();
+    let mut souls = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<TownRole>(v).is_none());
+    let (a, b) = (souls.next().unwrap(), souls.next().unwrap());
+    g.tick = 5;
+    g.sanctioned.push((a, Sanction::Gossip, 60));
+    g.sanctioned.push((b, Sanction::Shun, 60));
+    g.sanctioned.push((b, Sanction::Boycott, 60));
+    let n = g.secret_kpis().iter().find(|(k, _)| *k == "sanctioned").unwrap().1;
+    assert_eq!(n, 1.0, "one soul under the shoulder, the gossip doesn't count");
+}

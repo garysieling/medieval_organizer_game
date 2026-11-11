@@ -274,6 +274,8 @@ impl Game {
             .filter(|&&(e, promised)| org::shows_up(&self.world, pe, e, venue, promised,
                 (self.rng.next() % 1000) as f32 / 1000.0, self.tick))
             .map(|&(e, _)| e).collect();
+        // the door's thinner than the asking - a count, not a roll of names
+        let stayed = pool.len() - invited.len();
         invited.truncate(10);
         if invited.is_empty() {
             return format!("Word goes out - and nobody comes to {}. You'll have to ask again.", label);
@@ -291,7 +293,10 @@ impl Game {
         let roles = (plan.snacks.is_some(), plan.notes.is_some(), plan.opener.is_some(),
             plan.song.is_some(), plan.closer.is_some());
         let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
-        let msg = format!("Word goes out - {} gather at {}.", names.join(", "), label);
+        let mut msg = format!("Word goes out - {} gather at {}.", names.join(", "), label);
+        if stayed > 0 {
+            msg = format!("{} - {} of those asked stayed home.", msg.trim_end_matches('.'), stayed);
+        }
         self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles });
         msg
     }

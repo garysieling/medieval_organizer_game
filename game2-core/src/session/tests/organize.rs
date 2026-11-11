@@ -239,34 +239,81 @@ fn test_half_the_merely_invited_never_make_it() {
     let v = g.villagers[1];
     // a staked stranger who just got a flyer is a coin's toss - high
     // rolls keep them home
-    g.world.add_component(v, crate::game::desires::Known {
-        revealed: vec![crate::game::desires::Reveal::Want(crate::game::desires::Want::GoodFood)] });
+    crate::game::desires::add_grievance(&mut g.world, v,
+        crate::game::desires::Problem::Taxed, g.tick + 100);
     assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.99, g.tick));
     assert!(shows_up(&g.world, g.player, v, (16, 16), false, 0.01, g.tick));
 }
 
 #[test]
-fn test_nobody_comes_to_a_meeting_without_a_stake() {
+fn test_the_disinterested_drift_in_thinly_not_never() {
     use crate::game::organizing::shows_up;
-    use crate::game::desires::{add_grievance, Problem, Want, Reveal, Known};
+    use crate::game::desires::{self, add_grievance, Problem};
+    use crate::game::relationships::{self, RelKind};
     let mut g = Game::new();
-    let v = g.villagers[1];
-    // a contented stranger never comes, however kind the roll
-    assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.0, g.tick),
-        "no stake, no bond, no attendance");
-    // a grievance is a stake: the wronged take the walk
+    // someone with nothing left to say: no wants, no problems hanging
+    let v = g.villagers.iter().copied().find(|&v| {
+        if let Some(l) = g.world.get_component_mut::<desires::InnerLife>(v) { l.wants.clear(); }
+        desires::unrevealed(&g.world, v, g.tick).is_empty()
+    }).expect("someone content enough to have nothing to say");
+    // the meeting comes to them - a zero-length walk keeps the roll honest
+    let at = {
+        let p = *g.world.get_component::<Pos>(v).unwrap();
+        (p.x as i32, p.y as i32)
+    };
+    // curiosity still drifts them in, at a quarter's pull: a tenth of the
+    // room answers the coin, three-quarters of its rolls don't
+    assert!(!shows_up(&g.world, g.player, v, at, false, 0.2, g.tick),
+        "nothing to say: most rolls keep them home");
+    assert!(shows_up(&g.world, g.player, v, at, false, 0.05, g.tick),
+        "but a drift-in still happens");
+    // a grievance is a reason: the wronged roll the full coin
     add_grievance(&mut g.world, v, Problem::Taxed, g.tick + 100);
-    assert!(shows_up(&g.world, g.player, v, (16, 16), false, 0.01, g.tick),
+    assert!(shows_up(&g.world, g.player, v, at, false, 0.4, g.tick),
         "a live grievance draws them out");
-    // once it's spent they're home again
+    assert!(!shows_up(&g.world, g.player, v, at, false, 0.6, g.tick));
+    // once it's spent they're back to thin rolls
     let g2 = g.tick + 200;
-    assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.01, g2),
+    assert!(!shows_up(&g.world, g.player, v, at, false, 0.2, g2),
         "a spent grievance no longer draws");
-    // and a want the organizer's heard is a stake too
-    let w = g.villagers[2];
-    g.world.add_component(w, Known { revealed: vec![Reveal::Want(Want::GoodFood)] });
-    assert!(shows_up(&g.world, g.player, w, (16, 16), false, 0.01, g2),
-        "a heard want draws them out");
+    // and a true friend of the host needs no other reason
+    let w = g.villagers.iter().copied().find(|&w| {
+        if let Some(l) = g.world.get_component_mut::<desires::InnerLife>(w) { l.wants.clear(); }
+        desires::unrevealed(&g.world, w, g2).is_empty()
+    }).expect("another contented one");
+    let at = {
+        let p = *g.world.get_component::<Pos>(w).unwrap();
+        (p.x as i32, p.y as i32)
+    };
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, relationships::Relationship {
+        from: g.player, other: w, kind: RelKind::Friend, strength: 0.8, interactions: 5 });
+    assert!(shows_up(&g.world, g.player, w, at, false, 0.4, g2),
+        "a real bond counts as its own stake");
+}
+
+/// The door's thinner than the asking: when the pool shrinks the word
+/// goes out with a count, not a roll of who stayed in
+#[test]
+fn test_the_door_counts_who_stayed_home_without_naming_them() {
+    let mut g = Game::new();
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    let host = g.villagers[1];
+    let (bram, corvin) = (g.villagers[2], g.villagers[3]);
+    for (v, x, y) in [(host, 17.0, 16.0), (bram, 16.0, 17.0)] {
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x, y };
+    }
+    // Corvin gave his yes, but a grave keeps its own hours - a promise
+    // the door can't collect
+    g.world.add_component(corvin, villager::Dead);
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, Relationship { from: g.player, other: host,
+        kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram, corvin]);
+    g.call_meeting();
+    let last = g.log.last().unwrap();
+    assert!(last.contains("of those asked stayed home"), "the count's told plainly: {last}");
+    assert!(!last.contains("Corvin"), "and nobody's named for it: {last}");
 }
 
 #[test]

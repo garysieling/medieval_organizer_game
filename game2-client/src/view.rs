@@ -1650,7 +1650,7 @@ impl EventCam {
             self.hold = 0;
             let (cx, cy) = camera_on(ev.pos.0, ev.pos.1);
             self.ease = Some((cx as f32, cy as f32));
-            return ((cx, cy), event_zoom(ev.extent, zoom, ev.kind == 1));
+            return ((cx, cy), event_zoom(ev.extent, zoom, ev.kind != 0));
         }
         if self.hold > 0 {
             self.hold -= 1;

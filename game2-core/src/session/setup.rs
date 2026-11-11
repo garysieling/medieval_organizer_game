@@ -994,6 +994,7 @@ impl Game {
             log_dropped: 0,
             bubbles: vec![],
             meeting: None,
+            celebrating: None,
             snowball_day: u64::MAX,
             march_day: u64::MAX,
             cadence_day: u64::MAX,

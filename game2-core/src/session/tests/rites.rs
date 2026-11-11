@@ -36,6 +36,29 @@ fn gather_rites(g: &mut Game, tick: u64, rounds: usize) {
     }
 }
 
+/// A rite gathering reaches the camera: while the new adult walks to
+/// the church the event names the site, and the celebration after
+/// holds it - the map shows what was invisible before (#1070)
+#[test]
+fn test_a_rite_gathering_and_its_party_reach_the_camera() {
+    let mut g = Game::new();
+    let kid = church_kid(&g);
+    g.world.get_component_mut::<KidGrowth>(kid).unwrap().age_days = vocation::COMING_OF_AGE - 1;
+    g.lifecycle_tick(100);
+    let p = g.world.get_component::<villager::PendingRite>(kid)
+        .expect("the rite was never called").site;
+    let ev = g.ui_model().player_event.expect("the gathering is the event");
+    assert_eq!(ev.kind, 2, "a rite, not a march or a meeting");
+    assert!(!ev.moving, "the site stands still");
+    assert_eq!(ev.pos, (p.0 as f32, p.1 as f32), "the camera goes to the site");
+    // the day it holds, the celebration takes the event over - the
+    // ring of neighbours is what the camera's now for
+    gather_rites(&mut g, 100, 20000);
+    assert!(g.celebrating.is_some(), "the party never gathered");
+    let ev = g.ui_model().player_event.expect("the celebration is the event");
+    assert_eq!(ev.kind, 2, "the party's a gathering too");
+}
+
 #[test]
 fn test_a_new_adult_is_initiated_at_the_church_before_the_party() {
     let mut g = Game::new();

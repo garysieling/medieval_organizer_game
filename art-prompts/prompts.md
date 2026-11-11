@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-210 prompts, est. $37.53 USD at list prices.
+216 prompts, est. $38.07 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -408,3 +408,13 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | person-plague-doctor-e054b0d1 | plague doctor in a beaked bird mask and dark waxed leather coat, medieval | rd_animation__four_angle_walking | 48x48 | 1 | 0.07 | visitor sprite; 48px 4-direction walk cycle as a PNG grid |
+## P2 - art-history pass: prints, marginalia, wall motifs (#804)
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| goods-print-sheet-8f2a1c04 | inventory item sheet: woodcut print, engraved copperplate, printed folio page, codex cover | rd_pro__inventory_items | 256x256 | 1 | 0.18 | the printmaker's tranche good; Dürer monochrome line |
+| decor-marginalia-hybrid-3b7e9d12 | single isometric medieval village asset: marginalia grotesque - a snail jousting a knight | rd_tile__tile_object | 96x96 | 1 | 0.06 | Bosch-hybrid drollery for omen/codex flavor |
+| decor-memento-mori-5c1f4a88 | single isometric medieval village asset: a skull resting on a closed book, small memento mori still life | rd_tile__tile_object | 96x96 | 1 | 0.06 | memorial/estate flavor |
+| wonder-eggshell-9d4b2e76 | single isometric medieval village asset: a hollow broken eggshell with a tiny seated figure inside | rd_tile__tile_object | 96x96 | 1 | 0.06 | Bosch wonder shape; road-event omen |
+| sign-engraved-2a8d6f41 | single isometric medieval village asset: hanging shop sign, hatched woodcut engraving texture, monochrome | rd_tile__tile_object | 96x96 | 1 | 0.06 | engraved line reads at 48px for shop signs |
+| decor-painted-hall-6e9c1b53 | single isometric medieval village asset: wall tapestry hanging, courtly scene in muted earth and one red accent | rd_tile__tile_object | 96x96 | 1 | 0.06 | wall motif; painted-hall mechanics are a later ticket |

@@ -1582,7 +1582,14 @@ pub fn search_people(people: &[PersonV], query: &str) -> Vec<usize> {
 
 /// How far past the map view's rim the character's feet may sit before
 /// the camera counts them as lost - about a sprite's worth
-const LOST_MARGIN: i32 = 48;
+/// The comfort box the seat's character can wander before the camera
+/// leans after them - the middle of the map view, in px
+const FOLLOW_BOX_X: i32 = MAP_W as i32 / 5;
+const FOLLOW_BOX_Y: i32 = H as i32 / 5;
+/// The share of the gap to the lead the camera closes each frame
+const FOLLOW_EASE: f32 = 0.18;
+/// Frames of stride to look ahead: the view opens where they're going
+const FOLLOW_LEAD: f32 = 45.0;
 
 /// The zoom clamps every camera path shares
 pub const MIN_ZOOM: f32 = 0.5;
@@ -1652,21 +1659,27 @@ impl EventCam {
     }
 }
 
-/// The camera follows a character who walks clean off the map view:
-/// while they move - or the zoom shifts them out of sight - and their
-/// feet are out of sight, look back to have them in the middle again.
+/// The camera keeps the seat's character framed: while they move -
+/// or the zoom shifts them - and they drift out of the view's comfort
+/// box, it leans a share of the way toward where their stride's
+/// taking them, so the view opens ahead instead of trailing behind.
 /// `seen` is where they stood and the zoom last frame: a deliberate
 /// pan or jump with them standing still isn't fought. Returns the
 /// camera to use, when it should move.
 pub fn camera_follow(m: &UiModel, cam: (i32, i32), zoom: f32, seen: &mut Option<((f32, f32), f32)>) -> Option<(i32, i32)> {
     let p = m.people.iter().find(|p| p.kind == PKind::Player)?;
     let pos = p.pos;
-    let moved = seen.is_some_and(|(q, z)| (q.0 - pos.0).abs() > 0.01 || (q.1 - pos.1).abs() > 0.01 || (z - zoom).abs() > 0.001);
+    let step = seen.map(|(q, _)| (pos.0 - q.0, pos.1 - q.1)).unwrap_or((0.0, 0.0));
+    let moved = seen.is_some_and(|(_, z)| step.0.abs() > 0.01 || step.1.abs() > 0.01 || (z - zoom).abs() > 0.001);
     *seen = Some((pos, zoom));
+    if !moved { return None; }
     let (sx, sy) = iso_to_screen_cam(pos.0, pos.1, cam.0, cam.1, zoom);
-    let lost = sx < -LOST_MARGIN || sx > MAP_W as i32 + LOST_MARGIN
-        || sy < -LOST_MARGIN || sy > H as i32 + LOST_MARGIN;
-    (moved && lost).then(|| camera_on(pos.0, pos.1))
+    let out = (sx - MAP_W as i32 / 2).abs() > FOLLOW_BOX_X
+        || (sy - H as i32 / 2).abs() > FOLLOW_BOX_Y;
+    if !out { return None; }
+    let (tx, ty) = camera_on(pos.0 + step.0 * FOLLOW_LEAD, pos.1 + step.1 * FOLLOW_LEAD);
+    Some((cam.0 + ((tx - cam.0) as f32 * FOLLOW_EASE).round() as i32,
+          cam.1 + ((ty - cam.1) as f32 * FOLLOW_EASE).round() as i32))
 }
 
 /// The find box under the minimap: "find:" and what was typed, with the

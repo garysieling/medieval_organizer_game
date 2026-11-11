@@ -278,12 +278,15 @@ fn main() {
     let mut event_cam = EventCam::default();
 
     // a Talk on offer draws "x) Take your leave": Escape presses it too,
-    // ahead of the quit - the cancel layer sits before the door
-    let mut leave_offered = false;
+    // ahead of the pause menu - the cancel layers sit before the door
+    let mut leave_offered: bool;
+    // the pause menu (Esc): layered last - the find box's release, the
+    // picker's decline, the intro's dismiss and the talk's leave all
+    // take their Escape first. `quit` is the menu's own way out
+    let mut pause_menu = false;
+    let mut quit = false;
 
-    // Escape is a tap, not a hold: while the find box has the keys its
-    // Escape lets go of them instead of quitting
-    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus && picker.is_none() && intro.is_none() && !leave_offered) {
+    while window.is_open() && !quit {
         let frame_at = std::time::Instant::now();
         // a refusal (a wrong join secret, a full village) ends the session
         // with the server's reason, not a silent title card
@@ -419,7 +422,9 @@ fn main() {
         }
         let cur_model: Option<UiModel> = match (&remote, &mut game) {
             (Some(r), _) => r.latest.lock().unwrap().clone(),
-            (None, Some(g)) => { g.update(); Some(g.ui_model()) }
+            // the pause menu holds a local game still; a remote seat's
+            // world runs on either way
+            (None, Some(g)) => { if !pause_menu { g.update(); } Some(g.ui_model()) }
             (None, None) => None,
         };
         // a talk under way offers leave on either box it shows on -
@@ -480,12 +485,15 @@ fn main() {
         }
 
         // the find box: clicking it takes the keys, clicking away lets go -
-        // and that click picks no one
+        // and that click picks no one. Under the pause menu a click is
+        // the menu's alone
         let mut swallow_click = false;
-        if clicked {
+        if clicked && !pause_menu {
             if session::search_box_at(mx, my) { view.search_focus = true; swallow_click = true; }
             else if view.search_focus { view.search_focus = false; swallow_click = true; }
         }
+        // the find box may take this frame's Escape ahead of the menu
+        let search_esc = view.search_focus && window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No);
         // its keys while it has them: Enter walks the camera to the next
         // who fits the query
         if view.search_focus {
@@ -509,6 +517,14 @@ fn main() {
             if view.search_q != typed { search_at = 0; }
         }
 
+        // a bare Escape opens the pause menu: the find box's release,
+        // the picker's decline, the intro's dismiss and the talk's
+        // leave all took theirs ahead of it
+        if !pause_menu && !search_esc && !leave_offered
+            && window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) {
+            pause_menu = true;
+        }
+
         // a mouse hovering at the map view's rim drifts the camera that
         // way - gently at first, quicker the deeper it sits. The drift
         // is screen px, so it slows relative to the world as you zoom
@@ -523,7 +539,7 @@ fn main() {
             mx >= client::talk::CONVO_X && mx < client::talk::CONVO_X + client::talk::CONVO_W
                 && my >= client::talk::CONVO_Y && my < client::talk::CONVO_Y + h
         }).unwrap_or(false);
-        if !view.search_focus && pointer_in && !convo_cover {
+        if !view.search_focus && pointer_in && !convo_cover && !pause_menu {
             let (ex, ey) = session::edge_scroll(mx, my);
             if ex != 0.0 || ey != 0.0 {
                 edge_cam.0 += ex / view.zoom;
@@ -537,11 +553,34 @@ fn main() {
             }
         }
 
-        let buf = match &cur_model {
+        let mut buf = match &cur_model {
             Some(m) => view.render(m, (mx, my)),
             None => { present(&mut window, &client::render_title()); continue; }
         };
+        if pause_menu {
+            client::draw_pause_menu(&mut buf, (mx, my),
+                if remote.is_some() { "MENU" } else { "PAUSED" });
+        }
         present(&mut window, &buf);
+
+        // the menu owns the input while it's up: Esc or Enter resumes,
+        // Q or the Quit row lets the day go - the claim token keeps
+        if pause_menu {
+            if window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No)
+                || window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { pause_menu = false; }
+            if window.is_key_pressed(Key::Q, minifb::KeyRepeat::No) { quit = true; }
+            if clicked {
+                match client::pause_menu_click(mx, my) {
+                    Some(client::MenuPick::Resume) => pause_menu = false,
+                    Some(client::MenuPick::Quit) => quit = true,
+                    None => {}
+                }
+            }
+            view.recycle(buf);
+            let spent = frame_at.elapsed();
+            if spent < frame_len { std::thread::sleep(frame_len - spent); }
+            continue;
+        }
 
         // input -> commands -> local game or the wire
         let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus, &mut talk_armed,

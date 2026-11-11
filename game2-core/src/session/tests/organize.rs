@@ -165,6 +165,31 @@ fn test_you_cant_put_a_claim_on_a_stranger() {
 }
 
 #[test]
+fn test_one_job_apiece_spreads_the_meetings_work() {
+    use crate::game::organizing::{props_on_offer, propose, PropKind};
+    use crate::game::desires::{Known, Problem, Reveal};
+    let mut g = Game::new();
+    let (pe, first, next) = (g.player, g.villagers[1], g.villagers[2]);
+    for v in [first, next] {
+        g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    }
+    // the first villager's promised the snacks: the rest of the roles
+    // leave their card, though they'll still hear the standing asks
+    let roles = [PropKind::BringSnacks, PropKind::TakeNotes, PropKind::OpenWithWord,
+        PropKind::GiveSong, PropKind::CloseOut];
+    let (oe, tick) = (g.org, g.tick);
+    let _ = propose(&mut g.world, pe, oe, first, PropKind::BringSnacks, "Bram", 0.0, tick);
+    let asks = props_on_offer(&g.world, g.org, first);
+    assert!(roles.iter().all(|r| !asks.contains(r)), "{:?}", asks);
+    assert!(asks.contains(&PropKind::ComeAlong) && asks.contains(&PropKind::Introduce));
+    // and the next person still gets every role that's still unfilled
+    let asks = props_on_offer(&g.world, g.org, next);
+    for r in [PropKind::TakeNotes, PropKind::OpenWithWord, PropKind::GiveSong, PropKind::CloseOut] {
+        assert!(asks.contains(&r), "{:?}", asks);
+    }
+}
+
+#[test]
 fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
     use crate::game::organizing::{MeetingPlan, PropKind, propose};
     let mut g = Game::new();

@@ -825,15 +825,21 @@ pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKin
     let mut out = vec![PropKind::ComeAlong, PropKind::Introduce];
     let empty = MeetingPlan::default();
     let plan = world.get_component::<MeetingPlan>(org).unwrap_or(&empty);
-    // each ask is gated on whether that specific role is already filled,
-    // not on whether this person holds some other promise - a committed
-    // attendee can still be the one who lends the venue or brings a song
+    // the venue ask's free of the slot check - the house is a place,
+    // not a job, and the host's usually at the table anyway. The five
+    // roles are one job apiece (#1062): once they've promised a part
+    // of the meeting, its other asks go to someone else - the work
+    // spreads around the room
     if plan.venue.is_none() && crate::game::household::home_of(world, person).is_some() { out.push(PropKind::LendVenue); }
-    if plan.snacks.is_none() { out.push(PropKind::BringSnacks); }
-    if plan.notes.is_none() { out.push(PropKind::TakeNotes); }
-    if plan.opener.is_none() { out.push(PropKind::OpenWithWord); }
-    if plan.song.is_none() { out.push(PropKind::GiveSong); }
-    if plan.closer.is_none() { out.push(PropKind::CloseOut); }
+    let holds_a_role = [plan.snacks, plan.notes, plan.opener, plan.song, plan.closer]
+        .contains(&Some(person));
+    if !holds_a_role {
+        if plan.snacks.is_none() { out.push(PropKind::BringSnacks); }
+        if plan.notes.is_none() { out.push(PropKind::TakeNotes); }
+        if plan.opener.is_none() { out.push(PropKind::OpenWithWord); }
+        if plan.song.is_none() { out.push(PropKind::GiveSong); }
+        if plan.closer.is_none() { out.push(PropKind::CloseOut); }
+    }
     if !plan.spreaders.contains(&person) { out.push(PropKind::InviteFriends); }
     out
 }

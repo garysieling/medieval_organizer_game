@@ -421,6 +421,17 @@ impl Game {
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.options = opts; cur.opt_tree = tree; }
             }
             _ => {
+                // a fresh talk that opens with no replies on offer would
+                // hang up the moment it started (#1058): keep it open on
+                // the leave alone, so the player's the one to end it.
+                // A real ending (a walk-off) still closes as before.
+                if t.picks.is_empty() && ending.is_none() {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.options = vec![(Act::Farewell, "I take my leave.".into())];
+                        cur.opt_tree = tree;
+                    }
+                    return;
+                }
                 let note = match ending {
                     Some(Ending::WalksOff) => Some(format!("{} turns and walks off.", vname)),
                     _ => None,

@@ -246,3 +246,35 @@ fn test_a_talk_opens_with_who_they_are() {
     // the profile line heads the talk - who they are before the gist
     assert!(!t.profile.is_empty(), "the talk opened bare");
 }
+
+#[test]
+fn test_pressing_talk_again_keeps_the_conversation_going() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    let before = g.seats[0].talk.as_ref().expect("a talk under way").id;
+    let records = g.talk_log.len();
+    // pressing T again while talking must not reset the conversation
+    g.act_at(0, 0);
+    let t = g.seats[0].talk.as_ref().expect("the talk must stay open");
+    assert_eq!(t.id, before, "a second Talk press restarted the talk");
+    assert_eq!(g.talk_log.len(), records, "the re-press opened a fresh talk");
+    // and talking to someone new still opens fresh
+    let j = adults(&g).into_iter().find(|&k| k != i).unwrap();
+    talk_beside(&mut g, j);
+    let after = g.seats[0].talk.as_ref().expect("the new talk opened").id;
+    assert_ne!(after, before, "a different villager gets their own talk");
+}
+
+#[test]
+fn test_a_fresh_talk_always_offers_something_to_say() {
+    // a normal opening offers replies, or at least the leave - never a
+    // bare panel that hangs up on its own (#1058)
+    let mut g = Game::new();
+    for &i in adults(&g).iter().take(10) {
+        g.seats[0].talk = None;
+        talk_beside(&mut g, i);
+        let t = g.seats[0].talk.as_ref().expect("the talk must stay open");
+        assert!(!t.options.is_empty(), "villager {i} opened with nothing to say");
+    }
+}

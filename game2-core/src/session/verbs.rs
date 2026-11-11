@@ -291,6 +291,12 @@ impl Game {
     /// Talk to villager `who`: hear what they say. Returns the log line
     pub fn talk_to_at(&mut self, seat: usize, who: usize) -> String {
         let v = self.villagers[who];
+        // a talk with them is already open: pressing T again mustn't
+        // close it and start over - the conversation's still going,
+        // the replies still on offer (#1058)
+        if self.seats[seat].talk.as_ref().map(|t| t.who) == Some(v) {
+            return format!("You are already speaking with {}.", vill_name(who));
+        }
         // Uncapped talk count - Rapport caps at 1.0 and would
         // freeze the concern/small-talk index after a few talks.
         let talks_before = self.world.get_component::<TalkCount>(v)

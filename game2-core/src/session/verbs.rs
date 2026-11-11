@@ -202,14 +202,14 @@ impl Game {
         best.map(|(site, _)| site)
     }
 
-    /// Who Talk lands on now, if anyone: the picked villager while
-    /// they're still within a shout (a pick from further off is a look,
-    /// not a mark - #944), else someone near: the least lately heard
-    /// first, nearer on a tie. None when nobody's near enough to hear.
+    /// Who Talk lands on now, if anyone: the picked villager, near or
+    /// far - past a shout you walk over to them, same as Recruit (#1066;
+    /// a far pick was only ever for a look until you act on it - #944),
+    /// else someone near: the least lately heard first, nearer on a tie.
+    /// None when nobody's picked and nobody's near enough to hear.
     pub fn talk_target_at(&self, seat: usize) -> Option<usize> {
         let s = &self.seats[seat];
-        if s.picked && s.selected_building.is_none()
-            && self.dist_to_at(seat, s.selected_target) <= SHOUT_DIST {
+        if s.picked && s.selected_building.is_none() {
             return Some(s.selected_target);
         }
         self.shout_pick_at(seat)
@@ -427,16 +427,15 @@ impl Game {
         // Recruit goes to whoever the player picked; otherwise to whoever
         // is in reach
         if i == 1 && !self.seats[seat].picked { self.seats[seat].selected_target = self.reach_target_at(seat); }
-        // Talk singles out someone to hear: the picked one while they're
-        // within a shout, else the best near - the least lately heard
-        // first. A pick from further off was for a look, and there's no
-        // walking over to someone too far to talk to (#944)
+        // Talk singles out someone to hear: the picked one, near or far -
+        // you walk over to a far one like a Recruit - else the best near,
+        // the least lately heard first (#944, #1066)
         if i == 0 {
             if let Some(t) = self.talk_target_at(seat) {
                 self.seats[seat].selected_target = t;
                 self.seats[seat].selected_building = None;
                 self.seats[seat].picked = true;
-                self.seats[seat].pick_near = true;
+                self.seats[seat].pick_near = self.dist_to_at(seat, t) <= SHOUT_DIST;
             }
         }
         let selected_target = self.seats[seat].selected_target;

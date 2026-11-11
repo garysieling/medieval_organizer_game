@@ -75,6 +75,8 @@ pub enum MoralAct {
     RefusedAid,
     /// Stood by their word when breaking it was easier
     KeptWord,
+    /// Let the word they gave fall - a pledge broke, a surety defaulted
+    BrokeWord,
     /// Sat with the grieving
     Comforted,
     /// A dilemma answered so the innocent take it light
@@ -92,6 +94,7 @@ fn deltas(act: MoralAct) -> [(Virtue, f32); 3] {
         MoralAct::SharedAid => [(Charity, 0.06), (Justice, 0.03), (Hope, 0.02)],
         MoralAct::RefusedAid => [(Charity, -0.05), (Prudence, 0.03), (Temperance, 0.01)],
         MoralAct::KeptWord => [(Justice, 0.04), (Faith, 0.04), (Courage, 0.02)],
+        MoralAct::BrokeWord => [(Justice, -0.04), (Faith, -0.04), (Prudence, 0.02)],
         MoralAct::Comforted => [(Charity, 0.03), (Hope, 0.03), (Faith, 0.02)],
         MoralAct::SparedTheInnocent => [(Charity, 0.06), (Justice, 0.04), (Courage, 0.02)],
         MoralAct::LaidTheWeight => [(Charity, -0.04), (Prudence, 0.05), (Justice, -0.02)],
@@ -107,4 +110,23 @@ fn deltas(act: MoralAct) -> [(Virtue, f32); 3] {
 pub fn witness(world: &mut World, e: Entity, act: MoralAct, weight: f32) {
     let Some(v) = world.get_component_mut::<Virtues>(e) else { return };
     for (k, d) in deltas(act) { v.nudge(k, d * weight); }
+}
+
+/// How the settled soul bends a behavior: the same shape
+/// `traits::modifies` gives personality - a multiplier over 1.0 where
+/// the virtue sits at the common measure, stretched past it and
+/// shrunk below. The score does the talking, so the same word means
+/// different things on different souls
+pub fn weight(v: &Virtues, behavior: &str) -> f32 {
+    let bend = |k: Virtue, span: f32| 1.0 + (v.get(k) - 0.5) * span;
+    match behavior {
+        // a temperate soul's feud cools instead of climbing; a wild
+        // one's burns faster
+        "feud" => bend(Virtue::Temperance, -1.2).clamp(0.2, 2.0),
+        // the devout answer the call; the cold of faith barely hear it
+        "faith" => bend(Virtue::Faith, 1.2).clamp(0.2, 2.0),
+        // charity opens the hand that hoarding keeps shut
+        "share" => bend(Virtue::Charity, 1.2).clamp(0.2, 2.0),
+        _ => 1.0,
+    }
 }

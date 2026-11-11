@@ -719,7 +719,12 @@ impl Game {
             let reformed = self.world.get_component::<crate::sim::religion::Reformed>(v).is_some();
             if !pious {
                 let roll = rng.below(100);
-                if roll >= 70 && !reformed { continue; }
+                // and the soul bends the ear: the devout-by-life hear
+                // the call the faithless let pass (#950)
+                let bar = self.world.get_component::<crate::game::virtue::Virtues>(v)
+                    .map(|vs| (70.0 / crate::game::virtue::weight(vs, "faith")) as i32)
+                    .unwrap_or(70);
+                if roll >= bar && !reformed { continue; }
             }
             if keeps_old_ways(&self.world, v) { old.push(v); }
             else if reformed { green.push(v); }

@@ -42,3 +42,26 @@ Compile the game to WebAssembly for browser play — the distribution path that 
 ## Rating
 
 Worth doing once the game is playable — a zero-install demo is a huge reach lever, and the architecture makes it cheap.
+
+## Status (as of #818's first stage)
+
+The renderer port landed: `game2-web` now links `game2-client` for wasm32
+(`minifb` is the only desktop-only dep, target-gated in the client's
+Cargo.toml). `WasmGame` grew the page's pipeline:
+
+- `asset_manifest()` - the paths `Art::load` will ask for, found by
+  dry-running the load with a fetch that just records names
+- `provide_asset(rel, bytes)` - the page fetches each over HTTP and
+  hands the bytes back; a miss draws the desktop's placeholder path
+- `open_view()` - builds the same `View` the window runs
+- `render()` + `frame_ptr()/frame_len()/frame_width()/frame_height()` -
+  the full `View::render` output as RGBA pixels, zero-copy over
+  `wasm.memory.buffer`; the camera runs the window's own sequence
+  (focus jumps, comfort-box follow, event cam)
+- `index.html` + `main.js` - fetch, blit via `ImageData`, drag-pan and
+  wheel-zoom wired; serve the repo root and open `/game2-web/`
+- `.github/workflows/wasm.yml` - wasm32 build + `game2-web` tests in CI
+
+Still to come, per the grill's staging: the ws client against
+`game_server` (the shipped mode), Web Audio from `sfx` cues, IndexedDB
+save/load, and the picker/prologue card.

@@ -1,0 +1,30 @@
+# The browser build: keeps game2-web (and the game2-client lib it links)
+# compiling for wasm32-unknown-unknown, and the crate's native tests
+# green. The window crates don't build here - minifb has no wasm target,
+# which is why it's a wasm-excluded dependency of game2-client.
+name: Web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  wasm:
+    name: wasm32 build + game2-web tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build the wasm crate
+        run: cargo build -p game2-web --release --target wasm32-unknown-unknown
+
+      - name: Test it natively (page pipeline, camera, scene, probe)
+        run: cargo test -p game2-web

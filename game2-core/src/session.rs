@@ -1151,6 +1151,9 @@ pub struct Game {
 
     pub bubbles: Vec<(Entity, String, u32, bool, bool)>, // speech bubbles: (speaker, text, until frame, a thought?, ambient passing remark?)
     pub meeting: Option<Meeting>,
+    /// A celebration in progress: where the neighbours ring, and the
+    /// day it gives out - the camera's event finds it here (#1070)
+    pub celebrating: Option<(u64, (i32, i32))>,
     /// The day a snowball fight was called (u64::MAX = never)
     pub snowball_day: u64,
     /// The tick each rate-limited ctx verb last fired (u64::MAX = never):

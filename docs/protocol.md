@@ -265,9 +265,11 @@ once (an introduction's name, say). Older servers omit it; read it as
 no ask pending.
 
 `player_event` is the sim's civic-event camera ask, or absent - the
-`EventFocusV` an event the seat's own part of is running:
+`EventFocusV` an event the seat's own part of, or the village's own
+gathering, is running:
 `{"epoch":1,"kind":0,"pos":[x,y],"extent":12.0,"moving":true}` - `kind`
-is 0 a march, 1 a meeting; `pos` the event's live centre in tiles;
+is 0 a march, 1 a meeting, 2 a rite or celebration; `pos` the event's
+live centre in tiles;
 `extent` how wide it reaches in tiles (so a client can zoom out to
 frame it); `epoch` a counter that names the event, the same while it
 runs and new for the next, so a client jumps once and tracks after;

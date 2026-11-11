@@ -703,9 +703,11 @@ impl Game {
     }
 
     /// The civic event this seat's player is part of, for the camera:
-    /// a march the seat called (the column's live head) or a house
-    /// meeting it called (its venue). A march outranks a meeting when
-    /// both stand; anything else civic plugs into the same field
+    /// a march the seat called (the column's live head), a house
+    /// meeting it called (its venue), or the village's own gathering:
+    /// a rite walking folk to the church door or the stones, and the
+    /// celebration that follows. A march outranks a meeting and both
+    /// outrank a rite; anything else civic plugs into the same field
     fn player_event_at(&self, seat: usize) -> Option<EventFocusV> {
         if let Some(f) = &self.formation {
             if f.seat == seat && f.kind == formation::FormationKind::March {
@@ -723,6 +725,35 @@ impl Game {
                     epoch: m.born * 4 + 1, kind: 1,
                     pos: (m.venue.0 as f32, m.venue.1 as f32),
                     extent: 6.0, moving: false });
+            }
+        }
+        // a rite gathering or the day's celebration is the village's
+        // own event - the camera goes to the church door or the
+        // stones whoever called it
+        self.rite_event_at()
+    }
+
+    /// A rite, a wedding gathering, or today's celebration: the
+    /// earliest pending one the villagers walk to, else the ring in
+    /// progress. kind 2 - a gathering, not a march (#1070)
+    fn rite_event_at(&self) -> Option<EventFocusV> {
+        if let Some((until, at)) = self.celebrating {
+            if self.tick <= until {
+                return Some(EventFocusV {
+                    epoch: until.wrapping_mul(0x9E37) ^ 0xABCD, kind: 2,
+                    pos: (at.0 as f32, at.1 as f32), extent: 5.0, moving: false });
+            }
+        }
+        for (i, &v) in self.villagers.iter().enumerate() {
+            if let Some(p) = self.world.get_component::<villager::PendingRite>(v) {
+                return Some(EventFocusV {
+                    epoch: p.since.wrapping_mul(0x9E37) ^ i as u64, kind: 2,
+                    pos: (p.site.0 as f32, p.site.1 as f32), extent: 5.0, moving: false });
+            }
+            if let Some(b) = self.world.get_component::<villager::Betrothed>(v) {
+                return Some(EventFocusV {
+                    epoch: b.since.wrapping_mul(0x9E37) ^ i as u64 ^ 0x77, kind: 2,
+                    pos: (b.site.0 as f32, b.site.1 as f32), extent: 5.0, moving: false });
             }
         }
         None

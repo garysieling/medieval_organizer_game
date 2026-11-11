@@ -908,6 +908,7 @@ impl Game {
         let going = self.assemble(tick, Mode::Feasting, Spot::Home,
             leader.map(|l| (l, at)), &folk, &slots, at, 15);
         if going == 0 { return; }
+        self.celebrating = Some((tick + 1, (at.0.round() as i32, at.1.round() as i32)));
         let honouree = leader.and_then(|l| self.villagers.iter().position(|&v| v == l));
         self.log.push_at_who(format!("t{}: a small celebration - {}.", tick, why), Some(at), honouree);
         for v in leader.into_iter().chain(folk.iter().copied()) {

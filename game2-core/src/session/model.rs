@@ -405,7 +405,7 @@ impl<'de> Deserialize<'de> for MysteryV {
 pub struct EventFocusV {
     /// The instance's stamp - a new event is a new epoch
     pub epoch: u64,
-    /// What it is: 0 a march, 1 a house meeting
+    /// What it is: 0 a march, 1 a house meeting, 2 a rite or celebration
     pub kind: u8,
     /// Where it is now - live for movers
     pub pos: (f32, f32),

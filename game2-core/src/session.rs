@@ -1422,6 +1422,10 @@ pub struct Game {
     pub hermit: Option<Entity>,
     /// The martyr's grave - where they hanged the one who said no
     pub martyr_grave: Option<(i32, i32)>,
+    /// The prophetic movement, while one's alive: the prophet who took
+    /// the calling, the day the vision named, and whether the remnant
+    /// stayed after it passed (#878)
+    pub prophet_movement: Option<crate::game::prophetic::Movement>,
     /// Path memo: (from,to) -> the walk, cleared each frame - the map
     /// barely changes mid-frame, trails shift underfoot, and the
     /// search is the game's hot line

@@ -753,7 +753,8 @@ impl Game {
                         .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
                         .map(|r| r.strength).unwrap_or(0.0);
                     if !is_member && trust >= crate::sim::community::RECRUIT_MIN_TRUST
-                        && self.world.get_component::<crate::session::country::Outlander>(v).is_none() {
+                        && self.world.get_component::<crate::session::country::Outlander>(v).is_none()
+                        && self.world.get_component::<crate::game::prophetic::Follower>(v).is_none() {
                         self.seats[seat].ctx_actions.push(CtxAct::Recruit);
                     }
                     if let Some(c) = cause {
@@ -1899,6 +1900,7 @@ impl Game {
             if members.len() >= 5 { break; }
             if v == leader || villager::is_dead(&self.world, v)
                 || self.world.get_component::<Kid>(v).is_some()
+                || self.world.get_component::<crate::game::prophetic::Follower>(v).is_some()
                 || self.world.get_component::<country::Outlander>(v).is_some() { continue; }
             members.push(v);
         }

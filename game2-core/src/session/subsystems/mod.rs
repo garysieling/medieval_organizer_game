@@ -12,6 +12,7 @@ mod growth;
 mod land;
 mod meetings;
 mod people;
+mod prophet;
 mod rites;
 pub(in crate::session) mod cairns;
 pub(in crate::session) mod graveyard;

@@ -121,6 +121,9 @@ pub fn recruit(world: &mut World, org: Entity, citizen: Entity, rel_quality: f32
         crate::game::reactions::RADICAL_RECRUIT_BONUS
     } else { 0.0 };
     if quality < RECRUIT_MIN_TRUST { return false; } // need trust to recruit
+    // the prophet's own won't hold a seat: the calling thins what a
+    // crowd can keep - they march, they don't sign on
+    if world.get_component::<crate::game::prophetic::Follower>(citizen).is_some() { return false; }
     if let Some(o) = world.get_component_mut::<Organization>(org) {
         if o.members.contains(&citizen) { return false; }
         o.members.push(citizen);

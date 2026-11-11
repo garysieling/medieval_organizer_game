@@ -204,7 +204,19 @@ impl Game {
         self.world.add_component(player, crate::game::player::Avatar {
             look: sheet.look, kid: sheet.kid });
         self.world.add_component(player, Settled);
+        self.focus_intro_face(seat);
         true
+    }
+
+    /// The card the seat's about to read names a face worth knowing
+    /// early - point the camera at them, so dismissing the card finds
+    /// them centred (#1064). Settled seats share the one roll
+    fn focus_intro_face(&mut self, seat: usize) {
+        if let Some(i) = self.intro_face() {
+            if let Some(pos) = self.world.get_component::<villager::Pos>(self.villagers[i]) {
+                self.seats[seat].focus = Some((pos.x, pos.y, self.frame_n));
+            }
+        }
     }
 
     /// The seat's player keeps the default wanderer: still a decision,
@@ -217,6 +229,7 @@ impl Game {
         let player = seat_ref.player;
         if self.world.get_component::<Settled>(player).is_none() {
             self.world.add_component(player, Settled);
+            self.focus_intro_face(seat);
         }
         true
     }
@@ -245,16 +258,10 @@ impl Game {
         if let Some(n) = &self.landform {
             facts.push(format!("The village makes its home in {}.", n));
         }
-        // a face worth knowing early: the living villagers only - the
-        // dead would greet a returning seat with a grave's tenant, and
-        // the country's folk are nobody's neighbour. Their trade's plain
-        // to see about the village; their manner is theirs to find out
-        let living: Vec<usize> = self.villagers.iter().enumerate()
-            .filter(|(_, &v)| !villager::is_dead(&self.world, v)
-                && self.world.get_component::<country::Outlander>(v).is_none())
-            .map(|(i, _)| i).collect();
-        if !living.is_empty() {
-            let i = living[rng.below(living.len() as i32) as usize];
+        // a face worth knowing early, on the same roll `intro_face`
+        // answers the card with - their trade's plain to see about the
+        // village; their manner is theirs to find out
+        if let Some(i) = self.intro_face() {
             let v = self.villagers[i];
             match self.world.get_component::<vocation::Craft>(v) {
                 Some(c) if c.workplace.is_some() => facts.push(format!(
@@ -283,5 +290,19 @@ impl Game {
         ];
         facts.push(MOOD[rng.below(MOOD.len() as i32) as usize].to_string());
         facts
+    }
+
+    /// The face the card names - "X the Y keeps a bench here": the
+    /// living villagers only (the dead would greet a returning seat
+    /// with a grave's tenant, and the country's folk are nobody's
+    /// neighbour). Same seed and stream spot as `intro_facts`'s pick,
+    /// so the camera lands on who the card said (#1064)
+    pub fn intro_face(&self) -> Option<usize> {
+        let mut rng = Rng(self.seed ^ 0x1A7C_EF11_5EED_u64);
+        let living: Vec<usize> = self.villagers.iter().enumerate()
+            .filter(|(_, &v)| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<country::Outlander>(v).is_none())
+            .map(|(i, _)| i).collect();
+        if living.is_empty() { None } else { Some(living[rng.below(living.len() as i32) as usize]) }
     }
 }

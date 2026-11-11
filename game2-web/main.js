@@ -8,7 +8,10 @@
 //                              mode.
 //   /game2-web/                the dev harness: the sim itself runs in
 //                              wasm, ticked by the page (?seed=N or
-//                              ?staged=famine picks the telling).
+//                              ?staged=famine picks the telling). Its
+//                              journal save lives in IndexedDB, so a
+//                              bare reload resumes the same village;
+//                              ?fresh starts it over.
 //
 // Serve the repo root over HTTP and open /game2-web/:
 //   cargo build -p game2-web --release --target wasm32-unknown-unknown
@@ -22,6 +25,7 @@
 
 import init, { WasmGame, WasmClient } from './pkg/game2_web.js';
 import { SoundBoard } from './sound.js';
+import { load as db_load, save as db_save } from './db.js';
 
 const ASSET_BASE = new URL('../assets/', import.meta.url).href;
 const params = new URLSearchParams(location.search);
@@ -57,9 +61,22 @@ async function feed_assets(g) {
 }
 
 const wasm = await init();
-const g = remote ? new WasmClient()
-  : (params.get('seed') ? WasmGame.with_seed(+params.get('seed'))
-  : (params.get('staged') ? WasmGame.staged(params.get('staged')) : new WasmGame()));
+// the embedded harness remembers: a bare visit resumes the last
+// village off the shelf; a named telling (?seed, ?staged, ?fresh)
+// starts the village it names. The remote seat asks the server, not
+// the shelf.
+let g;
+if (remote) {
+  g = new WasmClient();
+} else {
+  const named = params.get('seed') || params.get('staged') || params.get('fresh') !== null;
+  const record = named ? null : await db_load('village');
+  g = record ? WasmGame.load(record) : null;
+  if (!g) {
+    g = params.get('seed') ? WasmGame.with_seed(+params.get('seed'))
+      : (params.get('staged') ? WasmGame.staged(params.get('staged')) : new WasmGame());
+  }
+}
 
 // 'connect' waits on the Welcome; 'picker' deals the roster; 'intro'
 // shows the prologue card; 'play' runs the loop. The embedded harness
@@ -171,6 +188,15 @@ addEventListener('keydown', e => {
   }
 });
 addEventListener('keyup', e => { held[e.code] = false; });
+
+// the harness journals its village to IndexedDB, so a closed tab isn't
+// a lost village: every ten seconds, and again as the page goes away
+if (!remote) {
+  const persist = () => db_save('village', g.save_json());
+  setInterval(persist, 10000);
+  addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+  addEventListener('pagehide', persist);
+}
 
 // walk is a per-frame direction while the keys are held, like the window
 const walk_vec = () => [

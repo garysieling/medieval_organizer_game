@@ -17,8 +17,8 @@ use game2_client::{
 };
 use game2_core::session::layout::MAP_W;
 use game2_core::session::{
-    self, iso_to_screen_cam, roster::RosterCard, Command, Game, PKind, Scenario, SceneCache,
-    ServerMsg, UiModel,
+    self, iso_to_screen_cam, journal, roster::RosterCard, Command, Game, PKind, Scenario,
+    SceneCache, ServerMsg, UiModel,
 };
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -451,6 +451,36 @@ impl WasmGame {
     pub fn run_days(&mut self, days: u64) {
         session::stage::run_days(&mut self.game, days);
     }
+
+    /// The day's record, for IndexedDB: the journal (seed + every input,
+    /// tagged by frame), the frame it stopped at, and the world's
+    /// fingerprint. The datomic save from `datomic-save-load.md` - `load`
+    /// replays the record back to the same village, and a save whose
+    /// replay drifts from its fingerprint is refused, not trusted.
+    pub fn save_json(&self) -> String {
+        serde_json::json!({
+            "v": 1,
+            "journal": self.game.journal,
+            "frame": self.game.frame_n,
+            "digest": self.game.state_digest(),
+        })
+        .to_string()
+    }
+
+    /// Rebuild a saved village: replay its record to the saved frame and
+    /// check the fingerprint. `undefined` on a bad string or a drifted
+    /// replay - the page starts a fresh village instead
+    pub fn load(text: &str) -> Option<WasmGame> {
+        #[derive(serde::Deserialize)]
+        struct Doc {
+            journal: journal::Journal,
+            frame: u64,
+            digest: u64,
+        }
+        let doc: Doc = serde_json::from_str(text).ok()?;
+        let g = journal::replay(&doc.journal, doc.frame);
+        (g.state_digest() == doc.digest).then(|| Self::built(g))
+    }
 }
 
 /// A client of `game_server`: no sim in the page at all - the browser
@@ -851,5 +881,32 @@ mod tests {
         c.host.model = Some(g.ui_model_lean_at(0));
         let c0 = c.digit_command(0);
         assert!(c0.contains("Select"), "digit one selects, got {c0}");
+    }
+
+    /// IndexedDB's round-trip: play a while, save, reload - the same
+    /// village comes back, and a record that doesn't replay to its own
+    /// fingerprint is refused
+    #[test]
+    fn test_the_save_remembers_the_village() {
+        let mut g = WasmGame::with_seed(3);
+        g.command(&serde_json::to_string(&Command::Walk(1.0, 0.0)).unwrap());
+        for _ in 0..8 {
+            g.tick();
+        }
+        let saved = g.save_json();
+        let r = WasmGame::load(&saved).expect("the save loads");
+        assert_eq!(
+            r.game.state_digest(),
+            g.game.state_digest(),
+            "the reloaded village drifted from the played one"
+        );
+
+        assert!(WasmGame::load("not json").is_none(), "gibberish refuses");
+        // a record that runs longer than it played fails the fingerprint
+        let tampered = saved.replace("\"frame\":8", "\"frame\":40");
+        assert!(
+            WasmGame::load(&tampered).is_none(),
+            "a drifted replay refuses"
+        );
     }
 }

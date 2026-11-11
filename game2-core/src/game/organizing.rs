@@ -1012,6 +1012,13 @@ fn is_sick_guest(world: &World, guest: Entity) -> bool {
             .unwrap_or(false))
 }
 
+/// How the word reached a guest: a personal yes, a friend holding the
+/// door, or the bare word going round. The first two are reasons
+/// enough to come - a pulled friend isn't asked for a stake (#1075);
+/// the bare word alone asks one (#1068)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Invite { Yes, Pulled, Word }
+
 /// The stake that draws an unpromised guest: a live grievance, a hard
 /// streak of hunger or sickness, or a piece of their self-interest the
 /// organizer's already heard. A contented stranger stays home.
@@ -1026,18 +1033,18 @@ fn has_stake(world: &World, guest: Entity, tick: u64) -> bool {
 
 /// Whether an invited guest shows: the base rate is a coin's toss -
 /// sickness and distance keep folk home, and a personal yes brings
-/// them out. The dead and the held never come, and nobody comes
-/// without a stake - a grievance, a hard streak, a want the
-/// organizer's heard - unless they gave their yes or count the host
-/// a true friend: a dragged-along friend who's content stays home.
-pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i32), promised: bool, roll: f32, tick: u64) -> bool {
+/// them out. The dead and the held never come. Only the bare word is
+/// asked for a stake - a grievance, a hard streak, a want the
+/// organizer's heard, or a true friendship with the host; a friend
+/// pulling for you is reason enough on its own.
+pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i32), invite: Invite, roll: f32, tick: u64) -> bool {
     use crate::game::relationships::{find_relationship, Relationship};
     if crate::game::dungeon::unavailable(world, guest) || is_sick_guest(world, guest) { return false; }
     let bond = find_relationship(world, organizer, guest)
         .and_then(|r| world.get_component::<Relationship>(r))
         .map(|r| r.strength).unwrap_or(0.0);
-    if !promised && bond < 0.5 && !has_stake(world, guest, tick) { return false; }
-    let mut p = if promised { 0.8 } else { 0.5 };
+    if invite == Invite::Word && bond < 0.5 && !has_stake(world, guest, tick) { return false; }
+    let mut p = if invite == Invite::Yes { 0.8 } else { 0.5 };
     p += bond.max(0.0) / 4.0;
     if let Some(pos) = world.get_component::<crate::game::villager::Pos>(guest) {
         let d = ((pos.x - venue.0 as f32).powi(2) + (pos.y - venue.1 as f32).powi(2)).sqrt();

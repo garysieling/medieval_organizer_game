@@ -196,8 +196,10 @@ fn test_the_village_remit_fills_the_keeps_books() {
         g.advance_travels();
         if !g.travels.iter().any(|t| t.who == c) { break; }
     }
-    assert!(g.sites[castle].treasury >= 30.0,
-        "the lord's cut never reached the books: {:.0}", g.sites[castle].treasury);
+    // the keep's books take the lord's share - diminished by the
+    // stalls' fees the market's own claim keeps back (#970)
+    assert!(g.sites[castle].treasury >= 17.0 && g.sites[castle].treasury < 30.0,
+        "the lord's share never reached the books: {:.0}", g.sites[castle].treasury);
 }
 
 #[test]

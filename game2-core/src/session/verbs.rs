@@ -1389,10 +1389,17 @@ impl Game {
                                 *s.goods.entry(g.to_string()).or_insert(0) += n;
                             }
                         }
+                        if st.gold > 0.0 {
+                            if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold += st.gold; }
+                            if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources += st.gold; }
+                        }
                         let goods = st.goods.iter().map(|&(g, n)| format!("{} {}", n, g))
                             .collect::<Vec<_>>().join(" and ");
-                        self.log.push(format!("t{}: you take the cache the rebels left - {}.", self.tick, goods));
-                        format!("Taken: {}.", goods)
+                        let what = if st.gold > 0.0 && !goods.is_empty() {
+                            format!("{:.0} gold and {}", st.gold, goods)
+                        } else if st.gold > 0.0 { format!("{:.0} gold", st.gold) } else { goods };
+                        self.log.push(format!("t{}: you take the cache the rebels left - {}.", self.tick, what));
+                        format!("Taken: {}.", what)
                     }
                     None => String::new(),
                 }

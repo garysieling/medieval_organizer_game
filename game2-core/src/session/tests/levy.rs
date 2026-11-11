@@ -1,13 +1,17 @@
 use crate::session::*;
 
 #[test]
-fn test_the_levy_bleeds_the_store_and_lifts() {
+fn test_the_levy_loads_the_crowns_cart_and_lifts() {
     let mut g = Game::new();
     g.imperial_project = Some(ImperialProject { until: 140, rate: 6, eased_until: 0 });
     if let Some(f) = g.world.get_component_mut::<villager::FoodSource>(g.market_food) { f.servings = 100; }
-    g.imperial_tick(60);
+    g.imperial_tick(65); // a cart day: the take loads every tenth
     let after = g.world.get_component::<villager::FoodSource>(g.market_food).unwrap().servings;
-    assert_eq!(after, 94, "the collector took {}", 100 - after);
+    assert_eq!(after, 40, "the cart didn't load its ten days' due: {}", 100 - after);
+    // and the take rides the road as real provisions, bound for a keep
+    let c = g.collector.unwrap();
+    let t = g.travels.iter().find(|t| t.who == c).expect("the cart never left");
+    assert!(matches!(t.goal, Goal::LevyCart(_)), "the errand's no cart: {:?}", t.goal);
     // and it lifts when its days are done
     g.imperial_tick(140);
     assert!(g.imperial_project.is_none(), "the levy never lifted");
@@ -27,12 +31,12 @@ fn test_the_lord_intercedes_for_the_esteemed() {
     assert!(eased > 60 || g.imperial_project.as_ref().unwrap().eased_until == 0
         || g.world.get_component::<villager::FoodSource>(g.market_food)
             .map(|f| f.servings).is_some());
-    // with the intercession holding, the drain halves
+    // with the intercession holding, the cart loads half
     g.imperial_project.as_mut().unwrap().eased_until = 90;
     if let Some(f) = g.world.get_component_mut::<villager::FoodSource>(g.market_food) { f.servings = 100; }
-    g.imperial_tick(61);
+    g.imperial_tick(65);
     let after = g.world.get_component::<villager::FoodSource>(g.market_food).unwrap().servings;
-    assert_eq!(after, 97, "the intercession didn't ease the drain");
+    assert_eq!(after, 70, "the intercession didn't ease the load");
 }
 
 #[test]

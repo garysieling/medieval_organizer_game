@@ -675,6 +675,9 @@ pub enum Goal {
     /// A castle knight riding escort to a tribute train's destination
     /// (from, to) - turns for home once the cargo is safe
     Escort(usize, usize),
+    /// The crown's cart rides the levy's provisions to the keep - a real
+    /// load on the road that rebels can take (#970)
+    LevyCart(usize),
     /// The bucket line's first leg: walk to the water's edge and fill up
     FillBucket,
     /// Second leg: carry the bucket to this burning tile and douse it

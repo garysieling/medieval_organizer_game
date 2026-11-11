@@ -482,7 +482,8 @@ impl Game {
         // doesn't commandeer them
         if self.seats.iter().any(|s| s.player == v) { return false; }
         !self.travels.iter().any(|t| t.who == v && matches!(t.goal,
-            Goal::CollectTax(_) | Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(..)))
+            Goal::CollectTax(_) | Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(..)
+                | Goal::Escort(..) | Goal::LevyCart(_)))
     }
 
     /// Sworn to answer: the brigade's own take the bell before the

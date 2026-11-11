@@ -176,6 +176,10 @@ pub struct Art {
     /// travellers' (courier, minstrel, pedlar, the rare visitors)
     pub rival_walks: Vec<Option<WalkSheet>>,
     pub traveller_walk: Option<WalkSheet>,
+    /// The road people's own figures, keyed by the `PersonV.visit` slug
+    /// (`events::VISIT_SLUGS`; files at `rd/visitors/<slug>.png`): a
+    /// visitor the batch didn't cover keeps the courier look
+    pub visitors: game2_core::engine::det::HashMap<String, Sprite>,
     /// A knight's mount (assets/rd/mounted): horse and rider as one
     /// figure for `PersonV.mounted`; `mounted_flip` mirrors it for the
     /// leftward ride. None: the walker figure stands in
@@ -831,6 +835,11 @@ impl Art {
             traveller_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
             rival_walks,
             traveller_walk: walk("rd/traveller/courier.png"),
+            // the road people: each rare visitor's own figure when the
+            // batch shipped a sprite for the slug
+            visitors: events::VISIT_SLUGS.iter()
+                .filter_map(|&s| at(&format!("rd/visitors/{}.png", s)).map(|sp| (s.to_string(), sp)))
+                .collect(),
             mounted,
             mounted_flip,
             guards,

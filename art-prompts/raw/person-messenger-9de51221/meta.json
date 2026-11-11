@@ -1,0 +1,27 @@
+{
+ "created_at": 1794431292,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 15.07,
+ "request_id": "27f65154-77c4-4637-9bef-d2d46443d61d",
+ "outputs_retained_until": 1794517634,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 15.07
+ },
+ "id": "person-messenger-9de51221",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: messenger in a badge, letter held out before him",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:08:13",
+ "seconds": 58.1
+}

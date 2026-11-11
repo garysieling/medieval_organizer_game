@@ -128,3 +128,27 @@ fn test_the_minstrels_round_comes_back_sooner() {
     let gap = g.next_minstrel - g.tick;
     assert!((90..=150).contains(&gap), "his next round's {} days out - a year's drought again", gap);
 }
+
+#[test]
+fn test_every_road_visitor_has_his_own_face() {
+    for s in events::EVENTS {
+        if !matches!(s.kind, events::EventKind::Visitor) || !matches!(s.fig, events::Fig::Traveller) { continue; }
+        // no sprite yet: the courier stands in for these two
+        if matches!(s.id, events::EventId::VaccinationAct | events::EventId::Dilemma) { continue; }
+        assert!(events::visit_slug(s.id).is_some(), "{:?} has no visit slug", s.id);
+    }
+    // and the vocabulary stays out of the sky and the fields
+    assert!(events::visit_slug(events::EventId::Hailstorm).is_none());
+    assert!(events::visit_slug(events::EventId::CoinHoard).is_none());
+}
+
+#[test]
+fn test_the_tinker_sends_his_slug() {
+    let mut g = Game::new();
+    g.force_event(events::EventId::Tinker);
+    let m = g.ui_model();
+    let t = m.people.iter().find(|p| p.visit.as_deref() == Some("tinker"))
+        .expect("no figure draws the tinker's face");
+    assert!(matches!(t.kind, PKind::Traveller), "the tinker isn't a road figure");
+}
+

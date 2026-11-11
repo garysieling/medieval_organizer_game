@@ -1,0 +1,27 @@
+{
+ "created_at": 1794430298,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 17.41,
+ "request_id": "c8df11b8-1531-4bca-aa62-dc5726efe435",
+ "outputs_retained_until": 1794516611,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 17.41
+ },
+ "id": "person-candle-maker-1ed97164",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: candle-maker carrying a dipper frame hung with candles",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:51:39",
+ "seconds": 88.1
+}

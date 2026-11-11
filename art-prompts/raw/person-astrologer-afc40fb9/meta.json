@@ -1,0 +1,27 @@
+{
+ "created_at": 1794430796,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 16.33,
+ "request_id": "19936d95-c4de-4573-85de-ad02ee48f0ff",
+ "outputs_retained_until": 1794517057,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 16.33
+ },
+ "id": "person-astrologer-afc40fb9",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: astrologer with a star chart and brass astrolabe",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:59:57",
+ "seconds": 139.9
+}

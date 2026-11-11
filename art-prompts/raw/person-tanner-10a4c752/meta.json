@@ -1,0 +1,27 @@
+{
+ "created_at": 1794430210,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 17.59,
+ "request_id": "d4dffeba-4acc-4c27-918d-95bca5372190",
+ "outputs_retained_until": 1794516485,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 17.59
+ },
+ "id": "person-tanner-10a4c752",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: tanner with rolled hides on his shoulder, stained apron",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:50:11",
+ "seconds": 125.2
+}

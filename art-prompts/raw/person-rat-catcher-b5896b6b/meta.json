@@ -1,0 +1,27 @@
+{
+ "created_at": 1794428048,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 24.25,
+ "request_id": "86886125-7fe6-4ecf-be1a-6075e2d53a3c",
+ "outputs_retained_until": 1794514395,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 24.25
+ },
+ "id": "person-rat-catcher-b5896b6b",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: rat-catcher with a terrier and a pole of dead rats",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:14:09",
+ "seconds": 53.9
+}

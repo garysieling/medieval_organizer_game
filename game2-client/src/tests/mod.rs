@@ -49,6 +49,7 @@ mod status_line;
 mod title;
 mod toast;
 mod train;
+mod visitors;
 mod walk_anim;
 mod window;
 mod zoom;

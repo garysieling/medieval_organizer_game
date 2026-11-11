@@ -62,6 +62,11 @@ pub struct PersonV {
     /// everyone else, whose look comes from their roster slot
     #[serde(default)]
     pub look: u8,
+    /// Which generated sprite a visiting figure draws with - one of
+    /// `events::VISIT_SLUGS` (`rd/visitors/<slug>.png`); `None` for
+    /// villagers and for visitors the art batch hasn't covered
+    #[serde(default)]
+    pub visit: Option<String>,
     /// Picket-sign board while gathered for a protest (0 wooden
     /// hand-lettered, 1 printed placard); the client draws it beside
     /// the figure

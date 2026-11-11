@@ -209,6 +209,30 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         };
         game.rainbow_from = (w == "rainbow").then(|| game.frame_n.saturating_sub(100));
     }
+    // GAME2_DUMP_FOLLOW=dx,dy,frames: after the camera is set, walk the
+    // player and run the real follow camera each frame - the shot shows
+    // the eased mid-walk framing, not a fixed snap. Prints where the
+    // player lands on screen, for checks that can't read the pixels
+    if let Some((dx, dy, n)) = std::env::var("GAME2_DUMP_FOLLOW").ok().as_deref()
+        .and_then(|v| { let mut p = v.split(',');
+            Some((p.next()?.parse::<f32>().ok()?, p.next()?.parse::<f32>().ok()?,
+                p.next()?.parse::<u32>().ok()?)) }) {
+        let mut fc = FollowCam::default();
+        for _ in 0..n {
+            game.command(Command::Walk(dx, dy));
+            game.update();
+            let m = game.ui_model();
+            if let Some(c) = camera_follow(&m, (view.cam_x, view.cam_y), view.zoom, &mut fc) {
+                (view.cam_x, view.cam_y) = c;
+            }
+        }
+        let m = game.ui_model();
+        if let Some(p) = m.people.iter().find(|p| p.kind == PKind::Player) {
+            let (sx, sy) = iso_to_screen_cam(p.pos.0, p.pos.1, view.cam_x, view.cam_y, view.zoom);
+            println!("follow: player tile ({:.1}, {:.1}) screen {sx},{sy} cam {},{}",
+                p.pos.0, p.pos.1, view.cam_x, view.cam_y);
+        }
+    }
     // GAME2_BENCH=N: time N more frames (sim, model, render) and report
     if let Some(n) = std::env::var("GAME2_BENCH").ok().and_then(|v| v.parse::<u32>().ok()) {
         bench_frames(&mut game, &mut view, n);

@@ -43,7 +43,7 @@ pub(crate) const HELP_LINES: [&str; 10] = [
     "O organize  B build",
     "WASD: move   arrows: pan   +/-: zoom",
     "Space: pause   0: speed 4x",
-    "F12: screenshot   Esc: quit",
+    "F12: screenshot   Esc: menu",
     "F11: fullscreen",
 ];
 
@@ -61,7 +61,7 @@ pub(crate) fn draw_help(buf: &mut Buffer) {
     draw_overlay(buf, HELP_W, "CONTROLS", (255, 220, 130), &HELP_LINES, HELP_ROW, Some("press H to close"));
 }
 
-pub(crate) const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", "1-8: select villager"];
+pub(crate) const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: menu", "1-8: select villager"];
 
 pub(crate) const PAUSE_W: i32 = 260;
 
@@ -208,6 +208,64 @@ pub(crate) fn draw_centered_at(buf: &mut Buffer, cx: i32, y: i32, text: &str, sc
 /// Draw `text` horizontally centred on the screen at row `y`
 pub(crate) fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, rgb: (u8, u8, u8)) {
     draw_centered_at(buf, W as i32 / 2, y, text, scale, rgb);
+}
+
+/// What a pause-menu row does when it's pressed
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MenuPick {
+    /// Close the menu and go on with the day
+    Resume,
+    /// Leave the day entirely - the window closes clean
+    Quit,
+}
+
+pub(crate) const MENU_W: i32 = 220;
+pub(crate) const MENU_ROW: i32 = 24;
+
+/// The pause menu's box and its two rows, centred on the map view
+#[cfg(test)]
+pub(crate) fn pause_menu_box() -> (i32, i32, i32, i32) {
+    overlay_rect(MENU_W, 2, MENU_ROW, false)
+}
+
+/// The pause menu's row rects, in draw order: Resume then Quit
+pub fn pause_menu_rows() -> [(i32, i32, i32, i32, MenuPick); 2] {
+    let (x, y, w, _) = overlay_rect(MENU_W, 2, MENU_ROW, false);
+    [
+        (x + 8, y + 52, w - 16, MENU_ROW, MenuPick::Resume),
+        (x + 8, y + 52 + MENU_ROW + 2, w - 16, MENU_ROW, MenuPick::Quit),
+    ]
+}
+
+/// Draw the pause menu over the day's frame: two bordered rows like the
+/// conversation box's choices, a hover lighting the one under the mouse
+pub fn draw_pause_menu(buf: &mut Buffer, mouse: (i32, i32), title: &str) {
+    let (x, y, w, h) = overlay_rect(MENU_W, 2, MENU_ROW, false);
+    buf.rect(x, y, w, h, 20, 20, 35);
+    buf.rect(x, y, w, 2, 200, 200, 220);
+    draw_centered_at(buf, x + w / 2, y + 15, title, 2, (255, 220, 130));
+    for &(rx, ry, rw, rh, pick) in &pause_menu_rows() {
+        let hover = mouse.0 >= rx && mouse.0 < rx + rw && mouse.1 >= ry && mouse.1 < ry + rh;
+        let (r, g, b) = if hover { (52, 64, 54) } else { (36, 48, 38) };
+        buf.rect(rx, ry, rw, rh, r, g, b);
+        let edge = if hover { (150, 230, 150) } else { (70, 110, 70) };
+        buf.rect(rx, ry, rw, 1, edge.0, edge.1, edge.2);
+        buf.rect(rx, ry + rh - 1, rw, 1, edge.0, edge.1, edge.2);
+        buf.rect(rx, ry, 1, rh, edge.0, edge.1, edge.2);
+        buf.rect(rx + rw - 1, ry, 1, rh, edge.0, edge.1, edge.2);
+        let (label, lr, lg, lb) = match pick {
+            MenuPick::Resume => ("Resume  (Esc)", 210, 230, 210),
+            MenuPick::Quit => ("Quit the day  (Q)", 220, 160, 140),
+        };
+        draw_centered_at(buf, rx + rw / 2, ry + 8, label, 1, (lr, lg, lb));
+    }
+}
+
+/// Which row a click at (mx, my) presses, if it lands on one
+pub fn pause_menu_click(mx: i32, my: i32) -> Option<MenuPick> {
+    pause_menu_rows().into_iter()
+        .find(|&(x, y, w, h, _)| mx >= x && mx < x + w && my >= y && my < y + h)
+        .map(|r| r.4)
 }
 
 /// The title screen shown until the player presses Enter: what the game

@@ -2743,6 +2743,11 @@ impl Game {
             // the flip: enough squeeze and the community's own pull
             // outweighs the castle's - the broker comes over
             if b.pressure > 0.8 && b.community_loyalty > b.power_loyalty {
+                // the prophet's own won't hold a seat - same bar as recruit
+                if self.world.get_component::<crate::game::prophetic::Follower>(v).is_some() {
+                    self.world.add_component(v, b);
+                    continue;
+                }
                 let already = self.world.get_component::<crate::sim::community::Organization>(self.org)
                     .map(|o| o.members.contains(&v)).unwrap_or(false);
                 if !already {

@@ -186,6 +186,7 @@ mod provocateur;
 mod production;
 mod progression;
 mod protest;
+mod prophet;
 mod recipes;
 mod quests;
 mod story;

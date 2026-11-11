@@ -48,3 +48,4 @@ pub mod dungeon;
 pub mod conversation;
 pub mod dialogue_trees;
 pub mod mysteries;
+pub mod prophetic;

@@ -394,6 +394,8 @@ impl Game {
         crate::timed!("sim.continuation", self.continuation_tick(tick));
         // and the martyr's grave keeps its vigil
         crate::timed!("sim.martyr", self.martyr_tick(tick));
+        // and the calling gathers its crowd while the deadline runs
+        crate::timed!("sim.prophet", self.prophet_tick(tick));
         // and the castle's prisoners wait on the org's answer
         crate::timed!("sim.dungeon", self.dungeon_tick(tick));
         // and the posted knights stand only their tour

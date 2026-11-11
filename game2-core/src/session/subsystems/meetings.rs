@@ -245,15 +245,17 @@ impl Game {
         let label = plan.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h))
             .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the square".into());
         // the invited: those who said they'd come, those who said
-        // they'd bring friends (and the friends they bring), and every
-        // promise-keeper - then the turnout roll, roughly a coin's
-        // toss for the merely invited
-        let mut pool: Vec<(Entity, bool)> = plan.holders().iter().map(|&h| (h, true)).collect();
+        // they'd bring friends (and the friends they bring), every
+        // promise-keeper - and a plus-one for each of the committed,
+        // a yes is a door held open (#1075) - then the turnout roll,
+        // roughly a coin's toss for the merely invited
+        let mut pool: Vec<(Entity, org::Invite)> = plan.holders().iter()
+            .map(|&h| (h, org::Invite::Yes)).collect();
         for &s in &plan.spreaders {
-            for f in org::friends_of(&self.world, s, 2) { pool.push((f, false)); }
+            for f in org::friends_of(&self.world, s, 2) { pool.push((f, org::Invite::Pulled)); }
         }
-        for &c in &plan.coming {
-            if !pool.iter().any(|(e, _)| *e == c) { pool.push((c, true)); }
+        for &h in &plan.holders() {
+            for f in org::friends_of(&self.world, h, 1) { pool.push((f, org::Invite::Pulled)); }
         }
         pool.retain(|(e, _)| *e != pe && self.villagers.contains(e)
             // the woods' bands don't answer village calls
@@ -261,17 +263,18 @@ impl Game {
         // one invite per person, however many roles brought them up -
         // dedup_by only catches neighbours, and a holder can recur
         // non-adjacently (e.g. the venue-lender also takes notes, with
-        // someone else's promise listed between the two)
-        let mut deduped: Vec<(Entity, bool)> = vec![];
-        for (e, promised) in pool {
+        // someone else's promise listed between the two); a yes
+        // outranks a pull
+        let mut deduped: Vec<(Entity, org::Invite)> = vec![];
+        for (e, k) in pool {
             match deduped.iter_mut().find(|(de, _)| *de == e) {
-                Some((_, p)) => *p = *p || promised,
-                None => deduped.push((e, promised)),
+                Some((_, dk)) => if k == org::Invite::Yes { *dk = k; },
+                None => deduped.push((e, k)),
             }
         }
         let pool = deduped;
         let mut invited: Vec<Entity> = pool.iter()
-            .filter(|&&(e, promised)| org::shows_up(&self.world, pe, e, venue, promised,
+            .filter(|&&(e, k)| org::shows_up(&self.world, pe, e, venue, k,
                 (self.rng.next() % 1000) as f32 / 1000.0, self.tick))
             .map(|&(e, _)| e).collect();
         invited.truncate(10);

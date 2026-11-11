@@ -1015,35 +1015,22 @@ fn is_sick_guest(world: &World, guest: Entity) -> bool {
 /// How the word reached a guest: a personal yes, a friend holding the
 /// door, or the bare word going round. The first two are reasons
 /// enough to come - a pulled friend isn't asked for a stake (#1075);
-/// the bare word alone asks one (#1068)
+/// the bare word alone is only thinned, not barred, without one (#1068)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Invite { Yes, Pulled, Word }
-
-/// The stake that draws an unpromised guest: a live grievance, a hard
-/// streak of hunger or sickness, or a piece of their self-interest the
-/// organizer's already heard. A contented stranger stays home.
-fn has_stake(world: &World, guest: Entity, tick: u64) -> bool {
-    use crate::game::desires::{Hardship, InnerLife, Known};
-    if world.get_component::<InnerLife>(guest)
-        .map(|l| l.grievances.iter().any(|(_, u)| *u >= tick)).unwrap_or(false) { return true; }
-    if world.get_component::<Hardship>(guest)
-        .map(|h| h.hungry > 0 || h.sick > 0).unwrap_or(false) { return true; }
-    world.get_component::<Known>(guest).map(|k| !k.revealed.is_empty()).unwrap_or(false)
-}
 
 /// Whether an invited guest shows: the base rate is a coin's toss -
 /// sickness and distance keep folk home, and a personal yes brings
 /// them out. The dead and the held never come. Only the bare word is
-/// asked for a stake - a grievance, a hard streak, a want the
-/// organizer's heard, or a true friendship with the host; a friend
-/// pulling for you is reason enough on its own.
+/// asked for a reason - something still theirs to say, or a true
+/// friendship with the host - and without one they're not barred,
+/// only thin: curiosity still drifts a few in, at a quarter's pull.
 pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i32), invite: Invite, roll: f32, tick: u64) -> bool {
     use crate::game::relationships::{find_relationship, Relationship};
     if crate::game::dungeon::unavailable(world, guest) || is_sick_guest(world, guest) { return false; }
     let bond = find_relationship(world, organizer, guest)
         .and_then(|r| world.get_component::<Relationship>(r))
         .map(|r| r.strength).unwrap_or(0.0);
-    if invite == Invite::Word && bond < 0.5 && !has_stake(world, guest, tick) { return false; }
     let mut p = if invite == Invite::Yes { 0.8 } else { 0.5 };
     p += bond.max(0.0) / 4.0;
     if let Some(pos) = world.get_component::<crate::game::villager::Pos>(guest) {
@@ -1052,7 +1039,13 @@ pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i3
     }
     let skill = world.get_component::<crate::game::org_skills::Organizing>(organizer)
         .map(|o| o.turnout).unwrap_or(0.0);
-    roll < (p + skill * 0.1).min(0.98)
+    let mut p = (p + skill * 0.1).min(0.98);
+    // a given yes is a yes, and a friend holding the door is reason
+    // enough; the bare word alone asks something still theirs to say
+    if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, guest, tick).is_empty() {
+        p *= 0.25;
+    }
+    roll < p
 }
 
 /// Who a spreader brings: their strongest living bonds, strongest first

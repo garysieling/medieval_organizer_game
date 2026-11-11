@@ -8,10 +8,106 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 210,
-  "est_total_usd": 37.53
+  "count": 214,
+  "est_total_usd": 37.94
  },
  "prompts": [
+  {
+   "id": "decor-marginalia-hybrid-4d9b2961",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "decor marginalia hybrid",
+   "prompt": "single isometric medieval marginalia creature: a bird with long human ears and thin legs, chalky green and rose pink, bosch style",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "omen/strange-sight event flavor (#804)"
+  },
+  {
+   "id": "decor-memento-mori-343cee93",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "decor memento mori",
+   "prompt": "single isometric medieval village asset: memento mori still life, a human skull resting on a closed bound book with a guttering candle, muted earth tones",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": "churchyard/memorial flavor (#804)"
+  },
+  {
+   "id": "decor-painted-hall-59d4e21d",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "decor painted hall",
+   "prompt": "single isometric medieval village asset: interior wall hanging, a painted cloth frieze of deer and foliage in muted reds and greens, medieval hall decoration",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "painted halls as clout (#804)"
+  },
+  {
+   "id": "goods-print-sheet-28e12e22",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "goods print sheet",
+   "prompt": "inventory item sheet: a small woodcut print, monochrome hatched engraving of a hare on aged paper, durer style",
+   "request": {
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "a printmaker's sellable print good (#804)"
+  },
+  {
+   "id": "sign-engraved-de5f19db",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "sign engraved",
+   "prompt": "single isometric medieval village asset: hanging shop sign, a wood-engraved monochrome hare in dense hatched lines on a weathered board, durer style",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": "engraving-look shop sign (#804)"
+  },
+  {
+   "id": "wonder-eggshell-c773b4d5",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "wonder eggshell",
+   "prompt": "single isometric medieval village asset: a giant hollow eggshell split open with a small figure seated inside, chalky white and pale pink, bosch style",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": "wonder/omen set-piece (#804)"
+  },
   {
    "id": "decor-maypole-398f6b81",
    "tier": "p1",
@@ -104,22 +200,6 @@
    },
    "est_cost_usd": 0.18,
    "notes": "vocation workshop tools; include_downloadable_data returns the item atlas"
-  },
-  {
-   "id": "memorial-lychgate-c606b4b8",
-   "tier": "p1",
-   "group": "monuments",
-   "title": "memorial lychgate",
-   "prompt": "single isometric medieval village asset: lychgate, small roofed wooden arch over a path, the churchyard entrance",
-   "request": {
-    "prompt_style": "rd_tile__tile_object",
-    "width": 96,
-    "height": 96,
-    "num_images": 2,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.12,
-   "notes": "deferred to funerals #674 - catalogued only"
   },
   {
    "id": "scot-baronial-turret-010941ac",
@@ -3336,23 +3416,6 @@
    },
    "est_cost_usd": 0.07,
    "notes": "player still + walk cycle; figure should end up ~24px tall"
-  },
-  {
-   "id": "person-plague-doctor-e054b0d1",
-   "tier": "anim",
-   "group": "visitors",
-   "title": "person plague doctor",
-   "prompt": "plague doctor in a beaked bird mask and dark waxed leather coat, medieval",
-   "request": {
-    "prompt_style": "rd_animation__four_angle_walking",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true,
-    "return_spritesheet": true
-   },
-   "est_cost_usd": 0.07,
-   "notes": "visitor sprite; 48px 4-direction walk cycle as a PNG grid"
   }
  ]
 }

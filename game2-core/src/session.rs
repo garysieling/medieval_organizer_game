@@ -390,7 +390,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // the sale shares the big row's left half with Gather's
         CtxAct::Buy => Button { label: "Buy".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (140, 120, 60) },
         // the kind hand shares Pet her's slot on the big row's right half
-        CtxAct::Tame => Button { label: "Stroke it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
+        CtxAct::Tame => Button { label: "Pet it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
         CtxAct::School => Button { label: "The school".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (90, 110, 70) },
     }
 }

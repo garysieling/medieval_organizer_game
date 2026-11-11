@@ -100,3 +100,21 @@ fn test_a_kind_neighbor_shares_their_table() {
         && matches!(e.kind, crate::sim::psychology::EpisodeKind::Warmth)),
         "the fed neighbor remembers who fed them");
 }
+
+#[test]
+fn born_and_arriving_souls_carry_virtues() {
+    let mut g = Game::new();
+    // a settler steps in at the wall
+    g.maybe_migrant(0);
+    let m = *g.villagers.last().unwrap();
+    assert!(g.world.get_component::<Virtues>(m).is_some(),
+        "the newcomer arrived with no soul");
+    // a child born to a full house
+    let home = g.building_entities.iter().copied().find(|&b|
+        g.world.get_component::<Building>(b)
+            .map(|bb| bb.kind == BuildingKind::Home).unwrap_or(false)).unwrap();
+    g.spawn_kid(home, 0);
+    let k = *g.villagers.last().unwrap();
+    assert!(g.world.get_component::<Virtues>(k).is_some(),
+        "the newborn came into the world with no soul");
+}

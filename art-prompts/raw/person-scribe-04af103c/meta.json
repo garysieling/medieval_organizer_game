@@ -1,0 +1,27 @@
+{
+ "created_at": 1794428196,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 23.53,
+ "request_id": "43f1b643-63ec-4cf0-8a53-471a71e84529",
+ "outputs_retained_until": 1794514469,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 23.53
+ },
+ "id": "person-scribe-04af103c",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: itinerant scribe with a writing slope and quill case",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:16:37",
+ "seconds": 126.9
+}

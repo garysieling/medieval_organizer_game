@@ -1,0 +1,27 @@
+{
+ "created_at": 1794430031,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 17.95,
+ "request_id": "ec832219-771f-40d0-85c9-7b4c6469de08",
+ "outputs_retained_until": 1794516367,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 17.95
+ },
+ "id": "person-charcoal-burner-7a809ad9",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: charcoal-burner in a soot-stained smock, coal bag",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:47:12",
+ "seconds": 63.9
+}

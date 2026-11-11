@@ -1,0 +1,27 @@
+{
+ "created_at": 1794429808,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 18.49,
+ "request_id": "f279d824-4e0c-4a49-a02a-decf5f3d8717",
+ "outputs_retained_until": 1794516079,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 18.49
+ },
+ "id": "person-glazier-825c4950",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: glazier carrying a leaded glass pane and a glass-cutter",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:43:29",
+ "seconds": 129.7
+}

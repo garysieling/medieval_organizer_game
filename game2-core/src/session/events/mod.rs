@@ -272,6 +272,47 @@ pub fn spec(id: EventId) -> &'static EventSpec {
     EVENTS.iter().find(|s| s.id == id).unwrap()
 }
 
+/// The visitor sprite slugs (#693's art batch, `rd/people/<slug>.png`
+/// on the client) - the `PersonV.person` keys the road people draw
+/// from. A visitor whose slug isn't here draws the generic courier.
+pub const VISIT_SLUGS: &[&str] = &[
+    "tinker", "knife-grinder", "rag-and-bone", "chimney-sweep", "rat-catcher",
+    "dowser", "scribe", "tooth-drawer", "barber-surgeon", "pilgrims",
+    "relic-seller", "pardoner", "juggler", "bear-ward", "puppeteer",
+    "ballad-monger", "news-crier", "recruiter", "deserter", "refugee-family",
+    "leper-band", "friar", "quiet-preacher", "drover", "fish-hawker",
+    "salt-seller", "wool-merchant", "wine-merchant", "spice-merchant",
+    "bookseller", "glazier", "thatcher", "well-digger", "charcoal-burner",
+    "lime-burner", "tanner", "candle-maker", "potter", "horse-coper",
+    "eggler", "cheese-monger", "fortune-teller", "astrologer", "alchemist",
+    "quack", "midwife", "sowgelder", "farrier", "corn-factor", "messenger",
+    "prodigal",
+];
+
+/// Which visitor sprite a `Fig::Traveller` figure draws with - the
+/// variant kebab-cased (`KnifeGrinder` -> `knife-grinder`), hand-mapped
+/// where the art prompt used a different name. `None` for non-visitors
+/// and for a visitor with no sprite yet.
+pub fn visit_slug(id: EventId) -> Option<&'static str> {
+    let s = spec(id);
+    if !matches!(s.kind, Visitor) || !matches!(s.fig, Fig::Traveller) { return None; }
+    let slug = match id {
+        PilgrimBand => "pilgrims".to_string(),
+        Heretic => "quiet-preacher".to_string(),
+        HorseCop => "horse-coper".to_string(),
+        ProdigalSon => "prodigal".to_string(),
+        _ => {
+            let mut k = String::new();
+            for c in format!("{:?}", id).chars() {
+                if c.is_uppercase() && !k.is_empty() { k.push('-'); }
+                k.push(c.to_ascii_lowercase());
+            }
+            k
+        }
+    };
+    VISIT_SLUGS.iter().find(|&&x| x == slug).copied()
+}
+
 /// `id` by name: the variant ("Tinker") or the map name ("the tinker") -
 /// what the wasm and ws test surfaces take
 pub fn event_id(name: &str) -> Option<EventId> {

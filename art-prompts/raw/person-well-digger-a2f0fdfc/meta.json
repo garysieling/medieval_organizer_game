@@ -1,0 +1,27 @@
+{
+ "created_at": 1794429967,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 18.13,
+ "request_id": "01aa6c56-0d40-406c-8efe-b7f170d0650e",
+ "outputs_retained_until": 1794516264,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 18.13
+ },
+ "id": "person-well-digger-a2f0fdfc",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: well-digger with a shovel and rope over his shoulder",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:46:08",
+ "seconds": 103.4
+}

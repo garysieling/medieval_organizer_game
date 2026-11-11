@@ -1,0 +1,27 @@
+{
+ "created_at": 1794428069,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 23.71,
+ "request_id": "cb10e0f6-eb2b-43be-9a70-0223d1689323",
+ "outputs_retained_until": 1794514449,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 23.71
+ },
+ "id": "person-dowser-b7a4c6e8",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: water-diviner with a forked hazel wand held out before him",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:14:30",
+ "seconds": 20.6
+}

@@ -855,7 +855,9 @@ impl View {
                 },
                 Who::P(pv) if let PKind::Traveller = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(ws) = &art.traveller_walk {
+                    if let Some(s) = pv.person.as_deref().and_then(|p| art.person(p)) {
+                        draw_character(&mut buf, s, sx, sy, zoom);
+                    } else if let Some(ws) = &art.traveller_walk {
                         let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
                         let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
                         ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom);

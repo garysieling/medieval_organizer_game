@@ -1,0 +1,28 @@
+{
+ "created_at": 1794439167,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.19,
+ "request_id": "4970f348-a891-4359-904f-62614dd4536e",
+ "outputs_retained_until": 1794525510,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 0.19
+ },
+ "id": "tree-winter-fir-3f3e275a",
+ "prompt": "single isometric medieval village asset: one dark green fir tree with snow lying on its branches, standing alone, no ground",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-11T18:19:28",
+ "seconds": 57.2
+}

@@ -72,3 +72,59 @@ fn test_the_troupe_pitches_its_camp() {
             p.x, p.y, cx, cy);
     }
 }
+
+#[test]
+fn test_the_crowds_word_draws_the_road() {
+    // a market day pulls a traveller whose round was near into town
+    // today (#1073)
+    let mut g = Game::new();
+    g.tick = 20; // market day: tick % 30 == 20
+    g.next_minstrel = g.tick + 5;   // inside the draw
+    g.next_circus = g.tick + 40;    // far out - untouched
+    let tinker = crate::session::events::EventId::Tinker;
+    g.next_rare.retain(|(id, _)| *id != tinker);
+    g.next_rare.push((tinker, g.tick + 5));
+    g.livelihood_tick(g.tick);
+    assert!(g.minstrel.is_some(), "the word never reached the minstrel");
+    assert!(g.rare.iter().any(|r| r.id == tinker), "the tinker never came for the crowd");
+    assert!(g.circus.is_none() && g.next_circus == g.tick + 40,
+        "a distant round shouldn't be drawn in");
+}
+
+#[test]
+fn test_no_road_still_stands_his_pitch() {
+    // a Visitor firing with no road to the pitch used to "arrive"
+    // standing at the road's far end - in town in name only (#1073)
+    let mut g = Game::new();
+    g.traveller_path = vec![(9999, 9999)];
+    let tinker = crate::session::events::EventId::Tinker;
+    g.force_event(tinker);
+    let r = g.rare.iter().find(|r| r.id == tinker).expect("the tinker never fired");
+    let e = r.e.expect("no figure walked in");
+    let p = g.world.get_component::<Pos>(e).unwrap();
+    let mp = g.world.get_component::<Pos>(g.market_food)
+        .map(|p| (p.x, p.y)).unwrap_or((g.village.0 as f32, g.village.1 as f32));
+    let d = ((p.x - mp.0).abs() + (p.y - mp.1).abs()) as i32;
+    assert!(d <= 10, "he stands {} tiles from the market - fired but never seen", d);
+}
+
+#[test]
+fn test_the_minstrels_round_comes_back_sooner() {
+    // the road's pace after a visit: season, not year (#1073)
+    let mut g = Game::new();
+    g.spawn_minstrel();
+    for _ in 0..4000 {
+        g.advance_minstrel();
+        if g.minstrel.is_none() { break; }
+        if g.minstrel.as_ref().and_then(|m| m.playing_until).map(|u| g.tick >= u).unwrap_or(false) { break; }
+    }
+    // his song's done: let the road take him
+    g.tick += 3;
+    for _ in 0..8000 {
+        g.advance_minstrel();
+        if g.minstrel.is_none() { break; }
+    }
+    assert!(g.minstrel.is_none(), "he never rode off");
+    let gap = g.next_minstrel - g.tick;
+    assert!((90..=150).contains(&gap), "his next round's {} days out - a year's drought again", gap);
+}

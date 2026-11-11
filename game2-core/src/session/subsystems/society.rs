@@ -966,6 +966,9 @@ impl Game {
         ];
         let Some(&(_, feast)) = FEASTS.iter().find(|(d, _)| tick % 365 == *d)
             else { return };
+        // word of the feast travels the roads: a traveller whose round
+        // was near comes for the crowd (#1073)
+        self.draw_for_the_gathering(tick);
         self.log.push_at_who(format!("t{}: {} - the village gathers at the market.", tick, feast),
             toast_spot(&self.world, self.market_food), None);
         self.notices.push(("feast".into(), format!("{} - the village gathers at the market", feast), tick + 3));

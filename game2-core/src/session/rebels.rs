@@ -264,6 +264,13 @@ impl Game {
             Goal::Remit(_, g) | Goal::Owe(.., g) => *g,
             _ => 0.0,
         };
+        // a take off the road is a writ that failed: the flow the
+        // reach counts on thins with the rides it loses (#971)
+        self.lord_flow = (self.lord_flow - match &goal {
+            Goal::Remit(..) => 0.4,
+            Goal::LevyCart(_) => 0.15,
+            _ => 0.0,
+        }).max(0.0);
         // the band melts back into the woods
         let members: Vec<Entity> = self.villagers.iter().copied()
             .filter(|&v| self.world.get_component::<Rebel>(v).map(|r| r.band) == Some(band))

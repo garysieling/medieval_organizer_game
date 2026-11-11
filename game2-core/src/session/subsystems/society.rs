@@ -1560,17 +1560,67 @@ impl Game {
         }
     }
 
-    /// The lord's own reach: the authority over the village - the
-    /// org's own growth dissolves it, and the dissolution's own space
-    /// feeds the self-organization. The thesis's own loop: the lord's
-    /// weakening IS the village's own answer
+    /// The lord's own reach: the authority over the village - one
+    /// strength, derived monthly from the flow his writ actually
+    /// controls, the village still standing with him, and the drag
+    /// his own style costs. Below the bar the writ runs out and the
+    /// strongest claim left standing fills the vacuum; the crown
+    /// answers late and dear, at a reach the village can contest
+    /// again (#971)
     pub(in crate::session) fn authority_tick(&mut self, tick: u64) {
         if tick % 30 != 19 { return; }
-        // the dissolution: the org's own capacity weakens the lord's
-        // own reach - the struggle over the rate, not just the taking
+        // a dissolved writ answers only to the crown's own clock: the
+        // reimposition rides in late and dear - a new bailiff, a
+        // harsher hand, and a reach the village broke once already
+        if let Some(gone) = self.lord_gone {
+            if tick >= gone + RETURN_DAYS {
+                self.lord_gone = None;
+                self.vacuum_filler = None;
+                self.lord_strength = RETURN_STRENGTH;
+                self.lord_flow = RETURN_FLOW;
+                self.repression_debt += 2;
+                self.log.push(format!("t{}: a new bailiff rides in under the old writ - the reach reimposed at a price, and the village remembers how it broke.", tick));
+            }
+            return;
+        }
+        // the claim's own reality, re-derived: the loyalty is the
+        // village's own contentment; the drag is the nearest lord's
+        // own cruelty and vanity; the flow is what the road let
+        // through since the last accounting
+        let living: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .filter(|&v| self.world.get_component::<crate::session::country::Outlander>(v).is_none())
+            .collect();
+        let contented = living.iter().filter(|&&v|
+            self.world.get_component::<crate::game::desires::InnerLife>(v)
+                .map(|l| l.grievances.iter().all(|(_, u)| *u <= tick)).unwrap_or(true)).count();
+        let loyalty = if living.is_empty() { 0.5 } else { contented as f32 / living.len() as f32 };
+        let drag = self.sites.iter()
+            .filter(|s| matches!(s.kind, crate::session::country::SiteKind::Castle))
+            .map(|s| s.persona.cruelty * 0.6 + s.persona.vanity * 0.4)
+            .fold(0.0f32, f32::max);
+        let derived = claim_strength(self.lord_flow, loyalty, drag);
+        self.lord_strength += (derived - self.lord_strength) * 0.12;
+        // the dissolution's grind: the org's own capacity still
+        // weakens the reach - the struggle over the rate, not just
+        // the taking
         let capacity = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
             .map(|o| o.capacity).unwrap_or(0.0);
         self.lord_strength = (self.lord_strength - capacity * 0.01).max(0.0);
+        // and the window moves: a flow counted last month fades
+        self.lord_flow *= 0.97;
+        // the vacuum: below the bar the writ runs out, and the
+        // strongest claim left standing takes the village's own
+        // answer - the cause if it's the strongest, a faction if not
+        if self.lord_strength < DISSOLVE_AT {
+            self.lord_gone = Some(tick);
+            let filler = self.vacuum_pick();
+            self.vacuum_filler = filler;
+            let name = filler.and_then(|f| self.world.get_component::<crate::sim::community::Organization>(f)
+                .map(|o| o.name.clone())).unwrap_or_else(|| "no one".into());
+            self.log.push(format!("t{}: the writ runs out - the lord's arm no longer reaches the village, and the village answers to {}.", tick, name));
+            return;
+        }
         // and the self-organization: the lord's own low reach feeds
         // the village's own answer - the thesis's own loop
         if self.lord_strength < 0.4 {
@@ -1581,6 +1631,34 @@ impl Game {
                 org.resources += 2.0;
             }
         }
+    }
+
+    /// Who the vacuum fills to: the cause stands on its own capacity;
+    /// a faction's pull is the influence its people actually carry,
+    /// discounted for the body everyone already belongs to - the
+    /// parish holding every soul pulls no harder for it. The
+    /// strongest claim takes the village - no favorites (#971)
+    fn vacuum_pick(&self) -> Option<Entity> {
+        let mut best: Option<(Entity, f32)> = None;
+        let pull_of = |e: Entity| -> f32 {
+            self.world.get_component::<crate::sim::factions::Faction>(e).map(|f| {
+                let members = crate::sim::factions::members_of(&self.world, f);
+                if members.is_empty() { return 0.0; }
+                let mean = crate::sim::factions::pooled_influence(&self.world, &members)
+                    / members.len() as f32;
+                mean * (members.len() as f32 / 20.0).sqrt()
+            }).unwrap_or(0.0)
+        };
+        for &f in &self.factions {
+            let pull = pull_of(f);
+            if pull > best.map(|(_, p)| p).unwrap_or(0.0) { best = Some((f, pull)); }
+        }
+        let cause = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
+            .map(|o| o.capacity).unwrap_or(0.0);
+        if cause >= best.map(|(_, p)| p).unwrap_or(0.0) && cause > 0.0 {
+            best = Some((self.org, cause));
+        }
+        best.map(|(e, _)| e)
     }
 
     /// The teller's own arc: the drama's own scheduling - the setup
@@ -1688,6 +1766,9 @@ impl Game {
         // mob's own suppression, the peasants always lose. The
         // repression's own debt lands on the next writ
         self.repression_debt += 1;
+        // a rising is the writ contested in the open: the reach thins
+        // for having to answer it (#971)
+        self.lord_strength = (self.lord_strength - 0.1).max(0.0);
         // and the mob's own cost: the caught are taken or killed -
         // a few of the grieved go to the castle or the grave
         let mut taken = 0;
@@ -3162,6 +3243,23 @@ impl Game {
         for e in done { self.world.remove_component::<crate::game::campaign::Campaign>(e); }
     }
 }
+
+/// One strength over every claim on the village (#971): what of the
+/// flow the claim controls actually lands, how much of the village
+/// still stands with it, less the drag the head's own style costs
+fn claim_strength(flow: f32, loyalty: f32, drag: f32) -> f32 {
+    (flow * 0.5 + loyalty * 0.5 - drag * 0.15).clamp(0.0, 1.0)
+}
+
+/// Below this the lord's writ runs out: the dissolution's own bar
+const DISSOLVE_AT: f32 = 0.15;
+/// Days the crown takes answering a broken writ - the reimposition
+/// is always late
+const RETURN_DAYS: u64 = 120;
+/// The reach a new bailiff rides in with: back, but contestable
+const RETURN_STRENGTH: f32 = 0.45;
+/// The flow a returned writ starts on - it has to be re-won on the road
+const RETURN_FLOW: f32 = 0.3;
 
 /// The watcher behind the curtain: the lord's own eyes, and the
 /// paranoia they feed - heavy eyes catch more, and catching more

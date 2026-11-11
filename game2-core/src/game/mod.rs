@@ -33,6 +33,7 @@ pub mod livelihood;
 pub mod fire;
 pub mod flood;
 pub mod laws;
+pub mod community_law;
 pub mod relic;
 pub mod campaign;
 pub mod campaign_dialogue;

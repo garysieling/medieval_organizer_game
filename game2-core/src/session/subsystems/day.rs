@@ -173,6 +173,12 @@ impl Game {
         crate::timed!("sim.sanction", self.sanction_tick(tick));
         // and the blood feuds simmer or settle under it
         crate::timed!("sim.feuds", self.feud_tick(tick));
+        // the village's own law: bye-laws, sureties, partnerships, and
+        // the community's pull beneath them all
+        crate::timed!("sim.bylaw", self.bylaw_tick(tick));
+        crate::timed!("sim.partners", self.partnership_tick(tick));
+        crate::timed!("sim.pledges", self.pledge_tick(tick));
+        crate::timed!("sim.community", self.community_tick(tick));
         // and the year has its feast days
         crate::timed!("sim.festival", self.festival_tick(tick));
         let hearths = crate::infra::perf::scope("sim.day.hearths");

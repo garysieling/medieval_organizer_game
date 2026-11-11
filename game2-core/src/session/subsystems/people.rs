@@ -26,7 +26,9 @@ impl Game {
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
-        self.world.add_component(v, personality_from_seed(self.rng.next()));
+        let traits = personality_from_seed(self.rng.next());
+        self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
+        self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
         self.world.add_component(v, Known::default());
         self.world.add_component(v, Kid);
@@ -97,7 +99,9 @@ impl Game {
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
-        self.world.add_component(v, personality_from_seed(self.rng.next()));
+        let traits = personality_from_seed(self.rng.next());
+        self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
+        self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
         self.world.add_component(v, Known::default());
         self.world.add_component(v, vocation::craft(roll_vocation(&mut self.rng),

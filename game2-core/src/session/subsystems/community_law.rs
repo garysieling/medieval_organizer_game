@@ -62,6 +62,9 @@ impl Game {
                     self.log.push(format!("t{}: the village agrees a rule - {}.", tick, bye_name(kind)));
                     // agreeing a rule is the community finding its voice
                     self.community_nudge(0.05);
+                    // a village writing its own rules is a writ that
+                    // reaches less far (#971)
+                    self.lord_strength = (self.lord_strength - 0.02).max(0.0);
                 }
             }
         }

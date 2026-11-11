@@ -5,6 +5,9 @@ use crate::session::*;
 /// The stalls' fees: the share of the takings the market's own claim
 /// keeps home while its interest stands (#970)
 const STALLS_FEES_SHARE: f32 = 0.4;
+/// What a carried taxes-grant holds back of the ride: the refusal's
+/// own share (#971)
+const REFUSAL_SHARE: f32 = 0.4;
 
 impl Game {
     /// The town's business each day: work, errands, the tax round, the
@@ -139,8 +142,11 @@ impl Game {
         if self.circus.is_none() && tick >= self.next_circus { self.spawn_circus(); }
         // and the ink-maker boils his oil where the law wants it: outside
         if self.ink_boiler.is_none() && tick >= self.next_ink_boiler { self.spawn_ink_boiler(); }
-        // the collector walks his round
-        if let Some(c) = self.collector {
+        // the collector walks his round - while the writ runs, that
+        // is; a dissolved reach sends no round and rides no remit,
+        // and what the books still hold stays with whoever the vacuum
+        // filled to (#971)
+        if let Some(c) = self.collector.filter(|_| self.lord_gone.is_none()) {
             if !self.travels.iter().any(|t| t.who == c) {
                 if let Some(target) = livelihood::tax_due(&self.world, c, tick) {
                     self.send(c, Goal::CollectTax(target));
@@ -167,6 +173,23 @@ impl Game {
                         let name = self.world.get_component::<Organization>(f)
                             .map(|o| o.name.clone()).unwrap_or_else(|| "the market".into());
                         self.log.push(format!("t{}: the stalls' fees stay in the market - {:.0} gold to {}.", tick, fees, name));
+                    }
+                }
+                // the cause's own refusal: a taxes-grant carried home
+                // holds part of the ride back - the books learned to
+                // keep what the village won (#971)
+                let refusal = self.seats.iter()
+                    .find(|s| self.world.get_component::<crate::game::reactions::LordGrant>(s.org)
+                        .map(|g| g.issue == "the taxes" && g.active(tick) && !g.hollow)
+                        .unwrap_or(false))
+                    .map(|s| s.org);
+                if let Some(oe) = refusal {
+                    let kept = (remit * REFUSAL_SHARE).min(remit - 1.0).max(0.0);
+                    if kept > 0.0 {
+                        if let Some(o) = self.world.get_component_mut::<Organization>(oe) { o.resources += kept; }
+                        remit -= kept;
+                        self.lord_flow = (self.lord_flow - 0.2).max(0.0);
+                        self.log.push(format!("t{}: the books hold back what the grant won - {:.0} gold stays with the cause.", tick, kept));
                     }
                 }
                 self.takings = 0.0;
@@ -208,6 +231,16 @@ impl Game {
                     }
                 }
             }
+        }
+        // while the writ's out the take stays home: the vacuum's own
+        // claimant keeps what the road would have carried (#971)
+        if self.lord_gone.is_some() && tick % 60 == 45 && self.takings > 0.0 {
+            if let Some(f) = self.vacuum_filler {
+                if let Some(o) = self.world.get_component_mut::<Organization>(f) {
+                    o.resources += self.takings;
+                }
+            }
+            self.takings = 0.0;
         }
         drop(prelude);
         // the herb-wife keeps her shelf brewed and her patches picked
@@ -438,6 +471,8 @@ impl Game {
         crate::timed!("sim.continuation", self.continuation_tick(tick));
         // and the martyr's grave keeps its vigil
         crate::timed!("sim.martyr", self.martyr_tick(tick));
+        // and the calling gathers its crowd while the deadline runs
+        crate::timed!("sim.prophet", self.prophet_tick(tick));
         // and the castle's prisoners wait on the org's answer
         crate::timed!("sim.dungeon", self.dungeon_tick(tick));
         // and the posted knights stand only their tour

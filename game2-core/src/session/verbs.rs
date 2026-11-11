@@ -753,7 +753,8 @@ impl Game {
                         .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
                         .map(|r| r.strength).unwrap_or(0.0);
                     if !is_member && trust >= crate::sim::community::RECRUIT_MIN_TRUST
-                        && self.world.get_component::<crate::session::country::Outlander>(v).is_none() {
+                        && self.world.get_component::<crate::session::country::Outlander>(v).is_none()
+                        && self.world.get_component::<crate::game::prophetic::Follower>(v).is_none() {
                         self.seats[seat].ctx_actions.push(CtxAct::Recruit);
                     }
                     if let Some(c) = cause {
@@ -1125,6 +1126,9 @@ impl Game {
                                     }
                                 }
                             }
+                            // a carried demand is the writ beaten in
+                            // public: the reach thins for it (#971)
+                            self.lord_strength = (self.lord_strength - 0.06).max(0.0);
                             // a carried demand walks the streets: the
                             // village takes the win out in the open
                             self.victory_parade();
@@ -1143,6 +1147,9 @@ impl Game {
                             if out.nothing_new {
                                 format!("{} face the Reeve - he grants no more than he already has.", out.turnout.len())
                             } else {
+                                // a concession's a smaller beat, but a
+                                // beat all the same (#971)
+                                self.lord_strength = (self.lord_strength - 0.03).max(0.0);
                                 self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
                                     &issue, tick, tick + crate::game::desires::YEAR_DAYS / 2));
                                 format!("{} face the Reeve - he grants a part of it, and no more.", out.turnout.len())
@@ -1893,6 +1900,7 @@ impl Game {
             if members.len() >= 5 { break; }
             if v == leader || villager::is_dead(&self.world, v)
                 || self.world.get_component::<Kid>(v).is_some()
+                || self.world.get_component::<crate::game::prophetic::Follower>(v).is_some()
                 || self.world.get_component::<country::Outlander>(v).is_some() { continue; }
             members.push(v);
         }

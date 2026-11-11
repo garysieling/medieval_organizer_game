@@ -67,3 +67,26 @@ fn test_a_friend_at_heel_warms_the_talk() {
         .map(|r| r.by_player.get(&pe).copied().unwrap_or(0.0)).unwrap_or(0.0);
     assert!(rap(b) > rap(a), "the pet made no difference: {} vs {}", rap(b), rap(a));
 }
+
+#[test]
+fn test_the_kind_hand_names_the_beast_it_reaches_for() {
+    // "Stroke it" read oddly - the button says whose hand it's for (#1056)
+    let mut g = Game::new();
+    let pp = g.world.get_component::<Pos>(g.seats[0].player).copied().unwrap();
+    let sheep = g.flock[0];
+    *g.world.get_component_mut::<Pos>(sheep).unwrap() = Pos { x: pp.x + 1.0, y: pp.y };
+    g.update();
+    let m = g.ui_model();
+    let i = m.ctx.iter().position(|&a| a == CtxAct::Tame).expect("the kind hand on offer");
+    assert_eq!(m.ctx_labels[i], "Pet the sheep", "the button names her");
+    assert_eq!(g.ctx_label_at(0, CtxAct::Tame), "Pet the sheep",
+        "the Can't-line wording matches the button");
+    // a yard hen reads her own name
+    let hen = g.hens[0];
+    *g.world.get_component_mut::<Pos>(sheep).unwrap() = Pos { x: pp.x + 30.0, y: pp.y + 30.0 };
+    *g.world.get_component_mut::<Pos>(hen).unwrap() = Pos { x: pp.x + 1.0, y: pp.y };
+    g.update();
+    let m = g.ui_model();
+    let i = m.ctx.iter().position(|&a| a == CtxAct::Tame).expect("the kind hand on offer");
+    assert_eq!(m.ctx_labels[i], "Pet the hen");
+}

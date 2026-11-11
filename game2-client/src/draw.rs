@@ -381,7 +381,7 @@ pub(crate) fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: b
     draw_rect(buf, b.x, b.y + b.h - 1, b.w, 1, 20, 20, 20);
     // label centered
     let tw = b.label.len() as i32 * 6;
-    draw_text(buf, b.x + (b.w - tw) / 2, b.y + (b.h - 7) / 2, b.label, 255, 255, 255);
+    draw_text(buf, b.x + (b.w - tw) / 2, b.y + (b.h - 7) / 2, &b.label, 255, 255, 255);
     // key hint
     let key = format!("{}", b.key);
     draw_text(buf, b.x + b.w - 10, b.y + 2, &key, 180, 180, 200);

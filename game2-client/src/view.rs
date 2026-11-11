@@ -1136,7 +1136,7 @@ impl View {
         // so no two rects ever meet. Greyed reasons still show on hover
         // for the rate-limited ones (a used-up snowball fight, a walked
         // cat); the unavailable never reach the list at all
-        let ctx_btns: Vec<(Button, Option<&String>)> = ctx_buttons(&m.ctx).into_iter()
+        let ctx_btns: Vec<(Button, Option<&String>)> = ctx_buttons_labeled(&m.ctx, &m.ctx_labels).into_iter()
             .zip(m.ctx_blocked.iter()).map(|(b, r)| (b, r.as_ref())).collect();
         for (b, reason) in &ctx_btns {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;

@@ -482,6 +482,22 @@ impl Game {
         let pe = self.seats[seat].player; sync_purse(&mut self.world, pe, true);
     }
 
+    /// What a ctx button reads: `ctx_button`'s static label, except the
+    /// kind hand names the animal it reaches for (#1056)
+    pub fn ctx_label_at(&self, seat: usize, act: CtxAct) -> String {
+        match act {
+            CtxAct::Tame => self.tame_animal_at(seat)
+                .map(|(_, s)| format!("Pet {}", match s {
+                    Species::Sheep => "the sheep",
+                    Species::Goat => "the goat",
+                    Species::Chicken => "the hen",
+                    _ => "the stray",
+                }))
+                .unwrap_or_else(|| ctx_button(act).label),
+            _ => ctx_button(act).label,
+        }
+    }
+
     /// The contextual actions that apply right now: work at the player's
     /// shop, pair a picked junior with a master, send a kid on an errand
     pub fn update_ctx_actions_at(&mut self, seat: usize) {
@@ -765,7 +781,7 @@ impl Game {
         let Some(&act) = self.seats[seat].ctx_actions.get(i) else { return };
         let tick = self.tick;
         if let Some(reason) = self.ctx_blocker_at(seat, act) {
-            self.log.push(format!("t{}: Can't {}: {}.", tick, ctx_button(act).label.to_lowercase(), reason));
+            self.log.push(format!("t{}: Can't {}: {}.", tick, self.ctx_label_at(seat, act).to_lowercase(), reason));
             return;
         }
         let msg = match act {

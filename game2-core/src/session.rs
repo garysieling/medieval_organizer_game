@@ -182,7 +182,7 @@ fn is_sick(world: &World, who: Entity) -> bool {
 }
 
 pub struct Button {
-    pub label: &'static str,
+    pub label: String,
     pub key: char,
     pub x: i32,
     pub y: i32,
@@ -389,7 +389,8 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
         // the sale shares the big row's left half with Gather's
         CtxAct::Buy => Button { label: "Buy".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (140, 120, 60) },
-        // the kind hand shares Pet her's slot on the big row's right half
+        // the kind hand shares Pet her's slot on the big row's right half -
+        // the wire's ctx_labels names the animal it reaches for (#1056)
         CtxAct::Tame => Button { label: "Pet it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
         CtxAct::School => Button { label: "The school".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (90, 110, 70) },
     }
@@ -414,6 +415,17 @@ pub fn ctx_buttons(acts: &[CtxAct]) -> Vec<Button> {
         b.y = CTX_BAND_Y + (i / CTX_COLS) as i32 * CTX_PITCH;
         b.w = CTX_W;
         b.h = CTX_H;
+        b
+    }).collect()
+}
+
+/// The band's buttons with the model's resolved labels: `labels` rides
+/// `UiModel.ctx_labels` for the actions whose text isn't static (the
+/// kind hand names its animal); a short or empty list falls back to
+/// `ctx_button`'s wording
+pub fn ctx_buttons_labeled(acts: &[CtxAct], labels: &[String]) -> Vec<Button> {
+    ctx_buttons(acts).into_iter().enumerate().map(|(i, mut b)| {
+        if let Some(l) = labels.get(i) { b.label = l.clone(); }
         b
     }).collect()
 }

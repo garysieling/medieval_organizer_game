@@ -508,6 +508,12 @@ pub struct UiModel {
     pub ctx: Vec<CtxAct>,
     /// Disabled reason per ctx button, same index order as `ctx`
     pub ctx_blocked: Vec<Option<String>>,
+    /// The label each ctx button reads, same index order as `ctx` - the
+    /// sim's resolved wording where a static label won't do (the kind
+    /// hand names its animal). Empty on older servers: draw
+    /// `ctx_button`'s static labels
+    #[serde(default)]
+    pub ctx_labels: Vec<String>,
     /// What pressing each ctx button does, told ahead - the hover line
     /// that doesn't bar the press, same index order as `ctx`; absent
     /// from older servers

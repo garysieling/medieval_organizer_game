@@ -54,6 +54,37 @@ should name the real thing it's teaching - the paternalism bargain,
 the Constantinian trap, the dissolution-and-self-organization - not an
 abstract system.
 
+## 7. Legible, Not Fair
+
+The game can be unfair; it can never be illegible. A blow arrives with
+a herald - the writ rides before the knights, the cough warns before
+the fever. A verb says what it does and what it costs before it's
+pressed ("Raise the schoolhouse (30)" - #1071). And a failure still
+reads: the man who promised the hall and never came is named for it
+("Bram was to open us, but he never came" - #1076). A consequence the
+player can't trace to something they saw isn't difficulty - it's a bug.
+The `punishment_warn` KPI already enforces the herald half of this.
+
+## 8. Verbs Are Earned
+
+The player's reach is built through relationships and world-state, not
+granted by interface privilege - "earn the house meeting: organize
+through relationships, not a button" (#473). An offer gates on where
+the player stands, who they know, what's been promised; a new verb
+arrives when the world agrees it should, not when the UI decides to
+show it.
+
+## 9. The Village Speaks, and the Interface Tells the Truth
+
+The player learns the world through people, signs and words - rumor,
+gossip, the look of a place - not through omniscient readouts; the raw
+numbers stay probe-side (the public/secret KPI split in
+`session/kpi/`). And what the interface does show is true: drawn
+numbers are real keys (#1060), a label carries its cost, and a blocked
+action either says why or isn't there - grey-with-reason when the
+reason itself is worth the player's learning (#1112), absent when the
+verb isn't theirs to reach for (#1071).
+
 ---
 
 *Written for the ticket loop and the grill pass - weigh a proposal

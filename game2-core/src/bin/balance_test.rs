@@ -12,13 +12,12 @@
 //! Exits 1 when any KPI red-flags, so it can gate a schedule like the
 //! playtest gate does.
 
-use game2_core::session::{driver, Command, Game};
+use game2_core::session::{driver, Command, EvTag, Game, Sev, Thread, Valence};
 use game2_core::agents::balance_tester::{BalanceTester, DaySample, EvLine, RunRecord};
 use game2_core::sim::community::{Organization, RECRUIT_MIN_TRUST};
+use game2_core::game::livelihood::Purse;
 use game2_core::game::relationships::{self, Relationship};
 use game2_core::game::villager::{self, Hunger};
-use game2_core::session::{driver, Command, EvTag, Game, Sev, Thread, Valence};
-use game2_core::sim::community::{Organization, RECRUIT_MIN_TRUST};
 
 /// The seat's bond with a villager, as the sim reads it.
 fn bond(game: &Game, seat: usize, v: game2_core::engine::ecs::Entity) -> f32 {

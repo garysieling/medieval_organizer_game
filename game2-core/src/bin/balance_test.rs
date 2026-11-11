@@ -97,7 +97,25 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
     let who = game.seats[seat].player;
     let gold = game.world.get_component::<Purse>(who).map(|p| p.gold).unwrap_or(0.0);
     let hungry = game.world.get_component::<Hunger>(who).map(|h| h.value < 30.0).unwrap_or(false);
-    if hungry || gold < 10.0 { driver::drive_player(game, seat); return; }
+    // broke and benched: put in a day. Broke with no bench there's no
+    // wage to fall back on anyway - the only way up is the work itself
+    let has_bench = game.world.get_component::<game2_core::game::vocation::Craft>(who)
+        .map(|c| c.workplace.is_some()).unwrap_or(false);
+    if hungry || (gold < 10.0 && has_bench) { driver::drive_player(game, seat); return; }
+
+    // a talk left hanging locks the next one for days: click it through.
+    // A kind answer warms the bond a little; a courting organizer doesn't
+    // pick fights - take your leave over pushing back
+    if let Some(t) = game.seats[seat].talk.as_ref() {
+        let pick = t.options.iter()
+            .position(|(a, _)| *a != game2_core::game::conversation::Act::PushBack);
+        game.command_at(seat, Command::TalkPick(pick));
+        return;
+    }
+    // and a walk-over in flight has to be left to finish: re-picking a
+    // target every drive (or straying to the market on a Walk, which
+    // clears it) means the approach never lands - nobody's ever talked to
+    if game.seats[seat].approach.is_some() { return; }
 
     // the campaign loop: once the cause stands, work it - a due meeting,
     // a seat for a member, letters for anyone inside, a fortnight's
@@ -155,30 +173,23 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
 
     // only press buttons that aren't greyed out - a blocked action just
     // writes "Can't X" to the log, spam that isn't the village talking
-    let can_recruit = game.action_blocker_at(seat, 1).is_none();
-    if !can_recruit {
-        // rapport comes from fresh conversation - work the room, don't
-        // chat up your best friend forever
-        cands.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-        if let Some(&(i, _)) = cands.first() {
-            game.seats[seat].selected_target = i;
-            game.seats[seat].picked = true;
-            game.command_at(seat, Command::Act(0));
-            return;
-        }
-        driver::drive_player(game, seat);
-        return;
-    }
     let ready: Vec<usize> = cands.iter().filter(|(_, s)| *s >= RECRUIT_MIN_TRUST).map(|(i, _)| *i).collect();
+    // a meeting is earned, and the first one is what founds the cause -
+    // it can't wait on the Recruit button it itself unlocks
     if ready.len() >= 2 && game.meeting.is_none() && call_meeting_if_earned(game, seat, &ready, last_meeting_ask_day) {
         return;
     }
-    if let Some(&i) = ready.first() {
-        game.seats[seat].selected_target = i;
-        game.seats[seat].picked = true;
-        game.command_at(seat, Command::Act(1));
-        return;
+    if game.action_blocker_at(seat, 1).is_none() {
+        if let Some(&i) = ready.first() {
+            game.seats[seat].selected_target = i;
+            game.seats[seat].picked = true;
+            game.command_at(seat, Command::Act(1));
+            return;
+        }
     }
+    // ties cool ~1%/day: to bank trust you have to court the same soul
+    // until they sign on - work whoever's closest to ready, and when
+    // they join the next-deepest bond gets the attention
     if let Some(&(i, _)) = cands.first() {
         game.seats[seat].selected_target = i;
         game.seats[seat].picked = true;
@@ -321,5 +332,33 @@ fn main() {
         std::process::exit(1);
     } else {
         std::process::exit(0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression for #1143: the organizer must actually court someone.
+    /// The broken driver starved on its own gates - a bench-less Wanderer
+    /// failed `gold < 10` forever, talks it did start hung unpicked for
+    /// days, and approaches were re-picked mid-walk - so the deepest bond
+    /// after 400 days was ~0.17 and nobody ever joined. Sixty days of a
+    /// working organizer must bank real trust on somebody.
+    #[test]
+    fn organizer_banks_trust_on_a_prospect() {
+        let mut game = Game::new_seeded(42);
+        let (mut campaign_day, mut ask_day) = (0u64, u64::MAX);
+        let budget = 60 * game.ticks_per_frame() as u64 * 2;
+        for _ in 0..budget {
+            if game.tick >= 60 { break; }
+            game.update();
+            if game.frame_n % driver::DRIVE_EVERY as u32 == 0 {
+                drive_organizer(&mut game, 0, &mut campaign_day, &mut ask_day);
+            }
+        }
+        let best = game.villagers.iter().map(|&v| bond(&game, 0, v)).fold(0.0f32, f32::max);
+        assert!(best >= 0.3,
+            "sixty days of courting banked only {:.2} trust on the best prospect - the driver's attention isn't landing", best);
     }
 }

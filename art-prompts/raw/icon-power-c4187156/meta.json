@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433231,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 11.59,
+ "request_id": "d1e20b8b-311d-4c4c-990f-4b8194a270b8",
+ "outputs_retained_until": 1794519591,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 11.59
+ },
+ "id": "icon-power-c4187156",
+ "prompt": "small game UI icon of raised banner on pole, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:40:32",
+ "seconds": 40.6
+}

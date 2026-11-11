@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433653,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 3.67,
+ "request_id": "2ca5dd19-4519-44f2-99a3-74ee78696134",
+ "outputs_retained_until": 1794520041,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 3.67
+ },
+ "id": "event-flood-c05a7fca",
+ "prompt": "small game UI icon of brown river water risen over a bank, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:47:34",
+ "seconds": 11.7
+}

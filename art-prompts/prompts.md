@@ -1,8 +1,137 @@
 # Retro Diffusion art prompts
 
-214 prompts, est. $37.94 USD at list prices.
+303 prompts, est. $56.36 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
+
+## P0 - needed now (replaces assets the game already draws) / events/icons
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| event-alehouse-brawl-93c2a390 | small game UI icon of two tankards clashing, spilled ale, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-assize-e947c98c | small game UI icon of weighing scales with a loaf and a tankard, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-aurora-26ad8ff2 | small game UI icon of green aurora ribbons over a village at night, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-blood-moon-933be15c | small game UI icon of large red moon over rooftops, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-cellar-thief-c53befce | small game UI icon of dark figure slipping out of a cellar door with a sack, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-dark-noon-1a67a84e | small game UI icon of black disc of an eclipse over a pale sky, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-drought-b56bee44 | small game UI icon of cracked dry earth under a pale sun, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-first-snow-acd8aa20 | small game UI icon of first thin snowflakes over a cottage, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-flood-c05a7fca | small game UI icon of brown river water risen over a bank, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-foundling-icn-b425f819 | small game UI icon of basket with a swaddled bundle, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-hailstorm-480c176f | small game UI icon of white hailstones bouncing off a roof, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-heat-wave-9572e189 | small game UI icon of shimmering heat lines over dry crops, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-indian-summer-99a3c218 | small game UI icon of golden warm haze over autumn fields, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-late-frost-04a5d118 | small game UI icon of white frost on a green sprout, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-lightning-717fe433 | small game UI icon of a single lightning bolt striking a field, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-lost-child-icn-6cabe3bc | small game UI icon of small empty shoe beside a path, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-meteor-shower-2155f2df | small game UI icon of streaking meteors in a night sky, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-mirage-544deb21 | small game UI icon of shimmering false city on the horizon, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-quarrel-icn-0f42edb5 | small game UI icon of two raised fists face to face, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-thaw-03f09edb | small game UI icon of dripping icicle melting into a puddle, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-thief-icn-3efd606e | small game UI icon of shadowed hand lifting a jar, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-windstorm-418a5877 | small game UI icon of bent trees and flying thatch in wind, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+
+## P0 - needed now (replaces assets the game already draws) / icons/actions
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| icon-build-66e1be52 | small game UI icon of mallet and wooden beam, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-inspect-41581a0b | small game UI icon of magnifying glass over a face, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-invest-af59bb96 | small game UI icon of gold coins into a pot, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-organize-4a0fc1fb | small game UI icon of raised fist with banner, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-recruit-9d797f6f | small game UI icon of clasped handshake, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-talk-e3097146 | small game UI icon of speech bubble, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-wait-6063425e | small game UI icon of hourglass, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+
+## P0 - needed now (replaces assets the game already draws) / icons/goods
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| good-blocks-92a5620d | small game item icon of dressed stone blocks | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-bread-5f6af63a | small game item icon of round bread loaf | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-cloth-b415e4e7 | small game item icon of rolled bolt of cloth | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-faith-3f1d9ce8 | small game item icon of candle flame in holder | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-flour-dccf75d0 | small game item icon of cloth sack of flour | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-garments-def4fce5 | small game item icon of folded clothes stack | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-glass-9aca0a72 | small game item icon of leaded glass pane | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-gold-96ed2295 | small game item icon of pile of gold coins | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-ink-7360252d | small game item icon of ink pot with quill | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-lute-d9a77594 | small game item icon of wooden lute | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-pamphlets-066f56a9 | small game item icon of folded printed pamphlet | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-paper-d9ed2a0e | small game item icon of stack of paper sheets | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-pigment-0c9d65f9 | small game item icon of pots of coloured pigment | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-sand-696ef674 | small game item icon of small pile of sand | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-security-75140163 | small game item icon of small shield | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-stone-81d68549 | small game item icon of cut stone block | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-tools-7680fa0e | small game item icon of hammer and chisel crossed | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-wheat-bcc296a0 | small game item icon of wheat sheaf | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| good-wood-b7055167 | small game item icon of stack of logs | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
+| goods-sheet-644710b6 | inventory item sheet: wheat sheaf, bread loaf, flour sack, stone block, log stack, sand pile, paper, ink pot, pamphlet, pigment pots, cloth bolt, glass pane, garments, hammer tools, lute, gold coins | rd_pro__inventory_items | 256x256 | 1 | 0.18 | one call draws a matched set; include_downloadable_data returns the item atlas |
+
+## P0 - needed now (replaces assets the game already draws) / icons/meters
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| icon-faith-85d2ed91 | small game UI icon of lit candle, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-gold-29451986 | small game UI icon of gold coin stack, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-health-564ed4a3 | small game UI icon of red heart, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-hunger-9508a3bd | small game UI icon of bread loaf, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-mood-c2d13ad6 | small game UI icon of sun behind small cloud, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-power-c4187156 | small game UI icon of raised banner on pole, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-trust-73e6f253 | small game UI icon of two joined hands, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+
+## P0 - needed now (replaces assets the game already draws) / icons/seasons
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| icon-autumn-3e5e3a91 | small game UI icon of orange maple leaf, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-spring-46030de0 | small game UI icon of sprouting seedling with flower, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-summer-25ecfbcf | small game UI icon of golden wheat sheaf and sun, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-winter-4f941d54 | small game UI icon of bare branch with snow, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+
+## P0 - needed now (replaces assets the game already draws) / icons/status
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| icon-busy-fdfcd209 | small game UI icon of hammer mid-swing, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-cold-621d2a39 | small game UI icon of blue snowflake, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-dead-f61f5104 | small game UI icon of small skull, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-finding-food-3b4521be | small game UI icon of basket with bread loaf, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-grieving-e3922e2a | small game UI icon of wilted flower, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-happy-f8d37953 | small game UI icon of smiling sun face, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-hungry-4ceb9208 | small game UI icon of empty bowl with spoon, warning feel, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-injured-4bc46d86 | small game UI icon of bandaged arm, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-sick-92df90ab | small game UI icon of green face with sweat drop, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+
+## P0 - needed now (replaces assets the game already draws) / icons/ui
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| ui-button-c5bf7b01 | wooden game button, unpressed, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-end-screen-c3c99989 | quiet dusk view of a medieval village, lamps lit, end-of-game mood | rd_pro__painterly | 256x256 | 1 | 0.18 |  |
+| ui-hud-bar-7a7d8edb | game HUD strip: resource counters with icon slots, meter frames, season and date display, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-inventory-grid-ccb897f8 | empty inventory grid panel with item slots and a character paper-doll frame, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-log-box-637d32e2 | long thin parchment scroll log box, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-panel-e028fe6e | carved wooden-framed parchment UI panel, empty centre, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-title-keyart-8651a36f | sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art | rd_pro__painterly | 256x256 | 1 | 0.18 |  |
+| ui-ui-kit-8349cf27 | complete medieval game UI kit: buttons, sliders, panels, knobs, checkboxes, scroll bars, matching carved wood and parchment, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-villager-card-c74542c4 | character card panel with portrait frame and stat rows, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-window-set-b4b2586c | set of matching medieval game windows: title bar, dialog box, tooltip, modal frame, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+
+## P0 - needed now (replaces assets the game already draws) / icons/weather
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| icon-drizzle-7e180c5d | small game UI icon of pale cloud with fine slanting drizzle, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-fog-6c76f6da | small game UI icon of low fog bank swallowing a rooftop, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-heavy-rain-aa8537ee | small game UI icon of dark storm cloud with heavy rain, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-heavy-snow-ee1a9201 | small game UI icon of blizzard cloud, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-overcast-8e788526 | small game UI icon of flat grey cloud, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-rain-2b017fed | small game UI icon of grey cloud with rain streaks, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-rainbow-7248914e | small game UI icon of rainbow arc over small cloud, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-snow-dfa3832b | small game UI icon of white cloud with snowflakes, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-storm-1fa52396 | small game UI icon of cloud with lightning bolt, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-sun-eecfc994 | small game UI icon of bright sun, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
 
 ## P1 - fills gaps in shipped features / art-history
 

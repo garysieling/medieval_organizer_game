@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433288,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 10.87,
+ "request_id": "36e42e97-a0c0-43a9-af5b-714be43c57a0",
+ "outputs_retained_until": 1794519677,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 10.87
+ },
+ "id": "icon-spring-46030de0",
+ "prompt": "small game UI icon of sprouting seedling with flower, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:41:29",
+ "seconds": 11.4
+}

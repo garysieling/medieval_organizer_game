@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433262,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 11.35,
+ "request_id": "b06c84b9-b2bc-4583-8572-68a62e2316f4",
+ "outputs_retained_until": 1794519632,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 11.35
+ },
+ "id": "icon-trust-73e6f253",
+ "prompt": "small game UI icon of two joined hands, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:41:04",
+ "seconds": 31.5
+}

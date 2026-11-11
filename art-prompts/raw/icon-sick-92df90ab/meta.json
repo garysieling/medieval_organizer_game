@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433423,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 8.23,
+ "request_id": "44552169-4b60-4f42-ae8d-d0040bba6eaf",
+ "outputs_retained_until": 1794519813,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 8.23
+ },
+ "id": "icon-sick-92df90ab",
+ "prompt": "small game UI icon of green face with sweat drop, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:43:44",
+ "seconds": 10.7
+}

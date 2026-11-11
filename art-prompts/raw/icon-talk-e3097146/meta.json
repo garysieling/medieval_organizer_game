@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433097,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 13.27,
+ "request_id": "e1321bfa-c1a8-402b-8fe3-e94dfceccc55",
+ "outputs_retained_until": 1794519459,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 13.27
+ },
+ "id": "icon-talk-e3097146",
+ "prompt": "small game UI icon of speech bubble, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:38:18",
+ "seconds": 38.5
+}

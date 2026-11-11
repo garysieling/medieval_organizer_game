@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433584,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 4.87,
+ "request_id": "843f5b93-31d8-4708-84ec-6d3a86897fcb",
+ "outputs_retained_until": 1794519974,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 4.87
+ },
+ "id": "event-blood-moon-933be15c",
+ "prompt": "small game UI icon of large red moon over rooftops, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:46:24",
+ "seconds": 9.6
+}

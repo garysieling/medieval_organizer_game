@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433641,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 3.91,
+ "request_id": "e5903192-e0cf-4d92-af45-6cb82845480f",
+ "outputs_retained_until": 1794520032,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 3.91
+ },
+ "id": "event-first-snow-acd8aa20",
+ "prompt": "small game UI icon of first thin snowflakes over a cottage, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:47:22",
+ "seconds": 9.4
+}

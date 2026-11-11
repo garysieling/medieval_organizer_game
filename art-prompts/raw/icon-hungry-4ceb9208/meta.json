@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433401,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 8.71,
+ "request_id": "b057b957-0f9c-4b4c-9064-1bb5e48edfd4",
+ "outputs_retained_until": 1794519793,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 8.71
+ },
+ "id": "icon-hungry-4ceb9208",
+ "prompt": "small game UI icon of empty bowl with spoon, warning feel, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:43:22",
+ "seconds": 9.1
+}

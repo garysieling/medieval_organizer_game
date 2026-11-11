@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433759,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 1.51,
+ "request_id": "f40ca018-60f3-4008-a146-3333a265d0ce",
+ "outputs_retained_until": 1794520143,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 1.51
+ },
+ "id": "event-mirage-544deb21",
+ "prompt": "small game UI icon of shimmering false city on the horizon, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:49:20",
+ "seconds": 16.4
+}

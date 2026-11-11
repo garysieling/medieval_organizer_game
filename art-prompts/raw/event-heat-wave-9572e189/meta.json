@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433686,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 2.95,
+ "request_id": "6f99a044-dc5f-405e-ad09-0b1b72d68fa2",
+ "outputs_retained_until": 1794520077,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 2.95
+ },
+ "id": "event-heat-wave-9572e189",
+ "prompt": "small game UI icon of shimmering heat lines over dry crops, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:48:07",
+ "seconds": 9.3
+}

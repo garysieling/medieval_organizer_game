@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433167,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 12.31,
+ "request_id": "58bdcdb9-7ff5-4535-9669-871e99d79f6d",
+ "outputs_retained_until": 1794519555,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 12.31
+ },
+ "id": "icon-health-564ed4a3",
+ "prompt": "small game UI icon of red heart, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:39:28",
+ "seconds": 13.1
+}

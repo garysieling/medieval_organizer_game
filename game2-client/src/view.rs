@@ -806,14 +806,15 @@ impl View {
                         labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected, tgt, pv.in_reach, bond_hearts(pv.e),
                             m.org_members.contains(&pv.e)));
                         // sick: a green cross on the other side of the head
+                        // (the icon set's where it loaded)
                         if pv.sick {
                             let (mk, (r, g, b), _) = MARK_SICK;
-                            draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), mk, r, g, b);
+                            draw_mark(&mut buf, art.icon("icon-sick"), mk, (r, g, b), sx - 16, head_y(sy, zoom));
                         }
                         // activity marker beside the head
                         if pv.act_mark > 0 {
-                            let (mk, (r, g, b), _) = if pv.act_mark == 1 { MARK_FOOD } else { MARK_BUSY };
-                            draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), mk, r, g, b);
+                            let (mk, (r, g, b), tok) = if pv.act_mark == 1 { (MARK_FOOD.0, MARK_FOOD.1, MARK_ICONS[1]) } else { (MARK_BUSY.0, MARK_BUSY.1, MARK_ICONS[2]) };
+                            draw_mark(&mut buf, art.icon(tok), mk, (r, g, b), sx + 10, head_y(sy, zoom));
                         }
                     }
                 },
@@ -1016,7 +1017,7 @@ impl View {
             }
             draw_text_outlined(&mut buf, *x, ty, text, *r, *g, *b);
             // hunger indicator, right after the name
-            if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, ty, m, r, g, b); }
+            if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_mark(&mut buf, art.icon(MARK_ICONS[0]), m, (r, g, b), x + text.len() as i32 * GLYPH_W + 2, ty); }
             // an org mate's gold pip trails the name, where the warmth
             // that shows it rides over the head
             if *member && *hearts > 0.0 {
@@ -1095,6 +1096,7 @@ impl View {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             let reason = m.blocked[i].as_deref();
             draw_button(&mut buf, b, hover, reason.is_some());
+            draw_icon(&mut buf, art.icon(ACTION_ICONS[i]), b.x + 6, b.y + (b.h - 20) / 2, 20);
             // a greyed-out button always says why; others explain themselves on hover
             if let Some(r) = &reason {
                 draw_text(&mut buf, b.x + b.w + 6, b.y + 12, r, 200, 140, 120);
@@ -1145,7 +1147,8 @@ impl View {
                     let (frac, note) = rest.split_once(':')
                         .map(|(a, b)| (a.parse::<f32>().unwrap_or(0.0), b))
                         .unwrap_or((0.0, ""));
-                    draw_meter(&mut buf, lx(line.x), ly(line.y), name, frac, note);
+                    let ic = match name { "Fed" => "icon-hunger", "Health" => "icon-health", _ => "" };
+                    draw_meter(&mut buf, lx(line.x), ly(line.y), art.icon(ic), name, frac, note);
                 } else {
                     draw_text(&mut buf, lx(line.x), ly(line.y), &line.text, line.rgb.0, line.rgb.1, line.rgb.2);
                 }
@@ -1164,9 +1167,12 @@ impl View {
         // cat); the unavailable never reach the list at all
         let ctx_btns: Vec<(Button, Option<&String>)> = ctx_buttons_labeled(&m.ctx, &m.ctx_labels).into_iter()
             .zip(m.ctx_blocked.iter()).map(|(b, r)| (b, r.as_ref())).collect();
-        for (b, reason) in &ctx_btns {
+        for (i, (b, reason)) in ctx_btns.iter().enumerate() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             draw_button(&mut buf, b, hover, reason.is_some());
+            if let Some(act) = m.ctx.get(i) {
+                draw_icon(&mut buf, art.icon(ctx_icon(*act)), b.x + 3, b.y + (b.h - 12) / 2, 12);
+            }
         }
         // a greyed reason reads on one line under the band - beside its
         // button it would land on the neighbouring column; a button with
@@ -1253,6 +1259,9 @@ impl View {
         'log: for entry in &m.log {
             let clickable = entry.at.is_some() || entry.who.is_some();
             let (r, g, b) = log_colour(&entry.text);
+            // the named events carry their own icon - a flood gets the
+            // flood mark where the set has one
+            let ev = event_icon(&entry.text).and_then(|t| art.icon(t));
             // "day 120" in dim grey, then the message in its colour
             let (day, msg) = log_parts(&entry.text);
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
@@ -1264,12 +1273,16 @@ impl View {
                     let lift = |c: u8| (c as u16 + (255 - c as u16) / 2) as u8;
                     (lift(r), lift(g), lift(b))
                 } else { (r, g, b) };
+                // the icon's own row: it indents the first line so the
+                // mark doesn't sit on the words
+                let dx = if n == 0 && ev.is_some() { 14 } else { 0 };
+                if n == 0 { draw_icon(&mut buf, ev, lx + 4, y + 1, 10); }
                 match &day {
                     Some(d) if n == 0 && line.starts_with(d.as_str()) => {
-                        draw_text(&mut buf, lx + 4, y, d, 120, 120, 145);
-                        draw_text(&mut buf, lx + 4 + (d.len() as i32 + 1) * GLYPH_W, y, line[d.len()..].trim_start(), r, g, b);
+                        draw_text(&mut buf, lx + 4 + dx, y, d, 120, 120, 145);
+                        draw_text(&mut buf, lx + 4 + dx + (d.len() as i32 + 1) * GLYPH_W, y, line[d.len()..].trim_start(), r, g, b);
                     }
-                    _ => { draw_text(&mut buf, lx + 4, y, line, r, g, b); }
+                    _ => { draw_text(&mut buf, lx + 4 + dx, y, line, r, g, b); }
                 }
                 row += 1;
             }
@@ -1293,10 +1306,14 @@ impl View {
 
         // what the marks over villagers' heads mean, under the log
         let mut mx = UI_X as i32 + 14;
-        for (m, (r, g, b), word) in MAP_MARKS {
-            draw_text(&mut buf, mx, LEGEND_Y, m, r, g, b);
-            mx += (m.len() as i32 + 1) * GLYPH_W;
-            draw_text(&mut buf, mx, LEGEND_Y, word, 150, 150, 170);
+        for (i, (m, (r, g, b), word)) in MAP_MARKS.iter().enumerate() {
+            if draw_icon(&mut buf, art.icon(MARK_ICONS[i]), mx, LEGEND_Y - 3, 12) {
+                mx += 16;
+            } else {
+                draw_text(&mut buf, mx, LEGEND_Y, *m, *r, *g, *b);
+                mx += (m.len() as i32 + 1) * GLYPH_W;
+            }
+            draw_text(&mut buf, mx, LEGEND_Y, *word, 150, 150, 170);
             mx += (word.len() as i32 + 2) * GLYPH_W;
         }
 
@@ -1448,14 +1465,61 @@ impl View {
 
         // season banner
         let hud = hud_text(season, tick, food_stock, m.precip.map(|k| k.label()), m.paused, m.food_yield, m.harsh_winter);
+        // the season's and the sky's icons lead the line where the set has
+        // them; a clear day wears the sun, a live rainbow its own mark
+        let s_ic = art.icon(&format!("icon-{}", format!("{:?}", season).to_lowercase()));
+        let w_tok = m.precip.map(precip_icon)
+            .unwrap_or(if m.rainbow_from.is_some() { "icon-rainbow" } else { "icon-sun" });
+        let w_ic = art.icon(w_tok);
+        let iw = s_ic.map_or(0, |_| 16) + w_ic.map_or(0, |_| 16);
         // on a dark strip so it reads over any terrain the camera shows
-        buf.rect(4, 4, text_width(&hud, 1) + 12, GLYPH_H + 8, 20, 20, 32);
-        draw_text_outlined(&mut buf, 10, 8, &hud, 255, 255, 255);
-        // the seat's own bag and belly ride under it
+        buf.rect(4, 4, text_width(&hud, 1) + 12 + iw, GLYPH_H + 8, 20, 20, 32);
+        let mut hx = 10;
+        if draw_icon(&mut buf, s_ic, hx, 5, 14) { hx += 16; }
+        if draw_icon(&mut buf, w_ic, hx, 5, 14) { hx += 16; }
+        draw_text_outlined(&mut buf, hx, 8, &hud, 255, 255, 255);
+        // the seat's own bag and belly ride under it: the goods wear their
+        // sheet icon where one came back, the old words where not
         let strip = satchel_strip(m);
         if !strip.is_empty() {
-            buf.rect(4, 20, text_width(&strip, 1) + 12, GLYPH_H + 8, 20, 20, 32);
-            draw_text_outlined(&mut buf, 10, 24, &strip, 200, 190, 170);
+            let good_tok = |g: &str| format!("good-{}", g.to_lowercase());
+            let rich = m.player_satchel.iter().any(|(g, _)| art.icon(&good_tok(g)).is_some());
+            if !rich {
+                buf.rect(4, 20, text_width(&strip, 1) + 12, GLYPH_H + 8, 20, 20, 32);
+                draw_text_outlined(&mut buf, 10, 24, &strip, 200, 190, 170);
+            } else {
+                // the strip's content width, so the backing rect lands first
+                let mut cw = 9 * GLYPH_W;
+                for (g, n) in &m.player_satchel {
+                    cw += if art.icon(&good_tok(g)).is_some() { 16 } else { g.len() as i32 * GLYPH_W }
+                        + (format!("x{}", n).len() as i32 + 1) * GLYPH_W;
+                }
+                if m.player_hunger < 40.0 {
+                    cw += 2 * GLYPH_W + if art.icon("icon-hungry").is_some() { 16 } else { 6 * GLYPH_W };
+                }
+                buf.rect(4, 20, cw + 12, GLYPH_H + 8, 20, 20, 32);
+                let mut sx = 10;
+                draw_text_outlined(&mut buf, sx, 24, "satchel: ", 200, 190, 170);
+                sx += 9 * GLYPH_W;
+                for (g, n) in &m.player_satchel {
+                    if draw_icon(&mut buf, art.icon(&good_tok(g)), sx, 22, 14) {
+                        sx += 16;
+                    } else {
+                        draw_text_outlined(&mut buf, sx, 24, g, 200, 190, 170);
+                        sx += g.len() as i32 * GLYPH_W;
+                    }
+                    let ntxt = format!("x{}", n);
+                    draw_text_outlined(&mut buf, sx, 24, &ntxt, 200, 190, 170);
+                    sx += (ntxt.len() as i32 + 1) * GLYPH_W;
+                }
+                if m.player_hunger < 40.0 {
+                    draw_text_outlined(&mut buf, sx, 24, "| ", 200, 190, 170);
+                    sx += 2 * GLYPH_W;
+                    if !draw_icon(&mut buf, art.icon("icon-hungry"), sx, 22, 14) {
+                        draw_text_outlined(&mut buf, sx, 24, "hungry", 200, 190, 170);
+                    }
+                }
+            }
         }
 
         // help overlay

@@ -173,6 +173,11 @@ pub struct Art {
     /// postings and trades the pack has no figure for. Drawn standing at
     /// 1x by draw_animal; a missing name leaves the pack figure in use
     pub people: Vec<(String, Sprite)>,
+    /// Generated UI icons (assets/rd/icons), by file name: icon-<slug>
+    /// for the HUD marks, action buttons and meters, event-<slug> for
+    /// the log's named events, good-<slug> for satchel goods. A missing
+    /// name leaves the text glyph it replaces
+    pub icons: Vec<(String, Sprite)>,
     pub priest_s: Option<Sprite>,
     pub priest_walk: Option<WalkSheet>,
     pub traveller_s: Option<Sprite>, // a courier riding the road between villages
@@ -585,6 +590,37 @@ pub(crate) const PEOPLE_SPRITES: [&str; 36] = [
     "tailor-f", "tailor-m", "toolmaker-f", "toolmaker-m",
 ];
 
+/// Every generated UI icon the loader looks for (assets/rd/icons/<name>.png):
+/// the HUD and mark set (icon-), the log's named events (event-), and the
+/// goods sliced off the inventory sheet (good-)
+pub(crate) const ICON_SPRITES: [&str; 75] = [
+    // status marks and HUD reads
+    "icon-hungry", "icon-finding-food", "icon-busy", "icon-sick", "icon-dead",
+    "icon-grieving", "icon-happy", "icon-cold", "icon-injured",
+    // the action row and panel verbs
+    "icon-talk", "icon-recruit", "icon-invest", "icon-organize", "icon-build",
+    "icon-wait", "icon-inspect",
+    // meter labels
+    "icon-hunger", "icon-health", "icon-trust", "icon-mood", "icon-faith",
+    "icon-power", "icon-gold",
+    // the turning year and the sky
+    "icon-spring", "icon-summer", "icon-autumn", "icon-winter",
+    "icon-rain", "icon-heavy-rain", "icon-snow", "icon-heavy-snow", "icon-sun",
+    "icon-overcast", "icon-rainbow", "icon-storm", "icon-fog", "icon-drizzle",
+    // the events the log names
+    "event-alehouse-brawl", "event-assize", "event-aurora", "event-blood-moon",
+    "event-cellar-thief", "event-dark-noon", "event-drought", "event-first-snow",
+    "event-flood", "event-foundling", "event-hailstorm", "event-heat-wave",
+    "event-indian-summer", "event-late-frost", "event-lightning", "event-lost-child",
+    "event-meteor-shower", "event-mirage", "event-quarrel", "event-thaw",
+    "event-thief", "event-windstorm",
+    // the satchel's goods, sliced off the inventory sheet
+    "good-wheat", "good-bread", "good-flour", "good-stone", "good-wood",
+    "good-sand", "good-paper", "good-ink", "good-pamphlets", "good-pigment",
+    "good-cloth", "good-glass", "good-garments", "good-tools", "good-lute",
+    "good-gold",
+];
+
 /// A villager sprite cropped to its standing frame (each sheet is a grid
 /// of 32x32 cells)
 pub(crate) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
@@ -603,6 +639,12 @@ impl Art {
     /// the sexed trades. None: the caller draws the pack figure.
     pub fn person(&self, name: &str) -> Option<&Sprite> {
         self.people.iter().find(|(n, _)| n == name).map(|(_, s)| s)
+    }
+
+    /// The generated icon for a token ("icon-sick", "event-flood",
+    /// "good-bread"). None: the caller keeps its text glyph.
+    pub fn icon(&self, name: &str) -> Option<&Sprite> {
+        self.icons.iter().find(|(n, _)| n == name).map(|(_, s)| s)
     }
 
     /// Load every sprite through `fetch` (rel path -> png bytes): the file
@@ -859,6 +901,11 @@ impl Art {
             // 48px stills resampled to villager height at export
             people: PEOPLE_SPRITES.iter()
                 .filter_map(|&n| at(&format!("rd/people/{}.png", n)).map(|s| (n.to_string(), s)))
+                .collect(),
+            // the HUD's icon set (assets/rd/icons): a name that didn't
+            // come back leaves its text glyph standing
+            icons: ICON_SPRITES.iter()
+                .filter_map(|&n| at(&format!("rd/icons/{}.png", n)).map(|s| (n.to_string(), s)))
                 .collect(),
             traveller_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
             rival_walks,

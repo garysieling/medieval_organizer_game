@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433721,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 2.23,
+ "request_id": "2f334e1a-d9e4-4fb2-a556-3631840dc9fb",
+ "outputs_retained_until": 1794520109,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 2.23
+ },
+ "id": "event-lightning-717fe433",
+ "prompt": "small game UI icon of a single lightning bolt striking a field, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:48:42",
+ "seconds": 11.9
+}

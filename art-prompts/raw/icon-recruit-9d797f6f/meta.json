@@ -1,0 +1,27 @@
+{
+ "created_at": 1794433058,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 13.51,
+ "request_id": "1da684be-8bc4-4aec-8293-8fab20cf741a",
+ "outputs_retained_until": 1794519421,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 13.51
+ },
+ "id": "icon-recruit-9d797f6f",
+ "prompt": "small game UI icon of clasped handshake, simple, readable at tiny size",
+ "request": {
+  "prompt_style": "rd_mini__skill_icon",
+  "width": 32,
+  "height": 32,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:37:39",
+ "seconds": 37.1
+}

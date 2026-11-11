@@ -1,0 +1,26 @@
+{
+ "created_at": 1794432934,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 14.71,
+ "request_id": "87d57f23-1fb9-4635-8275-1b136c0d68bf",
+ "outputs_retained_until": 1794519250,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 14.71
+ },
+ "id": "goods-sheet-644710b6",
+ "prompt": "inventory item sheet: wheat sheaf, bread loaf, flour sack, stone block, log stack, sand pile, paper, ink pot, pamphlet, pigment pots, cloth bolt, glass pane, garments, hammer tools, lute, gold coins",
+ "request": {
+  "prompt_style": "rd_pro__inventory_items",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-11T16:35:35",
+ "seconds": 84.6
+}

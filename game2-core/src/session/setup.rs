@@ -1215,7 +1215,6 @@ impl Game {
             community_teacher: false,
             inquisition: None,
             interdict: false,
-            player_passed: false,
             martyr_grave: None,
             path_cache: crate::engine::det::HashMap::default(),
             villager_poses: crate::engine::det::HashMap::default(),

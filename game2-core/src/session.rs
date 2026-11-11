@@ -1407,8 +1407,6 @@ pub struct Game {
     /// The martyr's plot, when the gibbet made one
     /// The hermit who keeps to it
     pub hermit: Option<Entity>,
-    /// Whether the player's first body's gone - the work goes on
-    pub player_passed: bool,
     /// The martyr's grave - where they hanged the one who said no
     pub martyr_grave: Option<(i32, i32)>,
     /// Path memo: (from,to) -> the walk, cleared each frame - the map

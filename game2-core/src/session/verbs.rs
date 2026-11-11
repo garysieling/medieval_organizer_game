@@ -1125,6 +1125,9 @@ impl Game {
                                     }
                                 }
                             }
+                            // a carried demand is the writ beaten in
+                            // public: the reach thins for it (#971)
+                            self.lord_strength = (self.lord_strength - 0.06).max(0.0);
                             // a carried demand walks the streets: the
                             // village takes the win out in the open
                             self.victory_parade();
@@ -1143,6 +1146,9 @@ impl Game {
                             if out.nothing_new {
                                 format!("{} face the Reeve - he grants no more than he already has.", out.turnout.len())
                             } else {
+                                // a concession's a smaller beat, but a
+                                // beat all the same (#971)
+                                self.lord_strength = (self.lord_strength - 0.03).max(0.0);
                                 self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
                                     &issue, tick, tick + crate::game::desires::YEAR_DAYS / 2));
                                 format!("{} face the Reeve - he grants a part of it, and no more.", out.turnout.len())

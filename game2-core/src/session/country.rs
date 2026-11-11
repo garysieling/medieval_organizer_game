@@ -1051,6 +1051,9 @@ impl Game {
             }
         }
         if let Some(s) = self.sites.get_mut(castle) { s.treasury += gold; }
+        // a ride that lands is a writ that holds: the flow the reach
+        // counts on (#971)
+        self.lord_flow = (self.lord_flow + (gold * 0.01).min(0.3)).min(1.0);
         let home = household::home_of(&self.world, who);
         let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
             .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
@@ -1221,6 +1224,8 @@ impl Game {
     pub(super) fn arrive_levy_cart(&mut self, who: Entity, castle: usize) {
         let n = self.world.get_component_mut::<Satchel>(who)
             .and_then(|s| s.goods.remove("provisions")).unwrap_or(0);
+        // a cart that lands is a road the reach still holds (#971)
+        self.lord_flow = (self.lord_flow + 0.05).min(1.0);
         if let Some(store) = self.sites.get(castle).map(|s| s.store) {
             if self.world.get_component::<Hunger>(who).map(|h| h.value < 70.0).unwrap_or(false) {
                 if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) {

@@ -1525,6 +1525,17 @@ pub struct Game {
     /// org's own growth dissolves it, and the dissolution's own space
     /// feeds the self-organization
     pub lord_strength: f32,
+    /// What of the lord's take actually lands: the flow his writ
+    /// controls, counted on the road's own outcomes - each ride that
+    /// arrives lifts it, each take rebels make thins it (#971)
+    pub lord_flow: f32,
+    /// The day the writ ran out, if it has: the lord's arm stopped
+    /// reaching the village until the crown answers - the
+    /// dissolution's own mark, and the clock its return runs on
+    pub lord_gone: Option<u64>,
+    /// Who the vacuum filled to while the writ's out: the strongest
+    /// claim left standing when the reach broke (#971)
+    pub vacuum_filler: Option<Entity>,
     /// The teller's own arc: the phase state machine - the setup, the
     /// escalation, the climax, the resolution - the drama's own
     /// scheduling, not just the detecting

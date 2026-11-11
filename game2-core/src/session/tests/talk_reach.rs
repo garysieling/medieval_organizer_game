@@ -107,18 +107,24 @@ fn test_recruit_is_hidden_until_a_campaign_exists() {
     assert_eq!(game.disabled_reason(1), None);
 }
 
-#[test]
-fn test_a_pick_past_a_shout_doesnt_walk_over() {
-    // was "Talk is never too far away" - now a pick from that far is for
-    // a look: T singles out someone within a shout instead (#944)
-    let mut game = Game::new();
+/// Somewhere the player can walk to, just past shouting distance: the
+/// reach an introduction usually names someone at (#1066)
+fn spot_past_a_shout(game: &Game) -> (i32, i32) {
     let (px, py) = game.player_pos();
     let from = (px.round() as i32, py.round() as i32);
-    // a tile the player can walk to, well out of shouting distance
-    let spot = (0..game.map.height as i32).flat_map(|y| (0..game.map.width as i32).map(move |x| (x, y)))
-        .find(|&(x, y)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt() > SHOUT_DIST + 2.0
-            && game.map.walk_path(from, (x, y)).is_some())
-        .expect("somewhere far but reachable");
+    (0..game.map.height as i32).flat_map(|y| (0..game.map.width as i32).map(move |x| (x, y)))
+        .find(|&(x, y)| { let d = ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt();
+            d > SHOUT_DIST + 1.0 && d < SHOUT_DIST + 12.0 && game.map.walk_path(from, (x, y)).is_some() })
+        .expect("somewhere just past a shout but reachable")
+}
+
+#[test]
+fn test_a_pick_past_a_shout_walks_over() {
+    // a far pick was for a look until you act on it - since #1066 T
+    // walks over to them like Recruit, not to whoever's beside you
+    let mut game = Game::new();
+    let (px, py) = game.player_pos();
+    let spot = spot_past_a_shout(&game);
     for (i, v) in game.villagers.clone().into_iter().enumerate() {
         *game.world.get_component_mut::<Pos>(v).unwrap() = if i == 2 {
             Pos { x: spot.0 as f32, y: spot.1 as f32 }
@@ -131,7 +137,49 @@ fn test_a_pick_past_a_shout_doesnt_walk_over() {
     game.selected_target = 2;
     game.picked = true;
     game.pick_near = false; // a click from this far is for a look
+    assert_eq!(game.disabled_reason(0), None, "a far pick is still someone to talk to");
     game.act(0);
-    assert_eq!(game.selected_target, 3, "Talk turns to who's within a shout, got {}", vill_name(game.selected_target));
-    assert!(game.approach.as_ref().map(|a| a.who != 2).unwrap_or(true), "no walk-over to someone past a shout");
+    assert_eq!(game.selected_target, 2, "Talk keeps the far pick, got {}", vill_name(game.selected_target));
+    assert!(game.approach.as_ref().map(|a| a.who) == Some(2),
+        "the walk-over is to the pick, not the bystander: {:?}", game.approach.as_ref().map(|a| a.who));
+    assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", vill_name(2))), "{}", game.log.last().unwrap());
+}
+
+#[test]
+fn test_a_far_pick_walks_over_then_talks() {
+    // the introduced villager the player can't shout to (#1066): T walks
+    // the whole way and the word happens on arrival
+    let mut game = Game::new();
+    while game.tick < 3 { game.update(); }
+    let spot = spot_past_a_shout(&game);
+    let (px, py) = game.player_pos();
+    for (i, v) in game.villagers.clone().into_iter().enumerate() {
+        *game.world.get_component_mut::<Pos>(v).unwrap() = if i == 2 {
+            Pos { x: spot.0 as f32, y: spot.1 as f32 }
+        } else {
+            Pos { x: px + 40.0 + i as f32, y: py + 40.0 }
+        };
+    }
+    game.selected_target = 2;
+    game.picked = true;
+    game.pick_near = false;
+    let v = game.villagers[2];
+    let talks = |g: &Game| g.world.get_component::<TalkCount>(v).map(|c| c.value).unwrap_or(0);
+    let before = talks(&game);
+    let start = game.dist_to(2);
+    assert!(start > SHOUT_DIST, "picked someone past a shout: {}", start);
+
+    game.act(0);
+    assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", vill_name(2))), "{}", game.log.last().unwrap());
+    assert_eq!(talks(&game), before, "no talking from across the village");
+
+    for _ in 0..(60 * FPS) {
+        if game.approach.is_none() { break; }
+        game.update();
+    }
+    assert!(game.approach.is_none(), "still walking to {} ({} tiles off, started {})", vill_name(2), game.dist_to(2), start);
+    assert!(game.dist_to(2) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(2), vill_name(2));
+    assert_eq!(talks(&game), before + 1, "talked once on arrival");
+    assert!(game.talk_log.iter().any(|r| r.with.contains(&v) && r.with.contains(&game.player)),
+        "no talk on the TALK panel");
 }

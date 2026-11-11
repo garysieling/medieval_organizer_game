@@ -45,17 +45,22 @@ fn test_talk_with_no_pick_singles_out_the_least_lately_heard_nearby() {
 }
 
 #[test]
-fn test_a_pick_too_far_to_talk_re_picks_someone_near() {
-    // clicked across the map for a look: too far to talk, so T turns to
-    // whoever's within a shout instead of walking over
+fn test_a_pick_too_far_to_talk_walks_over_to_them() {
+    // clicked across the map for a look: since #1066 T walks over to
+    // them like a Recruit - the pick doesn't turn to whoever's near
     let mut g = Game::new();
     alone_at(&mut g, 2, 1.0, 0.0);
     g.selected_target = 5;
     g.picked = true;
     g.pick_near = false;
     g.act(0);
-    assert_eq!(g.selected_target, 2, "Talk turns to who's within a shout");
-    assert!(g.picked && g.pick_near);
+    assert_eq!(g.selected_target, 5, "Talk keeps the far pick");
+    assert!(g.picked);
+    // past a shout is a walk, not a word: either they're on their way
+    // or there's honestly no way to them
+    let walking = g.approach.as_ref().map(|a| a.who == 5).unwrap_or(false);
+    let barred = g.log.last().map(|l| l.contains("no way to reach")).unwrap_or(false);
+    assert!(walking || barred, "no walk-over and no can't-reach: {:?}", g.log.last());
 }
 
 #[test]

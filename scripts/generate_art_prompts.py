@@ -1330,6 +1330,41 @@ add("visitors", "person-plague-doctor",
     notes="visitor sprite; 48px 4-direction walk cycle as a PNG grid")
 
 # ---------------------------------------------------------------------------
+# P1: art-history deep dive (#804) - Bosch marginalia for omen flavor and
+# Dürer engraving forms for prints, signs and memorials.
+add("art-history", "decor-memento-mori",
+    f"{ISO}: memento mori still life, a human skull resting on a closed "
+    "bound book with a guttering candle, muted earth tones",
+    style="rd_tile__tile_object", w=96, h=96, n=1, tier="p1",
+    notes="churchyard/memorial flavor (#804)")
+add("art-history", "decor-marginalia-hybrid",
+    "single isometric medieval marginalia creature: a bird with long "
+    "human ears and thin legs, chalky green and rose pink, bosch style",
+    style="rd_tile__tile_object", w=96, h=96, n=2, tier="p1",
+    notes="omen/strange-sight event flavor (#804)")
+add("art-history", "decor-painted-hall",
+    f"{ISO}: interior wall hanging, a painted cloth frieze of deer and "
+    "foliage in muted reds and greens, medieval hall decoration",
+    style="rd_tile__tile_object", w=96, h=96, n=2, tier="p1",
+    notes="painted halls as clout (#804)")
+add("art-history", "goods-print-sheet",
+    "inventory item sheet: a small woodcut print, monochrome hatched "
+    "engraving of a hare on aged paper, durer style",
+    style="rd_pro__inventory_items", w=256, h=256, n=1, tier="p1",
+    notes="a printmaker's sellable print good (#804)")
+add("art-history", "sign-engraved",
+    f"{ISO}: hanging shop sign, a wood-engraved monochrome hare in "
+    "dense hatched lines on a weathered board, durer style",
+    style="rd_tile__tile_object", w=96, h=96, n=1, tier="p1",
+    notes="engraving-look shop sign (#804)")
+add("art-history", "wonder-eggshell",
+    "single isometric medieval village asset: a giant hollow eggshell "
+    "split open with a small figure seated inside, chalky white and "
+    "pale pink, bosch style",
+    style="rd_tile__tile_object", w=96, h=96, n=1, tier="p1",
+    notes="wonder/omen set-piece (#804)")
+
+# ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.
 # ~$3 total - run this first to validate prompts, sizes and outputs before
 # any real spend. ids get a -smoke suffix so they don't collide with the

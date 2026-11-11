@@ -32,7 +32,10 @@ impl Game {
                     || villager::is_dead(&self.world, v) { continue; }
                 self.world.add_component(v, villager::Laborer { until: tick + SEASON_DAYS });
                 self.send_far(v, mid, Goal::SeasonWork(mid));
-                self.log.push(format!("t{}: the season's hands come in for the work.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                    format!("t{}: the season's hands come in for the work.", tick),
+                );
                 flagged += 1;
             }
         }
@@ -65,10 +68,20 @@ impl Game {
                     if let Some(h) = self.world.get_component_mut::<crate::sim::illness::Health>(v) {
                         h.condition = (h.condition - 0.15).max(0.05);
                     }
-                    desires::add_grievance(&mut self.world, wit,
-                        crate::game::desires::Problem::Rowdy, tick + 300);
-                    self.log.push(format!("t{}: a season hand's night ends in the mud - {} saw it.",
-                        tick, self.name_of(wit)));
+                    desires::add_grievance(
+                        &mut self.world,
+                        wit,
+                        crate::game::desires::Problem::Rowdy,
+                        tick + 300,
+                    );
+                    self.log.push_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Minor),
+                        format!(
+                            "t{}: a season hand's night ends in the mud - {} saw it.",
+                            tick,
+                            self.name_of(wit)
+                        ),
+                    );
                     self.world.remove_component::<villager::Drunk>(v);
                 }
             }

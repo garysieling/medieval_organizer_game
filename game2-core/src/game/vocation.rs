@@ -239,6 +239,7 @@ pub fn luxuries(v: Vocation) -> &'static [&'static str] {
         Vocation::Glazier => &["spectacles", "mirror"],
         Vocation::Perfumer => &["rosewater", "pomander"],
         Vocation::Baker => &["simnel cake"],
+        Vocation::Printmaker => &["prints"],
         _ => &[],
     }
 }

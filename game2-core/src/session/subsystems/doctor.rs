@@ -29,13 +29,19 @@ impl Game {
             let (x, y) = (self.town_wall.0 as f32, self.town_wall.3 as f32 + 2.0);
             self.world.add_component(e, Pos { x, y });
             self.doctor = Some(Doctor { e, rounds: vec![], fee_bank: 0.0 });
-            self.log.push(format!("t{}: a plague doctor rides in - beaked mask, waxed coat, and a price on his hands.", tick));
+            self.log.push_ev(EvTag::new(Thread::Illness, Valence::Neutral, Sev::Notable), format!("t{}: a plague doctor rides in - beaked mask, waxed coat, and a price on his hands.", tick));
         }
         // or he's done: the village mends and the road takes him back
         if self.doctor.is_some() && cases < CALL_CASES {
             let Some(d) = self.doctor.take() else { return };
             self.world.remove_component::<Pos>(d.e);
-            self.log.push(format!("t{}: the sickness passes and the doctor rides home, {:.0} gold the heavier.", tick, d.fee_bank));
+            self.log.push_ev(
+                EvTag::new(Thread::Illness, Valence::Positive, Sev::Notable),
+                format!(
+                    "t{}: the sickness passes and the doctor rides home, {:.0} gold the heavier.",
+                    tick, d.fee_bank
+                ),
+            );
             return;
         }
         let Some(d) = self.doctor.as_mut() else { return };

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>game2 - the village, in a page</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #19191f; overflow: hidden; }
+  #wrap { position: relative; width: 100%; height: 100%; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+  #boot {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #c8c8d0; font: 14px/1.6 Georgia, serif; text-align: center;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="screen"></canvas>
+  <div id="boot">the village is waking&hellip;</div>
+</div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

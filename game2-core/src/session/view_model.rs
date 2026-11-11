@@ -385,7 +385,8 @@ impl Game {
                 let ei = bldg_idx(*x, *y);
                 BldgV { x: *x, y: *y, sprite: *s, risen: risen(i),
                     derelict: ei.map(|e| self.derelict.contains(&e) || self.ruined.contains(&e)).unwrap_or(false),
-                    cutaway: ei.map(|e| self.cutaways.contains(&e)).unwrap_or(false), smoke: i < 3 }
+                    cutaway: ei.map(|e| self.cutaways.contains(&e)).unwrap_or(false), smoke: i < 3,
+                    windowed: *s == BSprite::Church && self.window.as_ref().map(|w| w.installed).unwrap_or(false) }
             })
             .collect();
         let bubbles: Vec<BubbleV> = self.bubbles.iter().filter_map(|(e, text, _, thought, _)| {

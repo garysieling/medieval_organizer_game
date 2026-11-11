@@ -31,7 +31,10 @@ impl Game {
                 crate::game::vocation::vocation_name(*trade).to_lowercase());
             let org = spawn(&mut self.world, name.clone(), kind, "the craft's dues");
             self.factions.push(org);
-            self.log.push(format!("t{}: {} takes form - the trade keeps its own.", tick, name));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                format!("t{}: {} takes form - the trade keeps its own.", tick, name),
+            );
         }
         // a household grown wide answers to its own name
         for &b in self.building_entities.iter() {
@@ -45,7 +48,13 @@ impl Game {
             let name = format!("the house of {}", self.name_of(souls[0]));
             let org = spawn(&mut self.world, name.clone(), kind, "the kin's call");
             self.factions.push(org);
-            self.log.push(format!("t{}: {} takes form - wide enough to answer to its own name.", tick, name));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: {} takes form - wide enough to answer to its own name.",
+                    tick, name
+                ),
+            );
         }
     }
 

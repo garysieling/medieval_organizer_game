@@ -163,46 +163,94 @@ impl Game {
         let s = spec(id);
         match id {
             EventId::Hailstorm => {
-                self.log.push(format!("t{}: a hailstorm batters the gardens - stones like shot.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: a hailstorm batters the gardens - stones like shot.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("Hailstones!".into(), self.tick + 40));
             }
             EventId::HeatWave => {
-                self.log.push(format!("t{}: a heat wave settles in - the stones are hot to the hand.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: a heat wave settles in - the stones are hot to the hand.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("A heat wave".into(), self.tick + 40));
             }
             EventId::Drought => {
-                self.log.push(format!("t{}: a drought - the sky's forgotten rain, and the well knows it.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: a drought - the sky's forgotten rain, and the well knows it.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("A drought".into(), self.tick + 40));
             }
             EventId::Flood => {
-                self.log.push(format!("t{}: the river comes up - the reach is full and rising.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: the river comes up - the reach is full and rising.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("The river's up".into(), self.tick + 40));
             }
             EventId::IndianSummer => {
-                self.log.push(format!("t{}: an Indian summer - the year's given back a week of warm.", self.tick));
-                self.toasts.push(("An Indian summer".into(), self.tick + 40));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: an Indian summer - the year's given back a week of warm.",
+                        self.tick
+                    ),
+                );
+                self.toasts
+                    .push(("An Indian summer".into(), self.tick + 40));
             }
             EventId::Thaw => {
-                self.log.push(format!("t{}: the thaw - the roofs drip and the ground's soft for the working.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: the thaw - the roofs drip and the ground's soft for the working.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("The thaw".into(), self.tick + 40));
             }
             EventId::Aurora => {
-                self.log.push(format!("t{}: the aurora - the sky burns red and green, and the folk watch from their doors.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor), format!("t{}: the aurora - the sky burns red and green, and the folk watch from their doors.", self.tick));
                 self.toasts.push(("The aurora".into(), self.tick + 40));
             }
             EventId::BloodMoon => {
-                self.log.push(format!("t{}: a blood moon - the moon hangs red over the village, and the prayers go up.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor), format!("t{}: a blood moon - the moon hangs red over the village, and the prayers go up.", self.tick));
                 self.toasts.push(("A blood moon".into(), self.tick + 40));
             }
             EventId::DarkNoon => {
-                self.log.push(format!("t{}: a dark noon - the sun goes out at midday, and the chickens go to roost.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor), format!("t{}: a dark noon - the sun goes out at midday, and the chickens go to roost.", self.tick));
                 self.toasts.push(("Dark noon".into(), self.tick + 40));
             }
             EventId::WindStorm => {
-                self.log.push(format!("t{}: a windstorm - the thatch is tearing and the trees bend double.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: a windstorm - the thatch is tearing and the trees bend double.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("A windstorm".into(), self.tick + 40));
             }
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -257,8 +305,15 @@ impl Game {
                             CHAT_BUBBLE_SECS);
                     }
                 }
-                self.log.push_at_who(format!("t{}: a shape in the water off the strand - the deep one's been seen.", self.tick),
-                    Some((self.village.0 as f32 + 0.5, self.village.1 as f32 + 0.5)), None);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Beast, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: a shape in the water off the strand - the deep one's been seen.",
+                        self.tick
+                    ),
+                    Some((self.village.0 as f32 + 0.5, self.village.1 as f32 + 0.5)),
+                    None,
+                );
                 self.toasts.push(("The deep one!".into(), self.tick + 40));
             }
             EventId::LightningStrike => {
@@ -275,10 +330,17 @@ impl Game {
                         }
                     }
                     self.say(v, "...", CHAT_BUBBLE_SECS);
-                    self.log_entity(v, format!("t{}: lightning strikes the village - one of them's knocked flat where it lands.", self.tick));
+                    self.log_entity_ev(EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable), v, format!("t{}: lightning strikes the village - one of them's knocked flat where it lands.", self.tick));
                 } else {
-                    self.log.push_at_who(format!("t{}: lightning strikes the common - white fire in the grass.", self.tick),
-                        Some((self.village.0 as f32 + 0.5, self.village.1 as f32 + 0.5)), None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: lightning strikes the common - white fire in the grass.",
+                            self.tick
+                        ),
+                        Some((self.village.0 as f32 + 0.5, self.village.1 as f32 + 0.5)),
+                        None,
+                    );
                 }
                 self.toasts.push(("Lightning!".into(), self.tick + 40));
                 // and now and then the bolt itself is the spark: a knot
@@ -294,8 +356,15 @@ impl Game {
                 }
                 // a forager mid-walk turns home - the patch his errand
                 // was for is black under the frost
-                self.travels.retain(|t| !matches!(t.goal, Goal::ForageShroom(_)));
-                self.log.push(format!("t{}: a late frost - white on the beds in the morning, the shoots black.", self.tick));
+                self.travels
+                    .retain(|t| !matches!(t.goal, Goal::ForageShroom(_)));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Negative, Sev::Minor),
+                    format!(
+                        "t{}: a late frost - white on the beds in the morning, the shoots black.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("A late frost".into(), self.tick + 40));
             }
             EventId::FirstSnow => {
@@ -306,7 +375,13 @@ impl Game {
                     if self.world.get_component::<crate::game::vocation::Kid>(v).is_none() { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
                 }
-                self.log.push(format!("t{}: the first snow - white on the roofs, the kids out in it early.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: the first snow - white on the roofs, the kids out in it early.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("The first snow".into(), self.tick + 40));
             }
             EventId::MeteorShower => {
@@ -316,7 +391,7 @@ impl Game {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
                 }
-                self.log.push(format!("t{}: a meteor shower - the sky rains stars, and nobody's eyes are anywhere else.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor), format!("t{}: a meteor shower - the sky rains stars, and nobody's eyes are anywhere else.", self.tick));
                 self.toasts.push(("Falling stars!".into(), self.tick + 40));
             }
             EventId::Mirage => {
@@ -326,10 +401,15 @@ impl Game {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
                 }
-                self.log.push(format!("t{}: a mirage - a city of towers hangs on the horizon, and melts when you look twice.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor), format!("t{}: a mirage - a city of towers hangs on the horizon, and melts when you look twice.", self.tick));
                 self.toasts.push(("A mirage".into(), self.tick + 40));
             }
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -356,9 +436,19 @@ impl Game {
             if self.fire.ignite(&self.map, c.0 + dx, c.1 + dy, self.tick) { lit += 1; }
         }
         if lit > 0 {
-            self.log.push_at_who(format!("t{}: the bolt sets the grass alight - white fire in the dry grass.", self.tick),
-                Some((c.0 as f32 + 0.5, c.1 as f32 + 0.5)), None);
-            self.toasts.push_at(("Fire!".into(), self.tick + 40), Some((c.0 as f32 + 0.5, c.1 as f32 + 0.5)));
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Fire, Valence::Negative, Sev::Minor),
+                format!(
+                    "t{}: the bolt sets the grass alight - white fire in the dry grass.",
+                    self.tick
+                ),
+                Some((c.0 as f32 + 0.5, c.1 as f32 + 0.5)),
+                None,
+            );
+            self.toasts.push_at(
+                ("Fire!".into(), self.tick + 40),
+                Some((c.0 as f32 + 0.5, c.1 as f32 + 0.5)),
+            );
         }
     }
 }

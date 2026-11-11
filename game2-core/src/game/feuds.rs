@@ -90,12 +90,17 @@ pub struct FeudSystem;
 impl crate::engine::ecs::System for FeudSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Feud>() {
+            // a temperate soul's feud cools where a wild one's climbs:
+            // the offender's settled temper bends the escalation (#950)
+            let offender = world.get_component::<Feud>(e).map(|f| f.offender);
+            let damp = offender.and_then(|o| world.get_component::<crate::game::virtue::Virtues>(o))
+                .map(|v| crate::game::virtue::weight(v, "feud")).unwrap_or(1.0);
             if let Some(f) = world.get_component_mut::<Feud>(e) {
                 f.tick += 1;
                 // Open conflict keeps escalating too; only talks or a
                 // settlement stop it
                 if matches!(f.status, FeudStatus::Active | FeudStatus::Burning) {
-                    f.intensity = (f.intensity + 0.05).min(1.0);
+                    f.intensity = (f.intensity + 0.05 * damp).min(1.0);
                     if f.intensity > 0.7 { f.status = FeudStatus::Burning; }
                 }
             }

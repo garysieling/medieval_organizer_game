@@ -58,6 +58,8 @@ impl crate::engine::ecs::System for ContractSystem {
                     r.contracts_honored += 1;
                     r.trust_score = (r.trust_score + HONOR_TRUST_GAIN).min(1.0);
                 }
+                // a contract kept is a word kept: the soul remembers (#950)
+                crate::game::virtue::witness(world, p, crate::game::virtue::MoralAct::KeptWord, 1.0);
             }
         }
     }
@@ -161,6 +163,8 @@ pub fn seal_aid_pact(world: &mut World, giver: Entity, receiver: Entity, gold: &
         }
     }
     record_interaction(world, giver, Interaction { other: receiver, kind: InteractionKind::Aid, intensity: 1.0 });
+    // the aid's real gold, not a promise: sharing bends the soul (#950)
+    crate::game::virtue::witness(world, giver, crate::game::virtue::MoralAct::SharedAid, 0.5);
     let c = world.create_entity();
     world.add_component(c, Contract {
         parties: vec![giver, receiver],

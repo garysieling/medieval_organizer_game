@@ -8,553 +8,105 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 242,
-  "est_total_usd": 43.46
+  "count": 214,
+  "est_total_usd": 37.94
  },
  "prompts": [
   {
-   "id": "person-archer-18038f94",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person archer",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: archer with bow and quiver, fair skin and light brown hair",
+   "id": "decor-marginalia-hybrid-4d9b2961",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "decor marginalia hybrid",
+   "prompt": "single isometric medieval marginalia creature: a bird with long human ears and thin legs, chalky green and rose pink, bosch style",
    "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
     "remove_bg": true
    },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
+   "est_cost_usd": 0.12,
+   "notes": "omen/strange-sight event flavor (#804)"
   },
   {
-   "id": "person-courier-77f5648a",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person courier",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: road courier on horseback, satchel across chest, pale freckled skin and red hair",
+   "id": "decor-memento-mori-343cee93",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "decor memento mori",
+   "prompt": "single isometric medieval village asset: memento mori still life, a human skull resting on a closed bound book with a guttering candle, muted earth tones",
    "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
     "num_images": 1,
     "remove_bg": true
    },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
+   "est_cost_usd": 0.06,
+   "notes": "churchyard/memorial flavor (#804)"
   },
   {
-   "id": "person-crossbowman-445f4de4",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person crossbowman",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: crossbowman winding his weapon, pale freckled skin and red hair",
+   "id": "decor-painted-hall-59d4e21d",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "decor painted hall",
+   "prompt": "single isometric medieval village asset: interior wall hanging, a painted cloth frieze of deer and foliage in muted reds and greens, medieval hall decoration",
    "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
     "remove_bg": true
    },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
+   "est_cost_usd": 0.12,
+   "notes": "painted halls as clout (#804)"
   },
   {
-   "id": "person-guard-halberd-dc5c4861",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person guard halberd",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with halberd, deep dark skin and short black hair",
+   "id": "goods-print-sheet-28e12e22",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "goods print sheet",
+   "prompt": "inventory item sheet: a small woodcut print, monochrome hatched engraving of a hare on aged paper, durer style",
    "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
     "num_images": 1,
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
+   "notes": "a printmaker's sellable print good (#804)"
   },
   {
-   "id": "person-guard-shield-79a9b588",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person guard shield",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with large shield, brown skin and coiled black hair",
+   "id": "sign-engraved-de5f19db",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "sign engraved",
+   "prompt": "single isometric medieval village asset: hanging shop sign, a wood-engraved monochrome hare in dense hatched lines on a weathered board, durer style",
    "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
     "num_images": 1,
     "remove_bg": true
    },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
+   "est_cost_usd": 0.06,
+   "notes": "engraving-look shop sign (#804)"
   },
   {
-   "id": "person-guard-spear-b3fccc98",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person guard spear",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with spear and open helmet, olive skin and dark wavy hair",
+   "id": "wonder-eggshell-c773b4d5",
+   "tier": "p1",
+   "group": "art-history",
+   "title": "wonder eggshell",
+   "prompt": "single isometric medieval village asset: a giant hollow eggshell split open with a small figure seated inside, chalky white and pale pink, bosch style",
    "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
     "num_images": 1,
     "remove_bg": true
    },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-guard-sword-63454e4d",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person guard sword",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with sword and buckler, warm tan skin and dark hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-king-aad17721",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person king",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: old king in ermine cloak and crown, warm tan skin and dark hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-mage-47ff6a16",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person mage",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: village hedge mage in robes with staff, deep dark skin and short black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-minstrel-1026f9b4",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person minstrel",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance, fair skin and light brown hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-overseer-80e63818",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person overseer",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: stern overseer with ledger and short whip, fine coat, warm tan skin and dark hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-prince-6d7d470e",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person prince",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: young prince in doublet, brown skin and coiled black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-tax-collector-9d4148e1",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person tax collector",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: tax collector in dark robes with coin purse and ledger, brown skin and coiled black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-trader-5c8b8def",
-   "tier": "p0",
-   "group": "people/roles",
-   "title": "person trader",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling trader in foreign-looking bright robes at a stall, deep dark skin and short black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-baker-f-2565f4d4",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person baker f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female baker in flour-dusted apron holding a loaf, warm tan skin and dark hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-baker-m-ec11dea5",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person baker m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male baker in flour-dusted apron holding a loaf, olive skin and dark wavy hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-farmer-f-df18d98b",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person farmer f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female farmer with straw hat, sickle at belt, pale freckled skin and red hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-farmer-m-7f50d9dc",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person farmer m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male farmer with straw hat, sickle at belt, fair skin and light brown hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-glazier-f-8174daf3",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person glazier f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female glazier holding a leaded glass pane, deep dark skin and short black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-glazier-m-27312f7a",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person glazier m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male glazier holding a leaded glass pane, brown skin and coiled black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-knight-f-f5754a94",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person knight f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female knight-at-arms in mail with sword and surcoat, pale freckled skin and red hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-knight-m-868446a1",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person knight m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male knight-at-arms in mail with sword and surcoat, fair skin and light brown hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-luthier-f-28571d5d",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person luthier f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female luthier holding an unfinished lute, pale freckled skin and red hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-luthier-m-f3230853",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person luthier m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male luthier holding an unfinished lute, fair skin and light brown hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-mason-f-daeabcb7",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person mason f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female stonemason with mallet and chisel, dusty apron, warm tan skin and dark hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-mason-m-8bd05b6d",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person mason m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male stonemason with mallet and chisel, dusty apron, olive skin and dark wavy hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-priest-f-c01b35e6",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person priest f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female village priest in plain robes with symbol pendant, deep dark skin and short black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-priest-m-1a316a58",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person priest m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male village priest in plain robes with symbol pendant, brown skin and coiled black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-printmaker-f-5e7b6a14",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person printmaker f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female printmaker in ink-stained apron holding a pamphlet, pale freckled skin and red hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-printmaker-m-59f98bf6",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person printmaker m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male printmaker in ink-stained apron holding a pamphlet, fair skin and light brown hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-tailor-f-7583d8d1",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person tailor f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female tailor with measuring tape and pins, warm tan skin and dark hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-tailor-m-4b6d2c7c",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person tailor m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male tailor with measuring tape and pins, olive skin and dark wavy hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-toolmaker-f-09556758",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person toolmaker f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female blacksmith toolmaker with leather apron and hammer, deep dark skin and short black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
-  },
-  {
-   "id": "person-toolmaker-m-c529207c",
-   "tier": "p0",
-   "group": "people/vocations",
-   "title": "person toolmaker m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male blacksmith toolmaker with leather apron and hammer, brown skin and coiled black hair",
-   "request": {
-    "prompt_style": "rd_pro__default",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "use a saved reference_image of your base villager for look consistency"
+   "est_cost_usd": 0.06,
+   "notes": "wonder/omen set-piece (#804)"
   },
   {
    "id": "decor-maypole-398f6b81",

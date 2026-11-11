@@ -15,10 +15,14 @@ default = []
 game2-core = { path = "../game2-core" }
 gif = "0.13"
 jpeg-encoder = "0.6"
-minifb = "0.29.0"
 png = "0.18.1"
 serde_json = "1"
 tungstenite = "0.26"
+
+# The desktop window only: wasm blits the Buffer to a canvas itself, and
+# wasm32 has no minifb to build against (bins need it, the lib doesn't)
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+minifb = "0.29.0"
 
 [lints.rust]
 # warnings are errors: keep the build clean

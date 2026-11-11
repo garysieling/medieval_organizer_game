@@ -18,6 +18,7 @@ pub mod formation;
 
 pub mod journal;
 pub mod gamelog;
+pub use gamelog::{EvTag, Sev, Thread, Valence};
 pub mod kpi;
 pub mod layout;
 pub mod seat;
@@ -173,7 +174,16 @@ fn note_story(
             crate::sim::story::StoryTheme::Community => "a tale of the commons",
             crate::sim::story::StoryTheme::Calamity => "a tale of calamity",
         };
-        log.push_who(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word), i);
+        log.push_ev_who(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+            format!(
+                "t{}: the village marks it - {}'s is {}.",
+                tick,
+                vill_name(i),
+                word
+            ),
+            i,
+        );
     }
 }
 
@@ -1005,6 +1015,21 @@ pub struct Toasts {
     list: Vec<(String, u64, Option<(f32, f32)>, u32)>,
 }
 
+/// The church window's work in hand: the parish's hat, the glazier's
+/// bench, the firing's luck (#789)
+#[derive(Debug, Clone)]
+pub struct WindowWork {
+    /// Gold the hat has taken for the glazier
+    pub fund: f32,
+    /// The bench's stage: 0 collecting, 1 cut, 2 paint, 3 fire, 4 lead,
+    /// 5 hung - a stage a day while the glazier's in town
+    pub stage: u8,
+    /// A panel already cracked in the firing once (the rework's done)
+    pub cracked: bool,
+    /// The window's hung: the church draws its glass
+    pub installed: bool,
+}
+
 impl Toasts {
     pub fn push(&mut self, t: (String, u64)) { self.list.push((t.0, t.1, None, self.now)); }
     pub fn push_at(&mut self, t: (String, u64), at: Option<(f32, f32)>) { self.list.push((t.0, t.1, at, self.now)); }
@@ -1318,6 +1343,9 @@ pub struct Game {
     pub beekeeper: Option<Entity>,
     pub hives: Vec<Entity>,
     pub church: Option<Entity>,
+    /// The stained-glass commission the parish is raising for the
+    /// church while a glazier's in town (#789)
+    pub window: Option<WindowWork>,
     /// (who, the day the swarm leaves) - a swarm takes a liking to someone
     pub swarm: Option<(Entity, u64)>,
     /// The dead whose affairs are settled - succession runs once per soul
@@ -1814,20 +1842,30 @@ impl std::ops::DerefMut for Game {
 }
 
 impl Game {
-    /// A log line about villager `i`: click selects them and jumps to
-    /// where they stood when it happened (#645)
-    pub(in crate::session) fn log_villager(&mut self, i: usize, line: String) {
+    /// A log line about villager `i` with its story tag (#1132): click
+    /// selects them and jumps to where they stood when it happened (#645)
+    pub(in crate::session) fn log_villager_ev(
+        &mut self,
+        ev: gamelog::EvTag,
+        i: usize,
+        line: String,
+    ) {
         let at = self.villagers.get(i)
             .and_then(|&v| self.world.get_component::<Pos>(v)).map(|p| (p.x, p.y));
-        self.log.push_at_who(line, at, Some(i));
+        self.log.push_ev_at_who(ev, line, at, Some(i));
     }
 
-    /// A log line about the villager entity `e`: resolves their index
-    /// for `who` the way `name_of` does, and snapshots where they stood
-    pub(in crate::session) fn log_entity(&mut self, e: Entity, line: String) {
+    /// `log_entity` with the line's story tag (#1132): resolves their
+    /// index for `who` the way `name_of` does, snapshots where they stood
+    pub(in crate::session) fn log_entity_ev(
+        &mut self,
+        ev: gamelog::EvTag,
+        e: Entity,
+        line: String,
+    ) {
         let i = self.villagers.iter().position(|&v| v == e);
         let at = self.world.get_component::<Pos>(e).map(|p| (p.x, p.y));
-        self.log.push_at_who(line, at, i);
+        self.log.push_ev_at_who(ev, line, at, i);
     }
 
     pub fn ticks_per_frame(&self) -> u32 {
@@ -1968,12 +2006,21 @@ impl Game {
         let now = world.get_component::<climate::Climate>(self.climate).and_then(precip_kind);
         if now != self.precip {
             match (self.precip, now) {
-                (_, Some(k)) => log.push(format!("t{}: {} begins", tick, k.label())),
+                (_, Some(k)) => log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {} begins", tick, k.label()),
+                ),
                 (Some(k), None) if !k.is_snow() => {
-                    log.push(format!("t{}: the rain stops - a rainbow!", tick));
+                    log.push_ev(
+                        EvTag::new(Thread::Weather, Valence::Positive, Sev::Minor),
+                        format!("t{}: the rain stops - a rainbow!", tick),
+                    );
                     self.rainbow_from = Some(self.frame_n);
                 }
-                (Some(_), None) => log.push(format!("t{}: the snow stops", tick)),
+                (Some(_), None) => log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor),
+                    format!("t{}: the snow stops", tick),
+                ),
                 (None, None) => {}
             }
             if now.is_some() { self.rainbow_from = None; }
@@ -2180,8 +2227,16 @@ impl Game {
         for (i, v) in villagers.iter().enumerate() {
             if let Some(h) = world.get_component::<Health>(*v) {
                 if h.condition <= 0.0 {
-                    toasts.push_at((format!("{} has died.", vill_name(i)), tick + 60), toast_spot(world, *v));
-                    log.push_at_who(format!("t{}: {} died.", tick, vill_name(i)), toast_spot(world, *v), Some(i));
+                    toasts.push_at(
+                        (format!("{} has died.", vill_name(i)), tick + 60),
+                        toast_spot(world, *v),
+                    );
+                    log.push_ev_at_who(
+                        EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Major),
+                        format!("t{}: {} died.", tick, vill_name(i)),
+                        toast_spot(world, *v),
+                        Some(i),
+                    );
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
                     died_on[i] = Some(tick);
@@ -2203,7 +2258,16 @@ impl Game {
             ];
             let a = (tick as usize / 40) % NAMES.len();
             let b = (tick as usize / 40 + 2) % NAMES.len();
-            log.push(format!("t{}: {} tells {} - {}", tick, vill_name(a), vill_name(b), rumors[tick as usize / 40 % 5]));
+            log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: {} tells {} - {}",
+                    tick,
+                    vill_name(a),
+                    vill_name(b),
+                    rumors[tick as usize / 40 % 5]
+                ),
+            );
         }
 
         // a traveller brings la grippe; it brews a while, then the
@@ -2219,18 +2283,40 @@ impl Game {
         for (i, (now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
             match (now, was.as_ref()) {
                 (Some(name), None) => {
-                    log.push_at_who(format!("t{}: {} is taken with {}", tick, vill_name(i), name),
-                        world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)), Some(i));
-                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
-                        crate::sim::story::EventKind::Illness, format!("{} is taken with {}", vill_name(i), name));
+                    log.push_ev_at_who(
+                        EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
+                        format!("t{}: {} is taken with {}", tick, vill_name(i), name),
+                        world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)),
+                        Some(i),
+                    );
+                    note_story(
+                        &mut self.tales,
+                        &mut self.tales_told,
+                        log,
+                        i,
+                        tick,
+                        crate::sim::story::EventKind::Illness,
+                        format!("{} is taken with {}", vill_name(i), name),
+                    );
                 }
                 (None, Some(old)) => {
                     // a disease gone because it took them isn't a recovery
                     if self.died_on.get(i).and_then(|d| *d).is_none() {
-                        log.push_at_who(format!("t{}: {} recovered from {}", tick, vill_name(i), old),
-                            world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)), Some(i));
-                        note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
-                            crate::sim::story::EventKind::Recovery, format!("{} recovered from {}", vill_name(i), old));
+                        log.push_ev_at_who(
+                            EvTag::new(Thread::Illness, Valence::Positive, Sev::Notable),
+                            format!("t{}: {} recovered from {}", tick, vill_name(i), old),
+                            world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)),
+                            Some(i),
+                        );
+                        note_story(
+                            &mut self.tales,
+                            &mut self.tales_told,
+                            log,
+                            i,
+                            tick,
+                            crate::sim::story::EventKind::Recovery,
+                            format!("{} recovered from {}", vill_name(i), old),
+                        );
                     }
                 }
                 _ => {}
@@ -2242,7 +2328,10 @@ impl Game {
         let gc = world.query::<Guild>().len();
         if gc > self.last_guild_count {
             toasts.push(("A guild forms in the village!".into(), tick + 40));
-            log.push(format!("t{}: The Merchant Guild formed!", tick));
+            log.push_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Major),
+                format!("t{}: The Merchant Guild formed!", tick),
+            );
         }
         self.last_guild_count = gc;
 

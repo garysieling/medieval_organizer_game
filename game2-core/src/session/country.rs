@@ -113,6 +113,9 @@ pub struct Site {
     /// The site's treasury in gold: tribute in, gifts and the crown's
     /// cut out
     pub treasury: f32,
+    /// A daughter house: an order's grange answers its assessment to
+    /// the mother abbey, not the liege (#988)
+    pub mother: Option<usize>,
 }
 
 /// Lives out at `sites[site]`, not in the village
@@ -464,7 +467,7 @@ impl Game {
                 persona: if kind == SiteKind::Castle { LordPersona {
                     cruelty: 0.3 + (rng.below(7) as f32 / 10.0),
                     vanity: (rng.below(10) as f32 / 10.0) } } else { LordPersona::default() },
-                sheriff: None, sisterhood: None });
+                sheriff: None, sisterhood: None, mother: None });
         }
         // the folk, a household to a site under their own roofs; the
         // roster puts children last so the carrier slots - the first
@@ -562,12 +565,18 @@ impl Game {
         // brothers work but come last in a lean winter
         for si in 0..self.sites.len() {
             if self.sites[si].kind != SiteKind::Monastery || self.sites[si].title != Some("Abbess") { continue; }
-            let members: Vec<Entity> = self.villagers.iter().copied()
+            let folk: Vec<Entity> = self.villagers.iter().copied()
                 .filter(|&v| self.world.get_component::<Outlander>(v)
                     .map(|o| o.site == si).unwrap_or(false)).collect();
             let leader = self.sites[si].lord.unwrap_or(0u32);
             let name = format!("the sisterhood of {}", self.sites[si].name);
-            self.sites[si].sisterhood = Some(Sisterhood { members, leader, charter: name });
+            // the two tiers: the sworn keep the choir, the rest take the
+            // habit as lay brothers and the order's labor (#988)
+            let split = (folk.len() + 1) / 2;
+            let (members, lay) = folk.split_at(split);
+            self.sites[si].sisterhood = Some(Sisterhood {
+                members: members.to_vec(), lay: lay.to_vec(),
+                leader, charter: name, risk: 0.0 });
         }
 
     }
@@ -775,8 +784,15 @@ impl Game {
         let ci = self.villagers.iter().position(|&v| v == who);
         let name = ci.map(vill_name).unwrap_or("a rider");
         let at = self.world.get_component::<Pos>(who).map(|p| (p.x, p.y));
-        self.log.push_at_who(format!("t{}: {} comes home from the road burning - the pestilence walks the lanes.",
-            tick, name), at, ci);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
+            format!(
+                "t{}: {} comes home from the road burning - the pestilence walks the lanes.",
+                tick, name
+            ),
+            at,
+            ci,
+        );
         Some(who)
     }
 
@@ -787,6 +803,7 @@ impl Game {
     pub(super) fn country_tick(&mut self, tick: u64) {
         self.lord_works_tick(tick);
         self.tribute_tick(tick);
+        crate::timed!("sim.orders", self.order_tick(tick));
         // the pestilence walks the roads: a rare seeded roll puts it on
         // a carrier, and the carriers' own rounds spread it settlement
         // to settlement - no site rolls its own dice. Its own stream,
@@ -920,8 +937,15 @@ impl Game {
                         self.sites[si].away_until = Some(u64::MAX);
                         let ci = self.villagers.iter().position(|&x| x == c);
                         let name = ci.map(vill_name).unwrap_or("a carter");
-                        self.log.push_at_who(format!("t{}: {}'s cart sets out from {} for market day.", tick, name, site.name),
-                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)), ci);
+                        self.log.push_ev_at_who(
+                            EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                            format!(
+                                "t{}: {}'s cart sets out from {} for market day.",
+                                tick, name, site.name
+                            ),
+                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)),
+                            ci,
+                        );
                     }
                 }
                 (SiteKind::Mine, None) => {
@@ -948,8 +972,15 @@ impl Game {
                         self.sites[si].away_until = Some(u64::MAX);
                         let ci = self.villagers.iter().position(|&x| x == c);
                         let name = ci.map(vill_name).unwrap_or("a carter");
-                        self.log.push_at_who(format!("t{}: {}'s cart sets out from {} - a load of ore for the market.", tick, name, site.name),
-                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)), ci);
+                        self.log.push_ev_at_who(
+                            EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                            format!(
+                                "t{}: {}'s cart sets out from {} - a load of ore for the market.",
+                                tick, name, site.name
+                            ),
+                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)),
+                            ci,
+                        );
                     }
                 }
                 (SiteKind::Castle, None) => {
@@ -963,8 +994,15 @@ impl Game {
                         self.sites[si].away_until = Some(u64::MAX);
                         let ci = self.villagers.iter().position(|&x| x == c);
                         let name = ci.map(vill_name).unwrap_or("the steward");
-                        self.log.push_at_who(format!("t{}: {} rides out of {} to fetch provisions from {}.", tick, name, site.name, self.sites[ti].name),
-                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)), ci);
+                        self.log.push_ev_at_who(
+                            EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                            format!(
+                                "t{}: {} rides out of {} to fetch provisions from {}.",
+                                tick, name, site.name, self.sites[ti].name
+                            ),
+                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)),
+                            ci,
+                        );
                     }
                 }
             }
@@ -997,9 +1035,27 @@ impl Game {
         let into = tick % 30;
         let stay_from = if into <= routine::MARKET_DAY { tick - into + routine::MARKET_DAY } else { tick };
         self.sites[si].away_until = Some(stay_from + MARKET_STAY);
-        let name = self.villagers.iter().position(|&x| x == who).map(vill_name).unwrap_or("a carter");
-        self.log_entity(who, format!("t{}: {}'s cart comes in from {}{}.", tick, name, site.name,
-            if load > 0 { format!(" with {} to sell at the market", load) } else { String::new() }));
+        let name = self
+            .villagers
+            .iter()
+            .position(|&x| x == who)
+            .map(vill_name)
+            .unwrap_or("a carter");
+        self.log_entity_ev(
+            EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+            who,
+            format!(
+                "t{}: {}'s cart comes in from {}{}.",
+                tick,
+                name,
+                site.name,
+                if load > 0 {
+                    format!(" with {} to sell at the market", load)
+                } else {
+                    String::new()
+                }
+            ),
+        );
     }
 
     /// The steward at the town granary: loads what the castle needs
@@ -1089,17 +1145,31 @@ impl Game {
             let purse = self.world.get_component::<Purse>(runner).map(|p| p.gold).unwrap_or(0.0);
             let pay = assessment.min(purse);
             if pay < 1.0 { continue; }
-            let Some(door) = self.sites[liege].homes.first()
+            // a grange's assessment goes to the mother house, not the castle
+            let to = self.sites[si].mother.unwrap_or(liege);
+            let Some(door) = self.sites[to].homes.first()
                 .and_then(|&k| self.world.get_component::<Pos>(k).copied())
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)) else { continue };
             // coin out of the purse before the wheel turns - a train lost
             // on the road is a loss the books already carry
             if let Some(p) = self.world.get_component_mut::<Purse>(runner) { p.gold -= pay; }
-            if self.send_far(runner, door, Goal::Owe(si, liege, pay)) {
-                let name = self.villagers.iter().position(|&x| x == runner).map(vill_name).unwrap_or("the headman");
-                self.log.push(format!("t{}: {} rides out of {} with {:.0} gold for {}.", tick, name,
-                    self.sites[si].name, pay, self.sites[liege].name));
-            } else if let Some(p) = self.world.get_component_mut::<Purse>(runner) { p.gold += pay; }
+            if self.send_far(runner, door, Goal::Owe(si, to, pay)) {
+                let name = self
+                    .villagers
+                    .iter()
+                    .position(|&x| x == runner)
+                    .map(vill_name)
+                    .unwrap_or("the headman");
+                self.log.push_ev(
+                    EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: {} rides out of {} with {:.0} gold for {}.",
+                        tick, name, self.sites[si].name, pay, self.sites[to].name
+                    ),
+                );
+            } else if let Some(p) = self.world.get_component_mut::<Purse>(runner) {
+                p.gold += pay;
+            }
         }
         // down: each castle answers its tributaries with grain and iron,
         // and its blades ride escort
@@ -1137,7 +1207,7 @@ impl Game {
                         .take(2).collect();
                     for g in guards { let _ = self.send_far(g, door, Goal::Escort(ci, ti)); }
                     let name = self.villagers.iter().position(|&x| x == runner).map(vill_name).unwrap_or("the lord");
-                    self.log.push(format!("t{}: {}'s gift train rides from {} to {} - wheat and tools for the stores.", tick, name,
+                    self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: {}'s gift train rides from {} to {} - wheat and tools for the stores.", tick, name,
                         self.sites[ci].name, self.sites[ti].name));
                 } else {
                     if let Some(s) = self.world.get_component_mut::<Satchel>(runner) {
@@ -1157,8 +1227,13 @@ impl Game {
             if surplus < 10.0 { continue; }
             self.sites[ci].treasury -= surplus;
             let style = self.sites[ci].title.unwrap_or("the lord");
-            self.log.push(format!("t{}: {} of {} sends {:.0} gold up to the crown.", tick, style,
-                self.sites[ci].name, surplus));
+            self.log.push_ev(
+                EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: {} of {} sends {:.0} gold up to the crown.",
+                    tick, style, self.sites[ci].name, surplus
+                ),
+            );
         }
     }
 
@@ -1176,10 +1251,20 @@ impl Game {
                 }
             }
         }
-        if let Some(s) = self.sites.get_mut(to) { s.treasury += gold; }
-        let (from_name, to_name) = (self.sites.get(from).map(|s| s.name).unwrap_or("a holding"),
-            self.sites.get(to).map(|s| s.name).unwrap_or("the keep"));
-        self.log.push(format!("t{}: {}'s tribute comes into {} - {:.0} gold for the treasury.", self.tick, from_name, to_name, gold));
+        if let Some(s) = self.sites.get_mut(to) {
+            s.treasury += gold;
+        }
+        let (from_name, to_name) = (
+            self.sites.get(from).map(|s| s.name).unwrap_or("a holding"),
+            self.sites.get(to).map(|s| s.name).unwrap_or("the keep"),
+        );
+        self.log.push_ev(
+            EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+            format!(
+                "t{}: {}'s tribute comes into {} - {:.0} gold for the treasury.",
+                self.tick, from_name, to_name, gold
+            ),
+        );
         let home = household::home_of(&self.world, who);
         let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
             .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
@@ -1207,12 +1292,24 @@ impl Game {
                 if let Some(n) = s.goods.remove(good) { counts.push((good, n)); }
             }
         }
-        let gold: f32 = counts.iter()
-            .map(|&(g, n)| goods::worth_at(&self.world, g) * n as f32).sum();
-        if let Some(s) = self.sites.get_mut(to) { s.treasury += gold; }
-        let (from_name, to_name) = (self.sites.get(from).map(|s| s.name).unwrap_or("the castle"),
-            self.sites.get(to).map(|s| s.name).unwrap_or("the holding"));
-        self.log.push(format!("t{}: {}'s gift train comes into {} - {:.0} gold for the treasury.", self.tick, from_name, to_name, gold));
+        let gold: f32 = counts
+            .iter()
+            .map(|&(g, n)| goods::worth_at(&self.world, g) * n as f32)
+            .sum();
+        if let Some(s) = self.sites.get_mut(to) {
+            s.treasury += gold;
+        }
+        let (from_name, to_name) = (
+            self.sites.get(from).map(|s| s.name).unwrap_or("the castle"),
+            self.sites.get(to).map(|s| s.name).unwrap_or("the holding"),
+        );
+        self.log.push_ev(
+            EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+            format!(
+                "t{}: {}'s gift train comes into {} - {:.0} gold for the treasury.",
+                self.tick, from_name, to_name, gold
+            ),
+        );
         let home = household::home_of(&self.world, who);
         let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
             .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
@@ -1493,8 +1590,15 @@ impl Game {
             }
             if let Some((bx, by)) = spot {
                 self.country_building(kind, name.clone(), bx, by);
-                self.log.push(format!("t{}: {} rises at {} - the lord's gold buys {}.", tick, name, site.1, flavor));
-                self.toasts.push(("the lord's work stands".into(), tick + 40));
+                self.log.push_ev(
+                    EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: {} rises at {} - the lord's gold buys {}.",
+                        tick, name, site.1, flavor
+                    ),
+                );
+                self.toasts
+                    .push(("the lord's work stands".into(), tick + 40));
             }
         }
         // the spend: every castle that can afford a work and needs one
@@ -1524,7 +1628,13 @@ impl Game {
             };
             self.sites[si].treasury -= work.1;
             self.lord_works.push((si, work.0, tick + 5));
-            self.log.push(format!("t{}: rumor of the lord's works - {}'s treasury pays, and the crews will come.", tick, name));
+            self.log.push_ev(
+                EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: rumor of the lord's works - {}'s treasury pays, and the crews will come.",
+                    tick, name
+                ),
+            );
         }
     }
 }
@@ -1533,7 +1643,14 @@ impl Game {
 /// come last in a lean winter - the matriarch's the queen
 #[derive(Clone, Debug)]
 pub struct Sisterhood {
+    /// The choir: the sworn, first at the table and in the office
     pub members: Vec<Entity>,
+    /// The conversi: the lay brothers whose labor the house runs on -
+    /// the order's two-tier membership (#988)
+    pub lay: Vec<Entity>,
     pub leader: Entity,
     pub charter: String,
+    /// How appetizing the house has grown to a cash-strapped power:
+    /// the richer the order, the nearer the seizure (#988)
+    pub risk: f32,
 }

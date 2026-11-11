@@ -12,14 +12,15 @@ pub struct FunAssessment {
     pub verdict: String,
 }
 
+/// The rubric's six dimensions (wiki/fun-rubric.md), each 1-5.
 #[derive(Debug)]
 pub struct FunScores {
-    pub tension: u8,        // 1-5
-    pub progress: u8,
-    pub surprise: u8,
-    pub care: u8,
-    pub decisions: u8,
-    pub retention: u8,
+    pub legibility: u8,     // could the player tell why things happened
+    pub presence: u8,       // did events visibly happen on the map
+    pub earned_progress: u8, // did the player's reach grow
+    pub rhythm: u8,         // buildup/climax/breather, not metronome or void
+    pub attachment: u8,     // did specific villagers' outcomes matter
+    pub stakes: u8,         // did decisions carry a price
 }
 
 /// Fun Inspector agent
@@ -38,8 +39,8 @@ impl FunInspector {
 
     /// Score a playtest against the rubric
     pub fn assess(&self, session_id: &str, scores: FunScores, fun: Vec<String>, grind: Vec<String>) -> FunAssessment {
-        let avg = (scores.tension + scores.progress + scores.surprise
-            + scores.care + scores.decisions + scores.retention) as f32 / 6.0;
+        let avg = (scores.legibility + scores.presence + scores.earned_progress
+            + scores.rhythm + scores.attachment + scores.stakes) as f32 / 6.0;
         let verdict = if avg >= 4.0 { "Fun - keep it up" }
             else if avg >= 3.0 { "Decent - needs work" }
             else if avg >= 2.0 { "Meh - grind detected" }

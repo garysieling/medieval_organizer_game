@@ -15,6 +15,12 @@ tungstenite = "0.26"
 # No external dependencies for simplicity
 # Using std library only
 
+# wasm32's std has no clock (Instant::now panics): web-time gives the
+# same Instant off performance.now() in a browser. Perf marks and
+# telemetry spans call Instant unconditionally in the frame path.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-time = "1.1"
+
 [lints.rust]
 # warnings are errors: keep the build clean
 warnings = "deny"

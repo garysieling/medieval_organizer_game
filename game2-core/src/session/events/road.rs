@@ -2,6 +2,11 @@
 //! Each fn here holds this family's arms of one handler in events/mod.rs.
 
 use super::*;
+use crate::session::WindowWork;
+use crate::session::country::Outlander;
+
+/// The glazier's price for the church's window (#789)
+const WINDOW_COST: f32 = 30.0;
 
 impl Game {
     /// road: the `event_day` arms for this group (the rest fall to the default)
@@ -319,7 +324,14 @@ impl Game {
                             h.condition = (h.condition - 0.05).max(0.01);
                         }
                         self.say(v, "He bit me!", CHAT_BUBBLE_SECS);
-                        self.log_entity(v, format!("t{}: the bear took a snap at the crowd - a story for years.", self.tick));
+                        self.log_entity_ev(
+                            EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                            v,
+                            format!(
+                                "t{}: the bear took a snap at the crowd - a story for years.",
+                                self.tick
+                            ),
+                        );
                     }
                 }
             }
@@ -747,6 +759,75 @@ impl Game {
                     }
                     glazed += 1;
                 }
+                // the church window (#789): while he's here the parish
+                // passes the hat, then he works the bench - cut, paint,
+                // fire, lead, hang, a stage a day
+                if self.church.is_none() { return; }
+                match self.window.as_mut() {
+                    None => {
+                        self.window = Some(WindowWork {
+                            fund: 0.0,
+                            stage: 0,
+                            cracked: false,
+                            installed: false,
+                        });
+                        self.log.push_ev(
+                            EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                            format!(
+                                "t{}: {} offers the church a window - the parish passes the hat.",
+                                tick,
+                                spec(id).name
+                            ),
+                        );
+                    }
+                    Some(w) if w.installed => {}
+                    Some(w) if w.stage == 0 => {
+                        // the hat goes round the parish - the country
+                        // folk aren't the church's flock: each purse
+                        // gives what it can, and what the village raises
+                        // past the price buys the finer glass
+                        for &v in &self.villagers.clone() {
+                            if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                            if self.world.get_component::<Outlander>(v).is_some() { continue; }
+                            if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                                let give = 2.0f32.min(p.gold - 4.0);
+                                if give > 0.0 { p.gold -= give; w.fund += give; }
+                            }
+                        }
+                        if w.fund >= WINDOW_COST {
+                            w.stage = 1;
+                            self.log.push_ev(
+                                EvTag::new(Thread::Craft, Valence::Positive, Sev::Minor),
+                                format!(
+                                    "t{}: the hat's made {:.0} gold - {} takes the bench.",
+                                    tick,
+                                    w.fund,
+                                    spec(id).name
+                                ),
+                            );
+                        }
+                    }
+                    Some(w) => {
+                        // a stage a day; a thin purse's cheap glass can
+                        // crack in the firing - once, then it's relit
+                        if w.stage == 3 && !w.cracked && w.fund < WINDOW_COST * 1.5 {
+                            w.cracked = true;
+                            self.log.push_ev(
+                                EvTag::new(Thread::Craft, Valence::Negative, Sev::Minor),
+                                format!(
+                                    "t{}: a panel cracked in the firing - the kiln's relit.",
+                                    tick
+                                ),
+                            );
+                        } else {
+                            w.stage += 1;
+                            if w.stage > 5 {
+                                w.installed = true;
+                                self.log.push_ev(EvTag::new(Thread::Craft, Valence::Positive, Sev::Notable), format!("t{}: the window's hung - the light through it preaches better than the pulpit.", tick));
+                            }
+                        }
+                    }
+                }
             }
             EventId::Thatcher => {
                 // roofs patched before the rain finds you: one home a
@@ -849,7 +930,7 @@ impl Game {
                 if warned { return; }
                 let pitch = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at)
                     .map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5));
-                self.log.push_at_who(format!("t{}: the astrologer sells his pages - a coin a leaf for a word on the season's sky.", tick), pitch, None);
+                self.log.push_ev_at_who(EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor), format!("t{}: the astrologer sells his pages - a coin a leaf for a word on the season's sky.", tick), pitch, None);
                 // forearmed: a day's warning's a kind of security for near folk
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 for &v in &self.villagers.clone() {
@@ -1192,13 +1273,35 @@ impl Game {
                 let Some(&v) = able.get((self.rare_roll(id) as usize / 7) % able.len().max(1)) else { return };
                 if self.rare_roll(id) % 5 != 0 {
                     desires::satisfy(&mut self.world, v, Want::Joy, tick + 20);
-                    self.say(v, "A letter for you - your sister's well!", CHAT_BUBBLE_SECS);
-                    self.log_entity(v, format!("t{}: a messenger rides in - a letter, and glad word with it.", tick));
+                    self.say(
+                        v,
+                        "A letter for you - your sister's well!",
+                        CHAT_BUBBLE_SECS,
+                    );
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Visitor, Valence::Positive, Sev::Notable),
+                        v,
+                        format!(
+                            "t{}: a messenger rides in - a letter, and glad word with it.",
+                            tick
+                        ),
+                    );
                 } else {
                     // the word a man never wants - grief, not stock gone
                     desires::add_grievance(&mut self.world, v, desires::Problem::Grief, tick + 30);
-                    self.say(v, "A letter for you - I'm sorry to carry it.", CHAT_BUBBLE_SECS);
-                    self.log_entity(v, format!("t{}: a messenger rides in - the letter brings no joy.", tick));
+                    self.say(
+                        v,
+                        "A letter for you - I'm sorry to carry it.",
+                        CHAT_BUBBLE_SECS,
+                    );
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Visitor, Valence::Negative, Sev::Notable),
+                        v,
+                        format!(
+                            "t{}: a messenger rides in - the letter brings no joy.",
+                            tick
+                        ),
+                    );
                 }
                 if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = 1; }
             }
@@ -1261,14 +1364,30 @@ impl Game {
                 if let Some((_, due)) = self.next_rare.iter_mut().find(|(i, _)| *i == EventId::ChimneyFire) {
                     *due = (*due).max(tick + 150);
                 }
-                self.log.push_at_who(format!("t{}: every flue's clean to the cap - the sweep earned his soot.", tick), pitch, None);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: every flue's clean to the cap - the sweep earned his soot.",
+                        tick
+                    ),
+                    pitch,
+                    None,
+                );
             }
             EventId::RatCatcher => {
                 // a cleared larder holds: the rat plague's far off
                 if let Some((_, due)) = self.next_rare.iter_mut().find(|(i, _)| *i == EventId::RatPlague) {
                     *due = (*due).max(tick + 150);
                 }
-                self.log.push_at_who(format!("t{}: a sack of rats for the road - the larder breathes easier.", tick), pitch, None);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: a sack of rats for the road - the larder breathes easier.",
+                        tick
+                    ),
+                    pitch,
+                    None,
+                );
             }
             EventId::Dowser => {
                 // the forked stick dips or it doesn't - when it does, a
@@ -1276,10 +1395,28 @@ impl Game {
                 // he left (it feeds them, mind: a drowned pit yields no
                 // stone, so the mark's never on the pit itself)
                 if self.rare_roll(id) % 4 == 0 {
-                    self.log.push_at_who(format!("t{}: the stick never dipped - dry ground all round, says the diviner.", tick), pitch, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: the stick never dipped - dry ground all round, says the diviner.",
+                            tick
+                        ),
+                        pitch,
+                        None,
+                    );
                 } else {
-                    for g in self.gardens.iter_mut() { g.2 = (g.2 + 0.3).min(1.0); }
-                    self.log.push_at_who(format!("t{}: water sings under the meadow - the gardens drink it in.", tick), pitch, None);
+                    for g in self.gardens.iter_mut() {
+                        g.2 = (g.2 + 0.3).min(1.0);
+                    }
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
+                        format!(
+                            "t{}: water sings under the meadow - the gardens drink it in.",
+                            tick
+                        ),
+                        pitch,
+                        None,
+                    );
                 }
             }
             EventId::Recruiter => {
@@ -1311,9 +1448,25 @@ impl Game {
                             }
                         }
                         self.world.destroy_entity(v);
-                        self.log.push_at_who(format!("t{}: the levy took the youngest - they marched off at dawn.", tick), pitch, None);
+                        self.log.push_ev_at_who(
+                            EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                            format!(
+                                "t{}: the levy took the youngest - they marched off at dawn.",
+                                tick
+                            ),
+                            pitch,
+                            None,
+                        );
                     }
-                    _ => self.log.push_at_who(format!("t{}: the drum got no one - the village kept its young.", tick), pitch, None),
+                    _ => self.log.push_ev_at_who(
+                        EvTag::new(Thread::Law, Valence::Positive, Sev::Minor),
+                        format!(
+                            "t{}: the drum got no one - the village kept its young.",
+                            tick
+                        ),
+                        pitch,
+                        None,
+                    ),
                 }
             }
             EventId::Deserter => {
@@ -1321,9 +1474,17 @@ impl Game {
                 // hard behind him - the next one lands double
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 {
                     self.repression_debt += 1;
-                    self.log.push_at_who(format!("t{}: riders asking after a deserter - a writ for harboring comes hard behind.", tick), pitch, None);
+                    self.log.push_ev_at_who(EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable), format!("t{}: riders asking after a deserter - a writ for harboring comes hard behind.", tick), pitch, None);
                 } else {
-                    self.log.push_at_who(format!("t{}: the deserter melted off at dawn - no one saw anything.", tick), pitch, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: the deserter melted off at dawn - no one saw anything.",
+                            tick
+                        ),
+                        pitch,
+                        None,
+                    );
                 }
             }
             EventId::CharcoalBurner => {
@@ -1337,7 +1498,7 @@ impl Game {
                         household::add_stock(b, "coal", 20);
                     }
                 }
-                self.log.push_at_who(format!("t{}: the charcoal burner broke his heap - he left twenty good sacks of coal.", tick), pitch, None);
+                self.log.push_ev_at_who(EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor), format!("t{}: the charcoal burner broke his heap - he left twenty good sacks of coal.", tick), pitch, None);
             }
             EventId::WellDigger => {
                 // sweet water, not the pond's: the sour gut clears
@@ -1350,13 +1511,21 @@ impl Game {
                 for g in self.gardens.iter_mut() {
                     g.2 += 0.05;
                 }
-                self.log.push_at_who(format!("t{}: the well-digger's shaft struck sweet water - the pond's days are done.", tick), pitch, None);
+                self.log.push_ev_at_who(EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor), format!("t{}: the well-digger's shaft struck sweet water - the pond's days are done.", tick), pitch, None);
             }
             EventId::RefugeeFamily => {
                 // fed and rested, the road's still a hard bed: some put
                 // down roots where they camped - two more beds for it
                 if self.rare_roll(id) % 3 == 0 {
-                    self.log.push_at_who(format!("t{}: the refugee family moved on at dawn - the road took them north.", tick), pitch, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: the refugee family moved on at dawn - the road took them north.",
+                            tick
+                        ),
+                        pitch,
+                        None,
+                    );
                 } else {
                     // their faces are the roll's own: a temp stream off
                     // the event seed, the village's rng keeps its luck
@@ -1396,8 +1565,15 @@ impl Game {
                         self.was_sick.push(None);
                         self.died_on.push(None);
                     }
-                    self.log.push_at_who(format!("t{}: the refugee family stayed - two more beds in the village.", tick),
-                        Some((x, y)), self.villagers.len().checked_sub(2));
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
+                        format!(
+                            "t{}: the refugee family stayed - two more beds in the village.",
+                            tick
+                        ),
+                        Some((x, y)),
+                        self.villagers.len().checked_sub(2),
+                    );
                 }
             }
             _ => {}

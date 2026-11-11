@@ -91,7 +91,11 @@ fn test_log_meta_stays_aligned_through_the_roll() {
 #[test]
 fn test_a_villager_event_reaches_the_view_with_where_and_who() {
     let mut game = Game::new();
-    game.log_villager(2, "t9: Bram is taken with la grippe".into());
+    game.log_villager_ev(
+        EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
+        2,
+        "t9: Bram is taken with la grippe".into(),
+    );
     game.log.push_at("t9: fire on the meadow".into(), (8.0, 9.0));
     game.log.push("t9: the rain stops".into());
     let m = game.ui_model_at(0);

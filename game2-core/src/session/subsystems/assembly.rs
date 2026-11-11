@@ -29,9 +29,17 @@ impl Game {
                     && tick.saturating_sub(a.last_held) >= a.cadence_days)
                 .unwrap_or(false);
             if due {
-                if let Some(questions) = crate::game::campaign::announce_assembly(&mut self.world, c, tick) {
-                    self.log.push(format!("t{}: the accountability assembly is called - the agenda's posted: {}.",
-                        tick, questions.join("; ")));
+                if let Some(questions) =
+                    crate::game::campaign::announce_assembly(&mut self.world, c, tick)
+                {
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                        format!(
+                            "t{}: the accountability assembly is called - the agenda's posted: {}.",
+                            tick,
+                            questions.join("; ")
+                        ),
+                    );
                 }
             }
             // sit once the published agenda's had its days
@@ -39,25 +47,56 @@ impl Game {
                 let names: Vec<String> = out.attendees.iter()
                     .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
                     .collect();
-                self.log.push(format!("t{}: the assembly sits - {} answer the call; the leader's yes and no go on record.",
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), format!("t{}: the assembly sits - {} answer the call; the leader's yes and no go on record.",
                     tick, names.join(", ")));
                 for p in &out.pledges {
-                    self.log.push(format!("t{}: asked \"{}\" the leader says {}.",
-                        tick, p.question, if p.answer { "yes" } else { "no" }));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: asked \"{}\" the leader says {}.",
+                            tick,
+                            p.question,
+                            if p.answer { "yes" } else { "no" }
+                        ),
+                    );
                 }
                 // a member's testimony can amend the leader's word
                 // before it's inked - the record shows who checked it
                 for (who, question) in &out.challenges {
-                    let name = self.villagers.iter().position(|v| v == who)
-                        .map(|i| vill_name(i).to_string()).unwrap_or_default();
-                    self.log.push(format!("t{}: {} challenges the answer on \"{}\" - the record's amended.",
-                        tick, name, question));
+                    let name = self
+                        .villagers
+                        .iter()
+                        .position(|v| v == who)
+                        .map(|i| vill_name(i).to_string())
+                        .unwrap_or_default();
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: {} challenges the answer on \"{}\" - the record's amended.",
+                            tick, name, question
+                        ),
+                    );
                 }
             }
             // read the pledges whose deadlines have come
             for v in crate::game::campaign::resolve_pledges(&mut self.world, c, tick) {
-                self.log.push(format!("t{}: the pledge {} - \"{}\"",
-                    tick, if v.kept { "held" } else { "broke" }, v.question));
+                self.log.push_ev(
+                    EvTag::new(
+                        Thread::Org,
+                        if v.kept {
+                            Valence::Positive
+                        } else {
+                            Valence::Negative
+                        },
+                        Sev::Notable,
+                    ),
+                    format!(
+                        "t{}: the pledge {} - \"{}\"",
+                        tick,
+                        if v.kept { "held" } else { "broke" },
+                        v.question
+                    ),
+                );
             }
         }
     }

@@ -181,6 +181,19 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
             s.status.push(crate::sim::factions::fact_of(f.kind));
         }
     }
+    // and what the life's made of them: the soul's not a score anyone
+    // reads, but a marked one carries a name the talk can take up (#950)
+    if let Some(vs) = world.get_component::<crate::game::virtue::Virtues>(who) {
+        use crate::game::virtue::Virtue::*;
+        let words = [(Charity, "kind_soul"), (Justice, "upright"), (Temperance, "steady"),
+            (Prudence, "shrewd"), (Faith, "devout"), (Hope, "hopeful"), (Courage, "bold")];
+        if vs.get(Charity) <= 0.30 { s.status.push("hard"); }
+        else if let Some(&(_, w)) = words.iter()
+            .max_by(|a, b| vs.get(a.0).partial_cmp(&vs.get(b.0)).unwrap_or(std::cmp::Ordering::Equal))
+            .filter(|(k, _)| vs.get(*k) >= 0.65) {
+            s.status.push(w);
+        }
+    }
     s
 }
 

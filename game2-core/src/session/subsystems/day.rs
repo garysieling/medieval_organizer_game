@@ -42,7 +42,10 @@ impl Game {
                 if let Some(n) = s.goods.get_mut(&good) { *n -= 1; if *n == 0 { s.goods.remove(&good); } }
             }
             if let Some(h) = self.world.get_component_mut::<Hunger>(pe) { h.value = (h.value + fill).min(100.0); }
-            self.log.push(format!("t{}: you eat the {} from your satchel.", tick, good));
+            self.log.push_ev(
+                EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                format!("t{}: you eat the {} from your satchel.", tick, good),
+            );
         }
         // an organizer's founding call that goes unanswered too long lapses
         // on its own, same as "let it rest" - otherwise a seat with no
@@ -54,8 +57,18 @@ impl Game {
                 .unwrap_or(false);
             if stale {
                 let d = self.seats[seat].pending_founding.take().unwrap();
-                self.log.push(format!("t{}: the talk stays talk for now - no cause taken up.", tick));
-                self.note_talk(d.record, None, "The talk stays talk for now - no cause taken up.");
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: the talk stays talk for now - no cause taken up.",
+                        tick
+                    ),
+                );
+                self.note_talk(
+                    d.record,
+                    None,
+                    "The talk stays talk for now - no cause taken up.",
+                );
             }
         }
         // a called meeting's day arrives: the door rolls at the hour -
@@ -69,13 +82,26 @@ impl Game {
             let lost = plan.venue.map(|(h, b)| crate::game::villager::is_dead(&self.world, h)
                 || self.world.get_component::<Pos>(b).is_none()).unwrap_or(false);
             if lost {
-                self.world.remove_component::<crate::game::organizing::MeetingPlan>(oe);
-                self.log.push(format!("t{}: the meeting's off - the house that was to hold it is gone.", tick));
+                self.world
+                    .remove_component::<crate::game::organizing::MeetingPlan>(oe);
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Negative, Sev::Minor),
+                    format!(
+                        "t{}: the meeting's off - the house that was to hold it is gone.",
+                        tick
+                    ),
+                );
                 continue;
             }
             if self.meeting.is_some() { continue; }
+            if self.meeting.is_some() {
+                continue;
+            }
             let msg = self.call_meeting_at(seat);
-            self.log.push(format!("t{}: {}", tick, msg));
+            self.log.push_ev(
+                EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                format!("t{}: {}", tick, msg),
+            );
         }
         // a date question nobody answers lapses like any unanswered call
         for seat in 0..self.seats.len() {
@@ -95,7 +121,7 @@ impl Game {
                 let earned = crate::game::player::market_day(&mut self.world,
                     self.seats[seat].player, self.seats[seat].org);
                 if earned > 0.0 {
-                    self.log.push(format!("t{}: market day - the org sells its members' work; {:.0} gold to the purse.", tick, earned));
+                    self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable), format!("t{}: market day - the org sells its members' work; {:.0} gold to the purse.", tick, earned));
                 }
             }
         }
@@ -110,25 +136,47 @@ impl Game {
             if self.world.get_component::<Building>(*e).map(household::derelict).unwrap_or(false) {
                 self.derelict.insert(i);
                 if !was_derelict.contains(&i) {
-                    let name = self.world.get_component::<Building>(*e)
-                        .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
-                    self.log.push_at_who(format!("t{}: {} stands derelict - nobody works it.", tick, name),
-                        toast_spot(&self.world, *e), None);
+                    let name = self
+                        .world
+                        .get_component::<Building>(*e)
+                        .map(|b| b.name.clone())
+                        .unwrap_or_else(|| "a house".into());
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Economy, Valence::Negative, Sev::Minor),
+                        format!("t{}: {} stands derelict - nobody works it.", tick, name),
+                        toast_spot(&self.world, *e),
+                        None,
+                    );
                 }
             }
         }
         // word rides a few days ahead of whoever's on the road
         if tick + 3 == self.next_minstrel {
-            self.log.push(format!("t{}: word is a minstrel's on the road.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                format!("t{}: word is a minstrel's on the road.", tick),
+            );
         }
         if tick + 3 == self.next_pedlar {
-            self.log.push(format!("t{}: word is the pedlar's due with the gossip.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                format!("t{}: word is the pedlar's due with the gossip.", tick),
+            );
         }
         if tick + 3 == self.next_circus {
-            self.log.push(format!("t{}: word is a circus camps outside the walls come the week's end.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: word is a circus camps outside the walls come the week's end.",
+                    tick
+                ),
+            );
         }
         if tick + 3 == self.next_ink_boiler {
-            self.log.push(format!("t{}: word is the ink-maker's coming to boil his oil.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                format!("t{}: word is the ink-maker's coming to boil his oil.", tick),
+            );
         }
         // a minstrel rides in every so often
         if self.minstrel.is_none() && tick >= self.next_minstrel { self.spawn_minstrel(); }
@@ -170,9 +218,18 @@ impl Game {
                             o.resources += fees;
                         }
                         remit -= fees;
-                        let name = self.world.get_component::<Organization>(f)
-                            .map(|o| o.name.clone()).unwrap_or_else(|| "the market".into());
-                        self.log.push(format!("t{}: the stalls' fees stay in the market - {:.0} gold to {}.", tick, fees, name));
+                        let name = self
+                            .world
+                            .get_component::<Organization>(f)
+                            .map(|o| o.name.clone())
+                            .unwrap_or_else(|| "the market".into());
+                        self.log.push_ev(
+                            EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                            format!(
+                                "t{}: the stalls' fees stay in the market - {:.0} gold to {}.",
+                                tick, fees, name
+                            ),
+                        );
                     }
                 }
                 // the cause's own refusal: a taxes-grant carried home
@@ -189,11 +246,11 @@ impl Game {
                         if let Some(o) = self.world.get_component_mut::<Organization>(oe) { o.resources += kept; }
                         remit -= kept;
                         self.lord_flow = (self.lord_flow - 0.2).max(0.0);
-                        self.log.push(format!("t{}: the books hold back what the grant won - {:.0} gold stays with the cause.", tick, kept));
+                        self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: the books hold back what the grant won - {:.0} gold stays with the cause.", tick, kept));
                     }
                 }
                 self.takings = 0.0;
-                self.log.push(format!("t{}: the collector rides to the castle - {:.0} gold of the lord's cut goes over the wall.", tick, remit));
+                self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Minor), format!("t{}: the collector rides to the castle - {:.0} gold of the lord's cut goes over the wall.", tick, remit));
                 // and he rides it there himself: the road to the nearest
                 // keep, a meal at its store, and the long way home
                 let cp = self.world.get_component::<Pos>(c).map(|p| (p.x, p.y));
@@ -694,9 +751,29 @@ impl Game {
                 let title = self.world.get_component::<Craft>(v)
                     .map(|c| format!("{} {}", lvl, vocation::vocation_name(c.vocation)))
                     .unwrap_or_else(|| lvl.to_string());
-                self.toasts.push_at((format!("{} is now {} {}!", vill_name(i), vocation::article(&title), title), tick + 30),
-                    toast_spot(&self.world, v));
-                self.log_villager(i, format!("t{}: {} is now {} {}.", tick, vill_name(i), vocation::article(&title), title));
+                self.toasts.push_at(
+                    (
+                        format!(
+                            "{} is now {} {}!",
+                            vill_name(i),
+                            vocation::article(&title),
+                            title
+                        ),
+                        tick + 30,
+                    ),
+                    toast_spot(&self.world, v),
+                );
+                self.log_villager_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                    i,
+                    format!(
+                        "t{}: {} is now {} {}.",
+                        tick,
+                        vill_name(i),
+                        vocation::article(&title),
+                        title
+                    ),
+                );
             }
         }
         drop(folk);
@@ -767,7 +844,10 @@ impl Game {
         if let Some(next) = crate::game::tech_tree::next_researchable(&self.tech).map(str::to_string) {
             if crate::game::tech_tree::research(&mut self.tech, &next, hands) {
                 // a discovery: the bench worked it out - the village hears
-                self.log.push(format!("t{}: the print shop works out {}!", tick, next));
+                self.log.push_ev(
+                    EvTag::new(Thread::Craft, Valence::Positive, Sev::Notable),
+                    format!("t{}: the print shop works out {}!", tick, next),
+                );
             }
         }
     }
@@ -830,8 +910,14 @@ impl Game {
         let after = self.world.get_component::<music::MusicState>(self.music)
             .map(|s| s.mood);
         if before != after {
-            self.log.push(format!("t{}: the village's tune turns - {} now.",
-                tick, music::recommend_mood(after.unwrap_or(music::Mood::Calm))));
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: the village's tune turns - {} now.",
+                    tick,
+                    music::recommend_mood(after.unwrap_or(music::Mood::Calm))
+                ),
+            );
             // the drop lands on the wire: the sound layer hears the turn
             let (cx, cy) = self.world.get_component::<Pos>(self.seats[0].player)
                 .map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
@@ -875,7 +961,12 @@ impl Game {
                 Weather::Frost => Some("a hard frost grips the fields"),
                 Weather::Clear => None,
             };
-            if let Some(w) = word { self.log.push(format!("t{}: {}.", tick, w)); }
+            if let Some(w) = word {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", tick, w),
+                );
+            }
             // a storm takes a standing hall with it
             if next == Weather::Storm {
                 for seat in 0..self.seats.len() {
@@ -885,7 +976,15 @@ impl Game {
                             .map(|o| o.name.clone()).unwrap_or_default();
                         let hall = household::home_of(&self.world, self.player)
                             .and_then(|h| toast_spot(&self.world, h));
-                        self.log.push_at_who(format!("t{}: the storm takes {}'s roof - the hall's unfit to meet in.", tick, oname), hall, None);
+                        self.log.push_ev_at_who(
+                            EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable),
+                            format!(
+                                "t{}: the storm takes {}'s roof - the hall's unfit to meet in.",
+                                tick, oname
+                            ),
+                            hall,
+                            None,
+                        );
                     }
                 }
             }
@@ -926,10 +1025,21 @@ impl Game {
             let d = magic::ingest_text(&mut self.grimoire, src, domain, strength);
             let use_ = magic::magic_effects(domain).first().copied().unwrap_or("useful lore");
             match priest {
-                Some(p) => self.log_entity(p, format!("t{}: the priest's reading turns up {} - the parish learns to {}.",
-                    tick, d.name, use_)),
-                None => self.log.push(format!("t{}: the priest's reading turns up {} - the parish learns to {}.",
-                    tick, d.name, use_)),
+                Some(p) => self.log_entity_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    p,
+                    format!(
+                        "t{}: the priest's reading turns up {} - the parish learns to {}.",
+                        tick, d.name, use_
+                    ),
+                ),
+                None => self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: the priest's reading turns up {} - the parish learns to {}.",
+                        tick, d.name, use_
+                    ),
+                ),
             }
         }
         // the parish physick: each healing practice the books taught
@@ -965,7 +1075,10 @@ impl Game {
                 .find(|(_, _, c)| **c == Cell::Tree).map(|(x, y, _)| (x, y)) {
                 self.forest.cells[y][x] = Cell::Burning;
                 ignited = true;
-                self.log.push(format!("t{}: fire breaks out in the wood!", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Fire, Valence::Negative, Sev::Notable),
+                    format!("t{}: fire breaks out in the wood!", tick),
+                );
             }
         }
         self.forest.step();
@@ -974,7 +1087,10 @@ impl Game {
         // same step - the end log still owes it a line
         was_burning |= ignited;
         if was_burning && !burning {
-            self.log.push(format!("t{}: the wood fire's out - bare for a while.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Fire, Valence::Neutral, Sev::Minor),
+                format!("t{}: the wood fire's out - bare for a while.", tick),
+            );
         }
         // the fuel price leans on the real wood's canopy - the mapped
         // stand the gatherers actually thin, not the automaton's grid

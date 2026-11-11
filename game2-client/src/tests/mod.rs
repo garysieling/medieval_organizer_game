@@ -51,4 +51,5 @@ mod title;
 mod toast;
 mod train;
 mod walk_anim;
+mod window;
 mod zoom;

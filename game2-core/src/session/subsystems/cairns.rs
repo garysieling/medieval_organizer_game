@@ -50,7 +50,13 @@ impl Game {
                 self.cairns.push(Cairn { pos: spot, honoree: i,
                     deed: format!("{} of {}", name, deed), stones: 1 });
                 self.map.occupy(spot.0, spot.1);
-                self.log.push(format!("t{}: a cairn rises for {} - the first stone's laid where folk walk.", tick, name));
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: a cairn rises for {} - the first stone's laid where folk walk.",
+                        tick, name
+                    ),
+                );
                 break;
             }
         }
@@ -89,9 +95,19 @@ impl Game {
                     crate::sim::psychology::Episode { with: honoree,
                         kind: crate::sim::psychology::EpisodeKind::Remembrance });
                 if passerby && self.rng.below(10) == 0 {
-                    let name = self.villagers.iter().position(|&x| x == v).map(vill_name).unwrap_or("a wayfarer");
-                    self.log.push(format!("t{}: {} lays a stone on the cairn - {} is not forgotten.",
-                        self.tick, name, self.cairns[ci].deed));
+                    let name = self
+                        .villagers
+                        .iter()
+                        .position(|&x| x == v)
+                        .map(vill_name)
+                        .unwrap_or("a wayfarer");
+                    self.log.push_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: {} lays a stone on the cairn - {} is not forgotten.",
+                            self.tick, name, self.cairns[ci].deed
+                        ),
+                    );
                 }
             }
         }

@@ -495,6 +495,15 @@ impl Game {
         }
         if self.seats[seat].selected_building.is_none() {
             let v = self.villagers[self.seats[seat].selected_target];
+            // a pick from too far to talk to was for a look - the way to
+            // them is its own button, so the name an introduction points
+            // at can be walked over to (#1066)
+            if self.seats[seat].picked && !self.seats[seat].pick_near
+                && self.seats[seat].approach.as_ref().map(|a| a.who) != Some(self.seats[seat].selected_target)
+                && !villager::is_dead(&self.world, v)
+                && !crate::game::dungeon::unavailable(&self.world, v) {
+                self.seats[seat].ctx_actions.push(CtxAct::GoTo);
+            }
             if self.world.get_component::<Kid>(v).is_some() {
                 self.seats[seat].ctx_actions.push(CtxAct::Errand);
             } else if let Some(c) = self.world.get_component::<Craft>(v) {
@@ -752,6 +761,12 @@ impl Game {
             return;
         }
         let msg = match act {
+            CtxAct::GoTo => {
+                // walk over and talk on arrival - the same path T takes
+                // on a near pick; None if they've drifted close already
+                self.start_approach_at(seat, self.seats[seat].selected_target, 0)
+                    .unwrap_or_else(|| format!("{} is already close by.", vill_name(self.seats[seat].selected_target)))
+            }
             CtxAct::Work => {
                 let pe = self.seats[seat].player;
                 let (voc, workplace, tasked_by) = self.world.get_component::<Craft>(pe)

@@ -387,6 +387,9 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::ShareFindings => Button { label: "Tell them what you know".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
         // a gift rides the card's bottom row between Seat and Strike
         CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
+        // the way to a far pick: a name pointed out across the village
+        // can be walked over to, and the talk happens on arrival (#1066)
+        CtxAct::GoTo => Button { label: "Go to them".into(), key: ' ', x: UI_X as i32 + 10, y: 422, w: 130, h: 16, color: (80, 110, 100) },
         // the sale shares the big row's left half with Gather's
         CtxAct::Buy => Button { label: "Buy".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (140, 120, 60) },
         // the kind hand shares Pet her's slot on the big row's right half

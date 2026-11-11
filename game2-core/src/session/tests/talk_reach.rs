@@ -19,6 +19,16 @@ fn test_talk_goes_to_whoever_is_beside_you_not_the_last_clicked() {
     assert!(talk.with.contains(&game.villagers[2]), "talked with {}", vill_name(2));
 }
 
+/// A tile the player can walk to, well past a shout (#1066)
+fn far_spot(game: &Game) -> (i32, i32) {
+    let (px, py) = game.player_pos();
+    let from = (px.round() as i32, py.round() as i32);
+    (0..game.map.height as i32).flat_map(|y| (0..game.map.width as i32).map(move |x| (x, y)))
+        .find(|&(x, y)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt() > SHOUT_DIST + 2.0
+            && game.map.walk_path(from, (x, y)).is_some())
+        .expect("somewhere far but reachable")
+}
+
 /// A villager the player can walk to who's out of talking distance but
 /// still within a shout - past it Talk wouldn't walk at all (#944)
 fn walkable_villager(game: &Game) -> usize {
@@ -105,6 +115,98 @@ fn test_recruit_is_hidden_until_a_campaign_exists() {
     assert_eq!(game.disabled_reason(1).as_deref(), Some("talk with them more"));
     game.world.add_component(game.villagers[who], crate::game::player::Rapport::for_player(game.player, 1.0));
     assert_eq!(game.disabled_reason(1), None);
+}
+
+#[test]
+fn test_a_far_pick_offers_go_to_them() {
+    // the villager an introduction points at can live across the village:
+    // T can't reach them, so the far pick offers the walk-over (#1066)
+    let mut game = Game::new();
+    let spot = far_spot(&game);
+    *game.world.get_component_mut::<Pos>(game.villagers[2]).unwrap() =
+        Pos { x: spot.0 as f32, y: spot.1 as f32 };
+    game.selected_target = 2;
+    game.picked = true;
+    game.pick_near = false;
+    game.update();
+    assert!(game.seats[0].ctx_actions.contains(&CtxAct::GoTo), "Go to them on a far pick");
+    assert!(game.ui_model().ctx.contains(&CtxAct::GoTo), "and on the wire");
+}
+
+#[test]
+fn test_go_to_them_walks_over_then_talks() {
+    // the button takes the same walk-over T does inside a shout: the
+    // player goes to them and the talk opens on arrival (#1066)
+    let mut game = Game::new();
+    while game.tick < 3 { game.update(); }
+    let spot = far_spot(&game);
+    let (px, py) = game.player_pos();
+    for (i, v) in game.villagers.clone().into_iter().enumerate() {
+        *game.world.get_component_mut::<Pos>(v).unwrap() = if i == 2 {
+            Pos { x: spot.0 as f32, y: spot.1 as f32 }
+        } else {
+            Pos { x: px + 40.0 + i as f32, y: py + 40.0 }
+        };
+    }
+    game.selected_target = 2;
+    game.picked = true;
+    game.pick_near = false;
+    game.update();
+    let i = game.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::GoTo)
+        .expect("Go to them on a far pick");
+    let v = game.villagers[2];
+    let talks = |g: &Game| g.world.get_component::<TalkCount>(v).map(|c| c.value).unwrap_or(0);
+    let before = talks(&game);
+
+    game.command(Command::CtxAct(i));
+    assert_eq!(game.approach.as_ref().map(|a| a.who), Some(2), "walking over to them");
+    // and the button's tucked away while the walk's under way
+    game.update();
+    assert!(!game.seats[0].ctx_actions.contains(&CtxAct::GoTo), "already on the way");
+
+    for _ in 0..(90 * FPS) {
+        if game.approach.is_none() { break; }
+        game.update();
+    }
+    assert!(game.approach.is_none(), "still walking to {} ({} tiles off)", vill_name(2), game.dist_to(2));
+    assert_eq!(talks(&game), before + 1, "talked once on arrival");
+    assert!(game.seats[0].talk.is_some(), "a Talk opened with them");
+    assert!(game.talk_log.iter().any(|r| r.with.contains(&v) && r.with.contains(&game.player)),
+        "the talk's on the TALK panel");
+    // the pick came near on arrival - the button's gone
+    assert!(game.pick_near);
+    assert!(!game.seats[0].ctx_actions.contains(&CtxAct::GoTo));
+}
+
+#[test]
+fn test_go_to_them_stays_off_for_what_a_shout_already_reaches() {
+    let mut game = Game::new();
+    // a near pick: T reaches them itself, nothing to walk over for
+    let (px, py) = game.player_pos();
+    *game.world.get_component_mut::<Pos>(game.villagers[2]).unwrap() = Pos { x: px + 1.0, y: py };
+    game.selected_target = 2;
+    game.picked = true;
+    game.pick_near = true;
+    game.update();
+    assert!(!game.seats[0].ctx_actions.contains(&CtxAct::GoTo), "a near pick talks, it doesn't walk");
+    // no pick at all
+    game.picked = false;
+    game.update();
+    assert!(!game.seats[0].ctx_actions.contains(&CtxAct::GoTo));
+    // a building's card
+    game.picked = true;
+    game.selected_building = Some(0);
+    game.update();
+    assert!(!game.seats[0].ctx_actions.contains(&CtxAct::GoTo));
+    game.selected_building = None;
+    // and not for the dead or the taken either
+    let spot = far_spot(&game);
+    *game.world.get_component_mut::<Pos>(game.villagers[2]).unwrap() =
+        Pos { x: spot.0 as f32, y: spot.1 as f32 };
+    game.pick_near = false;
+    game.world.add_component(game.villagers[2], crate::game::villager::Dead);
+    game.update();
+    assert!(!game.seats[0].ctx_actions.contains(&CtxAct::GoTo), "no walking over to the dead");
 }
 
 #[test]

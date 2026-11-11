@@ -106,6 +106,9 @@ pub enum CtxAct {
     /// Tell the picked villager what the gossip added up to - the
     /// mystery's asker, once it's whole
     ShareFindings,
+    /// Walk over to a picked villager too far to talk to - the talk
+    /// happens on arrival (a pick from further off was for a look)
+    GoTo,
     /// Throw water on the flames - offered standing by a fire
     Douse,
     /// Give the picked villager something from your satchel - the meal

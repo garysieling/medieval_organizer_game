@@ -420,7 +420,20 @@ impl Game {
                 // pennies a page have to land somewhere
                 self.world.add_component(e, Purse { gold: 0.0 });
                 let at = self.event_pitch(id);
-                let path = self.trail_path(start, at).unwrap_or_default();
+                let mut path = self.trail_path(start, at).unwrap_or_default();
+                if path.is_empty() {
+                    // no road to his pitch from the far end: he sets out
+                    // from a nearer road, like the named travellers do -
+                    // and if even that fails he comes overland, arriving
+                    // where he pitched: a firing nobody sees is no visit
+                    // at all (#1073)
+                    path = self.trail_path(self.road_near(start), at).unwrap_or_default();
+                    if path.is_empty() {
+                        if let Some(p) = self.world.get_component_mut::<Pos>(e) {
+                            *p = Pos { x: at.0 as f32, y: at.1 as f32 };
+                        }
+                    }
+                }
                 self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, petters: Default::default() });
                 self.log.push_at_who(format!("t{}: {} has come to town.", self.tick, s.name),
                     Some((at.0 as f32 + 0.5, at.1 as f32 + 0.5)), None);

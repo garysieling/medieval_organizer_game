@@ -54,8 +54,10 @@ impl Game {
         // the felt worths slide a little back toward ordinary each day
         goods::drift(&mut self.world);
         // market day, once a month: the org's members sell their work and
-        // the purse sees its share of the takings
+        // the purse sees its share of the takings - and word of the crowd
+        // draws the road-folk whose rounds were near (#1073)
         if tick % 30 == 20 {
+            self.draw_for_the_gathering(tick);
             for seat in 0..self.seats.len() {
                 let earned = crate::game::player::market_day(&mut self.world,
                     self.seats[seat].player, self.seats[seat].org);

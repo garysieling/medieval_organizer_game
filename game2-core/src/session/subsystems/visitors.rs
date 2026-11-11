@@ -14,7 +14,7 @@ impl Game {
 
     /// The nearest paved road to a point - the far road a traveller
     /// actually sets out from when his first road doesn't reach us
-    fn road_near(&self, at: (i32, i32)) -> (i32, i32) {
+    pub(in crate::session) fn road_near(&self, at: (i32, i32)) -> (i32, i32) {
         for r in 1..40 {
             for dy in -r..=r {
                 for dx in -r..=r {
@@ -59,6 +59,25 @@ impl Game {
             toast_spot(&self.world, self.market_food));
     }
 
+    /// How near a gathering a traveller's due date has to be for the
+    /// word of a crowd to draw him in early (#1073)
+    pub(crate) const VISIT_DRAW_DAYS: u64 = 10;
+
+    /// Word of a market or a feast travels the roads: whoever's round was
+    /// bringing them this way soon comes for the crowd. Pulls the named
+    /// travellers' due dates - and road-folk Visitor bookings - that fall
+    /// inside the draw window forward to today.
+    pub(in crate::session) fn draw_for_the_gathering(&mut self, tick: u64) {
+        for next in [&mut self.next_minstrel, &mut self.next_pedlar,
+                     &mut self.next_circus, &mut self.next_ink_boiler] {
+            if *next > tick && *next <= tick + Self::VISIT_DRAW_DAYS { *next = tick; }
+        }
+        for (id, due) in self.next_rare.iter_mut() {
+            if crate::session::events::spec(*id).kind == crate::session::events::EventKind::Visitor
+                && *due > tick && *due <= tick + Self::VISIT_DRAW_DAYS { *due = tick; }
+        }
+    }
+
     /// One frame of the minstrel's visit: ride to the market, play a
     /// while, then ride off - and the town wants music again next season
     pub fn advance_minstrel(&mut self) {
@@ -101,7 +120,7 @@ impl Game {
                 }
                 if m.path.is_empty() {
                     self.world.destroy_entity(m.e);
-                    self.next_minstrel = self.tick + 250 + self.rng.next() % 150;
+                    self.next_minstrel = self.tick + 90 + self.rng.next() % 60;
                     return; // he's gone
                 }
                 let p = self.world.get_component_mut::<Pos>(m.e).unwrap();
@@ -201,7 +220,7 @@ impl Game {
                 if m.path.is_empty() {
                     if let Some(s) = m.stall { self.world.destroy_entity(s); }
                     self.world.destroy_entity(m.e);
-                    self.next_pedlar = self.tick + 60 + self.rng.next() % 60;
+                    self.next_pedlar = self.tick + 40 + self.rng.next() % 30;
                     self.log_entity(m.e, format!("t{}: the pedlar's moved on.", self.tick));
                     return;
                 }
@@ -352,7 +371,7 @@ impl Game {
                 self.world.destroy_entity(m);
             }
             self.circus = None;
-            self.next_circus = tick + 300 + self.rng.next() % 200;
+            self.next_circus = tick + 120 + self.rng.next() % 90;
             self.log.push_at_who(format!("t{}: the circus folds its tents and goes.", tick),
                 Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
         }
@@ -424,7 +443,7 @@ impl Game {
                 }
                 if b.path.is_empty() {
                     self.world.destroy_entity(b.e);
-                    self.next_ink_boiler = self.tick + 250 + self.rng.next() % 200;
+                    self.next_ink_boiler = self.tick + 100 + self.rng.next() % 80;
                     self.log_entity(b.e, format!("t{}: the ink-maker's moved on, smelling of his trade.", self.tick));
                     return;
                 }

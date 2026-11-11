@@ -24,3 +24,33 @@ fn test_the_seed_picks_the_facts() {
     let differ = (1..10).any(|s| Game::new_seeded(s).intro_facts() != a);
     assert!(differ, "every seed dealt the same card");
 }
+
+#[test]
+fn test_the_card_and_the_camera_agree_on_the_face() {
+    let g = Game::new();
+    let i = g.intro_face().expect("no face named");
+    // the face's name is on the card - the same pick, not a second roll
+    let facts = g.intro_facts();
+    assert!(facts.iter().any(|f| f.contains(vill_name(i))),
+        "the card doesn't name the focused face: {:?}", facts);
+    // and it's a living villager, not a grave or a country stranger
+    let v = g.villagers[i];
+    assert!(!villager::is_dead(&g.world, v));
+    assert!(g.world.get_component::<country::Outlander>(v).is_none());
+}
+
+#[test]
+fn test_settling_points_the_camera_at_the_named_face() {
+    let mut g = Game::new();
+    let i = g.intro_face().expect("no face named");
+    let pos = g.world.get_component::<villager::Pos>(g.villagers[i]).map(|p| (p.x, p.y));
+    // keeping the wanderer settles the seat - and the camera answers
+    // the card: the seat's focus is the named face's spot
+    assert!(g.decline_pick_at(0));
+    let focus = g.seats[0].focus.expect("no focus asked");
+    assert_eq!(Some((focus.0, focus.1)), pos);
+    // a second decline doesn't replay the ask
+    let n = focus.2;
+    assert!(g.decline_pick_at(0));
+    assert_eq!(g.seats[0].focus.unwrap().2, n);
+}

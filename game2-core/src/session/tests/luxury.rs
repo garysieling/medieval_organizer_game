@@ -17,3 +17,9 @@ fn test_the_perfumer_makes_the_scent_luxuries() {
     assert!(lux.contains(&"rosewater"), "the perfumer makes no rosewater");
     assert!(lux.contains(&"pomander"), "the perfumer makes no pomander");
 }
+
+#[test]
+fn test_the_printmaker_cuts_fine_prints() {
+    let lux = crate::game::vocation::luxuries(crate::game::vocation::Vocation::Printmaker);
+    assert!(lux.contains(&"prints"), "the printmaker cuts no fine prints");
+}

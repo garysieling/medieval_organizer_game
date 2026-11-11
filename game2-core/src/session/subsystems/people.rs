@@ -335,7 +335,8 @@ impl Game {
             .filter_map(|v| self.world.get_component::<Craft>(v)
                 .map(|c| (v, c.vocation, c.skill)))
             .filter(|(_, voc, s)| *s > 0.7 && matches!(voc,
-                Vocation::Luthier | Vocation::Glazier | Vocation::Toolmaker | Vocation::Weaver | Vocation::Tailor))
+                Vocation::Luthier | Vocation::Glazier | Vocation::Toolmaker | Vocation::Weaver | Vocation::Tailor
+                | Vocation::Printmaker))
             .max_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(v, voc, _)| (v, voc));
         let Some((maker, voc)) = maker else { return };
@@ -347,11 +348,23 @@ impl Game {
             Vocation::Glazier => "a window",
             Vocation::Toolmaker => "a fine toolset",
             Vocation::Weaver => "a woven hanging",
+            Vocation::Printmaker => "a codex",
             _ => "a keepsake",
         };
+        // the illuminator's habit: a codex worth the name keeps a
+        // grotesque or two in the margin, where no commissioner looks
+        // twice - the snail at joust, the fox in a friar's hood
+        let stories = if voc == Vocation::Printmaker {
+            const MARGINALIA: [&str; 3] = [
+                "a snail jousting a knight",
+                "a fox preaching in a friar's hood",
+                "a face hid in the vine leaves",
+            ];
+            vec![format!("in the margin: {}", MARGINALIA[((maker as u64) ^ tick) as usize % MARGINALIA.len()])]
+        } else { vec![] };
         let item = self.world.create_entity();
         self.world.add_component(item, villager::Heirloom {
-            maker, owner: maker, name, born_tick: tick, stories: vec![] });
+            maker, owner: maker, name, born_tick: tick, stories });
         self.heirlooms.push(item);
         self.log_entity(maker, format!("t{}: {} lays down {} - a thing made to outlast its maker.", tick, self.name_of(maker), name));
     }

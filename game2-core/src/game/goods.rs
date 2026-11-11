@@ -125,6 +125,7 @@ pub fn spec(good: &str) -> Option<Spec> {
         "paint" => s(Crafted, 8.0, &[]),
         "pigment" => s(Crafted, 5.0, &[]),
         "pamphlets" => s(Crafted, 3.0, &[]),
+        "prints" => s(Crafted, 9.0, &[]),
         "playing-cards" => s(Crafted, 4.0, &[]),
         "paper" => s(Crafted, 4.0, &[Writing]),
         "vellum" => s(Crafted, 5.0, &[Writing]),
@@ -282,7 +283,7 @@ pub const ALL: &[&str] = &[
     // luxuries
     "ribbon", "perfume", "rosewater", "pomander", "incense", "spice",
     "marchpane", "hippocras", "spirits", "silk", "lute", "lute_string",
-    "spectacles", "mirrors", "fox-pelts", "amber", "whirligigs",
+    "spectacles", "mirrors", "fox-pelts", "amber", "whirligigs", "prints",
     "pilgrim-badges", "aged-cheese",
 ];
 

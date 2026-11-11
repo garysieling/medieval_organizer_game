@@ -190,6 +190,31 @@ fn test_one_job_apiece_spreads_the_meetings_work() {
 }
 
 #[test]
+fn test_the_word_alone_convenes_a_meeting_at_the_square() {
+    use crate::game::organizing::{MeetingPlan, PropKind, propose};
+    use crate::game::desires::{Known, Problem, Reveal};
+    let mut g = Game::new();
+    let pe = g.player;
+    // no house lent - just a round of come-alongs the word carried.
+    // Enough of them that the turnout roll can't empty the square
+    let guests: Vec<_> = g.villagers[1..9].to_vec();
+    for &v in &guests {
+        g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    }
+    let (oe, tick) = (g.org, g.tick);
+    for v in guests {
+        let _ = propose(&mut g.world, pe, oe, v, PropKind::ComeAlong, "Bram", 0.0, tick);
+    }
+    assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().ready());
+    let msg = g.call_meeting();
+    assert!(g.meeting.is_some(), "{}", msg);
+    let m = g.meeting.as_ref().unwrap();
+    // the cross is the standing ground when nobody lent a house
+    assert_eq!(m.venue, g.village);
+    assert_eq!(m.label, "the square");
+}
+
+#[test]
 fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
     use crate::game::organizing::{MeetingPlan, PropKind, propose};
     let mut g = Game::new();

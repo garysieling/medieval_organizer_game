@@ -757,14 +757,16 @@ impl MeetingPlan {
         [self.snacks, self.notes, self.opener, self.song, self.closer]
             .iter().filter(|s| s.is_some()).count()
     }
-    /// Can a meeting be called? A place to sit and someone who'll come
+    /// Can a meeting be called? Someone who'll come - an invite, a
+    /// promised part, a word that they'll bring friends. A lent house
+    /// makes it a house meeting, but folk can gather at the square
+    /// without one (#1065)
     pub fn ready(&self) -> bool {
-        self.venue.is_some() && (!self.coming.is_empty() || !self.spreaders.is_empty())
+        !self.coming.is_empty() || !self.spreaders.is_empty() || self.roles_filled() > 0
     }
     /// What's still missing, for the button's reason
     pub fn missing(&self) -> &'static str {
-        if self.venue.is_none() { "no place to meet - ask someone for their house" }
-        else { "no one's said they'll come" }
+        "no one's said they'll come"
     }
 }
 

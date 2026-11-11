@@ -104,6 +104,11 @@ impl Game {
             settlements: vec![(vx, vy, 9), (vx + 13, vy - 2, 4), (vx + 9, vy - 1, 3), (gate_x, farm_y + 4, 6)],
             river: river.clone(),
             bridge_near: river[2],
+            // a second dry crossing lands near the rivals' side, and the
+            // river's wadeable where the mill and the farm lane draw
+            // folk to it (#1074)
+            extra_bridges: vec![(vx + 13, vy - 2)],
+            fords: vec![(vx - 6, vy - 7), (gate_x, farm_y + 8)],
             town_wall: Some(wall),
             fields,
             buildings: planned.iter().map(|(p, _)| *p).collect(),

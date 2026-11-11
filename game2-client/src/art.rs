@@ -538,6 +538,8 @@ impl TileSet {
                 if noise(x, y, 13) < 0.45 { self.rivers_ice.get(p).or(self.rivers.get(p)) } else { self.rivers.get(p) }
             }
             Tile::Bridge => self.rivers.get(map.piece(x, y)? as usize - 1),
+            // a wadeable stretch draws as the shallows it is (#1074)
+            Tile::Ford => self.shallow.as_ref().or(self.water.as_ref()),
         }
     }
 }

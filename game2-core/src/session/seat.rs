@@ -491,6 +491,7 @@ impl Game {
             .map(|c| self.tick < c.until).unwrap_or(false);
         let spd = WALK_SPEED * self.walk_pace() / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
             Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
+            Some(Tile::Ford) => WADE_SLOWDOWN,
             _ if self.map.trees.contains(&at) => WOODS_SLOWDOWN,
             _ => 1.0,
         } * if ailing { 0.7 } else { 1.0 };

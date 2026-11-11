@@ -22,11 +22,37 @@ fn test_starving_hurts_and_eating_well_mends() {
     let d = g.world.create_entity();
     g.world.add_component(d, Disease { kind: DiseaseKind::Influenza,
         name: "la grippe".into(), patient: v, stage: Stage::Mild,
-        severity: 0.4, contagious: true, incubation: 0 });
+        severity: 0.4, contagious: true, incubation: 0, recovering: 0 });
     let h3 = g.world.get_component::<Health>(v).unwrap().condition;
     for _ in 0..10 { g.nourish_tick(); }
     let h4 = g.world.get_component::<Health>(v).unwrap().condition;
     assert!((h4 - h3).abs() < 0.05, "the sick healed by eating: {} -> {}", h3, h4);
+}
+
+#[test]
+fn test_the_mending_mend_faster_fed() {
+    // the fever's broken but other hurts hold the body down: a full
+    // belly still feeds the mend - only a showing illness bars it (#957)
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    g.world.get_component_mut::<Hunger>(v).unwrap().value = 100.0;
+    g.world.get_component_mut::<Health>(v).unwrap().condition = 0.5;
+    let d = g.world.create_entity();
+    g.world.add_component(d, Disease { kind: DiseaseKind::Influenza,
+        name: "la grippe".into(), patient: v, stage: Stage::Recovering,
+        severity: 0.05, contagious: true, incubation: 0, recovering: 0 });
+    for _ in 0..10 { g.nourish_tick(); }
+    let h = g.world.get_component::<Health>(v).unwrap().condition;
+    assert!(h > 0.5, "a fed body on the mend should mend: {}", h);
+    // and the brewing feel nothing: a latent case eats as well as the well
+    let d2 = g.world.create_entity();
+    g.world.add_component(d2, Disease { kind: DiseaseKind::Ague,
+        name: "the ague".into(), patient: v, stage: Stage::Latent,
+        severity: 0.3, contagious: false, incubation: 9, recovering: 0 });
+    g.world.get_component_mut::<Health>(v).unwrap().condition = 0.6;
+    for _ in 0..10 { g.nourish_tick(); }
+    let h2 = g.world.get_component::<Health>(v).unwrap().condition;
+    assert!(h2 > 0.6, "a fed body brewing a fever still mends: {}", h2);
 }
 
 #[test]

@@ -554,8 +554,11 @@ impl Game {
     /// Starving hurts, eating well mends the unsick - the day's beat of
     /// it, while weather keeps to its own floored drain in weather_tick
     pub fn nourish_tick(&mut self) {
+        // only a showing illness bars the mend: the brewing feel nothing
+        // yet, and a full belly helps the mending along
         let sick: Vec<Entity> = self.world.query::<crate::sim::illness::Disease>().iter()
             .filter_map(|&d| self.world.get_component::<crate::sim::illness::Disease>(d)
+                .filter(|x| crate::sim::illness::actively_sick(x))
                 .map(|x| x.patient)).collect();
         crate::game::villager::nourishment_step(&mut self.world, &sick);
     }

@@ -217,7 +217,7 @@ fn test_the_card_says_how_the_sickness_runs() {
     g.world.add_component(d, crate::sim::illness::Disease {
         kind: crate::sim::illness::DiseaseKind::Influenza, name: "flu".into(),
         patient: v, stage: crate::sim::illness::Stage::Severe,
-        severity: 0.8, contagious: true, incubation: 0 });
+        severity: 0.8, contagious: true, incubation: 0, recovering: 0 });
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);
     let bio = card_text(&ins);

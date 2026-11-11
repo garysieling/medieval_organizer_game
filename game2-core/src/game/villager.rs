@@ -352,9 +352,12 @@ pub const NOURISHED_HEALTH: f32 = 0.9;
 pub struct NourishmentSystem;
 impl System for NourishmentSystem {
     fn run(&mut self, world: &mut World) {
-        use crate::sim::illness::{Disease, Health};
+        use crate::sim::illness::{actively_sick, Disease, Health};
+        // only a showing illness bars the mend: the brewing feel nothing
+        // yet, and a full belly helps the mending along
         let sick: Vec<Entity> = world.query::<Disease>().iter()
-            .filter_map(|d| world.get_component::<Disease>(*d).map(|d| d.patient))
+            .filter_map(|d| world.get_component::<Disease>(*d)
+                .filter(|d| actively_sick(d)).map(|d| d.patient))
             .collect();
         // a heat wave or a frost bite everyone a little each tick, same
         // as the crops take the drought - the weather touches health too
@@ -602,7 +605,7 @@ mod tests {
         let v = spawn_villager(&mut w, 0.0, 0.0);
         w.add_component(v, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false, incubation: 0 });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false, incubation: 0, recovering: 0 });
         for _ in 0..50 { NourishmentSystem.run(&mut w); }
         assert_eq!(w.get_component::<Health>(v).unwrap().condition, 0.5);
     }

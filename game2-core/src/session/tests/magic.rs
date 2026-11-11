@@ -21,7 +21,7 @@ fn test_the_priests_reading_teaches_the_parish() {
         g.world.add_component(v, crate::sim::illness::Disease {
             kind: crate::sim::illness::DiseaseKind::Gripes, name: "the gripes".into(),
             patient: v, stage: crate::sim::illness::Stage::Mild, severity: 0.3,
-            contagious: false, incubation: 0 });
+            contagious: false, incubation: 0, recovering: 0 });
         magic::ingest_text(&mut g.grimoire, "Medieval herbals - healing",
             magic::MagicDomain::Healing, 0.5);
         let c0 = g.world.get_component::<crate::sim::illness::Health>(v).unwrap().condition;

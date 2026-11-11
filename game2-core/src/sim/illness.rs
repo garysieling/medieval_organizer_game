@@ -197,6 +197,9 @@ pub struct Disease {
     pub contagious: bool,
     /// Days left brewing before it shows - and before it can spread
     pub incubation: u32,
+    /// Days spent on the mend since the fever broke - a beaten sickness
+    /// strikes its own entry on the clock, whatever else the body suffers
+    pub recovering: u32,
 }
 
 impl Disease {
@@ -211,6 +214,7 @@ impl Disease {
             severity,
             contagious: kind.contagious(),
             incubation,
+            recovering: 0,
         }
     }
 }
@@ -243,6 +247,10 @@ const IMMUNE_RATE: f32 = 0.01;
 const RECOVERY_RATE: f32 = 0.005;
 /// Health at which a recovering patient is cleared of the disease
 const RECOVERED: f32 = 0.9;
+/// Days on the mend after which a beaten sickness strikes its own entry:
+/// the mending clock clears a case whose strength unrelated hurts keep
+/// pinned below the recovered mark
+pub const RECOVERY_DAYS: u32 = 21;
 
 /// System: each disease wears down its own patient while their immune
 /// system fights it off; once severity drops low enough they recover, and
@@ -281,10 +289,19 @@ impl crate::engine::ecs::System for IllnessSystem {
             }
             if stage == Stage::Recovering {
                 h.condition = (h.condition + RECOVERY_RATE).min(1.0);
-                if h.condition >= RECOVERED {
+                let mended = h.condition >= RECOVERED;
+                // the mend-clock runs alongside the mend-bar: weeks beaten
+                // is beaten, however the rest of the body fares
+                let days = match world.get_component_mut::<Disease>(d) {
+                    Some(dis) => { dis.recovering += 1; dis.recovering }
+                    None => 0,
+                };
+                if mended || days >= RECOVERY_DAYS {
                     // beating it leaves them harder to reinfect - how much
                     // harder depends on the disease (poisons teach nothing)
-                    h.immunity = (h.immunity + kind.immunity_gain()).min(1.0);
+                    if let Some(h) = world.get_component_mut::<Health>(patient) {
+                        h.immunity = (h.immunity + kind.immunity_gain()).min(1.0);
+                    }
                     if let Some((due_in, _)) = kind.relapse() {
                         // it goes quiet, not gone - the seed stays in them
                         world.add_component(patient, Relapse { kind, due_in });
@@ -437,6 +454,13 @@ fn spread_contagion(world: &mut World) {
     }
 }
 
+/// Whether the case still acts on the body: the brewing feel nothing
+/// and the mended are past it - only a showing stage keeps a patient
+/// "sick" for purposes like the unsick mending by a full belly
+pub fn actively_sick(d: &Disease) -> bool {
+    !matches!(d.stage, Stage::Recovering | Stage::Latent)
+}
+
 fn stage_for(severity: f32) -> Stage {
     if severity < 0.1 { Stage::Recovering }
     else if severity < 0.3 { Stage::Mild }
@@ -476,7 +500,7 @@ mod tests {
         w.add_component(sick, Health { condition: 0.9, immunity: 0.5 });
         w.add_component(well, Health { condition: 0.9, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: sick, stage: Stage::Mild, severity: 0.4, contagious: false, incubation: 0 });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: sick, stage: Stage::Mild, severity: 0.4, contagious: false, incubation: 0, recovering: 0 });
         IllnessSystem.run(&mut w);
         assert!(w.get_component::<Health>(sick).unwrap().condition < 0.9);
         assert_eq!(w.get_component::<Health>(well).unwrap().condition, 0.9);
@@ -488,15 +512,18 @@ mod tests {
         let p = w.create_entity();
         w.add_component(p, Health { condition: 0.7, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.4, contagious: false, incubation: 0 });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.4, contagious: false, incubation: 0, recovering: 0 });
         let mut lowest = 1.0f32;
         for _ in 0..300 {
             IllnessSystem.run(&mut w);
             lowest = lowest.min(w.get_component::<Health>(p).unwrap().condition);
         }
         assert!(lowest < 0.7, "the disease should do some harm first");
-        assert!(w.get_component::<Health>(p).unwrap().condition >= RECOVERED, "patient should get better");
         assert!(w.get_component::<Disease>(d).is_none(), "a beaten disease should be cleared");
+        // on the mend-bar or the mend-clock it clears, and a bare world
+        // has no belly to finish the mend - the fed carry on healing
+        let end = w.get_component::<Health>(p).unwrap().condition;
+        assert!(end > lowest, "patient should be mending when it clears: {lowest} -> {end}");
     }
 
     #[test]
@@ -505,7 +532,7 @@ mod tests {
         let p = w.create_entity();
         w.add_component(p, Health { condition: 0.0, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0 });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0, recovering: 0 });
         IllnessSystem.run(&mut w);
         assert_eq!(w.get_component::<Health>(p).unwrap().condition, 0.0, "the dead should stay dead");
         assert!(w.get_component::<Disease>(d).is_none(), "the dead don't keep fighting off disease");
@@ -520,7 +547,7 @@ mod tests {
 
     fn infect(w: &mut World, patient: Entity, contagious: bool) {
         let d = w.create_entity();
-        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient, stage: Stage::Moderate, severity: 0.5, contagious, incubation: 0 });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient, stage: Stage::Moderate, severity: 0.5, contagious, incubation: 0, recovering: 0 });
     }
 
     fn is_sick(w: &World, e: Entity) -> bool {
@@ -577,11 +604,11 @@ mod tests {
         let p = w.create_entity();
         w.add_component(p, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.5, contagious: false, incubation: 0 });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.5, contagious: false, incubation: 0, recovering: 0 });
         let q = w.create_entity();
         w.add_component(q, Health { condition: 0.5, immunity: 0.5 });
         let other = w.create_entity();
-        w.add_component(other, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: q, stage: Stage::Mild, severity: 0.5, contagious: false, incubation: 0 });
+        w.add_component(other, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: q, stage: Stage::Mild, severity: 0.5, contagious: false, incubation: 0, recovering: 0 });
         let t = Treatment { name: "herb".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.8 };
         let before = w.get_component::<Health>(p).unwrap().condition;
         treat_health(w.get_component_mut::<Health>(p).unwrap(), &t);
@@ -616,7 +643,7 @@ mod tests {
         w.add_component(p, Health { condition: 0.02, immunity: 0.9 });
         w.add_component(p, crate::game::villager::Pos { x: 0.0, y: 0.0 });
         let d = w.create_entity();
-        w.add_component(d, Disease { kind: DiseaseKind::Sweats, name: "plague".into(), patient: p, stage: Stage::Critical, severity: 1.0, contagious: true, incubation: 0 });
+        w.add_component(d, Disease { kind: DiseaseKind::Sweats, name: "plague".into(), patient: p, stage: Stage::Critical, severity: 1.0, contagious: true, incubation: 0, recovering: 0 });
         let neighbour = w.create_entity();
         w.add_component(neighbour, Health { condition: 1.0, immunity: 0.0 });
         w.add_component(neighbour, crate::game::villager::Pos { x: 1.0, y: 0.0 });
@@ -637,7 +664,7 @@ mod tests {
         w.add_component(sick, Health { condition: 0.9, immunity: 0.0 });
         w.add_component(sick, crate::game::villager::Pos { x: 0.0, y: 0.0 });
         let d = w.create_entity();
-        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: sick, stage: Stage::Severe, severity: 0.8, contagious: true, incubation: 0 });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: sick, stage: Stage::Severe, severity: 0.8, contagious: true, incubation: 0, recovering: 0 });
         let corpse = w.create_entity();
         w.add_component(corpse, Health { condition: 0.0, immunity: 0.0 });
         w.add_component(corpse, crate::game::villager::Pos { x: 1.0, y: 0.0 });
@@ -729,7 +756,7 @@ mod tests {
         let d = w.create_entity();
         // a case already on the mend - it clears on the first tick
         w.add_component(d, Disease { kind: DiseaseKind::Ague, name: "the ague".into(),
-            patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0 });
+            patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0, recovering: 0 });
         IllnessSystem.run(&mut w);
         assert!(!is_sick(&w, p));
         // but it left its seed: quiet for the dormant stretch, then it blooms
@@ -749,7 +776,7 @@ mod tests {
         let p = villager_at(&mut w, 0.0, 0.5);
         let d = w.create_entity();
         w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "la grippe".into(),
-            patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0 });
+            patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0, recovering: 0 });
         IllnessSystem.run(&mut w);
         assert!(w.query::<Relapse>().is_empty(), "la grippe is gone for good");
     }
@@ -757,7 +784,7 @@ mod tests {
     fn infect_kind(w: &mut World, patient: Entity, kind: DiseaseKind, severity: f32) {
         let d = w.create_entity();
         w.add_component(d, Disease { kind, name: kind.name().into(), patient,
-            stage: Stage::Moderate, severity, contagious: true, incubation: 0 });
+            stage: Stage::Moderate, severity, contagious: true, incubation: 0, recovering: 0 });
     }
 
     #[test]
@@ -836,5 +863,45 @@ mod tests {
             w.get_component::<Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)).count();
         assert!(dead >= 4 && dead <= 16,
             "the speckled monster should reap about a third - got {dead} of 30");
+    }
+
+    #[test]
+    fn test_a_beaten_sickness_strikes_its_own_entry() {
+        // unrelated hurts can hold a mending body under the recovered
+        // mark for good (#957): the mend-clock strikes the entry anyway
+        let mut w = World::new();
+        let p = w.create_entity();
+        w.add_component(p, Health { condition: 0.4, immunity: 0.5 });
+        w.add_component(p, crate::game::villager::Pos { x: 0.0, y: 0.0 });
+        let d = w.create_entity();
+        w.add_component(d, Disease { kind: DiseaseKind::Ague, name: "the ague".into(),
+            patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0, recovering: 0 });
+        // the mend-bar can't reach it: 0.4 + 21 * 0.005 < 0.9 - only the
+        // clock can strike this case
+        for _ in 0..RECOVERY_DAYS - 1 { IllnessSystem.run(&mut w); }
+        assert!(is_sick(&w, p), "still on the books a day short of the clock");
+        IllnessSystem.run(&mut w);
+        assert!(w.get_component::<Disease>(d).is_none(),
+            "the mend-clock strikes a case the body can't finish");
+        let h = w.get_component::<Health>(p).unwrap();
+        assert!((h.immunity - 0.5 - DiseaseKind::Ague.immunity_gain()).abs() < 0.001,
+            "a clock-struck case still teaches the body");
+        assert!(w.get_component::<Relapse>(p).is_some(),
+            "the ague's seed stays behind, cleared early or not");
+    }
+
+    #[test]
+    fn test_the_mended_still_clear_on_the_bar_first() {
+        // a body that mends fast strikes on the mark, not the clock
+        let mut w = World::new();
+        let p = w.create_entity();
+        w.add_component(p, Health { condition: 0.88, immunity: 0.5 });
+        w.add_component(p, crate::game::villager::Pos { x: 0.0, y: 0.0 });
+        let d = w.create_entity();
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(),
+            patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0, recovering: 0 });
+        for _ in 0..4 { IllnessSystem.run(&mut w); }
+        assert!(w.get_component::<Disease>(d).is_none(),
+            "a nearly-mended case clears on the bar, well inside the clock");
     }
 }

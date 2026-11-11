@@ -727,7 +727,8 @@ impl Game {
 
     /// A long walk with no errand cap: the roads between the towns
     pub(super) fn send_far(&mut self, who: Entity, to: (i32, i32), goal: Goal) -> bool {
-        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
+        // one in a Talk with a player doesn't take the road mid-line
+        if crate::game::dungeon::unavailable(&self.world, who) || self.in_player_talk(who) { return false; }
         let Some(p) = self.world.get_component::<Pos>(who).copied() else { return false };
         let from = (p.x.round() as i32, p.y.round() as i32);
         match self.walk_memo(from, to) {

@@ -299,3 +299,44 @@ fn test_an_old_hello_greys_the_name_but_a_stranger_stays_bright() {
     crate::game::player::note_conversation(&mut g.world, pe, met, tick);
     assert_eq!(stale_of(&g, met), 0.0, "seeing them at the meeting freshens the name");
 }
+
+#[test]
+fn test_a_talk_holds_them_where_they_stand() {
+    // folk in a Talk with you don't walk off mid-line: a walk under way
+    // stops, no new one dispatches, and the pull home leaves them be -
+    // while a villager you aren't talking to still drifts to the table
+    let mut g = Game::new();
+    let (i, j) = (adults(&g)[0], adults(&g)[1]);
+    let (v, w) = (g.villagers[i], g.villagers[j]);
+    // a walk under way when you hail them: the hail stops their feet
+    let p = *g.world.get_component::<Pos>(v).unwrap();
+    g.travels.push(Travel { who: v, path: vec![(p.x.round() as i32 + 4, p.y.round() as i32)], goal: Goal::Wander });
+    talk_beside(&mut g, i);
+    assert!(g.seats[0].talk.is_some(), "a talk under way");
+    assert!(!g.travels.iter().any(|t| t.who == v), "the hail stops their feet");
+    // and no new one starts while they stand with you
+    assert!(!g.send(v, Goal::Wander), "no fresh errand mid-talk");
+    assert!(!g.travels.iter().any(|t| t.who == v));
+    // hungry and away from the table: the seek and the pull home would
+    // carry anyone else off, but not one you're talking to
+    for e in [v, w] {
+        g.world.get_component_mut::<villager::Hunger>(e).unwrap().value = 5.0;
+    }
+    let (vp, wp0) = (*g.world.get_component::<Pos>(v).unwrap(),
+        *g.world.get_component::<Pos>(w).unwrap());
+    for _ in 0..40 { g.update(); }
+    let (vp1, wp1) = (*g.world.get_component::<Pos>(v).unwrap(),
+        *g.world.get_component::<Pos>(w).unwrap());
+    assert_eq!((vp1.x, vp1.y), (vp.x, vp.y),
+        "the one you're talking to holds their ground");
+    assert!((wp1.x - wp0.x).abs() + (wp1.y - wp0.y).abs() > 0.1,
+        "the one you aren't talking to still heads for the table: {:?} -> {:?}", (wp0.x, wp0.y), (wp1.x, wp1.y));
+    // once the talk's done their feet are their own again: you walk on,
+    // it closes, and the next errand can send them
+    let pp = g.world.get_component::<Pos>(g.player).unwrap();
+    let far = Pos { x: pp.x + PLAYER_TALK_RANGE as f32 + 4.0, y: pp.y };
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = far;
+    g.advance_player_talks();
+    assert!(g.seats[0].talk.is_none(), "walking away still ends it");
+    assert!(g.send(v, Goal::Wander), "free to be sent once it's done");
+}

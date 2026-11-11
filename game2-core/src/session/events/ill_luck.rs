@@ -35,7 +35,13 @@ impl Game {
         let s = spec(id);
         match id {
             EventId::FouledWell => {
-                self.log.push(format!("t{}: a fouled well - the water's off, and the dippers come up green.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: a fouled well - the water's off, and the dippers come up green.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("A fouled well".into(), self.tick + 40));
             }
             EventId::LostChild => {
@@ -71,14 +77,26 @@ impl Game {
                             desires::add_grievance(&mut self.world, o, desires::Problem::Grief, until);
                         }
                     }
-                    self.log_entity(k, format!("t{}: a lost child - she's not come in for supper, and the wood's dark already.", self.tick));
+                    self.log_entity_ev(EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Notable), k, format!("t{}: a lost child - she's not come in for supper, and the wood's dark already.", self.tick));
                 } else {
                     lost_at = None;
-                    self.log.push(format!("t{}: a child was late for supper - it gave the village a turn.", self.tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: a child was late for supper - it gave the village a turn.",
+                            self.tick
+                        ),
+                    );
                 }
-                self.toasts.push_at(("A lost child".into(), self.tick + 40), lost_at);
+                self.toasts
+                    .push_at(("A lost child".into(), self.tick + 40), lost_at);
             }
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -105,7 +123,7 @@ impl Game {
                     let name = self.world.get_component::<household::Building>(h)
                         .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
                     if lit {
-                        self.log.push_at_who(format!("t{}: a chimney fire - smoke gone wrong at {}, and the neighbors with the buckets.", self.tick, name), fire_at, None);
+                        self.log.push_ev_at_who(EvTag::new(Thread::Fire, Valence::Negative, Sev::Notable), format!("t{}: a chimney fire - smoke gone wrong at {}, and the neighbors with the buckets.", self.tick, name), fire_at, None);
                         for &o in self.world.get_component::<household::Building>(h)
                             .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
                             if villager::is_dead(&self.world, o)
@@ -116,10 +134,18 @@ impl Game {
                     } else {
                         // a scorched or burning house can't catch twice -
                         // the neighbors beat it out quick this time
-                        self.log.push_at_who(format!("t{}: a chimney fire tried at {} - but the neighbors beat it out quick.", self.tick, name), fire_at, None);
+                        self.log.push_ev_at_who(EvTag::new(Thread::Fire, Valence::Positive, Sev::Minor), format!("t{}: a chimney fire tried at {} - but the neighbors beat it out quick.", self.tick, name), fire_at, None);
                     }
                 } else {
-                    self.log.push_at_who(format!("t{}: a chimney fire - smoke gone wrong, but the neighbors put it out.", self.tick), fire_at, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Fire, Valence::Positive, Sev::Minor),
+                        format!(
+                            "t{}: a chimney fire - smoke gone wrong, but the neighbors put it out.",
+                            self.tick
+                        ),
+                        fire_at,
+                        None,
+                    );
                 }
                 self.toasts.push_at(("A chimney fire!".into(), self.tick + 40), fire_at);
             }
@@ -131,12 +157,17 @@ impl Game {
                     let spoiled = f.servings / 10;
                     f.servings = f.servings.saturating_sub(spoiled);
                     if spoiled > 0 {
-                        self.log.push_at_who(format!("t{}: a granary leak - the rain found a seam and a tenth of the stock's gone to rot.", self.tick), leak_at, None);
+                        self.log.push_ev_at_who(EvTag::new(Thread::Economy, Valence::Negative, Sev::Notable), format!("t{}: a granary leak - the rain found a seam and a tenth of the stock's gone to rot.", self.tick), leak_at, None);
                     } else {
-                        self.log.push_at_who(format!("t{}: a granary leak - the rain found a seam, but there's little enough left to spoil.", self.tick), leak_at, None);
+                        self.log.push_ev_at_who(EvTag::new(Thread::Economy, Valence::Negative, Sev::Minor), format!("t{}: a granary leak - the rain found a seam, but there's little enough left to spoil.", self.tick), leak_at, None);
                     }
                 } else {
-                    self.log.push_at_who(format!("t{}: a granary leak - the rain found a seam.", self.tick), leak_at, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Economy, Valence::Negative, Sev::Minor),
+                        format!("t{}: a granary leak - the rain found a seam.", self.tick),
+                        leak_at,
+                        None,
+                    );
                 }
                 self.toasts.push_at(("A granary leak".into(), self.tick + 40), leak_at);
             }
@@ -175,9 +206,17 @@ impl Game {
                         desires::add_grievance(&mut self.world, d, desires::Problem::Robbed, self.tick + 20);
                         self.say(d, "The wheel found the rut - the whole load's in the mud!", CHAT_BUBBLE_SECS);
                     }
-                    self.log.push_at_who(format!("t{}: a cart overturns - the wheel found the rut and the load's in the mud.", self.tick), cart_at, None);
+                    self.log.push_ev_at_who(EvTag::new(Thread::Economy, Valence::Negative, Sev::Minor), format!("t{}: a cart overturns - the wheel found the rut and the load's in the mud.", self.tick), cart_at, None);
                 } else {
-                    self.log.push_at_who(format!("t{}: a cart overturns on the road - nothing much in her to spill.", self.tick), cart_at, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: a cart overturns on the road - nothing much in her to spill.",
+                            self.tick
+                        ),
+                        cart_at,
+                        None,
+                    );
                 }
                 self.toasts.push_at(("A cart overturns".into(), self.tick + 40), cart_at);
             }
@@ -201,13 +240,23 @@ impl Game {
                             desires::add_grievance(&mut self.world, o, desires::Problem::Grief, self.tick + 60);
                         }
                     }
-                    self.log_entity(v, format!("t{}: drowned in the pond - they pulled her out at the shallows, too late.", self.tick));
+                    self.log_entity_ev(EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Major), v, format!("t{}: drowned in the pond - they pulled her out at the shallows, too late.", self.tick));
                 } else {
                     let pond_at = self.pit.map(|(x, y)| (x as f32, y as f32));
-                    self.log.push_at_who(format!("t{}: a body in the pond - nobody of ours, thank the saints.", self.tick), pond_at, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: a body in the pond - nobody of ours, thank the saints.",
+                            self.tick
+                        ),
+                        pond_at,
+                        None,
+                    );
                 }
-                self.toasts.push_at(("Drowned in the pond".into(), self.tick + 40),
-                    self.pit.map(|(x, y)| (x as f32, y as f32)));
+                self.toasts.push_at(
+                    ("Drowned in the pond".into(), self.tick + 40),
+                    self.pit.map(|(x, y)| (x as f32, y as f32)),
+                );
             }
             EventId::Foundling => {
                 // a babe in a basket on the step: a rolled home takes
@@ -229,10 +278,18 @@ impl Game {
                     .and_then(|&h| toast_spot(&self.world, h));
                 if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
                     self.spawn_kid(h, self.tick);
-                    self.log.push_at_who(format!("t{}: a foundling - a babe in a basket on the step, and whose she is nobody's saying.", self.tick),
+                    self.log.push_ev_at_who(EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable), format!("t{}: a foundling - a babe in a basket on the step, and whose she is nobody's saying.", self.tick),
                         baby_at, Some(self.villagers.len() - 1));
                 } else {
-                    self.log.push_at_who(format!("t{}: a foundling - a babe in a basket, but no door to lay her at.", self.tick), baby_at, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: a foundling - a babe in a basket, but no door to lay her at.",
+                            self.tick
+                        ),
+                        baby_at,
+                        None,
+                    );
                 }
                 self.toasts.push_at(("A foundling".into(), self.tick + 40), baby_at);
             }
@@ -257,11 +314,22 @@ impl Game {
                     self.say(a, "You want a piece of me?!", CHAT_BUBBLE_SECS);
                     self.say(b, "Say that again, I dare you!", CHAT_BUBBLE_SECS);
                     let who = self.villagers.iter().position(|&x| x == a);
-                    self.log.push_at_who(format!("t{}: a quarrel in the square - shouting, and the whole street turned out to watch.", self.tick), quarrel_at, who);
+                    self.log.push_ev_at_who(EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor), format!("t{}: a quarrel in the square - shouting, and the whole street turned out to watch.", self.tick), quarrel_at, who);
                 } else {
-                    self.log.push_at_who(format!("t{}: words were had in the square - nothing came of it.", self.tick), quarrel_at, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: words were had in the square - nothing came of it.",
+                            self.tick
+                        ),
+                        quarrel_at,
+                        None,
+                    );
                 }
-                self.toasts.push_at(("A quarrel in the square".into(), self.tick + 40), quarrel_at);
+                self.toasts.push_at(
+                    ("A quarrel in the square".into(), self.tick + 40),
+                    quarrel_at,
+                );
             }
             EventId::OldOakFalls => {
                 // she was older than the church: the landmark's gone,
@@ -278,10 +346,16 @@ impl Game {
                         && !crate::game::dungeon::unavailable(&self.world, v)) {
                     self.say(v, "She was older than the church...", CHAT_BUBBLE_SECS);
                 }
-                self.log.push(format!("t{}: the old oak falls - a crack like thunder in the night, and she's down. The wood splits up fair.", self.tick));
-                self.toasts.push(("The old oak falls".into(), self.tick + 40));
+                self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: the old oak falls - a crack like thunder in the night, and she's down. The wood splits up fair.", self.tick));
+                self.toasts
+                    .push(("The old oak falls".into(), self.tick + 40));
             }
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -297,10 +371,10 @@ impl Game {
                 if let Some(k) = k {
                     if villager::is_dead(&self.world, k) {
                         // the search found her too late - no homecoming to give
-                        self.log_entity(k, format!("t{}: they found her at the wood's edge, but the dark had kept her.", tick));
+                        self.log_entity_ev(EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Major), k, format!("t{}: they found her at the wood's edge, but the dark had kept her.", tick));
                     } else if crate::game::dungeon::unavailable(&self.world, k) {
                         // the castle holds her - no wood-road homecoming either
-                        self.log_entity(k, format!("t{}: the search ended - she's held where folk can't fetch her home.", tick));
+                        self.log_entity_ev(EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Major), k, format!("t{}: the search ended - she's held where folk can't fetch her home.", tick));
                     } else {
                         if let Some(h) = self.world.get_component_mut::<Health>(k) {
                             if h.condition > 0.05 {
@@ -321,10 +395,13 @@ impl Game {
                                 desires::satisfy(&mut self.world, o, Want::Joy, tick + 20);
                             }
                         }
-                        self.log_entity(k, format!("t{}: she's come out of the wood, hungry and sorry - a night in the dark is the end of it.", tick));
+                        self.log_entity_ev(EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable), k, format!("t{}: she's come out of the wood, hungry and sorry - a night in the dark is the end of it.", tick));
                     }
                 } else {
-                    self.log.push(format!("t{}: the late one came home at last.", tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                        format!("t{}: the late one came home at last.", tick),
+                    );
                 }
             }
             _ => {}
@@ -379,9 +456,20 @@ impl Game {
         let place = taproom
             .and_then(|be| self.world.get_component::<household::Building>(be).map(|b| b.name.clone()))
             .unwrap_or_else(|| "the market".into());
-        let who = brawlers.first().and_then(|&v| self.villagers.iter().position(|&x| x == v));
-        self.log.push_at_who(format!("t{}: an alehouse brawl at {} - {} come to blows over a spilled cup.",
-            self.tick, place, names.join(" and ")), at.map(|p| (p.x, p.y)), who);
+        let who = brawlers
+            .first()
+            .and_then(|&v| self.villagers.iter().position(|&x| x == v));
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Minor),
+            format!(
+                "t{}: an alehouse brawl at {} - {} come to blows over a spilled cup.",
+                self.tick,
+                place,
+                names.join(" and ")
+            ),
+            at.map(|p| (p.x, p.y)),
+            who,
+        );
     }
 
     /// The assize of ale: the taster walks the drink-shops. Thin brews
@@ -396,17 +484,37 @@ impl Game {
             heard = true;
             let name = self.name_of(v);
             if crate::game::vocation::level_of(c.skill) == crate::game::vocation::Level::Master {
-                self.log_entity(v, format!("t{}: the ale-taster calls {}'s brew honest and true.", self.tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Craft, Valence::Positive, Sev::Minor),
+                    v,
+                    format!(
+                        "t{}: the ale-taster calls {}'s brew honest and true.",
+                        self.tick, name
+                    ),
+                );
                 desires::satisfy(&mut self.world, v, Want::Mastery, self.tick + 60);
             } else {
                 if let Some(p) = self.world.get_component_mut::<Purse>(v) {
                     p.gold = (p.gold - 3.0).max(0.0);
                 }
-                self.log_entity(v, format!("t{}: the ale-taster fines {} - thin stuff, barely worth the water.", self.tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Craft, Valence::Negative, Sev::Minor),
+                    v,
+                    format!(
+                        "t{}: the ale-taster fines {} - thin stuff, barely worth the water.",
+                        self.tick, name
+                    ),
+                );
             }
         }
         if !heard {
-            self.log.push(format!("t{}: the ale-taster rides through - no brewer's bench to judge here.", self.tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Craft, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: the ale-taster rides through - no brewer's bench to judge here.",
+                    self.tick
+                ),
+            );
         }
     }
 
@@ -424,7 +532,13 @@ impl Game {
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(be, _)| be);
         let Some(mark) = mark else {
-            self.log.push(format!("t{}: a thief slips through in the night - but finds no fat cellar.", self.tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: a thief slips through in the night - but finds no fat cellar.",
+                    self.tick
+                ),
+            );
             return;
         };
         // a living watch is why a fat cellar locks its door
@@ -436,7 +550,15 @@ impl Game {
             .map(|b| b.name.clone()).unwrap_or_else(|| "a cellar".into());
         let mark_at = self.world.get_component::<Pos>(mark).map(|p| (p.x, p.y));
         if watched {
-            self.log.push_at_who(format!("t{}: the watch catches a thief at {} - the good stock stays.", self.tick, name), mark_at, None);
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: the watch catches a thief at {} - the good stock stays.",
+                    self.tick, name
+                ),
+                mark_at,
+                None,
+            );
             return;
         }
         // half the drink walks off; the shop's keeper wears the grievance
@@ -450,6 +572,14 @@ impl Game {
         if let Some(w) = worker {
             desires::add_grievance(&mut self.world, w, desires::Problem::Robbed, self.tick + 60);
         }
-        self.log.push_at_who(format!("t{}: a thief in the night - half the drink walks out of {}.", self.tick, name), mark_at, None);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Economy, Valence::Negative, Sev::Notable),
+            format!(
+                "t{}: a thief in the night - half the drink walks out of {}.",
+                self.tick, name
+            ),
+            mark_at,
+            None,
+        );
     }
 }

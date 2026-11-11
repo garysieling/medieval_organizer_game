@@ -334,8 +334,15 @@ impl Game {
                 let (d, s) = desires::reveal_speech(vill_name(who), &r);
                 let pe = self.seats[seat].player;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
-                    self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
-                    self.log_entity(pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                    self.toasts.push((
+                        format!("Organizer discovers issue {}", issue),
+                        self.tick + 40,
+                    ));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                        pe,
+                        format!("t{}: Organizer discovers issue {}", self.tick, issue),
+                    );
                 }
                 (d, s)
             }
@@ -362,7 +369,10 @@ impl Game {
         let quest_note = self.quest_talk_done(seat, v);
         let mut line = format!("{}: \"{}\"{}", did, said, coached);
         if let Some(q) = quest_note {
-            self.log.push(q);
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+                q,
+            );
             line.push_str(" - and the job's done.");
         }
         line
@@ -421,7 +431,17 @@ impl Game {
         if headed_off {
             match self.path_to_at(seat, who) {
                 Some(path) => a.path = path,
-                None => { self.log.push(format!("t{}: You can't find a way to {}.", self.tick, vill_name(who))); return; }
+                None => {
+                    self.log.push_ev(
+                        EvTag::new(Thread::Player, Valence::Negative, Sev::Minor),
+                        format!(
+                            "t{}: You can't find a way to {}.",
+                            self.tick,
+                            vill_name(who)
+                        ),
+                    );
+                    return;
+                }
             }
         }
         let (px, py) = self.player_pos_at(seat);
@@ -435,7 +455,14 @@ impl Game {
         if dx.abs() + dy.abs() > 1e-3 { self.walk_at(seat, dx, dy); }
         a.stuck = if self.player_pos_at(seat) != (px, py) { 0 } else { a.stuck + 1 };
         if a.stuck > APPROACH_STUCK_FRAMES {
-            self.log.push(format!("t{}: You can't get through to {}.", self.tick, vill_name(who)));
+            self.log.push_ev(
+                EvTag::new(Thread::Player, Valence::Negative, Sev::Minor),
+                format!(
+                    "t{}: You can't get through to {}.",
+                    self.tick,
+                    vill_name(who)
+                ),
+            );
             return;
         }
         self.seats[seat].approach = Some(a);
@@ -492,7 +519,12 @@ impl Game {
         };
         // every action line is dated like the rest of the log. It doesn't
         // show a score: the log reads as what happened in the village
-        if !talked { self.log.push(format!("t{}: {}", tick, msg)); }
+        if !talked {
+            self.log.push_ev(
+                EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                format!("t{}: {}", tick, msg),
+            );
+        }
         // gold spent here is the same purse the day's trading counts
         let pe = self.seats[seat].player; sync_purse(&mut self.world, pe, true);
     }
@@ -799,7 +831,15 @@ impl Game {
         let Some(&act) = self.seats[seat].ctx_actions.get(i) else { return };
         let tick = self.tick;
         if let Some(reason) = self.ctx_blocker_at(seat, act) {
-            self.log.push(format!("t{}: Can't {}: {}.", tick, self.ctx_label_at(seat, act).to_lowercase(), reason));
+            self.log.push_ev(
+                EvTag::new(Thread::Player, Valence::Negative, Sev::Minor),
+                format!(
+                    "t{}: Can't {}: {}.",
+                    tick,
+                    self.ctx_label_at(seat, act).to_lowercase(),
+                    reason
+                ),
+            );
             return;
         }
         let msg = match act {
@@ -1071,7 +1111,10 @@ impl Game {
             }
             CtxAct::March => {
                 let m = self.march_at(seat);
-                self.log.push(format!("t{}: {}", tick, m));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                    format!("t{}: {}", tick, m),
+                );
                 return;
             }
             CtxAct::Strike => {
@@ -1193,11 +1236,25 @@ impl Game {
             }
             CtxAct::Interview => {
                 let t = self.villagers[self.seats[seat].selected_target];
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
-                    self.log.push(format!("t{}: no cause to sound anyone out for.", tick)); return; };
-                let Some(target) = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                    .map(|cc| cc.target).unwrap_or(None) else { return; };
-                if target != t { return; }
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
+                else {
+                    self.log.push_ev(
+                        EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                        format!("t{}: no cause to sound anyone out for.", tick),
+                    );
+                    return;
+                };
+                let Some(target) = self
+                    .world
+                    .get_component::<crate::game::campaign::Campaign>(c)
+                    .map(|cc| cc.target)
+                    .unwrap_or(None)
+                else {
+                    return;
+                };
+                if target != t {
+                    return;
+                }
                 // rapport earns the hearing: a stranger's stance is a
                 // wall's, a warm ear's is an answer
                 let warm = crate::game::player::rapport(&self.world, self.seats[seat].player, t);
@@ -1257,7 +1314,13 @@ impl Game {
                 if let Some(cc) = self.world.get_component_mut::<crate::game::campaign::Campaign>(c) {
                     cc.directive = Some(winner.to_string());
                 }
-                self.log.push(format!("t{}: the debrief settles it - the room's for {}{}.", tick, winner, mandate));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                    format!(
+                        "t{}: the debrief settles it - the room's for {}{}.",
+                        tick, winner, mandate
+                    ),
+                );
                 format!("The room settles on {}{}.", winner, mandate)
             }
             CtxAct::Attend => {
@@ -1277,11 +1340,24 @@ impl Game {
                     self.world.get_component::<crate::game::lifecycle::Age>(v)
                         .map(|a| a.born_day == (tick % 360) as u16).unwrap_or(false));
                 if !gathering && !birthday {
-                    self.log.push(format!("t{}: there's no gathering to join.", tick)); return;
+                    self.log.push_ev(
+                        EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                        format!("t{}: there's no gathering to join.", tick),
+                    );
+                    return;
                 }
                 // attending once per day - the day's own rite counts once
-                let already = self.attended_days.iter().any(|&(p, d)| p == player && d == tick);
-                if already { self.log.push(format!("t{}: you've already been to the day's gathering.", tick)); return; }
+                let already = self
+                    .attended_days
+                    .iter()
+                    .any(|&(p, d)| p == player && d == tick);
+                if already {
+                    self.log.push_ev(
+                        EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                        format!("t{}: you've already been to the day's gathering.", tick),
+                    );
+                    return;
+                }
                 self.attended_days.push((player, tick));
                 // the warmth lands: a small devotion for the standing, a
                 // rapport for the company, the want for the gathering met
@@ -1297,7 +1373,13 @@ impl Game {
                         crate::game::player::note_conversation(&mut self.world, player, v, tick);
                     }
                 }
-                self.log.push(format!("t{}: you stand in the gathering - the day's rite counts for you.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: you stand in the gathering - the day's rite counts for you.",
+                        tick
+                    ),
+                );
                 "".into()
             }
             CtxAct::Board => {
@@ -1307,7 +1389,10 @@ impl Game {
                         .unwrap_or(Pos { x: 0.0, y: 0.0 });
                     (p.x.round() as i32 - bx).abs() + (p.y.round() as i32 - by).abs() < 4 }) {
                     self.seats[seat].aboard = Some(bi);
-                    self.log.push(format!("t{}: you push off - the river takes the boat.", tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                        format!("t{}: you push off - the river takes the boat.", tick),
+                    );
                 }
                 "".into()
             }
@@ -1315,7 +1400,10 @@ impl Game {
                 // put in at the bank: the water lets you off
                 if self.seats[seat].aboard.is_some() {
                     self.seats[seat].aboard = None;
-                    self.log.push(format!("t{}: you put in - the bank's under your feet.", tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                        format!("t{}: you put in - the bank's under your feet.", tick),
+                    );
                 }
                 "".into()
             }
@@ -1327,8 +1415,18 @@ impl Game {
                             else { "fish" };
                         *s.goods.entry(good.into()).or_insert(0) += 1;
                     }
-                    self.log.push(format!("t{}: you drop a line - the water gives you {}.", tick,
-                        if tick % 365 >= 180 && tick % 365 < 270 { "an eel" } else { "a fish" }));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+                        format!(
+                            "t{}: you drop a line - the water gives you {}.",
+                            tick,
+                            if tick % 365 >= 180 && tick % 365 < 270 {
+                                "an eel"
+                            } else {
+                                "a fish"
+                            }
+                        ),
+                    );
                 }
                 "".into()
             }
@@ -1404,8 +1502,18 @@ impl Game {
                             .collect::<Vec<_>>().join(" and ");
                         let what = if st.gold > 0.0 && !goods.is_empty() {
                             format!("{:.0} gold and {}", st.gold, goods)
-                        } else if st.gold > 0.0 { format!("{:.0} gold", st.gold) } else { goods };
-                        self.log.push(format!("t{}: you take the cache the rebels left - {}.", self.tick, what));
+                        } else if st.gold > 0.0 {
+                            format!("{:.0} gold", st.gold)
+                        } else {
+                            goods
+                        };
+                        self.log.push_ev(
+                            EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+                            format!(
+                                "t{}: you take the cache the rebels left - {}.",
+                                self.tick, what
+                            ),
+                        );
                         format!("Taken: {}.", what)
                     }
                     None => String::new(),
@@ -1531,7 +1639,10 @@ impl Game {
             }
         };
         if !msg.is_empty() {
-            self.log.push(format!("t{}: {}", tick, msg));
+            self.log.push_ev(
+                EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                format!("t{}: {}", tick, msg),
+            );
         }
     }
 
@@ -1609,9 +1720,18 @@ impl Game {
         }
         self.say(e, "*purrr*", 2);
         if was <= 0.0 {
-            self.log.push(format!("t{}: the stray cat winds round your ankles.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                format!("t{}: the stray cat winds round your ankles.", tick),
+            );
         } else if was < 0.5 && now >= 0.5 {
-            self.log.push(format!("t{}: she purrs under your hand - she's warming to you.", tick));
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: she purrs under your hand - she's warming to you.",
+                    tick
+                ),
+            );
         }
         String::new()
     }
@@ -1683,9 +1803,19 @@ impl Game {
         self.pet_cool.insert(e, self.frame_n as u64 + events::STRAY_CAT_PET_COOLDOWN);
         self.say(e, "*noses your hand*", 2);
         if was <= 0.0 {
-            self.log.push(format!("t{}: {} lets you near.", tick, match species {
-                Species::Sheep => "the sheep", Species::Goat => "the goat",
-                Species::Chicken => "the hen", _ => "the stray" }));
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: {} lets you near.",
+                    tick,
+                    match species {
+                        Species::Sheep => "the sheep",
+                        Species::Goat => "the goat",
+                        Species::Chicken => "the hen",
+                        _ => "the stray",
+                    }
+                ),
+            );
         }
         if now >= events::STRAY_CAT_TAME_BOND {
             let pe = self.seats[seat].player;
@@ -1697,8 +1827,15 @@ impl Game {
             // her be, the wool count forgets her
             self.world.remove_component::<crate::game::livestock::Livestock>(e);
             self.pets.push((e, species, (0.6, 0.4)));
-            let name = self.world.get_component::<Pet>(e).map(|p| p.name.clone()).unwrap_or_else(|| "it".into());
-            self.log.push(format!("t{}: {} leaves the fold and follows you.", tick, name));
+            let name = self
+                .world
+                .get_component::<Pet>(e)
+                .map(|p| p.name.clone())
+                .unwrap_or_else(|| "it".into());
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+                format!("t{}: {} leaves the fold and follows you.", tick, name),
+            );
             self.toasts.push((format!("{} is yours", name), self.tick));
             return format!("{} warms to you - it follows now.", name);
         }
@@ -1872,7 +2009,10 @@ impl Game {
             }
             None => "the march dissolved into the streets.".into(),
         };
-        self.log.push(format!("t{}: {}", tick, msg));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+            format!("t{}: {}", tick, msg),
+        );
     }
 
     /// The schoolhouse ask: raise the room the first time, send for a
@@ -1913,7 +2053,7 @@ impl Game {
         });
         self.brigade = Some(e);
         self.brigade_gear = 3;
-        self.log.push(format!("t{}: the fire brigade is chartered - sworn hands, oiled buckets, every bell answered.", self.tick));
+        self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Major), format!("t{}: the fire brigade is chartered - sworn hands, oiled buckets, every bell answered.", self.tick));
         "The brigade's chartered - the chest bought the buckets, and the bell has hands.".into()
     }
 
@@ -1983,7 +2123,13 @@ impl Game {
         self.was_sick.push(None);
         self.died_on.push(None);
         self.teacher = Some((e, self.tick + days));
-        self.log.push(format!("t{}: a schoolmistress takes the desk for the season.", self.tick));
+        self.log.push_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+            format!(
+                "t{}: a schoolmistress takes the desk for the season.",
+                self.tick
+            ),
+        );
     }
 
     /// The organizer's answer to the founding call on the conversation
@@ -2007,9 +2153,15 @@ impl Game {
             } else { false };
             if paid {
                 self.compliance_burden = (self.compliance_burden - 0.3).max(0.0);
-                self.log.push(format!("t{}: the postings are answered - the burden's satisfied for the day.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                    format!(
+                        "t{}: the postings are answered - the burden's satisfied for the day.",
+                        self.tick
+                    ),
+                );
             } else {
-                self.log.push(format!("t{}: the postings go unanswered - the cause hasn't the coin to satisfy them.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the postings go unanswered - the cause hasn't the coin to satisfy them.", self.tick));
             }
             return;
         }
@@ -2030,10 +2182,16 @@ impl Game {
                         w.legitimacy = (w.legitimacy - 0.1).max(0.0);
                     }
                 }
-                self.log.push(format!("t{}: the council's convened - the influence settles the stall, and the convener's own standing pays.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the council's convened - the influence settles the stall, and the convener's own standing pays.", self.tick));
             } else { // let it stall: the pressure grows
                 self.separation_pressure = (self.separation_pressure + 0.1).min(1.0);
-                self.log.push(format!("t{}: the stall goes on - the fold's own silence deepens.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: the stall goes on - the fold's own silence deepens.",
+                        self.tick
+                    ),
+                );
             }
             return;
         }
@@ -2047,19 +2205,19 @@ impl Game {
                     if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
                         c.orthodoxy = (c.orthodoxy + 0.1).min(1.0);
                     }
-                    self.log.push(format!("t{}: the mystic's canonized - the spirit's own marking folded into the fold's own telling.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the mystic's canonized - the spirit's own marking folded into the fold's own telling.", self.tick));
                 }
                 1 => { // license: tolerated under conditions - bounded influence
                     self.separation_pressure = (self.separation_pressure - 0.1).max(0.0);
-                    self.log.push(format!("t{}: the mystic's licensed - the spirit's own marking tolerated under the fold's own terms.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), format!("t{}: the mystic's licensed - the spirit's own marking tolerated under the fold's own terms.", self.tick));
                 }
                 _ => { // suppress: the removal - and the martyrdom's own risk
                     let martyr = (self.tick.wrapping_mul(37).wrapping_add(oe as u64)) % 100 < 40;
                     if martyr {
                         self.separation_pressure = (self.separation_pressure + 0.3).min(1.0);
-                        self.log.push(format!("t{}: the mystic's suppressed - and the dead one's bigger than the living was.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Major), format!("t{}: the mystic's suppressed - and the dead one's bigger than the living was.", self.tick));
                     } else {
-                        self.log.push(format!("t{}: the mystic's suppressed - the spirit's own marking quieted, for now.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the mystic's suppressed - the spirit's own marking quieted, for now.", self.tick));
                     }
                 }
             }
@@ -2076,9 +2234,16 @@ impl Game {
                 if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
                     c.routinization = (c.routinization + 0.2).min(1.0);
                 }
-                self.log.push(format!("t{}: the charter's taken - the fold's own gold and the crown's own terms.", self.tick));
-            } else { // refuse: the edge keeps, the assets forgone
-                self.log.push(format!("t{}: the charter's refused - the fold keeps its own edge, and its own poverty.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                    format!(
+                        "t{}: the charter's taken - the fold's own gold and the crown's own terms.",
+                        self.tick
+                    ),
+                );
+            } else {
+                // refuse: the edge keeps, the assets forgone
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), format!("t{}: the charter's refused - the fold keeps its own edge, and its own poverty.", self.tick));
             }
             return;
         }
@@ -2087,7 +2252,7 @@ impl Game {
         // leverage fails
         if self.inquisition.is_some() && self.penetration > 0.3 && pick == 0 && self.dilemma.is_none() {
             self.penetration = (self.penetration - 0.2).max(0.0);
-            self.log.push(format!("t{}: an exposed one walks free with bread and a door - the leverage the eyes built on them fails.", self.tick));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: an exposed one walks free with bread and a door - the leverage the eyes built on them fails.", self.tick));
             return;
         }
         // the parley's own choice: ride to it and risk the ambush, hold
@@ -2112,15 +2277,21 @@ impl Game {
                                 w.legitimacy = (w.legitimacy - 0.3).max(0.0);
                             }
                         }
-                        self.log.push(format!("t{}: the parley was a trap - the leader's taken under a white flag, and the castle's own honor's spent for it.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), format!("t{}: the parley was a trap - the leader's taken under a white flag, and the castle's own honor's spent for it.", self.tick));
                     } else {
-                        self.log.push(format!("t{}: the talk was real - the cause's own grievance's heard, for now.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Notable), format!("t{}: the talk was real - the cause's own grievance's heard, for now.", self.tick));
                     }
                     return;
                 }
                 1 => { // hold the distance: safe, but the talk never happens
                     self.parley = None;
-                    self.log.push(format!("t{}: the cause holds its distance - no talk, no trap.", self.tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: the cause holds its distance - no talk, no trap.",
+                            self.tick
+                        ),
+                    );
                     return;
                 }
                 _ => { // demand hostages: the guarantee costs the castle
@@ -2131,7 +2302,7 @@ impl Game {
                             w.legitimacy = (w.legitimacy - 0.1).max(0.0);
                         }
                     }
-                    self.log.push(format!("t{}: hostages demanded for the talking - the castle's own guarantee costs its own standing.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!("t{}: hostages demanded for the talking - the castle's own guarantee costs its own standing.", self.tick));
                     return;
                 }
             }
@@ -2146,7 +2317,7 @@ impl Game {
                     w.legitimacy = (w.legitimacy - 0.05).max(0.0);
                 }
             }
-            self.log.push(format!("t{}: the honor goes unsworn - a small thing alone, but the castle reads what it means.", self.tick));
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable), format!("t{}: the honor goes unsworn - a small thing alone, but the castle reads what it means.", self.tick));
             return;
         }
         // the cult's own counters: shelter a soul out, break the milieu,
@@ -2162,7 +2333,7 @@ impl Game {
                         if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
                             c.members.retain(|&x| x != m);
                         }
-                        self.log.push(format!("t{}: a soul walks free of the fold - the cage's own cost let them.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: a soul walks free of the fold - the cage's own cost let them.", self.tick));
                     }
                     return;
                 }
@@ -2171,7 +2342,13 @@ impl Game {
                         for d in t.dials.iter_mut() { *d = d.saturating_sub(2); }
                         t.isolation = (t.isolation - 0.2).max(0.0);
                     }
-                    self.log.push(format!("t{}: the outside word comes in - the fold's own walls thin.", self.tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                        format!(
+                            "t{}: the outside word comes in - the fold's own walls thin.",
+                            self.tick
+                        ),
+                    );
                     return;
                 }
                 _ => { // the coercion: the lord's own hand, and the cage's own method
@@ -2181,7 +2358,7 @@ impl Game {
                             w.paranoia = (w.paranoia + 0.3).min(1.0);
                         }
                     }
-                    self.log.push(format!("t{}: the lord's hand's called on the fold - the coercion's own method replicates the cage.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!("t{}: the lord's hand's called on the fold - the coercion's own method replicates the cage.", self.tick));
                     return;
                 }
             }
@@ -2200,7 +2377,7 @@ impl Game {
                 2 => "the planted word",
                 _ => "the ban",
             };
-            self.log.push(format!("t{}: the cause reads {} coming - the word's contested early, the lord's own standing wears.", self.tick, rung));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the cause reads {} coming - the word's contested early, the lord's own standing wears.", self.tick, rung));
             return;
         }
         // the org's own counter-intel plays: feed the watcher a false
@@ -2213,7 +2390,13 @@ impl Game {
                         w.paranoia = (w.paranoia - 0.2).max(0.0);
                     }
                 }
-                self.log.push(format!("t{}: a false word's fed to the lord's eyes - the watching softens.", self.tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                    format!(
+                        "t{}: a false word's fed to the lord's eyes - the watching softens.",
+                        self.tick
+                    ),
+                );
                 return;
             }
             if pick == 1 && self.counter_intel >= 3 {
@@ -2229,9 +2412,22 @@ impl Game {
                         }
                     }
                 }
-                self.log.push(format!("t{}: {}.", self.tick,
-                    if bad { "the reading's found out - the watching hardens" }
-                           else { "the watcher's papers read out - the lord's program's spent" }));
+                self.log.push_ev(
+                    if bad {
+                        EvTag::new(Thread::Law, Valence::Negative, Sev::Notable)
+                    } else {
+                        EvTag::new(Thread::Org, Valence::Positive, Sev::Notable)
+                    },
+                    format!(
+                        "t{}: {}.",
+                        self.tick,
+                        if bad {
+                            "the reading's found out - the watching hardens"
+                        } else {
+                            "the watcher's papers read out - the lord's program's spent"
+                        }
+                    ),
+                );
                 return;
             }
         }
@@ -2239,7 +2435,13 @@ impl Game {
         // witnesses against the lord's staged tale
         if self.emergency.is_some() && pick == 0 {
             self.witnesses += 1;
-            self.log.push(format!("t{}: a witness steps up - the tale has {} telling what they saw.", self.tick, self.witnesses));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                format!(
+                    "t{}: a witness steps up - the tale has {} telling what they saw.",
+                    self.tick, self.witnesses
+                ),
+            );
             if self.witnesses >= 4 {
                 for site in &self.sites {
                     let Some(l) = site.lord else { continue };
@@ -2250,7 +2452,7 @@ impl Game {
                 }
                 self.emergency = None;
                 self.witnesses = 0;
-                self.log.push(format!("t{}: the witnesses stand four deep - the lord's staged brawl's read for what it is, the square's free again.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the witnesses stand four deep - the lord's staged brawl's read for what it is, the square's free again.", self.tick));
             }
             return;
         }
@@ -2260,18 +2462,18 @@ impl Game {
             let m = self.plant.unwrap();
             match pick {
                 0 => { // marshal: the cause stays honest, the plant's read
-                    self.log.push(format!("t{}: the discipline holds - the cause marches honest, and the torch-word dies.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the discipline holds - the cause marches honest, and the torch-word dies.", self.tick));
                     self.plant = None;
                 }
                 1 => { // verify: the ask reads the plant
                     if self.world.get_component::<crate::game::campaign::Plant>(m).is_some() {
-                        self.log.push(format!("t{}: the asking reads it out - the plant's own name surfaces, the lord's hand behind the word.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the asking reads it out - the plant's own name surfaces, the lord's hand behind the word.", self.tick));
                         if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             or.influence_pool = (or.influence_pool + 0.05).min(1.0);
                         }
                         self.plant = None;
                     } else {
-                        self.log.push(format!("t{}: no hand behind the word - the suspicion cost the room its trust.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: no hand behind the word - the suspicion cost the room its trust.", self.tick));
                     }
                 }
                 _ => { // eject: suspicion enough - right or wrong, it costs
@@ -2280,9 +2482,9 @@ impl Game {
                         or.members.retain(|&x| x != m);
                     }
                     if real {
-                        self.log.push(format!("t{}: the plant's thrown out - the lord's word's gone, and the room knows it.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the plant's thrown out - the lord's word's gone, and the room knows it.", self.tick));
                     } else {
-                        self.log.push(format!("t{}: a true heart's thrown out on suspicion - the room's trust wears thin.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: a true heart's thrown out on suspicion - the room's trust wears thin.", self.tick));
                         if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             or.influence_pool *= 0.9;
                         }
@@ -2299,12 +2501,12 @@ impl Game {
             match pick {
                 0 => {
                     if o.binding {
-                        self.log.push(format!("t{}: the seat's real - a binding word from the board, and the cause gains it.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the seat's real - a binding word from the board, and the cause gains it.", self.tick));
                         if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             or.influence_pool = (or.influence_pool + 0.1).min(1.0);
                         }
                     } else {
-                        self.log.push(format!("t{}: the seat was air - the cause's own fire's spent at their table, and its name's spent with it.", self.tick));
+                        self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the seat was air - the cause's own fire's spent at their table, and its name's spent with it.", self.tick));
                         if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             or.influence_pool *= 0.8;
                             or.resources = (or.resources * 0.9).max(0.0);
@@ -2312,11 +2514,23 @@ impl Game {
                     }
                 }
                 1 => {
-                    self.log.push(format!("t{}: the offer's refused - the lord notes the defiance in his book.", self.tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                        format!(
+                            "t{}: the offer's refused - the lord notes the defiance in his book.",
+                            self.tick
+                        ),
+                    );
                 }
                 _ => {
-                    self.log.push(format!("t{}: the seat's read first - it {} the board's real word.", self.tick,
-                        if o.binding { "carries" } else { "lacks" }));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                        format!(
+                            "t{}: the seat's read first - it {} the board's real word.",
+                            self.tick,
+                            if o.binding { "carries" } else { "lacks" }
+                        ),
+                    );
                     self.seat_offer = Some(o);
                 }
             }
@@ -2326,12 +2540,23 @@ impl Game {
         // and the debt comes home when its day does
         if let Some(knot) = self.dilemma.take() {
             if let Some(b) = knot.branches.get(pick) {
-                self.dilemma_debts.push(crate::session::events::DilemmaDebt {
-                    branch: pick, due: self.tick + 3,
-                    // the remembering lands on the pair of hands that
-                    // made the pick, whoever answered (#962)
-                    witness: self.seats[seat].player, victim: b.victim, weight: b.debt });
-                self.log.push(format!("t{}: {} - the choice is carried out, and the remembering begins.", self.tick, b.text));
+                self.dilemma_debts
+                    .push(crate::session::events::DilemmaDebt {
+                        branch: pick,
+                        due: self.tick + 3,
+                        // the remembering lands on the pair of hands that
+                        // made the pick, whoever answered (#962)
+                        witness: self.seats[seat].player,
+                        victim: b.victim,
+                        weight: b.debt,
+                    });
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                    format!(
+                        "t{}: {} - the choice is carried out, and the remembering begins.",
+                        self.tick, b.text
+                    ),
+                );
             }
             return;
         }
@@ -2347,10 +2572,20 @@ impl Game {
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
                 p.for_day = Some(for_day);
             }
-            self.notices.push(("meet".into(),
-                format!("the word's out - folk gather at {} in {} days", label, n), for_day));
-            self.toasts.push(("a meeting's called - the word's out".into(), self.tick + 40));
-            self.log.push(format!("t{}: the word's out - they gather at {} in {} days.", self.tick, label, n));
+            self.notices.push((
+                "meet".into(),
+                format!("the word's out - folk gather at {} in {} days", label, n),
+                for_day,
+            ));
+            self.toasts
+                .push(("a meeting's called - the word's out".into(), self.tick + 40));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                format!(
+                    "t{}: the word's out - they gather at {} in {} days.",
+                    self.tick, label, n
+                ),
+            );
             return;
         }
         let Some(d) = self.seats[seat].pending_founding.take() else { return };
@@ -2361,8 +2596,18 @@ impl Game {
                 1 => Framing::CommonFoe,
                 2 => Framing::MoralDuty,
                 _ => {
-                    self.log.push(format!("t{}: The talk stays talk for now - no cause taken up.", self.tick));
-                    self.note_talk(d.record, None, "The talk stays talk for now - no cause taken up.");
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: The talk stays talk for now - no cause taken up.",
+                            self.tick
+                        ),
+                    );
+                    self.note_talk(
+                        d.record,
+                        None,
+                        "The talk stays talk for now - no cause taken up.",
+                    );
                     return;
                 }
             };
@@ -2371,7 +2616,10 @@ impl Game {
                 b.grumbles = b.stake.as_ref().map(|s| !campaign::framing_suits(framing, s)).unwrap_or(false);
             }
             let msg = self.found_and_note(seat, &vote, framing, DecisionRule::Majority);
-            self.log.push(format!("t{}: {}", self.tick, msg));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                format!("t{}: {}", self.tick, msg),
+            );
             self.note_talk(d.record, None, &msg);
             return;
         }
@@ -2384,7 +2632,10 @@ impl Game {
                 let plan = crate::game::organizing::plan_for(&mut self.world, oe);
                 for &e in &d.meet_again { if !plan.coming.contains(&e) { plan.coming.push(e); } }
                 let msg = "They'll gather again - you'll need a place to meet.".to_string();
-                self.log.push(format!("t{}: {}", self.tick, msg));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}", self.tick, msg),
+                );
                 self.note_talk(d.record, None, &msg);
                 return;
             }
@@ -2395,7 +2646,10 @@ impl Game {
             self.note_talk(d.record, None, &msg);
             return;
         }
-        self.log.push(format!("t{}: The talk stays talk for now.", self.tick));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+            format!("t{}: The talk stays talk for now.", self.tick),
+        );
         self.note_talk(d.record, None, "The talk stays talk for now.");
     }
 

@@ -60,15 +60,34 @@ impl Game {
             match l.grant {
                 // the ask reached the keep: the warden makes his answer
                 None => {
-                    let p = self.world.get_component::<crate::game::traits::Personality>(l.warden)
-                        .map(|p| p.traits.clone()).unwrap_or_default();
-                    let grant = if p.contains(&crate::game::traits::Trait::Kind) { Grant::Full }
-                        else if p.contains(&crate::game::traits::Trait::Hotheaded)
-                            || p.contains(&crate::game::traits::Trait::Stingy) { Grant::Refused }
-                        else { Grant::Part };
-                    self.cell_mail.push(CellLetter { site: l.site, demand: l.demand,
-                        grant: Some(grant), warden: l.warden, arrive: tick + CELL_ROAD_DAYS });
-                    self.log.push(format!("t{}: word from {} - the keep has read the cell's ask.", tick, self.sites[l.site].name));
+                    let p = self
+                        .world
+                        .get_component::<crate::game::traits::Personality>(l.warden)
+                        .map(|p| p.traits.clone())
+                        .unwrap_or_default();
+                    let grant = if p.contains(&crate::game::traits::Trait::Kind) {
+                        Grant::Full
+                    } else if p.contains(&crate::game::traits::Trait::Hotheaded)
+                        || p.contains(&crate::game::traits::Trait::Stingy)
+                    {
+                        Grant::Refused
+                    } else {
+                        Grant::Part
+                    };
+                    self.cell_mail.push(CellLetter {
+                        site: l.site,
+                        demand: l.demand,
+                        grant: Some(grant),
+                        warden: l.warden,
+                        arrive: tick + CELL_ROAD_DAYS,
+                    });
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: word from {} - the keep has read the cell's ask.",
+                            tick, self.sites[l.site].name
+                        ),
+                    );
                 }
                 // the answer reached the cell: it lands on the held
                 Some(g) => self.cell_answered(tick, l.site, l.demand, g),
@@ -95,7 +114,10 @@ impl Game {
                 Demand::Rations => "the slop's a sentence of its own",
                 Demand::Care => "the sick need seeing to",
             };
-            self.log.push(format!("t{}: the cell meets - {}.", tick, what));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the cell meets - {}.", tick, what),
+            );
         }
         // and thin rations do their quiet work
         for c in &self.cells {
@@ -146,8 +168,12 @@ impl Game {
                 }
             }
         }
-        self.log.push(format!("t{}: the keep answers the cell - {}.", tick, word));
-        self.toasts.push((format!("the keep answers: {}", word), tick + 40));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+            format!("t{}: the keep answers the cell - {}.", tick, word),
+        );
+        self.toasts
+            .push((format!("the keep answers: {}", word), tick + 40));
     }
 
     /// The knight-lord of a castle site: its Knight-vocation member

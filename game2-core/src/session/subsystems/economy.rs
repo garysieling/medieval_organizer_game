@@ -119,14 +119,39 @@ impl Game {
                 if let Some(p) = self.world.get_component_mut::<Purse>(dead) { p.gold = 0.0; }
                 if let Some(p) = self.world.get_component_mut::<Purse>(h) { p.gold += gold * 0.8; }
                 desires::add_grievance(&mut self.world, h, desires::Problem::DeathDuty, tick + 60);
-                let hname = self.villagers.iter().position(|v| *v == h).map(|i| vill_name(i)).unwrap_or("the heir");
-                self.log_entity(h, format!("t{}: {} takes up {}'s bench; the lord takes his fifth.", tick, hname, dname));
+                let hname = self
+                    .villagers
+                    .iter()
+                    .position(|v| *v == h)
+                    .map(|i| vill_name(i))
+                    .unwrap_or("the heir");
+                self.log_entity_ev(
+                    EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                    h,
+                    format!(
+                        "t{}: {} takes up {}'s bench; the lord takes his fifth.",
+                        tick, hname, dname
+                    ),
+                );
             }
             None => {
-                if let Some(b) = self.world.get_component_mut::<Building>(shop) { b.worker = None; }
-                let bname = self.world.get_component::<Building>(shop).map(|b| b.name.clone()).unwrap_or_else(|| "the shop".into());
-                self.log.push_at_who(format!("t{}: {} stands shuttered - no heir for {}'s bench.", tick, bname, dname),
-                    toast_spot(&self.world, shop), None);
+                if let Some(b) = self.world.get_component_mut::<Building>(shop) {
+                    b.worker = None;
+                }
+                let bname = self
+                    .world
+                    .get_component::<Building>(shop)
+                    .map(|b| b.name.clone())
+                    .unwrap_or_else(|| "the shop".into());
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Economy, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: {} stands shuttered - no heir for {}'s bench.",
+                        tick, bname, dname
+                    ),
+                    toast_spot(&self.world, shop),
+                    None,
+                );
                 // the day's derelict scan mustn't say it a second time
                 if let Some(i) = self.building_entities.iter().position(|&e| e == shop) {
                     self.derelict.insert(i);
@@ -260,12 +285,21 @@ impl Game {
                     if let Some(p) = self.world.get_component_mut::<Purse>(sh) { p.gold += worth; }
                 }
                 match self.shepherd {
-                    Some(sh) => self.log_entity(sh, format!(
-                        "t{}: a noble pays triple for the {} cheese - a wheel {} days aged.",
-                        tick, self.cellar_trait, age)),
-                    None => self.log.push(format!(
-                        "t{}: a noble pays triple for the {} cheese - a wheel {} days aged.",
-                        tick, self.cellar_trait, age)),
+                    Some(sh) => self.log_entity_ev(
+                        EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                        sh,
+                        format!(
+                            "t{}: a noble pays triple for the {} cheese - a wheel {} days aged.",
+                            tick, self.cellar_trait, age
+                        ),
+                    ),
+                    None => self.log.push_ev(
+                        EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                        format!(
+                            "t{}: a noble pays triple for the {} cheese - a wheel {} days aged.",
+                            tick, self.cellar_trait, age
+                        ),
+                    ),
                 }
             }
         }
@@ -353,8 +387,14 @@ impl Game {
             if bare { goods::nudge(&mut self.world, good, goods::BARE_NUDGE); }
             let kn = self.name_of(keeper);
             let mn = self.name_of(maker);
-            self.log_entity(keeper, format!("t{}: {} lays in {} measures of {} off {} for the tavern, {:.0} gold.",
-                tick, kn, taken, good, mn, paid));
+            self.log_entity_ev(
+                EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                keeper,
+                format!(
+                    "t{}: {} lays in {} measures of {} off {} for the tavern, {:.0} gold.",
+                    tick, kn, taken, good, mn, paid
+                ),
+            );
             // one barrel a trip: whatever he could lay hands on cheapest
             // is the day's lay-in, and the till decides the next one
             return;
@@ -540,7 +580,14 @@ impl Game {
         // and now and then the water brings up something strange - a pale
         // stone, a thing that glows - and the tale gets around
         if tick % 70 == 60 {
-            self.log_entity(fisher, format!("t{}: the fisher pulls a pale stone from the river - cold, and faintly lit.", tick));
+            self.log_entity_ev(
+                EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                fisher,
+                format!(
+                    "t{}: the fisher pulls a pale stone from the river - cold, and faintly lit.",
+                    tick
+                ),
+            );
             self.say(fisher, "The river keeps its own.", CHAT_BUBBLE_SECS);
         }
     }

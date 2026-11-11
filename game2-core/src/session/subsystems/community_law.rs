@@ -59,7 +59,10 @@ impl Game {
                 if self.bylaw_friction.get(&kind).copied().unwrap_or(0) >= ADOPT_AT {
                     self.bylaws.push(ByeLaw { kind, passed_on: tick, violations: 0 });
                     self.bylaw_friction.insert(kind, 0);
-                    self.log.push(format!("t{}: the village agrees a rule - {}.", tick, bye_name(kind)));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Law, Valence::Positive, Sev::Notable),
+                        format!("t{}: the village agrees a rule - {}.", tick, bye_name(kind)),
+                    );
                     // agreeing a rule is the community finding its voice
                     self.community_nudge(0.05);
                     // a village writing its own rules is a writ that
@@ -78,8 +81,19 @@ impl Game {
         let purse = self.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0);
         let fine = (purse * BYE_FINE_SHARE).max(BYE_FINE_MIN);
         if purse >= fine {
-            if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= fine; }
-            self.log_entity(v, format!("t{}: {} is fined for breaking the rule - {}.", tick, name, bye_name(kind)));
+            if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                p.gold -= fine;
+            }
+            self.log_entity_ev(
+                EvTag::new(Thread::Law, Valence::Negative, Sev::Minor),
+                v,
+                format!(
+                    "t{}: {} is fined for breaking the rule - {}.",
+                    tick,
+                    name,
+                    bye_name(kind)
+                ),
+            );
         } else {
             // what's owed past the purse is a debt; kin and near
             // neighbors can stand surety for it
@@ -93,9 +107,16 @@ impl Game {
                 // gold put up against a neighbour's word is aid risked (#950)
                 crate::game::virtue::witness(&mut self.world, voucher,
                     crate::game::virtue::MoralAct::SharedAid, 0.5);
-                self.log.push(format!("t{}: {} stands surety for {} - the fine's paid, and gold's put up against the word.", tick, vname, name));
+                self.log.push_ev(EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor), format!("t{}: {} stands surety for {} - the fine's paid, and gold's put up against the word.", tick, vname, name));
             } else {
-                self.log_entity(v, format!("t{}: {} can't pay the rule's fine - the village remembers it.", tick, name));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Law, Valence::Negative, Sev::Minor),
+                    v,
+                    format!(
+                        "t{}: {} can't pay the rule's fine - the village remembers it.",
+                        tick, name
+                    ),
+                );
             }
         }
         // the neighbors' word feeds the same ladder - but the penalty's
@@ -113,10 +134,22 @@ impl Game {
             let short = u.owed - u.bond;
             if short > 0.001 {
                 let vname = named(self, u.voucher);
-                self.log.push(format!("t{}: the surety fails - {}'s bond's spent and they answer for the word.", tick, vname));
+                self.log.push_ev(
+                    EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                    format!(
+                        "t{}: the surety fails - {}'s bond's spent and they answer for the word.",
+                        tick, vname
+                    ),
+                );
                 self.apply_sanction(u.voucher, Sanction::Gossip, tick);
             } else {
-                self.log.push(format!("t{}: {} breaks the rule again - the surety's bond pays the debt.", tick, name));
+                self.log.push_ev(
+                    EvTag::new(Thread::Law, Valence::Negative, Sev::Minor),
+                    format!(
+                        "t{}: {} breaks the rule again - the surety's bond pays the debt.",
+                        tick, name
+                    ),
+                );
             }
             self.community_nudge(-0.03);
         }
@@ -154,11 +187,26 @@ impl Game {
                 if bond_between(self, a, b) < PARTNER_MIN_BOND { continue; }
                 // the common objective: a wrong they both carry
                 let pa = live_problems(self, a, tick);
-                if !pa.iter().any(|p| live_problems(self, b, tick).contains(p)) { continue; }
-                self.partnerships.push(Partnership { members: vec![a, b],
-                    formed_on: tick, strength: 0.5, stage: PartnerStage::Forming,
-                    rancor: 0.0, settled: false });
-                self.log.push(format!("t{}: {} and {} swear to shared work.", tick, named(self, a), named(self, b)));
+                if !pa.iter().any(|p| live_problems(self, b, tick).contains(p)) {
+                    continue;
+                }
+                self.partnerships.push(Partnership {
+                    members: vec![a, b],
+                    formed_on: tick,
+                    strength: 0.5,
+                    stage: PartnerStage::Forming,
+                    rancor: 0.0,
+                    settled: false,
+                });
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: {} and {} swear to shared work.",
+                        tick,
+                        named(self, a),
+                        named(self, b)
+                    ),
+                );
                 self.community_nudge(0.03);
                 continue 'outer;
             }
@@ -178,9 +226,25 @@ impl Game {
                 p.stage = PartnerStage::Dissolved;
                 p.rancor = if bond < 0.0 { (-bond).min(1.0) } else { 0.0 };
                 p.settled = p.rancor <= 0.0;
-                self.log.push(format!("t{}: the partnership of {} and {} breaks{}.", tick, an, bn,
-                    if p.rancor > 0.0 { " - hard words remain" } else { " clean" }));
-                self.community_nudge(if self.partnerships[pi].rancor > 0.0 { -0.04 } else { -0.01 });
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Minor),
+                    format!(
+                        "t{}: the partnership of {} and {} breaks{}.",
+                        tick,
+                        an,
+                        bn,
+                        if p.rancor > 0.0 {
+                            " - hard words remain"
+                        } else {
+                            " clean"
+                        }
+                    ),
+                );
+                self.community_nudge(if self.partnerships[pi].rancor > 0.0 {
+                    -0.04
+                } else {
+                    -0.01
+                });
             }
         }
     }
@@ -209,11 +273,28 @@ impl Game {
         self.partnerships[pi].rancor -= 0.25;
         if self.partnerships[pi].rancor <= 0.0 {
             self.partnerships[pi].settled = true;
-            let (a, b) = (self.partnerships[pi].members[0], self.partnerships[pi].members[1]);
-            self.log.push(format!("t{}: the priest makes peace between {} and {}.", tick, named(self, a), named(self, b)));
-            relationships::record_interaction(&mut self.world, a,
-                relationships::Interaction { other: b,
-                    kind: relationships::InteractionKind::Conversation, intensity: 0.3 });
+            let (a, b) = (
+                self.partnerships[pi].members[0],
+                self.partnerships[pi].members[1],
+            );
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: the priest makes peace between {} and {}.",
+                    tick,
+                    named(self, a),
+                    named(self, b)
+                ),
+            );
+            relationships::record_interaction(
+                &mut self.world,
+                a,
+                relationships::Interaction {
+                    other: b,
+                    kind: relationships::InteractionKind::Conversation,
+                    intensity: 0.3,
+                },
+            );
             self.community_nudge(0.02);
         }
     }
@@ -235,8 +316,18 @@ impl Game {
                 self.vouches[i].owed -= pay;
             }
             if self.vouches[i].owed <= 0.001 {
-                if let Some(p) = self.world.get_component_mut::<Purse>(voucher) { p.gold += bond; }
-                self.log.push(format!("t{}: {} has made good - {}'s bond comes home.", tick, named(self, debtor), named(self, voucher)));
+                if let Some(p) = self.world.get_component_mut::<Purse>(voucher) {
+                    p.gold += bond;
+                }
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: {} has made good - {}'s bond comes home.",
+                        tick,
+                        named(self, debtor),
+                        named(self, voucher)
+                    ),
+                );
                 // the word was kept, and it cost them a weekly share (#950)
                 crate::game::virtue::witness(&mut self.world, debtor,
                     crate::game::virtue::MoralAct::KeptWord, 1.0);
@@ -257,11 +348,18 @@ impl Game {
             else if self.community_strength < COMMUNITY_HIGH { 1 } else { 2 };
         if band != self.community_band {
             self.community_band = band;
-            self.log.push(format!("t{}: {}", tick, match band {
-                0 => "the village is only houses - no pull between them.",
-                1 => "the village pulls together.",
-                _ => "the village speaks with one voice.",
-            }));
+            self.log.push_ev(
+                EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: {}",
+                    tick,
+                    match band {
+                        0 => "the village is only houses - no pull between them.",
+                        1 => "the village pulls together.",
+                        _ => "the village speaks with one voice.",
+                    }
+                ),
+            );
         }
     }
 

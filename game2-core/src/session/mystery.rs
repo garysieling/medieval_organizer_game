@@ -69,12 +69,21 @@ impl Game {
                     match self.mystery_asker(m.def, &folk, rng) {
                         Some(v) => {
                             let who = self.name_of(v);
-                            if let Some(mm) = &mut self.seats[seat].mystery { mm.asker = v; }
-                            self.log_entity(v, format!("t{}: {} is asking after it now.", tick, who));
+                            if let Some(mm) = &mut self.seats[seat].mystery {
+                                mm.asker = v;
+                            }
+                            self.log_entity_ev(
+                                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                                v,
+                                format!("t{}: {} is asking after it now.", tick, who),
+                            );
                         }
                         None => {
                             self.seats[seat].mystery = None;
-                            self.log.push(format!("t{}: the question's gone unanswered.", tick));
+                            self.log.push_ev(
+                                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                                format!("t{}: the question's gone unanswered.", tick),
+                            );
                         }
                     }
                 }
@@ -98,8 +107,19 @@ impl Game {
             self.seats[seat].mystery = Some(SeatMystery { def, known: 0, asker });
             let title = MYSTERIES[def].title;
             let who = self.name_of(asker);
-            self.say(asker, ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
-            self.log_entity(asker, format!("t{}: {} has been asking after {} - folk might know.", tick, who, title));
+            self.say(
+                asker,
+                ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize],
+                TALK_BUBBLE_SECS * 2,
+            );
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                asker,
+                format!(
+                    "t{}: {} has been asking after {} - folk might know.",
+                    tick, who, title
+                ),
+            );
         }
     }
 
@@ -120,10 +140,21 @@ impl Game {
             // name whoever's been asking - the log line's clickable, the
             // toast jumps to them (#646)
             let who = self.name_of(m2.asker);
-            self.toasts.push_at((format!("Mystery solved: {} - {} wants to hear it.", def.title, who),
-                self.tick + 80), toast_spot(&self.world, m2.asker));
-            self.log_entity(m2.asker, format!("t{}: that's all of it - the mystery of {} is {}'s to tell.",
-                self.tick, def.title, who));
+            self.toasts.push_at(
+                (
+                    format!("Mystery solved: {} - {} wants to hear it.", def.title, who),
+                    self.tick + 80,
+                ),
+                toast_spot(&self.world, m2.asker),
+            );
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+                m2.asker,
+                format!(
+                    "t{}: that's all of it - the mystery of {} is {}'s to tell.",
+                    self.tick, def.title, who
+                ),
+            );
         }
         Some(text)
     }
@@ -165,7 +196,14 @@ impl Game {
         }
         self.seats[seat].mystery = None;
         self.seats[seat].mystery_wait = tick + MYSTERY_WAIT;
-        self.log_entity(v, format!("t{}: you tell {} what you pieced together about {}. {}", tick, who, def.title, def.thanks));
+        self.log_entity_ev(
+            EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+            v,
+            format!(
+                "t{}: you tell {} what you pieced together about {}. {}",
+                tick, who, def.title, def.thanks
+            ),
+        );
         self.say(v, def.thanks, TALK_BUBBLE_SECS * 3);
         format!("{}: \"{}\"", who, def.wonders)
     }

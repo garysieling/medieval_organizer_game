@@ -1277,13 +1277,22 @@ impl Game {
                     g.world.add_component(d,
                         Disease::new(DiseaseKind::ScarletFever, v, 0.6 - i as f32 * 0.1));
                 }
-                g.log.push(format!("t{}: the scarlatina year - it's already in three beds.", g.tick));
+                g.log.push_ev(
+                    EvTag::new(Thread::Illness, Valence::Negative, Sev::Major),
+                    format!(
+                        "t{}: the scarlatina year - it's already in three beds.",
+                        g.tick
+                    ),
+                );
             }
             Scenario::CircusWinter => {
                 // a hard winter, and the tents already pitched outside
                 g.tick = 400; // inside the harsh window
                 g.spawn_circus();
-                g.log.push("t400: the circus winter - wonders, and thin stores.".to_string());
+                g.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    "t400: the circus winter - wonders, and thin stores.".to_string(),
+                );
             }
             Scenario::WidowsShop => {
                 // a shop stands derelict, a widow weighs the keeping of it
@@ -1295,7 +1304,10 @@ impl Game {
                     if let Some(w) = g.world.get_component::<Building>(b).and_then(|bb| bb.worker) {
                         g.world.add_component(w, villager::Dead);
                         g.succession_tick(1);
-                        g.log.push("t1: the widow's shop - who's to keep it now?".to_string());
+                        g.log.push_ev(
+                            EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                            "t1: the widow's shop - who's to keep it now?".to_string(),
+                        );
                     }
                 }
             }

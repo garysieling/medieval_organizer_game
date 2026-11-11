@@ -144,7 +144,13 @@ impl Game {
 
         let name = self.name_of(dead);
         if self.start_funeral(dead, slot, carriers, officiant, members, route) {
-            self.log.push(format!("t{}: the parish forms a funeral procession for {}.", tick, name));
+            self.log.push_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Notable),
+                format!(
+                    "t{}: the parish forms a funeral procession for {}.",
+                    tick, name
+                ),
+            );
             true
         } else { false }
     }

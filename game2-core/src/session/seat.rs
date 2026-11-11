@@ -476,7 +476,14 @@ impl Game {
                 }
                 // the oldest posting goes first, same as the board reads
                 self.take_pending_quest(seat, 0);
-                self.log.push(format!("t{}: {} takes a job off the board.", self.tick, self.name_of(who)));
+                self.log.push_ev(
+                    EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: {} takes a job off the board.",
+                        self.tick,
+                        self.name_of(who)
+                    ),
+                );
                 Ok(())
             }
             AgentCmd::Context { action, target } => self.agent_context_action(seat, action, target),
@@ -544,8 +551,18 @@ impl Game {
             let d = (((sx - mx) as f32).powi(2) + ((sy - my) as f32).powi(2)).sqrt();
             if mx < MAP_W as i32 && d < 30.0 {
                 self.seats[seat].notice_panel = !self.seats[seat].notice_panel;
-                self.log.push(format!("t{}: {} the board's postings.", tick,
-                    if self.seats[seat].notice_panel { "you read" } else { "you step away from" }));
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: {} the board's postings.",
+                        tick,
+                        if self.seats[seat].notice_panel {
+                            "you read"
+                        } else {
+                            "you step away from"
+                        }
+                    ),
+                );
                 return;
             }
         }
@@ -571,7 +588,10 @@ impl Game {
                         (format!("{}: we don't know you, outsider.", RIVAL_NAMES[i]), "rebuffed")
                     };
                     self.say(rv, &msg, TALK_BUBBLE_SECS);
-                    self.log.push(format!("t{}: {} {} your approach.", tick, RIVAL_NAMES[i], tag));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!("t{}: {} {} your approach.", tick, RIVAL_NAMES[i], tag),
+                    );
                 }
             }
         }
@@ -658,7 +678,10 @@ impl Game {
         // calling a meeting is an action: the line goes in the log like
         // the buttons' lines do (ctx_act_at logs for the Gather path)
         let msg = self.call_meeting_at(0);
-        self.log.push(format!("t{}: {}", self.tick, msg));
+        self.log.push_ev(
+            EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+            format!("t{}: {}", self.tick, msg),
+        );
         msg
     }
 

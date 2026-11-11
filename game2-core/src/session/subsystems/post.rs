@@ -71,9 +71,21 @@ impl Game {
             if villager::is_dead(&self.world, l.to) {
                 // the word comes back: they're gone - the letter turns
                 // for the writer on the next leg
-                self.letters[j] = Letter { from: l.to, to: l.from,
-                    office: l.office, courier: Some(who), due: tick + 30 };
-                self.log.push(format!("t{}: a letter comes back - {} is gone.", tick, self.name_of(l.to)));
+                self.letters[j] = Letter {
+                    from: l.to,
+                    to: l.from,
+                    office: l.office,
+                    courier: Some(who),
+                    due: tick + 30,
+                };
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Minor),
+                    format!(
+                        "t{}: a letter comes back - {} is gone.",
+                        tick,
+                        self.name_of(l.to)
+                    ),
+                );
             } else {
                 self.deliver_letter(l, tick);
                 self.letters.remove(j);
@@ -148,7 +160,11 @@ impl Game {
                 other: to, kind: relationships::InteractionKind::Conversation, intensity: 1.5 });
         }
         desires::satisfy(&mut self.world, to, Want::Joy, tick + 15);
-        self.log_entity(to, format!("t{}: a letter comes for {}.", tick, self.name_of(to)));
+        self.log_entity_ev(
+            EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
+            to,
+            format!("t{}: a letter comes for {}.", tick, self.name_of(to)),
+        );
     }
 
     /// The office that owes a site its post: its own if it keeps one,

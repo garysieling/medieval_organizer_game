@@ -578,7 +578,8 @@ impl TileSet {
 /// (assets/rd/people/<name>.png): the postings first, then the ten
 /// covered trades in -m/-f pairs. The sex suffix is a placeholder until
 /// the sim carries a villager's Sex (#681); unmapped roles (archer,
-/// king, mage, ...) load dormant for whoever wires them later.
+/// king, mage, ...) load dormant for whoever wires them later. The
+/// rare visitors' slugs (`events::VISIT_SLUGS`) load alongside these.
 pub(crate) const PEOPLE_SPRITES: [&str; 36] = [
     "archer", "cavalier", "courier", "crossbowman",
     "guard-halberd", "guard-shield", "guard-spear", "guard-sword",
@@ -899,8 +900,8 @@ impl Art {
             guard_walks: ["spear", "sword", "shield", "halberd"].iter().map(|g| walk(&format!("rd/guards/{}.png", g))).collect(),
             // the postings' and trades' own figures (assets/rd/people):
             // 48px stills resampled to villager height at export
-            people: PEOPLE_SPRITES.iter()
-                .filter_map(|&n| at(&format!("rd/people/{}.png", n)).map(|s| (n.to_string(), s)))
+            people: PEOPLE_SPRITES.iter().copied().chain(events::VISIT_SLUGS.iter().copied())
+                .filter_map(|n| at(&format!("rd/people/{}.png", n)).map(|s| (n.to_string(), s)))
                 .collect(),
             // the HUD's icon set (assets/rd/icons): a name that didn't
             // come back leaves its text glyph standing

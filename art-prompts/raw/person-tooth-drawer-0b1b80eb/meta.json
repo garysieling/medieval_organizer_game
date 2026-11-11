@@ -1,0 +1,27 @@
+{
+ "created_at": 1794428237,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 22.99,
+ "request_id": "bf8dc39f-c51a-4046-81d9-95fe1168d91b",
+ "outputs_retained_until": 1794514596,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 22.99
+ },
+ "id": "person-tooth-drawer-0b1b80eb",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: travelling tooth-drawer holding up iron pincers",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:17:18",
+ "seconds": 41.2
+}

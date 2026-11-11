@@ -1,0 +1,27 @@
+{
+ "created_at": 1794429020,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 20.47,
+ "request_id": "da59cb52-9a79-4d99-b5e1-d6ea581d4344",
+ "outputs_retained_until": 1794515368,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 20.47
+ },
+ "id": "person-refugee-family-840ef997",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: refugee family: mother, father, two children, bundled goods",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:30:21",
+ "seconds": 53.2
+}

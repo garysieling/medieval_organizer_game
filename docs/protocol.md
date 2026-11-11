@@ -191,9 +191,11 @@ seat may see this frame, a `UiModel`, about 22 KB. `map` is empty (see
  "find":"wystan heart helper","look":0,"person":"tax-collector","sign":null,"mounted":false,"stale":0.0}
 ```
 
-`person` names the figure their posting or trade wears ("baker",
-"tax-collector", "guard-spear") where the generated people art covers
-it; absent for the uncovered trades and on older servers. `stale` is
+`person` names the figure a person wears where the generated people art
+covers it ("baker", "tax-collector", "guard-spear", or a rare visitor's
+slug like "tinker", "glazier" - files at `rd/people/<slug>.png`);
+absent for the uncovered trades, visitors the art batch hasn't covered
+(they keep the generic courier look), and on older servers. `stale` is
 how long since this seat spoke with them, 0 fresh -> 1 long
 silent (strangers stay 0); clients may grey the name by it. `sign` is
 the picket-board design (0 wooden hand-lettered, 1 printed

@@ -1,0 +1,27 @@
+{
+ "created_at": 1794430911,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 15.97,
+ "request_id": "be2ceb15-a97d-4292-a3cc-f1ac08291c06",
+ "outputs_retained_until": 1794517251,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 15.97
+ },
+ "id": "person-quack-1eed98cf",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: medicine-show quack holding a small bottled elixir",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T16:01:52",
+ "seconds": 60.9
+}

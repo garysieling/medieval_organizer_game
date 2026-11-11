@@ -88,7 +88,7 @@ pub fn cam_centred_on(tx: f32, ty: f32) -> (i32, i32) {
 
 /// Does a scene figure answer to `--focus <name>`? (dog, cat, chicken,
 /// sheep, goat, gull, guard, priest, traveller, player, rival, villager,
-/// or any PersonV.person key - baker, tax-collector, guard-spear...)
+/// or any PersonV.person key - baker, tax-collector, tinker...)
 pub(crate) fn focus_matches(pv: &PersonV, name: &str) -> bool {
     if pv.person.as_deref() == Some(name) { return true; }
     match (pv.kind, name) {
@@ -102,7 +102,8 @@ pub(crate) fn focus_matches(pv: &PersonV, name: &str) -> bool {
 }
 
 /// run_headless, optionally centring the camera on the first figure of a
-/// kind (`--focus sheep`): screenshot checks for new art land on it
+/// kind (`--focus sheep`, or a visitor's slug: `--focus tinker`):
+/// screenshot checks for new art land on it
 /// without hunting for --cam coordinates
 #[allow(clippy::too_many_arguments)]
 pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>, seed: u64, focus: Option<&str>) {
@@ -195,7 +196,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         match game.ui_model().people.iter().find(|p| focus_matches(p, name)) {
             Some(p) => {
                 (view.cam_x, view.cam_y) = cam_centred_on(p.pos.0, p.pos.1);
-                println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", name, p.pos.0, p.pos.1, view.cam_x, view.cam_y);
+                println!("focus {}: tile ({:.1}, {:.1}) cam {},{} person={:?}", name, p.pos.0, p.pos.1, view.cam_x, view.cam_y, p.person);
             }
             None => eprintln!("focus {}: nothing of that kind on the map at tick {}", name, target_tick),
         }

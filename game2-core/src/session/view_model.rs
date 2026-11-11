@@ -328,7 +328,8 @@ impl Game {
             people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e, kind, pos: (p.x, p.y),
                 label: Some(spec.name.into()), find: find_key(spec.name), dead: false, kid: false, selected: false,
                 in_reach: false, hungry: false, sick: false, act_mark: 0,
-                bond: world.get_component::<Pet>(e).map(|p| p.bond_strength >= 0.5).unwrap_or(false), look: 0, person: None });
+                bond: world.get_component::<Pet>(e).map(|p| p.bond_strength >= 0.5).unwrap_or(false), look: 0,
+                person: events::visit_slug(r.id).map(String::from) });
         }
         for &(x, y) in &self.gulls {
             people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: 0, kind: PKind::Gull, pos: (x, y),

@@ -1,0 +1,27 @@
+{
+ "created_at": 1794427994,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 24.43,
+ "request_id": "8a994102-efc9-4618-9d6b-f7184c2a4304",
+ "outputs_retained_until": 1794514291,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 24.43
+ },
+ "id": "person-chimney-sweep-147c0c45",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: sooty chimney sweep with brush and rods",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:13:15",
+ "seconds": 103.6
+}

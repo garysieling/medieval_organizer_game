@@ -1955,6 +1955,8 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the answering seat's own cause bears what their pick costs (#962)
+        let oe = self.seats[seat].org;
         // the Act's officer waits on his answer: the scratch, the
         // fine, or the village's own counter-institution
         if let Some(offer) = self.vax_offer.take() {
@@ -1965,7 +1967,7 @@ impl Game {
         // resources to satisfy the lord's postings, else the burden
         // ticks the capacity down
         if self.compliance_burden > 0.0 && pick == 0 && self.dilemma.is_none() {
-            let paid = if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+            let paid = if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                 if o.resources > 0.05 { o.resources -= 0.05; true } else { false }
             } else { false };
             if paid {
@@ -2017,7 +2019,7 @@ impl Game {
                     self.log.push(format!("t{}: the mystic's licensed - the spirit's own marking tolerated under the fold's own terms.", self.tick));
                 }
                 _ => { // suppress: the removal - and the martyrdom's own risk
-                    let martyr = (self.tick.wrapping_mul(37).wrapping_add(self.org as u64)) % 100 < 40;
+                    let martyr = (self.tick.wrapping_mul(37).wrapping_add(oe as u64)) % 100 < 40;
                     if martyr {
                         self.separation_pressure = (self.separation_pressure + 0.3).min(1.0);
                         self.log.push(format!("t{}: the mystic's suppressed - and the dead one's bigger than the living was.", self.tick));
@@ -2033,7 +2035,7 @@ impl Game {
         if self.incorporation_offer.is_some() && pick <= 1 && self.dilemma.is_none() {
             self.incorporation_offer = None;
             if pick == 0 { // accept: the gold, the standing, the drift
-                if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                     o.resources += 20.0;
                 }
                 if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
@@ -2059,13 +2061,13 @@ impl Game {
         if self.parley.is_some() && self.dilemma.is_none() {
             match pick {
                 0 => { // ride to the parley: a real settlement, or the trap
-                    let ambush = (self.tick.wrapping_mul(41).wrapping_add(self.org as u64)) % 100 < 40;
+                    let ambush = (self.tick.wrapping_mul(41).wrapping_add(oe as u64)) % 100 < 40;
                     self.parley = None;
                     if ambush {
                         // the negotiate-and-decapitate play: the leader's
                         // taken, and the flag's own violation costs the
                         // castle's own standing
-                        if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                        if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             let leader = o.leader;
                             o.members.retain(|&m| m != leader);
                         }
@@ -2180,7 +2182,7 @@ impl Game {
                 return;
             }
             if pick == 1 && self.counter_intel >= 3 {
-                let bad = (self.tick.wrapping_mul(41).wrapping_add(self.org as u64)) % 100 < 20;
+                let bad = (self.tick.wrapping_mul(41).wrapping_add(oe as u64)) % 100 < 20;
                 for site in &self.sites {
                     let Some(l) = site.lord else { continue };
                     if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
@@ -2229,7 +2231,7 @@ impl Game {
                 1 => { // verify: the ask reads the plant
                     if self.world.get_component::<crate::game::campaign::Plant>(m).is_some() {
                         self.log.push(format!("t{}: the asking reads it out - the plant's own name surfaces, the lord's hand behind the word.", self.tick));
-                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             or.influence_pool = (or.influence_pool + 0.05).min(1.0);
                         }
                         self.plant = None;
@@ -2239,14 +2241,14 @@ impl Game {
                 }
                 _ => { // eject: suspicion enough - right or wrong, it costs
                     let real = self.world.get_component::<crate::game::campaign::Plant>(m).is_some();
-                    if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                    if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                         or.members.retain(|&x| x != m);
                     }
                     if real {
                         self.log.push(format!("t{}: the plant's thrown out - the lord's word's gone, and the room knows it.", self.tick));
                     } else {
                         self.log.push(format!("t{}: a true heart's thrown out on suspicion - the room's trust wears thin.", self.tick));
-                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             or.influence_pool *= 0.9;
                         }
                     }
@@ -2263,12 +2265,12 @@ impl Game {
                 0 => {
                     if o.binding {
                         self.log.push(format!("t{}: the seat's real - a binding word from the board, and the cause gains it.", self.tick));
-                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             or.influence_pool = (or.influence_pool + 0.1).min(1.0);
                         }
                     } else {
                         self.log.push(format!("t{}: the seat was air - the cause's own fire's spent at their table, and its name's spent with it.", self.tick));
-                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                             or.influence_pool *= 0.8;
                             or.resources = (or.resources * 0.9).max(0.0);
                         }
@@ -2291,7 +2293,9 @@ impl Game {
             if let Some(b) = knot.branches.get(pick) {
                 self.dilemma_debts.push(crate::session::events::DilemmaDebt {
                     branch: pick, due: self.tick + 3,
-                    witness: knot.witness, victim: b.victim, weight: b.debt });
+                    // the remembering lands on the pair of hands that
+                    // made the pick, whoever answered (#962)
+                    witness: self.seats[seat].player, victim: b.victim, weight: b.debt });
                 self.log.push(format!("t{}: {} - the choice is carried out, and the remembering begins.", self.tick, b.text));
             }
             return;

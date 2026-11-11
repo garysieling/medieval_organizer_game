@@ -186,6 +186,9 @@ pub struct Seat {
     pub last_pos: Option<(f32, f32)>,
     pub facing: u8,
     pub walking: bool,
+    /// This seat's pair of hands has stopped and the work's been passed
+    /// on (or died with them) - the succession runs once, per seat (#962)
+    pub player_passed: bool,
 }
 
 impl Default for Seat {
@@ -195,7 +198,8 @@ impl Default for Seat {
                pick_near: false,
                pending_founding: None, quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, notice_panel: false, aboard: None,
-               focus: None, last_pos: None, facing: 2, walking: false }
+               focus: None, last_pos: None, facing: 2, walking: false,
+               player_passed: false }
     }
 }
 

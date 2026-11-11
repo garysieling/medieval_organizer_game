@@ -82,9 +82,9 @@ pub struct VaxOffer {
 pub struct MoralKnot {
     /// What the man asks - the two ways to be wrong
     pub text: String,
-    /// Who watched the pick
-    pub witness: Entity,
-    /// Each branch: its words, and the debt it writes
+    /// Each branch: its words, and the debt it writes. Who carries the
+    /// remembering is fixed when a seat answers - whoever's hands made
+    /// the pick (#962)
     pub branches: Vec<DilemmaBranch>,
 }
 
@@ -536,7 +536,6 @@ impl Game {
                 let victim = *self.villagers.first().unwrap_or(&0);
                 self.dilemma = Some(MoralKnot {
                     text: "the granary's caught - the grain feeds the village all winter, but two children are inside. Which do you carry out first?".into(),
-                    witness: self.player,
                     branches: vec![
                         DilemmaBranch { text: "the grain - the village starves else".into(),
                             debt: 0.6, victim },

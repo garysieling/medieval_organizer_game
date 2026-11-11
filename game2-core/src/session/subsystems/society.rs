@@ -633,13 +633,17 @@ impl Game {
         let mut resolved: Vec<(Entity, bool)> = vec![]; // (who, ransomed?)
         for &(who, taken) in &self.dungeon.clone() {
             let held = tick - taken;
-            let members = self.world.get_component::<Organization>(self.org)
-                .map(|o| o.members.clone()).unwrap_or_default();
-            let purse = self.world.get_component::<PlayerCharacter>(self.player)
-                .map(|p| p.resources).unwrap_or(0.0);
-            if held >= 30 && held < 60 && !members.is_empty() && purse >= 20.0 {
+            // the village's cause answers for the held one: the first
+            // seat whose org has hands and a purse for it (#962 - before,
+            // seat 0's purse answered for every prisoner)
+            let payer = (0..self.seats.len()).find(|&s|
+                self.world.get_component::<Organization>(self.seats[s].org)
+                    .map(|o| !o.members.is_empty()).unwrap_or(false)
+                && self.world.get_component::<PlayerCharacter>(self.seats[s].player)
+                    .map(|p| p.resources >= 20.0).unwrap_or(false));
+            if held >= 30 && held < 60 && payer.is_some() {
                 // the org pays the ransom: the purse answers for its own
-                if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) {
+                if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.seats[payer.unwrap()].player) {
                     p.resources -= 20.0;
                 }
                 resolved.push((who, true));
@@ -790,40 +794,44 @@ impl Game {
 
     /// The player is the org, not a body: when the first pair of hands
     /// stops, the work passes to the member who knew them best - or the
-    /// kin under the same roof - and goes on
+    /// kin under the same roof - and goes on. Each seat carries its own
+    /// passing: a second player's death never ran this at all (#962)
     pub fn continuation_tick(&mut self, tick: u64) {
-        if self.player_passed || !villager::is_dead(&self.world, self.player) { return; }
-        // the successor: an org member first - the organizing's
-        // institutional - then kin under the same roof
-        let members = self.world.get_component::<Organization>(self.org)
-            .map(|o| o.members.clone()).unwrap_or_default();
-        let org_pick = members.iter().copied()
-            .filter(|&m| !villager::is_dead(&self.world, m) && m != self.player)
-            .max_by_key(|&m| relationships::find_relationship(&self.world, self.player, m)
-                .map(|r| self.world.get_component::<relationships::Relationship>(r)
-                    .map(|rr| (rr.strength * 100.0) as u32).unwrap_or(0)).unwrap_or(0));
-        let kin_pick = household::home_of(&self.world, self.player)
-            .and_then(|h| self.world.get_component::<Building>(h)
-                .map(|b| b.occupants.iter().copied()
-                    .find(|&o| o != self.player && !villager::is_dead(&self.world, o))))
-            .flatten();
-        let succ = org_pick.or(kin_pick);
-        self.player_passed = true;
-        let Some(succ) = succ else {
-            self.log.push(format!("t{}: the work dies with them - no hands left to take it up.", tick));
-            return;
-        };
-        // the purse passes; the name and the work are theirs to make
-        let res = self.world.get_component::<PlayerCharacter>(self.player)
-            .map(|p| p.resources).unwrap_or(0.0);
-        self.world.add_component(succ, PlayerCharacter {
-            name: self.name_of(succ),
-            resources: res,
-        });
-        let name = self.name_of(succ);
-        self.player = succ;
-        self.log_entity(succ, format!("t{}: the work goes on - {} takes up the organizing.", tick, name));
-        self.say(succ, "The work goes on. Someone has to.", CHAT_BUBBLE_SECS * 2);
+        for seat in 0..self.seats.len() {
+            let dead = self.seats[seat].player;
+            if self.seats[seat].player_passed || !villager::is_dead(&self.world, dead) { continue; }
+            // the successor: an org member first - the organizing's
+            // institutional - then kin under the same roof
+            let members = self.world.get_component::<Organization>(self.seats[seat].org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            let org_pick = members.iter().copied()
+                .filter(|&m| !villager::is_dead(&self.world, m) && m != dead)
+                .max_by_key(|&m| relationships::find_relationship(&self.world, dead, m)
+                    .map(|r| self.world.get_component::<relationships::Relationship>(r)
+                        .map(|rr| (rr.strength * 100.0) as u32).unwrap_or(0)).unwrap_or(0));
+            let kin_pick = household::home_of(&self.world, dead)
+                .and_then(|h| self.world.get_component::<Building>(h)
+                    .map(|b| b.occupants.iter().copied()
+                        .find(|&o| o != dead && !villager::is_dead(&self.world, o))))
+                .flatten();
+            let succ = org_pick.or(kin_pick);
+            self.seats[seat].player_passed = true;
+            let Some(succ) = succ else {
+                self.log.push(format!("t{}: the work dies with them - no hands left to take it up.", tick));
+                continue;
+            };
+            // the purse passes; the name and the work are theirs to make
+            let res = self.world.get_component::<PlayerCharacter>(dead)
+                .map(|p| p.resources).unwrap_or(0.0);
+            self.world.add_component(succ, PlayerCharacter {
+                name: self.name_of(succ),
+                resources: res,
+            });
+            let name = self.name_of(succ);
+            self.seats[seat].player = succ;
+            self.log_entity(succ, format!("t{}: the work goes on - {} takes up the organizing.", tick, name));
+            self.say(succ, "The work goes on. Someone has to.", CHAT_BUBBLE_SECS * 2);
+        }
     }
 
     /// The disclosure: a truth sits unsaid until it ripens, then it

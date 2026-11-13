@@ -152,3 +152,43 @@ fn test_the_tinker_sends_his_slug() {
     assert!(matches!(t.kind, PKind::Traveller), "the tinker isn't a road figure");
 }
 
+/// The camera that centres a world point on screen at zoom 1 - the
+/// inverse of iso_to_screen_cam, so a click lands on the figure's feet
+fn cam_over(p: &Pos) -> (i32, i32) {
+    ((-(p.x - p.y) * TILE_W as f32).round() as i32,
+     (H as f32 / 2.0 + 60.0 - (p.x + p.y) * TILE_H as f32).round() as i32)
+}
+
+#[test]
+fn test_a_click_hails_the_road_people() {
+    let mut g = Game::new();
+    g.force_event(events::EventId::Tinker);
+    let e = g.rare.iter().find(|r| r.id == events::EventId::Tinker).unwrap().e
+        .expect("no figure walked in");
+    let p = *g.world.get_component::<Pos>(e).unwrap();
+    let (cam_x, cam_y) = cam_over(&p);
+    let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, 1.0);
+    assert!(sx < MAP_W as i32, "the test camera put him off the map");
+    g.click_map(sx, sy, cam_x, cam_y, 1.0);
+    let spec = events::spec(events::EventId::Tinker);
+    assert!(g.bubbles.iter().any(|(w, t, _, _, _)| *w == e && *t == spec.cry),
+        "the tinker didn't answer the hail with his cry");
+    assert!(g.log.iter().any(|l| l.contains("you hail the tinker")),
+        "the hail never made the log");
+}
+
+#[test]
+fn test_a_click_hails_the_named_travellers() {
+    let mut g = Game::new();
+    g.spawn_pedlar();
+    let e = g.pedlar.as_ref().expect("the pedlar never showed").e;
+    let p = *g.world.get_component::<Pos>(e).unwrap();
+    let (cam_x, cam_y) = cam_over(&p);
+    let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, 1.0);
+    g.click_map(sx, sy, cam_x, cam_y, 1.0);
+    assert!(g.bubbles.iter().any(|(w, t, _, _, _)| *w == e && t.contains("Pots, pins")),
+        "the pedlar didn't answer the hail");
+    assert!(g.log.iter().any(|l| l.contains("you hail the pedlar")),
+        "the hail never made the log");
+}
+

@@ -856,13 +856,27 @@ impl View {
                 },
                 Who::P(pv) if let PKind::Traveller = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(s) = pv.person.as_deref().and_then(|p| art.person(p)) {
-                        draw_character(&mut buf, s, sx, sy, zoom);
+                    let anchor = if let Some(s) = pv.person.as_deref().and_then(|p| art.person(p)) {
+                        // the road people's own looks are 1x art like the
+                        // postings' stills - not the pack frame's 2x
+                        let h = draw_animal(&mut buf, s, sx, sy, zoom);
+                        sy - h + 24
                     } else if let Some(ws) = &art.traveller_walk {
                         let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
                         let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                        ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom);
-                    } else if let Some(s) = &art.traveller_s { draw_character(&mut buf, s, sx, sy, zoom); }
+                        ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom) - SPRITE_HEAD
+                    } else if let Some(s) = &art.traveller_s {
+                        draw_character(&mut buf, s, sx, sy, zoom);
+                        sprite_label_anchor(s, sy, zoom)
+                    } else {
+                        label_anchor(sy, zoom)
+                    };
+                    // who they are: the label's been riding the model since
+                    // #693 - the pedlar, the tinker, the refugee family
+                    if let Some(lbl) = &pv.label {
+                        let (lx, ly) = name_label_pos(sx, anchor, lbl);
+                        labels.push((lbl.clone(), lx, ly, (170, 205, 235), false, false, false, false, 0.0, false));
+                    }
                 },
                 Who::P(pv) if let PKind::Chicken = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);

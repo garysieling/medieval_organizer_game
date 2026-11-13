@@ -126,6 +126,14 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         None => if let Some((mx, my)) = game.ui_model().market { (view.cam_x, view.cam_y) = cam_centred_on(mx, my); },
     }
     while game.tick < target_tick { game.update(); }
+    // GAME2_DUMP_EVENT=name: fire the rare event now - GAME2_DUMP_FRAMES
+    // walks the figure in, --focus <slug> centres the camera on it
+    if let Some(name) = std::env::var("GAME2_DUMP_EVENT").ok().filter(|v| !v.is_empty()) {
+        match game2_core::session::events::event_id(&name) {
+            Some(id) => { game.force_event(id); println!("event {} fired", name); }
+            None => eprintln!("GAME2_DUMP_EVENT: no such event {}", name),
+        }
+    }
     // GAME2_KILL=N: report where the marked dead ended up, for shot checks
     if std::env::var("GAME2_KILL").is_ok() {
         eprintln!("art.tombstones={} art.graves={}", view.art.tombstones.len(), view.art.graves.len());

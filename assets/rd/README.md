@@ -222,6 +222,9 @@ Round 5 (`props` group, notes "round 5"): every 64px piece uses
 `fold`, `apiary`, `cheese`, `watch`, `workshop`...). `GAME2_DUMP_FRAMES=N`
 plays N frames into the dumped day, so stalls and congregations show
 (e.g. `--dump-frame 110 --seed 7` + 100 frames: two stalls).
+`GAME2_DUMP_EVENT=Tinker` (variant name or map name) fires a rare event
+before those frames run, so a visitor's figure can be walked in and
+focussed by slug (`--focus tinker`).
 Screenshots: `evidence/rd-round5/`.
 
 ## P0 buildings and shops (2026-11-08, $1.80 fresh + reuse)

@@ -607,6 +607,34 @@ impl Game {
                 else { (my - sy) as f32 - (8.0 * z + 4.0) }).max(0.0);
             (dx * dx + dy * dy).sqrt()
         };
+        // the road people answer a hail with their pitch: the rare
+        // visitors carry their own cry, the named travellers a line of
+        // their trade - none are on the roster, so a click hails rather
+        // than selects
+        let mut hailed: Vec<(Entity, &'static str, String)> = vec![];
+        for r in &self.rare {
+            let Some(e) = r.e else { continue };
+            let s = events::spec(r.id);
+            if !matches!(s.fig, events::Fig::Traveller) { continue; }
+            hailed.push((e, s.name, s.cry.to_string()));
+        }
+        if let Some(d) = &self.doctor { hailed.push((d.e, "the plague doctor", "Stand back - the miasma's about.".into())); }
+        if let Some(m) = &self.minstrel { hailed.push((m.e, "the minstrel", "A tune, then - what's your fancy?".into())); }
+        if let Some(m) = &self.pedlar { hailed.push((m.e, "the pedlar", "Pots, pins, and word of the next village.".into())); }
+        if let Some(c) = &self.circus { hailed.push((c.e, "the circus", "Come see! Wonders from over the hill!".into())); }
+        if let Some(b) = &self.ink_boiler { hailed.push((b.e, "the ink-boiler", "Ink for the printer - and your crusts come back fried.".into())); }
+        for c in &self.couriers { hailed.push((c.e, "the courier", "Letters for the far town - I can't linger.".into())); }
+        for (e, name, line) in hailed {
+            let Some(p) = self.world.get_component::<Pos>(e) else { continue };
+            let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
+            if on_map && box_d(sx, sy) < 4.0 {
+                self.say(e, &line, TALK_BUBBLE_SECS);
+                self.log.push_ev(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!("t{}: you hail {}.", tick, name),
+                );
+            }
+        }
         let mut best = self.seats[seat].selected_target;
         let mut best_d = f32::MAX;
         let mut best_sy = i32::MIN;

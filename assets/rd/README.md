@@ -224,7 +224,9 @@ plays N frames into the dumped day, so stalls and congregations show
 (e.g. `--dump-frame 110 --seed 7` + 100 frames: two stalls).
 `GAME2_DUMP_EVENT=Tinker` (variant name or map name) fires a rare event
 before those frames run, so a visitor's figure can be walked in and
-focussed by slug (`--focus tinker`).
+focussed by slug (`--focus tinker`). `GAME2_DUMP_MARCH=castle|town|monastery`
+founds a cause if need be and sends the column up the road to the nearest
+site of that kind (`--focus march` centres on the head).
 Screenshots: `evidence/rd-round5/`.
 
 ## P0 buildings and shops (2026-11-08, $1.80 fresh + reuse)

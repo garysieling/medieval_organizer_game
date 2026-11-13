@@ -334,12 +334,18 @@ impl View {
             .and_then(|b| self.sprite_of(b.sprite).as_ref())
             .map(stained_glass);
         let mut standing: Vec<(f32, f32, Piece)> = vec![];
+        // the clicked building keeps its own dart, drawn up top with the
+        // player marker so the selection reads through the crowd
+        let mut b_marker: Option<(i32, i32)> = None;
         for (i, b) in m.buildings.iter().enumerate() {
             let s = self.sprite_of(b.sprite);
             let sprite = if b.derelict { tint_cache[&i].as_ref().or(s.as_ref()) }
                 else if b.windowed { windowed_church.as_ref().or(s.as_ref()) }
                 else { s.as_ref() };
             standing.push((b.x, b.y, if b.cutaway { Piece::Cutaway(sprite, b.risen) } else { Piece::Building(sprite, b.risen) }));
+            if m.sel.building == Some(i) {
+                b_marker = Some(iso_to_screen_cam(b.x, b.y, cam_x, cam_y, zoom));
+            }
         }
         standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|
             (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
@@ -1058,6 +1064,9 @@ impl View {
         }
         if let Some((cx, top, z, f)) = player_marker {
             draw_player_marker(&mut buf, cx, top, z, f);
+        }
+        if let Some((sx, sy)) = b_marker {
+            draw_player_marker(&mut buf, sx, sy - (34.0 * zoom).round() as i32, zoom, m.frame);
         }
 
         prof.mark("render.gulls+labels");

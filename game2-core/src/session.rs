@@ -2459,6 +2459,7 @@ impl Game {
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
             self.advance_approach_at(seat);
+            self.advance_buy_walk_at(seat);
             self.advance_selection_at(seat);
         }
         let frame = self.frame_n;

@@ -276,6 +276,7 @@ impl Game {
         self.seats[seat].picked = false;
         self.seats[seat].pick_near = false;
         self.seats[seat].approach = None;
+        self.seats[seat].buy_walk = None;
         self.close_player_talk(seat, Some("You take your leave."));
     }
 
@@ -406,6 +407,46 @@ impl Game {
             None => Some(format!("Can't {}: there's no way to reach {}.",
                 ACTION_LABELS[action].to_lowercase(), vill_name(who))),
         }
+    }
+
+    /// One frame of the walk-over-to-buy: follow the path to the picked
+    /// shop's tile, then buy one of its offer once beside it. A building
+    /// doesn't wander, so the path stands; give up if the way's blocked
+    pub fn advance_buy_walk_at(&mut self, seat: usize) {
+        let Some(mut w) = self.seats[seat].buy_walk.take() else { return };
+        let Some(&b) = self.building_entities.get(w.building) else { return };
+        let Some(bp) = self.world.get_component::<Pos>(b).copied() else { return };
+        let (px, py) = self.player_pos_at(seat);
+        if ((bp.x - px).powi(2) + (bp.y - py).powi(2)).sqrt() < 4.0 {
+            let pe = self.seats[seat].player;
+            let tick = self.tick;
+            let offer = self.world.get_component::<Building>(b)
+                .and_then(|bb| household::on_offer_at(&self.world, bb).into_iter().next());
+            let msg = match offer {
+                Some((g, _, _)) => match household::buy_at_shop(&mut self.world, b, pe, &g, 1) {
+                    Some(paid) => format!("t{}: you buy {} for {:.0} gold.", tick, g, paid),
+                    None => format!("t{}: you can't cover it.", tick),
+                },
+                None => format!("t{}: the shelf's bare.", tick),
+            };
+            self.log.push_ev(EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor), msg);
+            return;
+        }
+        // drop tiles already reached, then head for the next
+        while w.path.len() > 1 {
+            let (x, y) = w.path[0];
+            if (x as f32 - px).abs() < 0.25 && (y as f32 - py).abs() < 0.25 { w.path.remove(0); } else { break; }
+        }
+        let (tx, ty) = w.path.first().map(|&(x, y)| (x as f32, y as f32)).unwrap_or((bp.x, bp.y));
+        let (dx, dy) = (tx - px, ty - py);
+        if dx.abs() + dy.abs() > 1e-3 { self.walk_at(seat, dx, dy); }
+        w.stuck = if self.player_pos_at(seat) != (px, py) { 0 } else { w.stuck + 1 };
+        if w.stuck > APPROACH_STUCK_FRAMES {
+            self.log.push_ev(EvTag::new(Thread::Player, Valence::Negative, Sev::Minor),
+                format!("t{}: you can't get through to the shop.", self.tick));
+            return;
+        }
+        self.seats[seat].buy_walk = Some(w);
     }
 
     /// One frame of walking over to someone: follow the path (finding a new
@@ -613,10 +654,17 @@ impl Game {
             }
         }
         // a shop you're standing by will sell you one of what it makes:
-        // the bag takes it, the walking purse pays the street's price
+        // the bag takes it, the walking purse pays the street's price.
+        // A clicked building with an offer sells from further off - the
+        // click walks you over, one unit a click
         let pe = self.seats[seat].player;
         if self.world.get_component::<Satchel>(pe).is_some() {
-            let sellable = self.building_entities.iter().copied().any(|b| {
+            let clicked_sells = self.seats[seat].selected_building
+                .and_then(|i| self.building_entities.get(i).copied())
+                .and_then(|b| self.world.get_component::<Building>(b)
+                    .map(|bb| bb.worker.is_some() && !household::on_offer_at(&self.world, bb).is_empty()))
+                .unwrap_or(false);
+            let sellable = clicked_sells || self.building_entities.iter().copied().any(|b| {
                 let bb = self.world.get_component::<Building>(b);
                 bb.map(|bb| bb.worker.is_some() && bb.stock.iter().any(|(_, &n)| n > 0)).unwrap_or(false)
                     && self.world.get_component::<Pos>(b)
@@ -1604,6 +1652,40 @@ impl Game {
             CtxAct::Buy => {
                 let pe = self.seats[seat].player;
                 let (px, py) = self.player_pos_at(seat);
+                // a clicked building with an offer is the shop you mean:
+                // standing by it, buy one of its offer; further off, the
+                // click starts the walk and the buy lands on arrival
+                let clicked = self.seats[seat].selected_building
+                    .and_then(|i| self.building_entities.get(i).copied().map(|b| (i, b)))
+                    .filter(|&(_, b)| self.world.get_component::<Building>(b)
+                        .map(|bb| bb.worker.is_some()
+                            && !household::on_offer_at(&self.world, bb).is_empty()).unwrap_or(false));
+                if let Some((bi, b)) = clicked {
+                    let Some(bp) = self.world.get_component::<Pos>(b).copied() else { return };
+                    let near = ((bp.x - px).powi(2) + (bp.y - py).powi(2)).sqrt() < 4.0;
+                    if !near {
+                        // the shelf's behind a door: the walk aims at the
+                        // door tile, not the building's own footprint
+                        let door = self.door_of(b).unwrap_or((bp.x.round() as i32, bp.y.round() as i32));
+                        match self.trail_path((px.round() as i32, py.round() as i32), door) {
+                            Some(path) => {
+                                self.seats[seat].buy_walk = Some(BuyWalk { building: bi, path, stuck: 0 });
+                                "you walk over to buy.".into()
+                            }
+                            None => "no way to that shop.".into(),
+                        }
+                    } else {
+                        let offer = self.world.get_component::<Building>(b)
+                            .and_then(|bb| household::on_offer_at(&self.world, bb).into_iter().next());
+                        match offer {
+                            Some((g, _, _)) => match household::buy_at_shop(&mut self.world, b, pe, &g, 1) {
+                                Some(paid) => format!("you buy {} for {:.0} gold.", g, paid),
+                                None => "you can't cover it.".into(),
+                            },
+                            None => "the shelf's bare.".into(),
+                        }
+                    }
+                } else {
                 // the nearest shop that'll sell: a worker on it and
                 // something on the shelf
                 let shop = self.building_entities.iter().copied()
@@ -1635,6 +1717,7 @@ impl Game {
                         }
                     }
                     None => "no shop in reach will sell.".into(),
+                }
                 }
             }
         };

@@ -43,3 +43,64 @@ fn test_the_pedlars_booth_comes_down_when_he_stops_selling() {
     assert!(g.pedlar.as_ref().and_then(|m| m.stall).is_some());
     assert!(!g.stalls_standing().iter().any(|s| s.2 == STALL_TRADER), "the booth comes down when he leaves");
 }
+
+#[test]
+fn test_a_clicked_shop_sells_from_a_walk_over() {
+    let mut g = Game::new();
+    // a stocked shop with someone minding the till, and far enough from
+    // where the player stands that the buy wants a walk
+    let pe = g.seats[0].player;
+    let (px, py) = g.player_pos_at(0);
+    let bi = (0..g.building_entities.len()).find(|&i| {
+        let b = g.building_entities[i];
+        let far = g.world.get_component::<Pos>(b)
+            .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() > 8.0).unwrap_or(false);
+        far && g.world.get_component::<Building>(b)
+            .map(|bb| bb.worker.is_some()
+                && !crate::game::household::on_offer_at(&g.world, bb).is_empty())
+            .unwrap_or(false)
+    }).expect("a far shop with an offer on the shelf");
+    let b = g.building_entities[bi];
+    g.seats[0].selected_building = Some(bi);
+    g.update_ctx_actions_at(0);
+    let i = g.seats[0].ctx_actions.iter().position(|a| *a == CtxAct::Buy)
+        .expect("a clicked shop with an offer puts up Buy");
+    // far off: the click starts the walk, not the trade
+    g.ctx_act_at(0, i);
+    assert!(g.seats[0].buy_walk.is_some(), "the click starts the walk over");
+    // beside the shelf: the walk lands one unit, and the purse feels it
+    let bp = g.world.get_component::<Pos>(b).copied().unwrap();
+    { let p = g.world.get_component_mut::<Pos>(pe).unwrap(); p.x = bp.x; p.y = bp.y; }
+    g.world.get_component_mut::<Purse>(pe).unwrap().gold = 100.0;
+    let (g0, _) = {
+        let bb = g.world.get_component::<Building>(b).unwrap();
+        let o = crate::game::household::on_offer_at(&g.world, bb);
+        (o[0].0.clone(), o[0].2)
+    };
+    let gold0 = g.world.get_component::<Purse>(pe).unwrap().gold;
+    g.advance_buy_walk_at(0);
+    assert!(g.seats[0].buy_walk.is_none(), "the walk's done once the trade lands");
+    assert!(g.world.get_component::<Purse>(pe).unwrap().gold < gold0, "the buy took coin");
+    assert!(*g.world.get_component::<Satchel>(pe).unwrap().goods.get(&g0).unwrap_or(&0) > 0,
+        "the bag holds the {}", g0);
+}
+
+#[test]
+fn test_a_clicked_building_with_no_till_offers_no_buy() {
+    let mut g = Game::new();
+    // stock but no one minding it: the shelf shows "for offer" on the
+    // card yet nobody can take your coin
+    let bi = (0..g.building_entities.len()).find(|&i| {
+        let b = g.building_entities[i];
+        g.world.get_component::<Building>(b)
+            .map(|bb| bb.worker.is_none()
+                && !crate::game::household::on_offer_at(&g.world, bb).is_empty())
+            .unwrap_or(false)
+    });
+    if let Some(bi) = bi {
+        g.seats[0].selected_building = Some(bi);
+        g.update_ctx_actions_at(0);
+        assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Buy),
+            "no keeper, no till - Buy stays off");
+    }
+}

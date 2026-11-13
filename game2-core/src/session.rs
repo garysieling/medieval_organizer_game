@@ -1757,6 +1757,9 @@ pub struct Game {
     /// The org's own counter-intel: how deep its own eyes read - grows
     /// with the cause's own discipline and the density of its bonds
     pub counter_intel: u8,
+    /// The day the eyes' play was last spent - the counter menu answers
+    /// once a day, not every frame
+    pub counter_played: Option<u64>,
     /// The lord's own emergency: a staged incident suspends the
     /// assemblies while it stands - (the day declared, the refutation
     /// window's end) - beat it fast and the scandal's his, let it run

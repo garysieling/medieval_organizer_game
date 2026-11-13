@@ -669,7 +669,8 @@ impl Game {
                 decides: true, leave: false });
         }
         if self.counter_intel >= 2 && self.proposal.is_none() && self.seat_offer.is_none()
-            && self.emergency.is_none() && (s.talk.is_none() || seat == 0) {
+            && self.emergency.is_none() && (s.talk.is_none() || seat == 0)
+            && self.counter_played != Some(self.tick) {
             let mut options = vec!["Feed the watcher false word - the eyes read what we show".into()];
             if self.counter_intel >= 3 {
                 options.push("Read the watcher out - his own papers in the open".into());

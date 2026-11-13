@@ -2430,7 +2430,9 @@ impl Game {
         }
         // the arc's own early contest: while the watching's young,
         // contest the word - the next rung costs him more
-        if self.suppression_arc > 0 && pick == 0 && self.counter_intel >= 2 {
+        if self.suppression_arc > 0 && pick == 0 && self.counter_intel >= 2
+            && self.counter_played != Some(self.tick) {
+            self.counter_played = Some(self.tick);
             for site in &self.sites {
                 let Some(l) = site.lord else { continue };
                 if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
@@ -2446,9 +2448,11 @@ impl Game {
             return;
         }
         // the org's own counter-intel plays: feed the watcher a false
-        // word, or read his papers out to the room
-        if self.counter_intel >= 2 && self.dilemma.is_none() {
+        // word, or read his papers out to the room - once a day each
+        if self.counter_intel >= 2 && self.dilemma.is_none()
+            && self.counter_played != Some(self.tick) {
             if pick == 0 {
+                self.counter_played = Some(self.tick);
                 for site in &self.sites {
                     let Some(l) = site.lord else { continue };
                     if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
@@ -2465,6 +2469,7 @@ impl Game {
                 return;
             }
             if pick == 1 && self.counter_intel >= 3 {
+                self.counter_played = Some(self.tick);
                 let bad = (self.tick.wrapping_mul(41).wrapping_add(oe as u64)) % 100 < 20;
                 for site in &self.sites {
                     let Some(l) = site.lord else { continue };

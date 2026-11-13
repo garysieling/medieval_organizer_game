@@ -40,6 +40,7 @@ mod panel;
 mod pause_box;
 mod person;
 mod picker;
+mod quest_marker;
 mod rain;
 mod reach_name;
 mod real_frame;

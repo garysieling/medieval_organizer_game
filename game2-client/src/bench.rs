@@ -134,6 +134,29 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
             None => eprintln!("GAME2_DUMP_EVENT: no such event {}", name),
         }
     }
+    // GAME2_DUMP_QUEST=name: hand the seat a parcel for the site named
+    // (a country settlement, e.g. greenshaw) so a dump can show the job
+    // waypoint and its edge arrow without playing to an offer
+    if let Some(name) = std::env::var("GAME2_DUMP_QUEST").ok().filter(|v| !v.is_empty()) {
+        use game2_core::session::quests::{PlayerQuest, QuestKind, QuestStage, QuestTarget};
+        match game.sites.iter().position(|s| s.name.to_lowercase() == name.to_lowercase()) {
+            Some(i) => {
+                game.seats[0].quest = Some(PlayerQuest {
+                    giver: game.villagers[0],
+                    kind: QuestKind::Parcel,
+                    target: QuestTarget::Site(i),
+                    stage: QuestStage::ToCarry,
+                    pickup: None,
+                    expires: game.tick + 10,
+                });
+                let c = game.sites[i].centre;
+                let cam = cam_centred_on(c.0 as f32, c.1 as f32);
+                println!("quest: parcel to {} at {},{},--cam {},{}", game.sites[i].name, c.0, c.1, cam.0, cam.1);
+            }
+            None => eprintln!("GAME2_DUMP_QUEST: no site named {} (sites: {})", name,
+                game.sites.iter().map(|s| s.name).collect::<Vec<_>>().join(", ")),
+        }
+    }
     // GAME2_KILL=N: report where the marked dead ended up, for shot checks
     if std::env::var("GAME2_KILL").is_ok() {
         eprintln!("art.tombstones={} art.graves={}", view.art.tombstones.len(), view.art.graves.len());

@@ -1059,6 +1059,16 @@ impl View {
         if let Some((cx, top, z, f)) = player_marker {
             draw_player_marker(&mut buf, cx, top, z, f);
         }
+        // the running job's waypoint: a dart on the spot when it's in
+        // view, an edge arrow pointing the way out when it isn't
+        if let Some((qx, qy)) = m.quest_target {
+            let (sx, sy) = iso_to_screen_cam(qx, qy, cam_x, cam_y, zoom);
+            if sx >= 10 && sx < MAP_W as i32 - 10 && sy >= 10 && sy < H as i32 - 10 {
+                draw_quest_marker(&mut buf, sx, sy, m.frame);
+            } else {
+                draw_quest_arrow(&mut buf, sx, sy, MAP_W as i32, H as i32);
+            }
+        }
 
         prof.mark("render.gulls+labels");
         // --- UI PANEL ---
@@ -1412,6 +1422,10 @@ impl View {
                 PKind::Player => mm_dot(&mut buf, pv.pos.0, pv.pos.1, 255, 255, 0),
                 _ => {}
             }
+        }
+        // the job's waypoint on the small map too, in the dart's blue
+        if let Some((qx, qy)) = m.quest_target {
+            mm_dot(&mut buf, qx, qy, 140, 205, 255);
         }
         // outline of what the map view is showing, clipped to the minimap box
         let (vx0, vy0) = screen_to_minimap(0.0, 0.0, cam_x, cam_y, zoom, w_t, h_t);

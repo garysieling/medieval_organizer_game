@@ -173,6 +173,38 @@ fn test_a_finished_job_makes_them_known() {
         "the card names the stage: {:?}", card.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
 
+/// The model carries where the job ends so the client's marker can
+/// point the way: the far village's centre for a parcel, the thing's
+/// spot while it's a fetch, the one it's for when it goes to a person
+#[test]
+fn test_the_model_names_where_the_job_ends() {
+    let mut g = Game::new();
+    g.seats[0].quest = None;
+    assert_eq!(g.ui_model().quest_target, None, "no job, no marker");
+    let folk = askers(&g);
+    let (giver, other) = (folk[0], folk[1]);
+    g.seats[0].quest = Some(PlayerQuest {
+        giver, kind: QuestKind::Parcel, target: QuestTarget::Site(0),
+        stage: QuestStage::ToCarry, pickup: None, expires: g.tick + 10 });
+    let (cx, cy) = g.sites[0].centre;
+    assert_eq!(g.ui_model().quest_target, Some((cx as f32, cy as f32)),
+        "the parcel's marker is the far village's centre");
+    // a fetch still under way points at the thing, not the giver
+    g.seats[0].quest = Some(PlayerQuest {
+        giver, kind: QuestKind::Egg, target: QuestTarget::Villager(giver),
+        stage: QuestStage::ToFetch, pickup: Some((g.chicken_at.0, g.chicken_at.1)),
+        expires: g.tick + 10 });
+    assert_eq!(g.ui_model().quest_target, Some((g.chicken_at.0, g.chicken_at.1)),
+        "the fetch's marker is where the thing lies");
+    // carried back to a person, it tracks them
+    let op = *g.world.get_component::<Pos>(other).unwrap();
+    g.seats[0].quest = Some(PlayerQuest {
+        giver, kind: QuestKind::Note, target: QuestTarget::Villager(other),
+        stage: QuestStage::ToCarry, pickup: None, expires: g.tick + 10 });
+    assert_eq!(g.ui_model().quest_target, Some((op.x, op.y)),
+        "the note's marker follows who it's for");
+}
+
 /// A fetch spot beside an occupied tile still counts: the pickup is the
 /// passable tile's centre, and dawn's check has to find that tile, not
 /// the blocked one the centre rounds up onto

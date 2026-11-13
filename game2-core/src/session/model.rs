@@ -637,4 +637,9 @@ pub struct UiModel {
     /// a carrier walks behind, as (x, y)
     #[serde(default)]
     pub trains: Vec<(f32, f32)>,
+    /// Where the seat's running job ends: the pickup tile while it's a
+    /// fetch, else the villager or the site's centre it hands over at -
+    /// so the client's marker can point the way
+    #[serde(default)]
+    pub quest_target: Option<(f32, f32)>,
 }

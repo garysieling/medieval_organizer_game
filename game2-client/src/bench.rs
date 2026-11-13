@@ -143,6 +143,35 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         }
         println!("graveyard slots: {:?}", &mm.graveyard[..mm.graveyard.len().min(8)]);
     }
+    // GAME2_DUMP_MARCH=castle|town|monastery: found a cause if need be
+    // and send the column up the road to the nearest site of the kind -
+    // GAME2_DUMP_FRAMES walks it out, --focus march centres on the head
+    if let Some(kind) = std::env::var("GAME2_DUMP_MARCH").ok().filter(|v| !v.is_empty()) {
+        use game2_core::game::campaign::{self, DecisionRule, Framing, IssueVote};
+        use game2_core::session::country::SiteKind;
+        let want = match kind.as_str() {
+            "town" | "Town" => SiteKind::Town,
+            "monastery" | "Monastery" | "abbey" | "Abbey" => SiteKind::Monastery,
+            _ => SiteKind::Castle,
+        };
+        let org = game.seats[0].org;
+        if campaign::campaign_of(&game.world, org).is_none() {
+            let vote = IssueVote { winner: "the taxes".into(), ballots: vec![] };
+            campaign::found_campaign(&mut game.world, org, &vote,
+                Framing::CommonFoe, DecisionRule::Majority, game.tick);
+        }
+        if let Some(o) = game.world.get_component_mut::<game2_core::sim::community::Organization>(org) {
+            if o.members.is_empty() { o.members = game.villagers[..5.min(game.villagers.len())].to_vec(); }
+        }
+        let si = game.sites.iter().enumerate().filter(|(_, s)| s.kind == want)
+            .min_by_key(|(_, s)| (s.centre.0 - game.village.0).pow(2) + (s.centre.1 - game.village.1).pow(2))
+            .map(|(i, _)| i);
+        match si {
+            Some(si) => { let name = game.sites[si].name;
+                println!("road march on {}: {}", name, game.force_road_march(0, si)); }
+            None => eprintln!("GAME2_DUMP_MARCH: no {:?} in this seed's country", want),
+        }
+    }
     // GAME2_DUMP_FRAMES=N: play N more frames into the day, so a dump shows
     // folk where the day's plan took them (stalls up, a congregation seated)
     let more: u32 = std::env::var("GAME2_DUMP_FRAMES").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
@@ -165,6 +194,18 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     // and buildings: the first of each, a tree in a wood rather than a
     // lone one
     let m = game.ui_model();
+    // --focus march: centre on the column's head, wherever the road's
+    // taken it
+    if focus == Some("march") {
+        match game.formation.as_ref().and_then(|f| f.members.first())
+            .and_then(|&h| game.world.get_component::<game2_core::game::villager::Pos>(h).map(|p| (p.x, p.y))) {
+            Some((x, y)) => {
+                (view.cam_x, view.cam_y) = cam_centred_on(x, y);
+                println!("focus march: tile ({:.1}, {:.1}) cam {},{}", x, y, view.cam_x, view.cam_y);
+            }
+            None => eprintln!("focus march: no column out at tick {}", target_tick),
+        }
+    }
     // --focus train: centre on the first freight wagon on the road
     if focus == Some("train") {
         match m.trains.first() {
@@ -200,7 +241,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     if let Some((x, y)) = feature {
         (view.cam_x, view.cam_y) = cam_centred_on(x, y);
         println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", focus.unwrap_or(""), x, y, view.cam_x, view.cam_y);
-    } else if let Some(name) = focus {
+    } else if let Some(name) = focus.filter(|f| *f != "march" && *f != "train") {
         match game.ui_model().people.iter().find(|p| focus_matches(p, name)) {
             Some(p) => {
                 (view.cam_x, view.cam_y) = cam_centred_on(p.pos.0, p.pos.1);

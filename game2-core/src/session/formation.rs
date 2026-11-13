@@ -44,6 +44,10 @@ pub struct Formation {
     pub leg0: f32,
     /// Who's already cheered this parade - the crowd's cheer lands once
     pub cheered: crate::engine::det::HashSet<Entity>,
+    /// The site a road march went out to - the column walks back with
+    /// that place's answer; None for the town-ring march and for the
+    /// other kinds
+    pub dest: Option<usize>,
 }
 
 /// The column's pace, in tiles a frame - a walk, not a run
@@ -196,10 +200,10 @@ impl Game {
         if f.at < f.route.len() {
             self.formation = Some(f);
         } else {
-            let (seat, kind, members) = (f.seat, f.kind, f.members.clone());
+            let (seat, kind, members, dest) = (f.seat, f.kind, f.members.clone(), f.dest);
             for &m in &members { self.world.remove_component::<villager::InFormation>(m); }
             match kind {
-                FormationKind::March => self.march_resolved(seat),
+                FormationKind::March => self.march_resolved(seat, dest),
                 FormationKind::Parade { feast } => self.parade_resolved(feast, &members),
                 FormationKind::Funeral(dead) => self.funeral_resolved(dead, &members),
             }
@@ -244,7 +248,7 @@ impl Game {
             self.world.add_component(m, villager::InFormation);
         }
         self.formation = Some(Formation { kind: FormationKind::Parade { feast },
-            seat: 0, born: self.tick, members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0, cheered: Default::default() });
+            seat: 0, born: self.tick, members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0, cheered: Default::default(), dest: None });
     }
 
     /// Call the mourners out: the funeral column forms at the body and
@@ -264,7 +268,7 @@ impl Game {
         self.world.add_component(dead, villager::Funeral {
             slot, carriers, officiant, carried: false, since: self.tick });
         self.formation = Some(Formation { kind: FormationKind::Funeral(dead),
-            seat: 0, born: self.tick, members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0, cheered: Default::default() });
+            seat: 0, born: self.tick, members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0, cheered: Default::default(), dest: None });
         true
     }
 

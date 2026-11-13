@@ -71,6 +71,21 @@ impl Game {
                 );
             }
         }
+        // an agenda nobody sets lapses the same way - the floor moves on,
+        // no meeting held, and a seat with no Decide wired doesn't hold
+        // the game at half pace forever (#1157)
+        for seat in 0..self.seats.len() {
+            let stale = self.seats[seat].pending_agenda.as_ref()
+                .map(|(_, offered)| tick.saturating_sub(*offered) >= FOUNDING_OFFER_EXPIRY_DAYS)
+                .unwrap_or(false);
+            if stale {
+                self.seats[seat].pending_agenda = None;
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: the floor moves on - no agenda set.", tick),
+                );
+            }
+        }
         // a called meeting's day arrives: the door rolls at the hour -
         // a lost house calls the whole thing off, and a meeting under
         // way keeps the word waiting a day more
@@ -340,6 +355,9 @@ impl Game {
         crate::timed!("sim.partners", self.partnership_tick(tick));
         crate::timed!("sim.pledges", self.pledge_tick(tick));
         crate::timed!("sim.community", self.community_tick(tick));
+        // the posted organizers' day: each held post warms its town a
+        // measure, and a lost one closes (#1157)
+        crate::timed!("sim.fieldwork", self.fieldwork_tick());
         // and the powers that grow on their own do their accounting
         crate::timed!("sim.factions", self.faction_tick(tick));
         // and the year has its feast days
@@ -589,11 +607,17 @@ impl Game {
         for &v in &villagers {
             // the marching keep step - the day can wait on them
             if self.world.get_component::<villager::InFormation>(v).is_some() { continue; }
+            // a posted organizer's day is the town's, not the village's
+            if self.world.get_component::<crate::game::campaign::FieldPost>(v).is_some() { continue; }
             self.round_back(v, tick);
         }
         for i in 0..villagers.len() {
             let v = villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
+            // a posted organizer keeps the town they were sent to: no
+            // day's plan, no promise called home - the town's own
+            // granary feeds them while the post stands (#1157)
+            if self.world.get_component::<crate::game::campaign::FieldPost>(v).is_some() { continue; }
             // the woods' bands keep their own hours: drift the trees,
             // never the day's plan
             if self.world.get_component::<rebels::Rebel>(v).is_some() {
@@ -1151,5 +1175,27 @@ impl Game {
         }
         drop(_ledger);
         (made, up)
+    }
+
+    /// The posted organizers' day: each post still held warms its town
+    /// a measure toward staging the cause's day there, and a post whose
+    /// organizer's dead, taken or home closes on its own (#1157)
+    fn fieldwork_tick(&mut self) {
+        for c in self.world.query::<crate::game::campaign::Campaign>().iter().copied().collect::<Vec<_>>() {
+            let posts: Vec<Entity> = self.world.get_component::<crate::game::campaign::Outreach>(c)
+                .map(|o| o.posts.iter().map(|(_, w, _)| *w).collect()).unwrap_or_default();
+            if posts.is_empty() { continue; }
+            let closed: Vec<Entity> = posts.into_iter().filter(|&w|
+                villager::is_dead(&self.world, w)
+                    || crate::game::dungeon::unavailable(&self.world, w)
+                    || self.world.get_component::<crate::game::campaign::FieldPost>(w).is_none()
+            ).collect();
+            if let Some(o) = self.world.get_component_mut::<crate::game::campaign::Outreach>(c) {
+                o.posts.retain(|(_, w, _)| !closed.contains(w));
+                for (_, _, s) in o.posts.iter_mut() {
+                    *s += crate::game::campaign::FIELD_DAILY;
+                }
+            }
+        }
     }
 }

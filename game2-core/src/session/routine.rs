@@ -1077,6 +1077,9 @@ impl Game {
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
             // the marching keep step - no drift while the column moves
             if self.world.get_component::<villager::InFormation>(v).is_some() { continue; }
+            // a posted organizer keeps the town they were sent to - the
+            // village's plans don't walk them home (#1157)
+            if self.world.get_component::<crate::game::campaign::FieldPost>(v).is_some() { continue; }
             if self.world.get_component::<Villager>(v).map(|x| x.activity != Activity::Idle).unwrap_or(true) { continue; }
             if self.travels.iter().any(|tr| tr.who == v) { continue; }
             if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { continue; }

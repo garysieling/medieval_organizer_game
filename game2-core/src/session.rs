@@ -695,6 +695,10 @@ pub enum Goal {
     FillBucket,
     /// Second leg: carry the bucket to this burning tile and douse it
     DouseFire((i32, i32)),
+    /// A posted organizer's ride out to the market town they're to raise
+    /// for the cause (site index) - they stay out there on the post till
+    /// it stages its day or they're brought home (#1157)
+    FieldPost(usize),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -1883,7 +1887,7 @@ impl Game {
         // per-frame strides scale by ticks_per_frame, so a day still
         // covers the same ground, just sampled less often
         let base = if self.speed == 1 { 21 * FPS } else { (15 * FPS / self.speed.max(4)).max(1) };
-        if self.meeting.is_some() || self.seats.iter().any(|s| s.pending_founding.is_some()) { base * 2 } else { base }
+        if self.meeting.is_some() || self.seats.iter().any(|s| s.pending_founding.is_some() || s.pending_agenda.is_some()) { base * 2 } else { base }
     }
 
     /// A frame's share of a day's walking, whatever the watch speed. The
@@ -2105,6 +2109,9 @@ impl Game {
                 // one in a Talk with a player stands for it - the pull
                 // home doesn't carry them off mid-line
                 if world.get_component::<villager::InPlayerTalk>(*v).is_some() { continue; }
+                // a posted organizer keeps the town they were sent to -
+                // the village's pull doesn't walk them home (#1157)
+                if world.get_component::<crate::game::campaign::FieldPost>(*v).is_some() { continue; }
                 let (store, village_home) = country_homes.get(vi).copied().flatten()
                     .unwrap_or((self.market_food, village_home));
                 // the village table is the granary AND the fields: a village

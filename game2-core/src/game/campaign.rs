@@ -897,6 +897,99 @@ pub fn broken_pledges(world: &World, campaign: Entity) -> Vec<&Pledge> {
         .unwrap_or_default()
 }
 
+/// A collective action the meeting floor can take up: the cause's
+/// street verbs are motions now, not buttons - the room votes them,
+/// and a bigger cause carries more of them (#1157)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Motion {
+    /// The column forms and marches the town's ways
+    March,
+    /// Ballot the trades: nine of ten walk out or it fails in public
+    Strike,
+    /// The demands put to the target, in public
+    Townhall,
+    /// Pass the hat and post the cause's flyers
+    Flyers,
+    /// Hands enough for two fronts at once: the march and the ballot
+    /// on the same day
+    TwoFronts,
+    /// Send an organizer out to raise a market town for the cause
+    SendOrganizer,
+    /// A posted organizer stages the cause's day in their town
+    /// (index into Game.sites)
+    ParallelEvent(usize),
+}
+
+/// The slate line the floor hears a motion under
+pub fn motion_label(m: Motion) -> String {
+    match m {
+        Motion::March => "Take it to the streets - the column marches".into(),
+        Motion::Strike => "Ballot the trades - call the strike".into(),
+        Motion::Townhall => "Put the demands - face the Reeve in public".into(),
+        Motion::Flyers => "Post the flyers - the cause in print".into(),
+        Motion::TwoFronts => "Two fronts at once - march and ballot together".into(),
+        Motion::SendOrganizer => "Send an organizer to raise a town for the cause".into(),
+        Motion::ParallelEvent(_) => "The posted town rises - stage the event there".into(),
+    }
+}
+
+/// A member posted to another town to raise it for the cause: they
+/// live out there off the village's daily plans till the post's done
+/// or they're called home (#1157)
+#[derive(Debug)]
+pub struct FieldPost {
+    /// Index into Game.sites
+    pub site: usize,
+    /// The day they were sent
+    pub since: u64,
+}
+
+/// The campaign's reach beyond the village: one post per town an
+/// organizer's raising, and the warmth their work's built there
+#[derive(Debug, Default)]
+pub struct Outreach {
+    /// (site index, the posted organizer, support built so far)
+    pub posts: Vec<(usize, Entity, f32)>,
+}
+
+/// How warm a posted town must run before it can stage the cause's day
+pub const FIELD_WARM: f32 = 3.0;
+/// What a day's organizing adds to a posted town - three days and the
+/// town's ready
+pub const FIELD_DAILY: f32 = 1.0;
+
+/// Living grown members free to act: the size the slate's read off
+pub fn living_members(world: &World, campaign: Entity) -> usize {
+    let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else { return 0 };
+    world.get_component::<Organization>(org)
+        .map(|o| o.members.iter().filter(|&&m| {
+            !is_dead(world, m)
+                && world.get_component::<crate::game::vocation::Kid>(m).is_none()
+                && !crate::game::dungeon::unavailable(world, m)
+        }).count()).unwrap_or(0)
+}
+
+/// The motions a cause this size can carry tonight: more people means
+/// more and different doors - two fronts want hands for both at once,
+/// a post wants someone to spare, and a warm town wants staging (#1157)
+pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
+    let n = living_members(world, campaign);
+    let mut ms = vec![];
+    if n >= 2 { ms.push(Motion::Strike); }
+    if n >= 3 { ms.push(Motion::March); }
+    if n >= 4 { ms.push(Motion::Townhall); }
+    if n >= 2 { ms.push(Motion::Flyers); }
+    if n >= 6 { ms.push(Motion::TwoFronts); }
+    if n >= 8 { ms.push(Motion::SendOrganizer); }
+    // a posted town that runs warm enough can stage the cause's day
+    if let Some(o) = world.get_component::<Outreach>(campaign) {
+        for &(site, _, support) in &o.posts {
+            if support >= FIELD_WARM { ms.push(Motion::ParallelEvent(site)); }
+        }
+    }
+    ms
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

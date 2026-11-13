@@ -36,7 +36,8 @@ impl Game {
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
             Goal::Gather(..) => return false, // gathers go through send_gather
             Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(..) | Goal::Post(_)
-            | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..) | Goal::LevyCart(_) => return false, // country walks go through send_far
+            | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..) | Goal::LevyCart(_)
+            | Goal::FieldPost(_) => return false, // country walks go through send_far
             Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
             Goal::AttendRite => return false, // rites walk to their tile through send_tile_walk
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
@@ -698,6 +699,9 @@ impl Game {
             Goal::Gift(from, to) => self.arrive_gift(who, from, to),
             Goal::Escort(from, to) => self.arrive_escort(who, from, to),
             Goal::LevyCart(castle) => self.arrive_levy_cart(who, castle),
+            // the post's marker already has them held to the town - the
+            // arrival's just the walk done
+            Goal::FieldPost(_) => {}
             Goal::TendGarden(gi) => {
                 // weeding and picking: the bed yields into the house's
                 // stock, and the tending itself is a small joy

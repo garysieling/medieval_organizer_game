@@ -164,6 +164,11 @@ pub struct Seat {
     /// box, waiting on their pick (Command::Decide). The tick it was
     /// asked, so an unanswered one can lapse like the founding's
     pub meet_offer: Option<u64>,
+    /// The agenda a campaign Meet leaves open on the conversation box:
+    /// the motions the cause's size can carry and the tick it was asked,
+    /// waiting on their pick (Command::Decide) - the last option's always
+    /// "just meet", and an unanswered one lapses like the founding's (#1157)
+    pub pending_agenda: Option<(Vec<crate::game::campaign::Motion>, u64)>,
     /// The odd job this seat is running for a villager, if any
     /// (session::quests)
     pub quest: Option<quests::PlayerQuest>,
@@ -200,7 +205,8 @@ impl Default for Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
-               pending_founding: None, meet_offer: None, quest: None, mystery: None, mystery_wait: 0,
+               pending_founding: None, meet_offer: None, pending_agenda: None,
+               quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,
                player_passed: false }

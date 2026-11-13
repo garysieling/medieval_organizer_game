@@ -766,23 +766,9 @@ impl Game {
             if !agenda_up {
                 self.seats[seat].ctx_actions.push(CtxAct::Assembly);
             }
-            // no second column while one's already marching
-            if self.formation.is_none() {
-                self.seats[seat].ctx_actions.push(CtxAct::March);
-            }
-            let asked = self.world.get_component::<Organization>(self.seats[seat].org)
-                .map(|o| o.members.iter().filter(|&&m| {
-                    !villager::is_dead(&self.world, m)
-                        && self.world.get_component::<Kid>(m).is_none()
-                        && !crate::game::dungeon::unavailable(&self.world, m)
-                }).count()).unwrap_or(0);
-            let shop = self.building_entities.iter().any(|&b| self.world.get_component::<Building>(b)
-                .map(|bb| matches!(bb.kind, crate::game::household::BuildingKind::Shop(Vocation::Printmaker))
-                    && !crate::game::household::derelict(bb))
-                .unwrap_or(false));
-            if asked > 0 && shop {
-                self.seats[seat].ctx_actions.push(CtxAct::Flyers);
-            }
+            // the street verbs aren't buttons any more - they're motions
+            // the meeting floor votes, sized by the cause (#1157): Meet
+            // opens the agenda slate
         }
         // a storm-hit hall stands roofless till the treasury can mend it
         if self.world.get_component::<crate::game::organizing::HallDamaged>(self.seats[seat].org).is_some()
@@ -845,22 +831,6 @@ impl Game {
                             crate::game::campaign::Role::Chair].iter().copied()
                             .any(|r| crate::game::campaign::seat_holder(&self.world, c, r).is_none()) {
                             self.seats[seat].ctx_actions.push(CtxAct::Delegate);
-                        }
-                        if self.world.get_component::<Craft>(v).is_some() {
-                            self.seats[seat].ctx_actions.push(CtxAct::Strike);
-                        }
-                        // demands to the collector - but not while the
-                        // Reeve is still honouring a full grant for them
-                        let answered = self.world.get_component::<crate::game::reactions::LordGrant>(self.seats[seat].org)
-                            .map(|g| {
-                                let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                                    .map(|cc| cc.issue.clone()).unwrap_or_default();
-                                g.issue == issue && g.active(self.tick) && !g.partial && !g.hollow
-                            }).unwrap_or(false);
-                        if !answered && crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
-                            .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
-                            .map(|c| c.target == Some(v)).unwrap_or_else(|| Some(v) == self.collector) {
-                            self.seats[seat].ctx_actions.push(CtxAct::Townhall);
                         }
                     }
                 }
@@ -1060,11 +1030,16 @@ impl Game {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
                     return;
                 };
-                // the seat calls the meeting itself - the day's tick
-                // holds it for the cause when nobody calls (#1159)
-                match self.hold_and_note_campaign_meeting(Some(self.seats[seat].player), c, tick) {
-                    Some(msg) => msg,
-                    None => "The campaign isn't due to meet yet.".into(),
+                let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+                    .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
+                if !due {
+                    "The campaign isn't due to meet yet.".into()
+                } else {
+                    // the meeting doesn't just run: the floor takes an
+                    // agenda first - the motions the cause's size can
+                    // carry, and the room votes the pick (#1157)
+                    self.seats[seat].pending_agenda = Some((self.agenda_motions(seat, c), self.tick));
+                    "The cause's to meet - the floor's yours: set the agenda.".into()
                 }
             }
             CtxAct::Cadence => {
@@ -1140,104 +1115,11 @@ impl Game {
                 );
                 return;
             }
-            CtxAct::Strike => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
-                let v = self.villagers[self.seats[seat].selected_target];
-                let Some(voc) = self.world.get_component::<Craft>(v).map(|c| c.vocation) else {
-                    return;
-                };
-                match crate::game::actions::strike_vote(&mut self.world, c, voc, tick) {
-                    Some(out) => {
-                        crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
-                            crate::game::org_skills::OrgSkill::Turnout,
-                            crate::game::org_skills::SEAT_PRACTICE);
-                        let ev = crate::game::campaign_arc::ArcEvent::Strike { called: out.called };
-                        if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
-                            self.record_campaign_talk(vec![self.seats[seat].player, v], &d);
-                        }
-                        format!("{} of {} say yes{}. {}", out.yes, out.yes + out.no,
-                            if out.called { " - the strike is on" } else { "" },
-                            if out.called { "The trade stands together." } else { "Less than nine of ten: it fails in public." })
-                    }
-                    None => "Nobody of the trade to ballot.".into(),
-                }
-            }
-            CtxAct::Townhall => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
-                self.townhall_day = self.tick;
-                let Some(target) = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                    .map(|cc| cc.target).unwrap_or(None).or(self.collector) else { return };
-                use crate::game::actions::{townhall, TargetResponse};
-                match townhall(&mut self.world, c, target, tick) {
-                    Some(out) => { crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
-                            crate::game::org_skills::OrgSkill::Agitation,
-                            crate::game::org_skills::SEAT_PRACTICE);
-                        let msg = match out.response {
-                        TargetResponse::Carries => {
-                            self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
-                            // the carried demand lands as a grant: the load
-                            // the issue names eases for the cause's people,
-                            // and this year's taxing stops counting - but
-                            // only the issue fought for is answered
-                            let oe = self.seats[seat].org;
-                            let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                                .map(|cc| cc.issue.clone()).unwrap_or_default();
-                            self.world.add_component(oe, crate::game::reactions::LordGrant::full(
-                                &issue, tick, tick + crate::game::desires::YEAR_DAYS));
-                            // the tag the tax fight is voted under
-                            if issue == "the taxes" {
-                                if let Some(o) = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()) {
-                                    for m in o {
-                                        crate::game::desires::lift_grievance(&mut self.world, m, crate::game::desires::Problem::Taxed);
-                                    }
-                                }
-                            }
-                            // a carried demand is the writ beaten in
-                            // public: the reach thins for it (#971)
-                            self.lord_strength = (self.lord_strength - 0.06).max(0.0);
-                            // a carried demand walks the streets: the
-                            // village takes the win out in the open
-                            self.victory_parade();
-                            format!("{} face the Reeve - and he says the king will hear of this.", out.turnout.len())
-                        }
-                        TargetResponse::Concedes => {
-                            // it touches him, but the room was thin: part of
-                            // it, for half a year - the grievance stands
-                            self.toasts.push(("the Reeve grants a part of it".into(), tick + 40));
-                            let oe = self.seats[seat].org;
-                            let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                                .map(|cc| cc.issue.clone()).unwrap_or_default();
-                            // a part already granted and honoured isn't
-                            // granted again: pressing a thin room twice
-                            // doesn't stretch it
-                            if out.nothing_new {
-                                format!("{} face the Reeve - he grants no more than he already has.", out.turnout.len())
-                            } else {
-                                // a concession's a smaller beat, but a
-                                // beat all the same (#971)
-                                self.lord_strength = (self.lord_strength - 0.03).max(0.0);
-                                self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
-                                    &issue, tick, tick + crate::game::desires::YEAR_DAYS / 2));
-                                format!("{} face the Reeve - he grants a part of it, and no more.", out.turnout.len())
-                            }
-                        }
-                        TargetResponse::Deflects =>
-                            format!("The Reeve sends regards and a clerk. {} went home hollow.", out.turnout.len()),
-                        TargetResponse::Refuses =>
-                            format!("The doors stay shut on {} voices. They go home hollow.", out.turnout.len()),
-                    };
-                    // the answer at the door is the arc's outcome (read
-                    // after any grant above has landed)
-                    let ev = crate::game::campaign_arc::ArcEvent::Townhall(out.response);
-                    if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
-                        let mut with = vec![self.seats[seat].player, target];
-                        with.extend(out.turnout.iter().copied());
-                        self.record_campaign_talk(with, &d);
-                    }
-                    msg },
-                    None => "Nobody turns out for the townhall.".into(),
-                }
-            }
+            // strike and townhall aren't buttons any more - they're
+            // motions the floor votes (#1157); the arms stay for any
+            // wire-side CtxAct that still comes in
+            CtxAct::Strike => self.strike_at(seat),
+            CtxAct::Townhall => self.townhall_at(seat),
             CtxAct::Gather => {
                 self.seats[seat].meet_offer = Some(self.tick);
                 "The plan's made - now the word wants a day.".into()
@@ -2771,6 +2653,20 @@ impl Game {
             );
             return;
         }
+        // the agenda a campaign Meet left open: the room votes the pick
+        // and the meeting runs on it (#1157) - a founding call sitting on
+        // the same box resolves first, matching what the panel showed
+        if self.seats[seat].pending_founding.is_none() {
+            if let Some((motions, _)) = self.seats[seat].pending_agenda.take() {
+                // the last row's always "just meet" - a pick past the
+                // slate is the resolves alone
+                let motion = motions.get(pick).copied();
+                let msg = self.meet_with_motion(seat, motion);
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                    format!("t{}: {}", self.tick, msg));
+                return;
+            }
+        }
         let Some(d) = self.seats[seat].pending_founding.take() else { return };
         use crate::game::campaign::{self, DecisionRule, Framing};
         if let Some(mut vote) = d.vote {
@@ -2972,5 +2868,309 @@ impl Game {
             raised, qty, if qty == 1 { "flyer goes" } else { "flyers go" });
         if woken > 0 { msg += &format!(" - {} wake{} to the issue.", woken, if woken == 1 { "s" } else { "" }); }
         msg
+    }
+
+    /// The slate Meet opens on the conversation box: what the cause's
+    /// size can carry (campaign::motions_open), less the doors today
+    /// closes - a column already out or home, demands already answered,
+    /// no print shop, no trade of theirs to ballot, nobody to spare
+    /// for the road or no town left to raise (#1157)
+    fn agenda_motions(&self, seat: usize, c: Entity) -> Vec<crate::game::campaign::Motion> {
+        use crate::game::campaign::Motion;
+        crate::game::campaign::motions_open(&self.world, c).into_iter().filter(|&m| match m {
+            Motion::March | Motion::TwoFronts =>
+                self.formation.is_none() && self.march_day != self.tick,
+            Motion::Strike => self.strike_voc(c).is_some(),
+            Motion::Townhall => {
+                self.townhall_day != self.tick
+                    // a full grant still honoured needs no demands put again
+                    && !self.world.get_component::<crate::game::reactions::LordGrant>(self.seats[seat].org)
+                        .map(|g| {
+                            let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                                .map(|cc| cc.issue.clone()).unwrap_or_default();
+                            g.issue == issue && g.active(self.tick) && !g.partial && !g.hollow
+                        }).unwrap_or(false)
+            }
+            Motion::Flyers => self.building_entities.iter().any(|&b| {
+                self.world.get_component::<Building>(b)
+                    .map(|bb| matches!(bb.kind, crate::game::household::BuildingKind::Shop(Vocation::Printmaker))
+                        && !crate::game::household::derelict(bb)).unwrap_or(false)
+            }),
+            Motion::SendOrganizer =>
+                self.spare_organizer(seat, c).is_some() && self.open_post(c).is_some(),
+            // a warm post is always worth staging - the vote's the point
+            Motion::ParallelEvent(_) => true,
+        }).collect()
+    }
+
+    /// The trade the room can ballot: the craft most of the cause's
+    /// living grown members work - ties go to whoever's on the roll
+    /// first, so the pick's the same every time it's asked
+    fn strike_voc(&self, c: Entity) -> Option<Vocation> {
+        let org = self.world.get_component::<crate::game::campaign::Campaign>(c).map(|cc| cc.org)?;
+        let members: Vec<Entity> = self.world.get_component::<Organization>(org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        let mut counts: Vec<(Vocation, usize)> = vec![];
+        for m in members {
+            if villager::is_dead(&self.world, m)
+                || self.world.get_component::<Kid>(m).is_some()
+                || crate::game::dungeon::unavailable(&self.world, m) { continue; }
+            let Some(cr) = self.world.get_component::<Craft>(m) else { continue };
+            match counts.iter_mut().find(|(v, _)| *v == cr.vocation) {
+                Some(e) => e.1 += 1,
+                None => counts.push((cr.vocation, 1)),
+            }
+        }
+        counts.into_iter().fold(None, |best: Option<(Vocation, usize)>, (v, n)| {
+            if best.map(|(_, b)| n > b).unwrap_or(true) { Some((v, n)) } else { best }
+        }).map(|(v, _)| v)
+    }
+
+    /// Who the cause can spare for the road: a campaign seat-holder
+    /// first (turnout, notes, chair), else a grown free member who
+    /// isn't a seat's own player and isn't already posted (#1157)
+    fn spare_organizer(&self, seat: usize, c: Entity) -> Option<Entity> {
+        use crate::game::campaign::Role::*;
+        let free = |w: &World, m: Entity| !villager::is_dead(w, m)
+            && w.get_component::<Kid>(m).is_none()
+            && !crate::game::dungeon::unavailable(w, m)
+            && w.get_component::<crate::game::campaign::FieldPost>(m).is_none()
+            // not mid-line with a player, not marching with the column -
+            // the road takes someone who can go
+            && w.get_component::<villager::InPlayerTalk>(m).is_none()
+            && w.get_component::<villager::InFormation>(m).is_none()
+            && !self.seats.iter().any(|s| s.player == m);
+        [TurnoutCoordinator, NoteTaker, Chair].iter()
+            .filter_map(|&r| crate::game::campaign::seat_holder(&self.world, c, r))
+            .find(|&h| free(&self.world, h))
+            .or_else(|| self.world.get_component::<Organization>(self.seats[seat].org)
+                .and_then(|o| o.members.iter().copied().find(|&m| free(&self.world, m))))
+    }
+
+    /// The first market town no post is warming yet
+    fn open_post(&self, c: Entity) -> Option<usize> {
+        let warming: Vec<usize> = self.world.get_component::<crate::game::campaign::Outreach>(c)
+            .map(|o| o.posts.iter().map(|(s, _, _)| *s).collect()).unwrap_or_default();
+        self.sites.iter().enumerate()
+            .find(|(i, s)| s.kind == crate::session::country::SiteKind::Town && !warming.contains(i))
+            .map(|(i, _)| i)
+    }
+
+    /// A campaign meeting on the floor: the room talks it through, and
+    /// what it settles is what the picked motion does - none and it
+    /// meets for the resolves alone (#1157)
+    fn meet_with_motion(&mut self, seat: usize, motion: Option<crate::game::campaign::Motion>) -> String {
+        let tick = self.tick;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+            return "There's no cause to meet on.".into();
+        };
+        match self.hold_and_note_campaign_meeting(Some(self.seats[seat].player), c, tick) {
+            Some(mut msg) => {
+                // the pick IS the vote: the agenda the floor was handed
+                // carries, whatever the room settled for itself
+                if let Some(m) = motion {
+                    msg += " - "; msg += &self.run_motion(seat, c, m);
+                }
+                msg
+            }
+            None => "The campaign isn't due to meet yet.".into(),
+        }
+    }
+
+    /// What a carried motion does: the street verbs, voted first (#1157)
+    fn run_motion(&mut self, seat: usize, c: Entity, motion: crate::game::campaign::Motion) -> String {
+        use crate::game::campaign::Motion;
+        match motion {
+            Motion::March => self.march_at(seat),
+            Motion::Strike => self.strike_at(seat),
+            Motion::Townhall => self.townhall_at(seat),
+            Motion::Flyers => self.flyers_at(seat),
+            // hands enough for two fronts at once: the column and the
+            // ballot on the same day
+            Motion::TwoFronts => format!("{} {}", self.march_at(seat), self.strike_at(seat)),
+            Motion::SendOrganizer => self.dispatch_organizer(seat, c),
+            Motion::ParallelEvent(site) => self.parallel_event_at(seat, site),
+        }
+    }
+
+    /// The strike motion carried: the trade the room works balloted -
+    /// nine of ten or a public failure
+    fn strike_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+            return "There's no cause to ballot for.".into();
+        };
+        let Some(voc) = self.strike_voc(c) else { return "No trade of theirs to ballot.".into() };
+        match crate::game::actions::strike_vote(&mut self.world, c, voc, tick) {
+            Some(out) => {
+                crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                    crate::game::org_skills::OrgSkill::Turnout,
+                    crate::game::org_skills::SEAT_PRACTICE);
+                let ev = crate::game::campaign_arc::ArcEvent::Strike { called: out.called };
+                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                    self.record_campaign_talk(vec![self.seats[seat].player], &d);
+                }
+                format!("{} of {} say yes{}. {}", out.yes, out.yes + out.no,
+                    if out.called { " - the strike is on" } else { "" },
+                    if out.called { "The trade stands together." } else { "Less than nine of ten: it fails in public." })
+            }
+            None => "Nobody of the trade to ballot.".into(),
+        }
+    }
+
+    /// The demands put to the target in public: the townhall motion
+    /// carried
+    fn townhall_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+            return "There's no cause to put demands for.".into();
+        };
+        self.townhall_day = self.tick;
+        let Some(target) = self.world.get_component::<crate::game::campaign::Campaign>(c)
+            .map(|cc| cc.target).unwrap_or(None).or(self.collector) else { return String::new() };
+        use crate::game::actions::{townhall, TargetResponse};
+        match townhall(&mut self.world, c, target, tick) {
+            Some(out) => { crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                    crate::game::org_skills::OrgSkill::Agitation,
+                    crate::game::org_skills::SEAT_PRACTICE);
+                let msg = match out.response {
+                TargetResponse::Carries => {
+                    self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
+                    // the carried demand lands as a grant: the load
+                    // the issue names eases for the cause's people,
+                    // and this year's taxing stops counting - but
+                    // only the issue fought for is answered
+                    let oe = self.seats[seat].org;
+                    let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                        .map(|cc| cc.issue.clone()).unwrap_or_default();
+                    self.world.add_component(oe, crate::game::reactions::LordGrant::full(
+                        &issue, tick, tick + crate::game::desires::YEAR_DAYS));
+                    // the tag the tax fight is voted under
+                    if issue == "the taxes" {
+                        if let Some(o) = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()) {
+                            for m in o {
+                                crate::game::desires::lift_grievance(&mut self.world, m, crate::game::desires::Problem::Taxed);
+                            }
+                        }
+                    }
+                    // a carried demand is the writ beaten in
+                    // public: the reach thins for it (#971)
+                    self.lord_strength = (self.lord_strength - 0.06).max(0.0);
+                    // a carried demand walks the streets: the
+                    // village takes the win out in the open
+                    self.victory_parade();
+                    format!("{} face the Reeve - and he says the king will hear of this.", out.turnout.len())
+                }
+                TargetResponse::Concedes => {
+                    // it touches him, but the room was thin: part of
+                    // it, for half a year - the grievance stands
+                    self.toasts.push(("the Reeve grants a part of it".into(), tick + 40));
+                    let oe = self.seats[seat].org;
+                    let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                        .map(|cc| cc.issue.clone()).unwrap_or_default();
+                    // a part already granted and honoured isn't
+                    // granted again: pressing a thin room twice
+                    // doesn't stretch it
+                    if out.nothing_new {
+                        format!("{} face the Reeve - he grants no more than he already has.", out.turnout.len())
+                    } else {
+                        // a concession's a smaller beat, but a
+                        // beat all the same (#971)
+                        self.lord_strength = (self.lord_strength - 0.03).max(0.0);
+                        self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
+                            &issue, tick, tick + crate::game::desires::YEAR_DAYS / 2));
+                        format!("{} face the Reeve - he grants a part of it, and no more.", out.turnout.len())
+                    }
+                }
+                TargetResponse::Deflects =>
+                    format!("The Reeve sends regards and a clerk. {} went home hollow.", out.turnout.len()),
+                TargetResponse::Refuses =>
+                    format!("The doors stay shut on {} voices. They go home hollow.", out.turnout.len()),
+            };
+            // the answer at the door is the arc's outcome (read
+            // after any grant above has landed)
+            let ev = crate::game::campaign_arc::ArcEvent::Townhall(out.response);
+            if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                let mut with = vec![self.seats[seat].player, target];
+                with.extend(out.turnout.iter().copied());
+                self.record_campaign_talk(with, &d);
+            }
+            msg },
+            None => "Nobody turns out for the townhall.".into(),
+        }
+    }
+
+    /// The send-an-organizer motion carried: a spare member rides out
+    /// to a market town the reach hasn't touched, and the post warms
+    /// the town day by day till it can stage its own event (#1157)
+    fn dispatch_organizer(&mut self, seat: usize, c: Entity) -> String {
+        let tick = self.tick;
+        let Some(who) = self.spare_organizer(seat, c) else {
+            return "there's no member to spare for the road.".into();
+        };
+        let Some(site) = self.open_post(c) else {
+            return "every town's already got the word.".into();
+        };
+        let Some(to) = self.world.get_component::<Pos>(self.sites[site].store)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)) else {
+            return "their ground isn't found.".into();
+        };
+        self.world.add_component(who, crate::game::campaign::FieldPost { site, since: tick });
+        if self.world.get_component::<crate::game::campaign::Outreach>(c).is_none() {
+            self.world.add_component(c, crate::game::campaign::Outreach::default());
+        }
+        if let Some(o) = self.world.get_component_mut::<crate::game::campaign::Outreach>(c) {
+            o.posts.push((site, who, 0.0));
+        }
+        self.send_far(who, to, Goal::FieldPost(site));
+        let name = self.villagers.iter().position(|&v| v == who)
+            .map(vill_name).unwrap_or("one of theirs");
+        format!("the vote sends {} to raise {} for the cause.", name, self.sites[site].name)
+    }
+
+    /// The parallel-event motion carried: the posted organizer stages
+    /// the cause's day in their town - the folk the warmth gathered
+    /// wake to the issue, and the organizer comes home (#1157)
+    fn parallel_event_at(&mut self, seat: usize, site: usize) -> String {
+        let tick = self.tick;
+        let sname = self.sites[site].name;
+        let issue = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
+            .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c)
+                .map(|cc| cc.issue.clone()))
+            .unwrap_or_default();
+        // the town wakes: its own folk mark the issue theirs to watch
+        let mut woke = 0usize;
+        for &v in self.villagers.clone().iter() {
+            if villager::is_dead(&self.world, v) { continue; }
+            if self.world.get_component::<crate::session::country::Outlander>(v)
+                .map(|o| o.site != site).unwrap_or(true) { continue; }
+            if self.world.get_component::<crate::game::reactions::Sympathized>(v).is_none() {
+                self.world.add_component(v, crate::game::reactions::Sympathized::default());
+            }
+            if let Some(s) = self.world.get_component_mut::<crate::game::reactions::Sympathized>(v) {
+                s.issues.retain(|(i, _)| i != &issue);
+                s.issues.push((issue.clone(), tick));
+            }
+            woke += 1;
+        }
+        crate::sim::organized_power::record_action(&mut self.world, self.seats[seat].org,
+            crate::sim::organized_power::ActionQuality::Transformational);
+        // the post's done its work: the organizer walks home
+        let mut home = None;
+        if let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) {
+            if let Some(o) = self.world.get_component_mut::<crate::game::campaign::Outreach>(c) {
+                if let Some(i) = o.posts.iter().position(|(s, _, _)| *s == site) {
+                    home = Some(o.posts.remove(i).1);
+                }
+            }
+        }
+        if let Some(who) = home {
+            self.world.remove_component::<crate::game::campaign::FieldPost>(who);
+            if let Some(hp) = crate::game::household::home_of(&self.world, who)
+                .and_then(|h| self.world.get_component::<Pos>(h).copied()) {
+                self.send_far(who, (hp.x.round() as i32, hp.y.round() as i32), Goal::Wander);
+            }
+        }
+        format!("{} rises for the cause - {} wake to {}; the organizer comes home.", sname, woke, issue)
     }
 }

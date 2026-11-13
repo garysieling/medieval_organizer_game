@@ -766,6 +766,23 @@ impl Game {
                 title: format!("{} - YOUR CALL", d.org_name.to_uppercase()),
                 rows, options, decides: true, leave: false });
         }
+        // the campaign's agenda slate: the motions the cause's size can
+        // carry tonight, then "just meet" - the street verbs live here
+        // now, voted on the floor, not on a button (#1157)
+        if let Some((motions, _)) = &s.pending_agenda {
+            let oname = self.world.get_component::<crate::sim::community::Organization>(s.org)
+                .map(|o| o.name.clone()).unwrap_or_default();
+            let n = crate::game::campaign::campaign_of(&self.world, s.org)
+                .map(|c| crate::game::campaign::living_members(&self.world, c)).unwrap_or(0);
+            let mut options: Vec<String> = motions.iter()
+                .map(|&m| crate::game::campaign::motion_label(m)).collect();
+            options.push("Just meet - the resolves, no action".into());
+            return Some(ConvoPanelV {
+                title: format!("{} - THE FLOOR'S YOURS", oname.to_uppercase()),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    text: format!("{} stand with the cause - what do they take up?", n) }],
+                options, decides: true, leave: false });
+        }
         if let Some(m) = &self.meeting {
             if m.seat == seat {
                 let mut rows = self.record_rows(seat, m.talk_id);

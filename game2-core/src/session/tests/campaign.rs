@@ -24,12 +24,18 @@ fn test_the_harvesters_take_a_vote_and_then_they_meet() {
     assert!(cv.seats.iter().all(|s| s.ends_with("(empty)")), "{:?}", cv.seats);
     assert!(!cv.due, "just founded - the cadence still has to run");
 
-    // and the Meet button runs the campaign meeting when it's due
+    // and the Meet button opens the agenda when it's due - the meeting
+    // runs on the floor's pick (#1157): the last row's always "just meet"
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
     g.seats[0].ctx_actions.push(CtxAct::Meet);
     let i = g.seats[0].ctx_actions.len() - 1;
     g.ctx_act_at(0, i);
+    let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
+    let convo = g.ui_model().convo.expect("the slate shows on the box");
+    assert!(convo.decides && convo.options.len() == slate.len() + 1, "{:?}", convo.options);
+    g.decide_at(0, slate.len()); // "just meet": the resolves, no action
+    assert!(g.seats[0].pending_agenda.is_none());
     // the log keeps the outcome; the room's talk is on the TALK panel
     let last = g.log.last().unwrap();
     assert!(last.contains("meet about the campaign") && !last.contains(": \""), "{:?}", last);
@@ -335,9 +341,13 @@ fn test_the_panel_only_offers_what_can_fire() {
     g.update_ctx_actions_at(0);
     {
         let ctx = &g.seats[0].ctx_actions;
-        assert!(ctx.contains(&CtxAct::Cadence) && ctx.contains(&CtxAct::March), "{ctx:?}");
+        assert!(ctx.contains(&CtxAct::Cadence), "{ctx:?}");
         assert!(!ctx.contains(&CtxAct::Meet), "just founded - not due yet: {ctx:?}");
-        assert!(!ctx.contains(&CtxAct::Flyers), "no print shop stands: {ctx:?}");
+        // the street verbs aren't on the card any more - they're motions
+        // the meeting floor votes (#1157)
+        for a in [CtxAct::March, CtxAct::Flyers, CtxAct::Strike, CtxAct::Townhall] {
+            assert!(!ctx.contains(&a), "{a:?} is a motion now: {ctx:?}");
+        }
     }
     // due is due: Meet joins the card
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
@@ -361,25 +371,116 @@ fn test_the_panel_only_offers_what_can_fire() {
     g.update_ctx_actions_at(0);
     assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Delegate),
         "a full roster offers no seat: {:?}", g.seats[0].ctx_actions);
-    // the Reeve honouring a full grant closes the demands too
+    // the demands live on the slate now: four grown members can put them,
+    // but a full grant the Reeve's honouring takes them off it - the same
+    // door that used to grey the button (#1157)
+    let grown: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .take(4).collect();
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown;
     g.world.get_component_mut::<crate::game::campaign::Campaign>(c).unwrap()
         .target = g.collector;
-    g.seats[0].selected_target = COLLECTOR_IDX;
-    g.update_ctx_actions_at(0);
-    assert!(g.seats[0].ctx_actions.contains(&CtxAct::Townhall), "{:?}", g.seats[0].ctx_actions);
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    let mi = g.seats[0].ctx_actions.len() - 1;
+    g.ctx_act_at(0, mi);
+    let slate = &g.seats[0].pending_agenda.as_ref().unwrap().0;
+    assert!(slate.contains(&crate::game::campaign::Motion::Townhall), "{slate:?}");
     g.world.add_component(g.org, crate::game::reactions::LordGrant::full(
         "the taxes", g.tick, g.tick + 100));
-    g.update_ctx_actions_at(0);
-    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Townhall),
-        "the grant stands: {:?}", g.seats[0].ctx_actions);
-    // and the street verbs cool off: March answers once a day
-    g.seats[0].selected_target = 0;
-    g.update_ctx_actions_at(0);
-    let mi = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::March).unwrap();
     g.ctx_act_at(0, mi);
+    let slate = &g.seats[0].pending_agenda.as_ref().unwrap().0;
+    assert!(!slate.contains(&crate::game::campaign::Motion::Townhall),
+        "the grant stands: {slate:?}");
+    // and a march is a motion the floor votes now: the slate's pick walks
+    // the column out, and the street still answers once a day
+    g.ctx_act_at(0, mi);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|&m| m == crate::game::campaign::Motion::March)
+        .expect("a cause this size can march");
+    g.decide_at(0, pick);
+    assert!(g.formation.is_some(), "the vote marches them out");
     // the march walks its route out before the street answers
     for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
     assert!(g.ctx_blocker_at(0, CtxAct::March).is_some(), "same-day march refused");
     g.tick += 1;
     assert!(g.ctx_blocker_at(0, CtxAct::March).is_none(), "tomorrow's march answers");
 }
+
+#[test]
+fn test_the_slate_grows_with_the_cause_and_sends_an_organizer() {
+    let mut g = Game::new();
+    use crate::game::campaign::Motion;
+    // a cause of eight grown members carries the road work too - and a
+    // small one doesn't see the big doors (#1157)
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    let grown: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .take(8).collect();
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown.clone();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 0;
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
+    assert!(slate.contains(&Motion::TwoFronts) && slate.contains(&Motion::SendOrganizer),
+        "eight hands carry two fronts and the road: {slate:?}");
+    assert!(!slate.iter().any(|m| matches!(m, Motion::ParallelEvent(_))),
+        "no post warms yet: {slate:?}");
+    // shrink the roster and the big motions fall off the slate
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        grown[..3].to_vec();
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    assert!(!slate.contains(&Motion::TwoFronts) && !slate.contains(&Motion::SendOrganizer),
+        "three hands can't hold two fronts or the road: {slate:?}");
+    // back to eight: the vote sends an organizer out to raise a town
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown;
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|&m| m == Motion::SendOrganizer).unwrap();
+    g.decide_at(0, pick);
+    assert!(g.seats[0].pending_agenda.is_none(), "the pick settles the slate");
+    let (site, who) = g.world.get_component::<crate::game::campaign::Outreach>(c)
+        .and_then(|o| o.posts.first().map(|(s, w, _)| (*s, *w)))
+        .expect("the vote posts someone");
+    assert_eq!(g.sites[site].kind, crate::session::country::SiteKind::Town);
+    assert_eq!(g.world.get_component::<crate::game::campaign::FieldPost>(who).unwrap().site, site);
+    assert!(g.travels.iter().any(|t| t.who == who && matches!(t.goal, Goal::FieldPost(_))),
+        "the organizer rides out");
+    // the post warms the town a measure a day - three days and the town
+    // can stage the cause's day itself
+    for _ in 0..20000 {
+        g.update();
+        let warm = g.world.get_component::<crate::game::campaign::Outreach>(c)
+            .and_then(|o| o.posts.first().map(|(_, _, s)| *s)).unwrap_or(0.0);
+        if warm >= crate::game::campaign::FIELD_WARM { break; }
+    }
+    let warm = g.world.get_component::<crate::game::campaign::Outreach>(c)
+        .and_then(|o| o.posts.first().map(|(_, _, s)| *s)).unwrap_or(0.0);
+    assert!(warm >= crate::game::campaign::FIELD_WARM, "the post warms by the day: {warm}");
+    // the warm town goes on the slate: the floor stages its day there
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|&m| matches!(m, Motion::ParallelEvent(s) if s == site))
+        .expect("the warm town can stage: {slate:?}");
+    g.decide_at(0, pick);
+    // the town's own folk wake to the issue, the post's work done, and
+    // the organizer's road home begins
+    assert!(g.world.get_component::<crate::game::campaign::FieldPost>(who).is_none());
+    assert!(g.world.get_component::<crate::game::campaign::Outreach>(c)
+        .map(|o| o.posts.is_empty()).unwrap_or(true));
+    let woke = g.villagers.iter().filter(|&&v|
+        g.world.get_component::<crate::session::country::Outlander>(v)
+            .map(|o| o.site == site).unwrap_or(false)
+        && g.world.get_component::<crate::game::reactions::Sympathized>(v)
+            .map(|s| s.issues.iter().any(|(i, _)| *i == "the taxes")).unwrap_or(false)).count();
+    assert!(woke > 0, "the town's folk wake to the issue");
+}
+

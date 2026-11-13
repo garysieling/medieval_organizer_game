@@ -254,9 +254,13 @@ impl Game {
     pub fn campaign_meeting_tick(&mut self, tick: u64) {
         let campaigns = self.world.query::<crate::game::campaign::Campaign>();
         for c in campaigns {
-            let player = self.seats.iter()
-                .find(|s| crate::game::campaign::campaign_of(&self.world, s.org) == Some(c))
-                .map(|s| s.player);
+            let seat = self.seats.iter()
+                .find(|s| crate::game::campaign::campaign_of(&self.world, s.org) == Some(c));
+            // an agenda slate already open on the box holds the date
+            // itself - the floor's deciding, the day doesn't pre-empt
+            // the vote with a meeting of its own (#1157)
+            if seat.map(|s| s.pending_agenda.is_some()).unwrap_or(false) { continue; }
+            let player = seat.map(|s| s.player);
             if let Some(msg) = self.hold_and_note_campaign_meeting(player, c, tick) {
                 self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
                     format!("t{}: {}", tick, msg));

@@ -276,6 +276,7 @@ impl Game {
         self.seats[seat].picked = false;
         self.seats[seat].pick_near = false;
         self.seats[seat].approach = None;
+        self.seats[seat].buy_walk = None;
         self.close_player_talk(seat, Some("You take your leave."));
     }
 
@@ -406,6 +407,46 @@ impl Game {
             None => Some(format!("Can't {}: there's no way to reach {}.",
                 ACTION_LABELS[action].to_lowercase(), vill_name(who))),
         }
+    }
+
+    /// One frame of the walk-over-to-buy: follow the path to the picked
+    /// shop's tile, then buy one of its offer once beside it. A building
+    /// doesn't wander, so the path stands; give up if the way's blocked
+    pub fn advance_buy_walk_at(&mut self, seat: usize) {
+        let Some(mut w) = self.seats[seat].buy_walk.take() else { return };
+        let Some(&b) = self.building_entities.get(w.building) else { return };
+        let Some(bp) = self.world.get_component::<Pos>(b).copied() else { return };
+        let (px, py) = self.player_pos_at(seat);
+        if ((bp.x - px).powi(2) + (bp.y - py).powi(2)).sqrt() < 4.0 {
+            let pe = self.seats[seat].player;
+            let tick = self.tick;
+            let offer = self.world.get_component::<Building>(b)
+                .and_then(|bb| household::on_offer_at(&self.world, bb).into_iter().next());
+            let msg = match offer {
+                Some((g, _, _)) => match household::buy_at_shop(&mut self.world, b, pe, &g, 1) {
+                    Some(paid) => format!("t{}: you buy {} for {:.0} gold.", tick, g, paid),
+                    None => format!("t{}: you can't cover it.", tick),
+                },
+                None => format!("t{}: the shelf's bare.", tick),
+            };
+            self.log.push_ev(EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor), msg);
+            return;
+        }
+        // drop tiles already reached, then head for the next
+        while w.path.len() > 1 {
+            let (x, y) = w.path[0];
+            if (x as f32 - px).abs() < 0.25 && (y as f32 - py).abs() < 0.25 { w.path.remove(0); } else { break; }
+        }
+        let (tx, ty) = w.path.first().map(|&(x, y)| (x as f32, y as f32)).unwrap_or((bp.x, bp.y));
+        let (dx, dy) = (tx - px, ty - py);
+        if dx.abs() + dy.abs() > 1e-3 { self.walk_at(seat, dx, dy); }
+        w.stuck = if self.player_pos_at(seat) != (px, py) { 0 } else { w.stuck + 1 };
+        if w.stuck > APPROACH_STUCK_FRAMES {
+            self.log.push_ev(EvTag::new(Thread::Player, Valence::Negative, Sev::Minor),
+                format!("t{}: you can't get through to the shop.", self.tick));
+            return;
+        }
+        self.seats[seat].buy_walk = Some(w);
     }
 
     /// One frame of walking over to someone: follow the path (finding a new
@@ -613,10 +654,17 @@ impl Game {
             }
         }
         // a shop you're standing by will sell you one of what it makes:
-        // the bag takes it, the walking purse pays the street's price
+        // the bag takes it, the walking purse pays the street's price.
+        // A clicked building with an offer sells from further off - the
+        // click walks you over, one unit a click
         let pe = self.seats[seat].player;
         if self.world.get_component::<Satchel>(pe).is_some() {
-            let sellable = self.building_entities.iter().copied().any(|b| {
+            let clicked_sells = self.seats[seat].selected_building
+                .and_then(|i| self.building_entities.get(i).copied())
+                .and_then(|b| self.world.get_component::<Building>(b)
+                    .map(|bb| bb.worker.is_some() && !household::on_offer_at(&self.world, bb).is_empty()))
+                .unwrap_or(false);
+            let sellable = clicked_sells || self.building_entities.iter().copied().any(|b| {
                 let bb = self.world.get_component::<Building>(b);
                 bb.map(|bb| bb.worker.is_some() && bb.stock.iter().any(|(_, &n)| n > 0)).unwrap_or(false)
                     && self.world.get_component::<Pos>(b)
@@ -1012,35 +1060,10 @@ impl Game {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
                     return;
                 };
-                match crate::game::campaign::hold_campaign_meeting(&mut self.world, c, tick) {
-                    Some(out) => {
-                        let who: Vec<String> = out.attendees.iter()
-                            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
-                            .collect();
-                        // the room talks it through first: what it decided is
-                        // what the notes and the consent report
-                        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick);
-                        let decided = d.as_ref().map(|d| d.decided).unwrap_or(true);
-                        let consent = d.as_ref().map(|d| d.consent).unwrap_or(out.consent);
-                        let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
-                        if out.drifted { msg += " - run by whoever pulled hardest, nobody asked"; }
-                        if out.noted && decided { msg += " - the notes keep the resolves"; }
-                        if !decided { msg += " - nothing settled"; }
-                        if consent { msg += " - consent banked for the next action"; }
-                        if !out.healed.is_empty() {
-                            let healed: Vec<String> = out.healed.iter()
-                                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string())).collect();
-                            msg += &format!(" - {} heard out", healed.join(", "));
-                        }
-                        // the log keeps the outcome; what the room said goes
-                        // on the TALK panel, in the order it was said
-                        if let Some(d) = d {
-                            let mut with = vec![self.seats[seat].player];
-                            with.extend(out.attendees.iter().copied());
-                            self.record_campaign_talk(with, &d);
-                        }
-                        msg
-                    }
+                // the seat calls the meeting itself - the day's tick
+                // holds it for the cause when nobody calls (#1159)
+                match self.hold_and_note_campaign_meeting(Some(self.seats[seat].player), c, tick) {
+                    Some(msg) => msg,
                     None => "The campaign isn't due to meet yet.".into(),
                 }
             }
@@ -1604,6 +1627,40 @@ impl Game {
             CtxAct::Buy => {
                 let pe = self.seats[seat].player;
                 let (px, py) = self.player_pos_at(seat);
+                // a clicked building with an offer is the shop you mean:
+                // standing by it, buy one of its offer; further off, the
+                // click starts the walk and the buy lands on arrival
+                let clicked = self.seats[seat].selected_building
+                    .and_then(|i| self.building_entities.get(i).copied().map(|b| (i, b)))
+                    .filter(|&(_, b)| self.world.get_component::<Building>(b)
+                        .map(|bb| bb.worker.is_some()
+                            && !household::on_offer_at(&self.world, bb).is_empty()).unwrap_or(false));
+                if let Some((bi, b)) = clicked {
+                    let Some(bp) = self.world.get_component::<Pos>(b).copied() else { return };
+                    let near = ((bp.x - px).powi(2) + (bp.y - py).powi(2)).sqrt() < 4.0;
+                    if !near {
+                        // the shelf's behind a door: the walk aims at the
+                        // door tile, not the building's own footprint
+                        let door = self.door_of(b).unwrap_or((bp.x.round() as i32, bp.y.round() as i32));
+                        match self.trail_path((px.round() as i32, py.round() as i32), door) {
+                            Some(path) => {
+                                self.seats[seat].buy_walk = Some(BuyWalk { building: bi, path, stuck: 0 });
+                                "you walk over to buy.".into()
+                            }
+                            None => "no way to that shop.".into(),
+                        }
+                    } else {
+                        let offer = self.world.get_component::<Building>(b)
+                            .and_then(|bb| household::on_offer_at(&self.world, bb).into_iter().next());
+                        match offer {
+                            Some((g, _, _)) => match household::buy_at_shop(&mut self.world, b, pe, &g, 1) {
+                                Some(paid) => format!("you buy {} for {:.0} gold.", g, paid),
+                                None => "you can't cover it.".into(),
+                            },
+                            None => "the shelf's bare.".into(),
+                        }
+                    }
+                } else {
                 // the nearest shop that'll sell: a worker on it and
                 // something on the shelf
                 let shop = self.building_entities.iter().copied()
@@ -1635,6 +1692,7 @@ impl Game {
                         }
                     }
                     None => "no shop in reach will sell.".into(),
+                }
                 }
             }
         };
@@ -1845,28 +1903,56 @@ impl Game {
     /// The street: the cause marches. Returns the log line - turnout, the
     /// lord's reaction, and whatever the day brings back to the room
     /// (a crackdown, a taking, the ban proclaimed).
-    /// Call the cause to the streets: the column forms and marches the
-    /// town's ways - what the street makes of it lands when the march
-    /// comes home. Returns the log line
-    fn march_at(&mut self, seat: usize) -> String {
+    /// Call the cause out: the column forms and marches - the town's
+    /// ways mostly, and some days the road out to where the grievance
+    /// lives. What the street makes of it lands when the march comes
+    /// home. Returns the log line
+    pub(in crate::session) fn march_at(&mut self, seat: usize) -> String {
         if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_none() {
             return "There's no cause to march for.".into() }
         if self.formation.is_some() { return "the column's already out.".into() }
         // the column: the cause's own, file by file
+        let members = self.march_members(seat);
+        if members.is_empty() { return "there's nobody to march with you.".into() }
+        // the route: a day in three the cause takes the road to where
+        // the grievance lives - the lord's gate, the sisters, the town
+        // - and comes home with that place's answer; the rest of the
+        // time it rings the town's paved ways as it always has
+        let org = self.seats[seat].org;
+        let hp = self.world.get_component::<Pos>(members[0]).copied().unwrap();
+        let road = if routine::mix(org, self.tick) % 3 == 0 {
+            self.march_destination(org)
+                .and_then(|si| self.road_route(si, (hp.x, hp.y)).map(|r| (si, r)))
+        } else { None };
+        let (dest, route) = match road {
+            Some((si, r)) => (Some(si), r),
+            None => (None, self.street_route((hp.x, hp.y), 24)),
+        };
+        if route.is_empty() { return "the streets won't hold a march.".into() }
+        let n = members.len();
+        self.form_march(seat, members, dest, route);
+        match dest {
+            Some(si) => format!("the cause marches on {}: {} take the road.",
+                self.sites[si].name, n),
+            None => format!("the cause marches: {} take to the streets.", n),
+        }
+    }
+
+    /// Who answers the call: the org's members, living, free and on the
+    /// map, file by file
+    fn march_members(&mut self, seat: usize) -> Vec<Entity> {
         let mut members: Vec<Entity> = self.world.get_component::<Organization>(self.seats[seat].org)
             .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
         members.retain(|&v| !villager::is_dead(&self.world, v)
             && !crate::game::dungeon::unavailable(&self.world, v)
             && self.world.get_component::<Pos>(v).is_some());
         members.sort();
-        if members.is_empty() { return "there's nobody to march with you.".into() }
-        // the route: the town's paved ways rung round the market cross,
-        // started nearest the head - a show of strength, one turn of
-        // the town, not a pilgrimage
-        let hp = self.world.get_component::<Pos>(members[0]).copied().unwrap();
-        let route = self.street_route((hp.x, hp.y), 24);
-        if route.is_empty() { return "the streets won't hold a march.".into() }
-        // whoever was walking somewhere, they march now instead
+        members
+    }
+
+    /// The column forms on the given route: whoever was walking
+    /// somewhere, they march now instead
+    fn form_march(&mut self, seat: usize, members: Vec<Entity>, dest: Option<usize>, route: Vec<(f32, f32)>) {
         for &m in &members {
             self.travels.retain(|t| t.who != m);
             self.world.remove_component::<routine::Routine>(m);
@@ -1874,15 +1960,81 @@ impl Game {
         }
         self.formation = Some(formation::Formation {
             kind: formation::FormationKind::March, seat, born: self.tick,
-            members: members.clone(), route, at: 0, stuck: 0, waited: 0, leg0: -1.0,
-            cheered: Default::default() });
-        format!("the cause marches: {} take to the streets.", members.len())
+            members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0,
+            cheered: Default::default(), dest });
+    }
+
+    /// The cause takes the road to `si` on demand - for dumps and the
+    /// ws test surface, like force_event. False when the column's
+    /// already out, there's nobody to march, or no road reaches the site
+    pub fn force_road_march(&mut self, seat: usize, si: usize) -> bool {
+        if self.formation.is_some() || si >= self.sites.len() { return false }
+        let members = self.march_members(seat);
+        let Some(hp) = members.first().and_then(|&m|
+            self.world.get_component::<Pos>(m).copied()) else { return false };
+        let Some(route) = self.road_route(si, (hp.x, hp.y)) else { return false };
+        self.form_march(seat, members, Some(si), route);
+        true
+    }
+
+    /// Where a road march goes: the site the day's issue names - the
+    /// lord's gate when the grievance is his (the taxes, his writs, the
+    /// death duty), the sisters when the cause is a faith's, the market
+    /// town for the rest. None when the country has nowhere fitting -
+    /// the cause rings the town instead.
+    pub(in crate::session) fn march_destination(&self, org: Entity) -> Option<usize> {
+        let c = crate::game::campaign::campaign_of(&self.world, org)?;
+        let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+            .map(|c| c.issue.clone())?;
+        // a conversion campaign's issue is the faith's own name, so the
+        // faiths name themselves beside the two issue tags
+        let is_faith = matches!(issue.as_str(),
+            "faith" | "the true faith" | "the parish" | "the old faith");
+        let want = if is_faith { country::SiteKind::Monastery }
+            else if crate::game::desires::cluster_of(&issue) == Some("lords_hand") { country::SiteKind::Castle }
+            else { country::SiteKind::Town };
+        let m = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
+        self.sites.iter().enumerate()
+            .filter(|(_, s)| s.kind == want)
+            .min_by_key(|(_, s)| m.map(|(x, y)|
+                ((s.centre.0 as f32 - x).powi(2) + (s.centre.1 as f32 - y).powi(2)) as i64)
+                .unwrap_or(0))
+            .map(|(i, _)| i)
+    }
+
+    /// The road the column takes to `site`: the beaten way out to its
+    /// door, a turn round the ground while the cry's given, then the
+    /// way home to the market cross - the same paths the carts and the
+    /// stewards walk. None when no path reaches the door.
+    pub(in crate::session) fn road_route(&mut self, si: usize, from: (f32, f32)) -> Option<Vec<(f32, f32)>> {
+        let (keep, centre) = { let s = &self.sites[si]; (s.homes.first().copied(), s.centre) };
+        let door = keep
+            .and_then(|k| self.world.get_component::<Pos>(k).copied())
+            .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32))
+            .unwrap_or(centre);
+        let from_t = (from.0.round() as i32, from.1.round() as i32);
+        let mut out = self.walk_memo(from_t, door)?;
+        out.push(door);
+        // a turn round the ground: the ring of clear tiles about the
+        // site, so the cry goes up at every face of it
+        let ring: Vec<(i32, i32)> = (0..8).map(|k| {
+            let a = k as f32 * std::f32::consts::TAU / 8.0;
+            (centre.0 + (5.0 * a.cos()).round() as i32, centre.1 + (5.0 * a.sin()).round() as i32)
+        }).filter(|&t| self.map.passable(t.0, t.1)).collect();
+        let home = self.world.get_component::<Pos>(self.market_food)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32))?;
+        let mut back = self.walk_memo(door, home)?;
+        back.push(home);
+        let mid = |t: (i32, i32)| (t.0 as f32 + 0.5, t.1 as f32 + 0.5);
+        Some(out.into_iter().chain(ring).chain(back).map(mid).collect())
     }
 
     /// The march comes home: the street answers it - the turnout, the
-    /// knights or the names taken, who watched and woke. Runs when the
-    /// column's walked its route out
-    pub(crate) fn march_resolved(&mut self, seat: usize) {
+    /// knights or the names taken, who watched and woke. A road march
+    /// brings the destination's own answer: the sheriff takes the names
+    /// at the lord's gate, the town's folk line the road, the sisters
+    /// bless the cause. Runs when the column's walked its route out
+    pub(crate) fn march_resolved(&mut self, seat: usize, site: Option<usize>) {
         let tick = self.tick;
         // the street answers once a day - the cooldown runs from home
         self.march_day = tick;
@@ -1901,7 +2053,14 @@ impl Game {
                 // crackdown doesn't pile more knights into the frame
                 let posted_before = self.world
                     .get_component::<crate::game::reactions::GuardsPosted>(self.seats[seat].org).is_some();
-                let r = crate::game::reactions::react(&mut self.world, c, &out.turnout, tick);
+                let mut r = crate::game::reactions::react(&mut self.world, c, &out.turnout, tick);
+                // a column at the lord's gate is never beneath notice:
+                // the sheriff takes the names himself
+                let dest = site.map(|si| (self.sites[si].kind, self.sites[si].name));
+                if matches!(dest, Some((country::SiteKind::Castle, _)))
+                    && r == Some(crate::game::reactions::Reaction::Ignored) {
+                    r = Some(crate::game::reactions::Reaction::Watched);
+                }
                 // everyone who saw it and felt the cause wake in them
                 let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
                     .map(|cc| cc.issue.clone()).unwrap_or_default();
@@ -1917,15 +2076,39 @@ impl Game {
                         woke += crate::game::reactions::witness(&mut self.world, v, &issue, &out.turnout, tick) as usize;
                     }
                 }
-                let mut msg = match r {
-                    Some(crate::game::reactions::Reaction::Crackdown) => {
+                // where the cry went up: the street, or the road and
+                // the place the road led
+                let way = dest.map(|(kind, name)| match kind {
+                    country::SiteKind::Castle => format!(" on {}", name),
+                    _ => format!(" to {}", name),
+                }).unwrap_or_else(|| " in the street".into());
+                let mut msg = match (r, dest) {
+                    (Some(crate::game::reactions::Reaction::Crackdown), Some((country::SiteKind::Castle, name))) => {
                         self.toasts.push(("knights posted to the streets".into(), tick + 40));
-                        format!("{} march in the street - and the knights come out.", n)
+                        format!("{} march on {} - and the knights ride out from the gate.", n, name)
                     }
-                    Some(crate::game::reactions::Reaction::Watched) =>
-                        format!("{} march in the street - the names get taken.", n),
+                    (Some(crate::game::reactions::Reaction::Crackdown), _) => {
+                        self.toasts.push(("knights posted to the streets".into(), tick + 40));
+                        format!("{} march{} - and the knights come out.", n, way)
+                    }
+                    (Some(crate::game::reactions::Reaction::Watched), Some((country::SiteKind::Castle, name))) =>
+                        format!("{} march on {} - the sheriff takes the names at the gate.", n, name),
+                    (Some(crate::game::reactions::Reaction::Watched), _) =>
+                        format!("{} march{} - the names get taken.", n, way),
+                    (_, Some((country::SiteKind::Town, name))) =>
+                        format!("{} march to {} - the folk line the road, and word goes home with the cart.", n, name),
+                    (_, Some((country::SiteKind::Monastery, name))) =>
+                        format!("{} march to {} - the sisters bless the cause.", n, name),
                     _ => format!("{} march in the street - beneath notice, for now.", n),
                 };
+                // and the sisters' blessing stays with the marchers
+                if matches!(dest, Some((country::SiteKind::Monastery, _))) {
+                    for &m in &out.turnout {
+                        if let Some(fa) = self.world.get_component_mut::<crate::sim::religion::Faith>(m) {
+                            fa.devotion = (fa.devotion + 0.04).min(1.0);
+                        }
+                    }
+                }
                 if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
                 // a crackdown takes the loudest - and the cause
                 // becomes a prisoner

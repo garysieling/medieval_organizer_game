@@ -148,6 +148,13 @@ pack's block scale (`TileSet.trees_k`, `Art.stones_k`, `Art.castle_rd`).
   stand on snow and rock without a green fringe; they draw at their own
   size centred on the tile (`draw_standing`), so a run of blocks joins up.
   The separate `castle-postern` call wasn't used (a different stone).
+- **Castle curtains** (`castle/grand_*`): the grand set's wall call came
+  back as a standalone tower block, so `rd_compose_castle_curtain.py`
+  rebuilds `grand_wall_*` from `grand_postern_x`'s cap and face - the
+  door patched over, the face stretched to 109px, the base point
+  resynthesised - and grows the posterns to match by inserting face
+  above the door. The generated postern is kept as
+  `grand_postern_src.png`; gates, towers and keeps are used as generated.
 - **Church** (`buildings/church1..2`): drawn like the cottages
   (`draw_on_tile`, slab kept).
 
@@ -224,7 +231,9 @@ plays N frames into the dumped day, so stalls and congregations show
 (e.g. `--dump-frame 110 --seed 7` + 100 frames: two stalls).
 `GAME2_DUMP_EVENT=Tinker` (variant name or map name) fires a rare event
 before those frames run, so a visitor's figure can be walked in and
-focussed by slug (`--focus tinker`).
+focussed by slug (`--focus tinker`). `GAME2_DUMP_MARCH=castle|town|monastery`
+founds a cause if need be and sends the column up the road to the nearest
+site of that kind (`--focus march` centres on the head).
 Screenshots: `evidence/rd-round5/`.
 
 ## P0 buildings and shops (2026-11-08, $1.80 fresh + reuse)

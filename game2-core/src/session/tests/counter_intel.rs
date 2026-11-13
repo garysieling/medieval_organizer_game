@@ -30,6 +30,25 @@ fn test_feeding_the_watcher_a_false_word() {
     assert!(g.log.iter().any(|l| l.contains("false word")), "the play never logged");
 }
 
+/// The eyes' menu answers once a day: a spent play drops the box till
+/// tomorrow, it doesn't re-offer the same frame
+#[test]
+fn test_a_counter_play_is_spent_for_the_day() {
+    let mut g = Game::new();
+    g.counter_intel = 2;
+    let eyes = |g: &Game| g.convo_panel_at(0)
+        .map(|p| p.title == "THE ORG'S OWN EYES").unwrap_or(false);
+    assert!(eyes(&g), "the box never offered");
+    g.decide_at(0, 0);
+    assert!(!eyes(&g), "the box re-offered on a spent play");
+    g.decide_at(0, 0);
+    assert_eq!(g.log.iter().filter(|l| l.contains("false word")).count(), 1,
+        "a spent day's pick still landed");
+    // tomorrow the eyes are watching again - the menu's back
+    g.tick += 1;
+    assert!(eyes(&g), "the play didn't come round a new day");
+}
+
 #[test]
 fn test_reading_the_watcher_out_costs_him() {
     let mut g = Game::new();

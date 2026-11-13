@@ -1178,6 +1178,7 @@ impl Game {
             emergency: None,
             witnesses: 0,
             counter_intel: 0,
+            counter_played: None,
             suppression_arc: 0,
             hidden_venue: false,
             cult_collapse: None,

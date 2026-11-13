@@ -208,6 +208,66 @@ impl Game {
             crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority))
     }
 
+    /// Hold a due campaign meeting and note it: the log line names who
+    /// came, the room's deliberation goes on the TALK panel. `player` is
+    /// the seat's own entity when a seat stands behind the cause, so the
+    /// record is filed where they'd look for it; a campaign with no seat
+    /// records under the room alone. None when the meeting isn't due or
+    /// nobody living can pull it - an empty chair holds no meeting.
+    pub(in crate::session) fn hold_and_note_campaign_meeting(&mut self, player: Option<Entity>,
+                      c: Entity, tick: u64) -> Option<String> {
+        let out = crate::game::campaign::hold_campaign_meeting(&mut self.world, c, tick)?;
+        let who: Vec<String> = out.attendees.iter()
+            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+            .collect();
+        // the room talks it through first: what it decided is what the
+        // notes and the consent report
+        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick);
+        let decided = d.as_ref().map(|d| d.decided).unwrap_or(true);
+        let consent = d.as_ref().map(|d| d.consent).unwrap_or(out.consent);
+        let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
+        if out.drifted { msg += " - run by whoever pulled hardest, nobody asked"; }
+        if out.noted && decided { msg += " - the notes keep the resolves"; }
+        if !decided { msg += " - nothing settled"; }
+        if consent { msg += " - consent banked for the next action"; }
+        if !out.healed.is_empty() {
+            let healed: Vec<String> = out.healed.iter()
+                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+                .collect();
+            msg += &format!(" - {} heard out", healed.join(", "));
+        }
+        // the log keeps the outcome; what the room said goes on the
+        // TALK panel, in the order it was said
+        if let Some(d) = d {
+            let mut with: Vec<Entity> = player.into_iter().collect();
+            with.extend(out.attendees.iter().copied());
+            self.record_campaign_talk(with, &d);
+        }
+        Some(msg)
+    }
+
+    /// The day's campaign meetings: a cause that comes due on its
+    /// cadence meets on its own - the turnout seat pulls them in, or
+    /// whoever's pulling, or the leader. The institution keeps its own
+    /// dates like the assembly does; the seat's Meet button holds the
+    /// same meeting on paths that never run the day's tick (#1159).
+    pub fn campaign_meeting_tick(&mut self, tick: u64) {
+        let campaigns = self.world.query::<crate::game::campaign::Campaign>();
+        for c in campaigns {
+            let seat = self.seats.iter()
+                .find(|s| crate::game::campaign::campaign_of(&self.world, s.org) == Some(c));
+            // an agenda slate already open on the box holds the date
+            // itself - the floor's deciding, the day doesn't pre-empt
+            // the vote with a meeting of its own (#1157)
+            if seat.map(|s| s.pending_agenda.is_some()).unwrap_or(false) { continue; }
+            let player = seat.map(|s| s.player);
+            if let Some(msg) = self.hold_and_note_campaign_meeting(player, c, tick) {
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                    format!("t{}: {}", tick, msg));
+            }
+        }
+    }
+
     /// Put a speech bubble over `who` for `secs` seconds (replacing any
     /// they already had)
     pub fn say(&mut self, who: Entity, text: &str, secs: u32) {

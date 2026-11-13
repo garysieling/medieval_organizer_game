@@ -46,6 +46,40 @@ fn test_the_harvesters_take_a_vote_and_then_they_meet() {
     assert!(g.ui_model().panel.campaign.unwrap().due);
 }
 
+/// A cause keeps its own dates: the cadence meeting gathers on its
+/// day without the seat calling it - the room's own pull, not the
+/// button (#1159)
+#[test]
+fn test_the_cause_meets_on_its_own_dates() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    // the founding cadence is three days; nobody presses Meet
+    for _ in 0..3 { g.tick += 1; }
+    g.campaign_meeting_tick(g.tick);
+    {
+        let m = g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap();
+        assert_eq!(m.held, 1, "the due meeting never sat");
+        assert_eq!(m.last_held, g.tick);
+    }
+    assert!(g.log.iter().any(|l| l.contains("meet about the campaign")), "{:?}", g.log.last());
+    // the same date doesn't sit twice - the seat's button and the
+    // tick hold the one meeting
+    g.campaign_meeting_tick(g.tick);
+    assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap().held, 1);
+    // and the next one comes round on schedule again
+    for _ in 0..3 { g.tick += 1; }
+    g.campaign_meeting_tick(g.tick);
+    assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap().held, 2);
+}
+
 #[test]
 fn test_the_organizer_sets_how_often_they_meet() {
     let mut g = Game::new();
@@ -449,3 +483,4 @@ fn test_the_slate_grows_with_the_cause_and_sends_an_organizer() {
             .map(|s| s.issues.iter().any(|(i, _)| *i == "the taxes")).unwrap_or(false)).count();
     assert!(woke > 0, "the town's folk wake to the issue");
 }
+

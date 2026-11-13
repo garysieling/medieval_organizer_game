@@ -10,6 +10,14 @@ pub struct Approach {
     pub stuck: u32,              // frames without headway
 }
 
+/// Walking over to a clicked building's shelf to buy one of what's on
+/// offer - each Buy click is one unit, so another click walks again
+pub struct BuyWalk {
+    pub building: usize,         // index into building_entities
+    pub path: Vec<(i32, i32)>,   // tiles still to walk, the shop's tile last
+    pub stuck: u32,              // frames without headway
+}
+
 /// What a seat tells the sim: the same actions the window's keys and clicks
 /// map to, so a local loop, a remote client and a test all steer the same way.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -146,6 +154,9 @@ pub struct Seat {
     pub pick_near: bool,
     /// A walk-over-to-act under way
     pub approach: Option<Approach>,
+    /// A walk-over-to-buy under way: the clicked building, its own field
+    /// since Approach's `who` is a villager index
+    pub buy_walk: Option<BuyWalk>,
     /// Index into villagers[] of the villager currently selected
     pub selected_target: usize,
     /// A building the seat clicked, or None while a villager is selected
@@ -197,7 +208,7 @@ pub struct Seat {
 
 impl Default for Seat {
     fn default() -> Seat {
-        Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
+        Seat { player: 0, org: 0, picked: false, approach: None, buy_walk: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
                pending_founding: None, meet_offer: None, quest: None, mystery: None, mystery_wait: 0,
@@ -216,7 +227,7 @@ impl Game {
         match cmd {
             Command::Act(i) => self.act_at(seat, i),
             Command::CtxAct(i) => self.ctx_act_at(seat, i),
-            Command::Walk(dx, dy) => { self.seats[seat].approach = None; self.seats[seat].picked = false; self.seats[seat].pick_near = false; self.walk_at(seat, dx, dy); }
+            Command::Walk(dx, dy) => { self.seats[seat].approach = None; self.seats[seat].buy_walk = None; self.seats[seat].picked = false; self.seats[seat].pick_near = false; self.walk_at(seat, dx, dy); }
             Command::Select(i) => {
                 // an index off the list is refused, not stored - a client
                 // that sends one can't crash the next scene
@@ -228,7 +239,7 @@ impl Game {
             }
             Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map_at(seat, mx, my, cam_x, cam_y, zoom),
             Command::TogglePause => self.paused = !self.paused,
-            Command::CancelApproach => self.seats[seat].approach = None,
+            Command::CancelApproach => { self.seats[seat].approach = None; self.seats[seat].buy_walk = None; }
             Command::TalkPick(n) => self.talk_pick_at(seat, n),
             Command::Decide(i) => self.decide_at(seat, i),
             Command::Unselect => self.unselect_at(seat),
@@ -658,7 +669,12 @@ impl Game {
             if on_map && d < 42.0 && d < best_bd { best_b = Some(i); best_bd = d; }
         }
         // the villager wins a shared click - they're the one in front
-        self.seats[seat].selected_building = if best_d <= best_bd { None } else { best_b };
+        let picked_b = if best_d <= best_bd { None } else { best_b };
+        if picked_b != self.seats[seat].selected_building {
+            // a new pick ends any walk to the old one's shelf
+            self.seats[seat].buy_walk = None;
+        }
+        self.seats[seat].selected_building = picked_b;
         if self.seats[seat].selected_building.is_some() { self.seats[seat].picked = false; self.seats[seat].pick_near = false; return; }
         if best_d < 4.0 {
             self.seats[seat].picked = true;

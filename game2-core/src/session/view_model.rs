@@ -642,6 +642,8 @@ impl Game {
                 mystery: self.mystery_panel_line(seat),
                 social, meeting,
             },
+            quest_target: self.seats[seat].quest.as_ref()
+                .and_then(|q| self.quest_target_pos(q)),
             mill: Some(self.mill),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),

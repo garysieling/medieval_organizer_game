@@ -204,6 +204,50 @@ pub(crate) fn draw_player_marker(buf: &mut Buffer, cx: i32, top: i32, zoom: f32,
 }
 
 
+/// The running job's waypoint: a pale dart bobbing over the spot, kin
+/// to the player's gold one but blue so the two don't read as one
+pub(crate) fn draw_quest_marker(buf: &mut Buffer, cx: i32, cy: i32, frame: u32) {
+    let bob = ((frame as f32 * 0.12).sin() * 2.0).round() as i32;
+    let cy = cy - 16 - bob;
+    buf.diamond(cx, cy, 7, 9, 20, 24, 44);
+    buf.diamond(cx, cy, 5, 7, 140, 205, 255);
+}
+
+/// A compass tick for a job whose target lies off the view: an arrow
+/// pinned to the map's edge pointing the way out, on the line from the
+/// map's centre to the target
+pub(crate) fn draw_quest_arrow(buf: &mut Buffer, sx: i32, sy: i32, w: i32, h: i32) {
+    let (cx, cy) = (w as f32 / 2.0, h as f32 / 2.0);
+    let (dx, dy) = (sx as f32 - cx, sy as f32 - cy);
+    let len = (dx * dx + dy * dy).sqrt().max(1.0);
+    let (ux, uy) = (dx / len, dy / len);
+    // pin it inside the map's edge, along the centre->target line
+    let m = 14.0f32;
+    let t = ((cx - m) / ux.abs()).min((cy - m) / uy.abs());
+    let (ax, ay) = (cx + ux * t, cy + uy * t);
+    // the tip points along (ux, uy); (px, py) is its perpendicular
+    let (px, py) = (-uy, ux);
+    let mut tri = |tip: f32, back: f32, span: f32, rgb: (u8, u8, u8)| {
+        let (t1x, t1y) = (ax + ux * tip, ay + uy * tip);
+        let (b1x, b1y) = (ax - ux * back + px * span, ay - uy * back + py * span);
+        let (b2x, b2y) = (ax - ux * back - px * span, ay - uy * back - py * span);
+        let (x0, x1) = (t1x.min(b1x).min(b2x).floor() as i32, t1x.max(b1x).max(b2x).ceil() as i32);
+        let (y0, y1) = (t1y.min(b1y).min(b2y).floor() as i32, t1y.max(b1y).max(b2y).ceil() as i32);
+        let side = |ax: f32, ay: f32, bx: f32, by: f32, x: f32, y: f32|
+            (x - ax) * (by - ay) - (y - ay) * (bx - ax);
+        for y in y0..=y1 { for x in x0..=x1 {
+            let (xf, yf) = (x as f32 + 0.5, y as f32 + 0.5);
+            let (d1, d2, d3) = (side(t1x, t1y, b1x, b1y, xf, yf),
+                side(b1x, b1y, b2x, b2y, xf, yf), side(b2x, b2y, t1x, t1y, xf, yf));
+            if (d1 >= 0.0 && d2 >= 0.0 && d3 >= 0.0) || (d1 <= 0.0 && d2 <= 0.0 && d3 <= 0.0) {
+                buf.set(x, y, rgb.0, rgb.1, rgb.2);
+            }
+        }}
+    };
+    tri(8.0, 7.0, 6.0, (20, 24, 44));
+    tri(6.0, 5.0, 4.0, (140, 205, 255));
+}
+
 /// Base colour of a terrain tile by height - shared by the map and minimap
 /// so they agree on what is water, grass, fields, hills and peaks
 pub(crate) fn terrain_colour(h: f32) -> (u8, u8, u8) {

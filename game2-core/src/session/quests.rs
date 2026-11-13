@@ -332,6 +332,19 @@ impl Game {
         }
     }
 
+    /// Where the job wants you: the thing's spot while it's a fetch,
+    /// else the villager or the far village's centre you hand over at -
+    /// the point the client's marker aims at
+    pub fn quest_target_pos(&self, q: &PlayerQuest) -> Option<(f32, f32)> {
+        if q.stage == QuestStage::ToFetch { return q.pickup; }
+        match q.target {
+            QuestTarget::Villager(v) =>
+                self.world.get_component::<Pos>(v).map(|p| (p.x, p.y)),
+            QuestTarget::Site(i) =>
+                self.sites.get(i).map(|s| (s.centre.0 as f32, s.centre.1 as f32)),
+        }
+    }
+
     /// The job as the panel shows it: what's wanted and who's it for
     pub fn quest_panel_line(&self, q: &PlayerQuest) -> String {
         if q.kind == QuestKind::Talk {

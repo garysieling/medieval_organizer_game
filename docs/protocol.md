@@ -281,6 +281,12 @@ runs and new for the next, so a client jumps once and tracks after;
 `moving` whether the centre is still worth easing toward. Older
 servers omit it; read it as no event pending.
 
+`quest_target` is where the seat's running job ends, or absent: `[x, y]`
+in tiles - the thing's spot while the job's a fetch, else the villager
+or far settlement it hands over at. A client can bob a marker over it
+in view, point an edge arrow the way when it isn't, and dot it on the
+minimap. Older servers omit it; read it as no waypoint.
+
 `buildings` lists the village's built structures this frame, each a
 `BldgV` - `{"x":12.0,"y":9.0,"sprite":...,"risen":1.0,"derelict":false,
 "smoke":true,"windowed":false}`: `risen` runs 0..1 while a building goes

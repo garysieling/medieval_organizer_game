@@ -1012,35 +1012,10 @@ impl Game {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
                     return;
                 };
-                match crate::game::campaign::hold_campaign_meeting(&mut self.world, c, tick) {
-                    Some(out) => {
-                        let who: Vec<String> = out.attendees.iter()
-                            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
-                            .collect();
-                        // the room talks it through first: what it decided is
-                        // what the notes and the consent report
-                        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick);
-                        let decided = d.as_ref().map(|d| d.decided).unwrap_or(true);
-                        let consent = d.as_ref().map(|d| d.consent).unwrap_or(out.consent);
-                        let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
-                        if out.drifted { msg += " - run by whoever pulled hardest, nobody asked"; }
-                        if out.noted && decided { msg += " - the notes keep the resolves"; }
-                        if !decided { msg += " - nothing settled"; }
-                        if consent { msg += " - consent banked for the next action"; }
-                        if !out.healed.is_empty() {
-                            let healed: Vec<String> = out.healed.iter()
-                                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string())).collect();
-                            msg += &format!(" - {} heard out", healed.join(", "));
-                        }
-                        // the log keeps the outcome; what the room said goes
-                        // on the TALK panel, in the order it was said
-                        if let Some(d) = d {
-                            let mut with = vec![self.seats[seat].player];
-                            with.extend(out.attendees.iter().copied());
-                            self.record_campaign_talk(with, &d);
-                        }
-                        msg
-                    }
+                // the seat calls the meeting itself - the day's tick
+                // holds it for the cause when nobody calls (#1159)
+                match self.hold_and_note_campaign_meeting(Some(self.seats[seat].player), c, tick) {
+                    Some(msg) => msg,
                     None => "The campaign isn't due to meet yet.".into(),
                 }
             }

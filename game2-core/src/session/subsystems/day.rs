@@ -327,6 +327,10 @@ impl Game {
         // and the village's own tally of the dominos: hardship, fever,
         // the dead, the anger - the cascade they fall in
         crate::timed!("sim.cascade", self.cascade_tick(tick));
+        // the meetings themselves keep their dates first: a due cause
+        // gathers whether a seat called it or not - a same-day meeting
+        // counts toward an assembly pledge read after it
+        crate::timed!("sim.campaign_meet", self.campaign_meeting_tick(tick));
         // the cause keeps its own dates too: the accountability
         // assembly calls, sits, and reads its pledges
         crate::timed!("sim.assembly", self.assembly_tick(tick));

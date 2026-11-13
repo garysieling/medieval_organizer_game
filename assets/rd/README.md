@@ -148,6 +148,13 @@ pack's block scale (`TileSet.trees_k`, `Art.stones_k`, `Art.castle_rd`).
   stand on snow and rock without a green fringe; they draw at their own
   size centred on the tile (`draw_standing`), so a run of blocks joins up.
   The separate `castle-postern` call wasn't used (a different stone).
+- **Castle curtains** (`castle/grand_*`): the grand set's wall call came
+  back as a standalone tower block, so `rd_compose_castle_curtain.py`
+  rebuilds `grand_wall_*` from `grand_postern_x`'s cap and face - the
+  door patched over, the face stretched to 109px, the base point
+  resynthesised - and grows the posterns to match by inserting face
+  above the door. The generated postern is kept as
+  `grand_postern_src.png`; gates, towers and keeps are used as generated.
 - **Church** (`buildings/church1..2`): drawn like the cottages
   (`draw_on_tile`, slab kept).
 

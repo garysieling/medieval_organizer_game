@@ -77,6 +77,10 @@ fn test_generated_props_and_castle_load_at_1x() {
         keep.width, keep.height,
         g.tower.as_ref().unwrap().width, g.tower.as_ref().unwrap().height,
         g.walls[0].as_ref().unwrap().width, g.walls[0].as_ref().unwrap().height);
+    // the curtain is one flat stretch: the postern's door stretch keeps
+    // its door but its cap rides at the same height (composed, #1158)
+    let (wall, post) = (g.walls[0].as_ref().unwrap(), g.posts[0].as_ref().unwrap());
+    assert_eq!((wall.width, wall.height), (post.width, post.height));
     assert!(art.church_s.as_ref().is_some_and(|c| c.width < 70), "the generated church, not the pack's keep");
     // the wall pieces stand on the map's own ground: no grass slab left
     // on their bottom rows to show green on snow or rock

@@ -177,7 +177,7 @@ impl Criterion {
 
 /// What a line does in the exchange (Facade's discourse acts, slimmed).
 /// Replies stay coherent because they answer the *act*, not the words.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Act {
     Greet,
     Remark,
@@ -632,7 +632,113 @@ pub fn run_meeting<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engine::det::HashMap;
     use crate::game::dialogue_trees::*;
+
+    /// #1178: a line may live under exactly one (act, ending) - a line filed
+    /// under two acts, or under both an ending and a continuing reply, shows
+    /// the player a label that misdescribes it (and ends the talk wrongly).
+    fn end_class(e: Option<Ending>) -> u8 {
+        match e {
+            None => 0,
+            Some(Ending::Farewell) => 1,
+            Some(Ending::WalksOff) => 2,
+            Some(Ending::Exhausted) => 3,
+            Some(Ending::LeavesEarly) => 4,
+        }
+    }
+
+    /// Markers of an outright hostile line: a WalksOff reply may only hold
+    /// lines like these, and a Farewell reply may hold none.
+    const RUDE: &[&str] = &[
+        "knave", "scoundrel", "Out of my way", "parley", "Breathe elsewhere",
+        "nothing to say", "frightened", "Get out", "Hold thy tongue", "pox",
+        "thy pride", "thy own yard", "fool",
+        // cold refusals and hostile dismissals that end a talk on a hard note
+        "Cur!", "break them", "shadow off my path", "Begone", "be gone",
+        "before I shout", "call folk out", "not plague", "move on",
+        "speak poison", "look to my door", "stretch our own store",
+        "nothing spare", "bailiff watches", "barely has coals", "not from me",
+    ];
+
+    fn is_rude(line: &str) -> bool {
+        RUDE.iter().any(|m| line.contains(m))
+    }
+
+    /// Every reachable (tree, exchange) pair in a library, deduped by the
+    /// calls slice (shared consts collapse to one visit).
+    fn all_exchanges(library: &[DialogueTree]) -> Vec<(&'static str, &'static Exchange)> {
+        let mut out: Vec<(&'static str, &'static Exchange)> = vec![];
+        let mut seen: HashSet<*const &'static str> = HashSet::default();
+        for tree in library {
+            let mut stack: Vec<&'static Exchange> = vec![tree.root];
+            if let Some(rej) = tree.rejoin { stack.push(rej); }
+            while let Some(ex) = stack.pop() {
+                if !seen.insert(ex.calls.as_ptr()) { continue; }
+                out.push((tree.name, ex));
+                for r in ex.replies {
+                    if let Some(then) = &r.then { stack.push(then); }
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn test_lines_file_under_one_act_and_ending() {
+        let library = village_library();
+        let mut owners: HashMap<&'static str, HashSet<(Option<Act>, u8)>> = HashMap::default();
+        for (_tree, ex) in all_exchanges(&library) {
+            for call in ex.calls {
+                owners.entry(*call).or_default().insert((Some(ex.act), 0));
+            }
+            for r in ex.replies {
+                for line in r.lines {
+                    owners.entry(*line).or_default().insert((Some(r.act), end_class(r.end)));
+                }
+            }
+        }
+        let mut bad: Vec<String> = vec![];
+        for (line, sigs) in &owners {
+            if sigs.len() > 1 {
+                bad.push(format!("{line:?} filed under {sigs:?}"));
+            }
+        }
+        bad.sort();
+        assert!(bad.is_empty(), "lines filed under more than one act/ending:\n{}", bad.join("\n"));
+    }
+
+    #[test]
+    fn test_endings_match_their_lines() {
+        let library = village_library();
+        let mut bad: Vec<String> = vec![];
+        for (tree, ex) in all_exchanges(&library) {
+            for r in ex.replies {
+                match r.end {
+                    Some(Ending::Farewell) => {
+                        if r.act != Act::Farewell {
+                            bad.push(format!("{tree}: Farewell end under act {:?}", r.act));
+                        }
+                        if let Some(l) = r.lines.iter().find(|l| is_rude(l)) {
+                            bad.push(format!("{tree}: rude line {l:?} ends in Farewell"));
+                        }
+                    }
+                    Some(Ending::WalksOff) => {
+                        if r.act != Act::PushBack {
+                            bad.push(format!("{tree}: WalksOff end under act {:?}", r.act));
+                        }
+                        if let Some(l) = r.lines.iter().find(|l| !is_rude(l)) {
+                            bad.push(format!("{tree}: polite line {l:?} ends in WalksOff"));
+                        }
+                    }
+                    Some(other) => bad.push(format!("{tree}: reply ends in {other:?}")),
+                    None => {}
+                }
+            }
+        }
+        bad.sort();
+        assert!(bad.is_empty(), "ending/act/line mismatches:\n{}", bad.join("\n"));
+    }
 
     #[test]
     fn test_specific_tree_wins_over_generic() {

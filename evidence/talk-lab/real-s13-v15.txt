@@ -7,21 +7,23 @@
     2) Time will tell what comes of this.
     l) take your leave
   you: And to thee.
-  Rowena: The morning dew was heavy on the clover.
-    1) The thatch won't thank it if it pours.
-    2) Weather aside, Rowena - how does the season treat thee?
+  Rowena: Some say the old prayers are only words. And thou?
+    1) I bow when the neighbors bow. It keeps the peace.
+    2) The Word's a lamp in dark times - I'd not put it out.
     l) take your leave
-  you: The thatch won't thank it if it pours.
-  Rowena: Even so, we will manage as we always do.
-    1) True words; worry never baked a single loaf.
+  Rowena: Some say the old prayers are only words. And thou?
+  you: I bow when the neighbors bow. It keeps the peace.
+  Rowena: Cold wind off the moor this morning.
+    1) And how fares thy folk in this cold snap?
+    2) Aye, and the mud will take thy boots right off.
     l) take your leave
-  you: True words; worry never baked a single loaf.
-  Rowena: The peddler's cart lost a wheel at the bridge.
-    1) I knew that bridge would give way sooner or later.
+  you: And how fares thy folk in this cold snap?
+  Rowena: We rub along as ever, by the saints' mercy.
+    1) Good to hear it - long may health stay under thy roof.
     l) take your leave
-  you: I knew that bridge would give way sooner or later.
-  Rowena: The herb-wife was seen out past the abbey wall at dusk.
-    1) Tavern tales grow taller with each ale drawn.
-    2) Folk will invent dragons where there's only sheep.
+  you: Good to hear it - long may health stay under thy roof.
+  Rowena: The ditch along the south pasture needs clearing.
+    1) Let the rain fall; my bones need a day's rest.
+    2) Every hand will be needed when the grain ripens.
     l) take your leave
 REPRO: talk_lab talk --seed 13 --villager 15 --picks 0,0,0,0,0 (talk seed 1207959566)

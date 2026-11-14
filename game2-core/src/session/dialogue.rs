@@ -18,7 +18,7 @@
 //! a child), and the bond between the two.
 
 use crate::engine::ecs::{Entity, World};
-use crate::game::conversation::{converse, converse_with, Act, Choice, DialogueTree, Ending, Relation, Rng as TalkRng, Speaker};
+use crate::game::conversation::{converse, converse_with, Act, Choice, DialogueTree, Ending, Relation, Rng as TalkRng, Speaker, Vibe};
 use crate::game::dialogue_trees::village_library;
 use crate::game::lifecycle::{Age, LifeStage};
 use crate::game::relationships::{self, Interaction, InteractionKind, RelKind};
@@ -43,6 +43,9 @@ pub const PLAYER_TALK_DAYS: u64 = 8;
 /// What a reply does to the bond: agreeing warms, pushing back cools
 const AGREE_WARMTH: f32 = 0.3;
 const PUSHBACK_CHILL: f32 = 0.2;
+/// How much a good answer to their audition warms the bond (#1187) -
+/// a heavier beat than a single agreeable word
+const VIBE_WARMTH: f32 = 0.5;
 /// How long they hold how the last talk ended (#1183)
 const TALK_MEMORY_DAYS: u64 = 20;
 
@@ -132,6 +135,8 @@ pub struct PlayerTalk {
     pub asks: Vec<crate::game::organizing::PropKind>,
     /// How the picks so far have left them feeling (#1183)
     pub mood: TalkMood,
+    /// How their audition of you read, once it's been answered (#1187)
+    pub vibe: Option<crate::game::conversation::Vibe>,
 }
 
 /// The most choices a Talk offers at once - the replies plus however
@@ -251,7 +256,7 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 /// Replay a Talk: the lines so far (speaker 0 the villager, 1 the
 /// player), the replies on offer if it's the player's turn, and how it
 /// ended if it has
-fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>) {
+fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, String)>> = None;
     let tr = converse_with(&t.villager, &t.player, t.rel, library(), 1, &mut |ch: &[Choice]| {
@@ -265,7 +270,7 @@ fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, 
     }, &mut TalkRng::new(t.seed));
     let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone())).collect();
     let ending = if offered.is_some() { None } else { tr.ending };
-    (lines, offered, ending, tr.trees_walked.last().copied())
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe)
 }
 
 impl Game {
@@ -474,7 +479,7 @@ impl Game {
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: vec![], asks,
-            mood: TalkMood::Cool,
+            mood: TalkMood::Cool, vibe: None,
         });
         self.refresh_player_talk(seat);
     }
@@ -484,8 +489,32 @@ impl Game {
     fn refresh_player_talk(&mut self, seat: usize) {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
-        let (said, offered, ending, tree) = replay(&t);
+        let (said, offered, ending, tree, vibe) = replay(&t);
         let vname = t.villager.name.clone();
+        // the audition's read, the first time it's answered (#1187): a
+        // good answer warms them and opens the deep material; a miss
+        // leaves it polite - no propositions for someone you don't vibe
+        if let (None, Some(v)) = (t.vibe, vibe) {
+            let safe = v == Vibe::Safe;
+            let note = if safe {
+                format!("A good answer. {vname} warms to you - the talk goes deeper.")
+            } else {
+                format!("{vname} smiles, polite, and keeps it to the weather.")
+            };
+            if let Some(cur) = self.seats[seat].talk.as_mut() {
+                cur.vibe = Some(v);
+                if !safe { cur.asks.clear(); }
+                if safe { cur.mood = TalkMood::Warmed; }
+            }
+            if safe {
+                // safe folk warm faster - the audition carries more
+                // weight than a single kind word
+                relationships::record_interaction(&mut self.world, pe,
+                    Interaction { other: t.who, kind: InteractionKind::Conversation, intensity: VIBE_WARMTH });
+            }
+            self.narrate_talk(seat, &note);
+            return;
+        }
         let mut lines: Vec<TalkLine> = vec![];
         for (k, (sp, text)) in said.iter().enumerate() {
             let (who, name) = if *sp == 0 { (t.who, vname.clone()) } else { (pe, self.speaker_name(pe)) };
@@ -630,9 +659,14 @@ impl Game {
         }
         let act = t.options[i].0;
         let pe = self.seats[seat].player;
+        // an audition pick isn't read by its act - standing up to a
+        // hothead is the right answer, not a slight; the vibe read it
+        // sets is the whole effect (#1187)
+        let probing = t.opt_tree == Some(crate::game::conversation::PROBE_TREE);
         // how you answer them counts for a little either way - and it
         // lingers: the last pick's mood is what they carry out (#1183)
         match act {
+            _ if probing => {}
             Act::PushBack => { relationships::record_interaction(&mut self.world, pe,
                 Interaction { other: who, kind: InteractionKind::Conflict, intensity: PUSHBACK_CHILL });
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Slighted; } }

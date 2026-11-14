@@ -12,55 +12,71 @@ Aldric [Remark in kin_warmth]: We do what we must while daylight holds.
 Hob [Farewell in kin_warmth]: God's peace be upon thy cottage, Aldric.
 -- Farewell
 
-## Eliza and Hob - Acquaintance (seed 24088, picks [1, 0, 0, 0])
+## Eliza and Hob - Acquaintance (seed 24088, picks [1, 1, 0, 0, 0])
 them: Eliza serves the village church. They mean to be more than they were born. They'd sooner watch the clouds than the plough. They know every soul and every soul's business.
 you : Hob trades on the road between villages. They never miss a service. The store ran out and the belly knows it.
 
 Eliza [Greet in the_cleric_blesses]: The peace of the saints be with thee, child.
 Hob [Remark in the_cleric_blesses]: Aye, words have weight in a small village.
+Eliza [Question in the_audition]: I mean to be more than I was born. And thou - content where thou standest?
+Hob [Agree in the_audition]: I mean to rise same as thee, if the saints allow it.
 Eliza [Remark in the_cleric_blesses]: Dost thou find peace in thy daily labor, child?
-Hob [Agree in the_cleric_blesses]: We keep as best we can, father. The toil is hard.
-Eliza [Question in merchant_trade]: Dost thou carry steel sewing needles and linen thread from the city?
-Hob [Answer in merchant_trade]: Scarlet ribbon from Flanders and a pinch of black pepper to trade.
-Eliza [Remark in merchant_trade]: The pack mules know every turn of the king's road.
-Hob [Farewell in merchant_trade]: May thy pack horses stay sure-footed on the ridge.
--- Farewell
+Hob [Agree in the_cleric_blesses]: Aye, there is truth in what thou sayest.
+Eliza [Question in merchant_trade]: What exchange dost thou ask for a bag of sea salt?
+Hob [Answer in merchant_trade]: Fine iron needles in a bone case; two eggs or a penny each.
+Eliza [Remark in merchant_trade]: Silver coin or salted hams - sound goods are always welcome.
+Hob [Farewell in merchant_trade]: Until the spring fair, merchant. Fare well.
+-- Farewell, vibe: Safe
 
-## Eliza and Bram - Stranger (seed 24089, picks [0, 0, 0, 0])
+## Eliza and Bram - Stranger (seed 24089, picks [0, 1, 0, 0, 1, 1])
 them: Eliza serves the village church. They mean to be more than they were born. They'd sooner watch the clouds than the plough. They know every soul and every soul's business.
 you : Bram works the fields for a day's wage. Their temper's shorter than a winter's day. Last night's cup is still on them.
 
 Eliza [Greet in the_cleric_blesses]: God's grace light upon thy steps, Bram.
 Bram [Remark in the_cleric_blesses]: Aye, words have weight in a small village.
-Eliza [Remark in the_cleric_blesses]: Dost thou find peace in thy daily labor, child?
-Bram [Agree in the_cleric_blesses]: Aye, there is truth in what thou sayest.
-Eliza [Question in stranger_road]: Where does this trail lead past the ridge, traveler?
-Bram [Answer in stranger_road]: I come from the valley beyond the high moors.
-Eliza [Remark in stranger_road]: The parish watch keeps guard after the curfew bell.
-Bram [Farewell in stranger_road]: My thanks for the counsel, villager. I pass in peace.
--- Farewell
+Eliza [Question in the_audition]: I mean to be more than I was born. And thou - content where thou standest?
+Bram [Remark in the_audition]: The furrow's honest work enough for me.
+Eliza [Remark in village_smalltalk]: The moor wind blows cold on travelers, stranger.
+Bram [Question in village_smalltalk]: Tell me true, Eliza - how goes it with thee?
+Eliza [Answer in village_smalltalk]: We rub along as ever, by the saints' mercy.
+Bram [Agree in village_smalltalk]: May the coming season be kind to thy cottage.
+Eliza [Remark in village_smalltalk]: Rooks are gathering thick in the elm trees.
+Bram [PushBack in village_smalltalk]: That is not the way the elders told it.
+Eliza [Remark in village_smalltalk]: Aye, words won't fill the storehouse.
+Bram [Farewell in village_smalltalk]: Fair road to thee, stranger.
+-- Farewell, vibe: Mismatch
 
-## Bram and Corvin - Acquaintance (seed 24090, picks [0, 0, 0])
+## Bram and Corvin - Acquaintance (seed 24090, picks [0, 0, 0, 0])
 them: Bram works the fields for a day's wage. Their temper's shorter than a winter's day. Last night's cup is still on them.
 you : Corvin trades on the road between villages. They never miss a service. Their purse strings are knotted tight. They know every soul and every soul's business. The store ran out and the belly knows it.
 
 Bram [Greet in morning_after_drunk]: Oof. Fair morning, Corvin - the light's too loud today.
 Corvin [Answer in morning_after_drunk]: Thou lookest like a corpse dug up from the wet turf.
-Bram [Remark in morning_after_drunk]: They say we sang every verse of the Harvest ballad three times over.
-Corvin [Agree in morning_after_drunk]: It was a merry night, though the morning pays the reckoning.
-Bram [Remark in morning_after_drunk]: We do what we must while daylight holds.
-Corvin [Farewell in morning_after_drunk]: Walk straight, Bram, or the reeve will notice.
--- Farewell
+Bram [Question in the_audition]: I'd have thumped the steward myself. Thou'd have done the same, no doubt?
+Corvin [PushBack in the_audition]: Not I. A quick fist makes a slow friend.
+Bram [Remark in morning_after_drunk]: Did I truly challenge the smith to a wrestling match at midnight?
+Corvin [Agree in morning_after_drunk]: Thou didst indeed! And fell backwards over the ale barrel!
+Bram [Remark in morning_after_drunk]: Bread and pickled onions, that's what the stomach needs.
+Corvin [Farewell in morning_after_drunk]: May the sun be gentle on thy poor eyes today.
+-- Farewell, vibe: Safe
 
-## Dagny and Aelfric - Acquaintance (seed 24091, picks [1, 1])
+## Dagny and Aelfric - Acquaintance (seed 24091, picks [1, 1, 1, 0, 1, 1])
 them: Dagny trades on the road between villages. Their purse strings are knotted tight. Last night's cup is still on them.
 you : Aelfric holds the manor's leases. They know every soul and every soul's business. They buried one of their own last week.
 
 Dagny [Greet in condolence_call]: A peaceful day to thee, Aelfric.
 Aelfric [PushBack in condolence_call]: Tears do not bring back the dead.
-Dagny [Remark in condolence_call]: We have flour and eggs; let us share with thy house.
-Aelfric [Farewell in condolence_call]: May the road be kind under thy boots.
--- Farewell
+Dagny [Question in the_audition]: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
+Aelfric [Remark in the_audition]: Charity begins at home, and mostly stays there.
+Dagny [Remark in village_smalltalk]: Is it raining, or is that the ale talking? *hic*
+Aelfric [PushBack in village_smalltalk]: My joints say dry weather, whatever the sky says.
+Dagny [Remark in village_smalltalk]: No use fretting over skies we cannot steer.
+Aelfric [Agree in village_smalltalk]: That it will - the store is not empty yet.
+Dagny [Remark in village_smalltalk]: A rider from the castle came through before dawn.
+Aelfric [PushBack in village_smalltalk]: I'll not repeat marketplace whispers.
+Dagny [Remark in village_smalltalk]: True enough - the fields don't gossip.
+Aelfric [Farewell in village_smalltalk]: My day is waiting.
+-- Farewell, vibe: Mismatch
 
 ## Aldric and Hob - Rival (seed 24092, picks [1, 1, 1, 0])
 them: Aldric holds the manor's leases. They'd sooner watch the clouds than the plough. Their purse strings are knotted tight. Their temper's shorter than a winter's day.
@@ -116,15 +132,23 @@ Eliza [Remark in kin_warmth]: Our grandfather laid the hearthstones in both our 
 Wystan [Farewell in kin_warmth]: May the road be kind under thy boots.
 -- Farewell
 
-## Dagny and Aelfric - Stranger (seed 24096, picks [1, 0])
+## Dagny and Aelfric - Stranger (seed 24096, picks [1, 0, 0, 0, 1, 1])
 them: Dagny trades on the road between villages. Their purse strings are knotted tight. Last night's cup is still on them.
 you : Aelfric holds the manor's leases. They know every soul and every soul's business. They buried one of their own last week.
 
 Dagny [Greet in condolence_call]: The village stands beside thee in this dark trial.
 Aelfric [Agree in condolence_call]: The road is lonely now, but kind words help.
-Dagny [Remark in condolence_call]: We have flour and eggs; let us share with thy house.
-Aelfric [Farewell in condolence_call]: God's peace be upon thy cottage, Dagny.
--- Farewell
+Dagny [Question in the_audition]: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
+Aelfric [Remark in the_audition]: Folk who give away their bread soon beg for mine.
+Dagny [Remark in village_smalltalk]: Is it raining, or is that the ale talking? *hic*
+Aelfric [Agree in village_smalltalk]: It will be a wet week, mark me.
+Dagny [Remark in village_smalltalk]: A steady hand and a patient mule see it through.
+Aelfric [Agree in village_smalltalk]: True words; worry never baked a single loaf.
+Dagny [Remark in village_smalltalk]: The peddler's cart lost a wheel at the bridge.
+Aelfric [PushBack in village_smalltalk]: Let the miller and the rider sort their own affairs.
+Dagny [Remark in village_smalltalk]: As thou sayest, friend.
+Aelfric [Farewell in village_smalltalk]: My day is waiting.
+-- Farewell, vibe: Mismatch
 
 ## Aelfric and Tilda - Friend (seed 24097, picks [0, 0])
 them: Aelfric holds the manor's leases. They know every soul and every soul's business. They buried one of their own last week.

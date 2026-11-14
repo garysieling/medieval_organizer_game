@@ -5,22 +5,31 @@
     1) [Remark] Morrow, father.
     2) [Greet] Blessings on thy holy house as well.
   Voice: Morrow, father.
-  Voice: The church altar is always open to the weary soul.
-    1) [Agree] I try to walk uprightly before God and my neighbors.
-  Voice: I try to walk uprightly before God and my neighbors.
+  Voice: My family held this land when thine were sowing wild oats. Dost know it?
+    1) [Agree] I've heard, and I mind my manners accordingly.
+    2) [Remark] Can't say the name reached me - I keep to my own lane.
+  Voice: I've heard, and I mind my manners accordingly.
+  Voice: Remember that honest work in the field is a holy prayer.
+    1) [Agree] The season has been lean, father, but faith sustains us.
+  Voice: The season has been lean, father, but faith sustains us.
   Voice: Gray clouds gathering over the western hill.
-    1) [Agree] Aye, and the mud will take thy boots right off.
+    1) [Agree] Good for the barley, but bad for the road.
     2) [Question] And the day's work - does it treat thee kindly?
-  Voice: Aye, and the mud will take thy boots right off.
-  Voice: Even so, we will manage as we always do.
-    1) [Agree] True words; worry never baked a single loaf.
-  Voice: True words; worry never baked a single loaf.
-  Voice: The peddler's cart lost a wheel at the bridge.
-    1) [PushBack] Idle tongues, that. It breeds mischief.
-  Voice: Idle tongues, that. It breeds mischief.
-  Voice: True enough - the fields don't gossip.
-    1) [Farewell] Go well, Voice, and mind the mud.
-    2) [Farewell] My day is waiting.
-  Voice: Go well, Voice, and mind the mud.
-  -- Farewell (trees: ["the_cleric_blesses", "village_smalltalk"])
-REPRO: talk_lab talk --name Voice --ideology clergy --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0,0
+  Voice: Good for the barley, but bad for the road.
+  Voice: A steady hand and a patient mule see it through.
+    1) [Agree] So long as the well stays sweet, we'll thrive.
+  Voice: So long as the well stays sweet, we'll thrive.
+  Voice: Didst thou hear who was seen down by the mill?
+    1) [Remark] Tell on, neighbor - my ears are open.
+    2) [PushBack] Idle tongues, that. It breeds mischief.
+  Voice: Tell on, neighbor - my ears are open.
+  Voice: A stranger with two laden mules passed by the weir at noon.
+    1) [PushBack] Folk will invent dragons where there's only sheep.
+    2) [Agree] Tavern tales grow taller with each ale drawn.
+  Voice: Folk will invent dragons where there's only sheep.
+  Voice: As thou sayest, friend.
+    1) [Farewell] Fair day to thee, Voice.
+    2) [Farewell] I have no leisure to stand about, Voice.
+  Voice: Fair day to thee, Voice.
+  -- Farewell (trees: ["the_cleric_blesses", "the_audition", "village_smalltalk"], vibe: Safe)
+REPRO: talk_lab talk --name Voice --ideology clergy --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0,0,0,0

@@ -4,19 +4,24 @@
   Voice: Fair morning to thee, Voice.
     1) [Greet] And to thee.
   Voice: And to thee.
-  Voice: The frost sat late on the furrows this morning.
-    1) [Agree] Aye, and the mud will take thy boots right off.
-  Voice: Aye, and the mud will take thy boots right off.
-  Voice: A steady hand and a patient mule see it through.
-    1) [Agree] True words; worry never baked a single loaf.
-  Voice: True words; worry never baked a single loaf.
-  Voice: Didst thou hear who was seen down by the mill?
-    1) [PushBack] That is not the way the elders told it.
-    2) [Remark] Tell on, neighbor - my ears are open.
-  Voice: That is not the way the elders told it.
-  Voice: Aye, words won't fill the storehouse.
-    1) [Farewell] Enough chatter. Good day.
-    2) [Farewell] Fair day to thee, Voice.
-  Voice: Enough chatter. Good day.
-  -- Farewell (trees: ["village_smalltalk"])
-REPRO: talk_lab talk --name Voice --ideology laborer --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0
+  Voice: My family held this land when thine were sowing wild oats. Dost know it?
+    1) [Agree] I've heard, and I mind my manners accordingly.
+    2) [Remark] Can't say the name reached me - I keep to my own lane.
+  Voice: I've heard, and I mind my manners accordingly.
+  Voice: Gray clouds gathering over the western hill.
+    1) [Question] Enough sky-talk - how goes the work these days?
+    2) [Agree] Aye, and the mud will take thy boots right off.
+  Voice: Enough sky-talk - how goes the work these days?
+  Voice: I hear the work keeps thee busy at the day's work.
+    1) [Answer] Slow mornings, honest evenings - that is the day's work for thee.
+    2) [PushBack] the day's work is my affair, and it fares as it fares.
+  Voice: Slow mornings, honest evenings - that is the day's work for thee.
+  Voice: The peddler's cart lost a wheel at the bridge.
+    1) [PushBack] Idle tongues, that. It breeds mischief.
+  Voice: Idle tongues, that. It breeds mischief.
+  Voice: As thou sayest, friend.
+    1) [Farewell] The saints keep thy roof whole.
+    2) [Farewell] I take my leave.
+  Voice: The saints keep thy roof whole.
+  -- Farewell (trees: ["village_smalltalk", "the_audition"], vibe: Safe)
+REPRO: talk_lab talk --name Voice --ideology laborer --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0,0

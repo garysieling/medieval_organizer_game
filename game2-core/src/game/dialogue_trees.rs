@@ -10,7 +10,7 @@
 
 use crate::game::conversation::{
     Act, Criterion::*, DialogueTree, Ending::*, Exchange, MeetingLine, MeetingPrompt,
-    MeetingRites, Reply, Speaker, Voice,
+    MeetingRites, Probe, Reply, Speaker, Voice,
 };
 use crate::game::traits::Trait;
 use crate::game::traits::Trait::*;
@@ -211,7 +211,9 @@ const SMALL_VOLLEY: Exchange = Exchange {
     ],
 };
 
-const SMALL_CHAT: Exchange = Exchange {
+/// The village smalltalk beat - the polite tail a failed audition is
+/// left on (#1187), and the generic rejoin of the smalltalk tree
+pub const SMALL_CHAT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk", "weather"],
     calls: &["Looks like rain again, doesn't it?", "Cold wind off the moor this morning.", "Gray clouds gathering over the western hill.", "The morning dew was heavy on the clover.", "A gray dawn, but the day's work won't wait for it.", "The frost sat late on the furrows this morning."],
@@ -3044,6 +3046,174 @@ pub const MEET_RITES: MeetingRites = MeetingRites {
     plain_closes: CLOSE_PLAIN,
     pull_backs: PULL_BACKS,
 };
+
+// The audition (#1187): early in a talk with someone new, the caller
+// probes whether this one's safe - and the test IS their trait. A good
+// answer takes the talk deeper; a wrong note leaves it polite and
+// shallow. Small stakes, not a grudge.
+pub const PROBE_TESTS: &[Probe] = &[
+    // the stingy test generosity: a free hand's a warm neighbor - or a fool
+    Probe {
+        who: Trait::Stingy,
+        act: Act::Question,
+        concepts: &["audition"],
+        calls: &[
+            "They say a free hand makes warm neighbors. What's thy mind on it?",
+            "Some folk give till it hurts. Thin soup for the giver, say I - and thou?",
+        ],
+        pass: (Act::Agree, &[
+            "An open hand finds open doors, say I.",
+            "What's spent on neighbors comes back doubled in the end.",
+            "A loaf shared is a friend made - I'd not grudge it.",
+        ]),
+        fail: (Act::Remark, &[
+            "Charity begins at home, and mostly stays there.",
+            "A wise purse keeps its own counsel, say I.",
+            "Folk who give away their bread soon beg for mine.",
+        ]),
+    },
+    // the pious test faith: does this one keep the word?
+    Probe {
+        who: Trait::Pious,
+        act: Act::Question,
+        concepts: &["audition"],
+        calls: &[
+            "The bells call us all the same. Dost keep the faith?",
+            "Some say the old prayers are only words. And thou?",
+        ],
+        pass: (Act::Agree, &[
+            "I keep the faith as my mother taught me, and gladly.",
+            "The Word's a lamp in dark times - I'd not put it out.",
+            "Prayer and work, friend - that's the whole of it.",
+        ]),
+        fail: (Act::Remark, &[
+            "The priest talks much and mends little, say I.",
+            "I bow when the neighbors bow. It keeps the peace.",
+            "The saints help them as help themselves, I've heard.",
+        ]),
+    },
+    // the hotheaded test whether you'll stand up to them: a prod to see
+    // if there's iron in you - the right answer is the push-back
+    Probe {
+        who: Trait::Hotheaded,
+        act: Act::Question,
+        concepts: &["audition"],
+        calls: &[
+            "The miller had the right of it in that quarrel - thou'lt agree, surely?",
+            "I'd have thumped the steward myself. Thou'd have done the same, no doubt?",
+        ],
+        pass: (Act::PushBack, &[
+            "I say no such thing. The miller was half to blame and more.",
+            "Not I. A quick fist makes a slow friend.",
+            "Thou'lt not put words in my mouth, friend.",
+        ]),
+        fail: (Act::Agree, &[
+            "Aye... I suppose thou'rt right about that.",
+            "As thou sayest, no doubt it's so.",
+            "I'll not argue it, if it pleases thee.",
+        ]),
+    },
+    // the proud test whether you'll treat them as they reckon themselves
+    Probe {
+        who: Trait::Proud,
+        act: Act::Question,
+        concepts: &["audition"],
+        calls: &[
+            "Folk here know to speak fair to me. Thou'lt have heard as much?",
+            "My family held this land when thine were sowing wild oats. Dost know it?",
+        ],
+        pass: (Act::Agree, &[
+            "Aye, and I've heard nothing but good of thy house.",
+            "An old name's worth the hearing, say I.",
+            "I've heard, and I mind my manners accordingly.",
+        ]),
+        fail: (Act::Remark, &[
+            "Old names plough no fields, friend.",
+            "We all muck the same stalls here, high or low.",
+            "Can't say the name reached me - I keep to my own lane.",
+        ]),
+    },
+    // the gregarious test whether you'll lean in: a gossip bid
+    Probe {
+        who: Trait::Gregarious,
+        act: Act::Question,
+        concepts: &["audition"],
+        calls: &[
+            "Hast heard what they say of the reeve's new hound?",
+            "There's talk going round the wells this week - heard it?",
+        ],
+        pass: (Act::Agree, &[
+            "Not I - do tell, then. I love a good tale.",
+            "Come, I've an ear for it - out with it.",
+            "If it's fit to tell, I'm fit to hear it.",
+        ]),
+        fail: (Act::Remark, &[
+            "I keep my ears for my own business, friend.",
+            "Wells talk empties a mind faster than a sieve.",
+            "I'd sooner hear the weather than the gossip.",
+        ]),
+    },
+    // the ambitious test whether you've any drive: a body should want more
+    Probe {
+        who: Trait::Ambitious,
+        act: Act::Question,
+        concepts: &["audition"],
+        calls: &[
+            "A body's meant for more than the furrow, eh? Or is that thy lot?",
+            "I mean to be more than I was born. And thou - content where thou standest?",
+        ],
+        pass: (Act::Agree, &[
+            "More, aye - I've plans of my own, given half a chance.",
+            "I mean to rise same as thee, if the saints allow it.",
+            "The furrow feeds me; it doesn't define me.",
+        ]),
+        fail: (Act::Remark, &[
+            "A full belly and a dry roof - what more's there to want?",
+            "Ambition's a hungry hound. Mine sleeps.",
+            "The furrow's honest work enough for me.",
+        ]),
+    },
+    // the kind test whether there's warmth in you: a small confidence
+    Probe {
+        who: Trait::Kind,
+        act: Act::Remark,
+        concepts: &["audition"],
+        calls: &[
+            "These damp mornings set my knees aching something awful.",
+            "The littlest one kept us up all night with the coughing, truth be told.",
+        ],
+        pass: (Act::Answer, &[
+            "I'm sorry for it - a warm stone at the joint helps, they say.",
+            "Poor mite - I'll ask after them tomorrow, if thou'lt allow.",
+            "That's a hard row. Can I carry aught for thee?",
+        ]),
+        fail: (Act::Remark, &[
+            "Knees ache. Such is age, friend.",
+            "Children cough. They grow out of it.",
+            "We've all our troubles, mine no lighter than thine.",
+        ]),
+    },
+    // the lazy test whether you'll be easy company: no hustle-preaching
+    Probe {
+        who: Trait::Lazy,
+        act: Act::Question,
+        concepts: &["audition"],
+        calls: &[
+            "Hard work's for them as never learned better, eh?",
+            "I say a body earns their rest. Thou'lt not disagree?",
+        ],
+        pass: (Act::Agree, &[
+            "The field'll keep till tomorrow, say I.",
+            "A wise back knows when to unbend.",
+            "Rest's a harvest too, of a kind.",
+        ]),
+        fail: (Act::Remark, &[
+            "Idle hands, friend. The frost doesn't wait.",
+            "Work's what keeps a body honest.",
+            "The saints gave us six days for a reason.",
+        ]),
+    },
+];
 
 // Two children meeting in the lane: games, dares and the things grown-ups
 // mustn't hear. The village's other trees are grown-up talk - wages, rents,

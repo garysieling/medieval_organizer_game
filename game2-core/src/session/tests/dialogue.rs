@@ -446,3 +446,56 @@ fn test_leaving_before_they_speak_leaves_it_cool() {
     g.talk_pick_at(0, None);
     assert_eq!(g.talk_mood_of(v), Some(TalkMood::Cool));
 }
+
+/// Open a talk on a stingy villager who's already shared something (the
+/// asks are on the table), answer the greeting, and take the landing or
+/// the wrong note of their audition - returns the talk's record id
+fn audition(g: &mut Game, i: usize, pass: bool) -> (Entity, u64) {
+    use crate::game::desires::{Known, Problem, Reveal};
+    let v = g.villagers[i];
+    g.world.add_component(v, Personality { traits: vec![Trait::Stingy] });
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    talk_beside(g, i);
+    let t = g.seats[0].talk.as_ref().expect("a talk under way").clone();
+    assert!(!t.asks.is_empty(), "they'd bring a proposition to this talk");
+    g.talk_pick_at(0, Some(0)); // the greeting's answer
+    let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+    assert_eq!(t.opt_tree, Some(crate::game::conversation::PROBE_TREE),
+        "after the hello they put their test to you: {:?}", t.opt_tree);
+    assert_eq!(t.options.len(), 2, "the audition offers the landing and the wrong note");
+    // pick the fork whose words are the stingy test's pass (or miss)
+    let probe = crate::game::conversation::probe_for(&t.villager).unwrap();
+    let wanted = if pass { probe.pass.1 } else { probe.fail.1 };
+    let pick = t.options.iter().position(|(_, l)| wanted.contains(&l.as_str()))
+        .expect("their fork among the two");
+    g.talk_pick_at(0, Some(pick));
+    (v, t.id)
+}
+
+#[test]
+fn test_a_good_answer_to_the_audition_opens_them_up() {
+    use crate::game::conversation::Vibe;
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let (_, id) = audition(&mut g, i, true);
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    assert_eq!(t.vibe, Some(Vibe::Safe));
+    assert!(!t.asks.is_empty(), "safe: the propositions stay on offer");
+    let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.text.contains("warms to you")),
+        "the read is narrated: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+
+#[test]
+fn test_a_wrong_note_keeps_the_talk_polite() {
+    use crate::game::conversation::Vibe;
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let (_, id) = audition(&mut g, i, false);
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on, politely").clone();
+    assert_eq!(t.vibe, Some(Vibe::Mismatch));
+    assert!(t.asks.is_empty(), "a mismatch brings no proposition");
+    let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.text.contains("keeps it to the weather")),
+        "the shallow read is narrated: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

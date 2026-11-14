@@ -335,7 +335,8 @@ fn run_talk_synthetic(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &i
         shown = tr.turns.len();
         match need {
             None => {
-                out.emit(&format!("  -- {:?} (trees: {:?})", tr.ending.unwrap_or(Ending::Exhausted), tr.trees_walked));
+                let vibe = tr.vibe.map(|v| format!(", vibe: {v:?}")).unwrap_or_default();
+                out.emit(&format!("  -- {:?} (trees: {:?}{vibe})", tr.ending.unwrap_or(Ending::Exhausted), tr.trees_walked));
                 break;
             }
             Some(opts) => {
@@ -567,7 +568,8 @@ fn run_batch(a: &Args, out: &mut Out) {
         for t in &tr.turns {
             out.emit(&format!("{} [{:?} in {}]: {}", tr.speakers[t.speaker], t.act, t.tree, t.text));
         }
-        out.emit(&format!("-- {:?}\n", tr.ending.unwrap_or(Ending::Exhausted)));
+        let vibe = tr.vibe.map(|v| format!(", vibe: {v:?}")).unwrap_or_default();
+        out.emit(&format!("-- {:?}{vibe}\n", tr.ending.unwrap_or(Ending::Exhausted)));
     }
 }
 

@@ -27,6 +27,40 @@ fn test_the_pedlar_pitches_and_sells() {
 }
 
 #[test]
+fn test_the_pedlar_carries_the_famed_name() {
+    let mut g = Game::new();
+    // a famed printer with sheets on the shelf: the run already pulled
+    let shop = household::spawn_building(&mut g.world,
+        BuildingKind::Shop(Vocation::Printmaker), "the print shop", 5.0, 5.0, 400);
+    let maker = g.villagers[0];
+    g.world.get_component_mut::<Craft>(maker).unwrap().vocation = Vocation::Printmaker;
+    g.world.get_component_mut::<Craft>(maker).unwrap().workplace = Some(shop);
+    household::add_stock(g.world.get_component_mut::<Building>(shop).unwrap(), "prints", 8);
+    let purse_before = g.world.get_component::<Purse>(maker).map(|p| p.gold).unwrap_or(0.0);
+    g.famed_printer = Some(maker);
+    g.spawn_pedlar();
+    for _ in 0..400 {
+        if g.pedlar.as_ref().map(|p| p.selling_until.is_some()).unwrap_or(false) { break; }
+        g.advance_pedlar();
+    }
+    let m = g.pedlar.as_ref().expect("he pitches");
+    assert!(m.famed_sheets > 0, "he takes a sheaf of the run");
+    let left = g.world.get_component::<Building>(shop)
+        .map(|b| b.stock.get("prints").copied().unwrap_or(0)).unwrap_or(0);
+    assert_eq!(left, 8 - m.famed_sheets, "the sheaf comes off the shop's shelf");
+    let purse_after = g.world.get_component::<Purse>(maker).map(|p| p.gold).unwrap_or(0.0);
+    assert!(purse_after > purse_before, "the maker's paid for the sheets");
+    // and when the road takes him, the name goes with the sheets
+    g.tick = 10;
+    for _ in 0..900 {
+        if g.pedlar.is_none() { break; }
+        g.advance_pedlar();
+    }
+    assert!(g.log.iter().any(|l| l.contains("the name with them")),
+        "the name travels: {:?}", g.log.last());
+}
+
+#[test]
 fn test_the_road_takes_him() {
     let mut g = Game::new();
     g.spawn_pedlar();

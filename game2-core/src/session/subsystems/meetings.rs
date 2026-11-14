@@ -404,9 +404,9 @@ impl Game {
         // meeting's talk from conversation::run_meeting - answers to the
         // question, agreement and pushback threaded on what's been said -
         // seeded off the meeting, not the game's rng
-        let mut said = {
+        let (mut said, rite, send_off) = {
             use crate::game::conversation::{run_meeting, MeetingLine, Rng as TalkRng, Speaker};
-            use crate::game::dialogue_trees::{meeting_pool, MEET_PROMPT};
+            use crate::game::dialogue_trees::{meeting_pool, MEET_PROMPT, MEET_RITES};
             let speakers: Vec<Speaker> = came.iter()
                 .map(|&v| dialogue::speaker_of(&self.world, v, &self.name_of(v), self.tick)).collect();
             let pools: Vec<Vec<MeetingLine>> = speakers.iter().map(meeting_pool).collect();
@@ -414,19 +414,27 @@ impl Game {
             let refs: Vec<&Speaker> = speakers.iter().collect();
             let host = self.world.get_component::<PlayerCharacter>(host_e).map(|p| p.name.clone()).unwrap_or_default();
             let seed = self.tick.wrapping_mul(0x51_7CC1) ^ came.iter().fold(0u64, |h, &v| h.rotate_left(7) ^ v as u64);
-            let record = run_meeting(&Speaker::new(&host), &refs, &MEET_PROMPT, &pool_refs, &mut TalkRng::new(seed));
+            let record = run_meeting(&Speaker::new(&host), &refs, &MEET_PROMPT, &pool_refs, &MEET_RITES, &mut TalkRng::new(seed));
+            // the record frames the floor: statement 0 is the rite, the
+            // last is the send-off - they air first and last, whoever gave
+            // them (the host stands in when the organizer did)
+            let close_i = record.len() - 1;
+            let who = |speaker: usize| if speaker == usize::MAX { host_e } else { came[speaker] };
+            let rite = (who(record[0].speaker), record[0].text.clone());
+            let send_off = (who(record[close_i].speaker), record[close_i].text.clone());
             // per attendee, in the order they said them: (statement index,
             // the statement it answers, the words)
             let mut q: Vec<Vec<(usize, Option<usize>, String)>> = vec![vec![]; came.len()];
-            for (k, st) in record.into_iter().enumerate().skip(1) {
+            for (k, st) in record.into_iter().enumerate() {
+                if k == 0 || k == close_i { continue; } // framing, not floor
                 if let Some(d) = q.get_mut(st.speaker) { d.push((k, st.replying_to, st.text)); }
             }
-            q
+            (q, rite, send_off)
         };
         // the meeting runs in rounds, not in run_meeting's order, so a
-        // reply is only said once what it answers has been (statement 0 is
-        // the host's question) - never an answer ahead of its question
-        let mut aired: crate::engine::det::HashSet<usize> = [0].into_iter().collect();
+        // reply is only said once what it answers has been (statements 0
+        // and 1 - the rite and the host's question - air before any floor)
+        let mut aired: crate::engine::det::HashSet<usize> = [0, 1].into_iter().collect();
         for round in 0..2 {
             for (ci, &v) in came.iter().enumerate() {
                 let Some(i) = self.villagers.iter().position(|x| *x == v) else { continue };
@@ -475,6 +483,10 @@ impl Game {
             }
             lines.push((host_e, MEETING_PROMPTS[round + 1].to_string()));
         }
+        // the rite opens it, ahead of the host's question; the send-off
+        // is the last word of the night (#1185)
+        lines.insert(0, rite);
+        lines.push(send_off);
         lines
     }
 
@@ -487,11 +499,13 @@ impl Game {
     /// honest about that (#1076)
     fn meeting_beats(&mut self, m: &mut Meeting) {
         let [snacks, notes, opener, song, closer] = m.role_people;
+        // the send-off is the last word of the night - kept promises land
+        // just ahead of it, never after the benediction (#1185)
         if let (true, Some(n)) = (m.roles.1, notes) {
-            m.lines.push((n, "Say it plain - I'll keep the word of it.".into()));
+            m.lines.insert(m.lines.len().saturating_sub(1), (n, "Say it plain - I'll keep the word of it.".into()));
         }
         if let (true, Some(c)) = (m.roles.4, closer) {
-            m.lines.push((c, "Same time again, then - and each of you bring one more.".into()));
+            m.lines.insert(m.lines.len().saturating_sub(1), (c, "Same time again, then - and each of you bring one more.".into()));
         }
         if let (true, Some(s)) = (m.roles.3, song) {
             for &a in &m.invited {

@@ -10,7 +10,7 @@
 
 use crate::game::conversation::{
     Act, Criterion::*, DialogueTree, Ending::*, Exchange, MeetingLine, MeetingPrompt,
-    Reply, Speaker, Voice,
+    MeetingRites, Reply, Speaker, Voice,
 };
 use crate::game::traits::Trait;
 use crate::game::traits::Trait::*;
@@ -2986,6 +2986,55 @@ pub fn meeting_pool(speaker: &Speaker) -> Vec<MeetingLine> {
 pub const MEET_PROMPT: MeetingPrompt = MeetingPrompt {
     text: "What ails the village most, friends? Speak true.",
     concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:fuel", "concern:bridge", "concern:harvest", "concern:commons", "concern:grief"],
+};
+
+// The rite that frames a meeting (#1185): a devout attendee's prayer
+// opens it - old-ways folk get their own words - a gregarious one offers
+// a verse, a believer gives the benediction, and when the room offers
+// nobody the organizer does the plain word
+const RITE_PRAYER: &[&str] = &[
+    "God keep this house and all who speak plain in it.",
+    "Lord, give us patience with one another and courage for the truth.",
+    "Bless this hearth, and every hand that keeps it.",
+    "May the words said here do more good than harm. Amen.",
+];
+const RITE_OLD: &[&str] = &[
+    "The stones hear us. Speak true.",
+    "By the elder tree and the ones who went before - we begin.",
+    "What is said here, the land keeps. Let it be worth keeping.",
+];
+const RITE_VERSE: &[&str] = &[
+    "A verse for the room: may our wants be few and our voices many.",
+    "Here's to the roof that holds us all, and the tongues that dare to speak.",
+    "Sit close, speak plain - the night is long and the fire is warm.",
+];
+const RITE_PLAIN: &[&str] = &[
+    "Well then. Let's begin.",
+    "We're gathered. Say what needs saying.",
+];
+const CLOSE_BLESSING: &[&str] = &[
+    "Go in peace - and keep what was said here.",
+    "God go with you all, and bring you back next time.",
+    "May what we spoke of take root. Amen, and good night.",
+];
+const CLOSE_OLD: &[&str] = &[
+    "The stones watch you home.",
+    "Keep the old ways, and keep each other.",
+];
+const CLOSE_PLAIN: &[&str] = &[
+    "That's the whole of it. Go well.",
+    "Home safe, all of you - and thank you for coming.",
+];
+
+/// The framing lines `run_meeting` opens and closes with
+pub const MEET_RITES: MeetingRites = MeetingRites {
+    prayers: RITE_PRAYER,
+    old_rites: RITE_OLD,
+    verses: RITE_VERSE,
+    plain_opens: RITE_PLAIN,
+    blessings: CLOSE_BLESSING,
+    old_closes: CLOSE_OLD,
+    plain_closes: CLOSE_PLAIN,
 };
 
 // Two children meeting in the lane: games, dares and the things grown-ups

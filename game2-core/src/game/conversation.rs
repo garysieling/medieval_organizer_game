@@ -568,6 +568,40 @@ pub struct MeetingPrompt {
     pub concepts: &'static [&'static str],
 }
 
+/// The framing every meeting gets: one short rite to open it, one to
+/// close it (#1185) - pools of words for whoever offers. A devout
+/// attendee brings the prayer (old-ways folk their own words), a
+/// gregarious one a verse, and when nobody offers the organizer does
+/// the plain word. A believer gives the send-off, else the organizer.
+pub struct MeetingRites {
+    /// a believer's opening prayer
+    pub prayers: &'static [&'static str],
+    /// the old faith's opening words
+    pub old_rites: &'static [&'static str],
+    /// a gregarious attendee's opening verse
+    pub verses: &'static [&'static str],
+    /// the organizer's plain opening, when the room offers nothing
+    pub plain_opens: &'static [&'static str],
+    /// a believer's benediction
+    pub blessings: &'static [&'static str],
+    /// the old faith's send-off
+    pub old_closes: &'static [&'static str],
+    /// the organizer's plain close, when no believer sends them off
+    pub plain_closes: &'static [&'static str],
+}
+
+/// Would the room look to this one for the rite? The devout - the pious,
+/// the clergy, marked souls - carry the word
+fn devout(s: &Speaker) -> bool {
+    s.traits.contains(&Trait::Pious) || s.ideology == "clergy"
+        || s.status.iter().any(|st| matches!(*st, "devout" | "seeker" | "mystic" | "sage"))
+}
+
+/// One who keeps the old ways gets the old words, not the church's
+fn old_ways(s: &Speaker) -> bool {
+    s.status.contains(&"old_ways")
+}
+
 /// How long the organizer's question stays the loudest thing in the room:
 /// after this many answers it stops pulling replies to itself
 const QUESTION_PULL: usize = 2;
@@ -578,26 +612,63 @@ const LAST_PULL: f32 = 2.5;
 const OLD_PULL: f32 = 1.5;
 const QUESTION_SCORE: f32 = 3.0;
 
-/// Run a house meeting's talk: the organizer opens with a question, then
-/// each round the attendee whose best bid weighs heaviest speaks - an
-/// answer to the open question, a response to the last speaker (agree or
-/// push back, by temperament), or a revival of an earlier statement that
-/// touches something they care about. Whoever spoke last sits the round
-/// out. Returns the full record, organizer's question included.
+/// Run a house meeting's talk: a rite opens it (the room's own - a
+/// prayer, the old words, a verse, or the organizer's plain word), the
+/// organizer puts the question, then each round the attendee whose best
+/// bid weighs heaviest speaks - an answer to the open question, a
+/// response to the last speaker (agree or push back, by temperament), or
+/// a revival of an earlier statement that touches something they care
+/// about. Whoever spoke last sits the round out. A send-off closes it.
+/// Returns the full record, framing included.
 pub fn run_meeting<'a>(
     organizer: &Speaker,
     attendees: &[&Speaker],
     prompt: &MeetingPrompt,
     pools: &'a [&'a [MeetingLine]],
+    rites: &MeetingRites,
     rng: &mut Rng,
 ) -> Vec<Statement> {
-    let mut record: Vec<Statement> = vec![Statement {
-        speaker: usize::MAX, // the organizer isn't an attendee
-        act: Act::Question,
-        text: format!("{}: {}", organizer.name, prompt.text),
-        concepts: prompt.concepts.to_vec(),
-        replying_to: None,
-    }];
+    // who offers the word: the room looks to a devout attendee for the
+    // prayer, else a gregarious one brings a verse, else the organizer
+    // does it themselves - framing, small and constant (#1185)
+    let devout_ix: Vec<usize> = attendees.iter().enumerate()
+        .filter(|(_, s)| devout(s)).map(|(i, _)| i).collect();
+    let offering = if !devout_ix.is_empty() {
+        devout_ix.clone()
+    } else {
+        attendees.iter().enumerate()
+            .filter(|(_, s)| s.traits.contains(&Trait::Gregarious)).map(|(i, _)| i).collect()
+    };
+    let (rite_by, rite) = if offering.is_empty() {
+        (usize::MAX, rites.plain_opens[rng.below(rites.plain_opens.len())])
+    } else {
+        let i = offering[rng.below(offering.len())];
+        let s = attendees[i];
+        let pool = if devout(s) {
+            if old_ways(s) { rites.old_rites } else { rites.prayers }
+        } else { rites.verses };
+        (i, pool[rng.below(pool.len())])
+    };
+    // statement 0 is the rite, 1 the organizer's question: the bids below
+    // hang off Q, and nobody replies to the rite - its "ritual" concept
+    // meets nothing in a pool line
+    const Q: usize = 1;
+    let mut record: Vec<Statement> = vec![
+        Statement {
+            speaker: rite_by, // usize::MAX: the organizer isn't an attendee
+            act: Act::Greet,
+            text: rite.to_string(),
+            concepts: vec!["ritual"],
+            replying_to: None,
+        },
+        Statement {
+            speaker: usize::MAX,
+            act: Act::Question,
+            text: format!("{}: {}", organizer.name, prompt.text),
+            concepts: prompt.concepts.to_vec(),
+            replying_to: None,
+        },
+    ];
     let mut used: HashSet<&'static str> = HashSet::default();
     let mut answers = 0usize;
     let mut rounds = pools.len().max(4) * 2;
@@ -619,9 +690,9 @@ pub fn run_meeting<'a>(
             }
             // What could they say, and what would it answer?
             for (si, s) in record.iter().enumerate() {
-                if si == 0 && !question_open { continue; }
+                if si == Q && !question_open { continue; }
                 if s.speaker == i { continue; } // nor take up your own earlier point
-                let open_q = si == 0;
+                let open_q = si == Q;
                 let pull = if open_q { QUESTION_SCORE }
                     else if si == last_idx { LAST_PULL }
                     else { OLD_PULL };
@@ -662,7 +733,7 @@ pub fn run_meeting<'a>(
         };
         let Some((t, text)) = fresh_line(line.lines, attendees[speaker], other_sp, &used, rng) else { continue };
         used.insert(t);
-        if target == 0 { answers += 1; }
+        if target == Q { answers += 1; }
         // A reply is about what it shares with its target: a stock "aye,
         // that's so" carries every concern tag, but on the record it's
         // about the point it agreed with, not the whole agenda
@@ -675,6 +746,24 @@ pub fn run_meeting<'a>(
             replying_to: Some(target),
         });
     }
+    // the send-off: a believer gives the benediction - a different voice
+    // than opened if the room has one - else the organizer sends them home
+    let others: Vec<usize> = devout_ix.iter().copied().filter(|&i| i != rite_by).collect();
+    let closing = if !others.is_empty() { others } else { devout_ix };
+    let (close_by, close) = if closing.is_empty() {
+        (usize::MAX, rites.plain_closes[rng.below(rites.plain_closes.len())])
+    } else {
+        let i = closing[rng.below(closing.len())];
+        let pool = if old_ways(attendees[i]) { rites.old_closes } else { rites.blessings };
+        (i, pool[rng.below(pool.len())])
+    };
+    record.push(Statement {
+        speaker: close_by,
+        act: Act::Farewell,
+        text: close.to_string(),
+        concepts: vec!["ritual"],
+        replying_to: None,
+    });
     record
 }
 
@@ -944,20 +1033,23 @@ mod tests {
         let attendees = [&a, &b, &c];
 
         let mut rng = Rng::new(77);
-        let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut rng);
+        let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
 
-        assert!(statements.len() >= 4, "Meeting should produce multiple statements");
-        assert_eq!(statements[0].speaker, usize::MAX); // organizer question
+        assert!(statements.len() >= 5, "Meeting should produce multiple statements");
+        assert_eq!(statements[0].act, Act::Greet); // the rite that opens it
         assert_eq!(statements[0].replying_to, None);
+        assert_eq!(statements[1].speaker, usize::MAX); // organizer question
+        assert_eq!(statements[1].replying_to, None);
+        assert_eq!(statements.last().unwrap().act, Act::Farewell); // the send-off
 
-        // Every subsequent statement must reply to a valid earlier statement
-        for (idx, stmt) in statements.iter().enumerate().skip(1) {
+        // Every floor statement must reply to a valid earlier statement
+        let floor = &statements[2..statements.len() - 1];
+        for (idx, stmt) in floor.iter().enumerate() {
+            let idx = idx + 2;
             let target = stmt.replying_to.expect("Attendee statement must reply to something");
             assert!(target < idx, "Target statement must be prior to this statement");
             // No attendee speaks twice in a row
-            if idx > 1 {
-                assert_ne!(stmt.speaker, statements[idx - 1].speaker, "Speaker cannot speak consecutively");
-            }
+            assert_ne!(stmt.speaker, statements[idx - 1].speaker, "Speaker cannot speak consecutively");
         }
     }
 
@@ -973,10 +1065,11 @@ mod tests {
 
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
-            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut rng);
-            // Any statement answering statement 0 (the open question) must NOT be Agree or PushBack
+            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
+            // Any statement answering the open question (statement 1,
+            // after the rite) must NOT be Agree or PushBack
             for stmt in &statements {
-                if stmt.replying_to == Some(0) {
+                if stmt.replying_to == Some(1) {
                     assert_ne!(stmt.act, Act::Agree, "Should not agree with an open question");
                     assert_ne!(stmt.act, Act::PushBack, "Should not push back on an open question without raising a point");
                 }
@@ -1042,14 +1135,14 @@ mod tests {
         let pools = [meeting_pool(&a), meeting_pool(&b), meeting_pool(&c)];
         let pools: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
         let attendees = [&a, &b, &c];
-        seeds.map(|seed| run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut Rng::new(seed)))
+        seeds.map(|seed| run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(seed)))
             .collect()
     }
 
     #[test]
     fn test_meeting_attendees_never_reply_to_themselves() {
         for rec in meeting_records(0..100) {
-            for stmt in rec.iter().skip(1) {
+            for stmt in &rec[2..rec.len() - 1] {
                 let target = stmt.replying_to.unwrap();
                 assert_ne!(rec[target].speaker, stmt.speaker, "attendee replied to own statement: {:?}", stmt.text);
                 if stmt.act == Act::Agree && rec[target].act == Act::PushBack {
@@ -1121,9 +1214,9 @@ mod tests {
     #[test]
     fn test_meeting_replies_carry_only_shared_concepts() {
         for rec in meeting_records(0..100) {
-            for stmt in rec.iter().skip(1) {
+            for stmt in &rec[2..rec.len() - 1] {
                 let target = stmt.replying_to.unwrap();
-                if target == 0 { continue; }
+                if target == 1 { continue; }
                 assert!(stmt.concepts.iter().all(|c| rec[target].concepts.contains(c)),
                     "reply {:?} carries concepts its target {:?} lacks", stmt.concepts, rec[target].concepts);
             }
@@ -1196,9 +1289,9 @@ mod tests {
         let mut saw_grief_after_q = false;
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
-            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut rng);
-            // Check if any statement with index >= 3 (after initial answers) contains concern:grief
-            for stmt in statements.iter().skip(3) {
+            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
+            // Check if any statement with index >= 4 (after initial answers) contains concern:grief
+            for stmt in statements.iter().skip(4) {
                 if stmt.concepts.contains(&"concern:grief") {
                     saw_grief_after_q = true;
                     break;
@@ -1207,6 +1300,68 @@ mod tests {
             if saw_grief_after_q { break; }
         }
         assert!(saw_grief_after_q, "Grieving attendee must be able to contribute concern:grief after question pull");
+    }
+
+    /// #1185: every meeting opens with a rite and closes with a send-off,
+    /// and the floor never takes the rite up as a point of business.
+    #[test]
+    fn test_every_meeting_is_framed() {
+        for rec in meeting_records(0..50) {
+            assert_eq!(rec[0].act, Act::Greet, "no rite opened the meeting");
+            assert!(rec[0].concepts.contains(&"ritual"));
+            assert_eq!(rec[1].act, Act::Question, "the question should follow the rite");
+            assert_eq!(rec.last().unwrap().act, Act::Farewell, "no send-off closed the meeting");
+            assert!(rec[2..rec.len() - 1].iter().all(|s| s.replying_to != Some(0)),
+                "the floor took the rite up - it should be framing, not a point");
+        }
+    }
+
+    /// #1185: whose words the rite is - a pious attendee brings the
+    /// church's prayer, old-ways folk their own, a gregarious one a
+    /// verse; when the room offers nobody the organizer does it plain.
+    #[test]
+    fn test_the_room_gives_the_rite_in_its_own_words() {
+        let organizer = Speaker::new("Reeve");
+        let run = |attendees: &[&Speaker]| -> Vec<Statement> {
+            let pools: Vec<Vec<MeetingLine>> = attendees.iter().map(|s| meeting_pool(s)).collect();
+            let pools: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
+            run_meeting(&organizer, attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(7))
+        };
+        let mut pious = Speaker::new("Anselm");
+        pious.traits.push(Trait::Pious);
+        let mut old_pious = Speaker::new("Morag");
+        old_pious.traits.push(Trait::Pious);
+        old_pious.status.push("old_ways");
+        let mut greg = Speaker::new("Hob");
+        greg.traits.push(Trait::Gregarious);
+        let plain = Speaker::new("Corvin");
+
+        // a pious attendee brings the prayer and gives the benediction
+        let rec = run(&[&pious, &plain]);
+        assert_eq!(rec[0].speaker, 0);
+        assert!(MEET_RITES.prayers.contains(&rec[0].text.as_str()), "rite: {}", rec[0].text);
+        assert_eq!(rec.last().unwrap().speaker, 0);
+        assert!(MEET_RITES.blessings.contains(&rec.last().unwrap().text.as_str()));
+
+        // old-ways folk get their own words, opening and closing
+        let rec = run(&[&old_pious, &plain]);
+        assert!(MEET_RITES.old_rites.contains(&rec[0].text.as_str()), "rite: {}", rec[0].text);
+        assert!(MEET_RITES.old_closes.contains(&rec.last().unwrap().text.as_str()),
+            "close: {}", rec.last().unwrap().text);
+
+        // nobody devout: a gregarious one offers a verse, but the
+        // send-off falls to the organizer
+        let rec = run(&[&greg, &plain]);
+        assert_eq!(rec[0].speaker, 0);
+        assert!(MEET_RITES.verses.contains(&rec[0].text.as_str()), "rite: {}", rec[0].text);
+        assert_eq!(rec.last().unwrap().speaker, usize::MAX);
+        assert!(MEET_RITES.plain_closes.contains(&rec.last().unwrap().text.as_str()));
+
+        // a bare room: the organizer does it all
+        let rec = run(&[&plain]);
+        assert_eq!(rec[0].speaker, usize::MAX);
+        assert!(MEET_RITES.plain_opens.contains(&rec[0].text.as_str()), "rite: {}", rec[0].text);
+        assert!(MEET_RITES.plain_closes.contains(&rec.last().unwrap().text.as_str()));
     }
 
     #[test]

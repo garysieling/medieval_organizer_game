@@ -655,7 +655,9 @@ fn test_the_promised_parts_of_a_meeting_actually_happen() {
     assert!(m.lines.iter().any(|&(w, ref t)| w == snacker && t.contains("Bread's on the table")), "the bread goes round");
     assert!(m.lines.iter().any(|&(w, ref t)| w == singer && t.contains("road to the fair")), "the song is sung");
     assert!(m.lines.iter().any(|&(w, ref t)| w == noter && t.contains("keep the word")), "the notes keep it");
-    assert_eq!(m.lines.last().unwrap().0, closer, "the closer sends them off");
+    // the meeting's rite gives the very last word - the promised
+    // send-off lands just ahead of it (#1185)
+    assert_eq!(m.lines[m.lines.len() - 2].0, closer, "the closer sends them off, ahead of the rite's own");
     assert!(crate::game::desires::is_satisfied(&game.world, singer, crate::game::desires::Want::Music, game.tick),
         "the song warmed the room's music-want");
     // a promised part whose keeper never made it stays un-kept

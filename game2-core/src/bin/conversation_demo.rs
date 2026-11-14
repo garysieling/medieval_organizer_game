@@ -13,7 +13,7 @@ use game2_core::game::conversation::{
     converse, converse_with, run_meeting, Choice, Ending, MeetingLine, Relation, Rng, Speaker,
 };
 use game2_core::game::dialogue_trees::{
-    backstory, meeting_pool, village_library, MEET_PROMPT,
+    backstory, meeting_pool, village_library, MEET_PROMPT, MEET_RITES,
 };
 use game2_core::game::traits::Trait;
 
@@ -163,7 +163,7 @@ fn main() {
     let pools: Vec<&[MeetingLine]> = vec![&p1, &p2, &p3, &p4];
 
     let mut rng = Rng::new(505);
-    let statements = run_meeting(&reeve, &attendees, &MEET_PROMPT, &pools, &mut rng);
+    let statements = run_meeting(&reeve, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
 
     println!("House Meeting Transcript ({} statements):", statements.len());
     for (i, stmt) in statements.iter().enumerate() {

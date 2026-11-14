@@ -199,6 +199,9 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
         .and_then(|st| st.title()) {
         s.status.push(t);
     }
+    // one in five keeps the old ways - the meeting's rite takes their
+    // words, not the church's (#1185)
+    if super::routine::keeps_old_ways(world, who) { s.status.push("old_ways"); }
     // and the powers they're of - the talk can name what pulls on them
     for e in world.query::<crate::sim::factions::Faction>() {
         let Some(f) = world.get_component::<crate::sim::factions::Faction>(e) else { continue };

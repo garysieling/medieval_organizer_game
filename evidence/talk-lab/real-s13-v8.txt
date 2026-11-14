@@ -7,26 +7,27 @@
     2) Blessings on thy holy house as well.
     l) take your leave
   you: Morrow, father.
-  Wystan: Dost thou find peace in thy daily labor, child?
-    1) Aye, there is truth in what thou sayest.
+  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
+    1) Charity begins at home, and mostly stays there.
+    2) An open hand finds open doors, say I.
     l) take your leave
-  you: Aye, there is truth in what thou sayest.
-  Wystan: A gray dawn, but the day's work won't wait for it.
+  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
+  you: Charity begins at home, and mostly stays there.
+  Wystan: Looks like rain again, doesn't it?
     1) It will be a wet week, mark me.
-    2) Enough sky-talk - how goes the work these days?
+    2) That is not the way the elders told it.
     l) take your leave
   you: It will be a wet week, mark me.
-  Wystan: Even so, we will manage as we always do.
+  Wystan: Aye, the year will turn and bring what it brings.
     1) True words; worry never baked a single loaf.
     l) take your leave
   you: True words; worry never baked a single loaf.
-  Wystan: A rider from the castle came through before dawn.
+  Wystan: The peddler's cart lost a wheel at the bridge.
     1) Aye? And what else did folk see?
-    2) Nay, I see it differently, mark me.
     l) take your leave
   you: Aye? And what else did folk see?
-  Wystan: Old Wulfric swore he saw an owl perched on the tavern roof.
-    1) Ha! I'll believe the half of it and no more.
-    2) Folk will invent dragons where there's only sheep.
+  Wystan: The herb-wife was seen out past the abbey wall at dusk.
+    1) Tavern tales grow taller with each ale drawn.
+    2) Nay, I see it differently, mark me.
     l) take your leave
 REPRO: talk_lab talk --seed 13 --villager 8 --picks 0,0,0,0,0,0 (talk seed 1090519054)

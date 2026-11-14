@@ -6,23 +6,27 @@
     1) Morrow.
     l) take your leave
   you: Morrow.
+  Rowena: Some say the old prayers are only words. And thou?
+    1) I keep the faith as my mother taught me, and gladly.
+    2) The saints help them as help themselves, I've heard.
+    l) take your leave
+  Rowena: Some say the old prayers are only words. And thou?
+  you: I keep the faith as my mother taught me, and gladly.
   Rowena: The morning dew was heavy on the clover.
-    1) And the day's work - does it treat thee kindly?
-    2) And how fares thy folk in this cold snap?
+    1) That is not the way the elders told it.
+    2) Has thy brother returned from the market town?
     l) take your leave
-  you: And the day's work - does it treat thee kindly?
-  Rowena: Busy hands at the day's work this season, I'd wager.
-    1) Never better. And thyself - is the day's work kind to thee?
-    2) Fair season for it - the day's work has not wanted for custom.
+  you: That is not the way the elders told it.
+  Rowena: A steady hand and a patient mule see it through.
+    1) True words; worry never baked a single loaf.
     l) take your leave
-  you: Never better. And thyself - is the day's work kind to thee?
-  Rowena: A rider from the castle came through before dawn.
+  you: True words; worry never baked a single loaf.
+  Rowena: They say the miller took an extra scoop of meal again.
     1) Aye? And what else did folk see?
-    2) Let the miller and the rider sort their own affairs.
     l) take your leave
   you: Aye? And what else did folk see?
   Rowena: The herb-wife was seen out past the abbey wall at dusk.
-    1) Folk will invent dragons where there's only sheep.
-    2) Ha! I'll believe the half of it and no more.
+    1) Every tongue in the parish wags before sunset.
+    2) Better to tend thy own hearth than watch the road.
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 15 --picks 0,0,0,0,0 (talk seed 1157627928)
+REPRO: talk_lab talk --seed 7 --villager 15 --picks 0,0,0,0,0,0 (talk seed 1157627928)

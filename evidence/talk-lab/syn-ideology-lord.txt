@@ -4,11 +4,15 @@
   Voice: Morrow, Voice. Thy hedge wants mending on the north side.
     1) [Greet] Aye, m'lord - good morrow to the manor.
   Voice: Aye, m'lord - good morrow to the manor.
-  Voice: The deer have been at the lower field again - keep thy dogs close.
+  Voice: My family held this land when thine were sowing wild oats. Dost know it?
+    1) [Agree] I've heard, and I mind my manners accordingly.
+    2) [Remark] Can't say the name reached me - I keep to my own lane.
+  Voice: I've heard, and I mind my manners accordingly.
+  Voice: A good tenant pays his boon-days without the tally being read twice.
     1) [Agree] The ditch will be cleared by the quarter day, m'lord.
   Voice: The ditch will be cleared by the quarter day, m'lord.
   Voice: The rolls are kept fair; what thy father owed, thou owest, no more.
-    1) [Farewell] I'll be at the oak, m'lord. Fair day.
-  Voice: I'll be at the oak, m'lord. Fair day.
-  -- Farewell (trees: ["the_lords_levee"])
-REPRO: talk_lab talk --name Voice --ideology lord --trait proud --seed 23 --rel Acquaintance --picks 0,0,0
+    1) [Farewell] Thy servant, m'lord - and my thanks for the hearing.
+  Voice: Thy servant, m'lord - and my thanks for the hearing.
+  -- Farewell (trees: ["the_lords_levee", "the_audition"], vibe: Safe)
+REPRO: talk_lab talk --name Voice --ideology lord --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0

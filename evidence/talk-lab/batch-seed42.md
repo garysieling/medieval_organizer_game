@@ -114,37 +114,43 @@ Corvin [Remark in old_scores]: Make me.
 Wystan [PushBack in old_scores]: Keep thy fists to thyself before I break them.
 -- WalksOff
 
-## Gisela and Aelfric - Stranger (seed 1311, picks [0, 0])
+## Gisela and Aelfric - Stranger (seed 1311, picks [0, 0, 1])
 them: Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 you : Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 
 Gisela [Greet in the_sickness]: *cough* Morrow, traveler. Best keep to the far side of the path.
 Aelfric [PushBack in the_sickness]: I'll hear thee from across the ditch, begging m'lord's pardon.
-Gisela [Remark in the_sickness]: A little cough won't kill an honest worker.
-Aelfric [PushBack in the_sickness]: I'll not catch my death for thy pride.
--- WalksOff
+Gisela [Question in the_audition]: A body's meant for more than the furrow, eh? Or is that thy lot?
+Aelfric [Agree in the_audition]: I mean to rise same as thee, if the saints allow it.
+Gisela [Remark in the_sickness]: As thou wilt, then - step wide if thou must.
+Aelfric [PushBack in the_sickness]: Breathe elsewhere then, knave.
+-- WalksOff, vibe: Safe
 
-## Dagny and Tilda - Acquaintance (seed 1312, picks [1, 1])
+## Dagny and Tilda - Acquaintance (seed 1312, picks [1, 1, 0])
 them: Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 you : Tilda works the fields for a day's wage. Their purse strings are knotted tight. They're the first with a loaf when a house is bare. They buried one of their own last week.
 
 Dagny [Greet in condolence_call]: A peaceful day to thee, Tilda.
 Tilda [PushBack in condolence_call]: That is not the way the elders told it.
+Dagny [Question in the_audition]: A body's meant for more than the furrow, eh? Or is that thy lot?
+Tilda [Agree in the_audition]: More, aye - I've plans of my own, given half a chance.
 Dagny [Remark in condolence_call]: If thou needest aught at all, say but the word.
-Tilda [Farewell in condolence_call]: Thou'rt a true soul, Dagny. I will remember it.
--- Farewell
+Tilda [Farewell in condolence_call]: God's peace be upon thy cottage, Dagny.
+-- Farewell, vibe: Safe
 
-## Eliza and Osric - Stranger (seed 1313, picks [0, 0, 0, 0])
+## Eliza and Osric - Stranger (seed 1313, picks [0, 1, 0, 0, 0])
 them: Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
 you : Osric trades on the road between villages. They'd sooner watch the clouds than the plough. Last night's cup is still on them.
 
 Eliza [Greet in the_cleric_blesses]: Blessings on thee, Osric.
 Osric [Greet in the_cleric_blesses]: Peace be with thee, good priest.
-Eliza [Remark in the_cleric_blesses]: Remember that honest work in the field is a holy prayer.
+Eliza [Question in the_audition]: The bells call us all the same. Dost keep the faith?
+Osric [Agree in the_audition]: The Word's a lamp in dark times - I'd not put it out.
+Eliza [Remark in the_cleric_blesses]: How fares thy house in these lean weeks, child?
 Osric [Agree in the_cleric_blesses]: The season has been lean, father, but faith sustains us.
+Eliza [Remark in morning_after_drunk]: My purse is six silver pennies lighter than when dusk fell.
+Osric [PushBack in morning_after_drunk]: Nay, I see it differently, mark me.
 Eliza [Remark in morning_after_drunk]: We do what we must while daylight holds.
-Osric [Agree in morning_after_drunk]: Aye, there is truth in what thou sayest.
-Eliza [Remark in morning_after_drunk]: A bucket of icy well water over the skull will clear the cobwebs.
-Osric [Farewell in morning_after_drunk]: God's peace be upon thy cottage, Eliza.
--- Farewell
+Osric [Farewell in morning_after_drunk]: May the sun be gentle on thy poor eyes today.
+-- Farewell, vibe: Safe
 

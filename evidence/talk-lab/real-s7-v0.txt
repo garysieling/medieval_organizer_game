@@ -8,9 +8,16 @@
     3) Ask them to come to a meeting
     l) take your leave
   you: M'lord - might the hail damage weigh on the tallage?
-  Aldric: Custom binds us both, goodman - thy strip, my tallage.
-    1) I'll be at the oak, m'lord. Fair day.
+  Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
+    1) An open hand finds open doors, say I.
+    2) Charity begins at home, and mostly stays there.
+    3) Ask them to come to a meeting
+    l) take your leave
+  Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
+  you: An open hand finds open doors, say I.
+  Aldric: The rolls are kept fair; what thy father owed, thou owest, no more.
+    1) Thy servant, m'lord - and my thanks for the hearing.
     2) Ask them to come to a meeting
     3) Ask who you should talk to next
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 0 --picks 0,0 (talk seed 905969685)
+REPRO: talk_lab talk --seed 7 --villager 0 --picks 0,0,0 (talk seed 905969685)

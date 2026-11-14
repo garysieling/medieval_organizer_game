@@ -7,17 +7,22 @@
     2) Aye, words have weight in a small village.
     l) take your leave
   you: And to thee.
-  Corvin: The frost sat late on the furrows this morning.
-    1) Thou seest a tempest in every puff of smoke.
-    2) It will be a wet week, mark me.
+  Corvin: I say a body earns their rest. Thou'lt not disagree?
+    1) The field'll keep till tomorrow, say I.
+    2) The saints gave us six days for a reason.
     l) take your leave
-  you: Thou seest a tempest in every puff of smoke.
-  Corvin: A steady hand and a patient mule see it through.
-    1) Aye, we have lived through harder winters than this.
+  Corvin: I say a body earns their rest. Thou'lt not disagree?
+  you: The field'll keep till tomorrow, say I.
+  Corvin: A gray dawn, but the day's work won't wait for it.
+    1) Good for the barley, but bad for the road.
+    2) Has thy brother returned from the market town?
     l) take your leave
-  you: Aye, we have lived through harder winters than this.
-  Corvin: Didst thou hear who was seen down by the mill?
-    1) That is not the way the elders told it.
-    2) I knew that bridge would give way sooner or later.
+  you: Good for the barley, but bad for the road.
+  Corvin: Even so, we will manage as we always do.
+    1) True words; worry never baked a single loaf.
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 3 --picks 0,0,0,0 (talk seed 905969676)
+  you: True words; worry never baked a single loaf.
+  Corvin: A rider from the castle came through before dawn.
+    1) I'll not repeat marketplace whispers.
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 3 --picks 0,0,0,0,0 (talk seed 905969676)

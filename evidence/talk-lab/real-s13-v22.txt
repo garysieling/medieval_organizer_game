@@ -7,20 +7,19 @@
     2) I am here, as thou seest.
     l) take your leave
   you: Good day to thee.
-  Roderick: Cold wind off the moor this morning.
-    1) The thatch won't thank it if it pours.
+  Roderick: I'd have thumped the steward myself. Thou'd have done the same, no doubt?
+    1) Aye... I suppose thou'rt right about that.
+    2) Thou'lt not put words in my mouth, friend.
     l) take your leave
-  you: The thatch won't thank it if it pours.
-  Roderick: Aye, the year will turn and bring what it brings.
-    1) So long as the well stays sweet, we'll thrive.
+  Roderick: I'd have thumped the steward myself. Thou'd have done the same, no doubt?
+  you: Aye... I suppose thou'rt right about that.
+  Roderick: The morning dew was heavy on the clover.
+    1) Weather aside, Roderick - how does the season treat thee?
+    2) And how fares thy folk in this cold snap?
     l) take your leave
-  you: So long as the well stays sweet, we'll thrive.
-  Roderick: They say the miller took an extra scoop of meal again.
-    1) Aye? And what else did folk see?
+  you: Weather aside, Roderick - how does the season treat thee?
+  Roderick: Hard at it down at the day's work, are we?
+    1) the day's work is my affair, and it fares as it fares.
+    2) It goes, by the saints' grace. the day's work is kind to a steady hand.
     l) take your leave
-  you: Aye? And what else did folk see?
-  Roderick: The herb-wife was seen out past the abbey wall at dusk.
-    1) Tavern tales grow taller with each ale drawn.
-    2) That is not the way the elders told it.
-    l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0,0,0,0 (talk seed 1325400078)
+REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0,0,0 (talk seed 1325400078)

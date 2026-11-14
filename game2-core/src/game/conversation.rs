@@ -290,6 +290,49 @@ pub struct Transcript {
     pub trees_walked: Vec<&'static str>,
     pub turns: Vec<Turn>,
     pub ending: Option<Ending>,
+    /// How the audition went, when the caller probed the responder
+    /// (#1187): a good answer reads safe, a wrong note a mismatch -
+    /// a compatibility read, not a grudge
+    pub vibe: Option<Vibe>,
+}
+
+/// What the trust-probe read off the answer (#1187)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Vibe {
+    /// The answer landed - they open up
+    Safe,
+    /// It didn't - polite, but the talk stays shallow
+    Mismatch,
+}
+
+/// A trait's safety test (#1187): early in a talk the caller probes the
+/// responder with the question their own character asks of the world -
+/// the stingy test generosity, the pious faith, the hotheaded whether
+/// you'll stand your ground. `pass` resumes the talk where it was;
+/// `fail` leaves it on the polite tail.
+pub struct Probe {
+    /// The trait that carries this test
+    pub who: Trait,
+    /// What the call does / is about
+    pub act: Act,
+    pub concepts: &'static [&'static str],
+    /// The testing line - a question, a bid, a challenge
+    pub calls: &'static [&'static str],
+    /// The answer that lands, and the act it answers with
+    pub pass: (Act, &'static [&'static str]),
+    /// The wrong note, and the act it answers with
+    pub fail: (Act, &'static [&'static str]),
+}
+
+/// The tree name the audition beat reports as (#1187)
+pub const PROBE_TREE: &str = "the_audition";
+
+/// The test this speaker would put to someone new: the first trait they
+/// carry that probes anything
+pub fn probe_for(s: &Speaker) -> Option<&'static Probe> {
+    s.traits.iter().find_map(|t| {
+        crate::game::dialogue_trees::PROBE_TESTS.iter().find(|p| p.who == *t)
+    })
 }
 
 impl Transcript {
@@ -408,6 +451,7 @@ pub fn converse_with(
         trees_walked: vec![],
         turns: vec![],
         ending: None,
+        vibe: None,
     };
     let mut used: HashSet<&'static str> = HashSet::default();
     let trees = cascade(library, &Facts::for_roles(a, b, rel));
@@ -432,7 +476,59 @@ pub fn converse_with(
         None
     };
 
+    // The audition (#1187): once the first exchange of a player talk
+    // lands, the caller tests the responder with the probe their own
+    // trait carries - one beat, small stakes. Kin and old friends don't
+    // re-audition, and there's no audition where nobody's playing.
+    let audition = player != usize::MAX
+        && responder == player
+        && matches!(rel, Relation::Stranger | Relation::Acquaintance);
+    let mut probed = false;
+
     for _ in 0..MAX_TURNS {
+        if audition && !probed && tr.turns.len() == 2 {
+            probed = true;
+            if let Some(p) = probe_for(pair[caller]) {
+                if let Some((ct, call)) = fresh_line(p.calls, pair[caller], pair[responder], &used, rng) {
+                    used.insert(ct);
+                    tr.trees_walked.push(PROBE_TREE);
+                    tr.turns.push(Turn { speaker: caller, act: p.act, text: call,
+                        concepts: p.concepts.to_vec(), tree: PROBE_TREE });
+                    // the tested side gets the two forks the probe
+                    // holds - the answer that lands and the wrong note
+                    let mut choices: Vec<Choice> = vec![];
+                    let mut forks: Vec<(&'static str, bool)> = vec![];
+                    for ((act, lines), vibe) in [(p.pass, true), (p.fail, false)] {
+                        let (t, preview) = fresh_line(lines, pair[responder], pair[caller], &used, rng)
+                            .unwrap_or((lines[0], fill(lines[0], pair[responder], pair[caller])));
+                        choices.push(Choice { act, preview });
+                        forks.push((t, vibe));
+                    }
+                    // no positional tell - which fork lands changes
+                    if rng.below(2) == 1 { choices.swap(0, 1); forks.swap(0, 1); }
+                    match choose(&choices) {
+                        Some(i) => {
+                            let (t, vibe) = forks[i];
+                            used.insert(t);
+                            tr.turns.push(Turn { speaker: responder, act: choices[i].act,
+                                text: fill(t, pair[responder], pair[caller]),
+                                concepts: p.concepts.to_vec(), tree: PROBE_TREE });
+                            tr.vibe = Some(if vibe { Vibe::Safe } else { Vibe::Mismatch });
+                            // a good answer picks the talk up where it
+                            // left off; a miss leaves it on the polite
+                            // tail, smiling about the weather
+                            if !vibe {
+                                node = Some(&crate::game::dialogue_trees::SMALL_CHAT);
+                                node_tree = "village_smalltalk";
+                                tr.trees_walked.push("village_smalltalk");
+                            }
+                            continue;
+                        }
+                        None => { tr.ending = Some(Ending::LeavesEarly); break; }
+                    }
+                }
+            }
+        }
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
         // The floor-holder opens the beat, in the register their own
         // facts put them in (a lord's condescension, a rival's chill)
@@ -1718,5 +1814,91 @@ mod tests {
             if a.lines() != b.lines() { diffs += 1; }
         }
         assert!(diffs > 0, "smith and fisher talks were identical on every seed");
+    }
+
+    fn audition_talk(traits: &[Trait], rel: Relation, pass: bool) -> Transcript {
+        let mut caller = Speaker::new("Hob");
+        caller.traits = traits.to_vec();
+        caller.status.push("sick"); // a status tree to lose, so depth shows
+        let probe = probe_for(&caller);
+        let you = Speaker::new("Wanderer");
+        // at the audition - both options drawn from the probe's two
+        // pools - pick the landing or the wrong note as asked
+        converse_with(&caller, &you, rel, &village_library(), 1,
+            &mut |ch: &[Choice]| {
+                if let Some(p) = probe {
+                    let in_pool = |c: &Choice, pool: &[&'static str]| pool.iter().any(|l| *l == c.preview);
+                    if ch.iter().all(|c| in_pool(c, p.pass.1) || in_pool(c, p.fail.1)) {
+                        let wanted = if pass { p.pass.1 } else { p.fail.1 };
+                        return ch.iter().position(|c| in_pool(c, wanted));
+                    }
+                }
+                Some(0)
+            }, &mut Rng::new(7))
+    }
+
+    #[test]
+    fn test_the_audition_reads_the_answer() {
+        // the same talk, answered two ways (#1187): the answer that
+        // lands opens them up; the wrong note leaves it polite
+        let safe = audition_talk(&[Trait::Stingy], Relation::Acquaintance, true);
+        let miss = audition_talk(&[Trait::Stingy], Relation::Acquaintance, false);
+        assert_eq!(safe.vibe, Some(Vibe::Safe), "{:?}", safe.lines());
+        assert_eq!(miss.vibe, Some(Vibe::Mismatch), "{:?}", miss.lines());
+        assert!(safe.trees_walked.contains(&PROBE_TREE) && miss.trees_walked.contains(&PROBE_TREE));
+        // a miss leaves the talk on the polite tail - after the probe
+        // beat only smalltalk remains
+        let after = |tr: &Transcript| {
+            let at = tr.turns.iter().position(|t| t.tree == PROBE_TREE).unwrap();
+            tr.turns[at + 2..].iter().all(|t| t.tree == "village_smalltalk")
+        };
+        assert!(after(&miss), "a miss should leave only the tail: {:?}", miss.trees_walked);
+        // and the safe answer's talk isn't confined to it
+        assert!(safe.turns.iter().any(|t| t.tree != "village_smalltalk" && t.tree != PROBE_TREE),
+            "a pass should keep deeper material: {:?}", safe.trees_walked);
+    }
+
+    #[test]
+    fn test_the_probe_is_their_trait() {
+        // each test in the book belongs to its trait, and a caller with
+        // none of them doesn't probe at all
+        for p in crate::game::dialogue_trees::PROBE_TESTS {
+            let tr = audition_talk(&[p.who], Relation::Acquaintance, true);
+            assert!(tr.trees_walked.contains(&PROBE_TREE), "{:?} never probed", p.who);
+            let call = tr.turns.iter().find(|t| t.tree == PROBE_TREE && t.speaker == 0).unwrap();
+            assert!(p.calls.contains(&call.text.as_str()), "{:?}: {:?} not theirs", p.who, call.text);
+        }
+        let none = audition_talk(&[], Relation::Acquaintance, true);
+        assert!(!none.trees_walked.contains(&PROBE_TREE));
+        assert_eq!(none.vibe, None);
+    }
+
+    #[test]
+    fn test_old_friends_dont_audition() {
+        // the audition is for early talk: kin and friends are past it
+        for rel in [Relation::Friend, Relation::Kin, Relation::Rival] {
+            let tr = audition_talk(&[Trait::Pious], rel, true);
+            assert!(!tr.trees_walked.contains(&PROBE_TREE), "{rel:?} still auditioned");
+            assert_eq!(tr.vibe, None);
+        }
+        // and nobody probes a villager-to-villager talk
+        let mut a = Speaker::new("Hob");
+        a.traits = vec![Trait::Pious];
+        let tr = converse(&a, &Speaker::new("Tilda"), Relation::Acquaintance,
+            &village_library(), &mut Rng::new(7));
+        assert!(!tr.trees_walked.contains(&PROBE_TREE));
+    }
+
+    #[test]
+    fn test_a_hothead_wants_you_to_stand_up() {
+        // the right answer to their prod is iron, not agreement - the
+        // one probe where pushing back is the safe read
+        let tr = audition_talk(&[Trait::Hotheaded], Relation::Acquaintance, true);
+        assert_eq!(tr.vibe, Some(Vibe::Safe));
+        let answered = tr.turns.iter().find(|t| t.tree == PROBE_TREE && t.speaker == 1).unwrap();
+        assert_eq!(answered.act, Act::PushBack, "the safe answer is the stand-up");
+        // and meek agreement is the wrong note
+        let miss = audition_talk(&[Trait::Hotheaded], Relation::Acquaintance, false);
+        assert_eq!(miss.vibe, Some(Vibe::Mismatch));
     }
 }

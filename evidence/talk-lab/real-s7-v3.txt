@@ -6,7 +6,14 @@
     1) Aye, m'lord - good morrow to the manor.
     l) take your leave
   you: Aye, m'lord - good morrow to the manor.
-  Corvin: My bailiff tells me the common ditch wants scouring before the rains.
-    1) Aye, m'lord - the strip will be tended.
+  Corvin: I say a body earns their rest. Thou'lt not disagree?
+    1) The field'll keep till tomorrow, say I.
+    2) Idle hands, friend. The frost doesn't wait.
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 3 --picks 0,0 (talk seed 956301334)
+  Corvin: I say a body earns their rest. Thou'lt not disagree?
+  you: The field'll keep till tomorrow, say I.
+  Corvin: A good tenant pays his boon-days without the tally being read twice.
+    1) The rents bite deeper than the frost, begging m'lord's pardon.
+    2) As thou sayest, m'lord.
+    l) take your leave
+REPRO: talk_lab talk --seed 7 --villager 3 --picks 0,0,0 (talk seed 956301334)

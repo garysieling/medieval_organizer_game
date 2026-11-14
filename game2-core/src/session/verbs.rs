@@ -331,6 +331,7 @@ impl Game {
             let pick = self.rng.next();
             desires::next_reveal(&self.world, v, self.tick, pick)
         } else { None };
+        let mut whispered = false;
         let (did, said) = match revealed {
             Some(r) => {
                 let (d, s) = desires::reveal_speech(vill_name(who), &r);
@@ -350,7 +351,10 @@ impl Game {
             }
             None => match self.mystery_fact_at(seat) {
                 // gossip carries a piece of the mystery, now and then
-                Some(text) => (format!("{} passes on a rumor", vill_name(who)), text),
+                Some(text) => {
+                    whispered = true;
+                    (format!("{} passes on a rumor", vill_name(who)), text)
+                }
                 None => talk_response(&self.world, v, vill_name(who), talks_before),
             },
         };
@@ -367,6 +371,17 @@ impl Game {
         // the conversation itself goes on the TALK panel, the replies yours to pick
         self.open_player_talk(seat, v, rel, &said);
         if !coached.is_empty() { self.narrate_talk(seat, coached.trim()); }
+        // a clue landing mid-talk is marked in the moment (#1184)
+        if whispered {
+            if let Some(m) = &self.seats[seat].mystery {
+                let def = &crate::game::mysteries::MYSTERIES[m.def];
+                let got = m.known.count_ones();
+                self.narrate_talk(seat, &format!(
+                    "A piece of {} - {} of {} heard. Worth remembering.",
+                    def.title, got, def.facts.len()
+                ));
+            }
+        }
         // and if they were the one the job was for, it's handed over now
         let quest_note = self.quest_talk_done(seat, v);
         let mut line = format!("{}: \"{}\"{}", did, said, coached);

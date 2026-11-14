@@ -1,13 +1,30 @@
-=== Talk: Probe (synthetic) vs you - Acquaintance ===
+=== Talk: Probe (synthetic) vs Voice - Acquaintance ===
   them: Probe works the fields for a day's wage. A cough's had them these two weeks.
-  you : you works the fields for a day's wage.
-  Probe: *cough* Fair morning, you. Mind the breeze between us.
+  you : Voice works the fields for a day's wage.
+  Probe: *cough* Fair morning, Voice. Mind the breeze between us.
     1) [Agree] A rough fever, by the look of thee.
     2) [PushBack] Keep thy distance, neighbor. I have no wish to catch it.
-  you: A rough fever, by the look of thee.
+  Voice: A rough fever, by the look of thee.
   Probe: I'd rest in the straw if the chores would do themselves.
-    1) [Farewell] God's peace be upon thy cottage, Probe.
-    2) [Agree] A poor man's bed is a luxury he can rarely afford.
-  you: God's peace be upon thy cottage, Probe.
-  -- Farewell (trees: ["the_sickness"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Acquaintance --picks 0,0
+    1) [Agree] A poor man's bed is a luxury he can rarely afford.
+  Voice: A poor man's bed is a luxury he can rarely afford.
+  Probe: Cold wind off the moor this morning.
+    1) [Agree] The thatch won't thank it if it pours.
+  Voice: The thatch won't thank it if it pours.
+  Probe: Aye, the year will turn and bring what it brings.
+    1) [Agree] True words; worry never baked a single loaf.
+  Voice: True words; worry never baked a single loaf.
+  Probe: They say the miller took an extra scoop of meal again.
+    1) [Remark] Aye? And what else did folk see?
+    2) [PushBack] I'll not repeat marketplace whispers.
+  Voice: Aye? And what else did folk see?
+  Probe: The herb-wife was seen out past the abbey wall at dusk.
+    1) [Agree] Every tongue in the parish wags before sunset.
+    2) [PushBack] That is not the way the elders told it.
+  Voice: Every tongue in the parish wags before sunset.
+  Probe: As thou sayest, friend.
+    1) [Farewell] Fare thee well until the morrow.
+    2) [Farewell] I take my leave.
+  Voice: Fare thee well until the morrow.
+  -- Farewell (trees: ["the_sickness", "village_smalltalk"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Acquaintance --picks 0,0,0,0,0,0,0

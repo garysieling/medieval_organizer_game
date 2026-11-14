@@ -1,16 +1,26 @@
 === Talk: Roderick (villager 22, game seed 13) ===
   (walking over…)
-  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. Lately: parish_faction.)
-  (A day's work hardly buys a day's bread.)
   Roderick: Fair morning to thee, wanderer.
-  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. Lately: parish_faction.)
+  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
   Roderick: A day's work hardly buys a day's bread.   [gist]
     1) Good day to thee.
     2) I am here, as thou seest.
     l) take your leave
   you: Good day to thee.
   Roderick: Cold wind off the moor this morning.
-    1) Fair day to thee, Roderick.
-    2) The thatch won't thank it if it pours.
+    1) The thatch won't thank it if it pours.
     l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0 (talk seed 1325400078)
+  you: The thatch won't thank it if it pours.
+  Roderick: Aye, the year will turn and bring what it brings.
+    1) So long as the well stays sweet, we'll thrive.
+    l) take your leave
+  you: So long as the well stays sweet, we'll thrive.
+  Roderick: They say the miller took an extra scoop of meal again.
+    1) Aye? And what else did folk see?
+    l) take your leave
+  you: Aye? And what else did folk see?
+  Roderick: The herb-wife was seen out past the abbey wall at dusk.
+    1) Tavern tales grow taller with each ale drawn.
+    2) That is not the way the elders told it.
+    l) take your leave
+REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0,0,0,0 (talk seed 1325400078)

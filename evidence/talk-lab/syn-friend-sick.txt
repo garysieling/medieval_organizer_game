@@ -1,13 +1,18 @@
-=== Talk: Probe (synthetic) vs you - Friend ===
+=== Talk: Probe (synthetic) vs Voice - Friend ===
   them: Probe works the fields for a day's wage. A cough's had them these two weeks.
-  you : you works the fields for a day's wage.
-  Probe: *cough* Ah, you - forgive the croak. Stand off, mind; I'd not share this with a friend.
+  you : Voice works the fields for a day's wage.
+  Probe: *cough* Ah, Voice - forgive the croak. Stand off, mind; I'd not share this with a friend.
     1) [Agree] Poor soul. Tell me what thy house needs and it's done.
     2) [PushBack] Keep thy distance, neighbor. I have no wish to catch it.
-  you: Poor soul. Tell me what thy house needs and it's done.
-  Probe: I'd rest, you, but the chores won't do themselves - though I know thou'dst lend a hand.
-    1) [Farewell] Rest well, Probe - I'll look in on thee at dusk.
-    2) [Agree] Aye, and I'd carry half thy load if thou'dst let me.
-  you: Rest well, Probe - I'll look in on thee at dusk.
-  -- Farewell (trees: ["the_sickness"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Friend --picks 0,0
+  Voice: Poor soul. Tell me what thy house needs and it's done.
+  Probe: I'd rest, Voice, but the chores won't do themselves - though I know thou'dst lend a hand.
+    1) [Agree] Aye, and I'd carry half thy load if thou'dst let me.
+  Voice: Aye, and I'd carry half thy load if thou'dst let me.
+  Probe: Can I count on thy team when we haul the heavy timber?
+    1) [Answer] My oxen are thine whenever thou needest them, friend.
+  Voice: My oxen are thine whenever thou needest them, friend.
+  Probe: We have shared crusts and sweat for twenty years now.
+    1) [Farewell] God's peace be upon thy cottage, Probe.
+  Voice: God's peace be upon thy cottage, Probe.
+  -- Farewell (trees: ["the_sickness", "friendship_bonds"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Friend --picks 0,0,0,0

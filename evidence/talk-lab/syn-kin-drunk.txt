@@ -1,16 +1,15 @@
-=== Talk: Probe (synthetic) vs you - Kin ===
+=== Talk: Probe (synthetic) vs Voice - Kin ===
   them: Probe works the fields for a day's wage. Last night's cup is still on them.
-  you : you works the fields for a day's wage.
-  Probe: Oof - morrow, you. Don't tell our mother the state of me.
+  you : Voice works the fields for a day's wage.
+  Probe: Oof - morrow, Voice. Don't tell our mother the state of me.
     1) [Answer] Mother warned the whole house about that ale.
-    2) [Farewell] May the road be kind under thy boots.
-  you: Mother warned the whole house about that ale.
+  Voice: Mother warned the whole house about that ale.
   Probe: Did I truly challenge the smith to a wrestling match at midnight?
     1) [PushBack] That is not the way the elders told it.
     2) [Agree] It was a merry night, though the morning pays the reckoning.
-  you: That is not the way the elders told it.
+  Voice: That is not the way the elders told it.
   Probe: The plough handles won't hold themselves, headache or no.
     1) [Farewell] May the sun be gentle on thy poor eyes today.
-  you: May the sun be gentle on thy poor eyes today.
+  Voice: May the sun be gentle on thy poor eyes today.
   -- Farewell (trees: ["morning_after_drunk"])
 REPRO: talk_lab talk --name Probe --status drunk --seed 11 --rel Kin --picks 0,0,0

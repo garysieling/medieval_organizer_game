@@ -1,13 +1,15 @@
-=== Talk: Probe (synthetic) vs you - Stranger ===
+=== Talk: Probe (synthetic) vs Voice - Stranger ===
   them: Probe works the fields for a day's wage. Eighty winters of village memories are in their bones.
-  you : you works the fields for a day's wage.
+  you : Voice works the fields for a day's wage.
   Probe: Peace be upon thy journey, traveler. Who art thou?
     1) [Greet] Well met. I am but a traveler seeking the ford across the water.
     2) [PushBack] Nay, I see it differently, mark me.
-  you: Well met. I am but a traveler seeking the ford across the water.
+  Voice: Well met. I am but a traveler seeking the ford across the water.
   Probe: Where does this trail lead past the ridge, traveler?
-    1) [Farewell] I must be on my way, Probe. Fare well.
-    2) [Answer] It leads down to the cathedral town and the salt wharves.
-  you: I must be on my way, Probe. Fare well.
+    1) [Answer] It leads down to the cathedral town and the salt wharves.
+  Voice: It leads down to the cathedral town and the salt wharves.
+  Probe: The alehouse by the bridge offers straw beds if thou hast coin.
+    1) [Farewell] The highway calls; farewell.
+  Voice: The highway calls; farewell.
   -- Farewell (trees: ["stranger_road"])
-REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Stranger --picks 0,0
+REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Stranger --picks 0,0,0

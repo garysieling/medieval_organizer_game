@@ -1,9 +1,7 @@
 === Talk: Corvin (villager 3, game seed 7) ===
   (walking over…)
-  (Corvin holds the manor's leases. They'd sooner watch the clouds than the plough. Lately: parish_faction.)
-  (A day's work hardly buys a day's bread.)
   Corvin: Fair morning to thee, wanderer.
-  (Corvin holds the manor's leases. They'd sooner watch the clouds than the plough. Lately: parish_faction.)
+  (Corvin holds the manor's leases. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
   Corvin: A day's work hardly buys a day's bread.   [gist]
     1) Morrow.
     2) Good day to thee.
@@ -16,16 +14,10 @@
   you: Aye, and the mud will take thy boots right off.
   Corvin: A steady hand and a patient mule see it through.
     1) True words; worry never baked a single loaf.
-    2) I'll not keep thee standing in the wind. Go well.
     l) take your leave
   you: True words; worry never baked a single loaf.
   Corvin: The peddler's cart lost a wheel at the bridge.
     1) I'll not repeat marketplace whispers.
     2) I knew that bridge would give way sooner or later.
     l) take your leave
-  you: I'll not repeat marketplace whispers.
-  Corvin: We have spoken our piece for today.
-    1) I must walk on; fair day.
-    2) Fare thee well until the morrow.
-    l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 3 --picks 0,0,0,0,0 (talk seed 956301334)
+REPRO: talk_lab talk --seed 7 --villager 3 --picks 0,0,0,0 (talk seed 956301334)

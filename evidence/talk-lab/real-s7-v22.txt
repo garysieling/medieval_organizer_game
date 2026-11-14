@@ -1,12 +1,9 @@
 === Talk: Roderick (villager 22, game seed 7) ===
   (walking over…)
-  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. Lately: parish_faction.)
-  (A day's work hardly buys a day's bread.)
   Roderick: Fair morning to thee, wanderer.
-  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. Lately: parish_faction.)
+  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
   Roderick: A day's work hardly buys a day's bread.   [gist]
     1) Good day to thee.
-    2) I have no leisure to stand about, Roderick.
     l) take your leave
   you: Good day to thee.
   Roderick: Gray clouds gathering over the western hill.
@@ -15,7 +12,11 @@
     l) take your leave
   you: And how fares thy folk in this cold snap?
   Roderick: The little ones keep me running from dawn to dusk.
-    1) God's peace be upon thy cottage, Roderick.
-    2) Good to hear it - long may health stay under thy roof.
+    1) Good to hear it - long may health stay under thy roof.
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 22 --picks 0,0,0 (talk seed 1275068437)
+  you: Good to hear it - long may health stay under thy roof.
+  Roderick: We must thatch the hayrick before the clouds burst.
+    1) That is not the way the elders told it.
+    2) I'll lend a pitchfork if thou hast timber to spare.
+    l) take your leave
+REPRO: talk_lab talk --seed 7 --villager 22 --picks 0,0,0,0 (talk seed 1275068437)

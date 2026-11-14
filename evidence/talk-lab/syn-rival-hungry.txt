@@ -1,17 +1,17 @@
-=== Talk: Probe (synthetic) vs you - Rival ===
+=== Talk: Probe (synthetic) vs Voice - Rival ===
   them: Probe works the fields for a day's wage. The store ran out and the belly knows it.
-  you : you works the fields for a day's wage.
-  Probe: you. Still walking upright, I see.
+  you : Voice works the fields for a day's wage.
+  Probe: Voice. Still walking upright, I see.
     1) [Greet] Save thy bile for someone who fears it.
     2) [PushBack] I have nothing to say to thee, scoundrel.
-  you: Save thy bile for someone who fears it.
+  Voice: Save thy bile for someone who fears it.
   Probe: Heard about thy boundary fence. Shoddy timber, that.
     1) [PushBack] Say that again, if thou darest.
     2) [PushBack] We paid that debt at Michaelmas, as the reeve well knows.
-  you: Say that again, if thou darest.
+  Voice: Say that again, if thou darest.
   Probe: Come closer and say that to my beard.
     1) [PushBack] Keep thy fists to thyself before I break them.
     2) [Remark] This quarrel's older than thy fence, and twice as rotten.
-  you: Keep thy fists to thyself before I break them.
+  Voice: Keep thy fists to thyself before I break them.
   -- WalksOff (trees: ["old_scores"])
 REPRO: talk_lab talk --name Probe --status hungry --seed 11 --rel Rival --picks 0,0,0

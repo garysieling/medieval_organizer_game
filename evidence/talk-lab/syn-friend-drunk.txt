@@ -1,16 +1,15 @@
-=== Talk: Probe (synthetic) vs you - Friend ===
+=== Talk: Probe (synthetic) vs Voice - Friend ===
   them: Probe works the fields for a day's wage. Last night's cup is still on them.
-  you : you works the fields for a day's wage.
-  Probe: Oof - morrow, you. Don't laugh; my head's an anvil today.
+  you : Voice works the fields for a day's wage.
+  Probe: Oof - morrow, Voice. Don't laugh; my head's an anvil today.
     1) [Answer] Thou lookest like death's cousin - and I should know, I feel the same.
-    2) [Farewell] Sleep it off, Probe - I'll cover for thee at the work.
-  you: Thou lookest like death's cousin - and I should know, I feel the same.
+  Voice: Thou lookest like death's cousin - and I should know, I feel the same.
   Probe: Did I truly challenge the smith to a wrestling match at midnight?
     1) [PushBack] That is not the way the elders told it.
     2) [Agree] It was a merry night, though the morning pays the reckoning.
-  you: That is not the way the elders told it.
+  Voice: That is not the way the elders told it.
   Probe: The plough handles won't hold themselves, headache or no.
     1) [Farewell] May the sun be gentle on thy poor eyes today.
-  you: May the sun be gentle on thy poor eyes today.
+  Voice: May the sun be gentle on thy poor eyes today.
   -- Farewell (trees: ["morning_after_drunk"])
 REPRO: talk_lab talk --name Probe --status drunk --seed 11 --rel Friend --picks 0,0,0

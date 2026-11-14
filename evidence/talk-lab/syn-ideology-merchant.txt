@@ -1,9 +1,22 @@
-=== Talk: Voice (synthetic) vs you - Acquaintance ===
+=== Talk: Voice (synthetic) vs Voice - Acquaintance ===
   them: Voice trades on the road between villages. They bow to no one.
-  you : you works the fields for a day's wage.
-  Voice: Fair morning to thee, you.
-    1) [Farewell] Work is waiting at the barn, Voice.
-    2) [Greet] And to thee.
-  you: Work is waiting at the barn, Voice.
+  you : Voice works the fields for a day's wage.
+  Voice: Fair morning to thee, Voice.
+    1) [Greet] And to thee.
+  Voice: And to thee.
+  Voice: The morning dew was heavy on the clover.
+    1) [Agree] Aye, and the mud will take thy boots right off.
+  Voice: Aye, and the mud will take thy boots right off.
+  Voice: A steady hand and a patient mule see it through.
+    1) [Agree] True words; worry never baked a single loaf.
+  Voice: True words; worry never baked a single loaf.
+  Voice: Didst thou hear who was seen down by the mill?
+    1) [PushBack] That is not the way the elders told it.
+    2) [Remark] Tell on, neighbor - my ears are open.
+  Voice: That is not the way the elders told it.
+  Voice: Aye, words won't fill the storehouse.
+    1) [Farewell] Enough chatter. Good day.
+    2) [Farewell] Fair day to thee, Voice.
+  Voice: Enough chatter. Good day.
   -- Farewell (trees: ["village_smalltalk"])
-REPRO: talk_lab talk --name Voice --ideology merchant --trait proud --seed 23 --rel Acquaintance --picks 0
+REPRO: talk_lab talk --name Voice --ideology merchant --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0

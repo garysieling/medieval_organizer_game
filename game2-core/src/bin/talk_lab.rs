@@ -62,6 +62,7 @@ struct Args {
     feedback: bool,
     out: Option<String>,
     folk: usize,
+    warm: bool,
 }
 
 fn parse_args() -> Args {
@@ -69,7 +70,7 @@ fn parse_args() -> Args {
         mode: "help".into(), seed: MAP_SEED, villager: None, name: None,
         ideology: None, rel: None, traits: vec![], statuses: vec![],
         stage: None, days: 0, n: 10, picks: VecDeque::new(), auto: false,
-        feedback: true, out: None, folk: 4,
+        feedback: true, out: None, folk: 4, warm: false,
     };
     let argv: Vec<String> = std::env::args().collect();
     let mut i = 1;
@@ -99,6 +100,7 @@ fn parse_args() -> Args {
                 }
             }
             "--auto" => a.auto = true,
+            "--warm" => a.warm = true,
             "--help" | "-h" => { /* falls through to usage */ }
             "--feedback" => a.feedback = take(&mut i) != "off",
             "--no-feedback" => a.feedback = false,
@@ -210,6 +212,14 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
     };
     if vi == usize::MAX { return; }
     let who = g.villagers[vi];
+    // --warm: the lab's heard their self-interest already (Known.revealed
+    // non-empty), which is what puts organizing asks on the talk (#1191)
+    if a.warm {
+        let org = g.seats[0].org;
+        for r in game2_core::game::desires::unrevealed(&g.world, who, g.tick) {
+            game2_core::game::desires::hear(&mut g.world, org, who, r, g.tick);
+        }
+    }
     let vname = m0.people.iter().find(|p| p.e == who)
         .and_then(|p| p.label.clone()).unwrap_or_else(|| format!("villager {vi}"));
     out.emit(&format!("=== Talk: {vname} (villager {vi}, game seed {}) ===", a.seed));
@@ -218,7 +228,6 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
     g.command(Command::Act(0)); // Talk
 
     let mut seen = 0usize;       // convo rows already printed
-    let mut said_profile = false;
     let mut opened = false;      // the Talk's been on the box
     let mut walking_said = false;
     let mut talk_seed = 0u64;
@@ -229,12 +238,9 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
         if frames > 30_000 { out.emit("(gave up waiting)"); break; }
         if let Some(t) = &g.seats[0].talk {
             opened = true;
-            if !said_profile {
-                talk_seed = t.seed;
-                if !t.profile.is_empty() { out.emit(&format!("  ({})", t.profile)); }
-                if !t.gist.is_empty() { out.emit(&format!("  ({})", t.gist)); }
-                said_profile = true;
-            }
+            // the profile and gist come through the convo rows already
+            // (gist_lines); printing t.profile here doubles them (#1191)
+            if talk_seed == 0 { talk_seed = t.seed; }
         }
         let m = g.ui_model();
         let waiting = match &m.convo {
@@ -353,7 +359,9 @@ fn synthetic_pair(a: &Args) -> (Speaker, Speaker) {
     them.traits = a.traits.clone();
     them.ideology = a.ideology.as_deref().unwrap_or("laborer").to_string().leak();
     for s in &a.statuses { let st: &'static str = s.clone().leak(); them.status.push(st); }
-    let you = Speaker::new("you");
+    // "Voice" is what the game calls the player - keeps greetings like
+    // "Morrow, Voice." reading the way they do in the UI (#1190)
+    let you = Speaker::new("Voice");
     (them, you)
 }
 
@@ -385,7 +393,9 @@ fn run_meeting_mode(a: &Args, out: &mut Out) {
     for (i, st) in statements.iter().enumerate() {
         let who = if st.speaker == usize::MAX { organizer.name.as_str() } else { attendees[st.speaker].name.as_str() };
         let replying = st.replying_to.map(|t| format!(" (re #{t})")).unwrap_or_default();
-        out.emit(&format!("  #{i} {who} [{:?}]{replying}: {}", st.act, st.text));
+        // the statement text can already carry a "Name: " lead - don't say it twice
+        let text = st.text.strip_prefix(&format!("{who}: ")).map(|s| s.to_string()).unwrap_or_else(|| st.text.clone());
+        out.emit(&format!("  #{i} {who} [{:?}]{replying}: {text}", st.act));
     }
     out.emit(&format!("REPRO: talk_lab meeting --seed {} --folk {} --name {}",
         a.seed, a.folk, organizer.name));
@@ -617,7 +627,8 @@ fn usage() {
   batch     N auto-picked synthetic talks: -n N --seed S --out FILE
   replay    any mode + --picks a,b,c replays the run those picks came from
   smoke     scripted non-interactive run - the test hook
-flags: --picks a,b,c | --auto | --feedback off | --out FILE | --folk N".to_string());
+flags: --picks a,b,c | --auto | --warm | --feedback off | --out FILE | --folk N
+          --warm: seed the villager's Known.revealed first, so organizing asks show".to_string());
 }
 
 fn main() {

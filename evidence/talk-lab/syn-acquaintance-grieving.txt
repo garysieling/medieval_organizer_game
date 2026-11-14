@@ -1,13 +1,15 @@
-=== Talk: Probe (synthetic) vs you - Acquaintance ===
-  them: Probe works the fields for a day's wage. They buried their husband last week.
-  you : you works the fields for a day's wage.
-  Probe: Morrow, you. The bell tolled for my house this week.
-    1) [Agree] The saints receive him kindly.
+=== Talk: Probe (synthetic) vs Voice - Acquaintance ===
+  them: Probe works the fields for a day's wage. They buried one of their own last week.
+  you : Voice works the fields for a day's wage.
+  Probe: Morrow, Voice. The bell tolled for my house this week.
+    1) [Agree] The saints receive them kindly.
     2) [Question] Is there any chore I can take off thy shoulders?
-  you: The saints receive him kindly.
+  Voice: The saints receive them kindly.
   Probe: I keep setting his wooden spoon at table.
-    1) [Farewell] God's peace be upon thy cottage, Probe.
-    2) [Agree] Their toil shaped this parish; their memory will outlive us.
-  you: God's peace be upon thy cottage, Probe.
+    1) [Agree] Their toil shaped this parish; their memory will outlive us.
+  Voice: Their toil shaped this parish; their memory will outlive us.
+  Probe: It does a body good to speak their name aloud.
+    1) [Farewell] May holy angels watch over thy sleep tonight.
+  Voice: May holy angels watch over thy sleep tonight.
   -- Farewell (trees: ["a_death_in_the_house"])
-REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Acquaintance --picks 0,0
+REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Acquaintance --picks 0,0,0

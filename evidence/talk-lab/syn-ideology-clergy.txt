@@ -1,13 +1,25 @@
-=== Talk: Voice (synthetic) vs you - Acquaintance ===
+=== Talk: Voice (synthetic) vs Voice - Acquaintance ===
   them: Voice serves the village church. They bow to no one.
-  you : you works the fields for a day's wage.
+  you : Voice works the fields for a day's wage.
   Voice: The peace of the saints be with thee, child.
     1) [Remark] Morrow, father.
     2) [Greet] Blessings on thy holy house as well.
-  you: Morrow, father.
+  Voice: Morrow, father.
   Voice: The church altar is always open to the weary soul.
-    1) [Farewell] I will see thee at the Sunday bell, father.
-    2) [Agree] I try to walk uprightly before God and my neighbors.
-  you: I will see thee at the Sunday bell, father.
-  -- Farewell (trees: ["the_cleric_blesses"])
-REPRO: talk_lab talk --name Voice --ideology clergy --trait proud --seed 23 --rel Acquaintance --picks 0,0
+    1) [Agree] I try to walk uprightly before God and my neighbors.
+  Voice: I try to walk uprightly before God and my neighbors.
+  Voice: Gray clouds gathering over the western hill.
+    1) [Agree] Aye, and the mud will take thy boots right off.
+  Voice: Aye, and the mud will take thy boots right off.
+  Voice: Even so, we will manage as we always do.
+    1) [Agree] True words; worry never baked a single loaf.
+  Voice: True words; worry never baked a single loaf.
+  Voice: The peddler's cart lost a wheel at the bridge.
+    1) [PushBack] Idle tongues, that. It breeds mischief.
+  Voice: Idle tongues, that. It breeds mischief.
+  Voice: True enough - the fields don't gossip.
+    1) [Farewell] Go well, Voice, and mind the mud.
+    2) [Farewell] My day is waiting.
+  Voice: Go well, Voice, and mind the mud.
+  -- Farewell (trees: ["the_cleric_blesses", "village_smalltalk"])
+REPRO: talk_lab talk --name Voice --ideology clergy --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0,0

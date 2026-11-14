@@ -1,13 +1,18 @@
-=== Talk: Probe (synthetic) vs you - Kin ===
+=== Talk: Probe (synthetic) vs Voice - Kin ===
   them: Probe works the fields for a day's wage. A cough's had them these two weeks.
-  you : you works the fields for a day's wage.
-  Probe: *cough* Morrow, you. Tell our mother I still stand upright.
+  you : Voice works the fields for a day's wage.
+  Probe: *cough* Morrow, Voice. Tell our mother I still stand upright.
     1) [Agree] Back to bed, Probe. I'll fetch the broth myself.
     2) [PushBack] Keep thy distance, neighbor. I have no wish to catch it.
-  you: Back to bed, Probe. I'll fetch the broth myself.
+  Voice: Back to bed, Probe. I'll fetch the broth myself.
   Probe: The calves won't feed themselves - though our kin have offered, bless them.
+    1) [Agree] Aye, but our house will see thee through it.
+  Voice: Aye, but our house will see thee through it.
+  Probe: Has our cousin returned with the pack horse from the fair?
+    1) [Answer] Aye, he brought home two bags of salt and a fine sickle.
+  Voice: Aye, he brought home two bags of salt and a fine sickle.
+  Probe: Whatever befalls the village, our clan stands shoulder to shoulder.
     1) [Farewell] God's peace be upon thy cottage, Probe.
-    2) [Agree] Aye, but our house will see thee through it.
-  you: God's peace be upon thy cottage, Probe.
-  -- Farewell (trees: ["the_sickness"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Kin --picks 0,0
+  Voice: God's peace be upon thy cottage, Probe.
+  -- Farewell (trees: ["the_sickness", "kin_warmth"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Kin --picks 0,0,0,0

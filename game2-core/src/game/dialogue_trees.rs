@@ -552,7 +552,7 @@ const VISIT_GREET: Exchange = Exchange {
 const GRIEF_CLOSE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:grief"],
-    calls: &["Thank thee for listening, {other} - it lightens the heart.", "It does a body good to speak his name aloud.", "The house feels less empty when a neighbor sits a spell.", "The sorrow will ease as the seasons turn and heal."], voice: &[],
+    calls: &["Thank thee for listening, {other} - it lightens the heart.", "It does a body good to speak their name aloud.", "The house feels less empty when a neighbor sits a spell.", "The sorrow will ease as the seasons turn and heal."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -613,8 +613,8 @@ const GRIEF_GREET: Exchange = Exchange {
     concepts: &["greeting", "concern:grief"],
     calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "A peaceful day to thee, {other}."],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["{other}. Forgive me - the house is still since he passed, and thy face is a kindness.", "Well met, dear friend. The days feel longer now."] },
-        Voice { for_rels: &[Kin], lines: &["{other}. Blood knows blood - the house is empty without him.", "Morrow, {other}. Our family's table has an empty bench."] },
+        Voice { for_rels: &[Friend], lines: &["{other}. Forgive me - the house is still since they passed, and thy face is a kindness.", "Well met, dear friend. The days feel longer now."] },
+        Voice { for_rels: &[Kin], lines: &["{other}. Blood knows blood - the house is empty without them.", "Morrow, {other}. Our family's table has an empty bench."] },
         Voice { for_rels: &[Stranger], lines: &["Morrow, stranger. Forgive a grieving house its silence.", "A heavy morning - we've buried one of ours."] },
         Voice { for_rels: &[Acquaintance], lines: &["Morrow, {other}. The bell tolled for my house this week.", "A gray day, {other}. The hearth is dark."] },
         Voice { for_rels: &[Rival], lines: &["{other}. Even thou'll know the house has gone quiet.", "Morrow, {other}. Death levels more than our quarrel."] },
@@ -623,13 +623,13 @@ const GRIEF_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.40, bias: &[(Kind, 2.0), (Pious, 1.5)],
             act: Act::Agree, concepts: &["concern:grief"],
-            lines: &["He was an honest soul. The whole village mourns him.", "The saints receive her spirit in eternal peace.", "My heart aches for thee, neighbor.", "Aye, there is truth in what thou sayest.", "Thou hast spoken the plain heart of the matter."],
+            lines: &["They were an honest soul. The whole village mourns them.", "The saints receive their spirit in eternal peace.", "My heart aches for thee, neighbor.", "Aye, there is truth in what thou sayest.", "Thou hast spoken the plain heart of the matter."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["He was the best of us, {other} - I'll miss him beside thee.", "My heart breaks with thine, {other}. Always."] },
-                Voice { for_rels: &[Kin], lines: &["Our blood mourns together, {other}. The saints keep him.", "He was ours - and we carry him now."] },
-                Voice { for_rels: &[Stranger], lines: &["I did not know him, stranger, but I grieve thy grief.", "A loss is a loss - the saints keep his soul."] },
-                Voice { for_rels: &[Acquaintance], lines: &["An honest soul gone. The village mourns with thee.", "The saints receive him kindly."] },
-                Voice { for_rels: &[Rival], lines: &["He and I had our quarrels, {other} - but the grave settles them.", "I'll not pretend tears, {other} - but I'll not mock the dead."] },
+                Voice { for_rels: &[Friend], lines: &["They were the best of us, {other} - I'll miss them beside thee.", "My heart breaks with thine, {other}. Always."] },
+                Voice { for_rels: &[Kin], lines: &["Our blood mourns together, {other}. The saints keep them.", "They were ours - and we carry them now."] },
+                Voice { for_rels: &[Stranger], lines: &["I did not know them, stranger, but I grieve thy grief.", "A loss is a loss - the saints keep their soul."] },
+                Voice { for_rels: &[Acquaintance], lines: &["An honest soul gone. The village mourns with thee.", "The saints receive them kindly."] },
+                Voice { for_rels: &[Rival], lines: &["We'd our quarrels, {other} - but the grave settles them.", "I'll not pretend tears, {other} - but I'll not mock the dead."] },
             ],
             then: Some(GRIEF_OPENS), end: None,
         },
@@ -786,7 +786,7 @@ const CLERIC_GREET: Exchange = Exchange {
         Reply {
             criteria: &[Has("self:status:grieving")], weight: 1.00, bias: &[],
             act: Act::Question, concepts: &["concern:faith", "concern:grief"],
-            lines: &["Pray for him, father - he was taken so sudden.", "A blessing for my sorrowing cottage, father.", "Father, where do the dead wait for us?"],
+            lines: &["Pray for them, father - they were taken so sudden.", "A blessing for my sorrowing cottage, father.", "Father, where do the dead wait for us?"],
             voice: &[],
             then: Some(CLERIC_PRAYER), end: None,
         },
@@ -3028,7 +3028,7 @@ pub fn backstory(s: &Speaker) -> String {
         parts.push(match *st {
             "sick" => "A cough's had them these two weeks.".into(),
             "hungry" => "The store ran out and the belly knows it.".into(),
-            "grieving" => "They buried their husband last week.".into(),
+            "grieving" => "They buried one of their own last week.".into(),
             "drunk" => "Last night's cup is still on them.".into(),
             "cold" => "Their hearth went out and fuel is spent.".into(),
             "elder" => "Eighty winters of village memories are in their bones.".into(),
@@ -3056,7 +3056,19 @@ pub fn backstory(s: &Speaker) -> String {
             "herb_wife" => "They gather roots and brew fever draughts.".into(),
             "fisher" => "They set eel traps in the river current.".into(),
             "charcoal_burner" => "They watch the slow-burning earth mounds in the deep wood.".into(),
-            other => format!("Lately: {}.", other),
+            // the powers they run with (#969): the talk can name the pull,
+            // the profile says it in words, not tokens
+            "parish_faction" => "They keep close to the church folk.".into(),
+            "market_faction" => "They keep close to the market folk.".into(),
+            "guild_faction" => "They keep close to the guild's masters.".into(),
+            "kin_faction" => "Their kin's name opens doors here.".into(),
+            "seeker" => "They're forever turning the big questions over.".into(),
+            "mystic" => "They speak of God like a neighbor they've met.".into(),
+            "sage" => "Their faith seems to hold the whole wide world.".into(),
+            // a status the talk keys on that says nothing about who they
+            // are (bond stage, already-spoken, visitor plumbing) stays
+            // out of the prose
+            _ => continue,
         });
     }
     parts.join(" ")

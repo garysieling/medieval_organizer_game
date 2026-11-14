@@ -1,21 +1,25 @@
 === Talk: Dagny (villager 4, game seed 42) ===
   (walking over…)
-  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Lately: parish_faction.)
-  (A day's work hardly buys a day's bread.)
   Dagny: Fair morning to thee, wanderer.
-  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Lately: parish_faction.)
+  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
   Dagny: A day's work hardly buys a day's bread.   [gist]
     1) Good day to thee.
-    2) I have no time for idle talk today.
     l) take your leave
   you: Good day to thee.
   Dagny: The morning dew was heavy on the clover.
     1) The thatch won't thank it if it pours.
-    2) May the road be kind under thy boots.
     l) take your leave
   you: The thatch won't thank it if it pours.
   Dagny: Even so, we will manage as we always do.
-    1) God's peace be upon thy cottage, Dagny.
-    2) That it will - the store is not empty yet.
+    1) That it will - the store is not empty yet.
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0 (talk seed 922746905)
+  you: That it will - the store is not empty yet.
+  Dagny: The peddler's cart lost a wheel at the bridge.
+    1) Thou dost not say it! What happened then?
+    l) take your leave
+  you: Thou dost not say it! What happened then?
+  Dagny: They do say the reeve counts the sheep twice over.
+    1) Folk will invent dragons where there's only sheep.
+    2) Tavern tales grow taller with each ale drawn.
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0 (talk seed 922746905)

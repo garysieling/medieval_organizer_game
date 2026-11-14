@@ -229,11 +229,13 @@ pub struct Reply {
     pub end: Option<Ending>,
 }
 
-/// One register a beat can speak in: when the pair stands in one of
-/// `for_rels`, these variants say the line in that relation's voice.
+/// One register a beat can speak in: when the speaker's facts satisfy
+/// `criteria`, these variants say the line in that register's voice -
+/// a relation's warmth, a rank's address, whatever a fact can name.
 pub struct Voice {
-    /// The relations this register is for
-    pub for_rels: &'static [Relation],
+    /// Facts the *speaker's* facts must satisfy for this register
+    /// (`self:` is the one speaking; `pair:`/`other:` as in for_roles)
+    pub criteria: &'static [Criterion],
     /// Alternate phrasings in that register's voice
     pub lines: &'static [&'static str],
 }
@@ -305,11 +307,11 @@ const MAX_TURNS: usize = 24;
 /// Reply forks whose lines are all spent count as exhausted (Versu's
 /// exclusivity): a spent fork stops being offered, which is how a
 /// conversation runs out of material.
-fn eligible<'a>(replies: &'a [Reply], facts: &Facts, rel: Relation, used: &HashSet<&'static str>) -> Vec<&'a Reply> {
+fn eligible<'a>(replies: &'a [Reply], facts: &Facts, used: &HashSet<&'static str>) -> Vec<&'a Reply> {
     replies.iter()
         .filter(|r| r.criteria.iter().all(|c| c.holds(facts)))
         .filter(|r| r.lines.iter().chain(
-            r.voice.iter().filter(|v| v.for_rels.contains(&rel)).flat_map(|v| v.lines.iter())
+            r.voice.iter().filter(|v| v.criteria.iter().all(|c| c.holds(facts))).flat_map(|v| v.lines.iter())
         ).any(|l| !used.contains(*l)))
         .collect()
 }
@@ -331,12 +333,12 @@ fn fresh_line(lines: &[&'static str], other: &str, used: &HashSet<&'static str>,
     fresh.get(rng.below(fresh.len())).map(|&t| (t, t.replace("{other}", other)))
 }
 
-/// A variant in the pair's register: voice sets matching the relation are
-/// drawn from first, in authored order; the base lines take over once the
-/// register's material is spent
-fn fresh_voiced(lines: &[&'static str], voice: &[Voice], rel: Relation, other: &str, used: &HashSet<&'static str>, rng: &mut Rng) -> Option<(&'static str, String)> {
+/// A variant in the speaker's register: voice sets whose criteria the
+/// speaker's facts satisfy are drawn from first, in authored order; the
+/// base lines take over once the register's material is spent
+fn fresh_voiced(lines: &[&'static str], voice: &[Voice], facts: &Facts, other: &str, used: &HashSet<&'static str>, rng: &mut Rng) -> Option<(&'static str, String)> {
     for v in voice {
-        if v.for_rels.contains(&rel) {
+        if v.criteria.iter().all(|c| c.holds(facts)) {
             if let Some(f) = fresh_line(v.lines, other, used, rng) { return Some(f); }
         }
     }
@@ -424,8 +426,10 @@ pub fn converse_with(
 
     for _ in 0..MAX_TURNS {
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
-        // The floor-holder opens the beat
-        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, rel, &pair[responder].name, &used, rng) else {
+        // The floor-holder opens the beat, in the register their own
+        // facts put them in (a lord's condescension, a rival's chill)
+        let call_facts = Facts::for_roles(pair[caller], pair[responder], rel);
+        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, &pair[responder].name, &used, rng) else {
             // Nothing fresh to call with: fall through to the next rejoinable tree,
             // or dry up entirely at the generic tail
             match advance_to_rejoin(&mut trees) {
@@ -440,7 +444,7 @@ pub fn converse_with(
 
         // The other side picks a fork
         let facts = Facts::for_roles(pair[responder], pair[caller], rel);
-        let pool = eligible(ex.replies, &facts, rel, &used);
+        let pool = eligible(ex.replies, &facts, &used);
         if pool.is_empty() {
             // Nothing left to say back: the floor-holder shifts to a more
             // generic tree if there is one, else the talk dries up
@@ -469,7 +473,7 @@ pub fn converse_with(
             let mut rolled: Vec<(&'static str, Choice)> = vec![];
             for &i in &sampled {
                 let r = pool[i];
-                let (t, preview) = fresh_voiced(r.lines, r.voice, rel, &pair[caller].name, &used, rng)
+                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[caller].name, &used, rng)
                     .map(|(t, s)| (t, s))
                     .unwrap_or((r.lines[0], r.lines[0].to_string()));
                 rolled.push((t, Choice { act: r.act, preview }));
@@ -489,7 +493,7 @@ pub fn converse_with(
             }
         } else {
             let i = rng.weighted(&weights);
-            match fresh_voiced(pool[i].lines, pool[i].voice, rel, &pair[caller].name, &used, rng) {
+            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, &pair[caller].name, &used, rng) {
                 Some((t, _)) => (i, t),
                 None => { tr.ending = Some(Ending::Exhausted); break; }
             }
@@ -1247,22 +1251,72 @@ mod tests {
 
     #[test]
     fn test_voice_spent_falls_back_to_base_lines() {
-        let voice = [Voice { for_rels: &[Relation::Rival], lines: &["Cold line"] }];
+        let voice = [Voice { criteria: &[Criterion::Has("pair:relation:rival")], lines: &["Cold line"] }];
         let mut rng = Rng::new(0);
         let empty: HashSet<&'static str> = HashSet::default();
+        let a = Speaker::new("A");
+        let b = Speaker::new("B");
 
         // Fresh voice wins over fresh base
-        let (t, _) = fresh_voiced(&["Base line"], &voice, Relation::Rival, "B", &empty, &mut rng).unwrap();
+        let rival = Facts::for_roles(&a, &b, Relation::Rival);
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, "B", &empty, &mut rng).unwrap();
         assert_eq!(t, "Cold line");
 
         // Spent voice hands the floor back to the base lines
         let mut used: HashSet<&'static str> = HashSet::default();
         used.insert("Cold line");
-        let (t, _) = fresh_voiced(&["Base line"], &voice, Relation::Rival, "B", &used, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, "B", &used, &mut rng).unwrap();
         assert_eq!(t, "Base line");
 
-        // A voice for another relation never speaks
-        let (t, _) = fresh_voiced(&["Base line"], &voice, Relation::Friend, "B", &empty, &mut rng).unwrap();
+        // A voice for another register never speaks
+        let friend = Facts::for_roles(&a, &b, Relation::Friend);
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &friend, "B", &empty, &mut rng).unwrap();
         assert_eq!(t, "Base line");
+    }
+
+    #[test]
+    fn test_rank_colors_the_same_talk() {
+        let library = village_library();
+        let mut lord = Speaker::new("Sir Aldric");
+        lord.ideology = "lord";
+        let mut merchant = Speaker::new("Marta");
+        merchant.ideology = "merchant";
+        let laborer = Speaker::new("Corvin");
+
+        // The lord holds court where the laborer would smalltalk
+        for seed in 0..5 {
+            let mut ra = Rng::new(seed);
+            let tr = converse(&lord, &laborer, Relation::Acquaintance, &library, &mut ra);
+            assert_eq!(tr.trees_walked[0], "the_lords_levee");
+            assert!(tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("m'lord")),
+                "the tenant never deferred to rank: {:?}", tr.lines());
+        }
+        // The merchant keeps the ledger instead
+        let mut ra = Rng::new(0);
+        let tr = converse(&merchant, &laborer, Relation::Acquaintance, &library, &mut ra);
+        assert_eq!(tr.trees_walked[0], "the_merchants_ledger");
+        // And the way up still runs through the manor
+        let mut ra = Rng::new(0);
+        let tr = converse(&laborer, &lord, Relation::Acquaintance, &library, &mut ra);
+        assert_eq!(tr.trees_walked[0], "lord_manor");
+    }
+
+    #[test]
+    fn test_a_sick_lord_still_hears_his_title() {
+        let library = village_library();
+        let mut sick_lord = Speaker::new("Sir Aldric");
+        sick_lord.ideology = "lord";
+        sick_lord.status.push("sick");
+        let tenant = Speaker::new("Corvin");
+
+        // The sickness tree outranks the levee, but the tenant's replies
+        // still carry the manor's address
+        for seed in 0..10 {
+            let mut ra = Rng::new(seed);
+            let tr = converse(&sick_lord, &tenant, Relation::Acquaintance, &library, &mut ra);
+            assert_eq!(tr.trees_walked[0], "the_sickness");
+            assert!(tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("m'lord")),
+                "no deference in the tenant's replies: {:?}", tr.lines());
+        }
     }
 }

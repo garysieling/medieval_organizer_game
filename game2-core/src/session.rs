@@ -779,6 +779,8 @@ pub struct Pedlar {
     pub stall: Option<Entity>,
     /// The river tale's told once per visit
     pub rumor_sold: bool,
+    /// Sheets bought off the famed printer to carry down the road
+    pub famed_sheets: u32,
 }
 
 /// A pile raised for the lost: every stone a hand laid on it, and the
@@ -1419,6 +1421,9 @@ pub struct Game {
     pub numeracy: Numeracy,
     /// The clerk who keeps the tallies straight, when one's emerged
     pub translator: Option<Entity>,
+    /// The printmaker whose masterwork block made the run travellers
+    /// carry down the road - the name that walks ahead of the shop
+    pub famed_printer: Option<Entity>,
     /// Days of his books actually kept - a season of them and the
     /// village takes the count up itself; the held teach no days
     pub translator_days: u32,

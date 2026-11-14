@@ -440,6 +440,28 @@ impl Game {
                 name
             ),
         );
+        // the printer's masterwork is a block, and a block's whole worth
+        // is the run: the same codex pulled a dozen times over, sellable
+        // sheets the surest hands stock deepest - Dürer's economy, one
+        // carving sold a hundred times
+        if voc == Vocation::Printmaker {
+            let skill = self.world.get_component::<Craft>(maker).map(|c| c.skill).unwrap_or(0.7);
+            let run = 10 + (skill * 10.0).round() as u32;
+            let shop = self.world.get_component::<Craft>(maker).and_then(|c| c.workplace);
+            let stocked = shop
+                .and_then(|b| self.world.get_component_mut::<household::Building>(b))
+                .map(|b| household::add_stock(b, "prints", run)).unwrap_or(0);
+            if stocked > 0 {
+                self.famed_printer = Some(maker);
+                self.log.push_ev(
+                    EvTag::new(Thread::Craft, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: the block keeps giving - a run of {} sheets off the press.",
+                        tick, stocked
+                    ),
+                );
+            }
+        }
     }
 
     /// The painter's trade: a pot of paint becomes a bright hall -

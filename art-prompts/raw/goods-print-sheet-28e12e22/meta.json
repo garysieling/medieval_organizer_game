@@ -1,0 +1,27 @@
+{
+ "created_at": 1794687256,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "744ec299-a452-4e66-b773-24c845904313",
+ "outputs_retained_until": 1794773600,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 0.01
+ },
+ "id": "goods-print-sheet-28e12e22",
+ "prompt": "inventory item sheet: a small woodcut print, monochrome hatched engraving of a hare on aged paper, durer style",
+ "request": {
+  "prompt_style": "rd_pro__inventory_items",
+  "width": 256,
+  "height": 256,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-14T15:14:15",
+ "seconds": 56.2
+}

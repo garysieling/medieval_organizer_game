@@ -594,7 +594,7 @@ pub(crate) const PEOPLE_SPRITES: [&str; 36] = [
 /// Every generated UI icon the loader looks for (assets/rd/icons/<name>.png):
 /// the HUD and mark set (icon-), the log's named events (event-), and the
 /// goods sliced off the inventory sheet (good-)
-pub(crate) const ICON_SPRITES: [&str; 75] = [
+pub(crate) const ICON_SPRITES: [&str; 76] = [
     // status marks and HUD reads
     "icon-hungry", "icon-finding-food", "icon-busy", "icon-sick", "icon-dead",
     "icon-grieving", "icon-happy", "icon-cold", "icon-injured",
@@ -619,7 +619,7 @@ pub(crate) const ICON_SPRITES: [&str; 75] = [
     "good-wheat", "good-bread", "good-flour", "good-stone", "good-wood",
     "good-sand", "good-paper", "good-ink", "good-pamphlets", "good-pigment",
     "good-cloth", "good-glass", "good-garments", "good-tools", "good-lute",
-    "good-gold",
+    "good-gold", "good-prints",
 ];
 
 /// A villager sprite cropped to its standing frame (each sheet is a grid

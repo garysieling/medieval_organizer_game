@@ -17,6 +17,32 @@ fn test_a_maker_lays_down_a_masterwork() {
 }
 
 #[test]
+fn test_the_printers_masterwork_pulls_a_run() {
+    let mut g = Game::new();
+    // a print shop with a master at the press: any villager will do,
+    // the vocation and the sure hands are the fixture
+    let shop = household::spawn_building(&mut g.world,
+        BuildingKind::Shop(Vocation::Printmaker), "the print shop", 5.0, 5.0, 400);
+    let maker = g.villagers[0];
+    g.world.get_component_mut::<Craft>(maker).unwrap().vocation = Vocation::Printmaker;
+    g.world.get_component_mut::<Craft>(maker).unwrap().workplace = Some(shop);
+    g.world.get_component_mut::<Craft>(maker).unwrap().skill = 0.9;
+    // and no other hands in the village out-work him this round
+    for &v in g.villagers.clone().iter().skip(1) {
+        g.world.get_component_mut::<Craft>(v).map(|c| c.skill = c.skill.min(0.5));
+    }
+    g.heirloom_tick(60);
+    // the block is the heirloom - and the block's whole worth is the run:
+    // sellable sheets on the shop's shelf, and a name for the road
+    assert_eq!(g.famed_printer, Some(maker), "the run makes the name");
+    let sheets = g.world.get_component::<Building>(shop)
+        .map(|b| b.stock.get("prints").copied().unwrap_or(0)).unwrap_or(0);
+    assert!(sheets >= 10, "a run of sellable prints off the block: {}", sheets);
+    assert!(g.log.iter().any(|l| l.contains("the block keeps giving")),
+        "the run's logged: {:?}", g.log.last());
+}
+
+#[test]
 fn test_the_dead_pass_their_things_on() {
     let mut g = Game::new();
     let owner = g.villagers[0];

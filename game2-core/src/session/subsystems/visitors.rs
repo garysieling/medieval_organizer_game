@@ -169,6 +169,7 @@ impl Game {
             selling_until: None,
             stall: None,
             rumor_sold: false,
+            famed_sheets: 0,
         });
         self.log.push_ev_at_who(
             EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
@@ -233,6 +234,40 @@ impl Game {
                 ];
                 let rumour = RUMOURS[(self.tick / 60 % 4) as usize];
                 self.say(m.e, rumour, TALK_BUBBLE_SECS * 2);
+                // the famed printer's name walks the same road he does:
+                // he asks after the shop and takes a sheaf of the run
+                // back down it - the word and the sheets travel together
+                if let Some(maker) = self.famed_printer
+                    .filter(|&mk| !villager::is_dead(&self.world, mk)) {
+                    let shop = self.world.get_component::<Craft>(maker)
+                        .and_then(|c| c.workplace);
+                    let on_shelf = shop
+                        .and_then(|b| self.world.get_component::<household::Building>(b))
+                        .map(|b| b.stock.get("prints").copied().unwrap_or(0)).unwrap_or(0);
+                    if on_shelf > 0 {
+                        self.say(m.e,
+                            "Which way's the print shop? They're asking for the maker's sheets two towns over.",
+                            TALK_BUBBLE_SECS * 2);
+                        let sheaf = on_shelf.min(4);
+                        let shop = shop.unwrap();
+                        let taken = self.world.get_component_mut::<household::Building>(shop)
+                            .map(|b| household::take_stock(b, "prints", sheaf)).unwrap_or(0);
+                        let paid = crate::game::goods::worth_at(&self.world, "prints") * taken as f32;
+                        if let Some(p) = self.world.get_component_mut::<Purse>(maker) {
+                            p.gold += paid;
+                        }
+                        m.famed_sheets = taken;
+                        if taken > 0 {
+                            self.log.push_ev(
+                                EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                                format!(
+                                    "t{}: the pedlar asks after the print shop - a sheaf of the run goes in his pack.",
+                                    self.tick
+                                ),
+                            );
+                        }
+                    }
+                }
             } else {
                 Self::follow_path(p, &mut m.path, tr_spd);
             }
@@ -264,7 +299,14 @@ impl Game {
                     self.log_entity_ev(
                         EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
                         m.e,
-                        format!("t{}: the pedlar's moved on.", self.tick),
+                        if m.famed_sheets > 0 {
+                            let name = self.famed_printer.map(|mk| self.name_of(mk))
+                                .unwrap_or_else(|| "the printmaker".to_string());
+                            format!("t{}: the pedlar's moved on - {} sheets of {}'s run in his pack, and the name with them.",
+                                self.tick, m.famed_sheets, name)
+                        } else {
+                            format!("t{}: the pedlar's moved on.", self.tick)
+                        },
                     );
                     return;
                 }

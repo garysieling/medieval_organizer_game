@@ -1923,7 +1923,7 @@ impl Game {
         // the village's own answer - the thesis's own loop
         if self.lord_strength < 0.4 {
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-                o.capacity = (o.capacity + 0.01).min(1.0);
+                o.adjust(0.01);
             }
             if let Some(org) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
                 org.resources += 2.0;
@@ -1985,7 +1985,7 @@ impl Game {
             1 => { // the escalation's own build
                 self.arc_phase = 2;
                 if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-                    o.capacity = (o.capacity + 0.05).min(1.0);
+                    o.adjust(0.05);
                 }
                 self.log.push_ev(
                     EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
@@ -2031,7 +2031,7 @@ impl Game {
         if self.drought >= 60 {
             self.drought = 0;
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-                o.capacity = (o.capacity + 0.1).min(1.0);
+                o.adjust(0.1);
             }
             self.log.push_ev(
                 EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
@@ -2256,7 +2256,7 @@ impl Game {
         // the windfall's own relief: the purse's own lift and the
         // stores' own answer - a story's own turn, not a fix
         if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-            o.capacity = (o.capacity + 0.2).min(1.0);
+            o.adjust(0.2);
         }
         if let Some(org) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
             org.resources += 10.0;
@@ -2473,7 +2473,7 @@ impl Game {
             self.shield_cover = None;
             self.institutions = self.institutions.saturating_sub(1);
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
-                o.capacity = (o.capacity - 0.15).max(0.0);
+                o.adjust(-0.15);
             }
             self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the cover's withdrawn - the institution pulls its own shield, and the governing capacity goes with it.", tick));
         }
@@ -2573,7 +2573,7 @@ impl Game {
             // protection extracts the concession - the standing's own
             // obligation made real
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-                o.capacity = (o.capacity + self.petition_count as f32 * 0.001).min(1.0);
+                o.adjust(self.petition_count as f32 * 0.001);
             }
             // and the ignoring's own cost: a frame-cited demand
             // unanswered costs the standing more than the demand
@@ -2664,7 +2664,7 @@ impl Game {
         // the liability
         if self.plant.is_some() && self.discipline < 0.3 {
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-                o.capacity = (o.capacity - 0.05).max(0.0);
+                o.adjust(-0.05);
             }
             self.log.push_ev(EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), format!("t{}: the untrained room takes the plant's bait - the discipline wasn't there to hold.", tick));
         }
@@ -2683,7 +2683,7 @@ impl Game {
             o.resources += self.institutions as f32 * 2.0;
         }
         if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-            o.capacity = (o.capacity + self.institutions as f32 * 0.005).min(1.0);
+            o.adjust(self.institutions as f32 * 0.005);
         }
         // the agenda's own constraint: the institutions' own caution
         // slows the agitation they do not own
@@ -2779,7 +2779,7 @@ impl Game {
         // is the vulnerability, not the strength
         if self.leader_dependence > 0.7 {
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
-                o.capacity = (o.capacity - 0.01).max(0.0);
+                o.adjust(-0.01);
             }
         }
     }
@@ -2888,7 +2888,7 @@ impl Game {
                 // takes half what an open one would
                 let damage = if self.hidden_institution { 0.05 } else { 0.15 };
                 if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
-                    o.capacity = (o.capacity - damage).max(0.0);
+                    o.adjust(-damage);
                 }
             }
             _ => { // the relapse: the maintenance stage - the cycle's
@@ -2953,7 +2953,7 @@ impl Game {
         // the cause's own reach scales by it
         if self.brand_saturation > 0.3 {
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-                o.capacity = (o.capacity + self.brand_saturation * 0.01).min(1.0);
+                o.adjust(self.brand_saturation * 0.01);
             }
         }
     }
@@ -3083,7 +3083,7 @@ impl Game {
         // the unmet burden ticks the cause's own capacity down
         if self.compliance_burden > 0.0 {
             if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
-                o.capacity = (o.capacity - self.compliance_burden * 0.02).max(0.0);
+                o.adjust(-self.compliance_burden * 0.02);
             }
         }
     }
@@ -3712,6 +3712,12 @@ impl Game {
         let mut effective = leaks as f32 * (1.0 - skill * 0.8);
         // the vetting: a deep-read org slows the eyes' accrual
         if self.counter_intel >= 2 { effective *= 0.6; }
+        // but a loud cause leaks just by being big - no security culture
+        // shrinks sheer size, so the muscle's bulk lands on top of the
+        // vetted count: the watching scales with what it watches
+        let muscle = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(org)
+            .map(|p| p.capacity).unwrap_or(0.0);
+        effective += (muscle - 0.5).max(0.0) * 2.0;
         for site in &self.sites {
             let Some(l) = site.lord else { continue };
             let Some(w) = self.world.get_component_mut::<Watcher>(l) else { continue };

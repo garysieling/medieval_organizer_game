@@ -2,7 +2,7 @@
   (walking over…)
   Aldric: Fair morning to thee, wanderer.
   (Aldric is the village baker. Their purse strings are knotted tight. They tend the communal bread oven. They keep close to the church folk. They keep close to the market folk.)
-  Aldric: A day's work hardly buys a day's bread.   [gist]
+  Aldric: That boarded shop on the corner. It sits there like a sore.   [gist]
     1) And to thee.
     2) Time will tell what comes of this.
     l) take your leave

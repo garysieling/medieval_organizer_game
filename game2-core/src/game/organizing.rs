@@ -362,12 +362,29 @@ pub fn passing_greeting(n: usize, name: &str) -> String {
 }
 
 /// What `name` says when the player talks with them (`talks_before` is how
-/// many times they've talked already). First the concerns actually on
-/// their mind (village_concerns), one per talk; once they've said those,
-/// small talk - though going hungry or sick still comes up every other
-/// time. Returns the log line ("Bram complained about wages") and their
-/// own words, for a speech bubble.
-pub fn talk_response(world: &World, person: Entity, name: &str, talks_before: usize) -> (String, String) {
+/// many times they've talked already). The gist is theirs, not the
+/// village's (#1182): a live problem first, then the unmet want that
+/// shapes them - which one leads turns on who they are and the day - and
+/// only then the village's worry or plain small talk. The mood is spoken,
+/// not ledgered: filing it as heard stays the reveal roll's job. Returns
+/// the log line ("Bram's pot is bare") and their own words, for a speech
+/// bubble.
+pub fn talk_response(world: &World, person: Entity, name: &str, talks_before: usize, tick: u64) -> (String, String) {
+    use crate::game::desires::{self, InnerLife, Reveal};
+    let seed = name.bytes().map(|b| b as u64).sum::<u64>()
+        ^ tick.wrapping_mul(0x9E37_79B9);
+    let pick = |n: usize| (seed % n as u64) as usize;
+    let problems = desires::problems_of(world, person, tick);
+    if !problems.is_empty() {
+        return desires::reveal_speech(name, &Reveal::Problem(problems[pick(problems.len())]));
+    }
+    if let Some(life) = world.get_component::<InnerLife>(person) {
+        let wants: Vec<desires::Want> = life.wants.iter().copied()
+            .filter(|w| !desires::is_satisfied(world, person, *w, tick)).collect();
+        if !wants.is_empty() {
+            return desires::reveal_speech(name, &Reveal::Want(wants[pick(wants.len())]));
+        }
+    }
     let concerns = village_concerns(world, &[person]);
     let pressing = concerns.iter().find(|c| *c == "the food running short" || *c == "the sickness");
     let (did, said) = match (concerns.get(talks_before), pressing) {
@@ -407,26 +424,51 @@ mod tests {
 
     #[test]
     fn test_talk_response_says_what_they_actually_said() {
-        use crate::game::villager::Hunger;
+        use crate::game::desires::{self, InnerLife, Problem, Want};
+        use crate::game::household::{self, Building};
+        use crate::game::villager::{Hunger, Pos};
         let mut w = World::new();
         let v = w.create_entity();
         w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         w.add_component(v, Hunger { value: 10.0 });
-        let (log, said) = talk_response(&w, v, "Bram", 0);
-        assert_eq!(log, "Bram complained the store is running low");
+        w.add_component(v, Pos { x: 0.0, y: 0.0 });
+        w.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+        let home = w.create_entity();
+        w.add_component(home, Building {
+            kind: household::BuildingKind::Home, name: "a house".into(),
+            occupants: vec![v], worker: None, overseer: None,
+            stock: Default::default(), capacity: 20, flyer: None,
+        });
+        // a live trouble leads the talk, not the village's worry (#1182)
+        desires::add_grievance(&mut w, v, Problem::Hungry, 10);
+        let (log, said) = talk_response(&w, v, "Bram", 0, 0);
+        assert_eq!(log, "Bram's pot is bare");
         assert!(!said.is_empty());
-        // talk again and they move on to the next thing on their mind
-        assert_eq!(talk_response(&w, v, "Bram", 1).0, "Bram complained about wages");
-        // after that it's small talk, though hunger keeps coming back up
-        assert_eq!(talk_response(&w, v, "Bram", 2).0, "Bram complained the store is running low");
-        let (chat, _) = talk_response(&w, v, "Bram", 3);
-        assert!(SMALL_TALK.iter().any(|(d, _)| chat == format!("Bram {}", d)), "{}", chat);
-        // someone fed and well just makes small talk once they've said their piece
-        w.add_component(v, Hunger { value: 90.0 });
-        for n in 1..6 {
-            let (chat, said) = talk_response(&w, v, "Bram", n);
-            assert!(SMALL_TALK.iter().any(|(d, s)| chat == format!("Bram {}", d) && said == *s), "{}", chat);
-        }
+        // and it keeps leading while it stays live
+        assert_eq!(talk_response(&w, v, "Bram", 1, 0).0, "Bram's pot is bare");
+        // the pick turns with the day: another day finds another trouble
+        desires::add_grievance(&mut w, v, Problem::Taxed, 100);
+        let days: crate::engine::det::HashSet<String> =
+            (0..10).map(|d| talk_response(&w, v, "Bram", 0, d).0).collect();
+        assert!(days.len() > 1, "the gist never varied across days: {:?}", days);
+        // no trouble on the surface: the unmet want is what's on their mind
+        let mut w2 = World::new();
+        let u = w2.create_entity();
+        w2.add_component(u, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        w2.add_component(u, Pos { x: 0.0, y: 0.0 });
+        w2.add_component(u, InnerLife { wants: vec![Want::Love], grievances: vec![], satisfied: vec![] });
+        let b = w2.create_entity();
+        w2.add_component(b, Building {
+            kind: household::BuildingKind::Home, name: "a house".into(),
+            occupants: vec![u], worker: None, overseer: None,
+            stock: Default::default(), capacity: 20, flyer: None,
+        });
+        assert_eq!(talk_response(&w2, u, "Agnes", 0, 0).0, "Agnes confides they're lonely");
+        // nothing live and no wants: the village's worry, then small talk
+        w2.get_component_mut::<InnerLife>(u).unwrap().wants.clear();
+        assert_eq!(talk_response(&w2, u, "Agnes", 0, 0).0, "Agnes complained about wages");
+        let (chat, _) = talk_response(&w2, u, "Agnes", 3, 0);
+        assert!(SMALL_TALK.iter().any(|(d, _)| chat == format!("Agnes {}", d)), "{}", chat);
     }
 
     #[test]

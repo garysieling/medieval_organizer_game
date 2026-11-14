@@ -2,7 +2,7 @@
   (walking over…)
   Rowena: Morrow, wanderer.
   (Rowena works the fields for a day's wage. They never miss a service. They keep close to the church folk.)
-  Rowena: A day's work hardly buys a day's bread.   [gist]
+  Rowena: No bench, no hearth - I work in the street.   [gist]
     1) Morrow.
     l) take your leave
   you: Morrow.

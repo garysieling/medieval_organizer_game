@@ -355,7 +355,7 @@ impl Game {
                     whispered = true;
                     (format!("{} passes on a rumor", vill_name(who)), text)
                 }
-                None => talk_response(&self.world, v, vill_name(who), talks_before),
+                None => talk_response(&self.world, v, vill_name(who), talks_before, self.tick),
             },
         };
         let pe = self.seats[seat].player;

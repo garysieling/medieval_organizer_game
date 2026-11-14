@@ -2,7 +2,7 @@
   (walking over…)
   Corvin: Fair morning to thee, wanderer.
   (Corvin works the fields for a day's wage. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
-  Corvin: A day's work hardly buys a day's bread.   [gist]
+  Corvin: No bench, no hearth - I work in the street.   [gist]
     1) And to thee.
     2) Aye, words have weight in a small village.
     l) take your leave

@@ -2,7 +2,7 @@
   (walking over…)
   Wystan: A peaceful day to thee, wanderer.
   (Wystan serves the village church. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They keep close to the church folk.)
-  Wystan: A day's work hardly buys a day's bread.   [gist]
+  Wystan: Not a song in the village for a year.   [gist]
     1) Morrow, father.
     2) Blessings on thy holy house as well.
     l) take your leave

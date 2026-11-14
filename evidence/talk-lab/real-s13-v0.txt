@@ -2,7 +2,7 @@
   (walking over…)
   Aldric: Morrow, wanderer.
   (Aldric is the village smith. Their purse strings are knotted tight. They work the village anvil and forge. They keep close to the church folk. They keep close to the market folk.)
-  Aldric: A day's work hardly buys a day's bread.   [gist]
+  Aldric: No one to learn from. I'll be a journeyman forever.   [gist]
     1) Aye, words have weight in a small village.
     2) Good day to thee.
     l) take your leave

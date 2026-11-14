@@ -76,6 +76,29 @@ fn test_talk_now_and_then_passes_on_a_fact() {
 }
 
 #[test]
+fn test_a_heard_fact_is_marked_in_the_moment() {
+    let mut g = Game::new();
+    let folk = askers(&g);
+    g.seats[0].mystery = Some(SeatMystery { def: 0, known: 0, asker: folk[0] });
+    // talk to folk until gossip gives up a fact - the moment's marked
+    // on the talk itself (#1184)
+    let mut marked = false;
+    'talks: for _ in 0..2000 {
+        for &v in &folk {
+            let who = g.villagers.iter().position(|&x| x == v).unwrap();
+            g.talk_to_at(0, who);
+            let t = g.seats[0].talk.as_ref().expect("a talk's open");
+            if let Some(n) = t.notes.iter().find(|n| n.contains("Worth remembering")) {
+                assert!(n.contains("of 5 heard"), "the tally rides along: {}", n);
+                marked = true;
+                break 'talks;
+            }
+        }
+    }
+    assert!(marked, "a heard fact says so on the talk");
+}
+
+#[test]
 fn test_telling_the_asker_makes_them_a_friend() {
     let mut g = Game::new();
     let folk = askers(&g);

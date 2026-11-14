@@ -24,7 +24,8 @@ fn test_the_lords_estimate_lags_and_shifts_the_tax() {
     let mut g = Game::new();
     // a strong org takes weeks to register with the lord
     for _ in 0..10 { g.record_power(crate::sim::organized_power::ActionQuality::Transformational); }
-    assert!(capacity(&g) > 1.0);
+    assert!(capacity(&g) >= crate::sim::organized_power::CAPACITY_CAP,
+        "ten meetings in the street should fill the muscle");
     for t in (3..200).step_by(7) { g.power_tick(t); }
     assert!(g.lord_esteem > 0.6, "eventually the lord learns");
     // and then the collector passes the player by

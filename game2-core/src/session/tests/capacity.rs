@@ -20,6 +20,19 @@ fn test_teach_passes_the_craft_on() {
     assert!(after_t > before_t, "the trainer never grew");
 }
 
+/// The muscle only gets so big: a full season of transformational work
+/// fills the gauge and stops at the cap - the rest of a big cause's
+/// size shows in the lord's answer, not the number
+#[test]
+fn test_the_muscle_never_outgrows_its_size() {
+    let mut g = Game::new();
+    for _ in 0..30 { g.record_power(crate::sim::organized_power::ActionQuality::Transformational); }
+    let cap = g.world.get_component::<crate::sim::organized_power::OrganizedPower>(g.org)
+        .map(|p| p.capacity).unwrap_or(0.0);
+    assert!(cap <= crate::sim::organized_power::CAPACITY_CAP,
+        "the cause outgrew its own muscle: {}", cap);
+}
+
 #[test]
 fn test_a_hidden_school_trains_slower() {
     let mut g = Game::new();

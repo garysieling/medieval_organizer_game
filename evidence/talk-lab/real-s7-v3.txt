@@ -2,7 +2,7 @@
   (walking over…)
   Corvin: Aye, goodman - out with the dawn, I see.
   (Corvin holds the manor's leases. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
-  Corvin: A day's work hardly buys a day's bread.   [gist]
+  Corvin: No one to learn from. I'll be a journeyman forever.   [gist]
     1) Aye, m'lord - good morrow to the manor.
     l) take your leave
   you: Aye, m'lord - good morrow to the manor.

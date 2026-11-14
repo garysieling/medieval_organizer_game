@@ -2,7 +2,7 @@
   (walking over…)
   Wystan: Morrow, wanderer.
   (Wystan is the village mason. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They cut freestone and build field walls. They're forever turning the big questions over. They keep close to the church folk. They keep close to the market folk.)
-  Wystan: A day's work hardly buys a day's bread.   [gist]
+  Wystan: No one to learn from. I'll be a journeyman forever.   [gist]
     1) Aye, words have weight in a small village.
     2) And to thee.
     l) take your leave

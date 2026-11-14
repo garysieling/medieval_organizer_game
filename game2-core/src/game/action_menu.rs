@@ -78,7 +78,7 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 // 1.0 and would freeze the concern/small-talk index).
                 let talks_before = world.get_component::<super::player::TalkCount>(t)
                     .map(|c| c.value).unwrap_or(0);
-                let (did, said) = super::organizing::talk_response(world, t, "They", talks_before);
+                let (did, said) = super::organizing::talk_response(world, t, "They", talks_before, tick);
                 act_talk(world, player, t, tick);
                 format!("{}: \"{}\"", did, said)
             } else { "No one to talk to.".into() }
@@ -319,9 +319,21 @@ mod tests {
         let v = w.create_entity();
         w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         w.add_component(v, Hunger { value: 10.0 });
+        use crate::game::desires::{self, InnerLife, Problem};
+        use crate::game::household::{self, Building};
+        w.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+        let home = w.create_entity();
+        w.add_component(home, Building {
+            kind: household::BuildingKind::Home, name: "a house".into(),
+            occupants: vec![v], worker: None, overseer: None,
+            stock: Default::default(), capacity: 20, flyer: None,
+        });
+        desires::add_grievance(&mut w, v, Problem::Hungry, 10);
         let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5);
-        assert_eq!(msg, "They complained the store is running low: \"There's hardly anything left in the store.\"");
-        let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5);
+        assert_eq!(msg, "They's pot is bare: \"Another day on thin broth. The pot's been bare a week.\"");
+        // the trouble lifted, the village's worry is what's left on their mind
+        desires::lift_grievance(&mut w, v, Problem::Hungry);
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 6);
         assert!(msg.starts_with("They complained about wages"), "{}", msg);
     }
 

@@ -1,0 +1,11 @@
+=== Talk: Rowena (villager 15, game seed 7) ===
+  (walking over…)
+  (Rowena works the fields for a day's wage. They never miss a service. Lately: parish_faction.)
+  (A day's work hardly buys a day's bread.)
+  Rowena: Good morrow to thee, wanderer.
+  (Rowena works the fields for a day's wage. They never miss a service. Lately: parish_faction.)
+  Rowena: A day's work hardly buys a day's bread.   [gist]
+    1) I have no leisure to stand about, Rowena.
+    2) Morrow.
+    l) take your leave
+REPRO: talk_lab talk --seed 7 --villager 15 --picks 0 (talk seed 1157627928)

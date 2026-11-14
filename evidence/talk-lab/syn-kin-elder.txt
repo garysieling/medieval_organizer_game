@@ -1,0 +1,13 @@
+=== Talk: Probe (synthetic) vs you - Kin ===
+  them: Probe works the fields for a day's wage. Eighty winters of village memories are in their bones.
+  you : you works the fields for a day's wage.
+  Probe: Greetings, brother! It does my heart good to see thy face.
+    1) [Greet] Well met, dear cousin. Thou'rt looking hale and hearty.
+    2) [Farewell] I must be on my way, Probe. Fare well.
+  you: Well met, dear cousin. Thou'rt looking hale and hearty.
+  Probe: How fares mother's knee in this damp spell?
+    1) [Farewell] I must be on my way, Probe. Fare well.
+    2) [Answer] She sits by the fire with warm sheep's grease; it eases the pain.
+  you: I must be on my way, Probe. Fare well.
+  -- Farewell (trees: ["kin_warmth"])
+REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Kin --picks 0,0

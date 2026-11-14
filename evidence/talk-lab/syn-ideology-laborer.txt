@@ -1,0 +1,9 @@
+=== Talk: Voice (synthetic) vs you - Acquaintance ===
+  them: Voice works the fields for a day's wage. They bow to no one.
+  you : you works the fields for a day's wage.
+  Voice: Good morrow to thee, you.
+    1) [Farewell] Work is waiting at the barn, Voice.
+    2) [Greet] And to thee, Voice.
+  you: Work is waiting at the barn, Voice.
+  -- WalksOff (trees: ["village_smalltalk"])
+REPRO: talk_lab talk --name Voice --ideology laborer --trait proud --seed 23 --rel Acquaintance --picks 0

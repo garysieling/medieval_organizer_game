@@ -1,0 +1,15 @@
+=== House meeting: Reeve convenes Aldric, Eliza, Bram, Corvin (seed 9) ===
+  - Aldric [laborer]: Aldric works the fields for a day's wage. Their purse strings are knotted tight. Last night's cup is still on them.
+  - Eliza [merchant]: Eliza trades on the road between villages. They know every soul and every soul's business. They bow to no one.
+  - Bram [lord]: Bram holds the manor's leases. They know every soul and every soul's business. Their purse strings are knotted tight.
+  - Corvin [laborer]: Corvin works the fields for a day's wage. They bow to no one. They know every soul and every soul's business.
+  #0 Reeve [Question]: Reeve: What ails the village most, friends? Speak true.
+  #1 Aldric [Remark] (re #0): May the Lord bless the seed in the furrow and give us full sheaves.
+  #2 Corvin [Remark] (re #0): The river bank is caving into the water by the washing steps.
+  #3 Bram [PushBack] (re #2): We have argued this before and accomplished nothing.
+  #4 Eliza [Remark] (re #1): If the harvest is sound, we will weather the winter.
+  #5 Bram [Remark] (re #4): The gleanings of the fields must be left for the poorest widows.
+  #6 Aldric [Remark] (re #3): The wooden footbridge shakes whenever an ox cart crosses.
+  #7 Eliza [Remark] (re #5): Celebration tastes sweeter when all have labored side by side.
+  #8 Corvin [Remark] (re #1): If the harvest is bountiful, the whole parish will thrive.
+REPRO: talk_lab meeting --seed 9 --folk 4 --name Reeve

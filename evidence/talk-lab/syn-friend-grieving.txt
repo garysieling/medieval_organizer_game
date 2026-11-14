@@ -1,0 +1,13 @@
+=== Talk: Probe (synthetic) vs you - Friend ===
+  them: Probe works the fields for a day's wage. They buried their husband last week.
+  you : you works the fields for a day's wage.
+  Probe: Well met, friend. The days feel longer than they used to.
+    1) [Agree] The saints receive her spirit in eternal peace.
+    2) [Question] Aye, words have weight in a small village.
+  you: The saints receive her spirit in eternal peace.
+  Probe: I keep setting his wooden spoon at table.
+    1) [Farewell] God's peace be upon thy cottage, Probe.
+    2) [Agree] Their toil shaped this parish; their memory will outlive us.
+  you: God's peace be upon thy cottage, Probe.
+  -- Farewell (trees: ["a_death_in_the_house"])
+REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Friend --picks 0,0

@@ -1,0 +1,15 @@
+=== House meeting: Reeve convenes Aldric, Eliza, Bram, Corvin (seed 3) ===
+  - Aldric [lord]: Aldric holds the manor's leases. Their purse strings are knotted tight. A cough's had them these two weeks.
+  - Eliza [laborer]: Eliza works the fields for a day's wage. Their temper's shorter than a winter's day.
+  - Bram [clergy]: Bram serves the village church. They know every soul and every soul's business. Last night's cup is still on them.
+  - Corvin [clergy]: Corvin serves the village church. Their purse strings are knotted tight. They bow to no one. A cough's had them these two weeks.
+  #0 Reeve [Question]: Reeve: What ails the village most, friends? Speak true.
+  #1 Bram [Remark] (re #0): Let us keep faith with God and be true neighbors to each other.
+  #2 Aldric [Remark] (re #0): If the bridge collapses, our children cannot reach the chapel.
+  #3 Bram [Remark] (re #2): Stone piers and lime mortar would make a bridge to last for centuries.
+  #4 Aldric [Remark] (re #3): The weir boards are cracked and the mill race threatens to overflow.
+  #5 Bram [Remark] (re #4): Let the carpenter cut the pegs and the village haul the timber.
+  #6 Eliza [Agree] (re #3): Aye, there is the truth of it.
+  #7 Aldric [PushBack] (re #6): We have argued this before and accomplished nothing.
+  #8 Bram [Remark] (re #7): The wooden footbridge shakes whenever an ox cart crosses.
+REPRO: talk_lab meeting --seed 3 --folk 4 --name Reeve

@@ -1,0 +1,26 @@
+=== Talk: Wystan (villager 8, game seed 13) ===
+  (walking over…)
+  (Wystan serves the village church. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. Lately: parish_faction.)
+  (A day's work hardly buys a day's bread.)
+  Wystan: A peaceful day to thee, wanderer.
+  (Wystan serves the village church. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. Lately: parish_faction.)
+  Wystan: A day's work hardly buys a day's bread.   [gist]
+    1) Morrow, father.
+    2) Blessings on thy holy house as well.
+    l) take your leave
+  you: Morrow, father.
+  Wystan: Dost thou find peace in thy daily labor, child?
+    1) Aye, there is truth in what thou sayest.
+    2) I will see thee at the Sunday bell, father.
+    l) take your leave
+  you: Aye, there is truth in what thou sayest.
+  Wystan: Looks like rain again, doesn't it?
+    1) It will be a wet week, mark me.
+    2) Well, I had best be about my chores.
+    l) take your leave
+  you: It will be a wet week, mark me.
+  Wystan: Even so, we will manage as we always do.
+    1) May the road be kind under thy boots.
+    2) True words; worry never baked a single loaf.
+    l) take your leave
+REPRO: talk_lab talk --seed 13 --villager 8 --picks 0,0,0,0 (talk seed 1090519054)

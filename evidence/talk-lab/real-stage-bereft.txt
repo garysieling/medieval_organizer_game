@@ -1,0 +1,36 @@
+=== Talk: Dagny (villager 4, game seed 42) ===
+  (walking over…)
+  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Lately: parish_faction. Lately: market_faction.)
+  (A day's work hardly buys a day's bread.)
+  Dagny: A fair day to thee and thine, wanderer.
+  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Lately: parish_faction. Lately: market_faction.)
+  Dagny: A day's work hardly buys a day's bread.   [gist]
+    1) I am here, as thou seest.
+    2) I must walk on; fair day.
+    l) take your leave
+  you: I am here, as thou seest.
+  Dagny: The morning dew was heavy on the clover.
+    1) It will be a wet week, mark me.
+    2) Has thy brother returned from the market town?
+    l) take your leave
+  you: It will be a wet week, mark me.
+  Dagny: Even so, we will manage as we always do.
+    1) Aye, we have lived through harder winters than this.
+    2) May the road be kind under thy boots.
+    l) take your leave
+  you: Aye, we have lived through harder winters than this.
+  Dagny: Didst thou hear who was seen down by the mill?
+    1) Aye? And what else did folk see?
+    2) I'll not repeat marketplace whispers.
+    l) take your leave
+  you: Aye? And what else did folk see?
+  Dagny: A stranger with two laden mules passed by the weir at noon.
+    1) Ha! I'll believe the half of it and no more.
+    2) Folk will invent dragons where there's only sheep.
+    l) take your leave
+  you: Ha! I'll believe the half of it and no more.
+  Dagny: As thou sayest, friend.
+    1) I must walk on; fair day.
+    2) The saints keep thy roof whole.
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0,0 (talk seed 922746907)

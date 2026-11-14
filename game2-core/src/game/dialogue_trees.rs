@@ -30,7 +30,7 @@ const SMALL_FADE: Exchange = Exchange {
             criteria: &[], weight: 0.40, bias: &[(Proud, 2.0)],
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["I take my leave.", "Enough chatter. Good day.", "My day is waiting.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
-            then: None, end: Some(WalksOff),
+            then: None, end: Some(Farewell),
         },
     ],
 };
@@ -161,7 +161,7 @@ const SMALL_CHAT: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.80, bias: &[(Gregarious, 2.0)],
             act: Act::Question, concepts: &["family", "smalltalk"],
-            lines: &["And how fares thy folk in this cold snap?", "Tell me true, {other} - how goes it with thee?", "Has thy brother returned from the market town?", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
+            lines: &["And how fares thy folk in this cold snap?", "Tell me true, {other} - how goes it with thee?", "Has thy brother returned from the market town?"],
             then: Some(SMALL_FARES), end: None,
         },
         Reply {
@@ -194,7 +194,7 @@ const SMALL_GREET: Exchange = Exchange {
             criteria: &[Lacks("pair:relation:friend"), Lacks("pair:relation:kin")], weight: 0.25, bias: &[(Proud, 3.0)],
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["I have no time for idle talk today.", "Work is waiting at the barn, {other}.", "I walk on business, neighbor.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
-            then: None, end: Some(WalksOff),
+            then: None, end: Some(Farewell),
         },
     ],
 };
@@ -292,7 +292,7 @@ const SICK_STUNG: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["concern:sickness"],
-            lines: &["I'll not catch my death for thy pride.", "Breathe elsewhere then, knave.", "Stay in thy own yard if thou'rt frightened.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
+            lines: &["I'll not catch my death for thy pride.", "Breathe elsewhere then, knave.", "Stay in thy own yard if thou'rt frightened."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -319,7 +319,7 @@ const SICK_ANSWER: Exchange = Exchange {
             criteria: &[], weight: 0.40, bias: &[(Stingy, 2.0)],
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["I must be away before the air catches me too.", "Mind thy cup and bowl. Good day.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
-            then: None, end: Some(WalksOff),
+            then: None, end: Some(Farewell),
         },
     ],
 };
@@ -364,7 +364,7 @@ const SICK_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Question, concepts: &["concern:sickness"],
-            lines: &["Is it the ague that took the miller's lad?", "How long has this fever had hold of thee?", "Hast thou seen the herb-wife for a draught?", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
+            lines: &["Is it the ague that took the miller's lad?", "How long has this fever had hold of thee?", "Hast thou seen the herb-wife for a draught?"],
             then: Some(SICK_ANSWER), end: None,
         },
         Reply {
@@ -447,7 +447,7 @@ const GRIEF_CLOSE: Exchange = Exchange {
 const GRIEF_ASK: Exchange = Exchange {
     act: Act::Answer,
     concepts: &["concern:grief", "aid"],
-    calls: &["A loaf of bread would not go amiss, {other}.", "A few split logs, if thou hast any seasoned oak.", "Someone to watch the sheep for an afternoon.", "The sorrow will ease as the seasons turn and heal."],
+    calls: &["A loaf of bread would not go amiss, {other}.", "A few split logs, if thou hast any seasoned oak.", "Someone to watch the sheep for an afternoon."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -498,7 +498,7 @@ const GRIEF_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.70, bias: &[(Kind, 1.3)],
             act: Act::Question, concepts: &["concern:grief", "aid"],
-            lines: &["Is there any chore I can take off thy shoulders?", "Hast thou eaten a warm bite today, {other}?", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
+            lines: &["Is there any chore I can take off thy shoulders?", "Hast thou eaten a warm bite today, {other}?", "Shall I sit with thee a while, {other}?"],
             then: Some(GRIEF_ASK), end: None,
         },
     ],
@@ -624,13 +624,13 @@ const CLERIC_GREET: Exchange = Exchange {
         Reply {
             criteria: &[Has("self:status:sick")], weight: 1.00, bias: &[],
             act: Act::Question, concepts: &["concern:faith", "concern:sickness"],
-            lines: &["A prayer for me, father - this fever won't quit.", "Father, hear my plea; the sickness grips my throat.", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
+            lines: &["A prayer for me, father - this fever won't quit.", "Father, hear my plea; the sickness grips my throat.", "Wilt thou hear my confession ere the fever takes me?"],
             then: Some(CLERIC_PRAYER), end: None,
         },
         Reply {
             criteria: &[Has("self:status:grieving")], weight: 1.00, bias: &[],
             act: Act::Question, concepts: &["concern:faith", "concern:grief"],
-            lines: &["Pray for him, father - he was taken so sudden.", "A blessing for my sorrowing cottage, father.", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
+            lines: &["Pray for him, father - he was taken so sudden.", "A blessing for my sorrowing cottage, father.", "Father, where do the dead wait for us?"],
             then: Some(CLERIC_PRAYER), end: None,
         },
         Reply {
@@ -718,7 +718,7 @@ const RIVAL_BITE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.80, bias: &[],
             act: Act::Remark, concepts: &["feud"],
-            lines: &["Not worth the breath or the bruise.", "I'll settle this before the magistrate, not in the dirt.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
+            lines: &["Not worth the breath or the bruise.", "I'll settle this before the magistrate, not in the dirt.", "This quarrel's older than thy fence, and twice as rotten."],
             then: Some(RIVAL_END), end: None,
         },
         Reply {
@@ -738,13 +738,13 @@ const RIVAL_SNIPE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::PushBack, concepts: &["feud"],
-            lines: &["My fence stands straighter than thy crooked word.", "We paid that debt at Michaelmas, as the reeve well knows.", "Thy pasture is mostly thistles anyway.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
+            lines: &["My fence stands straighter than thy crooked word.", "We paid that debt at Michaelmas, as the reeve well knows.", "Thy pasture is mostly thistles anyway."],
             then: Some(RIVAL_END), end: None,
         },
         Reply {
             criteria: &[], weight: 0.80, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["feud"],
-            lines: &["Say that again, if thou darest.", "Thou hast a treacherous tongue in thy skull.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
+            lines: &["Say that again, if thou darest.", "Thou hast a treacherous tongue in thy skull.", "The whole parish knows the measure of thy word."],
             then: Some(RIVAL_BITE), end: None,
         },
     ],
@@ -758,19 +758,19 @@ const RIVAL_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Greet, concepts: &["feud"],
-            lines: &["{other}.", "I walk where I please in this parish.", "Save thy bile for someone who fears it.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
+            lines: &["{other}.", "I walk where I please in this parish.", "Save thy bile for someone who fears it."],
             then: Some(RIVAL_SNIPE), end: None,
         },
         Reply {
             criteria: &[], weight: 0.80, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["feud"],
-            lines: &["Still breathing, I see. A great pity for the town.", "The years have only made thee sourer.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
+            lines: &["Still breathing, I see. A great pity for the town.", "The years have only made thee sourer.", "The parish got poorer the day thou drew breath."],
             then: Some(RIVAL_BITE), end: None,
         },
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Proud, 2.0)],
-            act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I have nothing to say to thee, scoundrel.", "Out of my way. I don't parley with knaves.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
+            act: Act::PushBack, concepts: &["farewell"],
+            lines: &["I have nothing to say to thee, scoundrel.", "Out of my way. I don't parley with knaves.", "Begone before my temper answers for me."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -804,7 +804,7 @@ const HUNGER_SHARE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.60, bias: &[(Stingy, 3.0)],
             act: Act::PushBack, concepts: &["concern:food"],
-            lines: &["Everyone's bin is empty; don't look to my door for bread.", "We each must stretch our own store as best we can.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
+            lines: &["Everyone's bin is empty; don't look to my door for bread.", "We each must stretch our own store as best we can.", "My own children gnaw their crusts; I have nothing spare."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -858,7 +858,7 @@ const COLD_GATHER: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Stingy, 2.0)],
             act: Act::PushBack, concepts: &["concern:fuel"],
-            lines: &["The bailiff watches the common wood; he will fine us for gathering boughs.", "My own hearth barely has coals to warm an egg.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
+            lines: &["The bailiff watches the common wood; he will fine us for gathering boughs.", "My own hearth barely has coals to warm an egg.", "Gather on the lord's land if thou darest - not from me."],
             then: None, end: Some(WalksOff),
         },
     ],

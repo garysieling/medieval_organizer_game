@@ -1,7 +1,7 @@
 === Talk: Probe (synthetic) vs you - Acquaintance ===
   them: Probe works the fields for a day's wage. Eighty winters of village memories are in their bones.
   you : you works the fields for a day's wage.
-  Probe: Greetings, mother of the village! How fares thy health today?
+  Probe: Good morrow to thee, venerable you.
     1) [Greet] Well met, child! Another day Heaven grants to watch the fields.
     2) [Farewell] I must be on my way, Probe. Fare well.
   you: Well met, child! Another day Heaven grants to watch the fields.

@@ -42,10 +42,10 @@ Corvin [Farewell in asking_the_father]: I must be on my way, Aldric. Fare well.
 them: Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
 you : Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 
-Bram [Greet in the_sickness]: Forgive my rough voice - this chest cold won't quit.
-Dagny [Question in the_sickness]: Time will tell what comes of this.
+Bram [Greet in the_sickness]: Morrow, Dagny. A wretched cold - but warmer for seeing thee.
+Dagny [Question in the_sickness]: Is it the miller's lad's fever? Thou knowest I'll help.
 Bram [Answer in the_sickness]: My lungs feel like wet wool on a rainy morning.
-Dagny [Remark in the_sickness]: I will send broth round when the kettle boils.
+Dagny [Remark in the_sickness]: Time will tell what comes of this.
 Bram [Remark in the_sickness]: Thou'rt kind, Dagny. The saints remember a neighborly hand.
 Dagny [Farewell in the_sickness]: God's peace be upon thy cottage, Bram.
 -- Farewell
@@ -54,10 +54,10 @@ Dagny [Farewell in the_sickness]: God's peace be upon thy cottage, Bram.
 them: Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
 you : Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
 
-Hob [Greet in the_sickness]: Morrow, Wystan. Don't stand too close in the breeze.
-Wystan [Agree in the_sickness]: Thou shouldst be under woolen blankets, not out here.
-Hob [Answer in the_sickness]: I'd rest in the straw if the chores would do themselves.
-Wystan [Remark in the_sickness]: Aye, words have weight in a small village.
+Hob [Greet in the_sickness]: *cough* Ah, Wystan - forgive the croak. Stand off, mind; I'd not share this with a friend.
+Wystan [Agree in the_sickness]: Poor soul. Tell me what thy house needs and it's done.
+Hob [Answer in the_sickness]: I'd rest, Wystan, but the chores won't do themselves - though I know thou'dst lend a hand.
+Wystan [Remark in the_sickness]: Say the word and the chore's done, Hob - thou knowest it.
 Hob [Remark in the_sickness]: Bless thee for thinking of our small house.
 Wystan [Farewell in the_sickness]: Think nothing of it. We look after our own.
 -- Farewell
@@ -78,10 +78,10 @@ Gisela [Farewell in visiting_the_sick]: Thou'rt a true neighbor, Marga.
 them: Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
 you : Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 
-Bram [Greet in the_sickness]: A heavy morning, neighbor. My limbs are like lead.
-Gisela [Agree in the_sickness]: Thou hast spoken the plain heart of the matter.
-Bram [Answer in the_sickness]: I'd rest in the straw if the chores would do themselves.
-Gisela [Agree in the_sickness]: Aye, there is truth in what thou sayest.
+Bram [Greet in the_sickness]: Morrow, Gisela. Step wide; even my fever wants no part of thee.
+Gisela [Agree in the_sickness]: Even I'd not wish this on thee, Bram. Perhaps.
+Bram [Answer in the_sickness]: The calves won't feed themselves - and I'd not ask thee for help, Gisela.
+Gisela [Agree in the_sickness]: The dirt cares nothing - for either of us.
 Bram [Question in visiting_the_sick]: Dost thou have grain left in the bin?
 Gisela [Answer in visiting_the_sick]: The sweat broke at dawn and the fever feels a little lighter.
 Bram [Remark in visiting_the_sick]: Rest easy; the parish will not let thee freeze.
@@ -102,10 +102,10 @@ Wystan [Farewell in the_cleric_blesses]: God's peace be upon thy cottage, Corvin
 them: Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 you : Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 
-Gisela [Greet in the_sickness]: *cough* Good morrow, Aelfric.
-Aelfric [PushBack in the_sickness]: I will hear thee from across the ditch.
+Gisela [Greet in the_sickness]: *cough* Morrow, traveler. Best keep to the far side of the path.
+Aelfric [PushBack in the_sickness]: I'll hear thee from across the ditch, and no nearer.
 Gisela [Remark in the_sickness]: A little cough won't kill an honest worker.
-Aelfric [PushBack in the_sickness]: I must walk on; fair day.
+Aelfric [PushBack in the_sickness]: I'll not catch my death for thy pride.
 -- WalksOff
 
 ## Dagny and Tilda - Acquaintance (seed 1312, picks [1, 1])

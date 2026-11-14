@@ -1,9 +1,9 @@
 === Talk: Voice (synthetic) vs you - Acquaintance ===
   them: Voice holds the manor's leases. They bow to no one.
   you : you works the fields for a day's wage.
-  Voice: Good morrow to thee, you.
+  Voice: Fair morning to thee, you.
     1) [Farewell] Work is waiting at the barn, Voice.
-    2) [Greet] And to thee, Voice.
+    2) [Greet] And to thee.
   you: Work is waiting at the barn, Voice.
-  -- WalksOff (trees: ["village_smalltalk"])
+  -- Farewell (trees: ["village_smalltalk"])
 REPRO: talk_lab talk --name Voice --ideology lord --trait proud --seed 23 --rel Acquaintance --picks 0

@@ -36,7 +36,7 @@ Bram [Farewell in the_cleric_blesses]: I will see thee at the Sunday bell, fathe
 them: Bram works the fields for a day's wage. Their temper's shorter than a winter's day. Last night's cup is still on them.
 you : Corvin trades on the road between villages. They never miss a service. Their purse strings are knotted tight. They know every soul and every soul's business. The store ran out and the belly knows it.
 
-Bram [Greet in morning_after_drunk]: Oof... good morrow, Corvin. Don't shout, I pray thee.
+Bram [Greet in morning_after_drunk]: Oof. Fair morning, Corvin - the light's too loud today.
 Corvin [Farewell in morning_after_drunk]: God's peace be upon thy cottage, Bram.
 -- Farewell
 
@@ -55,7 +55,7 @@ them: Aldric holds the manor's leases. They'd sooner watch the clouds than the p
 you : Hob trades on the road between villages. They never miss a service. The store ran out and the belly knows it.
 
 Aldric [Greet in old_scores]: Look what the crows dropped on the highway.
-Hob [Greet in old_scores]: Get out of my sight, Aldric.
+Hob [Greet in old_scores]: Aldric.
 Aldric [Remark in old_scores]: Keep thy lean cows out of our clover pasture.
 Hob [PushBack in old_scores]: Say that again, if thou darest.
 Aldric [Remark in old_scores]: Make me.
@@ -112,8 +112,8 @@ Aelfric [Farewell in condolence_call]: God's peace be upon thy cottage, Dagny.
 them: Aelfric holds the manor's leases. They know every soul and every soul's business. They buried their husband last week.
 you : Tilda holds the manor's leases. They mean to be more than they were born. They're the first with a loaf when a house is bare. They'd sooner watch the clouds than the plough. Last night's cup is still on them.
 
-Aelfric [Greet in a_death_in_the_house]: Well met, friend. The days feel longer than they used to.
-Tilda [Question in a_death_in_the_house]: Time will tell what comes of this.
+Aelfric [Greet in a_death_in_the_house]: Tilda. Forgive me - the house is still since he passed, and thy face is a kindness.
+Tilda [Question in a_death_in_the_house]: Shall I sit with thee? Thou needn't be alone.
 Aelfric [Answer in a_death_in_the_house]: Someone to watch the sheep for an afternoon.
 Tilda [Farewell in a_death_in_the_house]: God's peace be upon thy cottage, Aelfric.
 -- Farewell
@@ -123,7 +123,7 @@ them: Eliza serves the village church. They mean to be more than they were born.
 you : Osric serves the village church. They know every soul and every soul's business. A cough's had them these two weeks.
 
 Eliza [Greet in the_cleric_visits_the_sick]: God's grace light upon thy steps, Osric.
-Osric [Question in the_cleric_visits_the_sick]: Aye, words have weight in a small village.
+Osric [Question in the_cleric_visits_the_sick]: Wilt thou hear my confession ere the fever takes me?
 Eliza [Question in the_cleric_visits_the_sick]: Speak, child - my prayers and candles are with thee.
 Osric [Answer in the_cleric_visits_the_sick]: It's the little one mostly - she burns with fever.
 Eliza [Remark in the_cleric_visits_the_sick]: The church altar is always open to the weary soul.

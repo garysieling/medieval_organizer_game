@@ -2,16 +2,16 @@
   (walking over…)
   (Wystan is the village mason. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They cut freestone and build field walls. Lately: seeker. Lately: parish_faction. Lately: market_faction.)
   (A day's work hardly buys a day's bread.)
-  Wystan: Well met, neighbor wanderer.
+  Wystan: Morrow, wanderer.
   (Wystan is the village mason. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They cut freestone and build field walls. Lately: seeker. Lately: parish_faction. Lately: market_faction.)
   Wystan: A day's work hardly buys a day's bread.   [gist]
     1) Aye, words have weight in a small village.
-    2) The saints keep thee, Wystan.
+    2) And to thee.
     l) take your leave
   you: Aye, words have weight in a small village.
   Wystan: The morning dew was heavy on the clover.
     1) Aye, and the mud will take thy boots right off.
-    2) And how fares thy folk in this cold snap?
+    2) Has thy brother returned from the market town?
     l) take your leave
   you: Aye, and the mud will take thy boots right off.
   Wystan: Aye, the year will turn and bring what it brings.

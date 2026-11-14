@@ -2,13 +2,13 @@
   (walking over…)
   (Corvin works the fields for a day's wage. They'd sooner watch the clouds than the plough. Lately: parish_faction.)
   (A day's work hardly buys a day's bread.)
-  Corvin: Good morrow to thee, wanderer.
+  Corvin: Fair morning to thee, wanderer.
   (Corvin works the fields for a day's wage. They'd sooner watch the clouds than the plough. Lately: parish_faction.)
   Corvin: A day's work hardly buys a day's bread.   [gist]
-    1) The saints keep thee, Corvin.
+    1) And to thee.
     2) Aye, words have weight in a small village.
     l) take your leave
-  you: The saints keep thee, Corvin.
+  you: And to thee.
   Corvin: The morning dew was heavy on the clover.
     1) Thou seest a tempest in every puff of smoke.
     2) It will be a wet week, mark me.

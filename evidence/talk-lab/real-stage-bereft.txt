@@ -2,7 +2,7 @@
   (walking over…)
   (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Lately: parish_faction. Lately: market_faction.)
   (A day's work hardly buys a day's bread.)
-  Dagny: A fair day to thee and thine, wanderer.
+  Dagny: Fair morning to thee, wanderer.
   (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Lately: parish_faction. Lately: market_faction.)
   Dagny: A day's work hardly buys a day's bread.   [gist]
     1) I am here, as thou seest.
@@ -11,7 +11,7 @@
   you: I am here, as thou seest.
   Dagny: The morning dew was heavy on the clover.
     1) It will be a wet week, mark me.
-    2) Has thy brother returned from the market town?
+    2) Tell me true, Dagny - how goes it with thee?
     l) take your leave
   you: It will be a wet week, mark me.
   Dagny: Even so, we will manage as we always do.

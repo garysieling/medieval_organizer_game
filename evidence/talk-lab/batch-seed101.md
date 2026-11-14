@@ -38,8 +38,8 @@ Hob [Farewell in visiting_the_sick]: Just a prayer at the church altar, Bram.
 them: Corvin trades on the road between villages. They're the first with a loaf when a house is bare. The store ran out and the belly knows it.
 you : Marga trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 
-Corvin [Greet in hunger_lean_times]: A peaceful day to thee, Marga.
-Marga [Farewell in hunger_lean_times]: Talk won't fill the larder. I must seek wild greens.
+Corvin [Greet in hunger_lean_times]: Well met, Marga - we've both known thinner tables. Barely.
+Marga [Farewell in hunger_lean_times]: Come by the house tonight, Corvin - we'll make it stretch.
 -- Farewell
 
 ## Bram and Dagny - Kin (seed 3135, picks [1, 0])
@@ -56,8 +56,8 @@ Dagny [Farewell in the_cleric_visits_the_sick]: God's peace be upon thy cottage,
 them: Hob trades on the road between villages. They're the first with a loaf when a house is bare. A cough's had them these two weeks.
 you : Osric trades on the road between villages. Their temper's shorter than a winter's day. They bow to no one. They never miss a service. A cough's had them these two weeks.
 
-Hob [Greet in the_sickness]: A heavy morning, neighbor. My limbs are like lead.
-Osric [Agree in the_sickness]: Thou lookest pale as a winter moon, Hob.
+Hob [Greet in the_sickness]: Morrow, Osric - a foul chest this week.
+Osric [Agree in the_sickness]: Thou lookest pale, Hob. Best be indoors.
 Hob [Answer in the_sickness]: There is no one else to fetch water from the river.
 Osric [Agree in the_sickness]: A poor man's bed is a luxury he can rarely afford.
 Hob [Question in visiting_the_sick]: Dost thou have grain left in the bin?

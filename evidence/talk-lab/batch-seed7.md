@@ -4,9 +4,9 @@
 them: Aldric trades on the road between villages. They're the first with a loaf when a house is bare. They'd sooner watch the clouds than the plough. They never miss a service. A cough's had them these two weeks.
 you : Dagny works the fields for a day's wage. They know every soul and every soul's business. They bow to no one. They mean to be more than they were born. Last night's cup is still on them.
 
-Aldric [Greet in the_sickness]: Forgive my rough voice - this chest cold won't quit.
-Dagny [Agree in the_sickness]: Poor soul - get thee back into the warm cottage.
-Aldric [Answer in the_sickness]: The calves won't feed themselves, fever or no.
+Aldric [Greet in the_sickness]: A sick man's greeting, stranger - from a distance.
+Dagny [Agree in the_sickness]: Keep thy strength - and thy distance.
+Aldric [Answer in the_sickness]: There is no one else to fetch water from the river, stranger.
 Dagny [Farewell in the_sickness]: Rest when thou canst, Aldric. Fair day.
 -- Farewell
 
@@ -41,7 +41,7 @@ Dagny [Greet in the_cleric_blesses]: Peace be with thee, good priest.
 Corvin [Remark in the_cleric_blesses]: Remember that honest work in the field is a holy prayer.
 Dagny [Agree in the_cleric_blesses]: Thou hast spoken the plain heart of the matter.
 Corvin [Remark in old_scores]: I saw where thy cart rutted the lane by my ditch.
-Dagny [PushBack in old_scores]: Thy pasture is mostly thistles anyway.
+Dagny [PushBack in old_scores]: My fence stands straighter than thy crooked word.
 Corvin [Remark in old_scores]: We are done here.
 Dagny [Farewell in old_scores]: God's peace be upon thy cottage, Corvin.
 -- Farewell
@@ -50,7 +50,7 @@ Dagny [Farewell in old_scores]: God's peace be upon thy cottage, Corvin.
 them: Dagny works the fields for a day's wage. They know every soul and every soul's business. They bow to no one. They mean to be more than they were born. Last night's cup is still on them.
 you : Gisela trades on the road between villages. Their purse strings are knotted tight. The store ran out and the belly knows it.
 
-Dagny [Greet in morning_after_drunk]: A peaceful day to thee, Gisela.
+Dagny [Greet in morning_after_drunk]: Morrow, Gisela. A rough night at the tavern.
 Gisela [Farewell in morning_after_drunk]: God's peace be upon thy cottage, Dagny.
 -- Farewell
 
@@ -62,8 +62,8 @@ Hob [Greet in the_cleric_visits_the_sick]: Blessings on thee, Osric.
 Osric [Remark in the_cleric_visits_the_sick]: Morrow, father.
 Hob [Remark in the_cleric_visits_the_sick]: How fares thy house in these lean weeks, child?
 Osric [Agree in the_cleric_visits_the_sick]: I try to walk uprightly before God and my neighbors.
-Hob [Answer in the_sickness]: I'd rest in the straw if the chores would do themselves.
-Osric [Agree in the_sickness]: We labor or we go hungry, that's the hard truth of it.
+Hob [Answer in the_sickness]: I'd rest, Osric, but the chores won't do themselves - though I know thou'dst lend a hand.
+Osric [Agree in the_sickness]: Aye, and I'd carry half thy load if thou'dst let me.
 Hob [Question in visiting_the_sick]: Does the fever ease when the sun warms the cottage?
 Osric [Farewell in visiting_the_sick]: We have enough for today. Pray for my children.
 -- Farewell
@@ -72,7 +72,7 @@ Osric [Farewell in visiting_the_sick]: We have enough for today. Pray for my chi
 them: Marga trades on the road between villages. They bow to no one. They know every soul and every soul's business. They mean to be more than they were born. The store ran out and the belly knows it.
 you : Gisela trades on the road between villages. Their purse strings are knotted tight. The store ran out and the belly knows it.
 
-Marga [Greet in hunger_lean_times]: Well met, friend, though the times are thin and hard.
+Marga [Greet in hunger_lean_times]: A hungry greeting, traveler - the fields gave little this year.
 Gisela [Farewell in hunger_lean_times]: May the road be kind under thy boots.
 -- Farewell
 
@@ -101,7 +101,7 @@ them: Hob serves the village church. Their temper's shorter than a winter's day.
 you : Aelfric serves the village church. Their purse strings are knotted tight. Their temper's shorter than a winter's day. They buried their husband last week.
 
 Hob [Greet in the_cleric_consoles]: The peace of the saints be with thee, child.
-Aelfric [Question in the_cleric_consoles]: Time will tell what comes of this.
+Aelfric [Question in the_cleric_consoles]: A blessing for my sorrowing cottage, father.
 Hob [Question in the_cleric_consoles]: Speak, child - my prayers and candles are with thee.
 Aelfric [Farewell in the_cleric_consoles]: The sun climbs high; chores call me. Good day.
 -- Farewell
@@ -110,8 +110,8 @@ Aelfric [Farewell in the_cleric_consoles]: The sun climbs high; chores call me. 
 them: Wystan trades on the road between villages. They're the first with a loaf when a house is bare. They know every soul and every soul's business. They buried their husband last week.
 you : Tilda holds the manor's leases. Their purse strings are knotted tight. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 
-Wystan [Greet in a_death_in_the_house]: Morrow, Tilda. The bell tolled, and my hearth is dark.
-Tilda [Agree in a_death_in_the_house]: The saints receive her spirit in eternal peace.
+Wystan [Greet in a_death_in_the_house]: A heavy morning - we've buried one of ours.
+Tilda [Agree in a_death_in_the_house]: I did not know him, stranger, but I grieve thy grief.
 Wystan [Remark in a_death_in_the_house]: I keep setting his wooden spoon at table.
 Tilda [Agree in a_death_in_the_house]: Aye, there is truth in what thou sayest.
 Wystan [Remark in a_death_in_the_house]: The house feels less empty when a neighbor sits a spell.
@@ -122,8 +122,8 @@ Tilda [Farewell in a_death_in_the_house]: We do not forget those who walked this
 them: Aldric trades on the road between villages. They're the first with a loaf when a house is bare. They'd sooner watch the clouds than the plough. They never miss a service. A cough's had them these two weeks.
 you : Osric works the fields for a day's wage. They'd sooner watch the clouds than the plough. They're the first with a loaf when a house is bare. A cough's had them these two weeks.
 
-Aldric [Greet in the_sickness]: A heavy morning, neighbor. My limbs are like lead.
-Osric [Question in the_sickness]: Time will tell what comes of this.
+Aldric [Greet in the_sickness]: Morrow, Osric. Step wide; even my fever wants no part of thee.
+Osric [Question in the_sickness]: Is it the fever, or merely thy face?
 Aldric [Answer in the_sickness]: My lungs feel like wet wool on a rainy morning.
 Osric [Agree in the_sickness]: Aye, there is truth in what thou sayest.
 Aldric [Question in visiting_the_sick]: Does the fever ease when the sun warms the cottage?

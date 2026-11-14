@@ -38,9 +38,9 @@ Wystan [Farewell in visiting_the_sick]: The blessing of Heaven on thy roof.
 them: Corvin serves the village church. They mean to be more than they were born. They buried their husband last week.
 you : Gisela trades on the road between villages. They mean to be more than they were born. Last night's cup is still on them.
 
-Corvin [Greet in a_death_in_the_house]: Morrow, Gisela. The bell tolled, and my hearth is dark.
-Gisela [Question in a_death_in_the_house]: Hast thou eaten a warm bite today, Corvin?
-Corvin [Answer in a_death_in_the_house]: The sorrow will ease as the seasons turn and heal.
+Corvin [Greet in a_death_in_the_house]: A gray day, Gisela. The hearth is dark.
+Gisela [Question in a_death_in_the_house]: Is there any chore I can take off thy shoulders?
+Corvin [Answer in a_death_in_the_house]: A loaf of bread would not go amiss, Gisela.
 Gisela [Farewell in a_death_in_the_house]: May the road be kind under thy boots.
 -- Farewell
 
@@ -68,8 +68,8 @@ Hob [Farewell in asking_the_father]: I must be on my way, Aldric. Fare well.
 them: Corvin serves the village church. They mean to be more than they were born. They buried their husband last week.
 you : Marga serves the village church. They mean to be more than they were born. Their purse strings are knotted tight. They never miss a service. Last night's cup is still on them.
 
-Corvin [Greet in a_death_in_the_house]: Well met, friend. The days feel longer than they used to.
-Marga [Agree in a_death_in_the_house]: Thou hast spoken the plain heart of the matter.
+Corvin [Greet in a_death_in_the_house]: Marga. Even thou'll know the house has gone quiet.
+Marga [Agree in a_death_in_the_house]: He and I had our quarrels, Corvin - but the grave settles them.
 Corvin [Remark in a_death_in_the_house]: I keep setting his wooden spoon at table.
 Marga [Farewell in a_death_in_the_house]: May the road be kind under thy boots.
 -- Farewell
@@ -78,9 +78,9 @@ Marga [Farewell in a_death_in_the_house]: May the road be kind under thy boots.
 them: Corvin serves the village church. They mean to be more than they were born. They buried their husband last week.
 you : Gisela trades on the road between villages. They mean to be more than they were born. Last night's cup is still on them.
 
-Corvin [Greet in a_death_in_the_house]: Gisela. Forgive me - the house is very still since he passed.
-Gisela [Question in a_death_in_the_house]: Aye, words have weight in a small village.
-Corvin [Answer in a_death_in_the_house]: A loaf of bread would not go amiss, Gisela.
+Corvin [Greet in a_death_in_the_house]: Gisela. Even thou'll know the house has gone quiet.
+Gisela [Question in a_death_in_the_house]: I'll not offer charity thou'dst refuse - but is thy house seen to?
+Corvin [Answer in a_death_in_the_house]: A few split logs, if thou hast any seasoned oak.
 Gisela [Farewell in a_death_in_the_house]: May the road be kind under thy boots.
 -- Farewell
 

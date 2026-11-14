@@ -2,16 +2,16 @@
   (walking over…)
   (Corvin holds the manor's leases. They'd sooner watch the clouds than the plough. Lately: parish_faction.)
   (A day's work hardly buys a day's bread.)
-  Corvin: A fair day to thee and thine, wanderer.
+  Corvin: Fair morning to thee, wanderer.
   (Corvin holds the manor's leases. They'd sooner watch the clouds than the plough. Lately: parish_faction.)
   Corvin: A day's work hardly buys a day's bread.   [gist]
     1) Morrow.
-    2) Well met indeed, friend.
+    2) Good day to thee.
     l) take your leave
   you: Morrow.
   Corvin: Cold wind off the moor this morning.
     1) Aye, and the mud will take thy boots right off.
-    2) Has thy brother returned from the market town?
+    2) Tell me true, Corvin - how goes it with thee?
     l) take your leave
   you: Aye, and the mud will take thy boots right off.
   Corvin: A steady hand and a patient mule see it through.

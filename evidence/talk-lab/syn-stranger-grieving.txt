@@ -1,10 +1,10 @@
 === Talk: Probe (synthetic) vs you - Stranger ===
   them: Probe works the fields for a day's wage. They buried their husband last week.
   you : you works the fields for a day's wage.
-  Probe: Well met, friend. The days feel longer than they used to.
-    1) [Agree] The saints receive her spirit in eternal peace.
-    2) [Question] Aye, words have weight in a small village.
-  you: The saints receive her spirit in eternal peace.
+  Probe: Morrow, stranger. Forgive a grieving house its silence.
+    1) [Agree] A loss is a loss - the saints keep his soul.
+    2) [Question] Is there aught a stranger can do?
+  you: A loss is a loss - the saints keep his soul.
   Probe: I keep setting his wooden spoon at table.
     1) [Farewell] God's peace be upon thy cottage, Probe.
     2) [Agree] Their toil shaped this parish; their memory will outlive us.

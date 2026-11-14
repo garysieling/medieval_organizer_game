@@ -2,16 +2,16 @@
   them: Probe works the fields for a day's wage. Last night's cup is still on them.
   you : you works the fields for a day's wage.
   Probe: you. Still walking upright, I see.
-    1) [Greet] I walk where I please in this parish.
-    2) [Farewell] I have no leisure to stand about, Probe.
-  you: I walk where I please in this parish.
+    1) [Greet] Save thy bile for someone who fears it.
+    2) [PushBack] I have nothing to say to thee, scoundrel.
+  you: Save thy bile for someone who fears it.
   Probe: Heard about thy boundary fence. Shoddy timber, that.
-    1) [PushBack] Take thy shadow off my path.
-    2) [PushBack] Thy pasture is mostly thistles anyway.
-  you: Take thy shadow off my path.
+    1) [PushBack] Say that again, if thou darest.
+    2) [PushBack] We paid that debt at Michaelmas, as the reeve well knows.
+  you: Say that again, if thou darest.
   Probe: Come closer and say that to my beard.
-    1) [PushBack] Get out of my sight, Probe.
-    2) [Remark] Get out of my sight, Probe.
-  you: Get out of my sight, Probe.
+    1) [PushBack] Keep thy fists to thyself before I break them.
+    2) [Remark] This quarrel's older than thy fence, and twice as rotten.
+  you: Keep thy fists to thyself before I break them.
   -- WalksOff (trees: ["old_scores"])
 REPRO: talk_lab talk --name Probe --status drunk --seed 11 --rel Rival --picks 0,0,0

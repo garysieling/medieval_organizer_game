@@ -1,13 +1,13 @@
 === Talk: Probe (synthetic) vs you - Friend ===
   them: Probe works the fields for a day's wage. A cough's had them these two weeks.
   you : you works the fields for a day's wage.
-  Probe: Morrow, you. Don't stand too close in the breeze.
-    1) [Agree] Thou shouldst be under woolen blankets, not out here.
+  Probe: *cough* Ah, you - forgive the croak. Stand off, mind; I'd not share this with a friend.
+    1) [Agree] Poor soul. Tell me what thy house needs and it's done.
     2) [PushBack] Keep thy distance, neighbor. I have no wish to catch it.
-  you: Thou shouldst be under woolen blankets, not out here.
-  Probe: I'd rest in the straw if the chores would do themselves.
-    1) [Farewell] God's peace be upon thy cottage, Probe.
-    2) [Agree] A poor man's bed is a luxury he can rarely afford.
-  you: God's peace be upon thy cottage, Probe.
+  you: Poor soul. Tell me what thy house needs and it's done.
+  Probe: I'd rest, you, but the chores won't do themselves - though I know thou'dst lend a hand.
+    1) [Farewell] Rest well, Probe - I'll look in on thee at dusk.
+    2) [Agree] Aye, and I'd carry half thy load if thou'dst let me.
+  you: Rest well, Probe - I'll look in on thee at dusk.
   -- Farewell (trees: ["the_sickness"])
 REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Friend --picks 0,0

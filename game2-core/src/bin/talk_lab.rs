@@ -218,8 +218,9 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
     g.command(Command::Act(0)); // Talk
 
     let mut seen = 0usize;       // convo rows already printed
-    let mut prompted = false;    // the option list's on the table
     let mut said_profile = false;
+    let mut opened = false;      // the Talk's been on the box
+    let mut walking_said = false;
     let mut talk_seed = 0u64;
     let mut frames = 0u64;
     loop {
@@ -227,6 +228,7 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
         frames += 1;
         if frames > 30_000 { out.emit("(gave up waiting)"); break; }
         if let Some(t) = &g.seats[0].talk {
+            opened = true;
             if !said_profile {
                 talk_seed = t.seed;
                 if !t.profile.is_empty() { out.emit(&format!("  ({})", t.profile)); }
@@ -235,7 +237,7 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
             }
         }
         let m = g.ui_model();
-        let (ended, waiting) = match &m.convo {
+        let waiting = match &m.convo {
             Some(c) => {
                 if c.rows.len() < seen { seen = 0; } // the box trimmed
                 for r in &c.rows[seen..] {
@@ -248,16 +250,13 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
                     out.emit(&line);
                 }
                 seen = c.rows.len();
-                let waiting = !c.options.is_empty();
-                if waiting && !prompted {
+                if !c.options.is_empty() {
                     for (i, o) in c.options.iter().enumerate() { out.emit(&format!("    {}) {}", i + 1, o)); }
                     if c.leave { out.emit("    l) take your leave"); }
-                    prompted = true;
-                }
-                if !waiting { prompted = false; }
-                (false, waiting && prompted)
+                    true
+                } else { false }
             }
-            None => (true, false),
+            None => false,
         };
         if waiting {
             let c = m.convo.clone().unwrap();
@@ -269,11 +268,25 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
                 }
                 None => { g.command(Command::TalkPick(None)); break; }
             }
-            prompted = false;
             continue;
         }
-        // done when no Talk is open and nothing's waiting on an answer
-        if g.seats[0].talk.is_none() && (ended || !waiting) && frames > 2 { break; }
+        if opened && g.seats[0].talk.is_none() { break; } // the talk ran its course
+        if !opened {
+            // the click started the walk over - or failed to: say which,
+            // don't just sit on a blank screen
+            if !walking_said && frames > 6 {
+                out.emit("  (walking over…)");
+                walking_said = true;
+            }
+            if g.seats[0].approach.is_none() && frames > 6 {
+                match &m.blocked[0] {
+                    Some(b) => out.emit(&format!("  (can't: {b})")),
+                    None => out.emit("  (no way over to them - the talk never opened)"),
+                }
+                for e in m.log.iter().take(4) { out.emit(&format!("  | {}", e.text)); }
+                break;
+            }
+        }
     }
     out.emit(&format!("REPRO: talk_lab talk --seed {} --villager {} --picks {} {}",
         a.seed, a.villager.clone().unwrap_or_else(|| vi.to_string()),

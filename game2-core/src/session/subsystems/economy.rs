@@ -3,22 +3,86 @@
 use crate::session::*;
 
 impl Game {
+    /// The Martinmas salting: the year's surplus made to keep. First
+    /// the cull - the flock gives its third, the autumn's own rate,
+    /// and the fold's stock fills with the carcass weight; then every
+    /// building's perishables meet their salt where they stand - a salt
+    /// per two of them, fish into the smoke, meat into the brine, and a
+    /// salt-short house converts what its salt reaches and no more
+    pub(in crate::session) fn martinmas_bee(&mut self, tick: u64) {
+        // the cull: what won't winter over becomes what winters us
+        if let Some(fold) = self.fold {
+            let cullable: Vec<Entity> = livestock::flock(&self.world, fold)
+                .into_iter()
+                .filter(|&a| self.world.get_component::<livestock::Livestock>(a)
+                    .map(|l| l.kind != livestock::LivestockKind::Hen).unwrap_or(false))
+                .collect();
+            let cull = cullable.len() / 3;
+            for &a in cullable.iter().take(cull) {
+                self.world.destroy_entity(a);
+                self.flock.retain(|&e| e != a);
+            }
+            if cull > 0 {
+                let got = self.world.get_component_mut::<household::Building>(fold)
+                    .map(|b| household::add_stock(b, "meat", (cull * 3) as u32)).unwrap_or(0);
+                if got > 0 {
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                        format!("t{}: the flock gives its third - {} head to the block.", tick, cull),
+                        toast_spot(&self.world, fold),
+                        None,
+                    );
+                }
+            }
+        }
+        // the bee proper: fish into the smoke, meat into the brine
+        let (mut smoked, mut brined) = (0u32, 0u32);
+        for &be in &self.building_entities.clone() {
+            let (fish, meat, salt) = self.world.get_component::<household::Building>(be)
+                .map(|b| (b.stock.get("fish").copied().unwrap_or(0),
+                          b.stock.get("meat").copied().unwrap_or(0),
+                          b.stock.get("salt").copied().unwrap_or(0))).unwrap_or((0, 0, 0));
+            let reach = (salt * 2).min(fish + meat); // a salt per two perishables
+            if reach == 0 { continue; }
+            // the fish goes first - it's the quickest to turn
+            let fish_done = fish.min(reach);
+            let meat_done = meat.min(reach - fish_done);
+            let salt_used = (fish_done + meat_done + 1) / 2;
+            if let Some(b) = self.world.get_component_mut::<household::Building>(be) {
+                household::take_stock(b, "fish", fish_done);
+                household::take_stock(b, "meat", meat_done);
+                household::take_stock(b, "salt", salt_used);
+                household::add_stock(b, "smoked-fish", fish_done);
+                household::add_stock(b, "salt-pork", meat_done);
+            }
+            smoked += fish_done;
+            brined += meat_done;
+        }
+        if smoked + brined > 0 {
+            self.log.push_ev(
+                EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable),
+                format!(
+                    "t{}: the salting bee - {} fish into the smoke, {} meat into the brine.",
+                    tick, smoked, brined
+                ),
+            );
+        }
+    }
+
     /// The larder keeps its own score: stock spoils by its half-life,
     /// vermin get at the grain where no cat walks, and a poor soul eats
     /// what shouldn't be eaten
     pub fn spoilage_tick(&mut self, tick: u64) {
-        // weekly rot: bread and dairy go fast, grain holds a while
+        // weekly rot: every perishable goes by its own clock - flesh
+        // fast, dairy and the oven's work next, the jug and the basket
+        // last. Wheat keeps its own rule: it was never tagged, and the
+        // granary's mice care about the pile, not the tag
         if tick % 7 == 3 {
-            let week_of = |good: &str| match good {
-                "bread" | "milk" | "eggs" => 1u64,
-                "wheat" => 4,
-                _ => 0,
-            };
             for &be in &self.building_entities.clone() {
                 let mut loss: Vec<(String, u32)> = vec![];
                 if let Some(b) = self.world.get_component::<Building>(be) {
                     for (g, &q) in b.stock.iter() {
-                        let w = week_of(g);
+                        let w = if g == "wheat" { 4 } else { goods::rot_weeks(g) };
                         // granaries draw the mice: wheat goes twice as fast
                         // where the grain's piled - unless a cat walks there
                         let vermin = b.kind == BuildingKind::Granary && g == "wheat"

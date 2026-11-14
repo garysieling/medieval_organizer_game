@@ -208,6 +208,9 @@ impl Game {
                 stock.insert("ribbon".to_string(), 4);
                 stock.insert("needle".to_string(), 6);
                 stock.insert("lute_string".to_string(), 2);
+                // and the salt road's own freight: nothing local makes it,
+                // and a winter's larder hangs on it
+                stock.insert("salt".to_string(), 6);
                 self.world.add_component(stall, household::Building {
                     kind: household::BuildingKind::TraderStall,
                     name: "the pedlar's pitch".into(),

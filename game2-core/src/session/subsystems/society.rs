@@ -1199,14 +1199,18 @@ impl Game {
         // the celestial wheel: each feast falls on its own anchor day,
         // the solstices and the quarter-days the year turns on - not a
         // fixed rotation, the sky's own marking
-        const FEASTS: [(u64, &str); 4] = [
+        const FEASTS: [(u64, &str); 5] = [
             (81, "May Day"),            // the first of May, the spring's quarter
             (172, "Midsummer"),         // the year's long day
             (263, "the Harvest Home"),  // the autumn's turn
+            (314, "the Martinmas salting"), // the slaughter day's own work
             (355, "Yule"),              // midwinter's dark
         ];
         let Some(&(_, feast)) = FEASTS.iter().find(|(d, _)| tick % 365 == *d)
             else { return };
+        // the salting day's own work: the cull and the brine land with
+        // the gathering, not the feasting
+        if tick % 365 == 314 { self.martinmas_bee(tick); }
         // word of the feast travels the roads: a traveller whose round
         // was near comes for the crowd (#1073)
         self.draw_for_the_gathering(tick);
@@ -2189,11 +2193,14 @@ impl Game {
             .filter_map(|v| self.world.get_component::<crate::session::Hunger>(v))
             .filter(|h| h.value >= 0.8).count();
         if starving >= 5 && self.villagers.len() > 10 {
-            if let Some(gone) = self.villagers.pop() {
+            if let Some(&gone) = self.villagers.last() {
                 // the leaver's own going: dead to the village - the
                 // roll keeps them, the map doesn't
                 self.world.add_component(gone, crate::game::villager::Dead);
                 self.world.remove_component::<crate::game::villager::Villager>(gone);
+                // off the roster like any name dropped - the picks and
+                // the index-keyed rolls shift home, not left pointing
+                self.drop_villager(gone);
             }
             self.emigration += 1;
             self.log.push_ev(EvTag::new(Thread::Economy, Valence::Negative, Sev::Notable), format!("t{}: a household walks off the map - the hunger's own push takes them to the next town.", tick));

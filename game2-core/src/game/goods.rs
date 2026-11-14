@@ -64,6 +64,19 @@ const fn s(tier: Tier, worth: f32, tags: &'static [Tag]) -> Spec {
 use Tag::*;
 use Tier::*;
 
+/// Weeks between a unit of this good spoiling away in store (0: it
+/// keeps). The Perishable tag decides whether it rots; the table says
+/// how fast - flesh goes first, dairy and the oven's work next, then
+/// the jug and the forage basket
+pub fn rot_weeks(good: &str) -> u64 {
+    if !spec(good).map(|s| s.tags.contains(&Tag::Perishable)).unwrap_or(false) { return 0; }
+    match good {
+        "fish" | "meat" | "eel" | "prawn" | "squid" | "lobster" => 1,
+        "milk" | "eggs" | "butter" | "bread" | "pottage" => 2,
+        _ => 4, // the jug, the forage basket: ale, mushrooms, chanterelle
+    }
+}
+
 /// Every named good, its tier, hidden worth and slots. Worths keep the
 /// numbers the old fixed-price table carried, so a swap prices the same
 /// until scarcity moves it. New goods fill out the three tiers per the
@@ -89,6 +102,11 @@ pub fn spec(good: &str) -> Option<Spec> {
         "fish" => s(Staple, 3.0, &[StapleFood, Perishable]),
         "eel" | "prawn" | "squid" => s(Staple, 5.0, &[StapleFood, Perishable]),
         "lobster" => s(Luxury, 8.0, &[StapleFood, Perishable]),
+        "meat" => s(Staple, 4.0, &[StapleFood, Perishable]),
+        // the smoking and the salting take the perish out of them -
+        // the Martinmas bee's whole worth
+        "smoked-fish" => s(Staple, 5.0, &[StapleFood]),
+        "salt-pork" => s(Staple, 5.0, &[StapleFood]),
         "apples" => s(Staple, 2.0, &[Fruit, StapleFood]),
         "honey" => s(Staple, 5.0, &[Sweet, StapleFood]),
         "wool" => s(Staple, 5.0, &[Fibre]),

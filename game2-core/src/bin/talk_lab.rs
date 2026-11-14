@@ -353,7 +353,9 @@ fn synthetic_pair(a: &Args) -> (Speaker, Speaker) {
     them.traits = a.traits.clone();
     them.ideology = a.ideology.as_deref().unwrap_or("laborer").to_string().leak();
     for s in &a.statuses { let st: &'static str = s.clone().leak(); them.status.push(st); }
-    let you = Speaker::new("you");
+    // "Voice" is what the game calls the player - keeps greetings like
+    // "Morrow, Voice." reading the way they do in the UI (#1190)
+    let you = Speaker::new("Voice");
     (them, you)
 }
 

@@ -3,7 +3,7 @@ use crate::session::*;
 use crate::session::dialogue::*;
 use crate::engine::ecs::Entity;
 use super::fixtures::plan_ready_meeting;
-use crate::game::conversation::Relation;
+use crate::game::conversation::{Act, Relation};
 use crate::game::relationships::RelKind;
 use crate::game::traits::Personality;
 use crate::game::villager::{self, Hunger};
@@ -159,6 +159,32 @@ fn test_a_whole_talk_runs_to_its_end_by_picking_replies() {
     while g.seats[0].talk.is_some() && picks < 30 { g.talk_pick_at(0, Some(0)); picks += 1; }
     assert!(g.seats[0].talk.is_none(), "it ends: farewell, walk-off or out of things to say");
     assert!(picks >= 1);
+}
+
+#[test]
+fn test_a_spent_talk_closes_itself_on_a_mutual_parting() {
+    // #1179: when the material's spent the talk ends itself - a mutual
+    // parting, not an empty option list to hover in
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    let id = g.seats[0].talk.as_ref().unwrap().id;
+    let mut picks = 0;
+    // drive it dry: farewells never sit beside live replies now, so pick 0
+    // keeps talking until the talk itself decides it's done
+    while g.seats[0].talk.is_some() && picks < 30 {
+        if let Some(t) = &g.seats[0].talk {
+            let farewells = t.options.iter().filter(|(a, _)| *a == Act::Farewell).count();
+            assert!(farewells == 0 || farewells == t.options.len(),
+                "farewells shared a list with live replies: {:?}", t.options);
+        }
+        g.talk_pick_at(0, Some(0));
+        picks += 1;
+    }
+    assert!(g.seats[0].talk.is_none(), "a spent talk doesn't hover");
+    let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.text.contains("part") || l.text.contains("leave") || l.text.contains("walks off")),
+        "the parting's on the record: {:?}", rec.lines.last().map(|l| l.text.clone()));
 }
 
 #[test]

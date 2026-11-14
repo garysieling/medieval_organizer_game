@@ -463,6 +463,17 @@ impl Game {
         if said.is_empty() { lines.extend(Self::gist_lines(&t, &vname)); }
         if let Some(r) = self.talk_record_mut(t.id) { r.lines = lines; }
         self.warm_exchange(t.id);
+        // the talk's spent when every reply left is an exit and there's no
+        // ask to hang on (#1179): they take their leave as much as you do,
+        // so close on a mutual parting rather than an exit menu
+        if let Some(opts) = &offered {
+            if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty()
+                && opts.iter().all(|(a, _)| *a == Act::Farewell) {
+                let note = format!("The talk runs its course. You and {vname} part on a kind word.");
+                self.close_player_talk(seat, Some(&note));
+                return;
+            }
+        }
         match offered {
             Some(opts) if !opts.is_empty() => {
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.options = opts; cur.opt_tree = tree; }
@@ -481,6 +492,7 @@ impl Game {
                 }
                 let note = match ending {
                     Some(Ending::WalksOff) => Some(format!("{} turns and walks off.", vname)),
+                    Some(Ending::Exhausted) => Some(format!("You and {vname} run out of things to say, and part.")),
                     _ => None,
                 };
                 self.close_player_talk(seat, note.as_deref());

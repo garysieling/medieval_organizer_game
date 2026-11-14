@@ -4,7 +4,7 @@
   Voice: Fair morning to thee, Voice.
     1) [Greet] And to thee.
   Voice: And to thee.
-  Voice: The morning dew was heavy on the clover.
+  Voice: The frost sat late on the furrows this morning.
     1) [Agree] Aye, and the mud will take thy boots right off.
   Voice: Aye, and the mud will take thy boots right off.
   Voice: A steady hand and a patient mule see it through.

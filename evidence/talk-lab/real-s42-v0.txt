@@ -8,25 +8,21 @@
     l) take your leave
   you: And to thee.
   Aldric: The morning dew was heavy on the clover.
-    1) And how fares thy folk in this cold snap?
+    1) Enough sky-talk - how goes the work these days?
     l) take your leave
-  you: And how fares thy folk in this cold snap?
-  Aldric: We rub along as ever, by the saints' mercy.
-    1) May the coming season be kind to thy cottage.
+  you: Enough sky-talk - how goes the work these days?
+  Aldric: Hard at it down at the day's work, are we?
+    1) Slow mornings, honest evenings - that is the day's work for thee.
+    2) Never better. And thyself - is the oven kind to thee?
     l) take your leave
-  you: May the coming season be kind to thy cottage.
-  Aldric: Rooks are gathering thick in the elm trees.
-    1) Every hand will be needed when the grain ripens.
+  you: Slow mornings, honest evenings - that is the day's work for thee.
+  Aldric: The peddler's cart lost a wheel at the bridge.
+    1) Tell on, neighbor - my ears are open.
     2) Nay, I see it differently, mark me.
     l) take your leave
-  you: Every hand will be needed when the grain ripens.
-  Aldric: The peddler's cart lost a wheel at the bridge.
-    1) I knew that bridge would give way sooner or later.
-    2) Let the miller and the rider sort their own affairs.
+  you: Tell on, neighbor - my ears are open.
+  Aldric: Old Wulfric swore he saw an owl perched on the tavern roof.
+    1) Every tongue in the parish wags before sunset.
+    2) Folk will invent dragons where there's only sheep.
     l) take your leave
-  you: I knew that bridge would give way sooner or later.
-  Aldric: A stranger with two laden mules passed by the weir at noon.
-    1) Folk will invent dragons where there's only sheep.
-    2) Every tongue in the parish wags before sunset.
-    l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 0 --picks 0,0,0,0,0,0 (talk seed 855638027)
+REPRO: talk_lab talk --seed 42 --villager 0 --picks 0,0,0,0,0 (talk seed 855638027)

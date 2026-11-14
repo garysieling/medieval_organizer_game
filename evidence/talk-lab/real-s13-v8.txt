@@ -11,8 +11,9 @@
     1) Aye, there is truth in what thou sayest.
     l) take your leave
   you: Aye, there is truth in what thou sayest.
-  Wystan: Looks like rain again, doesn't it?
+  Wystan: A gray dawn, but the day's work won't wait for it.
     1) It will be a wet week, mark me.
+    2) Enough sky-talk - how goes the work these days?
     l) take your leave
   you: It will be a wet week, mark me.
   Wystan: Even so, we will manage as we always do.

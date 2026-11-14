@@ -7,21 +7,20 @@
     2) Good day to thee.
     l) take your leave
   you: Aye, words have weight in a small village.
-  Aldric: Looks like rain again, doesn't it?
-    1) Rain? It is the driest week in memory.
+  Aldric: Gray clouds gathering over the western hill.
+    1) Has thy brother returned from the market town?
     l) take your leave
-  you: Rain? It is the driest week in memory.
-  Aldric: Even so, we will manage as we always do.
-    1) True words; worry never baked a single loaf.
+  you: Has thy brother returned from the market town?
+  Aldric: Well enough, thank thee, wanderer.
+    1) Good to hear it - long may health stay under thy roof.
     l) take your leave
-  you: True words; worry never baked a single loaf.
-  Aldric: They say the miller took an extra scoop of meal again.
-    1) Thou dost not say it! What happened then?
-    2) Let the miller and the rider sort their own affairs.
+  you: Good to hear it - long may health stay under thy roof.
+  Aldric: The kitchen gardens are dry as a bone this month.
+    1) Aye, work never sleeps in this valley.
+    2) There's always another ditch to dig.
     l) take your leave
-  you: Thou dost not say it! What happened then?
-  Aldric: They do say the reeve counts the sheep twice over.
+  you: Aye, work never sleeps in this valley.
+  Aldric: Didst thou hear who was seen down by the mill?
     1) That is not the way the elders told it.
-    2) Tavern tales grow taller with each ale drawn.
     l) take your leave
 REPRO: talk_lab talk --seed 13 --villager 0 --picks 0,0,0,0,0 (talk seed 956301326)

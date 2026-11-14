@@ -69,6 +69,53 @@ const SMALL_GOSSIP_MORE: Exchange = Exchange {
     ],
 };
 
+const SMALL_WORK: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["smalltalk", "work"],
+    calls: &[
+        "How goes it at {other_trade}, {other}?",
+        "I hear the work keeps thee busy at {other_trade}.",
+        "Hard at it down at {other_trade}, are we?",
+        "Busy hands at {other_trade} this season, I'd wager.",
+        "{other} - how goes {other_trade} with thee this season?",
+    ],
+    voice: &[
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["How goes {other_trade}, friend? Thy hands never idle.", "I passed {other_trade} and thought of thee, {other}."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Our kin's trade serves thee well at {other_trade}, aye?"] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["Still grinding at {other_trade}, {other}? Some things never change.", "They say {other_trade} has seen better hands than thine."] },
+        Voice { criteria: &[Has("self:ideology:lord")], lines: &["My steward spoke well of {other_trade}. Keep at it.", "The manor has need of good work at {other_trade}."] },
+    ],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[(Gregarious, 1.5)],
+            act: Act::Answer, concepts: &["work"],
+            lines: &["Well enough - {trade} keeps my hands full and my belly fuller.", "It goes, by the saints' grace. {trade} is kind to a steady hand.", "Fair season for it - {trade} has not wanted for custom.", "Slow mornings, honest evenings - that is {trade} for thee."],
+            voice: &[
+                Voice { criteria: &[Has("self:status:hungry")], lines: &["Thin fare at {trade}, truth be told - but it goes."] },
+                Voice { criteria: &[Has("self:status:newborn")], lines: &["Busy as it's ever been - {trade} and a new babe both."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["The work goes, kin - mother would be proud of {trade}."] },
+            ],
+            then: Some(SMALL_GOSSIP), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.70, bias: &[(Proud, 1.5)],
+            act: Act::Question, concepts: &["work"],
+            lines: &["Well enough, aye. And how does {other_trade} treat thee?", "Never better. And thyself - is {other_trade} kind to thee?"],
+            voice: &[],
+            then: Some(SMALL_GOSSIP), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.50, bias: &[(Hotheaded, 2.0)],
+            act: Act::PushBack, concepts: &["work"],
+            lines: &["{trade} is my affair, and it fares as it fares.", "Ask the reeve about {trade}, not me. I keep my own count."],
+            voice: &[
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["My {trade} needs no commentary from thee, {other}."] },
+            ],
+            then: Some(SMALL_FADE), end: None,
+        },
+    ],
+};
+
 const SMALL_GOSSIP: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["gossip", "smalltalk"],
@@ -167,8 +214,12 @@ const SMALL_VOLLEY: Exchange = Exchange {
 const SMALL_CHAT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk", "weather"],
-    calls: &["Looks like rain again, doesn't it?", "Cold wind off the moor this morning.", "Gray clouds gathering over the western hill.", "The morning dew was heavy on the clover."],
+    calls: &["Looks like rain again, doesn't it?", "Cold wind off the moor this morning.", "Gray clouds gathering over the western hill.", "The morning dew was heavy on the clover.", "A gray dawn, but the day's work won't wait for it.", "The frost sat late on the furrows this morning."],
     voice: &[
+        Voice { criteria: &[Has("self:status:hungry")], lines: &["A thin soup and a thinner week, {other}.", "The sky can do what it likes - it's the empty pot that weighs on me."] },
+        Voice { criteria: &[Has("self:status:grieving")], lines: &["The mornings are long since the burying, {other}.", "Gray clouds, gray days - I scarce mark the weather now."] },
+        Voice { criteria: &[Has("self:status:cold")], lines: &["The hearth's been out a week - a cold wind feels personal now."] },
+        Voice { criteria: &[Has("self:status:drunk")], lines: &["Is it raining, or is that the ale talking? *hic*"] },
         Voice { criteria: &[Has("self:ideology:lord")], lines: &["The sky owes my wheat a fortnight of sun.", "The weather keeps my stewards busy, I'll warrant."] },
         Voice { criteria: &[Has("self:ideology:merchant")], lines: &["Rain means mud, and mud means slow wagons.", "Grey skies never stopped a good price."] },
         Voice { criteria: &[Has("pair:relation:friend")], lines: &["Gray clouds again - thou and I have worked under worse, {other}.", "Cold wind this morning - good thing thy tales are warm."] },
@@ -203,6 +254,13 @@ const SMALL_CHAT: Exchange = Exchange {
             lines: &["And how fares thy folk in this cold snap?", "Tell me true, {other} - how goes it with thee?", "Has thy brother returned from the market town?"],
             voice: &[],
             then: Some(SMALL_FARES), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.60, bias: &[(Ambitious, 1.5)],
+            act: Act::Question, concepts: &["work", "smalltalk"],
+            lines: &["Enough sky-talk - how goes the work these days?", "Weather aside, {other} - how does the season treat thee?", "And the day's work - does it treat thee kindly?"],
+            voice: &[],
+            then: Some(SMALL_WORK), end: None,
         },
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
@@ -3143,6 +3201,38 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: "village_smalltalk", criteria: &[],
             root: &SMALL_GREET, rejoin: Some(&SMALL_CHAT) },
     ]
+}
+
+/// The noun a speaker's work goes by in talk (`{trade}` / `{other_trade}`
+/// slots, #1181): their craft's haunts if they have one, else whatever the
+/// day's wage is for someone of their standing
+pub fn trade_noun(s: &Speaker) -> &'static str {
+    if let Some(tr) = s.status.iter().copied().find(|st| matches!(*st,
+        "smith" | "miller" | "baker" | "weaver" | "carpenter" | "mason"
+        | "shepherd" | "brewer" | "taverner" | "beekeeper" | "herb_wife"
+        | "fisher" | "charcoal_burner")) {
+        return match tr {
+            "smith" => "the forge",
+            "miller" => "the mill",
+            "baker" => "the oven",
+            "weaver" => "the loom",
+            "carpenter" => "the timberyard",
+            "mason" => "the stone yard",
+            "shepherd" => "the flock",
+            "brewer" => "the vats",
+            "taverner" => "the tavern",
+            "beekeeper" => "the skeps",
+            "herb_wife" => "the stillroom",
+            "fisher" => "the weir",
+            _ => "the mounds",
+        };
+    }
+    match s.ideology {
+        "clergy" => "the parish",
+        "merchant" => "the ledger",
+        "lord" => "the manor",
+        _ => "the day's work",
+    }
 }
 
 /// A one-line backstory from a speaker's profile

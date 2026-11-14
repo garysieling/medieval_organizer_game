@@ -9,6 +9,7 @@
   you: And to thee.
   Rowena: The morning dew was heavy on the clover.
     1) The thatch won't thank it if it pours.
+    2) Weather aside, Rowena - how does the season treat thee?
     l) take your leave
   you: The thatch won't thank it if it pours.
   Rowena: Even so, we will manage as we always do.

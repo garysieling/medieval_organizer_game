@@ -326,23 +326,31 @@ fn draw_weight(r: &Reply, speaker: &Speaker) -> f32 {
     w
 }
 
+/// A template rendered for the pair: `{other}` is the listener's name,
+/// `{trade}`/`{other_trade}` the each side's work-noun (#1181)
+fn fill(t: &str, speaker: &Speaker, other: &Speaker) -> String {
+    t.replace("{other}", &other.name)
+        .replace("{trade}", crate::game::dialogue_trees::trade_noun(speaker))
+        .replace("{other_trade}", crate::game::dialogue_trees::trade_noun(other))
+}
+
 /// An unused variant of a line set: the template (so it can be spent) and
-/// the rendered text with `{other}` filled with the listener's name
-fn fresh_line(lines: &[&'static str], other: &str, used: &HashSet<&'static str>, rng: &mut Rng) -> Option<(&'static str, String)> {
+/// the rendered text with the pair's slots filled
+fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, rng: &mut Rng) -> Option<(&'static str, String)> {
     let fresh: Vec<&'static str> = lines.iter().copied().filter(|l| !used.contains(*l)).collect();
-    fresh.get(rng.below(fresh.len())).map(|&t| (t, t.replace("{other}", other)))
+    fresh.get(rng.below(fresh.len())).map(|&t| (t, fill(t, speaker, other)))
 }
 
 /// A variant in the speaker's register: voice sets whose criteria the
 /// speaker's facts satisfy are drawn from first, in authored order; the
 /// base lines take over once the register's material is spent
-fn fresh_voiced(lines: &[&'static str], voice: &[Voice], facts: &Facts, other: &str, used: &HashSet<&'static str>, rng: &mut Rng) -> Option<(&'static str, String)> {
+fn fresh_voiced(lines: &[&'static str], voice: &[Voice], facts: &Facts, speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, rng: &mut Rng) -> Option<(&'static str, String)> {
     for v in voice {
         if v.criteria.iter().all(|c| c.holds(facts)) {
-            if let Some(f) = fresh_line(v.lines, other, used, rng) { return Some(f); }
+            if let Some(f) = fresh_line(v.lines, speaker, other, used, rng) { return Some(f); }
         }
     }
-    fresh_line(lines, other, used, rng)
+    fresh_line(lines, speaker, other, used, rng)
 }
 
 /// The matching trees, most specific first (Ruskin's scoring: criterion
@@ -429,7 +437,7 @@ pub fn converse_with(
         // The floor-holder opens the beat, in the register their own
         // facts put them in (a lord's condescension, a rival's chill)
         let call_facts = Facts::for_roles(pair[caller], pair[responder], rel);
-        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, &pair[responder].name, &used, rng) else {
+        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, pair[caller], pair[responder], &used, rng) else {
             // Nothing fresh to call with: fall through to the next rejoinable tree,
             // or dry up entirely at the generic tail
             match advance_to_rejoin(&mut trees) {
@@ -473,9 +481,9 @@ pub fn converse_with(
             let mut rolled: Vec<(&'static str, Choice)> = vec![];
             for &i in &sampled {
                 let r = pool[i];
-                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[caller].name, &used, rng)
+                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, pair[responder], pair[caller], &used, rng)
                     .map(|(t, s)| (t, s))
-                    .unwrap_or((r.lines[0], r.lines[0].to_string()));
+                    .unwrap_or((r.lines[0], fill(r.lines[0], pair[responder], pair[caller])));
                 rolled.push((t, Choice { act: r.act, preview }));
             }
             // a farewell's the tail of a talk, not a per-turn option (#1179):
@@ -493,14 +501,14 @@ pub fn converse_with(
             }
         } else {
             let i = rng.weighted(&weights);
-            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, &pair[caller].name, &used, rng) {
+            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, pair[responder], pair[caller], &used, rng) {
                 Some((t, _)) => (i, t),
                 None => { tr.ending = Some(Ending::Exhausted); break; }
             }
         };
         let reply = pool[pick];
         used.insert(line_t);
-        tr.turns.push(Turn { speaker: responder, act: reply.act, text: line_t.replace("{other}", &pair[caller].name),
+        tr.turns.push(Turn { speaker: responder, act: reply.act, text: fill(line_t, pair[responder], pair[caller]),
             concepts: reply.concepts.to_vec(), tree: node_tree });
 
         if let Some(end) = reply.end {
@@ -647,12 +655,12 @@ pub fn run_meeting<'a>(
         if bids.is_empty() { break; }
         let weights: Vec<f32> = bids.iter().map(|b| b.3).collect();
         let (speaker, target, line, _) = bids[rng.weighted(&weights)];
-        let other = if record[target].speaker == usize::MAX {
-            organizer.name.as_str()
+        let other_sp = if record[target].speaker == usize::MAX {
+            organizer
         } else {
-            attendees[record[target].speaker].name.as_str()
+            attendees[record[target].speaker]
         };
-        let Some((t, text)) = fresh_line(line.lines, other, &used, rng) else { continue };
+        let Some((t, text)) = fresh_line(line.lines, attendees[speaker], other_sp, &used, rng) else { continue };
         used.insert(t);
         if target == 0 { answers += 1; }
         // A reply is about what it shares with its target: a stock "aye,
@@ -1259,18 +1267,18 @@ mod tests {
 
         // Fresh voice wins over fresh base
         let rival = Facts::for_roles(&a, &b, Relation::Rival);
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, "B", &empty, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &empty, &mut rng).unwrap();
         assert_eq!(t, "Cold line");
 
         // Spent voice hands the floor back to the base lines
         let mut used: HashSet<&'static str> = HashSet::default();
         used.insert("Cold line");
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, "B", &used, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &used, &mut rng).unwrap();
         assert_eq!(t, "Base line");
 
         // A voice for another register never speaks
         let friend = Facts::for_roles(&a, &b, Relation::Friend);
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &friend, "B", &empty, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &friend, &a, &b, &empty, &mut rng).unwrap();
         assert_eq!(t, "Base line");
     }
 
@@ -1318,5 +1326,71 @@ mod tests {
             assert!(tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("m'lord")),
                 "no deference in the tenant's replies: {:?}", tr.lines());
         }
+    }
+
+    #[test]
+    fn test_trade_slot_fills_from_the_speakers_work() {
+        // #1181: {trade}/{other_trade} read each side's work-noun
+        let mut smith = Speaker::new("Bruno");
+        smith.status.push("smith");
+        let mut fisher = Speaker::new("Wat");
+        fisher.status.push("fisher");
+        let hand = Speaker::new("Corvin");
+
+        let mut rng = Rng::new(0);
+        let used: HashSet<&'static str> = HashSet::default();
+        let (_, text) = fresh_line(&["How goes it at {other_trade}, {other}?"],
+            &smith, &fisher, &used, &mut rng).unwrap();
+        assert_eq!(text, "How goes it at the weir, Wat?");
+        let (_, text) = fresh_line(&["{trade} keeps my hands full."],
+            &smith, &fisher, &used, &mut rng).unwrap();
+        assert_eq!(text, "the forge keeps my hands full.");
+
+        // No craft named: the day's wage fills the slot, not a raw "{trade}"
+        let (_, text) = fresh_line(&["Hard at it down at {other_trade}?"],
+            &hand, &fisher, &used, &mut rng).unwrap();
+        assert_eq!(text, "Hard at it down at the weir?");
+        let (_, text) = fresh_line(&["{trade} keeps my hands full."],
+            &hand, &fisher, &used, &mut rng).unwrap();
+        assert_eq!(text, "the day's work keeps my hands full.");
+    }
+
+    #[test]
+    fn test_a_smith_and_a_fisher_talk_different_work() {
+        // #1181: same seed, different trades - the work beat names their own
+        let library = village_library();
+        let mut smith = Speaker::new("Bruno");
+        smith.status.push("smith");
+        let mut fisher = Speaker::new("Wat");
+        fisher.status.push("fisher");
+        let hand = Speaker::new("Corvin");
+
+        let mut work_seen = false;
+        for seed in 0..20 {
+            let mut ra = Rng::new(seed);
+            let tr = converse(&hand, &smith, Relation::Acquaintance, &library, &mut ra);
+            if tr.turns.iter().any(|t| t.text.contains("forge")) {
+                work_seen = true;
+                break;
+            }
+            let mut ra = Rng::new(seed);
+            let tr = converse(&hand, &fisher, Relation::Acquaintance, &library, &mut ra);
+            if tr.turns.iter().any(|t| t.text.contains("weir")) {
+                work_seen = true;
+                break;
+            }
+        }
+        assert!(work_seen, "the work beat never named a trade in 40 talks");
+
+        // And the same seed's work-beat text differs by who holds the bench
+        let mut diffs = 0;
+        for seed in 0..20 {
+            let mut ra = Rng::new(seed);
+            let a = converse(&hand, &smith, Relation::Acquaintance, &library, &mut ra);
+            let mut rb = Rng::new(seed);
+            let b = converse(&hand, &fisher, Relation::Acquaintance, &library, &mut rb);
+            if a.lines() != b.lines() { diffs += 1; }
+        }
+        assert!(diffs > 0, "smith and fisher talks were identical on every seed");
     }
 }

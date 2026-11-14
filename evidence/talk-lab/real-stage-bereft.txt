@@ -6,22 +6,22 @@
     1) I am here, as thou seest.
     l) take your leave
   you: I am here, as thou seest.
-  Dagny: The morning dew was heavy on the clover.
-    1) It will be a wet week, mark me.
+  Dagny: Cold wind off the moor this morning.
+    1) That is not the way the elders told it.
     2) Tell me true, Dagny - how goes it with thee?
     l) take your leave
-  you: It will be a wet week, mark me.
+  you: That is not the way the elders told it.
   Dagny: Even so, we will manage as we always do.
     1) Aye, we have lived through harder winters than this.
     l) take your leave
   you: Aye, we have lived through harder winters than this.
   Dagny: Didst thou hear who was seen down by the mill?
     1) Aye? And what else did folk see?
-    2) I'll not repeat marketplace whispers.
+    2) Let the miller and the rider sort their own affairs.
     l) take your leave
   you: Aye? And what else did folk see?
   Dagny: A stranger with two laden mules passed by the weir at noon.
     1) Ha! I'll believe the half of it and no more.
-    2) Folk will invent dragons where there's only sheep.
+    2) Nay, I see it differently, mark me.
     l) take your leave
 REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0 (talk seed 922746907)

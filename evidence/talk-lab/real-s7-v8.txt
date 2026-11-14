@@ -6,7 +6,7 @@
     1) Good day to thee.
     l) take your leave
   you: Good day to thee.
-  Wystan: Looks like rain again, doesn't it?
+  Wystan: A gray dawn, but the day's work won't wait for it.
     1) Good for the barley, but bad for the road.
     2) Tell me true, Wystan - how goes it with thee?
     l) take your leave

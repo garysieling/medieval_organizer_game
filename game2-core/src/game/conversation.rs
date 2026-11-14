@@ -546,6 +546,26 @@ pub struct Statement {
     pub concepts: Vec<&'static str>,
     /// Index of the statement it answers, if it answers one
     pub replying_to: Option<usize>,
+    /// What it does to what it answers - the floor's threading, explicit
+    /// (#1186): answers the ask, builds on the point, objects, or opens a
+    /// tangent. Framing marks the rite, the asks and the send-off
+    pub kind: ReplyKind,
+}
+
+/// What a floor statement does to the statement it answers
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReplyKind {
+    /// the rite, the asks, the send-off - not floor business
+    Framing,
+    /// an on-topic answer to the open question (or a pull-back re-ask)
+    Answer,
+    /// takes the last point up - agrees, extends, elaborates
+    BuildOn,
+    /// pushes back on it
+    Object,
+    /// off the thread entirely - gets the floor only when nothing real
+    /// is on offer
+    NewTopic,
 }
 
 /// A line an attendee could bring to a meeting
@@ -588,6 +608,8 @@ pub struct MeetingRites {
     pub old_closes: &'static [&'static str],
     /// the organizer's plain close, when no believer sends them off
     pub plain_closes: &'static [&'static str],
+    /// the organizer pulling a drifted room back to the matter (#1186)
+    pub pull_backs: &'static [&'static str],
 }
 
 /// Would the room look to this one for the rite? The devout - the pious,
@@ -607,10 +629,16 @@ fn old_ways(s: &Speaker) -> bool {
 const QUESTION_PULL: usize = 2;
 
 /// How strongly a just-answered statement pulls a follow-up vs an older
-/// one, and how much the open question outpulls both
+/// one, and how much the open question outpulls both. The old threads
+/// pull weak: a reply should land on the point just made, not stale
+/// business (#1186)
 const LAST_PULL: f32 = 2.5;
-const OLD_PULL: f32 = 1.5;
+const OLD_PULL: f32 = 1.0;
 const QUESTION_SCORE: f32 = 3.0;
+
+/// Floor statements the room can run without answering the matter before
+/// the organizer calls it back (#1186)
+const DRIFT_LIMIT: usize = 3;
 
 /// Run a house meeting's talk: a rite opens it (the room's own - a
 /// prayer, the old words, a verse, or the organizer's plain word), the
@@ -660,6 +688,7 @@ pub fn run_meeting<'a>(
             text: rite.to_string(),
             concepts: vec!["ritual"],
             replying_to: None,
+            kind: ReplyKind::Framing,
         },
         Statement {
             speaker: usize::MAX,
@@ -667,6 +696,7 @@ pub fn run_meeting<'a>(
             text: format!("{}: {}", organizer.name, prompt.text),
             concepts: prompt.concepts.to_vec(),
             replying_to: None,
+            kind: ReplyKind::Framing,
         },
     ];
     let mut used: HashSet<&'static str> = HashSet::default();
@@ -679,8 +709,8 @@ pub fn run_meeting<'a>(
         let last_speaker = record[last_idx].speaker;
         let question_open = answers < QUESTION_PULL;
 
-        // Bid: (speaker, target statement, line, score)
-        let mut bids: Vec<(usize, usize, &'a MeetingLine, f32)> = vec![];
+        // Bid: (speaker, target statement, line, kind, score)
+        let mut bids: Vec<(usize, usize, &'a MeetingLine, ReplyKind, f32)> = vec![];
         for (i, sp) in attendees.iter().enumerate() {
             if i == last_speaker { continue; } // you can't answer yourself
             let pool = pools[i];
@@ -692,12 +722,15 @@ pub fn run_meeting<'a>(
             for (si, s) in record.iter().enumerate() {
                 if si == Q && !question_open { continue; }
                 if s.speaker == i { continue; } // nor take up your own earlier point
-                let open_q = si == Q;
+                // a re-ask steers like the ask it re-opens - but only
+                // while it's the fresh word, not as an old statement
+                let ask = s.act == Act::Question && s.speaker == usize::MAX;
+                let open_q = (si == Q && question_open) || (ask && si == last_idx);
                 let pull = if open_q { QUESTION_SCORE }
                     else if si == last_idx { LAST_PULL }
                     else { OLD_PULL };
                 for l in pool {
-                    // Agreement or pushback can only reply to a fellow attendee's statement, not the organizer's opening question
+                    // Agreement or pushback can only reply to a fellow attendee's statement, not to an ask
                     if open_q && (l.act == Act::Agree || l.act == Act::PushBack) {
                         continue;
                     }
@@ -715,17 +748,27 @@ pub fn run_meeting<'a>(
                         if overlap { 1.5 } else { 0.5 }
                     } else { 1.0 };
                     if l.lines.iter().all(|x| used.contains(*x)) { continue; }
+                    // the kind the bid would be (#1186): an answer to the
+                    // matter, work on the point just made, or a tangent
+                    let kind = if open_q {
+                        if overlap { ReplyKind::Answer } else { ReplyKind::NewTopic }
+                    } else if l.act == Act::PushBack { ReplyKind::Object } else { ReplyKind::BuildOn };
                     let mut s = score * pull * fit;
                     for (t, m) in l.bias {
                         if sp.traits.contains(t) { s *= m; }
                     }
-                    bids.push((i, si, l, s));
+                    bids.push((i, si, l, kind, s));
                 }
             }
         }
+        // a real reply outranks a tangent: a fresh topic only gets the
+        // floor when there's nothing to answer (#1186)
+        if bids.iter().any(|b| b.3 != ReplyKind::NewTopic) {
+            bids.retain(|b| b.3 != ReplyKind::NewTopic);
+        }
         if bids.is_empty() { break; }
-        let weights: Vec<f32> = bids.iter().map(|b| b.3).collect();
-        let (speaker, target, line, _) = bids[rng.weighted(&weights)];
+        let weights: Vec<f32> = bids.iter().map(|b| b.4).collect();
+        let (speaker, target, line, kind, _) = bids[rng.weighted(&weights)];
         let other_sp = if record[target].speaker == usize::MAX {
             organizer
         } else {
@@ -744,7 +787,21 @@ pub fn run_meeting<'a>(
             speaker, act: line.act, text,
             concepts,
             replying_to: Some(target),
+            kind,
         });
+        // the organizer owns the thread: the floor's run this long
+        // without touching the matter, and they call it back (#1186)
+        if drifted(&record) {
+            answers = 0; // the matter's open again
+            record.push(Statement {
+                speaker: usize::MAX,
+                act: Act::Question,
+                text: rites.pull_backs[rng.below(rites.pull_backs.len())].to_string(),
+                concepts: prompt.concepts.to_vec(),
+                replying_to: Some(Q),
+                kind: ReplyKind::Framing,
+            });
+        }
     }
     // the send-off: a believer gives the benediction - a different voice
     // than opened if the room has one - else the organizer sends them home
@@ -763,8 +820,20 @@ pub fn run_meeting<'a>(
         text: close.to_string(),
         concepts: vec!["ritual"],
         replying_to: None,
+        kind: ReplyKind::Framing,
     });
     record
+}
+
+/// The floor's drifted when it's gone DRIFT_LIMIT statements without
+/// either asking or answering the matter - the ask itself or an answer
+/// to it re-anchors the room (#1186)
+fn drifted(record: &[Statement]) -> bool {
+    let ask = |s: &Statement| s.act == Act::Question && s.speaker == usize::MAX;
+    let anchor = record.iter().rposition(|s| {
+        ask(s) || s.replying_to.map(|t| ask(&record[t])).unwrap_or(false)
+    }).unwrap_or(0);
+    record.len() - 1 - anchor >= DRIFT_LIMIT
 }
 
 #[cfg(test)]
@@ -1143,6 +1212,7 @@ mod tests {
     fn test_meeting_attendees_never_reply_to_themselves() {
         for rec in meeting_records(0..100) {
             for stmt in &rec[2..rec.len() - 1] {
+                if stmt.speaker == usize::MAX { continue; } // the organizer's pull-backs
                 let target = stmt.replying_to.unwrap();
                 assert_ne!(rec[target].speaker, stmt.speaker, "attendee replied to own statement: {:?}", stmt.text);
                 if stmt.act == Act::Agree && rec[target].act == Act::PushBack {
@@ -1215,12 +1285,113 @@ mod tests {
     fn test_meeting_replies_carry_only_shared_concepts() {
         for rec in meeting_records(0..100) {
             for stmt in &rec[2..rec.len() - 1] {
+                if stmt.speaker == usize::MAX { continue; } // the organizer's pull-backs
                 let target = stmt.replying_to.unwrap();
                 if target == 1 { continue; }
                 assert!(stmt.concepts.iter().all(|c| rec[target].concepts.contains(c)),
                     "reply {:?} carries concepts its target {:?} lacks", stmt.concepts, rec[target].concepts);
             }
         }
+    }
+
+    #[test]
+    fn test_meeting_replies_stay_on_the_thread() {
+        // the matter at hand: replies land on the point just made or on
+        // an open ask - old threads and tangents lose (#1186)
+        let mut close = 0;
+        let mut back = 0;
+        let mut tangents = 0;
+        for rec in meeting_records(0..100) {
+            for (i, stmt) in rec.iter().enumerate() {
+                if stmt.kind == ReplyKind::Framing { continue; }
+                if stmt.kind == ReplyKind::NewTopic { tangents += 1; }
+                let t = stmt.replying_to.expect("floor statements all reply");
+                assert!(t < i, "reply {:?} targets a later statement", stmt.text);
+                let ask = rec[t].act == Act::Question && rec[t].speaker == usize::MAX;
+                if i - t == 1 || ask { close += 1; } else { back += 1; }
+            }
+        }
+        eprintln!("thread: {close} on the live point, {back} reaching back, {tangents} tangents");
+        assert!(close > back * 4, "most replies should land on the live point");
+        assert!(tangents * 5 < close, "tangents should be rare");
+    }
+
+    #[test]
+    fn test_meeting_reply_kinds_mark_the_thread() {
+        for rec in meeting_records(0..100) {
+            for (i, stmt) in rec.iter().enumerate() {
+                if i < 2 || i == rec.len() - 1 || stmt.kind == ReplyKind::Framing { continue; }
+                let t = stmt.replying_to.unwrap();
+                let ask = rec[t].act == Act::Question && rec[t].speaker == usize::MAX;
+                if t == 1 || (ask && i - t == 1) {
+                    // the question, or a pull-back while it's the fresh
+                    // word: only an answer - or a tangent, when nothing
+                    // real was on offer
+                    assert!(matches!(stmt.kind, ReplyKind::Answer | ReplyKind::NewTopic),
+                        "{:?} on an open ask", stmt.kind);
+                } else {
+                    // a stale pull-back is floor business like the rest
+                    assert!(matches!(stmt.kind, ReplyKind::Object | ReplyKind::BuildOn),
+                        "{:?} on floor business", stmt.kind);
+                    assert_eq!(stmt.kind == ReplyKind::Object, stmt.act == Act::PushBack);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_meeting_organizer_steers_when_the_floor_drifts() {
+        let frame = |act, speaker| Statement {
+            speaker, act, text: "framing".into(), concepts: vec![],
+            replying_to: None, kind: ReplyKind::Framing,
+        };
+        let floor = |to, kind| Statement {
+            speaker: 0, act: Act::Remark, text: "chatter".into(), concepts: vec![],
+            replying_to: Some(to), kind,
+        };
+        // rite, ask, an answer - then a run that leaves the matter alone
+        let mut rec = vec![
+            frame(Act::Greet, 0),
+            frame(Act::Question, usize::MAX),
+            floor(1, ReplyKind::Answer),
+        ];
+        for _ in 0..DRIFT_LIMIT - 1 {
+            rec.push(floor(rec.len() - 1, ReplyKind::BuildOn));
+            assert!(!drifted(&rec));
+        }
+        rec.push(floor(rec.len() - 1, ReplyKind::BuildOn));
+        assert!(drifted(&rec), "three unanswered statements is a drift");
+        // an answer to the ask re-anchors it, and so does a pull-back
+        rec.push(floor(1, ReplyKind::Answer));
+        assert!(!drifted(&rec));
+        for _ in 0..DRIFT_LIMIT {
+            rec.push(floor(rec.len() - 1, ReplyKind::BuildOn));
+        }
+        assert!(drifted(&rec));
+        rec.push(Statement {
+            replying_to: Some(1),
+            ..frame(Act::Question, usize::MAX)
+        });
+        assert!(!drifted(&rec));
+    }
+
+    #[test]
+    fn test_meeting_pull_backs_come_from_the_rites() {
+        // when a drift does happen, the room hears the organizer's words
+        let mut steers = 0;
+        for rec in meeting_records(0..200) {
+            for stmt in &rec[2..rec.len() - 1] {
+                if stmt.speaker == usize::MAX {
+                    steers += 1;
+                    assert_eq!(stmt.kind, ReplyKind::Framing);
+                    assert_eq!(stmt.replying_to, Some(1));
+                    assert!(MEET_RITES.pull_backs.contains(&stmt.text.as_str()),
+                        "pull-back: {}", stmt.text);
+                }
+            }
+        }
+        eprintln!("steers across 200 meetings: {steers}");
+        assert!(steers > 0, "drift should be reachable in the corpus");
     }
 
     #[test]

@@ -3,15 +3,16 @@
   - Eliza [lord]: Eliza holds the manor's leases. They mean to be more than they were born. Last night's cup is still on them.
   - Bram [lord]: Bram holds the manor's leases. They're the first with a loaf when a house is bare. They never miss a service. Their purse strings are knotted tight. They buried one of their own last week.
   - Corvin [lord]: Corvin holds the manor's leases. They bow to no one. Their temper's shorter than a winter's day. They'd sooner watch the clouds than the plough. A cough's had them these two weeks.
-  #0 Bram [Greet]: May the words said here do more good than harm. Amen.
-  #1 Reeve [Question]: What ails the village most, friends? Speak true.
-  #2 Bram [Remark] (re #1): We buried two souls this season; the churchyard grows crowded.
-  #3 Corvin [Remark] (re #1): The ditch enclosing the common wood has been unlawfully fenced off.
-  #4 Eliza [Remark] (re #3): Our ancient right of turbary and gathering brushwood must be defended.
-  #5 Bram [PushBack] (re #4): Talk is cheap - who will lift a hand to do aught about it?
-  #6 Aldric [PushBack] (re #3): And what wouldst thou have the village do, Corvin?
-  #7 Corvin [Remark] (re #2): The herb-wife needs clean well water and willow bark for remedies.
-  #8 Aldric [Agree] (re #4): Aye, there is the truth of it.
-  #9 Bram [Remark] (re #6): The common land belongs to the whole parish, not to a single estate.
-  #10 Aldric [Farewell]: Go in peace - and keep what was said here.
+  #0 Bram [Greet/Framing]: May the words said here do more good than harm. Amen.
+  #1 Reeve [Question/Framing]: What ails the village most, friends? Speak true.
+  #2 Bram [Remark/Answer] (re #1): We buried two souls this season; the churchyard grows crowded.
+  #3 Corvin [Remark/Answer] (re #1): The ditch enclosing the common wood has been unlawfully fenced off.
+  #4 Eliza [Remark/BuildOn] (re #3): Every cottager has a right to graze two cows on the village green.
+  #5 Bram [PushBack/Object] (re #4): Talk is cheap - who will lift a hand to do aught about it?
+  #6 Aldric [Remark/BuildOn] (re #4): If we lose the commons, our way of life is broken forever.
+  #7 Reeve [Question/Framing] (re #1): Hold - we've wandered. Speak to the matter.
+  #8 Corvin [Remark/Answer] (re #7): The common land belongs to the whole parish, not to a single estate.
+  #9 Bram [Remark/BuildOn] (re #7): The rents increase every Michaelmas without mercy or reason.
+  #10 Eliza [Remark/Answer] (re #1): I cannot pay in silver what the lord's steward demands.
+  #11 Aldric [Farewell/Framing]: May what we spoke of take root. Amen, and good night.
 REPRO: talk_lab meeting --seed 27 --folk 4 --name Reeve

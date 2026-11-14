@@ -55,7 +55,7 @@ them: Bram holds the manor's leases. They know every soul and every soul's busin
 you : Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 
 Bram [Greet in the_sickness]: Morrow, Dagny. A wretched cold - but warmer for seeing thee.
-Dagny [Question in the_sickness]: Is it the miller's lad's fever? Thou knowest I'll help.
+Dagny [Question in the_sickness]: Hast thou seen the herb-wife for a draught, m'lord?
 Bram [Answer in the_sickness]: My lungs feel like wet wool on a rainy morning.
 Dagny [Remark in the_sickness]: Time will tell what comes of this.
 Bram [Remark in the_sickness]: Thou'rt kind, Dagny. The saints remember a neighborly hand.
@@ -91,7 +91,7 @@ them: Bram holds the manor's leases. They know every soul and every soul's busin
 you : Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 
 Bram [Greet in the_sickness]: Morrow, Gisela. Step wide; even my fever wants no part of thee.
-Gisela [Agree in the_sickness]: Even I'd not wish this on thee, Bram. Perhaps.
+Gisela [Agree in the_sickness]: Thou shouldst be under woolen blankets, m'lord - thy folk will fret.
 Bram [Answer in the_sickness]: The calves won't feed themselves - and I'd not ask thee for help, Gisela.
 Gisela [Agree in the_sickness]: The dirt cares nothing - for either of us.
 Bram [Question in visiting_the_sick]: Dost thou have grain left in the bin?
@@ -119,7 +119,7 @@ them: Gisela holds the manor's leases. They mean to be more than they were born.
 you : Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 
 Gisela [Greet in the_sickness]: *cough* Morrow, traveler. Best keep to the far side of the path.
-Aelfric [PushBack in the_sickness]: I'll hear thee from across the ditch, and no nearer.
+Aelfric [PushBack in the_sickness]: I'll hear thee from across the ditch, begging m'lord's pardon.
 Gisela [Remark in the_sickness]: A little cough won't kill an honest worker.
 Aelfric [PushBack in the_sickness]: I'll not catch my death for thy pride.
 -- WalksOff

@@ -1,22 +1,14 @@
 === Talk: Voice (synthetic) vs Voice - Acquaintance ===
   them: Voice holds the manor's leases. They bow to no one.
   you : Voice works the fields for a day's wage.
-  Voice: Fair morning to thee, Voice.
-    1) [Greet] And to thee.
-  Voice: And to thee.
-  Voice: The morning dew was heavy on the clover.
-    1) [Agree] Aye, and the mud will take thy boots right off.
-  Voice: Aye, and the mud will take thy boots right off.
-  Voice: A steady hand and a patient mule see it through.
-    1) [Agree] True words; worry never baked a single loaf.
-  Voice: True words; worry never baked a single loaf.
-  Voice: Didst thou hear who was seen down by the mill?
-    1) [PushBack] That is not the way the elders told it.
-    2) [Remark] Tell on, neighbor - my ears are open.
-  Voice: That is not the way the elders told it.
-  Voice: Aye, words won't fill the storehouse.
-    1) [Farewell] Enough chatter. Good day.
-    2) [Farewell] Fair day to thee, Voice.
-  Voice: Enough chatter. Good day.
-  -- Farewell (trees: ["village_smalltalk"])
-REPRO: talk_lab talk --name Voice --ideology lord --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0
+  Voice: Morrow, Voice. Thy hedge wants mending on the north side.
+    1) [Greet] Aye, m'lord - good morrow to the manor.
+  Voice: Aye, m'lord - good morrow to the manor.
+  Voice: The deer have been at the lower field again - keep thy dogs close.
+    1) [Agree] The ditch will be cleared by the quarter day, m'lord.
+  Voice: The ditch will be cleared by the quarter day, m'lord.
+  Voice: The rolls are kept fair; what thy father owed, thou owest, no more.
+    1) [Farewell] I'll be at the oak, m'lord. Fair day.
+  Voice: I'll be at the oak, m'lord. Fair day.
+  -- Farewell (trees: ["the_lords_levee"])
+REPRO: talk_lab talk --name Voice --ideology lord --trait proud --seed 23 --rel Acquaintance --picks 0,0,0

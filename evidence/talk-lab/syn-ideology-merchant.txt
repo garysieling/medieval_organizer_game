@@ -1,22 +1,17 @@
 === Talk: Voice (synthetic) vs Voice - Acquaintance ===
   them: Voice trades on the road between villages. They bow to no one.
   you : Voice works the fields for a day's wage.
-  Voice: Fair morning to thee, Voice.
-    1) [Greet] And to thee.
-  Voice: And to thee.
-  Voice: The morning dew was heavy on the clover.
-    1) [Agree] Aye, and the mud will take thy boots right off.
-  Voice: Aye, and the mud will take thy boots right off.
-  Voice: A steady hand and a patient mule see it through.
-    1) [Agree] True words; worry never baked a single loaf.
-  Voice: True words; worry never baked a single loaf.
-  Voice: Didst thou hear who was seen down by the mill?
-    1) [PushBack] That is not the way the elders told it.
-    2) [Remark] Tell on, neighbor - my ears are open.
-  Voice: That is not the way the elders told it.
-  Voice: Aye, words won't fill the storehouse.
-    1) [Farewell] Enough chatter. Good day.
-    2) [Farewell] Fair day to thee, Voice.
-  Voice: Enough chatter. Good day.
-  -- Farewell (trees: ["village_smalltalk"])
-REPRO: talk_lab talk --name Voice --ideology merchant --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0
+  Voice: Fair day! Prices move like the river these weeks.
+    1) [Greet] Well met, trader - the village watches the road for thy pack.
+  Voice: Well met, trader - the village watches the road for thy pack.
+  Voice: Hast thou goods to trade, or only gossip?
+    1) [Answer] Salt fetches well here; the winter salting never fails to call for it.
+  Voice: Salt fetches well here; the winter salting never fails to call for it.
+  Voice: Coin talks where the tongue falls short, Voice.
+    1) [Agree] True enough - a debt unpaid is a friend unmade.
+  Voice: True enough - a debt unpaid is a friend unmade.
+  Voice: A good trade leaves both men smiling when hands are struck.
+    1) [Farewell] May thy pack horses stay sure-footed on the ridge.
+  Voice: May thy pack horses stay sure-footed on the ridge.
+  -- Farewell (trees: ["the_merchants_ledger"])
+REPRO: talk_lab talk --name Voice --ideology merchant --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0

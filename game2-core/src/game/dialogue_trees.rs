@@ -10,7 +10,7 @@
 
 use crate::game::conversation::{
     Act, Criterion::*, DialogueTree, Ending::*, Exchange, MeetingLine, MeetingPrompt,
-    Relation::*, Reply, Speaker, Voice,
+    Reply, Speaker, Voice,
 };
 use crate::game::traits::Trait;
 use crate::game::traits::Trait::*;
@@ -25,10 +25,13 @@ const SMALL_FADE: Exchange = Exchange {
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["Fair day to thee, {other}.", "Go well, {other}, and mind the mud.", "The saints keep thy roof whole.", "Fare thee well until the morrow."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Fair day, {other} - the ale waits for us both someday.", "Go well, my friend - come by the house when thou canst."] },
-                Voice { for_rels: &[Kin], lines: &["God keep our house - and thee in it, {other}.", "Fair day, kin - give my love to thy hearth."] },
-                Voice { for_rels: &[Stranger], lines: &["Fair road to thee, stranger.", "Go well, traveler - the saints watch thy path."] },
-                Voice { for_rels: &[Rival], lines: &["Away then, {other} - the day improves already.", "Fair day, {other} - such as it is, with thee in it."] },
+                Voice { criteria: &[Has("other:ideology:lord")], lines: &["Thy servant, m'lord. Good day.", "God keep the manor and thee with it, m'lord."] },
+                Voice { criteria: &[Has("other:ideology:merchant")], lines: &["Fair profit to thee, trader.", "May the road pay thy way, merchant."] },
+                Voice { criteria: &[Has("self:ideology:lord")], lines: &["Walk on, goodman - mind the hedges.", "Aye, good day to thee."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Fair day, {other} - the ale waits for us both someday.", "Go well, my friend - come by the house when thou canst."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["God keep our house - and thee in it, {other}.", "Fair day, kin - give my love to thy hearth."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Fair road to thee, stranger.", "Go well, traveler - the saints watch thy path."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Away then, {other} - the day improves already.", "Fair day, {other} - such as it is, with thee in it."] },
             ],
             then: None, end: Some(Farewell),
         },
@@ -37,7 +40,7 @@ const SMALL_FADE: Exchange = Exchange {
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["I take my leave.", "Enough chatter. Good day.", "My day is waiting.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             voice: &[
-                Voice { for_rels: &[Rival], lines: &["Enough. Good day, {other}.", "I take my leave - gladly."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Enough. Good day, {other}.", "I take my leave - gladly."] },
             ],
             then: None, end: Some(Farewell),
         },
@@ -166,10 +169,12 @@ const SMALL_CHAT: Exchange = Exchange {
     concepts: &["smalltalk", "weather"],
     calls: &["Looks like rain again, doesn't it?", "Cold wind off the moor this morning.", "Gray clouds gathering over the western hill.", "The morning dew was heavy on the clover."],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["Gray clouds again - thou and I have worked under worse, {other}.", "Cold wind this morning - good thing thy tales are warm."] },
-        Voice { for_rels: &[Kin], lines: &["Rain's coming - mother will want the washing in.", "A gray sky over our lane again, {other}."] },
-        Voice { for_rels: &[Stranger], lines: &["The moor wind blows cold on travelers, stranger.", "Gray clouds - ill weather for the road, I'm told."] },
-        Voice { for_rels: &[Rival], lines: &["The sky's as sour as thy company, {other}.", "Cold wind - fitting weather for thee to be abroad in."] },
+        Voice { criteria: &[Has("self:ideology:lord")], lines: &["The sky owes my wheat a fortnight of sun.", "The weather keeps my stewards busy, I'll warrant."] },
+        Voice { criteria: &[Has("self:ideology:merchant")], lines: &["Rain means mud, and mud means slow wagons.", "Grey skies never stopped a good price."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["Gray clouds again - thou and I have worked under worse, {other}.", "Cold wind this morning - good thing thy tales are warm."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Rain's coming - mother will want the washing in.", "A gray sky over our lane again, {other}."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["The moor wind blows cold on travelers, stranger.", "Gray clouds - ill weather for the road, I'm told."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["The sky's as sour as thy company, {other}.", "Cold wind - fitting weather for thee to be abroad in."] },
     ],
     replies: &[
         Reply {
@@ -177,9 +182,9 @@ const SMALL_CHAT: Exchange = Exchange {
             act: Act::Agree, concepts: &["weather"],
             lines: &["It will be a wet week, mark me.", "The thatch won't thank it if it pours.", "Aye, and the mud will take thy boots right off.", "Good for the barley, but bad for the road."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Aye - we'll weather it together, like always.", "Wet week or dry, good to stand a while with thee."] },
-                Voice { for_rels: &[Kin], lines: &["Aye - our roof's held worse, thanks to our father's hands.", "The mud'll take our boots, same as when we were little."] },
-                Voice { for_rels: &[Rival], lines: &["Aye, rain - and I'll not lend thee my cloak for it.", "The thatch won't thank it, nor will I thank thee for saying so."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Aye - we'll weather it together, like always.", "Wet week or dry, good to stand a while with thee."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Aye - our roof's held worse, thanks to our father's hands.", "The mud'll take our boots, same as when we were little."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, rain - and I'll not lend thee my cloak for it.", "The thatch won't thank it, nor will I thank thee for saying so."] },
             ],
             then: Some(SMALL_VOLLEY), end: None,
         },
@@ -188,7 +193,7 @@ const SMALL_CHAT: Exchange = Exchange {
             act: Act::PushBack, concepts: &["weather"],
             lines: &["Rain? It is the driest week in memory.", "Thou seest a tempest in every puff of smoke.", "My joints say dry weather, whatever the sky says.", "Nay, I see it differently, mark me.", "That is not the way the elders told it."],
             voice: &[
-                Voice { for_rels: &[Rival], lines: &["Rain? Trust thee to call the sky wrong, {other}.", "Thou'dst argue with the weather itself - and lose."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Rain? Trust thee to call the sky wrong, {other}.", "Thou'dst argue with the weather itself - and lose."] },
             ],
             then: Some(SMALL_VOLLEY), end: None,
         },
@@ -214,11 +219,13 @@ const SMALL_GREET: Exchange = Exchange {
     concepts: &["greeting"],
     calls: &["Good morrow to thee, {other}.", "Well met, neighbor {other}.", "A fair day to thee and thine, {other}.", "God's peace on this path, {other}.", "Hail, {other} - traveling far today?"],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["Well met, {other} - the day brightens for thy company.", "Ah, {other}! I hoped the road would bring thee."] },
-        Voice { for_rels: &[Kin], lines: &["Morrow, {other} - the house still smells of thy baking.", "{other}! Good blood on the road today."] },
-        Voice { for_rels: &[Stranger], lines: &["Morrow, traveler.", "A fair day, stranger - if friend thou be."] },
-        Voice { for_rels: &[Acquaintance], lines: &["Morrow, {other}.", "Fair morning to thee, {other}."] },
-        Voice { for_rels: &[Rival], lines: &["{other}. Thou'rt out early.", "Morrow, {other}. Mind where thou walkest."] },
+        Voice { criteria: &[Has("self:ideology:lord")], lines: &["Morrow, {other} - thy strip looks well enough this year.", "Aye, neighbor - the morning serves us all."] },
+        Voice { criteria: &[Has("self:ideology:merchant")], lines: &["Morrow, {other} - brisk trade to thee.", "Fair day! The road's been kind to the purse."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["Well met, {other} - the day brightens for thy company.", "Ah, {other}! I hoped the road would bring thee."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, {other} - the house still smells of thy baking.", "{other}! Good blood on the road today."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, traveler.", "A fair day, stranger - if friend thou be."] },
+        Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["Morrow, {other}.", "Fair morning to thee, {other}."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["{other}. Thou'rt out early.", "Morrow, {other}. Mind where thou walkest."] },
     ],
     replies: &[
         Reply {
@@ -226,11 +233,13 @@ const SMALL_GREET: Exchange = Exchange {
             act: Act::Greet, concepts: &["greeting"],
             lines: &["And to thee, {other}.", "Well met indeed, friend.", "The saints keep thee, {other}.", "Good day and full granaries to thee."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["And a brighter one to thee, {other}.", "Well met, my friend - always."] },
-                Voice { for_rels: &[Kin], lines: &["To thee and all our house, {other}.", "Morrow, kin - the latch is never barred to thee."] },
-                Voice { for_rels: &[Stranger], lines: &["And to thee, stranger.", "Fair met, though I know thee not well."] },
-                Voice { for_rels: &[Acquaintance], lines: &["And to thee.", "Good day to thee."] },
-                Voice { for_rels: &[Rival], lines: &["Aye, well met - for some.", "I see thee, {other}."] },
+                Voice { criteria: &[Has("other:ideology:lord")], lines: &["And to thee, m'lord.", "God keep thee and the manor, m'lord."] },
+                Voice { criteria: &[Has("other:ideology:merchant")], lines: &["And fair coin to thee, trader.", "Well met, merchant - the road treats thee kindly."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["And a brighter one to thee, {other}.", "Well met, my friend - always."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["To thee and all our house, {other}.", "Morrow, kin - the latch is never barred to thee."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["And to thee, stranger.", "Fair met, though I know thee not well."] },
+                Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["And to thee.", "Good day to thee."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, well met - for some.", "I see thee, {other}."] },
             ],
             then: Some(SMALL_CHAT), end: None,
         },
@@ -239,8 +248,8 @@ const SMALL_GREET: Exchange = Exchange {
             act: Act::Remark, concepts: &["greeting"],
             lines: &["Morrow.", "Aye. What is it, {other}?", "I am here, as thou seest.", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
             voice: &[
-                Voice { for_rels: &[Rival], lines: &["Speak thy piece and be done.", "Out with it - I've no patience for thee today."] },
-                Voice { for_rels: &[Stranger], lines: &["Aye. What dost thou want of me?", "I am here, stranger - as thou seest."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Speak thy piece and be done.", "Out with it - I've no patience for thee today."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Aye. What dost thou want of me?", "I am here, stranger - as thou seest."] },
             ],
             then: Some(SMALL_CHAT), end: None,
         },
@@ -249,8 +258,8 @@ const SMALL_GREET: Exchange = Exchange {
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["I have no time for idle talk today.", "Work is waiting at the barn, {other}.", "I walk on business, neighbor.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             voice: &[
-                Voice { for_rels: &[Rival], lines: &["I've no time for thee today.", "Walk on, {other}."] },
-                Voice { for_rels: &[Stranger], lines: &["I walk on business, stranger.", "I've no leisure for a stranger's talk today."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["I've no time for thee today.", "Walk on, {other}."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["I walk on business, stranger.", "I've no leisure for a stranger's talk today."] },
             ],
             then: None, end: Some(Farewell),
         },
@@ -399,10 +408,10 @@ const SICK_EXCUSE: Exchange = Exchange {
     concepts: &["concern:sickness"],
     calls: &["I'd rest in the straw if the chores would do themselves.", "There is no one else to fetch water from the river.", "The calves won't feed themselves, fever or no.", "The lord's rent waits for no man's cough."],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["I'd rest, {other}, but the chores won't do themselves - though I know thou'dst lend a hand.", "The calves won't feed themselves, friend - fever or no."] },
-        Voice { for_rels: &[Kin], lines: &["The calves won't feed themselves - though our kin have offered, bless them.", "There's none else to fetch the water - though I know our house would send it."] },
-        Voice { for_rels: &[Stranger], lines: &["There is no one else to fetch water from the river, stranger.", "The rent waits for no man's cough."] },
-        Voice { for_rels: &[Rival], lines: &["The calves won't feed themselves - and I'd not ask thee for help, {other}.", "I'd rest, but who'd do it? Not thee, I reckon."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["I'd rest, {other}, but the chores won't do themselves - though I know thou'dst lend a hand.", "The calves won't feed themselves, friend - fever or no."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["The calves won't feed themselves - though our kin have offered, bless them.", "There's none else to fetch the water - though I know our house would send it."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["There is no one else to fetch water from the river, stranger.", "The rent waits for no man's cough."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["The calves won't feed themselves - and I'd not ask thee for help, {other}.", "I'd rest, but who'd do it? Not thee, I reckon."] },
     ],
     replies: &[
         Reply {
@@ -410,9 +419,9 @@ const SICK_EXCUSE: Exchange = Exchange {
             act: Act::Agree, concepts: &["concern:sickness"],
             lines: &["We labor or we go hungry, that's the hard truth of it.", "Aye, the dirt cares nothing for an aching back.", "A poor man's bed is a luxury he can rarely afford.", "Aye, there is truth in what thou sayest.", "Thou hast spoken the plain heart of the matter."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Aye, and I'd carry half thy load if thou'dst let me.", "True enough - but a friend's help makes the toil shorter."] },
-                Voice { for_rels: &[Kin], lines: &["Aye, but our house will see thee through it.", "Blood doesn't watch blood labor alone for long."] },
-                Voice { for_rels: &[Rival], lines: &["Aye, work or starve - thou knowest it as well as I.", "The dirt cares nothing - for either of us."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Aye, and I'd carry half thy load if thou'dst let me.", "True enough - but a friend's help makes the toil shorter."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Aye, but our house will see thee through it.", "Blood doesn't watch blood labor alone for long."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, work or starve - thou knowest it as well as I.", "The dirt cares nothing - for either of us."] },
             ],
             then: None, end: None,
         },
@@ -421,9 +430,9 @@ const SICK_EXCUSE: Exchange = Exchange {
             act: Act::Remark, concepts: &["concern:sickness", "aid"],
             lines: &["Let me carry thy pail to the well, {other}.", "Go inside; I'll see to thy livestock this evening.", "I have barley meal to spare for thy kettle.", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Say the word and the chore's done, {other} - thou knowest it.", "I'll see to thy beasts this evening; rest easy."] },
-                Voice { for_rels: &[Kin], lines: &["Our house has barley to spare - blood takes care of blood.", "Go in, {other}; thy cousins will see to the yard."] },
-                Voice { for_rels: &[Rival], lines: &["I'll carry thy pail - once - and I'd not have it spoke of.", "Thy beasts I'll see to; thee, I'll suffer at a distance."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Say the word and the chore's done, {other} - thou knowest it.", "I'll see to thy beasts this evening; rest easy."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Our house has barley to spare - blood takes care of blood.", "Go in, {other}; thy cousins will see to the yard."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["I'll carry thy pail - once - and I'd not have it spoke of.", "Thy beasts I'll see to; thee, I'll suffer at a distance."] },
             ],
             then: Some(SICK_THANKS), end: None,
         },
@@ -432,8 +441,8 @@ const SICK_EXCUSE: Exchange = Exchange {
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["Rest when thou canst, {other}. Fair day.", "God grant thee strength for the day's toil.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Rest well, {other} - I'll look in on thee at dusk."] },
-                Voice { for_rels: &[Rival], lines: &["Rest when thou canst - or don't; it's no care of mine.", "God grant thee strength - and keep thee far from me."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Rest well, {other} - I'll look in on thee at dusk."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Rest when thou canst - or don't; it's no care of mine.", "God grant thee strength - and keep thee far from me."] },
             ],
             then: None, end: Some(Farewell),
         },
@@ -445,11 +454,11 @@ const SICK_GREET: Exchange = Exchange {
     concepts: &["greeting", "concern:sickness"],
     calls: &["*cough* Good morrow, {other}.", "Forgive my rough voice - this chest cold won't quit.", "Morrow, {other}. Don't stand too close in the breeze.", "A heavy morning, neighbor. My limbs are like lead."],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["*cough* Ah, {other} - forgive the croak. Stand off, mind; I'd not share this with a friend.", "Morrow, {other}. A wretched cold - but warmer for seeing thee."] },
-        Voice { for_rels: &[Kin], lines: &["*cough* Morrow, {other}. Tell our mother I still stand upright.", "{other} - aye, it's me, coughing like a broken bellows. Keep out of the draft."] },
-        Voice { for_rels: &[Stranger], lines: &["*cough* Morrow, traveler. Best keep to the far side of the path.", "A sick man's greeting, stranger - from a distance."] },
-        Voice { for_rels: &[Acquaintance], lines: &["*cough* Fair morning, {other}. Mind the breeze between us.", "Morrow, {other} - a foul chest this week."] },
-        Voice { for_rels: &[Rival], lines: &["*cough* {other}. Keep to thy side - I'd not give thee even my sickness.", "Morrow, {other}. Step wide; even my fever wants no part of thee."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["*cough* Ah, {other} - forgive the croak. Stand off, mind; I'd not share this with a friend.", "Morrow, {other}. A wretched cold - but warmer for seeing thee."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["*cough* Morrow, {other}. Tell our mother I still stand upright.", "{other} - aye, it's me, coughing like a broken bellows. Keep out of the draft."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["*cough* Morrow, traveler. Best keep to the far side of the path.", "A sick man's greeting, stranger - from a distance."] },
+        Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["*cough* Fair morning, {other}. Mind the breeze between us.", "Morrow, {other} - a foul chest this week."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["*cough* {other}. Keep to thy side - I'd not give thee even my sickness.", "Morrow, {other}. Step wide; even my fever wants no part of thee."] },
     ],
     replies: &[
         Reply {
@@ -457,11 +466,12 @@ const SICK_GREET: Exchange = Exchange {
             act: Act::Agree, concepts: &["concern:sickness"],
             lines: &["Poor soul - get thee back into the warm cottage.", "Thou shouldst be under woolen blankets, not out here.", "Thou lookest pale as a winter moon, {other}.", "Aye, there is truth in what thou sayest.", "Thou hast spoken the plain heart of the matter."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Get thee back under the blankets, {other} - I'll not watch thee worsen.", "Poor soul. Tell me what thy house needs and it's done."] },
-                Voice { for_rels: &[Kin], lines: &["Thou'rt blood - I'll not watch thee shake. Home with thee.", "Back to bed, {other}. I'll fetch the broth myself."] },
-                Voice { for_rels: &[Stranger], lines: &["Thou shouldst not be abroad in this state, stranger.", "Keep thy strength - and thy distance."] },
-                Voice { for_rels: &[Acquaintance], lines: &["Thou lookest pale, {other}. Best be indoors.", "A rough fever, by the look of thee."] },
-                Voice { for_rels: &[Rival], lines: &["Aye, keep thy distance - but I'll not pretend a pity I don't feel.", "Even I'd not wish this on thee, {other}. Perhaps."] },
+                Voice { criteria: &[Has("other:ideology:lord")], lines: &["Poor soul - get thee back to the manor's warm hearth, m'lord.", "Thou shouldst be under woolen blankets, m'lord - thy folk will fret."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Get thee back under the blankets, {other} - I'll not watch thee worsen.", "Poor soul. Tell me what thy house needs and it's done."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Thou'rt blood - I'll not watch thee shake. Home with thee.", "Back to bed, {other}. I'll fetch the broth myself."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Thou shouldst not be abroad in this state, stranger.", "Keep thy strength - and thy distance."] },
+                Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["Thou lookest pale, {other}. Best be indoors.", "A rough fever, by the look of thee."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, keep thy distance - but I'll not pretend a pity I don't feel.", "Even I'd not wish this on thee, {other}. Perhaps."] },
             ],
             then: Some(SICK_EXCUSE), end: None,
         },
@@ -470,10 +480,11 @@ const SICK_GREET: Exchange = Exchange {
             act: Act::Question, concepts: &["concern:sickness"],
             lines: &["Is it the ague that took the miller's lad?", "How long has this fever had hold of thee?", "Hast thou seen the herb-wife for a draught?"],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["How long has it held thee, {other}? Speak plain with me.", "Is it the miller's lad's fever? Thou knowest I'll help."] },
-                Voice { for_rels: &[Kin], lines: &["What does the herb-wife say? Our house will hear of it."] },
-                Voice { for_rels: &[Stranger], lines: &["How long since it took hold?", "Is it catching, this fever of thine?"] },
-                Voice { for_rels: &[Rival], lines: &["How long hast thou dragged that about, {other}?", "Is it the fever, or merely thy face?"] },
+                Voice { criteria: &[Has("other:ideology:lord")], lines: &["How long has the fever held thee, m'lord?", "Hast thou seen the herb-wife for a draught, m'lord?"] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["How long has it held thee, {other}? Speak plain with me.", "Is it the miller's lad's fever? Thou knowest I'll help."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["What does the herb-wife say? Our house will hear of it."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["How long since it took hold?", "Is it catching, this fever of thine?"] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["How long hast thou dragged that about, {other}?", "Is it the fever, or merely thy face?"] },
             ],
             then: Some(SICK_ANSWER), end: None,
         },
@@ -482,8 +493,9 @@ const SICK_GREET: Exchange = Exchange {
             act: Act::PushBack, concepts: &["concern:sickness"],
             lines: &["Keep thy distance, neighbor. I have no wish to catch it.", "I will hear thee from across the ditch.", "Cover thy mouth when thou speakest in the wind.", "Nay, I see it differently, mark me.", "That is not the way the elders told it."],
             voice: &[
-                Voice { for_rels: &[Rival], lines: &["Keep thy plague and thy distance both.", "Breathe elsewhere, {other} - as ever."] },
-                Voice { for_rels: &[Stranger], lines: &["Keep thy distance, stranger - I want no new sickness.", "I'll hear thee from across the ditch, and no nearer."] },
+                Voice { criteria: &[Has("other:ideology:lord")], lines: &["Keep thy distance, m'lord - I have no wish to catch it.", "I'll hear thee from across the ditch, begging m'lord's pardon."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Keep thy plague and thy distance both.", "Breathe elsewhere, {other} - as ever."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Keep thy distance, stranger - I want no new sickness.", "I'll hear thee from across the ditch, and no nearer."] },
             ],
             then: Some(SICK_STUNG), end: None,
         },
@@ -613,11 +625,11 @@ const GRIEF_GREET: Exchange = Exchange {
     concepts: &["greeting", "concern:grief"],
     calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "A peaceful day to thee, {other}."],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["{other}. Forgive me - the house is still since they passed, and thy face is a kindness.", "Well met, dear friend. The days feel longer now."] },
-        Voice { for_rels: &[Kin], lines: &["{other}. Blood knows blood - the house is empty without them.", "Morrow, {other}. Our family's table has an empty bench."] },
-        Voice { for_rels: &[Stranger], lines: &["Morrow, stranger. Forgive a grieving house its silence.", "A heavy morning - we've buried one of ours."] },
-        Voice { for_rels: &[Acquaintance], lines: &["Morrow, {other}. The bell tolled for my house this week.", "A gray day, {other}. The hearth is dark."] },
-        Voice { for_rels: &[Rival], lines: &["{other}. Even thou'll know the house has gone quiet.", "Morrow, {other}. Death levels more than our quarrel."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["{other}. Forgive me - the house is still since they passed, and thy face is a kindness.", "Well met, dear friend. The days feel longer now."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["{other}. Blood knows blood - the house is empty without them.", "Morrow, {other}. Our family's table has an empty bench."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, stranger. Forgive a grieving house its silence.", "A heavy morning - we've buried one of ours."] },
+        Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["Morrow, {other}. The bell tolled for my house this week.", "A gray day, {other}. The hearth is dark."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["{other}. Even thou'll know the house has gone quiet.", "Morrow, {other}. Death levels more than our quarrel."] },
     ],
     replies: &[
         Reply {
@@ -625,11 +637,11 @@ const GRIEF_GREET: Exchange = Exchange {
             act: Act::Agree, concepts: &["concern:grief"],
             lines: &["They were an honest soul. The whole village mourns them.", "The saints receive their spirit in eternal peace.", "My heart aches for thee, neighbor.", "Aye, there is truth in what thou sayest.", "Thou hast spoken the plain heart of the matter."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["They were the best of us, {other} - I'll miss them beside thee.", "My heart breaks with thine, {other}. Always."] },
-                Voice { for_rels: &[Kin], lines: &["Our blood mourns together, {other}. The saints keep them.", "They were ours - and we carry them now."] },
-                Voice { for_rels: &[Stranger], lines: &["I did not know them, stranger, but I grieve thy grief.", "A loss is a loss - the saints keep their soul."] },
-                Voice { for_rels: &[Acquaintance], lines: &["An honest soul gone. The village mourns with thee.", "The saints receive them kindly."] },
-                Voice { for_rels: &[Rival], lines: &["We'd our quarrels, {other} - but the grave settles them.", "I'll not pretend tears, {other} - but I'll not mock the dead."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["They were the best of us, {other} - I'll miss them beside thee.", "My heart breaks with thine, {other}. Always."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Our blood mourns together, {other}. The saints keep them.", "They were ours - and we carry them now."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["I did not know them, stranger, but I grieve thy grief.", "A loss is a loss - the saints keep their soul."] },
+                Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["An honest soul gone. The village mourns with thee.", "The saints receive them kindly."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["We'd our quarrels, {other} - but the grave settles them.", "I'll not pretend tears, {other} - but I'll not mock the dead."] },
             ],
             then: Some(GRIEF_OPENS), end: None,
         },
@@ -638,10 +650,10 @@ const GRIEF_GREET: Exchange = Exchange {
             act: Act::Question, concepts: &["concern:grief", "aid"],
             lines: &["Is there any chore I can take off thy shoulders?", "Hast thou eaten a warm bite today, {other}?", "Shall I sit with thee a while, {other}?"],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["What can I take off thy hands, {other}? Name it.", "Shall I sit with thee? Thou needn't be alone."] },
-                Voice { for_rels: &[Kin], lines: &["What does the house need? Say it and it's done."] },
-                Voice { for_rels: &[Stranger], lines: &["Is there aught a stranger can do?", "Dost thou have folk to help thee?"] },
-                Voice { for_rels: &[Rival], lines: &["I'll not offer charity thou'dst refuse - but is thy house seen to?", "Is anyone feeding thee? Even I would not see thee starve."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["What can I take off thy hands, {other}? Name it.", "Shall I sit with thee? Thou needn't be alone."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["What does the house need? Say it and it's done."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Is there aught a stranger can do?", "Dost thou have folk to help thee?"] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["I'll not offer charity thou'dst refuse - but is thy house seen to?", "Is anyone feeding thee? Even I would not see thee starve."] },
             ],
             then: Some(GRIEF_ASK), end: None,
         },
@@ -989,11 +1001,11 @@ const HUNGER_GREET: Exchange = Exchange {
     concepts: &["greeting", "concern:food"],
     calls: &["Good morrow, {other}. A hollow belly makes for a slow step.", "Well met, friend, though the times are thin and hard.", "Greetings, {other}. Hast thou found anything to put in the pot?", "A peaceful day to thee, {other}."],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["Morrow, {other} - a hollow belly, but glad company.", "Well met, {other} - we've both known thinner tables. Barely."] },
-        Voice { for_rels: &[Kin], lines: &["Morrow, {other} - is there bread at thy hearth? Ours runs thin.", "{other} - kin shouldn't have to ask, but hast thou grain?"] },
-        Voice { for_rels: &[Stranger], lines: &["Morrow, stranger. Thin pickings along this road.", "A hungry greeting, traveler - the fields gave little this year."] },
-        Voice { for_rels: &[Acquaintance], lines: &["Morrow, {other} - lean times on every lane.", "Fair morning, {other}. The pot stays empty these days."] },
-        Voice { for_rels: &[Rival], lines: &["Morrow, {other}. Hunger bites even the unworthy.", "{other}. If thy larder's full, I'd not believe thee anyway."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["Morrow, {other} - a hollow belly, but glad company.", "Well met, {other} - we've both known thinner tables. Barely."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, {other} - is there bread at thy hearth? Ours runs thin.", "{other} - kin shouldn't have to ask, but hast thou grain?"] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, stranger. Thin pickings along this road.", "A hungry greeting, traveler - the fields gave little this year."] },
+        Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["Morrow, {other} - lean times on every lane.", "Fair morning, {other}. The pot stays empty these days."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["Morrow, {other}. Hunger bites even the unworthy.", "{other}. If thy larder's full, I'd not believe thee anyway."] },
     ],
     replies: &[
         Reply {
@@ -1001,10 +1013,10 @@ const HUNGER_GREET: Exchange = Exchange {
             act: Act::Answer, concepts: &["concern:food"],
             lines: &["Morrow, {other}. The porridge is thin as ditchwater this week.", "Aye, we scrape the bottom of the flour chest.", "The storehouse has dwindled down to crumbs.", "Take half this barley loaf; we must look after each other."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Thin porridge for us both, {other} - but half my loaf is thine.", "Crumbs at our house too - come share what little there is."] },
-                Voice { for_rels: &[Kin], lines: &["The bin's near empty, {other} - but blood shares what it has.", "Our house eats thin too; come by and we'll stretch it."] },
-                Voice { for_rels: &[Stranger], lines: &["We scrape what we can, like all here.", "The storehouse holds little for strangers' asking."] },
-                Voice { for_rels: &[Rival], lines: &["Thin enough, {other} - though I'd not expect thee to spare a crumb.", "We manage - no thanks to the likes of thee."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Thin porridge for us both, {other} - but half my loaf is thine.", "Crumbs at our house too - come share what little there is."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["The bin's near empty, {other} - but blood shares what it has.", "Our house eats thin too; come by and we'll stretch it."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["We scrape what we can, like all here.", "The storehouse holds little for strangers' asking."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Thin enough, {other} - though I'd not expect thee to spare a crumb.", "We manage - no thanks to the likes of thee."] },
             ],
             then: Some(HUNGER_SHARE), end: None,
         },
@@ -1013,8 +1025,8 @@ const HUNGER_GREET: Exchange = Exchange {
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["We tighten our belts and carry on.", "Talk won't fill the larder. I must seek wild greens.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Come by the house tonight, {other} - we'll make it stretch."] },
-                Voice { for_rels: &[Rival], lines: &["Talk fills no bellies - least of all thine.", "I must seek greens. Keep thy hands off my patch."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Come by the house tonight, {other} - we'll make it stretch."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Talk fills no bellies - least of all thine.", "I must seek greens. Keep thy hands off my patch."] },
             ],
             then: None, end: Some(Farewell),
         },
@@ -1122,11 +1134,11 @@ const DRUNK_GREET: Exchange = Exchange {
     concepts: &["greeting", "smalltalk"],
     calls: &["Oof... good morrow, {other}. Don't shout, I pray thee.", "Well met, friend. My head is hammering like the smith's anvil.", "Ugh, the sunlight is blinding today, {other}.", "A peaceful day to thee, {other}."],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["Oof - morrow, {other}. Don't laugh; my head's an anvil today.", "Well met, {other} - thou'dst have warned me off that third cup, I know."] },
-        Voice { for_rels: &[Kin], lines: &["Oof - morrow, {other}. Don't tell our mother the state of me.", "{other}! Aye, it's me - the tavern won last night."] },
-        Voice { for_rels: &[Stranger], lines: &["Oof - morrow, stranger. Mind the volume, I pray.", "A rough greeting, traveler - the ale had a bite."] },
-        Voice { for_rels: &[Acquaintance], lines: &["Oof. Fair morning, {other} - the light's too loud today.", "Morrow, {other}. A rough night at the tavern."] },
-        Voice { for_rels: &[Rival], lines: &["Oof - {other}. Say one word about last night and we're done.", "Morrow, {other}. Laugh and I'll remember it."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["Oof - morrow, {other}. Don't laugh; my head's an anvil today.", "Well met, {other} - thou'dst have warned me off that third cup, I know."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Oof - morrow, {other}. Don't tell our mother the state of me.", "{other}! Aye, it's me - the tavern won last night."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Oof - morrow, stranger. Mind the volume, I pray.", "A rough greeting, traveler - the ale had a bite."] },
+        Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["Oof. Fair morning, {other} - the light's too loud today.", "Morrow, {other}. A rough night at the tavern."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["Oof - {other}. Say one word about last night and we're done.", "Morrow, {other}. Laugh and I'll remember it."] },
     ],
     replies: &[
         Reply {
@@ -1134,10 +1146,10 @@ const DRUNK_GREET: Exchange = Exchange {
             act: Act::Answer, concepts: &["smalltalk"],
             lines: &["Ha! The tavern-keeper's ale had a bite to it, didn't it?", "Thou lookest like a corpse dug up from the wet turf.", "I warned thee that dark brew was brewed for giants.", "We do what we can with the strength Heaven gives."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Ha! I told thee that dark brew was brewed for giants, {other}.", "Thou lookest like death's cousin - and I should know, I feel the same."] },
-                Voice { for_rels: &[Kin], lines: &["Our grandfather drank the same way - the shame's in the blood.", "Mother warned the whole house about that ale."] },
-                Voice { for_rels: &[Stranger], lines: &["The ale bites the unready, stranger.", "Thou lookest like the grave let thee out early."] },
-                Voice { for_rels: &[Rival], lines: &["Thou lookest a wreck, {other} - I'd pay to see it again.", "The ale had more spine than thee, I see."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Ha! I told thee that dark brew was brewed for giants, {other}.", "Thou lookest like death's cousin - and I should know, I feel the same."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Our grandfather drank the same way - the shame's in the blood.", "Mother warned the whole house about that ale."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["The ale bites the unready, stranger.", "Thou lookest like the grave let thee out early."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Thou lookest a wreck, {other} - I'd pay to see it again.", "The ale had more spine than thee, I see."] },
             ],
             then: Some(DRUNK_RECALL), end: None,
         },
@@ -1146,8 +1158,8 @@ const DRUNK_GREET: Exchange = Exchange {
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["Sleep it off in the hayloft, {other}.", "Go dunk thy head in the horse trough. Fair day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Sleep it off, {other} - I'll cover for thee at the work.", "Rest thy poor head, friend."] },
-                Voice { for_rels: &[Rival], lines: &["Sleep it off, {other} - somewhere out of my sight.", "Go soak thy head - and stay gone."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Sleep it off, {other} - I'll cover for thee at the work.", "Rest thy poor head, friend."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Sleep it off, {other} - somewhere out of my sight.", "Go soak thy head - and stay gone."] },
             ],
             then: None, end: Some(Farewell),
         },
@@ -2039,6 +2051,72 @@ const MERCHANT_GREET: Exchange = Exchange {
     ],
 };
 
+const LEDGER_ACCOUNTS: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["trade:merchant"],
+    calls: &["A bushel on credit is a bushel at interest, mark me.", "The ledger forgets nothing - kindness least of all.", "Coin talks where the tongue falls short, {other}.", "The price of wool has climbed a penny since the spring fair."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["trade:merchant"],
+            lines: &["Aye, and debt is a chain that rattles at night.", "Thou speakest the trader's own gospel.", "True enough - a debt unpaid is a friend unmade."],
+            voice: &[],
+            then: Some(MERCHANT_BARTER), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["Fair profit to thy ledger, merchant. Good day.", "I'll mind my own accounts, thank thee kindly.", "Until the next fair, trader."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const LEDGER_ROADS: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["trade:merchant"],
+    calls: &["What news of the wool price in the towns, {other}?", "Knowest thou a steady hand for the autumn caravan?", "What exchange does the village offer for good salt this season?", "Hast thou goods to trade, or only gossip?"], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Answer, concepts: &["trade:merchant"],
+            lines: &["The fleece went for three pence the stone at the last market.", "My cousin's boy drives a steady cart for a fair wage.", "Salt fetches well here; the winter salting never fails to call for it.", "Barley and honest talk, trader - that is our stock in trade."],
+            voice: &[],
+            then: Some(LEDGER_ACCOUNTS), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["I must be on my way, trader. Fare well.", "My purse is thin - another market, perhaps.", "Until next time, merchant."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const LEDGER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "trade:merchant"],
+    calls: &["Morrow, {other} - the ledger never sleeps, eh?", "Fair day! Prices move like the river these weeks.", "Well met, {other} - trade is brisk when the roads are kind.", "Greetings! Every handshake's a tally waiting to be struck."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Greet, concepts: &["trade:merchant"],
+            lines: &["And fair coin to thy purse, merchant.", "Well met, trader - the village watches the road for thy pack.", "Morrow - what does the wide world charge for news today?"],
+            voice: &[],
+            then: Some(LEDGER_ROADS), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["I must be on my way, merchant. Fare well.", "Chores before commerce, I'm afraid.", "Until next time, trader."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
 const LORD_PETITION: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:rents"],
@@ -2092,6 +2170,79 @@ const LORD_GREET: Exchange = Exchange {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const LEVEE_SEASON: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["concern:rents", "concern:crops"],
+    calls: &["The harvest was thin on thy strip this year - the steward keeps count.", "My bailiff tells me the common ditch wants scouring before the rains.", "A good tenant pays his boon-days without the tally being read twice.", "The deer have been at the lower field again - keep thy dogs close."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["concern:rents"],
+            lines: &["Aye, m'lord - the strip will be tended.", "As thou sayest, m'lord.", "The ditch will be cleared by the quarter day, m'lord."],
+            voice: &[],
+            then: Some(LEVEE_LAW), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.30, bias: &[(Hotheaded, 3.0), (Proud, 2.0)],
+            act: Act::PushBack, concepts: &["concern:rents"],
+            lines: &["The rents bite deeper than the frost, begging m'lord's pardon.", "Custom says two days, m'lord - not three.", "My hands are cracked enough without fresh burdens, m'lord."],
+            voice: &[],
+            then: Some(LEVEE_LAW), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["Thy servant, m'lord. Good day.", "I must be about the fields, m'lord.", "God keep thee and thy house, m'lord."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const LEVEE_LAW: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["concern:rents"],
+    calls: &["The manor court sits under the oak on Thursday - bring thy witnesses.", "Custom binds us both, goodman - thy strip, my tallage.", "The rolls are kept fair; what thy father owed, thou owest, no more.", "A lord's word travels furthur than a crier's bell."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["I'll be at the oak, m'lord. Fair day.", "The rolls are just, as my father said before me.", "Thy servant, m'lord - and my thanks for the hearing."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const LEVEE_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "concern:rents"],
+    calls: &["Aye, goodman - out with the dawn, I see.", "Morrow, {other}. Thy hedge wants mending on the north side.", "Well met, tenant - the manor hears its people."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Greet, concepts: &["concern:rents"],
+            lines: &["M'lord. An honor to be seen.", "Aye, m'lord - good morrow to the manor.", "At thy service, m'lord."],
+            voice: &[],
+            then: Some(LEVEE_SEASON), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.50, bias: &[],
+            act: Act::Question, concepts: &["concern:rents", "aid"],
+            lines: &["M'lord - might the hail damage weigh on the tallage?", "A word of grace, m'lord - the oats failed on the lower strip.", "Will the court hear our plea about the common ditch, m'lord?"],
+            voice: &[],
+            then: Some(LEVEE_LAW), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.30, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["Thy servant, m'lord.", "I dare not keep the manor waiting, m'lord.", "God keep thee, m'lord."],
             voice: &[],
             then: None, end: Some(Farewell),
         },
@@ -2258,11 +2409,11 @@ const ELDER_GREET: Exchange = Exchange {
     concepts: &["greeting", "elder"],
     calls: &["Good morrow to thee, venerable {other}.", "Well met, grandfather! Sitting in the sunny doorway to warm thy joints?", "Greetings, mother of the village! How fares thy health today?", "A peaceful day to thee, {other}."],
     voice: &[
-        Voice { for_rels: &[Friend], lines: &["Good morrow, {other} - eighty winters and still the sharpest tongue on the lane.", "Well met, old friend! Still warming those joints in the sun?"] },
-        Voice { for_rels: &[Kin], lines: &["Morrow, {other} - the family's oldest lamp still burning.", "Grandmother! Thy sunny doorway kept a seat for me, I hope."] },
-        Voice { for_rels: &[Stranger], lines: &["Morrow, elder. The road respects grey hair.", "A fair day to thee, mother of the village."] },
-        Voice { for_rels: &[Acquaintance], lines: &["Good morrow to thee, venerable {other}.", "Well met, elder - how fares thy health?"] },
-        Voice { for_rels: &[Rival], lines: &["Morrow, {other} - eighty winters and thou still risest to spite me.", "Well met, elder. Even rivals bow to the winters on thy head."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["Good morrow, {other} - eighty winters and still the sharpest tongue on the lane.", "Well met, old friend! Still warming those joints in the sun?"] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, {other} - the family's oldest lamp still burning.", "Grandmother! Thy sunny doorway kept a seat for me, I hope."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, elder. The road respects grey hair.", "A fair day to thee, mother of the village."] },
+        Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["Good morrow to thee, venerable {other}.", "Well met, elder - how fares thy health?"] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["Morrow, {other} - eighty winters and thou still risest to spite me.", "Well met, elder. Even rivals bow to the winters on thy head."] },
     ],
     replies: &[
         Reply {
@@ -2270,10 +2421,10 @@ const ELDER_GREET: Exchange = Exchange {
             act: Act::Greet, concepts: &["elder"],
             lines: &["Morrow, young soul. The sun feels good on eighty winters of bones.", "Well met, child! Another day Heaven grants to watch the fields.", "Greetings! My step is slow, but my memory is long and clear.", "God bless thy steps this day, {other}.", "Well met, friend, under the open sky."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["Morrow, {other} - my step is slow but my ears miss nothing, especially from thee.", "Well met, child - I know thy name and all thy doings, fondly."] },
-                Voice { for_rels: &[Kin], lines: &["Morrow, little one - the family's roots run through thee.", "Bless thee, kin. Come sit and tell me the house's news."] },
-                Voice { for_rels: &[Stranger], lines: &["Morrow, stranger. Grey ears still catch new voices.", "Well met, traveler - sit, if the road is long."] },
-                Voice { for_rels: &[Rival], lines: &["Aye, {other} - I've buried better rivals than thee.", "Morrow, {other}. Age teaches patience, even with thee."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Morrow, {other} - my step is slow but my ears miss nothing, especially from thee.", "Well met, child - I know thy name and all thy doings, fondly."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, little one - the family's roots run through thee.", "Bless thee, kin. Come sit and tell me the house's news."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, stranger. Grey ears still catch new voices.", "Well met, traveler - sit, if the road is long."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, {other} - I've buried better rivals than thee.", "Morrow, {other}. Age teaches patience, even with thee."] },
             ],
             then: Some(ELDER_WINTERS), end: None,
         },
@@ -2282,8 +2433,8 @@ const ELDER_GREET: Exchange = Exchange {
             act: Act::Farewell, concepts: &["farewell"],
             lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             voice: &[
-                Voice { for_rels: &[Friend], lines: &["The sun climbs; come sit again soon, {other}."] },
-                Voice { for_rels: &[Rival], lines: &["Away then, {other} - my sun's too short for thee.", "Go on - an old woman's time isn't thine to waste."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["The sun climbs; come sit again soon, {other}."] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Away then, {other} - my sun's too short for thee.", "Go on - an old woman's time isn't thine to waste."] },
             ],
             then: None, end: Some(Farewell),
         },
@@ -2949,8 +3100,12 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &BEEKEEPER_GREET, rejoin: Some(&BEEKEEPER_HONEY) },
         DialogueTree { name: "herb_apothecary", criteria: &[Has("other:status:herb_wife")],
             root: &HERB_GREET, rejoin: Some(&HERB_DRAUGHT) },
+        DialogueTree { name: "the_merchants_ledger", criteria: &[Has("self:ideology:merchant")],
+            root: &LEDGER_GREET, rejoin: Some(&LEDGER_ACCOUNTS) },
         DialogueTree { name: "merchant_trade", criteria: &[Has("other:ideology:merchant")],
             root: &MERCHANT_GREET, rejoin: Some(&MERCHANT_WARES) },
+        DialogueTree { name: "the_lords_levee", criteria: &[Has("self:ideology:lord")],
+            root: &LEVEE_GREET, rejoin: Some(&LEVEE_LAW) },
         DialogueTree { name: "lord_manor", criteria: &[Has("other:ideology:lord")],
             root: &LORD_GREET, rejoin: Some(&LORD_LEASES) },
         DialogueTree { name: "fisher_river", criteria: &[Has("other:status:fisher")],

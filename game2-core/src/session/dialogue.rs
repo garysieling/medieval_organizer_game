@@ -43,6 +43,29 @@ pub const PLAYER_TALK_DAYS: u64 = 8;
 /// What a reply does to the bond: agreeing warms, pushing back cools
 const AGREE_WARMTH: f32 = 0.3;
 const PUSHBACK_CHILL: f32 = 0.2;
+/// How long they hold how the last talk ended (#1183)
+const TALK_MEMORY_DAYS: u64 = 20;
+
+/// How the last talk with them left off, as they remember it: the picks
+/// the player made, last one loudest (#1183)
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TalkMood {
+    /// A kind answer, an honest reply, a friendly parting
+    Warmed,
+    /// Words spent but nothing kindled - or they were walked away from
+    Cool,
+    /// Talked back at, or shaken off mid-word
+    Slighted,
+}
+
+/// Carried on the villager: how the last sit-down ended, so the next one
+/// opens where it left off rather than from scratch
+#[derive(Clone, Copy, Debug)]
+pub struct TalkMemory {
+    pub mood: TalkMood,
+    /// The day it was set; past TALK_MEMORY_DAYS it fades
+    pub tick: u64,
+}
 
 /// What kind of talk a record holds
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -107,6 +130,8 @@ pub struct PlayerTalk {
     pub notes: Vec<String>,
     /// Propositions on offer after the replies (self-interest known)
     pub asks: Vec<crate::game::organizing::PropKind>,
+    /// How the picks so far have left them feeling (#1183)
+    pub mood: TalkMood,
 }
 
 /// The most choices a Talk offers at once - the replies plus however
@@ -420,7 +445,10 @@ impl Game {
             crate::game::organizing::RelStage::CoLeader => villager.status.push("coleader"),
             _ => {}
         }
-        let asks = crate::game::organizing::props_on_offer(&self.world, self.seats[seat].org, v);
+        let mut asks = crate::game::organizing::props_on_offer(&self.world, self.seats[seat].org, v);
+        // they won't hear a proposition from you while the last talk
+        // still smarts - a cold ending closes what they'll offer (#1183)
+        if self.talk_mood_of(v) == Some(TalkMood::Slighted) { asks.clear(); }
         let pname = self.world.get_component::<crate::game::player::PlayerCharacter>(pe)
             .map(|p| p.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "friend".into());
         // spoken to, "The Wanderer" is "wanderer": "A peaceful day to thee, wanderer."
@@ -443,6 +471,7 @@ impl Game {
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: vec![], asks,
+            mood: TalkMood::Cool,
         });
         self.refresh_player_talk(seat);
     }
@@ -470,6 +499,11 @@ impl Game {
             if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty()
                 && opts.iter().all(|(a, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");
+                // a spent talk parts kindly - unless the last word chosen
+                // was a slight, which is what they keep (#1183)
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    if cur.mood != TalkMood::Slighted { cur.mood = TalkMood::Warmed; }
+                }
                 self.close_player_talk(seat, Some(&note));
                 return;
             }
@@ -495,6 +529,12 @@ impl Game {
                     Some(Ending::Exhausted) => Some(format!("You and {vname} run out of things to say, and part.")),
                     _ => None,
                 };
+                // shaken off or talked dry: the ending is what they keep -
+                // a walk-off is its own slight; anything else just keeps
+                // the mood the picks already set (#1183)
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    if matches!(ending, Some(Ending::WalksOff)) { cur.mood = TalkMood::Slighted; }
+                }
                 self.close_player_talk(seat, note.as_deref());
             }
         }
@@ -521,10 +561,20 @@ impl Game {
         v
     }
 
+    /// How the last sit-down with them ended, while it's still fresh
+    /// (#1183): the next talk opens where the last one left off
+    pub(in crate::session) fn talk_mood_of(&self, who: Entity) -> Option<TalkMood> {
+        self.world.get_component::<TalkMemory>(who)
+            .filter(|m| self.tick < m.tick + TALK_MEMORY_DAYS)
+            .map(|m| m.mood)
+    }
+
     /// End the seat's Talk, with a closing note on the record if given.
-    /// Whoever it was with lets go of the pick once it's over (#944)
+    /// Whoever it was with lets go of the pick once it's over (#944),
+    /// and remembers how it ended (#1183)
     pub fn close_player_talk(&mut self, seat: usize, note: Option<&str>) {
         let Some(t) = self.seats[seat].talk.take() else { return };
+        self.world.add_component(t.who, TalkMemory { mood: t.mood, tick: self.tick });
         // they're their own again - unless another seat still holds them
         if !self.seats.iter().any(|s| s.talk.as_ref().map(|k| k.who == t.who).unwrap_or(false)) {
             self.world.remove_component::<villager::InPlayerTalk>(t.who);
@@ -577,19 +627,23 @@ impl Game {
         }
         let act = t.options[i].0;
         let pe = self.seats[seat].player;
-        // how you answer them counts for a little either way
+        // how you answer them counts for a little either way - and it
+        // lingers: the last pick's mood is what they carry out (#1183)
         match act {
             Act::PushBack => { relationships::record_interaction(&mut self.world, pe,
-                Interaction { other: who, kind: InteractionKind::Conflict, intensity: PUSHBACK_CHILL }); }
+                Interaction { other: who, kind: InteractionKind::Conflict, intensity: PUSHBACK_CHILL });
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Slighted; } }
             Act::Agree | Act::Answer => {
                 relationships::record_interaction(&mut self.world, pe,
                     Interaction { other: who, kind: InteractionKind::Conversation, intensity: AGREE_WARMTH });
                 if let Some(r) = self.talk_record_mut(t.id) { r.positive = true; }
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Warmed; }
             }
             // a kind word back or a friendly leave-taking is warmth too -
             // but a rival's greeting and farewells aren't kind ones
             Act::Greet | Act::Farewell if t.opt_tree != Some("old_scores") => {
                 if let Some(r) = self.talk_record_mut(t.id) { r.positive = true; }
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Warmed; }
             }
             _ => {}
         }

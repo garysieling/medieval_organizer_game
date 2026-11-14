@@ -361,6 +361,21 @@ pub fn passing_greeting(n: usize, name: &str) -> String {
     GREETINGS[n % GREETINGS.len()].replace("{name}", name)
 }
 
+/// What they say when the last talk soured and they still remember
+/// (#1183): what's on their mind is you. Deterministic per name so the
+/// brush-off stays theirs.
+pub fn cold_gist(name: &str) -> (String, String) {
+    const COLD: [(&str, &str); 4] = [
+        ("gives you a cold look", "You're back. What is it now?"),
+        ("barely nods", "Hmph. Say your piece and go."),
+        ("remembers the last words", "We left it badly last time. Say what you came for."),
+        ("folds their arms", "You've a nerve, coming back."),
+    ];
+    let n = name.bytes().map(|b| b as usize).sum::<usize>();
+    let (d, s) = COLD[n % COLD.len()];
+    (format!("{} {}", name, d), s.to_string())
+}
+
 /// What `name` says when the player talks with them (`talks_before` is how
 /// many times they've talked already). The gist is theirs, not the
 /// village's (#1182): a live problem first, then the unmet want that

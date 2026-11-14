@@ -327,7 +327,15 @@ impl Game {
         // a want, or the problem that's in their way
         // the fold's smell: folk hold back a touch with the shepherd
         let smelly = desires::problems_of(&self.world, v, self.tick).contains(&desires::Problem::Smelly);
-        let revealed = if (self.rng.next() % 1000) < (desires::REVEAL_BASE * if smelly { 900.0 } else { 1000.0 }) as u64 {
+        // how the last talk ended opens or closes what they'll share
+        // (#1183): a warm ending loosens tongues, a cold one shuts them
+        let mood = self.talk_mood_of(v);
+        let reveal_factor = match mood {
+            Some(dialogue::TalkMood::Slighted) => 0.35,
+            Some(dialogue::TalkMood::Warmed) => 1.6,
+            _ => 1.0,
+        };
+        let revealed = if (self.rng.next() % 1000) < (desires::REVEAL_BASE * reveal_factor * if smelly { 900.0 } else { 1000.0 }) as u64 {
             let pick = self.rng.next();
             desires::next_reveal(&self.world, v, self.tick, pick)
         } else { None };
@@ -349,6 +357,9 @@ impl Game {
                 }
                 (d, s)
             }
+            // still smarting: what's on their mind is you
+            None if mood == Some(dialogue::TalkMood::Slighted) =>
+                crate::game::organizing::cold_gist(vill_name(who)),
             None => match self.mystery_fact_at(seat) {
                 // gossip carries a piece of the mystery, now and then
                 Some(text) => {

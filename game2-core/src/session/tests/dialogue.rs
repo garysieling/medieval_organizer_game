@@ -366,3 +366,83 @@ fn test_a_talk_holds_them_where_they_stand() {
     assert!(g.seats[0].talk.is_none(), "walking away still ends it");
     assert!(g.send(v, Goal::Wander), "free to be sent once it's done");
 }
+
+/// The cold brush-offs a Slighted memory serves (#1183)
+fn cold_lines() -> [&'static str; 4] {
+    ["You're back. What is it now?", "Hmph. Say your piece and go.",
+     "We left it badly last time. Say what you came for.", "You've a nerve, coming back."]
+}
+
+#[test]
+fn test_a_talked_back_answer_is_remembered_next_time() {
+    use crate::game::desires::{Known, Problem, Reveal};
+    let mut g = Game::new();
+    let ad = adults(&g);
+    // someone whose first options include a PushBack
+    let mut slighted = None;
+    for &i in ad.iter() {
+        let v = talk_beside(&mut g, i);
+        let has = g.seats[0].talk.as_ref().unwrap().options.iter()
+            .position(|(a, _)| *a == Act::PushBack);
+        if let Some(p) = has {
+            g.talk_pick_at(0, Some(p));
+            g.talk_pick_at(0, None);
+            slighted = Some(v);
+            break;
+        }
+        g.close_player_talk(0, None);
+    }
+    let v = slighted.expect("someone takes a PushBack on this map");
+    assert_eq!(g.talk_mood_of(v), Some(TalkMood::Slighted));
+    // they've told you a secret before: asks would be on offer...
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let i = g.villagers.iter().position(|&x| x == v).unwrap();
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    // ...but what's on their mind now is you, and no proposition lands
+    assert!(cold_lines().contains(&t.gist.as_str()), "the gist is the cold shoulder: {:?}", t.gist);
+    assert!(t.asks.is_empty(), "a cold ending closes the asks: {:?}", t.asks);
+}
+
+#[test]
+fn test_a_kind_answer_warms_the_hello_after() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let mut warmed = None;
+    for &i in ad.iter() {
+        let v = talk_beside(&mut g, i);
+        // talk along until a kind reply is on offer (the first beat's
+        // usually a greeting), taking it when it comes
+        for _ in 0..10 {
+            let Some(t) = &g.seats[0].talk else { break };
+            match t.options.iter().position(|(a, _)| matches!(a, Act::Agree | Act::Answer)) {
+                Some(p) => { g.talk_pick_at(0, Some(p)); break; }
+                None => g.talk_pick_at(0, Some(0)),
+            }
+        }
+        if g.seats[0].talk.is_some() {
+            if g.seats[0].talk.as_ref().unwrap().mood == TalkMood::Warmed {
+                g.talk_pick_at(0, None);
+                warmed = Some(v);
+                break;
+            }
+        } else if g.talk_mood_of(v) == Some(TalkMood::Warmed) { warmed = Some(v); break; }
+        g.close_player_talk(0, None);
+    }
+    let v = warmed.expect("someone takes a kind answer on this map");
+    assert_eq!(g.talk_mood_of(v), Some(TalkMood::Warmed));
+    // the next hello opens on their real mind, not a cold shoulder
+    let i = g.villagers.iter().position(|&x| x == v).unwrap();
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(!cold_lines().contains(&t.gist.as_str()), "still cold after a warm parting: {:?}", t.gist);
+}
+
+#[test]
+fn test_leaving_before_they_speak_leaves_it_cool() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = talk_beside(&mut g, i);
+    g.talk_pick_at(0, None);
+    assert_eq!(g.talk_mood_of(v), Some(TalkMood::Cool));
+}

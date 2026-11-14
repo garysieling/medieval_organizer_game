@@ -3,13 +3,15 @@
   - Eliza [lord]: Eliza holds the manor's leases. They mean to be more than they were born. Last night's cup is still on them.
   - Bram [lord]: Bram holds the manor's leases. They're the first with a loaf when a house is bare. They never miss a service. Their purse strings are knotted tight. They buried one of their own last week.
   - Corvin [lord]: Corvin holds the manor's leases. They bow to no one. Their temper's shorter than a winter's day. They'd sooner watch the clouds than the plough. A cough's had them these two weeks.
-  #0 Reeve [Question]: What ails the village most, friends? Speak true.
-  #1 Bram [Remark] (re #0): A neighbor's visit and warm broth bring comfort to an empty room.
-  #2 Eliza [Remark] (re #0): Our ancient right of turbary and gathering brushwood must be defended.
-  #3 Corvin [Remark] (re #2): Every cottager has a right to graze two cows on the village green.
-  #4 Eliza [Remark] (re #3): The common pasture is overgrazed; we must stint the number of sheep.
+  #0 Bram [Greet]: May the words said here do more good than harm. Amen.
+  #1 Reeve [Question]: What ails the village most, friends? Speak true.
+  #2 Bram [Remark] (re #1): We buried two souls this season; the churchyard grows crowded.
+  #3 Corvin [Remark] (re #1): The ditch enclosing the common wood has been unlawfully fenced off.
+  #4 Eliza [Remark] (re #3): Our ancient right of turbary and gathering brushwood must be defended.
   #5 Bram [PushBack] (re #4): Talk is cheap - who will lift a hand to do aught about it?
-  #6 Aldric [Remark] (re #3): The bailiff's cattle are eating the sweet grass reserved for the poor.
-  #7 Corvin [Agree] (re #1): Aye, there is the truth of it.
-  #8 Aldric [Remark] (re #4): If we lose the commons, our way of life is broken forever.
+  #6 Aldric [PushBack] (re #3): And what wouldst thou have the village do, Corvin?
+  #7 Corvin [Remark] (re #2): The herb-wife needs clean well water and willow bark for remedies.
+  #8 Aldric [Agree] (re #4): Aye, there is the truth of it.
+  #9 Bram [Remark] (re #6): The common land belongs to the whole parish, not to a single estate.
+  #10 Aldric [Farewell]: Go in peace - and keep what was said here.
 REPRO: talk_lab meeting --seed 27 --folk 4 --name Reeve

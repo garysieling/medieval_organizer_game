@@ -10,12 +10,21 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
     // who was here when we started: visitors wander in over the years this
     // takes, and the village's win is over its own folk, not passing trade
     let folk = game.villagers.clone();
+    // the prophet's own can't be won at a meeting - the calling thins
+    // what they can hold, and recruit won't take them whatever the trust.
+    // Record who's swept up while the courtship runs: a villager whose
+    // turn fell inside the movement missed it by design, even if the
+    // remnant lets go of them before the last count
+    let mut swept: crate::engine::det::HashSet<Entity> = Default::default();
     for i in 0..folk.len() {
         let v = game.villagers[i];
         // folk die or get held over the years this takes - the dead and
         // the dungeon's can't come to a meeting, whatever the player
         // says beside them
         if crate::game::dungeon::unavailable(&game.world, v) { continue; }
+        if game.world.get_component::<crate::game::prophetic::Follower>(v).is_some() {
+            swept.insert(v); continue;
+        }
         let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
         { let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = vx + 0.5; p.y = vy; }
         game.selected_target = i;
@@ -25,6 +34,9 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
         for _ in 0..40 {
             if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v)
                 || crate::game::dungeon::unavailable(&game.world, v) { break; }
+            if game.world.get_component::<crate::game::prophetic::Follower>(v).is_some() {
+                swept.insert(v); break;
+            }
             // they go about their days between meetings: walk back over
             if let Some(&Pos { x: vx, y: vy }) = game.world.get_component::<Pos>(v) {
                 let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = vx + 0.5; p.y = vy;
@@ -44,7 +56,8 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
         // he may have died or been held mid-courtship - the years this
         // takes carry folk off, and the unavailable can't come
         if crate::game::dungeon::unavailable(&game.world, v) { continue; }
-        if !game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) {
+        if !swept.contains(&v)
+            && !game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) {
             let rel = relationships::find_relationship(&game.world, game.player, v)
                 .and_then(|r| game.world.get_component::<Relationship>(r)).map(|r| r.strength);
             let last: Vec<&String> = game.log.iter().rev().take(4).collect();
@@ -56,7 +69,10 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
     // keep their names on the roll, and so do the visitors who passed through
     let members = game.world.get_component::<Organization>(game.org).unwrap().members.clone();
     for &v in &folk {
-        if !crate::game::dungeon::unavailable(&game.world, v) {
+        // the swept missed their window by design, whatever the meetings
+        if !crate::game::dungeon::unavailable(&game.world, v)
+            && game.world.get_component::<crate::game::prophetic::Follower>(v).is_none()
+            && !swept.contains(&v) {
             assert!(members.contains(&v), "{} is here but never joined", game.name_of(v));
         }
     }

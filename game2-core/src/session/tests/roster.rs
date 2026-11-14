@@ -119,3 +119,26 @@ fn a_picked_character_survives_the_journal() {
     assert_eq!(name(&g, 1), name(&r, 1));
     assert!(r.world.get_component::<vocation::Kid>(r.seats[1].player).is_some());
 }
+
+#[test]
+fn the_pick_survives_a_name_leaving_the_roll() {
+    let mut g = Game::new();
+    // #1192's crash: the roll shrank while a seat's pick sat on the last
+    // index, and update_ctx_actions_at read villagers[len]. The drop now
+    // shifts every index-keyed roll home, picks included.
+    let last = g.villagers.len() - 1;
+    g.seats[0].selected_target = last;
+    g.drop_villager(g.villagers[last]);
+    assert!(g.seats[0].selected_target < g.villagers.len(),
+        "the pick ran off the end of the roll");
+    // a pick after a departed name shifts home; one before stays put
+    g.seats[0].selected_target = 5;
+    g.drop_villager(g.villagers[2]);
+    assert_eq!(g.seats[0].selected_target, 4);
+    g.drop_villager(g.villagers[6]);
+    assert_eq!(g.seats[0].selected_target, 4);
+    // the parallel rolls keep step with the names
+    assert_eq!(g.was_sick.len(), g.villagers.len());
+    assert_eq!(g.died_on.len(), g.villagers.len());
+    g.update_ctx_actions_at(0);
+}

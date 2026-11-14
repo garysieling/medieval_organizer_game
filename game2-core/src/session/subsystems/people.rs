@@ -84,24 +84,55 @@ impl Game {
         }
     }
 
+    /// The crib's odds: the village table's own census - what the market
+    /// pile and the fields hold, per mouth the table feeds (the same
+    /// sources the eat goal prefers; outlanders eat at their own
+    /// granaries). A stocked table rolls one in three; a bare one thins
+    /// toward one in twelve - a famine slims the village, it does not
+    /// sterilize it
+    pub(in crate::session) fn birth_odds(&self) -> u64 {
+        let heads = self.villagers.iter()
+            .filter(|&&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<country::Outlander>(v).is_none())
+            .count().max(1) as f32;
+        let table = self.world.get_component::<villager::FoodSource>(self.market_food)
+            .map(|f| f.servings).unwrap_or(0)
+            + self.crop_fields.iter()
+                .filter_map(|&f| self.world.get_component::<villager::FoodSource>(f)
+                    .map(|f| f.servings)).sum::<u32>();
+        let cover = table as f32 / heads;
+        3 + (9.0 * (1.0 - cover.min(1.0))).round() as u64
+    }
+
     /// A full house gets a child every so often - two grown folk under
-    /// one roof, and the roof fills out from there
+    /// one roof, and the roof fills out from there. But beds are not the
+    /// only carrying capacity: the larder counts too
     pub(in crate::session) fn maybe_birth(&mut self, tick: u64) {
+        let odds = self.birth_odds();
         for (i, &b) in self.building_entities.iter().enumerate() {
-            let full = !self.ruined.contains(&i) && self.world.get_component::<Building>(b)
-                .map(|bb| bb.kind == BuildingKind::Home
-                    // beds cap at four like the first settling - the
-                    // building's capacity is its stock limit, not beds
-                    && bb.occupants.len() < 4
-                    // a crib needs village parents - the rivals' houses
-                    // across the river breed no village children
-                    && bb.occupants.iter().filter(|&&o|
-                        (self.villagers.contains(&o)
-                        || self.seats.iter().any(|s| s.player == o))
-                        && self.world.get_component::<Kid>(o).is_none()
-                        && !crate::game::dungeon::unavailable(&self.world, o)).count() >= 2)
-                .unwrap_or(false);
-            if full && self.rng.next() % 3 == 0 { self.spawn_kid(b, tick); return; }
+            if self.ruined.contains(&i) { continue; }
+            let Some(bb) = self.world.get_component::<Building>(b) else { continue };
+            // beds cap at four like the first settling - the building's
+            // capacity is its stock limit, not beds
+            if bb.kind != BuildingKind::Home || bb.occupants.len() >= 4 { continue; }
+            // a crib needs village parents - the rivals' houses across
+            // the river breed no village children; and starving couples
+            // don't conceive - a hungry belly among the grown folk
+            // keeps the crib empty outright
+            let mut grown = 0;
+            let mut hungry = false;
+            for &o in &bb.occupants {
+                let parent = (self.villagers.contains(&o)
+                    || self.seats.iter().any(|s| s.player == o))
+                    && self.world.get_component::<Kid>(o).is_none()
+                    && !crate::game::dungeon::unavailable(&self.world, o);
+                if !parent { continue; }
+                grown += 1;
+                hungry = hungry || self.world.get_component::<Hunger>(o)
+                    .map(|h| h.value < 40.0).unwrap_or(false);
+            }
+            if grown < 2 || hungry { continue; }
+            if self.rng.next() % odds == 0 { self.spawn_kid(b, tick); return; }
         }
     }
 

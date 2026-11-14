@@ -1,13 +1,15 @@
-=== Talk: Probe (synthetic) vs you - Stranger ===
-  them: Probe works the fields for a day's wage. They buried their husband last week.
-  you : you works the fields for a day's wage.
-  Probe: Well met, friend. The days feel longer than they used to.
-    1) [Agree] The saints receive her spirit in eternal peace.
-    2) [Question] Aye, words have weight in a small village.
-  you: The saints receive her spirit in eternal peace.
+=== Talk: Probe (synthetic) vs Voice - Stranger ===
+  them: Probe works the fields for a day's wage. They buried one of their own last week.
+  you : Voice works the fields for a day's wage.
+  Probe: Morrow, stranger. Forgive a grieving house its silence.
+    1) [Agree] A loss is a loss - the saints keep their soul.
+    2) [Question] Is there aught a stranger can do?
+  Voice: A loss is a loss - the saints keep their soul.
   Probe: I keep setting his wooden spoon at table.
-    1) [Farewell] God's peace be upon thy cottage, Probe.
-    2) [Agree] Their toil shaped this parish; their memory will outlive us.
-  you: God's peace be upon thy cottage, Probe.
+    1) [Agree] Their toil shaped this parish; their memory will outlive us.
+  Voice: Their toil shaped this parish; their memory will outlive us.
+  Probe: It does a body good to speak their name aloud.
+    1) [Farewell] May holy angels watch over thy sleep tonight.
+  Voice: May holy angels watch over thy sleep tonight.
   -- Farewell (trees: ["a_death_in_the_house"])
-REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Stranger --picks 0,0
+REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Stranger --picks 0,0,0

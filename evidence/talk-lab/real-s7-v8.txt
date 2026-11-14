@@ -1,11 +1,21 @@
 === Talk: Wystan (villager 8, game seed 7) ===
   (walking over…)
-  (Wystan works the fields for a day's wage. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. Lately: parish_faction. Lately: market_faction.)
-  (A day's work hardly buys a day's bread.)
-  Wystan: God's peace on this path, wanderer.
-  (Wystan works the fields for a day's wage. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. Lately: parish_faction. Lately: market_faction.)
+  Wystan: Morrow, wanderer.
+  (Wystan works the fields for a day's wage. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They keep close to the church folk. They keep close to the market folk.)
   Wystan: A day's work hardly buys a day's bread.   [gist]
-    1) Work is waiting at the barn, Wystan.
-    2) Good day and full granaries to thee.
+    1) Good day to thee.
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 8 --picks 0 (talk seed 1040187413)
+  you: Good day to thee.
+  Wystan: Looks like rain again, doesn't it?
+    1) Good for the barley, but bad for the road.
+    2) Tell me true, Wystan - how goes it with thee?
+    l) take your leave
+  you: Good for the barley, but bad for the road.
+  Wystan: No use fretting over skies we cannot steer.
+    1) Aye, we have lived through harder winters than this.
+    l) take your leave
+  you: Aye, we have lived through harder winters than this.
+  Wystan: The peddler's cart lost a wheel at the bridge.
+    1) Let the miller and the rider sort their own affairs.
+    l) take your leave
+REPRO: talk_lab talk --seed 7 --villager 8 --picks 0,0,0,0 (talk seed 1040187413)

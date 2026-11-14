@@ -3,7 +3,7 @@
   - Eliza [merchant]: Eliza trades on the road between villages. They know every soul and every soul's business. They bow to no one.
   - Bram [lord]: Bram holds the manor's leases. They know every soul and every soul's business. Their purse strings are knotted tight.
   - Corvin [laborer]: Corvin works the fields for a day's wage. They bow to no one. They know every soul and every soul's business.
-  #0 Reeve [Question]: Reeve: What ails the village most, friends? Speak true.
+  #0 Reeve [Question]: What ails the village most, friends? Speak true.
   #1 Aldric [Remark] (re #0): May the Lord bless the seed in the furrow and give us full sheaves.
   #2 Corvin [Remark] (re #0): The river bank is caving into the water by the washing steps.
   #3 Bram [PushBack] (re #2): We have argued this before and accomplished nothing.

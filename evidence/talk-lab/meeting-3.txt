@@ -3,7 +3,7 @@
   - Eliza [laborer]: Eliza works the fields for a day's wage. Their temper's shorter than a winter's day.
   - Bram [clergy]: Bram serves the village church. They know every soul and every soul's business. Last night's cup is still on them.
   - Corvin [clergy]: Corvin serves the village church. Their purse strings are knotted tight. They bow to no one. A cough's had them these two weeks.
-  #0 Reeve [Question]: Reeve: What ails the village most, friends? Speak true.
+  #0 Reeve [Question]: What ails the village most, friends? Speak true.
   #1 Bram [Remark] (re #0): Let us keep faith with God and be true neighbors to each other.
   #2 Aldric [Remark] (re #0): If the bridge collapses, our children cannot reach the chapel.
   #3 Bram [Remark] (re #2): Stone piers and lime mortar would make a bridge to last for centuries.

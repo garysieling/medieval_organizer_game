@@ -1,16 +1,27 @@
 === Talk: Aldric (villager 0, game seed 13) ===
   (walking over…)
-  (Aldric is the village smith. Their purse strings are knotted tight. They work the village anvil and forge. Lately: parish_faction. Lately: market_faction.)
-  (A day's work hardly buys a day's bread.)
-  Aldric: Well met, neighbor wanderer.
-  (Aldric is the village smith. Their purse strings are knotted tight. They work the village anvil and forge. Lately: parish_faction. Lately: market_faction.)
+  Aldric: Morrow, wanderer.
+  (Aldric is the village smith. Their purse strings are knotted tight. They work the village anvil and forge. They keep close to the church folk. They keep close to the market folk.)
   Aldric: A day's work hardly buys a day's bread.   [gist]
     1) Aye, words have weight in a small village.
-    2) Good day and full granaries to thee.
+    2) Good day to thee.
     l) take your leave
   you: Aye, words have weight in a small village.
   Aldric: Looks like rain again, doesn't it?
-    1) I should get on before the bell strikes.
-    2) Rain? It is the driest week in memory.
+    1) Rain? It is the driest week in memory.
     l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 0 --picks 0,0 (talk seed 956301326)
+  you: Rain? It is the driest week in memory.
+  Aldric: Even so, we will manage as we always do.
+    1) True words; worry never baked a single loaf.
+    l) take your leave
+  you: True words; worry never baked a single loaf.
+  Aldric: They say the miller took an extra scoop of meal again.
+    1) Thou dost not say it! What happened then?
+    2) Let the miller and the rider sort their own affairs.
+    l) take your leave
+  you: Thou dost not say it! What happened then?
+  Aldric: They do say the reeve counts the sheep twice over.
+    1) That is not the way the elders told it.
+    2) Tavern tales grow taller with each ale drawn.
+    l) take your leave
+REPRO: talk_lab talk --seed 13 --villager 0 --picks 0,0,0,0,0 (talk seed 956301326)

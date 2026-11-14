@@ -1,21 +1,26 @@
 === Talk: Roderick (villager 22, game seed 42) ===
   (walking over…)
-  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. Lately: parish_faction.)
-  (A day's work hardly buys a day's bread.)
-  Roderick: Hail, wanderer - traveling far today?
-  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. Lately: parish_faction.)
+  Roderick: Fair morning to thee, wanderer.
+  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
   Roderick: A day's work hardly buys a day's bread.   [gist]
-    1) The saints keep thee, Roderick.
-    2) I must walk on; fair day.
+    1) And to thee.
     l) take your leave
-  you: The saints keep thee, Roderick.
+  you: And to thee.
   Roderick: Cold wind off the moor this morning.
     1) It will be a wet week, mark me.
     2) Rain? It is the driest week in memory.
     l) take your leave
   you: It will be a wet week, mark me.
   Roderick: Even so, we will manage as we always do.
-    1) Until the church bell rings, neighbor.
-    2) That it will - the store is not empty yet.
+    1) That it will - the store is not empty yet.
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 22 --picks 0,0,0 (talk seed 1224736781)
+  you: That it will - the store is not empty yet.
+  Roderick: They say the miller took an extra scoop of meal again.
+    1) Tell on, neighbor - my ears are open.
+    l) take your leave
+  you: Tell on, neighbor - my ears are open.
+  Roderick: A stranger with two laden mules passed by the weir at noon.
+    1) Ha! I'll believe the half of it and no more.
+    2) Nay, I see it differently, mark me.
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 22 --picks 0,0,0,0,0 (talk seed 1224736781)

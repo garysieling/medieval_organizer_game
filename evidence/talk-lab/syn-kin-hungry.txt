@@ -1,13 +1,12 @@
-=== Talk: Probe (synthetic) vs you - Kin ===
+=== Talk: Probe (synthetic) vs Voice - Kin ===
   them: Probe works the fields for a day's wage. The store ran out and the belly knows it.
-  you : you works the fields for a day's wage.
-  Probe: Greetings, you. Hast thou found anything to put in the pot?
-    1) [Answer] Aye, we scrape the bottom of the flour chest.
-    2) [Farewell] May the road be kind under thy boots.
-  you: Aye, we scrape the bottom of the flour chest.
+  you : Voice works the fields for a day's wage.
+  Probe: Morrow, Voice - is there bread at thy hearth? Ours runs thin.
+    1) [Answer] Our house eats thin too; come by and we'll stretch it.
+  Voice: Our house eats thin too; come by and we'll stretch it.
   Probe: We boiled a pot of turnip tops and barley chaff this noon.
-    1) [PushBack] I must walk on; fair day.
+    1) [PushBack] Everyone's bin is empty; don't look to my door for bread.
     2) [Agree] We have a sack of roots in the cellar. Let us divide it.
-  you: I must walk on; fair day.
+  Voice: Everyone's bin is empty; don't look to my door for bread.
   -- WalksOff (trees: ["hunger_lean_times"])
 REPRO: talk_lab talk --name Probe --status hungry --seed 11 --rel Kin --picks 0,0

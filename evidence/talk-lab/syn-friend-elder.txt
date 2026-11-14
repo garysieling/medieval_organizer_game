@@ -1,13 +1,14 @@
-=== Talk: Probe (synthetic) vs you - Friend ===
+=== Talk: Probe (synthetic) vs Voice - Friend ===
   them: Probe works the fields for a day's wage. Eighty winters of village memories are in their bones.
-  you : you works the fields for a day's wage.
+  you : Voice works the fields for a day's wage.
   Probe: Greetings, old comrade! How goes the day's labor?
     1) [Greet] Well met indeed, friend. The chores are lighter for thy smile.
-    2) [Farewell] I must be on my way, Probe. Fare well.
-  you: Well met indeed, friend. The chores are lighter for thy smile.
+  Voice: Well met indeed, friend. The chores are lighter for thy smile.
   Probe: Dost thou recall the summer the mill dam broke?
-    1) [Farewell] I must be on my way, Probe. Fare well.
-    2) [Answer] Aye, we were waist-deep in mud until midnight saving the sacks!
-  you: I must be on my way, Probe. Fare well.
+    1) [Answer] Aye, we were waist-deep in mud until midnight saving the sacks!
+  Voice: Aye, we were waist-deep in mud until midnight saving the sacks!
+  Probe: We have shared crusts and sweat for twenty years now.
+    1) [Farewell] Fair day, Probe - peace on thy household.
+  Voice: Fair day, Probe - peace on thy household.
   -- Farewell (trees: ["friendship_bonds"])
-REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Friend --picks 0,0
+REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Friend --picks 0,0,0

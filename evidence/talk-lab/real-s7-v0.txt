@@ -1,15 +1,13 @@
 === Talk: Aldric (villager 0, game seed 7) ===
   (walking over…)
-  (Aldric holds the manor's leases. Their purse strings are knotted tight. Lately: parish_faction.)
-  (I bar my door at night and still don't sleep.)
-  Aldric: A fair day to thee and thine, wanderer.
-  (Aldric holds the manor's leases. Their purse strings are knotted tight. Lately: parish_faction.)
+  Aldric: Morrow, wanderer.
+  (Aldric holds the manor's leases. Their purse strings are knotted tight. They keep close to the church folk.)
   Aldric: I bar my door at night and still don't sleep.   [gist]
-    1) The saints keep thee, Aldric.
+    1) And to thee.
     2) I am here, as thou seest.
     3) Ask them to come to a meeting
     l) take your leave
-  you: The saints keep thee, Aldric.
+  you: And to thee.
   Aldric: Cold wind off the moor this morning.
     1) It will be a wet week, mark me.
     2) That is not the way the elders told it.
@@ -18,8 +16,8 @@
   you: It will be a wet week, mark me.
   Aldric: A steady hand and a patient mule see it through.
     1) True words; worry never baked a single loaf.
-    2) Until the church bell rings, neighbor.
-    3) Ask them to come to a meeting
+    2) Ask them to come to a meeting
+    3) Ask who you should talk to next
     l) take your leave
   you: True words; worry never baked a single loaf.
   Aldric: A rider from the castle came through before dawn.

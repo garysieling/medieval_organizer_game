@@ -174,7 +174,8 @@ impl Game {
         // does, rather than fail in the log. Talk and Recruit need the
         // selected villager alive (they walk over to them)
         // nobody within a shout to talk to: the button says so outright
-        if i == 0 && self.talk_target_at(seat).is_none() { return Some("no one near enough".into()); }
+        if i == 0 && self.talk_target_at(seat).is_none()
+            && self.visitor_talk_target_at(seat).is_none() { return Some("no one near enough".into()); }
         let target = self.villagers[match i {
             0 => self.talk_target_at(seat).unwrap_or(self.seats[seat].selected_target),
             1 if self.seats[seat].picked => self.seats[seat].selected_target,
@@ -379,6 +380,45 @@ impl Game {
         line
     }
 
+    /// The road visitor standing close enough to hail: an arrived rare
+    /// event's figure inside talking reach, nearest first (#1168). A
+    /// visitor only answers a Talk you walk up to - there's no calling
+    /// one across the green
+    fn visitor_talk_target_at(&self, seat: usize) -> Option<(Entity, f32)> {
+        let (px, py) = self.player_pos_at(seat);
+        let mut best: Option<(Entity, f32)> = None;
+        for r in &self.rare {
+            // still walking in, or already on the road home
+            if !r.path.is_empty() || r.leaving { continue; }
+            if events::visit_slug(r.id).is_none() { continue; }
+            let Some(e) = r.e else { continue };
+            let Some(p) = self.world.get_component::<Pos>(e) else { continue };
+            let d = ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt();
+            if d <= dialogue::PLAYER_TALK_RANGE
+                && best.map(|(_, b)| d < b).unwrap_or(true) {
+                best = Some((e, d));
+            }
+        }
+        best
+    }
+
+    /// Talk with the road visitor `e`: their name, their cry for the
+    /// gist, and the event's own tree - a stranger, whatever the village
+    /// ledger says (#1168)
+    fn talk_visitor_at(&mut self, seat: usize, e: Entity) -> String {
+        if self.seats[seat].talk.as_ref().map(|t| t.who) == Some(e) {
+            return "You are already speaking with them.".into();
+        }
+        let id = self.rare.iter().find(|r| r.e == Some(e)).map(|r| r.id)
+            .expect("visitor talk target");
+        let s = events::spec(id);
+        let pe = self.seats[seat].player;
+        act_talk(&mut self.world, pe, e, self.tick);
+        self.say(e, s.cry, TALK_BUBBLE_SECS);
+        self.open_player_talk(seat, e, crate::game::conversation::Relation::Stranger, s.cry);
+        format!("You talk with {}.", s.name)
+    }
+
     /// Distance from the player to villager `who`, in tiles
     pub fn dist_to_at(&self, seat: usize, who: usize) -> f32 {
         let (px, py) = self.player_pos_at(seat);
@@ -517,13 +557,26 @@ impl Game {
         if i == 1 && !self.seats[seat].picked { self.seats[seat].selected_target = self.reach_target_at(seat); }
         // Talk singles out someone to hear: the picked one, near or far -
         // you walk over to a far one like a Recruit - else the best near,
-        // the least lately heard first (#944, #1066)
-        if i == 0 {
-            if let Some(t) = self.talk_target_at(seat) {
-                self.seats[seat].selected_target = t;
-                self.seats[seat].selected_building = None;
-                self.seats[seat].picked = true;
-                self.seats[seat].pick_near = self.dist_to_at(seat, t) <= SHOUT_DIST;
+        // the least lately heard first (#944, #1066). A road visitor in
+        // reach answers instead when they're the nearer of the two - but
+        // a picked villager keeps the word they were clicked for (#1168)
+        let mut visitor_talk: Option<String> = None;
+        if i == 0 && self.action_blocker_at(seat, i).is_none() {
+            let clicked = self.seats[seat].picked && self.seats[seat].selected_building.is_none();
+            if !clicked {
+                if let Some((e, vd)) = self.visitor_talk_target_at(seat) {
+                    let nd = self.talk_target_at(seat)
+                        .map(|t| self.dist_to_at(seat, t)).unwrap_or(f32::MAX);
+                    if vd < nd { visitor_talk = Some(self.talk_visitor_at(seat, e)); }
+                }
+            }
+            if visitor_talk.is_none() {
+                if let Some(t) = self.talk_target_at(seat) {
+                    self.seats[seat].selected_target = t;
+                    self.seats[seat].selected_building = None;
+                    self.seats[seat].picked = true;
+                    self.seats[seat].pick_near = self.dist_to_at(seat, t) <= SHOUT_DIST;
+                }
             }
         }
         let selected_target = self.seats[seat].selected_target;
@@ -533,9 +586,12 @@ impl Game {
             format!("Can't {}: {}.", ACTION_LABELS[i].to_lowercase(), reason)
         } else {
             match i {
-                0 => match self.start_approach_at(seat, selected_target, 0) {
-                    Some(walking) => walking,
-                    None => { talked = true; self.talk_to_at(seat, selected_target) }
+                0 => match visitor_talk {
+                    Some(m) => { talked = true; m }
+                    None => match self.start_approach_at(seat, selected_target, 0) {
+                        Some(walking) => walking,
+                        None => { talked = true; self.talk_to_at(seat, selected_target) }
+                    },
                 },
                 1 => if let Some(walking) = self.start_approach_at(seat, selected_target, 1) { walking } else {
                     let (pe, oe, te) = (self.seats[seat].player, self.seats[seat].org, self.villagers[selected_target]);

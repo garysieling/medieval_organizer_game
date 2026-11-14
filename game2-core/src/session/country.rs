@@ -845,10 +845,14 @@ impl Game {
                 let Some(p) = self.world.get_component::<Pos>(v).copied() else { continue };
                 let (cx, cy) = (site.centre.0 as f32, site.centre.1 as f32);
                 if ((p.x - cx).powi(2) + (p.y - cy).powi(2)).sqrt() > STRAY_FROM_SITE + site.radius as f32 {
-                    if let Some(home) = household::home_of(&self.world, v) {
-                        let hp = self.world.get_component::<Pos>(home).map(|p| (p.x.round() as i32, p.y.round() as i32));
+                    // a stray with a house goes to its door; one with no
+                    // roof of his own still walks for the town's store -
+                    // either way he doesn't stand lost in the country
+                    let back = household::home_of(&self.world, v).or(Some(site.store));
+                    if let Some(back) = back {
+                        let hp = self.world.get_component::<Pos>(back).map(|p| (p.x.round() as i32, p.y.round() as i32));
                         if let Some(door) = hp.and_then(|(x, y)| self.at_the_door(x, y)) {
-                            self.send_far(v, door, Goal::HeadHome(home));
+                            self.send_far(v, door, Goal::HeadHome(back));
                         }
                     }
                 }
@@ -932,6 +936,9 @@ impl Game {
                     if load > 0 {
                         if let Some(s) = self.world.get_component_mut::<Satchel>(c) {
                             *s.goods.entry("wheat".into()).or_insert(0) += load;
+                            // and the salt road beside the grain: nobody
+                            // mines it here, and a larder hangs on it
+                            *s.goods.entry("salt".into()).or_insert(0) += 4;
                         }
                     }
                     if self.send_far(c, pitch, Goal::Cart(si)) {

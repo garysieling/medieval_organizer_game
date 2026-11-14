@@ -82,6 +82,29 @@ fn test_villagers_stay_in_their_own_village() {
         vill_name(who_was_it), worst, st, route, around);
 }
 
+/// A stray with no house of his own still walks back to his own
+/// town - the store's door stands in for the home he doesn't have
+#[test]
+fn test_a_homeless_stray_still_walks_for_his_town() {
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied()
+        .find(|&v| g.site_of(v).is_some()).expect("no outlander on the roll");
+    let si = g.site_of(v).unwrap();
+    if let Some(home) = household::home_of(&g.world, v) {
+        g.world.get_component_mut::<Building>(home).unwrap()
+            .occupants.retain(|&o| o != v);
+    }
+    // parked past the stray reach of his own town, on ground he can stand on
+    let (cx, cy) = g.sites[si].centre;
+    let reach = g.sites[si].radius as i32 + 20;
+    let spot = (0..40).flat_map(|r| [(cx + reach, cy + r), (cx + reach, cy - r)])
+        .find(|&(x, y)| g.map.passable(x, y)).expect("no stray tile off the town");
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
+    g.country_tick(10);
+    assert!(g.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::HeadHome(_))),
+        "he should be walking for his own town, not standing lost");
+}
+
 #[test]
 fn test_the_rivals_have_homes_across_the_river() {
     let g = Game::new();

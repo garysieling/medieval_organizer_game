@@ -7,10 +7,11 @@ fn test_bread_spoils_and_grain_holds() {
     if let Some(b) = g.world.get_component_mut::<Building>(be) {
         household::add_stock(b, "bread", 4); household::add_stock(b, "wheat", 4);
     }
-    g.spoilage_tick(3); // the weekly rot - tick 3 lands on the wheat's turn too
-    g.spoilage_tick(10); // and the next week's
+    g.spoilage_tick(3); // the first rot: bread and wheat both take a turn
+    g.spoilage_tick(10); // the week's own tick - bread sits a fortnight now
+    g.spoilage_tick(17); // the fortnight's turn comes round
     let b = g.world.get_component::<Building>(be).unwrap();
-    assert_eq!(b.stock.get("bread").copied().unwrap_or(0), 2, "bread goes in a week");
+    assert_eq!(b.stock.get("bread").copied().unwrap_or(0), 2, "bread goes on the fortnight's turns");
     assert_eq!(b.stock.get("wheat").copied().unwrap_or(0), 3, "wheat goes in a month");
 }
 

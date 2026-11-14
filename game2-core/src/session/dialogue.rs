@@ -384,8 +384,34 @@ impl Game {
     /// `rel` is the bond as it stood before this talk.
     pub fn open_player_talk(&mut self, seat: usize, v: Entity, rel: Relation, gist: &str) {
         let pe = self.seats[seat].player;
-        let name = self.name_of(v);
+        let rare = self.rare.iter().find(|r| r.e == Some(v)).map(|r| r.id);
+        let name = rare.map(|id| super::events::spec(id).name.to_string())
+            .unwrap_or_else(|| self.name_of(v));
         let mut villager = speaker_of(&self.world, v, &name, self.tick);
+        if let Some(id) = rare {
+            // a visitor has no villager life to read: the facts come off
+            // the event - its kind, its archetype, two seed-rolled quirks,
+            // and whether you've already spoken this stay (#1168)
+            villager.status.push("visitor");
+            villager.status.push(super::events::visitor_archetype(id));
+            if let Some(s) = super::events::visit_slug(id) { villager.status.push(s); }
+            const QUIRKS: [crate::game::traits::Trait; 8] = [
+                crate::game::traits::Trait::Kind, crate::game::traits::Trait::Proud,
+                crate::game::traits::Trait::Gregarious, crate::game::traits::Trait::Hotheaded,
+                crate::game::traits::Trait::Ambitious, crate::game::traits::Trait::Stingy,
+                crate::game::traits::Trait::Pious, crate::game::traits::Trait::Lazy,
+            ];
+            let q = super::routine::mix(v, 0x51ED);
+            villager.traits.push(QUIRKS[(q % 8) as usize]);
+            let q2 = (q / 8) % 8;
+            if q2 != q % 8 { villager.traits.push(QUIRKS[q2 as usize]); }
+            // spoken before, this stay: a Talk with him is already on the
+            // record (act_talk's stamp can't be the tell - it lands first)
+            if self.talk_log.iter().any(|r| matches!(r.kind, TalkKind::Talk)
+                && r.with.contains(&v)) {
+                villager.status.push("spoken");
+            }
+        }
         // how well they know you colours the talk - the trees key on the
         // stage as a status fact
         match crate::game::organizing::stage_of(&self.world, pe, v) {
@@ -408,7 +434,10 @@ impl Game {
         self.travels.retain(|t| t.who != v);
         self.world.add_component(v, villager::InPlayerTalk);
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
-        let profile = crate::game::dialogue_trees::backstory(&villager);
+        // a visitor's standing is the road's own blurb, not a villager
+        // backstory built off statuses it doesn't have (#1168)
+        let profile = rare.map(|i| super::events::visitor_blurb(i).to_string())
+            .unwrap_or_else(|| crate::game::dialogue_trees::backstory(&villager));
         self.seats[seat].talk = Some(PlayerTalk {
             id, who: v, villager, player, rel, seed, picks: vec![],
             profile,
@@ -503,7 +532,7 @@ impl Game {
     /// their leave
     pub fn talk_pick_at(&mut self, seat: usize, pick: Option<usize>) {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
-        let (who, n, asks) = (t.who, t.options.len(), t.asks_shown());
+        let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let Some(i) = pick.filter(|&i| i < n + asks) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
@@ -552,8 +581,65 @@ impl Game {
             }
             _ => {}
         }
+        // a visitor's first answer carries the deal: Agree is "I'll take
+        // it", PushBack on the darker kinds sends them down the road
+        // (#1168)
+        if first_pick {
+            if let Some(ri) = self.rare.iter().position(|r| r.e == Some(who)) {
+                let id = self.rare[ri].id;
+                match act {
+                    Act::Agree => self.apply_visitor_offer(seat, who, id),
+                    Act::PushBack if super::events::visitor_dismissible(id) => {
+                        let n = format!("{} takes your meaning and heads for the road.",
+                            super::events::spec(id).name);
+                        self.narrate_talk(seat, &n);
+                        self.depart_event(ri);
+                    }
+                    _ => {}
+                }
+            }
+        }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }
         self.refresh_player_talk(seat);
+    }
+
+    /// "I'll take it" with a road visitor: the purse pays or gains, the
+    /// satchel takes the ware, and the note goes on the talk's record
+    /// (#1168)
+    fn apply_visitor_offer(&mut self, seat: usize, who: Entity, id: super::events::EventId) {
+        use crate::game::livelihood::{Purse, Satchel};
+        let o = super::events::visitor_offer(id);
+        let pe = self.seats[seat].player;
+        if o.gold_out > 0.0 {
+            let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+            if gold < o.gold_out {
+                self.narrate_talk(seat, "Your purse comes up short - the deal dies there.");
+                return;
+            }
+            if let Some(purse) = self.world.get_component_mut::<Purse>(pe) {
+                purse.gold -= o.gold_out;
+            }
+        }
+        if o.gold_in > 0.0 {
+            if let Some(purse) = self.world.get_component_mut::<Purse>(pe) {
+                purse.gold += o.gold_in;
+            }
+        }
+        if let Some(g) = o.good {
+            if let Some(sat) = self.world.get_component_mut::<Satchel>(pe) {
+                *sat.goods.entry(g.to_string()).or_insert(0) += 1;
+            } else {
+                let mut sat = Satchel::default();
+                sat.goods.insert(g.to_string(), 1);
+                self.world.add_component(pe, sat);
+            }
+        }
+        if o.stay_extra > 0 {
+            if let Some(r) = self.rare.iter_mut().find(|r| r.e == Some(who)) {
+                r.until = r.until.map(|u| u + o.stay_extra);
+            }
+        }
+        if !o.note.is_empty() { self.narrate_talk(seat, o.note); }
     }
 
     /// Whether `who` is in a Talk with a seat's player right now: while

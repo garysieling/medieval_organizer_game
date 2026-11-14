@@ -556,6 +556,9 @@ impl Game {
         for idx in 0..self.rare.len() {
             let mut r = self.rare[idx].clone();
             let Some(e) = r.e else { continue };
+            // a word holds the feet: a visitor you're talking to doesn't
+            // walk on - the marker lifts when the talk closes (#1168)
+            if self.world.get_component::<villager::InPlayerTalk>(e).is_some() { continue; }
             // flames at his feet or on the road ahead: turn for home early
             if !r.leaving && self.fire_at_feet(e, &r.path, tr_spd.ceil() as usize + 1) {
                 r.until = Some(self.tick);
@@ -580,7 +583,7 @@ impl Game {
     }
 
     /// Point a visitor for home
-    fn depart_event(&mut self, idx: usize) {
+    pub(in crate::session) fn depart_event(&mut self, idx: usize) {
         if idx >= self.rare.len() { return; }
         let mut r = self.rare[idx].clone();
         let back = self.road_far();
@@ -795,5 +798,134 @@ impl Game {
             Group::Findings => self.findings_end(id, tick),
             _ => {}
         }
+    }
+}
+
+/// The conversation family a visitor belongs to: which dialogue tree
+/// speaks for them when the player walks up and Talks (#1168). Every
+/// traveller kind lands somewhere; the status carries on the Speaker as
+/// `arch-*` so kind slugs stay free for per-kind overrides.
+pub fn visitor_archetype(id: EventId) -> &'static str {
+    use EventId::*;
+    match id {
+        Tinker | RagAndBone | SaltSeller | WoolMerchant | WineMerchant
+        | SpiceMerchant | Bookseller | CornFactor | CheeseMonger
+        | FishHawker | Eggler | HorseCop => "arch-trader",
+        KnifeGrinder | ChimneySweep | RatCatcher | Dowser | Scribe
+        | ToothDrawer | BarberSurgeon | Glazier | Thatcher | WellDigger
+        | CharcoalBurner | LimeBurner | Farrier | Midwife | Sowgelder
+        | Potter | CandleMaker | Tanner => "arch-craftsman",
+        Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier
+        | Messenger => "arch-performer",
+        PilgrimBand | RelicSeller | Pardoner | Friar => "arch-religious",
+        RefugeeFamily | LeperBand => "arch-needy",
+        Recruiter | Deserter => "arch-soldier",
+        FortuneTeller | Astrologer | Alchemist | Quack => "arch-mystic",
+        _ => "arch-caller",
+    }
+}
+
+/// What "I'll take it" means with this visitor: the first fork of every
+/// visitor tree is the deal, and this is what agreeing to it does
+pub struct VisitorOffer {
+    /// A satchel good they sell you
+    pub good: Option<&'static str>,
+    /// Gold your purse loses - a ware's price, a service, an alms
+    pub gold_out: f32,
+    /// Gold your purse gains - the recruiter's shilling
+    pub gold_in: f32,
+    /// Agreeing keeps them this much longer (a deserter hidden)
+    pub stay_extra: u64,
+    /// What goes on the talk's record when the deal lands
+    pub note: &'static str,
+}
+
+/// No deal on offer: the talk is all the arc has
+pub const NO_OFFER: VisitorOffer = VisitorOffer {
+    good: None, gold_out: 0.0, gold_in: 0.0, stay_extra: 0, note: "",
+};
+
+/// A traveller's premium: the road charges more than the village bench
+const TRAVELER_PREMIUM: f32 = 1.5;
+
+/// What each kind's deal does. Priced wares carry the traveller's
+/// premium over the same good's bench price (#1168)
+pub fn visitor_offer(id: EventId) -> VisitorOffer {
+    use EventId::*;
+    let ware = |good: &'static str, base: f32, note: &'static str| VisitorOffer {
+        good: Some(good), gold_out: base * TRAVELER_PREMIUM, gold_in: 0.0, stay_extra: 0, note,
+    };
+    let service = |price: f32, note: &'static str| VisitorOffer {
+        good: None, gold_out: price, gold_in: 0.0, stay_extra: 0, note,
+    };
+    match id {
+        Tinker => ware("tinware", 2.0, "You buy a mended pot from the tinker."),
+        RagAndBone => ware("oddments", 1.0, "You pick a serviceable thing from the rag man's sack."),
+        SaltSeller => ware("salt", 2.0, "You buy a measure of salt - dear, but the winter wants it."),
+        WoolMerchant => ware("wool", 3.0, "You buy a fleece's worth of wool at the road's price."),
+        WineMerchant => ware("wine", 4.0, "You buy a flask of wine - it costs what the road costs."),
+        SpiceMerchant => ware("spice", 5.0, "You buy a twist of spice, dearer than sin."),
+        Bookseller => ware("book", 5.0, "You buy a book with a cut spine and all its pages."),
+        CornFactor => ware("grain", 2.0, "You buy a sack of grain at the factor's price."),
+        CheeseMonger => ware("cheese", 2.0, "You buy a truckle of cheese from the monger."),
+        FishHawker => ware("fish", 1.0, "You buy a string of fish, smelling of the coast."),
+        Eggler => ware("eggs", 1.0, "You buy a basket of eggs, counted twice."),
+        HorseCop => ware("nag", 4.0, "You take the coper's soundest nag - and his blessing with it."),
+        CharcoalBurner => ware("charcoal", 2.0, "You buy a bag of charcoal, black-fingered and light."),
+        LimeBurner => ware("lime", 2.0, "You buy a bushel of burned lime."),
+        RelicSeller => ware("relic", 4.0, "You buy the saint's knuckle - a splinter, at least, of something."),
+        Alchemist => ware("elixir", 3.0, "You buy the elixir - it smells of cloves and lies."),
+        Quack => ware("remedy", 2.0, "You buy the remedy - it may even work."),
+        KnifeGrinder => service(2.0, "He hones every blade in the house on the treadle wheel."),
+        ChimneySweep => service(2.0, "His boy goes up the flue; the soot comes down in curtains."),
+        RatCatcher => service(2.0, "His terriers work the walls - the rats have a bad afternoon."),
+        Dowser => service(2.0, "His forked stick bends near the garden - water, he says, if you dig."),
+        Scribe => service(2.0, "He writes your letter in a fair clerk's hand."),
+        ToothDrawer => service(2.0, "The tooth comes out with the pliers; the ache goes with it."),
+        BarberSurgeon => service(2.0, "He opens the vein and binds it neat - you feel the lighter for it."),
+        Glazier => service(2.0, "He sets a new pane where the shutter broke."),
+        Thatcher => service(2.0, "He promises to stop by your roof before he quits the parish."),
+        WellDigger => service(2.0, "He tells you where your well should go and how deep."),
+        Farrier => service(2.0, "He reshoes the plough horse at his travelling anvil."),
+        Midwife => service(2.0, "She examines, advises, and takes her fee with both hands."),
+        Sowgelder => service(2.0, "The sow squeals once; the gelder pockets his fee."),
+        CandleMaker => ware("candles", 2.0, "You buy a bundle of dipped candles."),
+        Potter => ware("pots", 2.0, "You buy two glazed pots, wrapped in straw."),
+        Tanner => ware("leather", 3.0, "You buy a dressed hide, supple and smelling of oak bark."),
+        Juggler | BearWard | Puppeteer | BalladMonger => service(1.0,
+            "You toss a coin into the hat - the show's worth it."),
+        NewsCrier => service(1.0, "You pay a penny for the full telling, names and all."),
+        FortuneTeller => service(1.0, "She turns the cards and tells you what you half knew already."),
+        Astrologer => service(2.0, "He casts your nativity on a scraped horn tablet."),
+        PilgrimBand | Friar => service(1.0, "You press alms into a pilgrim's palm."),
+        Pardoner => service(3.0, "You buy the pardon - sealed, stamped, and probably genuine."),
+        RefugeeFamily | LeperBand => service(1.0, "You give what you can; it is not enough, and it is something."),
+        Recruiter => VisitorOffer { good: None, gold_out: 0.0, gold_in: 2.0,
+            stay_extra: 0, note: "The King's shilling weighs heavy in your palm." },
+        Deserter => VisitorOffer { good: None, gold_out: 0.0, gold_in: 0.0,
+            stay_extra: 2400, note: "You say nothing of him - he can breathe a while longer." },
+        _ => NO_OFFER,
+    }
+}
+
+/// Whether a rebuff sends this visitor down the road early - the kinds a
+/// village can plausibly drive off with hard words (#1168)
+pub fn visitor_dismissible(id: EventId) -> bool {
+    matches!(id, EventId::Deserter | EventId::Heretic
+        | EventId::LeperBand | EventId::RefugeeFamily)
+}
+
+/// A one-line read on a road visitor for the TALK panel - the speaker's
+/// seed quirks already colour how he answers (#1168)
+pub fn visitor_blurb(id: EventId) -> &'static str {
+    match visitor_archetype(id) {
+        "arch-trader" => "A trader off the road, selling at the road's price.",
+        "arch-craftsman" => "A craftsman passing through, work for coin.",
+        "arch-performer" => "A performer working the villages.",
+        "arch-religious" => "A soul on God's own road.",
+        "arch-needy" => "The road's own poor, asking what you'd spare.",
+        "arch-soldier" => "The war's business, walking the villages.",
+        "arch-mystic" => "A dealer in omens and doubtful sciences.",
+        _ => "A traveller, resting a day off the road.",
     }
 }

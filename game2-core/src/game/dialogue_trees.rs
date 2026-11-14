@@ -2509,6 +2509,51 @@ const KIDS_GREET: Exchange = Exchange {
 /// The full dialogue library: 30 circumstance and vocation trees plus smalltalk tail
 pub fn village_library() -> Vec<DialogueTree> {
     vec![
+        // the road's visitors (#1168): the again-tree leads - at two
+        // criteria it ties the kind/archetype trees and library order
+        // makes the repeat the shorter talk
+        DialogueTree { name: "visitor_again",
+            criteria: &[Has("self:status:visitor"), Has("self:status:spoken")],
+            root: &VIS_AGAIN_GREET, rejoin: None },
+        // kind voices where the stakes are their own
+        DialogueTree { name: "visitor_deserter",
+            criteria: &[Has("self:status:visitor"), Has("self:status:deserter")],
+            root: &VIS_DESERTER_GREET, rejoin: None },
+        DialogueTree { name: "visitor_lepers",
+            criteria: &[Has("self:status:visitor"), Has("self:status:leper-band")],
+            root: &VIS_LEPER_GREET, rejoin: None },
+        DialogueTree { name: "visitor_refugees",
+            criteria: &[Has("self:status:visitor"), Has("self:status:refugee-family")],
+            root: &VIS_REFUGEE_GREET, rejoin: None },
+        DialogueTree { name: "visitor_heretic",
+            criteria: &[Has("self:status:visitor"), Has("self:status:quiet-preacher")],
+            root: &VIS_HERETIC_GREET, rejoin: None },
+        DialogueTree { name: "visitor_recruiter",
+            criteria: &[Has("self:status:visitor"), Has("self:status:recruiter")],
+            root: &VIS_RECRUITER_GREET, rejoin: None },
+        DialogueTree { name: "visitor_fortune_teller",
+            criteria: &[Has("self:status:visitor"), Has("self:status:fortune-teller")],
+            root: &VIS_FORTUNE_GREET, rejoin: None },
+        // the archetypes every traveller kind falls into
+        DialogueTree { name: "visitor_trader",
+            criteria: &[Has("self:status:visitor"), Has("self:status:arch-trader")],
+            root: &VIS_TRADER_GREET, rejoin: None },
+        DialogueTree { name: "visitor_craftsman",
+            criteria: &[Has("self:status:visitor"), Has("self:status:arch-craftsman")],
+            root: &VIS_CRAFT_GREET, rejoin: None },
+        DialogueTree { name: "visitor_performer",
+            criteria: &[Has("self:status:visitor"), Has("self:status:arch-performer")],
+            root: &VIS_PERFORMER_GREET, rejoin: None },
+        DialogueTree { name: "visitor_religious",
+            criteria: &[Has("self:status:visitor"), Has("self:status:arch-religious")],
+            root: &VIS_RELIGIOUS_GREET, rejoin: None },
+        DialogueTree { name: "visitor_mystic",
+            criteria: &[Has("self:status:visitor"), Has("self:status:arch-mystic")],
+            root: &VIS_MYSTIC_GREET, rejoin: None },
+        // the catch-all: every traveller talks, even the unmapped ones
+        DialogueTree { name: "visitor_generic",
+            criteria: &[Has("self:status:visitor")],
+            root: &VIS_CALLER_GREET, rejoin: Some(&VIS_ROAD_NEWS) },
         DialogueTree { name: "children_at_play",
             criteria: &[Has("self:status:child"), Has("other:status:child")],
             root: &KIDS_GREET, rejoin: None },
@@ -2763,5 +2808,426 @@ const BOND_CHAT: Exchange = Exchange {
             act: Act::Remark, concepts: &["smalltalk"],
             lines: &["Patience - these things want doing right.", "Not yet, but the day's coming."],
             then: Some(SMALL_FADE), end: None },
+    ],
+};
+
+
+// ---------- visitors on the road (#1168) ----------
+// Every traveller kind gets a voice through its archetype tree; a few
+// kinds carry their own (2-criteria, kind-slug) trees where the voice or
+// the stakes are their own. The deal fork is always Act::Agree; a rebuff
+// that can send them off is Act::PushBack - session code keys the
+// mechanical outcome on those, so the forks stay data.
+
+/// What follows the player's "what news of the road?": a traveller's
+/// answer, then the talk runs out
+const VIS_ROAD_NEWS: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["the_road", "smalltalk"],
+    calls: &[
+        "Mud, mostly. And a toll on every bridge that has a keeper.",
+        "War talk in the north, they say - but they always say that.",
+        "A fair behind us, a fair ahead - that's all a road is.",
+        "Folk are hungry up the dale. Hungrier than here, I mean.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Safe road to you, then.", "Walk soft - and thanks for the word."],
+            then: None, end: Some(Farewell) },
+        Reply { criteria: &[], weight: 0.4, bias: &[],
+            act: Act::Question, concepts: &["the_road"],
+            lines: &["Anything worth avoiding up the way?"],
+            then: Some(VIS_ROAD_TAIL), end: None },
+    ],
+};
+
+const VIS_ROAD_TAIL: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["the_road"],
+    calls: &[
+        "The ford's up with the rain - go the long way round.",
+        "A press gang was about last month. Keep the lads close.",
+        "Nothing a stout stick won't answer for.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Noted - and a good road to you.", "I'll pass the word along."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+/// The visitor's own "done, then" after the deal lands (the session
+/// writes the actual trade onto the talk's record)
+const VIS_DEAL_DONE: Exchange = Exchange {
+    act: Act::Agree,
+    concepts: &["deal"],
+    calls: &[
+        "Done, then - and a fair bargain to both of us.",
+        "Yours, and keep it well.",
+        "The road thanks you, {other}.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["A good day to you - and to your road.", "Fair dealing. God speed."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_AGAIN_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting"],
+    calls: &[
+        "Back again, {other}? The road's no shorter.",
+        "You again. I've little new since last we spoke.",
+        "Still standing here, {other} - as you see.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 3.0, bias: &[],
+            act: Act::Agree, concepts: &["deal"],
+            lines: &["The same again, then - I'll take it."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Just passing - go well."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_TRADER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "trade"],
+    calls: &[
+        "Wares from far off, {other} - a fair price, and the road's own.",
+        "Come see what the pack holds - I've travelled far for folk like you.",
+        "The village bench hasn't what I carry - a look costs nothing.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[],
+            act: Act::Agree, concepts: &["deal", "trade"],
+            lines: &["Show me - I'll buy, if the price holds.", "Aye, the road's price then."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["the_road"],
+            lines: &["What news on the road, friend?"],
+            then: Some(VIS_ROAD_NEWS), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Not today - my purse stays shut."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_CRAFT_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "work"],
+    calls: &[
+        "A tradesman passing, {other} - honest work for honest coin.",
+        "You've need of my trade, or know someone who has - which is it?",
+        "I do the work the village hasn't a hand for - a day, no more.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[],
+            act: Act::Agree, concepts: &["deal", "work"],
+            lines: &["Aye - there's work here wants doing.", "Done - do the job and take the coin."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["the_road"],
+            lines: &["What have you seen on the road?"],
+            then: Some(VIS_ROAD_NEWS), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["We've no need - good day to you."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_PERFORMER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "mirth"],
+    calls: &[
+        "A smile costs nothing, {other} - but a coin makes the show better!",
+        "Gather round! Wonders for a penny, marvels for two!",
+        "You've not lived till you've seen what my hands can do, {other}.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Gregarious, 2.0)],
+            act: Act::Agree, concepts: &["deal", "mirth"],
+            lines: &["A coin for the hat - show us, then.", "Make us laugh, and it's yours."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["the_road"],
+            lines: &["Where does the road take your show?"],
+            then: Some(VIS_ROAD_NEWS), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["No coin from me today - move along."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_RELIGIOUS_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "faith"],
+    calls: &[
+        "Peace on this house, {other} - and on all who dwell in it.",
+        "The saints keep the traveller - will you keep one tonight?",
+        "A blessing on your fields, friend - freely given, freely received.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Pious, 2.0)],
+            act: Act::Agree, concepts: &["deal", "faith"],
+            lines: &["Take this - and a blessing back on you.", "For the road, brother."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["the_road", "faith"],
+            lines: &["Where does your pilgrimage lead?"],
+            then: Some(VIS_ROAD_NEWS), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Go in peace - we've little to spare."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+
+
+
+
+const VIS_MYSTIC_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "omens"],
+    calls: &[
+        "The stars told me a seeker would meet me here - is it you, {other}?",
+        "Your face, {other} - it carries a question. Cross my palm and I'll answer it.",
+        "I deal in what the wise pretend not to know - have a care, but hear me.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Pious, 0.5)],
+            act: Act::Agree, concepts: &["deal", "omens"],
+            lines: &["Read what you see, then - here's the coin.", "Tell me my fortune, if you can."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["omens"],
+            lines: &["What do you see for this village?"],
+            then: Some(VIS_ROAD_NEWS), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[(Pious, 2.0)],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["The priest says your kind brings ill luck - go."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_CALLER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "the_road"],
+    calls: &[
+        "A fair day for the road, {other} - God keep your village.",
+        "Just passing through, friend - the world's wide and I'm halfway across it.",
+        "Well met, {other} - a kind face is rare on this road.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.5, bias: &[],
+            act: Act::Question, concepts: &["the_road"],
+            lines: &["Where are you bound, traveller?"],
+            then: Some(VIS_ROAD_NEWS), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Safe road to you, then."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+// ----- kind trees: voices and stakes that are their own -----
+
+const VIS_DESERTER_TALE: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["war"],
+    calls: &[
+        "Three winters in the mud, and my captain sold our boots for brandy. I ran when the fever didn't.",
+        "They hanged a boy of fourteen for lagging. I was next in line to lag.",
+        "I saw the battle, {other}. Whatever they tell you of it - it was worse.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Go quiet, then - and God speed you."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_DESERTER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "war", "fear"],
+    calls: &[
+        "Keep your voice down, {other} - there's a price on my head.",
+        "I didn't run. I just stopped dying for men I'll never meet.",
+        "You'll not turn me in, will you? I only want to eat and sleep.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Kind, 2.0)],
+            act: Act::Agree, concepts: &["deal", "mercy"],
+            lines: &["You'll be safe here a while - keep out of sight.", "Rest, then. I'll say nothing."],
+            then: Some(VIS_DESERTER_TALE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[(Pious, 1.5)],
+            act: Act::PushBack, concepts: &["rebuff"],
+            lines: &["The watch should know you're here - go, before I shout.", "You bring danger on us all - be gone."],
+            then: None, end: Some(WalksOff) },
+    ],
+};
+
+const VIS_LEPER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "want", "sickness"],
+    calls: &[
+        "Unclean! Keep your distance, {other} - but spare a coin if God lives in you.",
+        "The bell announces us, but mercy needn't wait for it.",
+        "We mean no harm - only bread, and to be seen as men.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Kind, 3.0)],
+            act: Act::Agree, concepts: &["deal", "charity"],
+            lines: &["Here - food, and a coin with it.", "Stay where you are - I'll bring something."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[(Stingy, 2.0), (Hotheaded, 1.5)],
+            act: Act::PushBack, concepts: &["rebuff"],
+            lines: &["Out - you'll not plague this village.", "Back down the road, before I call folk out."],
+            then: None, end: Some(WalksOff) },
+    ],
+};
+
+const VIS_REFUGEE_TALE: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["war", "the_road"],
+    calls: &[
+        "Three days north - the houses still burn, they say. We'd nothing left to bury.",
+        "Where we came from doesn't matter now. Where we're going is a beggar's road.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["May the road be kinder to you than it was.", "Go with God - and I'm sorry."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_REFUGEE_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "want", "war"],
+    calls: &[
+        "We lost everything, {other} - the raiders took the village and the winter took the rest.",
+        "A crust is all we ask. The little ones haven't eaten since yesterday.",
+        "We were farmers once, like you. The road owns us now.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Kind, 3.0), (Stingy, 0.3)],
+            act: Act::Agree, concepts: &["deal", "charity"],
+            lines: &["Come - there's bread and a fire for the children.", "Take this - it's not much, but it's yours."],
+            then: Some(VIS_REFUGEE_TALE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[(Stingy, 2.0)],
+            act: Act::PushBack, concepts: &["rebuff"],
+            lines: &["The village can't carry more mouths - move on."],
+            then: None, end: Some(WalksOff) },
+    ],
+};
+
+const VIS_HERETIC_TALE: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["faith"],
+    calls: &[
+        "Why does a poor man tithe to a rich altar? Ask that, and you're one of us already.",
+        "The old ways kept this valley before the church did. Ask the stones, {other}.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll think on it - but quietly.", "Enough - I've heard what I came to hear."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_HERETIC_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "faith"],
+    calls: &[
+        "They preach one thing in the church, {other} - but who built the church?",
+        "The truth walks with a staff, not a censer. Hear me, and judge.",
+        "I ask questions the priest won't answer - do you dare to listen?",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Ambitious, 1.5), (Pious, 0.4)],
+            act: Act::Agree, concepts: &["faith"],
+            lines: &["Say it, then - I'll judge for myself.", "I listen. Carefully."],
+            then: Some(VIS_HERETIC_TALE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[(Pious, 2.0)],
+            act: Act::PushBack, concepts: &["rebuff"],
+            lines: &["You speak poison - the priest should hear of you.", "This village keeps the faith - be gone."],
+            then: None, end: Some(WalksOff) },
+    ],
+};
+
+const VIS_RECRUITER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "war"],
+    calls: &[
+        "The King needs stout arms, {other} - two silver for signing, and meat every day!",
+        "Honest service, steady pay - better than staring at a plough's arse-end.",
+        "Who among you wants more than this village can ever give? The bounty waits.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Ambitious, 2.5)],
+            act: Act::Agree, concepts: &["deal", "war"],
+            lines: &["Two silver, you say? I'm listening.", "Tell me more of the service."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["war"],
+            lines: &["Where's the fighting this year?"],
+            then: Some(VIS_ROAD_NEWS), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["You'll get no one here - move along, sergeant."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_FORTUNE_TALE: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["omens"],
+    calls: &[
+        "A dark cloud over the granary - keep your stores dry and your locks oiled.",
+        "Someone here will rise, {other} - and the village will rise with them, or fall.",
+        "I see a hard winter and a warm hearth - one must be earned before the other comes.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Keep your omens - I'll make my own luck."],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const VIS_FORTUNE_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "omens"],
+    calls: &[
+        "Cross my palm with silver, {other} - the cards have been talking about you.",
+        "I saw you coming before you did. A penny tells you what else I saw.",
+        "The stars over this village shift oddly tonight - shall I read them?",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[],
+            act: Act::Agree, concepts: &["deal", "omens"],
+            lines: &["Read my fortune, then.", "Here's the coin - tell me true."],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["omens"],
+            lines: &["What do you see for the village?"],
+            then: Some(VIS_FORTUNE_TALE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[(Pious, 1.5)],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I keep my fate to myself - good day."],
+            then: None, end: Some(Farewell) },
     ],
 };

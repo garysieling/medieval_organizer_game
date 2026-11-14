@@ -445,9 +445,17 @@ pub fn converse_with(
                     .unwrap_or((r.lines[0], r.lines[0].to_string()));
                 rolled.push((t, Choice { act: r.act, preview }));
             }
-            let choices: Vec<Choice> = rolled.iter().map(|(_, c)| Choice { act: c.act, preview: c.preview.clone() }).collect();
-            match choose(&choices).and_then(|i| sampled.get(i).copied().zip(rolled.get(i))) {
-                Some((i, (t, _))) => (i, *t),
+            // a farewell's the tail of a talk, not a per-turn option (#1179):
+            // it only sits on the list once the talk's run dry - while
+            // anything live's on offer, the exits stay off it
+            let mut pairs: Vec<(usize, (&'static str, Choice))> =
+                sampled.iter().copied().zip(rolled.into_iter()).collect();
+            if pairs.iter().any(|(_, (_, c))| c.act != Act::Farewell) {
+                pairs.retain(|(_, (_, c))| c.act != Act::Farewell);
+            }
+            let choices: Vec<Choice> = pairs.iter().map(|(_, (_, c))| Choice { act: c.act, preview: c.preview.clone() }).collect();
+            match choose(&choices).and_then(|i| pairs.get(i)) {
+                Some(&(i, (t, _))) => (i, t),
                 None => { tr.ending = Some(Ending::LeavesEarly); break; }
             }
         } else {
@@ -738,6 +746,31 @@ mod tests {
         }
         bad.sort();
         assert!(bad.is_empty(), "ending/act/line mismatches:\n{}", bad.join("\n"));
+    }
+
+    #[test]
+    fn test_farewell_options_only_appear_when_the_talk_is_dry() {
+        // #1179: a farewell's the tail, not a per-turn option - it never
+        // shares a choice list with live replies, but it still shows once
+        // farewells are all that's left
+        let library = village_library();
+        let mut saw_dry_list = false;
+        for seed in 0..60 {
+            let mut rng = Rng::new(seed);
+            let a = Speaker::new("Aldric");
+            let b = Speaker::new("Eliza");
+            let mut mixed = false;
+            converse_with(&a, &b, Relation::Acquaintance, &library, 1, &mut |ch: &[Choice]| {
+                let farewells = ch.iter().filter(|c| c.act == Act::Farewell).count();
+                assert!(farewells == 0 || farewells == ch.len(),
+                    "farewells shared a list with live replies: {:?}",
+                    ch.iter().map(|c| (c.act, c.preview.clone())).collect::<Vec<_>>());
+                if farewells == ch.len() { mixed = true; }
+                Some(0)
+            }, &mut rng);
+            saw_dry_list |= mixed;
+        }
+        assert!(saw_dry_list, "some path should bottom out on farewells alone");
     }
 
     #[test]

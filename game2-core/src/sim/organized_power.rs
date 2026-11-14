@@ -7,16 +7,27 @@
 //!   capacity -= atrophy * idle_time
 //!   failed/over-reaching actions cost capacity (burnout, demoralization)
 
+/// The most people-power an org can hold: the muscle only gets so big -
+/// past this the cause's size shows in how hard the lord's eyes push
+/// back (surveillance_tick reads the muscle's bulk), not in the number
+pub const CAPACITY_CAP: f32 = 1.0;
+
 /// An org's organized-power capacity (distinct from money/resources, which
 /// depletes when spent). Grows from well-run actions, atrophies when idle.
 #[derive(Debug, Clone, Copy)]
 pub struct OrganizedPower {
-    pub capacity: f32,   // 0+; how much people-power the org can call on
+    pub capacity: f32,   // 0..=CAPACITY_CAP; how much people-power the org can call on
     pub idle_ticks: u32, // ticks since the last action, for atrophy tracking
 }
 
 impl OrganizedPower {
     pub fn new() -> Self { OrganizedPower { capacity: 0.0, idle_ticks: 0 } }
+
+    /// The only way capacity moves: every gain or loss lands inside
+    /// 0..=CAPACITY_CAP, so no writer can push the muscle past its size
+    pub fn adjust(&mut self, d: f32) {
+        self.capacity = (self.capacity + d).clamp(0.0, CAPACITY_CAP);
+    }
 }
 
 impl Default for OrganizedPower {
@@ -54,11 +65,9 @@ pub enum ActionQuality {
 pub fn apply_action(power: &mut OrganizedPower, params: &PowerParams, quality: ActionQuality) {
     power.idle_ticks = 0;
     match quality {
-        ActionQuality::Transformational => power.capacity += params.growth_rate,
-        ActionQuality::Transactional => power.capacity += params.growth_rate * 0.2,
-        ActionQuality::Overreach => {
-            power.capacity = (power.capacity - params.burnout_penalty).max(0.0);
-        }
+        ActionQuality::Transformational => power.adjust(params.growth_rate),
+        ActionQuality::Transactional => power.adjust(params.growth_rate * 0.2),
+        ActionQuality::Overreach => power.adjust(-params.burnout_penalty),
     }
 }
 
@@ -94,7 +103,7 @@ pub fn record_action(world: &mut crate::engine::ecs::World, org: crate::engine::
 /// to people power instead of terrain).
 pub fn step_idle(power: &mut OrganizedPower, params: &PowerParams) {
     power.idle_ticks += 1;
-    power.capacity = (power.capacity - params.atrophy_rate).max(0.0);
+    power.adjust(-params.atrophy_rate);
 }
 
 #[cfg(test)]
@@ -158,14 +167,19 @@ mod tests {
     }
 
     #[test]
-    fn sustained_good_organizing_outgrows_atrophy() {
-        // The muscle metaphor only holds if regular use beats idle decay.
+    fn sustained_good_organizing_plateaus_at_the_cap() {
+        // The muscle metaphor only holds if regular use beats idle decay -
+        // but the muscle only gets so big: sustained organizing fills the
+        // gauge and stops there, the rest shows in the opponent's answer
         let params = PowerParams::default();
         let mut power = OrganizedPower::new();
         for _ in 0..20 {
             apply_action(&mut power, &params, ActionQuality::Transformational);
             step_idle(&mut power, &params);
         }
-        assert!(power.capacity > 1.0, "an org that organizes regularly should keep building power, got {}", power.capacity);
+        assert!(power.capacity > 0.5, "an org that organizes regularly should build real power, got {}", power.capacity);
+        assert!(power.capacity <= CAPACITY_CAP, "the muscle grew past its own size: {}", power.capacity);
+        for _ in 0..50 { apply_action(&mut power, &params, ActionQuality::Transformational); }
+        assert_eq!(power.capacity, CAPACITY_CAP, "sustained work should plateau at the cap, not run past it");
     }
 }

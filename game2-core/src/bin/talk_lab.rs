@@ -395,7 +395,7 @@ fn run_meeting_mode(a: &Args, out: &mut Out) {
         let replying = st.replying_to.map(|t| format!(" (re #{t})")).unwrap_or_default();
         // the statement text can already carry a "Name: " lead - don't say it twice
         let text = st.text.strip_prefix(&format!("{who}: ")).map(|s| s.to_string()).unwrap_or_else(|| st.text.clone());
-        out.emit(&format!("  #{i} {who} [{:?}]{replying}: {text}", st.act));
+        out.emit(&format!("  #{i} {who} [{:?}/{:?}]{replying}: {text}", st.act, st.kind));
     }
     out.emit(&format!("REPRO: talk_lab meeting --seed {} --folk {} --name {}",
         a.seed, a.folk, organizer.name));

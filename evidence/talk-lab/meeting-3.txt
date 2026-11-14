@@ -3,15 +3,16 @@
   - Eliza [laborer]: Eliza works the fields for a day's wage. Their temper's shorter than a winter's day.
   - Bram [clergy]: Bram serves the village church. They know every soul and every soul's business. Last night's cup is still on them.
   - Corvin [clergy]: Corvin serves the village church. Their purse strings are knotted tight. They bow to no one. A cough's had them these two weeks.
-  #0 Corvin [Greet]: God keep this house and all who speak plain in it.
-  #1 Reeve [Question]: What ails the village most, friends? Speak true.
-  #2 Eliza [Remark] (re #1): Three pennies for a week of reaping is daylight robbery.
-  #3 Bram [Remark] (re #1): The common pasture is overgrazed; we must stint the number of sheep.
-  #4 Aldric [PushBack] (re #2): We have argued this before and accomplished nothing.
-  #5 Bram [PushBack] (re #2): Talk is cheap - who will lift a hand to do aught about it?
-  #6 Eliza [PushBack] (re #3): And what wouldst thou have the village do, Bram?
-  #7 Aldric [Remark] (re #6): The bailiff's cattle are eating the sweet grass reserved for the poor.
-  #8 Bram [Remark] (re #7): The ditch enclosing the common wood has been unlawfully fenced off.
-  #9 Corvin [Remark] (re #6): If we lose the commons, our way of life is broken forever.
-  #10 Bram [Farewell]: Go in peace - and keep what was said here.
+  #0 Corvin [Greet/Framing]: God keep this house and all who speak plain in it.
+  #1 Reeve [Question/Framing]: What ails the village most, friends? Speak true.
+  #2 Eliza [Remark/Answer] (re #1): Three pennies for a week of reaping is daylight robbery.
+  #3 Bram [Remark/Answer] (re #1): The common pasture is overgrazed; we must stint the number of sheep.
+  #4 Aldric [Remark/BuildOn] (re #3): The ditch enclosing the common wood has been unlawfully fenced off.
+  #5 Bram [Remark/BuildOn] (re #4): The common land belongs to the whole parish, not to a single estate.
+  #6 Eliza [Remark/BuildOn] (re #4): Our ancient right of turbary and gathering brushwood must be defended.
+  #7 Reeve [Question/Framing] (re #1): Back to the matter at hand, friends.
+  #8 Bram [Remark/Answer] (re #1): A shared threshing floor makes the work three times swifter.
+  #9 Corvin [Remark/Answer] (re #1): The bell tower timbers are weathered and need fresh oak beams.
+  #10 Bram [Remark/BuildOn] (re #7): We need faith and fellowship to hold our spirits upright.
+  #11 Bram [Farewell/Framing]: God go with you all, and bring you back next time.
 REPRO: talk_lab meeting --seed 3 --folk 4 --name Reeve

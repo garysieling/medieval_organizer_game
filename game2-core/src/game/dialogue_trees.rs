@@ -3025,6 +3025,13 @@ const CLOSE_PLAIN: &[&str] = &[
     "That's the whole of it. Go well.",
     "Home safe, all of you - and thank you for coming.",
 ];
+// the organizer owns the thread: when the floor drifts, they call it
+// back to the matter (#1186)
+const PULL_BACKS: &[&str] = &[
+    "Back to the matter at hand, friends.",
+    "That's for another fire - what ails us most?",
+    "Hold - we've wandered. Speak to the matter.",
+];
 
 /// The framing lines `run_meeting` opens and closes with
 pub const MEET_RITES: MeetingRites = MeetingRites {
@@ -3035,6 +3042,7 @@ pub const MEET_RITES: MeetingRites = MeetingRites {
     blessings: CLOSE_BLESSING,
     old_closes: CLOSE_OLD,
     plain_closes: CLOSE_PLAIN,
+    pull_backs: PULL_BACKS,
 };
 
 // Two children meeting in the lane: games, dares and the things grown-ups

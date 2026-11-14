@@ -404,7 +404,7 @@ impl Game {
         // meeting's talk from conversation::run_meeting - answers to the
         // question, agreement and pushback threaded on what's been said -
         // seeded off the meeting, not the game's rng
-        let (mut said, rite, send_off) = {
+        let (mut said, mut host_q, rite, send_off) = {
             use crate::game::conversation::{run_meeting, MeetingLine, Rng as TalkRng, Speaker};
             use crate::game::dialogue_trees::{meeting_pool, MEET_PROMPT, MEET_RITES};
             let speakers: Vec<Speaker> = came.iter()
@@ -425,16 +425,25 @@ impl Game {
             // per attendee, in the order they said them: (statement index,
             // the statement it answers, the words)
             let mut q: Vec<Vec<(usize, Option<usize>, String)>> = vec![vec![]; came.len()];
+            // the organizer's own calls - the pull-backs when the room
+            // drifted - air as their turns come (#1186); the question
+            // itself is covered by the host's prompt
+            let mut host_q: Vec<(usize, String)> = vec![];
             for (k, st) in record.into_iter().enumerate() {
-                if k == 0 || k == close_i { continue; } // framing, not floor
-                if let Some(d) = q.get_mut(st.speaker) { d.push((k, st.replying_to, st.text)); }
+                // framing and the host's own question aren't floor
+                if k == 0 || k == 1 || k == close_i { continue; }
+                if st.speaker == usize::MAX { host_q.push((k, st.text)); }
+                else if let Some(d) = q.get_mut(st.speaker) { d.push((k, st.replying_to, st.text)); }
             }
-            (q, rite, send_off)
+            (q, host_q, rite, send_off)
         };
         // the meeting runs in rounds, not in run_meeting's order, so a
         // reply is only said once what it answers has been (statements 0
         // and 1 - the rite and the host's question - air before any floor)
         let mut aired: crate::engine::det::HashSet<usize> = [0, 1].into_iter().collect();
+        // the furthest floor statement heard so far - pull-backs air
+        // once the room's reached where they happened
+        let mut reached = 1usize;
         for round in 0..2 {
             for (ci, &v) in came.iter().enumerate() {
                 let Some(i) = self.villagers.iter().position(|x| *x == v) else { continue };
@@ -475,13 +484,26 @@ impl Game {
                 if !shared {
                     let ready = said[ci].iter().position(|(_, to, _)| to.map_or(true, |t| aired.contains(&t)));
                     let line = match ready {
-                        Some(j) => { let (k, _, text) = said[ci].remove(j); aired.insert(k); text }
+                        Some(j) => { let (k, _, text) = said[ci].remove(j);
+                            aired.insert(k); reached = reached.max(k); text }
                         None => meeting_remark(&self.world, v, vill_name(i), round),
                     };
                     lines.push((v, line));
                 }
             }
+            // when the room drifted, the host calls it back to the
+            // matter - airing near where it happened in the record
+            while let Some(j) = host_q.iter().position(|(k, _)| *k <= reached) {
+                let (k, text) = host_q.remove(j);
+                aired.insert(k);
+                lines.push((host_e, text));
+            }
             lines.push((host_e, MEETING_PROMPTS[round + 1].to_string()));
+        }
+        // a pull-back past the furthest aired statement still lands
+        // before the meeting's out - the room drifted on its way
+        for (_, text) in host_q.drain(..) {
+            lines.push((host_e, text));
         }
         // the rite opens it, ahead of the host's question; the send-off
         // is the last word of the night (#1185)

@@ -1,0 +1,36 @@
+=== Talk: Corvin (villager 3, game seed 13) ===
+  (walking over…)
+  (Corvin works the fields for a day's wage. They'd sooner watch the clouds than the plough. Lately: parish_faction. Lately: market_faction.)
+  (Not a song in the village for a year.)
+  Corvin: Good morrow to thee, wanderer.
+  (Corvin works the fields for a day's wage. They'd sooner watch the clouds than the plough. Lately: parish_faction. Lately: market_faction.)
+  Corvin: Not a song in the village for a year.   [gist]
+    1) Good day and full granaries to thee.
+    2) Morrow.
+    3) Ask them to come to a meeting
+    l) take your leave
+  you: Good day and full granaries to thee.
+  Corvin: Cold wind off the moor this morning.
+    1) Aye, words have weight in a small village.
+    2) I should get on before the bell strikes.
+    3) Ask them to come to a meeting
+    l) take your leave
+  you: Aye, words have weight in a small village.
+  Corvin: The little ones keep me running from dawn to dusk.
+    1) Good to hear it - long may health stay under thy roof.
+    2) God keep thy folk in peace, Corvin.
+    3) Ask them to come to a meeting
+    l) take your leave
+  you: Good to hear it - long may health stay under thy roof.
+  Corvin: The kitchen gardens are dry as a bone this month.
+    1) That is not the way the elders told it.
+    2) A dry spade makes for a hungry winter.
+    3) Ask them to come to a meeting
+    l) take your leave
+  you: That is not the way the elders told it.
+  Corvin: Aye, words won't fill the storehouse.
+    1) The saints keep thy roof whole.
+    2) I have no leisure to stand about, Corvin.
+    3) Ask them to come to a meeting
+    l) take your leave
+REPRO: talk_lab talk --seed 13 --villager 3 --picks 0,0,0,0,0 (talk seed 1006632974)

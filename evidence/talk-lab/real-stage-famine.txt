@@ -1,0 +1,20 @@
+=== Talk: Dagny (villager 4, game seed 42) ===
+  (walking over…)
+  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it. Lately: parish_faction.)
+  (There's hardly anything left in the store.)
+  Dagny: A peaceful day to thee, wanderer.
+  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it. Lately: parish_faction.)
+  Dagny: There's hardly anything left in the store.   [gist]
+    1) Take half this barley loaf; we must look after each other.
+    2) God's peace be upon thy cottage, Dagny.
+    l) take your leave
+  you: Take half this barley loaf; we must look after each other.
+  Dagny: A shared loaf tastes twice as sweet in hard times.
+    1) Come by our hearth; there is pottage enough for two more bowls.
+    2) We each must stretch our own store as best we can.
+    l) take your leave
+  you: Come by our hearth; there is pottage enough for two more bowls.
+  Dagny: We have boiled nettles and wild leeks before, and survived.
+    1) May tomorrow bring a fuller kettle.
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0 (talk seed 922746905)

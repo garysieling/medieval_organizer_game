@@ -1,0 +1,36 @@
+=== Talk: Wystan (villager 8, game seed 42) ===
+  (walking over…)
+  (Wystan is the village mason. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They cut freestone and build field walls. Lately: seeker. Lately: parish_faction. Lately: market_faction.)
+  (A day's work hardly buys a day's bread.)
+  Wystan: Well met, neighbor wanderer.
+  (Wystan is the village mason. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They cut freestone and build field walls. Lately: seeker. Lately: parish_faction. Lately: market_faction.)
+  Wystan: A day's work hardly buys a day's bread.   [gist]
+    1) Aye, words have weight in a small village.
+    2) The saints keep thee, Wystan.
+    l) take your leave
+  you: Aye, words have weight in a small village.
+  Wystan: The morning dew was heavy on the clover.
+    1) Aye, and the mud will take thy boots right off.
+    2) And how fares thy folk in this cold snap?
+    l) take your leave
+  you: Aye, and the mud will take thy boots right off.
+  Wystan: Aye, the year will turn and bring what it brings.
+    1) That it will - the store is not empty yet.
+    2) Until the church bell rings, neighbor.
+    l) take your leave
+  you: That it will - the store is not empty yet.
+  Wystan: The peddler's cart lost a wheel at the bridge.
+    1) Thou dost not say it! What happened then?
+    2) Let the miller and the rider sort their own affairs.
+    l) take your leave
+  you: Thou dost not say it! What happened then?
+  Wystan: A stranger with two laden mules passed by the weir at noon.
+    1) Ha! I'll believe the half of it and no more.
+    2) Nay, I see it differently, mark me.
+    l) take your leave
+  you: Ha! I'll believe the half of it and no more.
+  Wystan: Aye, words won't fill the storehouse.
+    1) I have no leisure to stand about, Wystan.
+    2) Fare thee well until the morrow.
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 8 --picks 0,0,0,0,0,0 (talk seed 989855755)

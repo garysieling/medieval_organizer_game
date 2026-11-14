@@ -1,0 +1,13 @@
+=== Talk: Voice (synthetic) vs you - Acquaintance ===
+  them: Voice serves the village church. They bow to no one.
+  you : you works the fields for a day's wage.
+  Voice: The peace of the saints be with thee, child.
+    1) [Remark] Morrow, father.
+    2) [Greet] Blessings on thy holy house as well.
+  you: Morrow, father.
+  Voice: The church altar is always open to the weary soul.
+    1) [Farewell] I will see thee at the Sunday bell, father.
+    2) [Agree] I try to walk uprightly before God and my neighbors.
+  you: I will see thee at the Sunday bell, father.
+  -- Farewell (trees: ["the_cleric_blesses"])
+REPRO: talk_lab talk --name Voice --ideology clergy --trait proud --seed 23 --rel Acquaintance --picks 0,0

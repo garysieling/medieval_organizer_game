@@ -1,0 +1,16 @@
+=== Talk: Aldric (villager 0, game seed 42) ===
+  (walking over…)
+  (Aldric is the village baker. Their purse strings are knotted tight. They tend the communal bread oven. Lately: parish_faction. Lately: market_faction.)
+  (A day's work hardly buys a day's bread.)
+  Aldric: God's peace on this path, wanderer.
+  (Aldric is the village baker. Their purse strings are knotted tight. They tend the communal bread oven. Lately: parish_faction. Lately: market_faction.)
+  Aldric: A day's work hardly buys a day's bread.   [gist]
+    1) The saints keep thee, Aldric.
+    2) Time will tell what comes of this.
+    l) take your leave
+  you: The saints keep thee, Aldric.
+  Aldric: The morning dew was heavy on the clover.
+    1) May the road be kind under thy boots.
+    2) Aye, words have weight in a small village.
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 0 --picks 0,0 (talk seed 855638027)

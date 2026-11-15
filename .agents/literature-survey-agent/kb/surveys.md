@@ -1041,3 +1041,12 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Key Sources:** Wakefield/Towneley Second Shepherds' Play (A); Everyman (A); Merchant of Venice/Measure for Measure (A); Noah cycle plays (A-); Plautine disguise tradition (B+)
 **Confidence:** High
 **Tags:** drama, vignettes, mystery-plays, shakespeare, everyman, trial, disguise, scenes
+## Comparative Labor Law (2026-11-14, issue #1212)
+
+**Findings:** Five institutional shapes across US/France/Spain + medieval anchors: the combination ban (Statute of Labourers - the game's own period), the standing document (livret ouvrier), the peer tribunal (prud'hommes), the protected ask (concerted activity / customary petition), the in-kind leak (why wage caps failed).
+- 5 proposal tickets filed: #1260 edict, #1261 servant's pass, #1262 peer tribunal, #1263 petition, #1264 pay in kind
+- Not proposed: dues checkoff/arbitration/NLRB (needs a formal union), closed shop, comisiones (= infiltration layer)
+
+**Key Sources:** Statute of Labourers 1349/51 (A+); NLRA/Taft-Hartley (A); code du travail/prud'hommes/livret (A); fueros + comisiones obreras (B+); guild/journeyman histories (A-)
+**Confidence:** High
+**Tags:** labor-law, statute-of-labourers, nlra, prudhommes, livret-ouvrier, petition, guilds, combination

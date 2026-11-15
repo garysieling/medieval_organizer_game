@@ -133,6 +133,9 @@ pub struct PlayerTalk {
     pub notes: Vec<String>,
     /// Propositions on offer after the replies (self-interest known)
     pub asks: Vec<crate::game::organizing::PropKind>,
+    /// Asks already put this talk - a vibe re-roll mustn't deal them
+    /// back in (#1188)
+    pub asks_taken: Vec<crate::game::organizing::PropKind>,
     /// How the picks so far have left them feeling (#1183)
     pub mood: TalkMood,
     /// How their audition of you read, once it's been answered (#1187)
@@ -479,7 +482,7 @@ impl Game {
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: vec![], asks,
-            mood: TalkMood::Cool, vibe: None,
+            asks_taken: vec![], mood: TalkMood::Cool, vibe: None,
         });
         self.refresh_player_talk(seat);
     }
@@ -501,9 +504,15 @@ impl Game {
             } else {
                 format!("{vname} smiles, polite, and keeps it to the weather.")
             };
+            // the read moves the asks a rung (#1188): someone who took
+            // you as safe hears a deeper ask early; a miss keeps what
+            // they offer slow - anything already put stays spent
+            let mut asks = crate::game::organizing::props_on_offer_shifted(
+                &self.world, self.seats[seat].org, t.who, if safe { 1 } else { -1 });
+            asks.retain(|p| !t.asks_taken.contains(p));
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 cur.vibe = Some(v);
-                if !safe { cur.asks.clear(); }
+                cur.asks = asks;
                 if safe { cur.mood = TalkMood::Warmed; }
             }
             if safe {
@@ -653,7 +662,10 @@ impl Game {
             }
             self.say(who, &msg, 5);
             self.narrate_talk(seat, &msg);
-            self.seats[seat].talk.as_mut().unwrap().asks.retain(|a| *a != p);
+            if let Some(cur) = self.seats[seat].talk.as_mut() {
+                cur.asks.retain(|a| *a != p);
+                cur.asks_taken.push(p);
+            }
             self.refresh_player_talk(seat);
             return;
         }

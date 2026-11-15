@@ -114,8 +114,16 @@ fn test_the_choice_list_stops_at_three() {
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
-    // they've told you something of themselves: the asks open up
+    // they've told you something of themselves, and the bond's a
+    // follower's - the asks open up
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let pe = g.player;
+    crate::game::relationships::record_interaction(&mut g.world, pe,
+        crate::game::relationships::Interaction { other: v,
+            kind: crate::game::relationships::InteractionKind::Conversation, intensity: 0.3 });
+    crate::game::relationships::find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component_mut::<crate::game::relationships::Relationship>(r))
+        .unwrap().strength = 0.6;
     talk_beside(&mut g, i);
     let t = g.seats[0].talk.as_ref().unwrap().clone();
     assert!(t.asks.len() > 1, "asks on offer: {:?}", t.asks);
@@ -451,13 +459,29 @@ fn test_leaving_before_they_speak_leaves_it_cool() {
 /// asks are on the table), answer the greeting, and take the landing or
 /// the wrong note of their audition - returns the talk's record id
 fn audition(g: &mut Game, i: usize, pass: bool) -> (Entity, u64) {
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
+    audition_bonded(g, i, pass, vec![Reveal::Problem(Problem::Taxed)], false)
+}
+
+/// `audition` with the bond and what you've heard set up ahead of time -
+/// `bond` puts one past conversation on the roll so a stage exists to
+/// climb (#1188)
+fn audition_bonded(g: &mut Game, i: usize, pass: bool, revealed: Vec<crate::game::desires::Reveal>, bond: bool) -> (Entity, u64) {
+    use crate::game::desires::Known;
     let v = g.villagers[i];
     g.world.add_component(v, Personality { traits: vec![Trait::Stingy] });
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    g.world.add_component(v, Known { revealed });
+    if bond {
+        let pe = g.player;
+        crate::game::relationships::record_interaction(&mut g.world, pe,
+            crate::game::relationships::Interaction { other: v,
+                kind: crate::game::relationships::InteractionKind::Conversation, intensity: 0.3 });
+    }
     talk_beside(g, i);
     let t = g.seats[0].talk.as_ref().expect("a talk under way").clone();
-    assert!(!t.asks.is_empty(), "they'd bring a proposition to this talk");
+    if bond {
+        assert!(!t.asks.is_empty(), "they'd bring a proposition to this talk");
+    }
     g.talk_pick_at(0, Some(0)); // the greeting's answer
     let t = g.seats[0].talk.as_ref().expect("still talking").clone();
     assert_eq!(t.opt_tree, Some(crate::game::conversation::PROBE_TREE),
@@ -498,4 +522,42 @@ fn test_a_wrong_note_keeps_the_talk_polite() {
     let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
     assert!(rec.lines.iter().any(|l| l.text.contains("keeps it to the weather")),
         "the shallow read is narrated: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+
+#[test]
+fn test_a_safe_read_opens_the_next_rung_early() {
+    use crate::game::conversation::Vibe;
+    use crate::game::desires::{Problem, Reveal};
+    use crate::game::organizing::PropKind;
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    // an acquaintance with one piece heard offers only the light ask at
+    // the hello - but a good answer to their test opens the next rung
+    // right there in the talk (#1188)
+    audition_bonded(&mut g, i, true, vec![Reveal::Problem(Problem::Taxed)], true);
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    assert_eq!(t.vibe, Some(Vibe::Safe));
+    assert!(t.asks.contains(&PropKind::Introduce) && t.asks.contains(&PropKind::InviteFriends),
+        "safe: the known-tier asks open early: {:?}", t.asks);
+    assert!(!t.asks.contains(&PropKind::ComeAlong), "meetings still wait on the bond: {:?}", t.asks);
+}
+
+#[test]
+fn test_a_mismatch_keeps_the_asks_shallow_not_barred() {
+    use crate::game::conversation::Vibe;
+    use crate::game::desires::{Problem, Reveal, Want};
+    use crate::game::organizing::{PropKind, RelStage};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    // a villager you've known through three pieces would offer the
+    // deeper asks - a wrong note in their audition drops them a rung,
+    // leaving only the light one (#1188)
+    audition_bonded(&mut g, i, false, vec![
+        Reveal::Problem(Problem::Taxed), Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love)], true);
+    assert_eq!(crate::game::organizing::stage_of(&g.world, g.player, v), RelStage::Known);
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on, politely").clone();
+    assert_eq!(t.vibe, Some(Vibe::Mismatch));
+    assert_eq!(t.asks, vec![PropKind::Introduce],
+        "a mismatch stays slow - the light ask still on the table: {:?}", t.asks);
 }

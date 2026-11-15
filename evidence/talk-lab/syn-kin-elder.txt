@@ -6,6 +6,7 @@
   Voice: Well met, dear cousin. Thou'rt looking hale and hearty.
   Probe: How fares mother's knee in this damp spell?
     1) [Answer] She sits by the fire with warm sheep's grease; it eases the pain.
+    2) [Question] Put a question to them
   Voice: She sits by the fire with warm sheep's grease; it eases the pain.
   Probe: Whatever befalls the village, our clan stands shoulder to shoulder.
     1) [Farewell] See thee at Sunday meal, Probe.

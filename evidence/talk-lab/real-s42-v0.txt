@@ -15,19 +15,23 @@
   you: Charity begins at home, and mostly stays there.
   Aldric: The morning dew was heavy on the clover.
     1) Good for the barley, but bad for the road.
+    2) Put a question to them
     l) take your leave
   you: Good for the barley, but bad for the road.
   Aldric: Aye, the year will turn and bring what it brings.
     1) That it will - the store is not empty yet.
+    2) Put a question to them
     l) take your leave
   you: That it will - the store is not empty yet.
   Aldric: A rider from the castle came through before dawn.
     1) Tell on, neighbor - my ears are open.
     2) Nay, I see it differently, mark me.
+    3) Put a question to them
     l) take your leave
   you: Tell on, neighbor - my ears are open.
   Aldric: They do say the reeve counts the sheep twice over.
     1) Tavern tales grow taller with each ale drawn.
     2) Folk will invent dragons where there's only sheep.
+    3) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 42 --villager 0 --picks 0,0,0,0,0,0 (talk seed 855638027)

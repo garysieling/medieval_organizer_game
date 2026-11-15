@@ -16,13 +16,16 @@
   Corvin: A gray dawn, but the day's work won't wait for it.
     1) Good for the barley, but bad for the road.
     2) Has thy brother returned from the market town?
+    3) Put a question to them
     l) take your leave
   you: Good for the barley, but bad for the road.
   Corvin: Even so, we will manage as we always do.
     1) True words; worry never baked a single loaf.
+    2) Put a question to them
     l) take your leave
   you: True words; worry never baked a single loaf.
   Corvin: A rider from the castle came through before dawn.
     1) I'll not repeat marketplace whispers.
+    2) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 42 --villager 3 --picks 0,0,0,0,0 (talk seed 905969676)

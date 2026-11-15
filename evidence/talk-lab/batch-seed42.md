@@ -1,77 +1,110 @@
 # Talk lab batch: 12 conversations (seed 42)
 
-## Aldric and Wystan - Friend (seed 1302, picks [0, 0, 0])
+## Aldric and Wystan - Friend (seed 1302, picks [0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0])
 them: Aldric holds the manor's leases. They never miss a service.
 you : Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
 
 Aldric [Greet in friendship_bonds]: A peaceful day to thee, Wystan.
 Wystan [Greet in friendship_bonds]: Good day, partner! We'll weather whatever comes.
 Aldric [Question in friendship_bonds]: Can I count on thy team when we haul the heavy timber?
-Wystan [Answer in friendship_bonds]: Aye, we were waist-deep in mud until midnight saving the sacks!
-Aldric [Remark in friendship_bonds]: A good friend is worth more than a pouch of silver.
-Wystan [Farewell in friendship_bonds]: Nor thine me, old friend. Walk safe.
+Wystan [Question in the_asking]: What word of the village these days?
+Aldric [Answer in the_asking]: The village keeps its own counsel, mostly.
+Aldric [Question in friendship_bonds]: Can I count on thy strong arm when we raise the barn?
+Wystan [Question in the_asking]: What's thy tale, then?
+Aldric [Answer in the_asking]: I came for the work and stayed for the quiet.
+Aldric [Question in friendship_bonds]: Dost thou recall the summer the mill dam broke?
+Aldric [Question in friendship_bonds]: Hast thou heard any whispers about the new taxes?
+Wystan [Question in the_asking]: The day's labor - how does it treat thee?
+Aldric [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Aldric [Question in merchant_trade]: Hast thou any ribbons of silk or spice from overseas?
+Wystan [Answer in merchant_trade]: Fine iron needles in a bone case; two eggs or a penny each.
+Aldric [Remark in merchant_trade]: The road is long, but fair trade makes every mile worthwhile.
+Wystan [Farewell in merchant_trade]: May thy pack horses stay sure-footed on the ridge.
 -- Farewell
 
-## Eliza and Gisela - Kin (seed 1303, picks [0, 0, 0, 0])
+## Eliza and Gisela - Kin (seed 1303, picks [0, 1, 3, 0, 0, 0])
 them: Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
 you : Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 
 Eliza [Greet in the_cleric_visits_the_sick]: God's grace light upon thy steps, Gisela.
 Gisela [Greet in the_cleric_visits_the_sick]: Well met, friend, under the open sky.
 Eliza [Remark in the_cleric_visits_the_sick]: Dost thou find peace in thy daily labor, child?
-Gisela [Agree in the_cleric_visits_the_sick]: Thou hast spoken the plain heart of the matter.
+Eliza [Remark in the_cleric_visits_the_sick]: The church altar is always open to the weary soul.
+Gisela [Agree in the_cleric_visits_the_sick]: We keep as best we can, father. The toil is hard.
 Eliza [Question in visiting_the_sick]: Is there aught thou needest brought to the cottage?
 Gisela [Answer in visiting_the_sick]: A little bread or salt, if thou canst spare it.
-Eliza [Remark in visiting_the_sick]: It is done - look for it by sundown.
-Gisela [Farewell in visiting_the_sick]: Thou'rt a true neighbor, Eliza.
+Eliza [Remark in visiting_the_sick]: We do what we must while daylight holds.
+Gisela [Farewell in visiting_the_sick]: The blessing of Heaven on thy roof.
 -- Farewell
 
-## Aldric and Bram - Kin (seed 1304, picks [1, 0, 0])
+## Aldric and Bram - Kin (seed 1304, picks [1, 1, 0, 1, 2, 1, 2, 0, 0])
 them: Aldric holds the manor's leases. They never miss a service.
 you : Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
 
 Aldric [Greet in visiting_the_sick]: A peaceful day to thee, Bram.
 Bram [PushBack in visiting_the_sick]: Nay, I see it differently, mark me.
 Aldric [Question in visiting_the_sick]: Does the fever ease when the sun warms the cottage?
-Bram [Answer in visiting_the_sick]: Some dry firewood would keep the chill out of our bones.
+Bram [Question in the_asking]: How do folk fare here, to thy eyes?
+Aldric [Answer in the_asking]: The village keeps its own counsel, mostly.
+Aldric [Question in visiting_the_sick]: Dost thou have grain left in the bin?
+Aldric [Question in visiting_the_sick]: Is there aught thou needest brought to the cottage?
+Aldric [Question in visiting_the_sick]: Can I fetch water or chop kindling for thy hearth?
+Bram [Answer in visiting_the_sick]: A jug of fresh well water would be a godsend.
 Aldric [Remark in visiting_the_sick]: I'll have my girl bring the loaf before dark.
 Bram [Farewell in visiting_the_sick]: The blessing of Heaven on thy roof.
 -- Farewell
 
-## Aldric and Corvin - Rival (seed 1305, picks [0, 0, 0])
+## Aldric and Corvin - Rival (seed 1305, picks [0, 1, 2, 0, 0])
 them: Aldric holds the manor's leases. They never miss a service.
 you : Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 
 Aldric [Greet in asking_the_father]: Greetings, holy father - I seek thy pastoral ear.
 Corvin [Greet in asking_the_father]: The saints keep thee, Aldric. What weighs on thee?
 Aldric [Question in asking_the_father]: Must the tithe stand full when the granary is half empty, father?
-Corvin [Answer in asking_the_father]: The church will share its grain, child - none shall starve at the door.
-Aldric [Remark in asking_the_father]: Thy counsel is wise, father. We will trust in Providence.
-Corvin [Farewell in asking_the_father]: Go in peace, Aldric, and love thy neighbors.
+Corvin [Question in the_asking]: What's thy tale, then?
+Aldric [Answer in the_asking]: Born under this roof, like most of us.
+Aldric [Question in asking_the_father]: Can the church spare a peck of grain for the hungry children, father?
+Corvin [Answer in asking_the_father]: We do what we can with the strength Heaven gives.
+Aldric [Remark in asking_the_father]: Thank thee, father - that lifts a great stone from my mind.
+Corvin [Farewell in asking_the_father]: The Lord preserve thy hearth and thy children.
 -- Farewell
 
-## Bram and Dagny - Friend (seed 1306, picks [1, 1, 0])
+## Bram and Dagny - Friend (seed 1306, picks [1, 2, 3, 0, 1, 2, 0, 0])
 them: Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
 you : Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 
 Bram [Greet in the_sickness]: Morrow, Dagny. A wretched cold - but warmer for seeing thee.
 Dagny [Question in the_sickness]: Hast thou seen the herb-wife for a draught, m'lord?
 Bram [Answer in the_sickness]: My lungs feel like wet wool on a rainy morning.
-Dagny [Remark in the_sickness]: Time will tell what comes of this.
-Bram [Remark in the_sickness]: Thou'rt kind, Dagny. The saints remember a neighborly hand.
-Dagny [Farewell in the_sickness]: God's peace be upon thy cottage, Bram.
+Dagny [Question in the_asking]: Tell me of thyself - how didst thou come here?
+Bram [Answer in the_asking]: I came for the work and stayed for the quiet.
+Bram [Answer in the_sickness]: Aye, since the heavy frost. The fever burns at dusk and chills at dawn.
+Dagny [Agree in the_sickness]: Drink hot boiled water with a scrape of honey.
+Bram [Question in friendship_bonds]: Can I count on thy strong arm when we raise the barn?
+Dagny [Question in the_asking]: Thou lookest pale - is the illness past?
+Bram [Answer in the_asking]: The cough keeps me nights, truth be told.
+Bram [Question in friendship_bonds]: Dost thou recall the summer the mill dam broke?
+Dagny [Answer in friendship_bonds]: Aye, we were waist-deep in mud until midnight saving the sacks!
+Bram [Remark in friendship_bonds]: We have shared crusts and sweat for twenty years now.
+Dagny [Farewell in friendship_bonds]: Nor thine me, old friend. Walk safe.
 -- Farewell
 
-## Hob and Wystan - Friend (seed 1307, picks [0, 1, 0])
+## Hob and Wystan - Friend (seed 1307, picks [0, 2, 0, 2, 0, 0, 0])
 them: Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
 you : Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
 
 Hob [Greet in the_sickness]: *cough* Ah, Wystan - forgive the croak. Stand off, mind; I'd not share this with a friend.
 Wystan [Agree in the_sickness]: Poor soul. Tell me what thy house needs and it's done.
 Hob [Answer in the_sickness]: I'd rest, Wystan, but the chores won't do themselves - though I know thou'dst lend a hand.
+Wystan [Question in the_asking]: What word of the village these days?
+Hob [Answer in the_asking]: There's grumbling at the well, but when isn't there.
+Hob [Answer in the_sickness]: The calves won't feed themselves, friend - fever or no.
+Wystan [Question in the_asking]: How fares thy day's work?
+Hob [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Hob [Answer in the_sickness]: The calves won't feed themselves, fever or no.
 Wystan [Remark in the_sickness]: Say the word and the chore's done, Hob - thou knowest it.
-Hob [Remark in the_sickness]: Bless thee for thinking of our small house.
-Wystan [Farewell in the_sickness]: Think nothing of it. We look after our own.
+Hob [Remark in the_sickness]: My thanks. A warm bowl does more than herbs.
+Wystan [Farewell in the_sickness]: Rest quiet by the coals. I'll check on thee tomorrow.
 -- Farewell
 
 ## Marga and Gisela - Rival (seed 1308, picks [1, 0, 0])
@@ -100,7 +133,7 @@ Bram [Remark in visiting_the_sick]: Rest easy; the parish will not let thee free
 Gisela [Farewell in visiting_the_sick]: May the road be kind under thy boots.
 -- Farewell
 
-## Corvin and Wystan - Rival (seed 1310, picks [1, 0, 1, 0])
+## Corvin and Wystan - Rival (seed 1310, picks [1, 0, 0, 0])
 them: Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 you : Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
 
@@ -109,10 +142,10 @@ Wystan [Remark in the_cleric_blesses]: Aye, words have weight in a small village
 Corvin [Remark in the_cleric_blesses]: How fares thy house in these lean weeks, child?
 Wystan [Agree in the_cleric_blesses]: Thou hast spoken the plain heart of the matter.
 Corvin [Remark in old_scores]: Thy lot still owes mine three groats, whatever lies thou tellest.
-Wystan [PushBack in old_scores]: Thou hast a treacherous tongue in thy skull.
-Corvin [Remark in old_scores]: Make me.
-Wystan [PushBack in old_scores]: Keep thy fists to thyself before I break them.
--- WalksOff
+Wystan [PushBack in old_scores]: My fence stands straighter than thy crooked word.
+Corvin [Remark in old_scores]: We are done here.
+Wystan [Farewell in old_scores]: Gladly. The sight of thee sours my stomach.
+-- Farewell
 
 ## Gisela and Aelfric - Stranger (seed 1311, picks [0, 0, 1])
 them: Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
@@ -138,7 +171,7 @@ Dagny [Remark in condolence_call]: If thou needest aught at all, say but the wor
 Tilda [Farewell in condolence_call]: God's peace be upon thy cottage, Dagny.
 -- Farewell, vibe: Safe
 
-## Eliza and Osric - Stranger (seed 1313, picks [0, 1, 0, 0, 0])
+## Eliza and Osric - Stranger (seed 1313, picks [0, 1, 0, 2, 1, 0, 0])
 them: Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
 you : Osric trades on the road between villages. They'd sooner watch the clouds than the plough. Last night's cup is still on them.
 
@@ -149,8 +182,11 @@ Osric [Agree in the_audition]: The Word's a lamp in dark times - I'd not put it 
 Eliza [Remark in the_cleric_blesses]: How fares thy house in these lean weeks, child?
 Osric [Agree in the_cleric_blesses]: The season has been lean, father, but faith sustains us.
 Eliza [Remark in morning_after_drunk]: My purse is six silver pennies lighter than when dusk fell.
+Osric [Question in the_asking]: The day's labor - how does it treat thee?
+Eliza [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Eliza [Remark in morning_after_drunk]: Did I truly challenge the smith to a wrestling match at midnight?
 Osric [PushBack in morning_after_drunk]: Nay, I see it differently, mark me.
-Eliza [Remark in morning_after_drunk]: We do what we must while daylight holds.
-Osric [Farewell in morning_after_drunk]: May the sun be gentle on thy poor eyes today.
+Eliza [Remark in morning_after_drunk]: Bread and pickled onions, that's what the stomach needs.
+Osric [Farewell in morning_after_drunk]: God's peace be upon thy cottage, Eliza.
 -- Farewell, vibe: Safe
 

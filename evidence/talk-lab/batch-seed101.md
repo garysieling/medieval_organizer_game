@@ -1,6 +1,6 @@
 # Talk lab batch: 12 conversations (seed 101)
 
-## Aldric and Gisela - Stranger (seed 3131, picks [1, 0, 1, 0, 1, 1, 0, 0])
+## Aldric and Gisela - Stranger (seed 3131, picks [1, 0, 2, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1])
 them: Aldric works the fields for a day's wage. They mean to be more than they were born. They bow to no one. They know every soul and every soul's business.
 you : Gisela trades on the road between villages. They know every soul and every soul's business. They never miss a service. Last night's cup is still on them.
 
@@ -9,17 +9,26 @@ Gisela [PushBack in stranger_road]: That is not the way the elders told it.
 Aldric [Question in the_audition]: I mean to be more than I was born. And thou - content where thou standest?
 Gisela [Remark in the_audition]: The furrow's honest work enough for me.
 Aldric [Remark in village_smalltalk]: Gray clouds - ill weather for the road, I'm told.
-Gisela [Question in village_smalltalk]: Has thy brother returned from the market town?
+Gisela [Question in the_asking]: How do folk fare here, to thy eyes?
+Aldric [Answer in the_asking]: Quieter than it was, and that's no bad thing.
+Aldric [Remark in village_smalltalk]: The moor wind blows cold on travelers, stranger.
+Gisela [Question in village_smalltalk]: And how fares thy folk in this cold snap?
 Aldric [Answer in village_smalltalk]: We rub along as ever, by the saints' mercy.
+Gisela [Question in the_asking]: How fares thy day's work?
+Aldric [Answer in the_asking]: A holding keeps a soul busy, one way and another.
+Aldric [Answer in village_smalltalk]: Well enough, thank thee, Gisela.
 Gisela [Agree in village_smalltalk]: May the coming season be kind to thy cottage.
-Aldric [Remark in village_smalltalk]: The kitchen gardens are dry as a bone this month.
-Gisela [Agree in village_smalltalk]: Aye, work never sleeps in this valley.
-Aldric [Remark in village_smalltalk]: They say the miller took an extra scoop of meal again.
-Gisela [Remark in village_smalltalk]: Tell on, neighbor - my ears are open.
+Aldric [Remark in village_smalltalk]: Rooks are gathering thick in the elm trees.
+Gisela [Agree in village_smalltalk]: A dry spade makes for a hungry winter.
+Aldric [Remark in village_smalltalk]: The peddler's cart lost a wheel at the bridge.
+Gisela [Question in the_asking]: Tell me of thyself - how didst thou come here?
+Aldric [Answer in the_asking]: I came for the work and stayed for the quiet.
+Aldric [Remark in village_smalltalk]: Didst thou hear who was seen down by the mill?
+Gisela [Remark in village_smalltalk]: Thou dost not say it! What happened then?
 Aldric [Remark in village_smalltalk]: The herb-wife was seen out past the abbey wall at dusk.
-Gisela [Agree in village_smalltalk]: Ha! I'll believe the half of it and no more.
+Gisela [PushBack in village_smalltalk]: Better to tend thy own hearth than watch the road.
 Aldric [Remark in village_smalltalk]: True enough - the fields don't gossip.
-Gisela [Farewell in village_smalltalk]: Go well, traveler - the saints watch thy path.
+Gisela [Farewell in village_smalltalk]: My day is waiting.
 -- Farewell, vibe: Mismatch
 
 ## Eliza and Wystan - Friend (seed 3132, picks [0, 0, 0])
@@ -58,7 +67,7 @@ Corvin [Remark in hunger_lean_times]: My store bin has nothing but dust and two 
 Marga [PushBack in hunger_lean_times]: We each must stretch our own store as best we can.
 -- WalksOff
 
-## Bram and Dagny - Kin (seed 3135, picks [1, 0, 0, 0])
+## Bram and Dagny - Kin (seed 3135, picks [1, 0, 1, 0, 0, 0])
 them: Bram serves the village church. They know every soul and every soul's business.
 you : Dagny works the fields for a day's wage. They never miss a service. They're the first with a loaf when a house is bare. Their purse strings are knotted tight. A cough's had them these two weeks.
 
@@ -67,9 +76,12 @@ Dagny [Remark in the_cleric_visits_the_sick]: Aye, words have weight in a small 
 Bram [Remark in the_cleric_visits_the_sick]: How fares thy house in these lean weeks, child?
 Dagny [Agree in the_cleric_visits_the_sick]: Aye, there is truth in what thou sayest.
 Bram [Question in visiting_the_sick]: Is there aught thou needest brought to the cottage?
-Dagny [Answer in visiting_the_sick]: Some dry firewood would keep the chill out of our bones.
-Bram [Remark in visiting_the_sick]: I'll have my girl bring the loaf before dark.
-Dagny [Farewell in visiting_the_sick]: God's peace be upon thy cottage, Bram.
+Dagny [Question in the_asking]: How do folk fare here, to thy eyes?
+Bram [Answer in the_asking]: Quieter than it was, and that's no bad thing.
+Bram [Question in visiting_the_sick]: Can I fetch water or chop kindling for thy hearth?
+Dagny [Answer in visiting_the_sick]: A little bread or salt, if thou canst spare it.
+Bram [Remark in visiting_the_sick]: Rest easy; the parish will not let thee freeze.
+Dagny [Farewell in visiting_the_sick]: May the road be kind under thy boots.
 -- Farewell
 
 ## Hob and Osric - Acquaintance (seed 3136, picks [1, 0, 1, 1, 0, 1])
@@ -90,7 +102,7 @@ Hob [Remark in village_smalltalk]: As thou sayest, friend.
 Osric [Farewell in village_smalltalk]: Fair profit to thee, trader.
 -- Farewell, vibe: Mismatch
 
-## Marga and Osric - Stranger (seed 3137, picks [0, 0, 0, 0, 0, 1])
+## Marga and Osric - Stranger (seed 3137, picks [0, 0, 1, 4, 0, 0, 1])
 them: Marga trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 you : Osric trades on the road between villages. Their temper's shorter than a winter's day. They bow to no one. They never miss a service. A cough's had them these two weeks.
 
@@ -99,11 +111,10 @@ Osric [PushBack in visiting_the_sick]: That is not the way the elders told it.
 Marga [Question in the_audition]: I mean to be more than I was born. And thou - content where thou standest?
 Osric [Remark in the_audition]: The furrow's honest work enough for me.
 Marga [Remark in village_smalltalk]: A thin soup and a thinner week, Osric.
-Osric [Question in village_smalltalk]: Has thy brother returned from the market town?
-Marga [Answer in village_smalltalk]: Well enough, thank thee, Osric.
-Osric [Agree in village_smalltalk]: A full hearth is a blessing in hard times.
-Marga [Remark in village_smalltalk]: The kitchen gardens are dry as a bone this month.
-Osric [PushBack in village_smalltalk]: The hay will wait until tomorrow, surely.
+Marga [Remark in village_smalltalk]: The sky can do what it likes - it's the empty pot that weighs on me.
+Osric [Question in village_smalltalk]: Enough sky-talk - how goes the work these days?
+Marga [Remark in village_smalltalk]: Busy hands at the ledger this season, I'd wager.
+Osric [PushBack in village_smalltalk]: the ledger is my affair, and it fares as it fares.
 Marga [Remark in village_smalltalk]: Aye, words won't fill the storehouse.
 Osric [Farewell in village_smalltalk]: I take my leave.
 -- Farewell, vibe: Mismatch
@@ -122,7 +133,7 @@ Gisela [Remark in visiting_the_sick]: Rest easy; the parish will not let thee fr
 Tilda [Farewell in visiting_the_sick]: God's peace be upon thy cottage, Gisela.
 -- Farewell, vibe: Safe
 
-## Gisela and Wystan - Stranger (seed 3139, picks [1, 0, 0, 0])
+## Gisela and Wystan - Stranger (seed 3139, picks [1, 0, 1, 3, 1, 1, 0, 0])
 them: Gisela trades on the road between villages. They know every soul and every soul's business. They never miss a service. Last night's cup is still on them.
 you : Wystan holds the manor's leases. They know every soul and every soul's business. They're the first with a loaf when a house is bare. A cough's had them these two weeks.
 
@@ -131,9 +142,13 @@ Wystan [PushBack in visiting_the_sick]: I have weathered worse than a common cou
 Gisela [Question in the_audition]: There's talk going round the wells this week - heard it?
 Wystan [Agree in the_audition]: Come, I've an ear for it - out with it.
 Gisela [Question in visiting_the_sick]: Does the fever ease when the sun warms the cottage?
-Wystan [Answer in visiting_the_sick]: A little bread or salt, if thou canst spare it.
-Gisela [Remark in visiting_the_sick]: We do what we must while daylight holds.
-Wystan [Farewell in visiting_the_sick]: God's peace be upon thy cottage, Gisela.
+Gisela [Question in visiting_the_sick]: Can I fetch water or chop kindling for thy hearth?
+Wystan [Question in the_asking]: How fares thy day's work?
+Gisela [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Gisela [Question in visiting_the_sick]: Is there aught thou needest brought to the cottage?
+Wystan [Answer in visiting_the_sick]: Some dry firewood would keep the chill out of our bones.
+Gisela [Remark in visiting_the_sick]: It is done - look for it by sundown.
+Wystan [Farewell in visiting_the_sick]: Thou'rt a true neighbor, Gisela.
 -- Farewell, vibe: Safe
 
 ## Corvin and Aelfric - Rival (seed 3140, picks [0, 0, 0])
@@ -148,7 +163,7 @@ Corvin [Remark in asking_the_father]: Thy blessing gives me heart to face the co
 Aelfric [Farewell in asking_the_father]: Go in peace, Corvin, and love thy neighbors.
 -- Farewell
 
-## Aldric and Tilda - Acquaintance (seed 3141, picks [0, 0, 0, 0])
+## Aldric and Tilda - Acquaintance (seed 3141, picks [0, 0, 1, 1, 1, 2, 1, 2, 0, 0])
 them: Aldric works the fields for a day's wage. They mean to be more than they were born. They bow to no one. They know every soul and every soul's business.
 you : Tilda serves the village church. Their purse strings are knotted tight. A cough's had them these two weeks.
 
@@ -157,20 +172,31 @@ Tilda [Answer in visiting_the_sick]: Weak as a lamb, but still drawing breath.
 Aldric [Question in the_audition]: A body's meant for more than the furrow, eh? Or is that thy lot?
 Tilda [Agree in the_audition]: I mean to rise same as thee, if the saints allow it.
 Aldric [Question in visiting_the_sick]: Can I fetch water or chop kindling for thy hearth?
-Tilda [Answer in visiting_the_sick]: The sweat broke at dawn and the fever feels a little lighter.
-Aldric [Remark in visiting_the_sick]: Rest easy; the parish will not let thee freeze.
-Tilda [Farewell in visiting_the_sick]: I'll repay the kindness when my legs mend.
+Tilda [Question in the_asking]: How fares thy day's work?
+Aldric [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Aldric [Question in visiting_the_sick]: Dost thou have grain left in the bin?
+Aldric [Question in visiting_the_sick]: Does the fever ease when the sun warms the cottage?
+Aldric [Question in visiting_the_sick]: Is there aught thou needest brought to the cottage?
+Tilda [Answer in visiting_the_sick]: A jug of fresh well water would be a godsend.
+Aldric [Remark in visiting_the_sick]: It is done - look for it by sundown.
+Tilda [Farewell in visiting_the_sick]: May the road be kind under thy boots.
 -- Farewell, vibe: Safe
 
-## Marga and Osric - Kin (seed 3142, picks [1, 0, 0])
+## Marga and Osric - Kin (seed 3142, picks [1, 1, 1, 1, 2, 0, 0])
 them: Marga trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 you : Osric trades on the road between villages. Their temper's shorter than a winter's day. They bow to no one. They never miss a service. A cough's had them these two weeks.
 
 Marga [Greet in visiting_the_sick]: A peaceful day to thee, Osric.
 Osric [PushBack in visiting_the_sick]: Nay, I see it differently, mark me.
 Marga [Question in visiting_the_sick]: Is there aught thou needest brought to the cottage?
-Osric [Answer in visiting_the_sick]: Some dry firewood would keep the chill out of our bones.
-Marga [Remark in visiting_the_sick]: It is done - look for it by sundown.
-Osric [Farewell in visiting_the_sick]: God's peace be upon thy cottage, Marga.
+Osric [Question in the_asking]: How fares thy day's work?
+Marga [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Marga [Question in visiting_the_sick]: Dost thou have grain left in the bin?
+Osric [Question in the_asking]: What's thy tale, then?
+Marga [Answer in the_asking]: Same story as the next one's, only mine.
+Marga [Question in visiting_the_sick]: Does the fever ease when the sun warms the cottage?
+Osric [Answer in visiting_the_sick]: A little bread or salt, if thou canst spare it.
+Marga [Remark in visiting_the_sick]: We do what we must while daylight holds.
+Osric [Farewell in visiting_the_sick]: I'll repay the kindness when my legs mend.
 -- Farewell
 

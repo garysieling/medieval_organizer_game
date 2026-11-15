@@ -7,9 +7,11 @@
   Voice: Keep thy strength - and thy distance.
   Probe: There is no one else to fetch water from the river, stranger.
     1) [Agree] A poor man's bed is a luxury he can rarely afford.
+    2) [Question] Put a question to them
   Voice: A poor man's bed is a luxury he can rarely afford.
   Probe: What town dost thou hail from, stranger?
     1) [Answer] I come from the valley beyond the high moors.
+    2) [Question] Put a question to them
   Voice: I come from the valley beyond the high moors.
   Probe: The alehouse by the bridge offers straw beds if thou hast coin.
     1) [Farewell] God's peace be upon thy cottage, Probe.

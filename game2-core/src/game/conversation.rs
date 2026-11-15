@@ -294,6 +294,9 @@ pub struct Transcript {
     /// (#1187): a good answer reads safe, a wrong note a mismatch -
     /// a compatibility read, not a grudge
     pub vibe: Option<Vibe>,
+    /// The labels of the topics the player asked after (#1189), in
+    /// order - the session diffs them for what a question drew out
+    pub asked: Vec<&'static str>,
 }
 
 /// What the trust-probe read off the answer (#1187)
@@ -326,6 +329,20 @@ pub struct Probe {
 
 /// The tree name the audition beat reports as (#1187)
 pub const PROBE_TREE: &str = "the_audition";
+
+/// The tree name your own questions report as (#1189)
+pub const ASK_TREE: &str = "the_asking";
+
+/// Whether a topic's on the table for this asked-about speaker: every
+/// `needs` carried (or `any` one of the alternates when needs is
+/// empty, open to all when both are), and none of `not`.
+pub fn topic_open(t: &crate::game::dialogue_trees::Topic, s: &Speaker) -> bool {
+    let has = |n: &str| s.status.iter().any(|st| *st == n);
+    let open = if !t.needs.is_empty() { t.needs.iter().all(|n| has(n)) }
+        else if !t.any.is_empty() { t.any.iter().any(|n| has(n)) }
+        else { true };
+    open && t.not.iter().all(|n| !has(n))
+}
 
 /// The test this speaker would put to someone new: the first trait they
 /// carry that probes anything
@@ -452,8 +469,11 @@ pub fn converse_with(
         turns: vec![],
         ending: None,
         vibe: None,
+        asked: vec![],
     };
     let mut used: HashSet<&'static str> = HashSet::default();
+    // topics already asked this talk - each one's a beat, once
+    let mut asked: HashSet<usize> = HashSet::default();
     let trees = cascade(library, &Facts::for_roles(a, b, rel));
     let mut trees = trees.iter().peekable();
     let mut node: Option<&Exchange> = trees.next().map(|t| {
@@ -590,8 +610,53 @@ pub fn converse_with(
             if pairs.iter().any(|(_, (_, c))| c.act != Act::Farewell) {
                 pairs.retain(|(_, (_, c))| c.act != Act::Farewell);
             }
+            // your own questions ride one of the three options once the
+            // hello's had its answer (#1189): the slot opens the topics
+            // they can speak to, each a once-a-talk beat. A dry list is
+            // farewells alone - there's no asking into a finished talk.
+            let open_topics: Vec<usize> = crate::game::dialogue_trees::ASK_TOPICS.iter().enumerate()
+                .filter(|(ti, t)| !asked.contains(ti) && topic_open(t, pair[caller]))
+                .map(|(ti, _)| ti).collect();
+            let live = pairs.iter().any(|(_, (_, c))| c.act != Act::Farewell);
+            if live && tr.turns.len() >= 2 && !open_topics.is_empty() && pairs.len() < 3 {
+                pairs.push((usize::MAX, ("", Choice {
+                    act: Act::Question, preview: "Put a question to them".into() })));
+            }
             let choices: Vec<Choice> = pairs.iter().map(|(_, (_, c))| Choice { act: c.act, preview: c.preview.clone() }).collect();
             match choose(&choices).and_then(|i| pairs.get(i)) {
+                Some(&(usize::MAX, _)) => {
+                    // the topics open as a pick of their own - one of
+                    // yours, their answer, then the talk picks back up
+                    let mut tch: Vec<Choice> = open_topics.iter().map(|&ti| Choice {
+                        act: Act::Question,
+                        preview: format!("Ask about {}",
+                            crate::game::dialogue_trees::ASK_TOPICS[ti].label) }).collect();
+                    tch.push(Choice { act: Act::Remark, preview: "Say nothing of it".into() });
+                    match choose(&tch) {
+                        Some(i) if i < open_topics.len() => {
+                            let tp = &crate::game::dialogue_trees::ASK_TOPICS[open_topics[i]];
+                            asked.insert(open_topics[i]);
+                            tr.asked.push(tp.label);
+                            if !tr.trees_walked.contains(&ASK_TREE) { tr.trees_walked.push(ASK_TREE); }
+                            let (qt, _) = fresh_line(tp.ask, pair[responder], pair[caller], &used, rng)
+                                .unwrap_or((tp.ask[0], String::new()));
+                            used.insert(qt);
+                            tr.turns.push(Turn { speaker: responder, act: Act::Question,
+                                text: fill(qt, pair[responder], pair[caller]),
+                                concepts: tp.concepts.to_vec(), tree: ASK_TREE });
+                            let (at, _) = fresh_line(tp.tell, pair[caller], pair[responder], &used, rng)
+                                .unwrap_or((tp.tell[0], String::new()));
+                            used.insert(at);
+                            tr.turns.push(Turn { speaker: caller, act: Act::Answer,
+                                text: fill(at, pair[caller], pair[responder]),
+                                concepts: tp.concepts.to_vec(), tree: ASK_TREE });
+                            continue;
+                        }
+                        // "say nothing of it" picks the talk up where it stood
+                        Some(_) => continue,
+                        None => { tr.ending = Some(Ending::LeavesEarly); break; }
+                    }
+                }
                 Some(&(i, (t, _))) => (i, t),
                 None => { tr.ending = Some(Ending::LeavesEarly); break; }
             }
@@ -1171,7 +1236,8 @@ mod tests {
         let tr_play = converse_with(
             &a, &player, Relation::Acquaintance, &library, 1,
             &mut |choices| {
-                assert!(!choices.is_empty() && choices.len() <= 2);
+                // two replies, or two replies plus the ask slot (#1189)
+                assert!(!choices.is_empty() && choices.len() <= 3);
                 choices_seen += 1;
                 Some(0)
             },
@@ -1901,4 +1967,130 @@ mod tests {
         let miss = audition_talk(&[Trait::Hotheaded], Relation::Acquaintance, false);
         assert_eq!(miss.vibe, Some(Vibe::Mismatch));
     }
+
+    fn ask_talk(status: &'static str, want: &[&'static str]) -> Transcript {
+        // a talk where your picks follow the wanted previews, falling
+        // to the first option when none of them's showing
+        let mut caller = Speaker::new("Hob");
+        caller.status.push(status);
+        let you = Speaker::new("Wanderer");
+        let mut queue: Vec<&'static str> = want.to_vec();
+        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), 1,
+            &mut |ch: &[Choice]| {
+                if let Some(&w) = queue.first() {
+                    if let Some(i) = ch.iter().position(|c| c.preview == w) {
+                        queue.remove(0);
+                        return Some(i);
+                    }
+                }
+                ch.iter().position(|c| c.act != Act::Farewell).or(Some(0))
+            }, &mut Rng::new(7))
+    }
+
+    #[test]
+    fn test_you_can_put_a_question_to_them() {
+        // once the hello's answered, an ask-slot opens in the picks
+        // (#1189): it opens a menu of real questions, their answer
+        // lands, and the talk picks up where it stood
+        let tr = ask_talk("sick", &["Put a question to them", "Ask about their sickness"]);
+        assert_eq!(tr.asked, vec!["their sickness"], "{:?}", tr.lines());
+        assert!(tr.trees_walked.contains(&ASK_TREE));
+        let q = tr.turns.iter().find(|t| t.tree == ASK_TREE && t.speaker == 1).unwrap();
+        assert_eq!(q.act, Act::Question);
+        let a = tr.turns.iter().find(|t| t.tree == ASK_TREE && t.speaker == 0).unwrap();
+        assert_eq!(a.act, Act::Answer);
+        // and asking isn't a farewell - the talk goes on past the beat
+        let at = tr.turns.iter().position(|t| t.tree == ASK_TREE).unwrap();
+        assert!(at + 2 < tr.turns.len(), "the asking closed the talk: {:?}", tr.lines());
+    }
+
+    #[test]
+    fn test_the_ask_slot_waits_past_the_hello() {
+        // no question slot on the opening answer - the hello gets its
+        // say first (#1189)
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("sick");
+        let you = Speaker::new("Wanderer");
+        let mut first_seen = false;
+        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), 1,
+            &mut |ch: &[Choice]| {
+                if !first_seen {
+                    first_seen = true;
+                    assert!(ch.iter().all(|c| c.preview != "Put a question to them"),
+                        "the ask slot showed on the hello: {:?}", ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
+                }
+                Some(0)
+            }, &mut Rng::new(7));
+    }
+
+    #[test]
+    fn test_the_topics_seed_from_who_they_are() {
+        // the menu carries the standing asks plus what their state
+        // opens - and not what it doesn't (#1189)
+        for (status, want, banned) in [
+            ("sick", "Ask about their sickness", "Ask about the road"),
+            ("grieving", "Ask about their grief", "Ask about their sickness"),
+            ("hungry", "Ask about their hunger", "Ask about their grief"),
+            ("visitor", "Ask about the road", "Ask about the village"),
+            ("keeps_secret", "Ask about what weighs on them", "Ask about the trouble they told"),
+            ("shared", "Ask about the trouble they told", "Ask about what weighs on them"),
+        ] {
+            let mut caller = Speaker::new("Hob");
+            caller.status.push(status);
+            let you = Speaker::new("Wanderer");
+            // some status talks run dry before a second beat - try a
+            // few seeds until one lives long enough to open the menu
+            let mut menu: Vec<String> = vec![];
+            for seed in 0..20 {
+                converse_with(&caller, &you, Relation::Acquaintance, &village_library(), 1,
+                    &mut |ch: &[Choice]| {
+                        if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                            if menu.is_empty() {
+                                menu = ch.iter().map(|c| c.preview.clone()).collect();
+                            }
+                            return ch.iter().position(|c| c.preview == "Say nothing of it");
+                        }
+                        if menu.is_empty() {
+                            return ch.iter().position(|c| c.preview == "Put a question to them")
+                                .or_else(|| ch.iter().position(|c| c.act != Act::Farewell))
+                                .or(Some(0));
+                        }
+                        ch.iter().position(|c| c.act != Act::Farewell).or(Some(0))
+                    }, &mut Rng::new(7 + seed));
+                if !menu.is_empty() { break; }
+            }
+            assert!(menu.iter().any(|p| p == want), "{status}: {:?} lacks {want}", menu);
+            assert!(menu.iter().all(|p| p != banned), "{status}: {banned} wrongly on {:?}", menu);
+            // the standing asks never leave the table
+            assert!(menu.iter().any(|p| p == "Ask about themselves"), "{status}: {:?}", menu);
+        }
+    }
+
+    #[test]
+    fn test_an_asked_topic_leaves_the_menu() {
+        // each question's a beat, once - asked, it's off the menu for
+        // the rest of the talk (#1189)
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("sick");
+        let you = Speaker::new("Wanderer");
+        let mut menus: Vec<Vec<String>> = vec![];
+        let mut took_sick = false;
+        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), 1,
+            &mut |ch: &[Choice]| {
+                if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                    menus.push(ch.iter().map(|c| c.preview.clone()).collect());
+                    if !took_sick {
+                        took_sick = true;
+                        return ch.iter().position(|c| c.preview == "Ask about their sickness");
+                    }
+                    return ch.iter().position(|c| c.preview == "Say nothing of it");
+                }
+                ch.iter().position(|c| c.preview == "Put a question to them").or(Some(0))
+            }, &mut Rng::new(7));
+        assert!(menus.len() >= 2, "the menu never reopened: {:?}", menus);
+        assert!(menus[0].iter().any(|p| p == "Ask about their sickness"));
+        assert!(menus[1..].iter().all(|m| !m.iter().any(|p| p == "Ask about their sickness")),
+            "a spent topic stayed on: {:?}", menus[1]);
+    }
 }
+

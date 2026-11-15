@@ -8,10 +8,12 @@
   Probe: Heard about thy boundary fence. Shoddy timber, that.
     1) [PushBack] Say that again, if thou darest.
     2) [PushBack] We paid that debt at Michaelmas, as the reeve well knows.
+    3) [Question] Put a question to them
   Voice: Say that again, if thou darest.
   Probe: Come closer and say that to my beard.
     1) [PushBack] Keep thy fists to thyself before I break them.
     2) [Remark] This quarrel's older than thy fence, and twice as rotten.
+    3) [Question] Put a question to them
   Voice: Keep thy fists to thyself before I break them.
   -- WalksOff (trees: ["old_scores"])
 REPRO: talk_lab talk --name Probe --status drunk --seed 11 --rel Rival --picks 0,0,0

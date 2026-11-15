@@ -127,10 +127,22 @@ impl Game {
     /// the gossip line the villager says, and the fact marked heard.
     /// Returns the line to speak, having already noted it.
     pub(in crate::session) fn mystery_fact_at(&mut self, seat: usize) -> Option<String> {
+        if self.seats[seat].mystery.as_ref().map(|m| m.solved()).unwrap_or(true)
+            || self.rng.below(100) >= FACT_CHANCE { return None; }
+        self.mystery_fact_take(seat)
+    }
+
+    /// Asked after the mystery outright (#1189): a piece for the asking
+    /// if one's still unheard - the same marking, without the roll
+    pub(in crate::session) fn mystery_fact_asked(&mut self, seat: usize) -> Option<String> {
+        self.mystery_fact_take(seat)
+    }
+
+    fn mystery_fact_take(&mut self, seat: usize) -> Option<String> {
         let m = self.seats[seat].mystery.clone()?;
         if m.solved() { return None; }
-        if self.rng.below(100) >= FACT_CHANCE { return None; }
         let left = m.unheard();
+        if left.is_empty() { return None; }
         let i = left[self.rng.below(left.len() as i32) as usize];
         if let Some(mm) = &mut self.seats[seat].mystery { mm.known |= 1 << i; }
         let def = &MYSTERIES[m.def];

@@ -16,10 +16,12 @@
   Roderick: The morning dew was heavy on the clover.
     1) Weather aside, Roderick - how does the season treat thee?
     2) And how fares thy folk in this cold snap?
+    3) Put a question to them
     l) take your leave
   you: Weather aside, Roderick - how does the season treat thee?
   Roderick: Hard at it down at the day's work, are we?
     1) the day's work is my affair, and it fares as it fares.
     2) It goes, by the saints' grace. the day's work is kind to a steady hand.
+    3) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0,0,0 (talk seed 1325400078)

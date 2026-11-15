@@ -6,6 +6,7 @@
   Voice: Well met, child! Another day Heaven grants to watch the fields.
   Probe: Dost thou recall the great famine fifty winters ago, grandfather?
     1) [Answer] Aye, we ate wild acorns and shared what porridge there was, and survived.
+    2) [Question] Put a question to them
   Voice: Aye, we ate wild acorns and shared what porridge there was, and survived.
   Probe: Listen to the land; it was here before us and will keep our graves.
     1) [Farewell] We will heed thy counsel at the village meeting. Good day.

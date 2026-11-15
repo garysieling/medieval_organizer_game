@@ -15,14 +15,17 @@
   Roderick: Looks like rain again, doesn't it?
     1) Weather aside, Roderick - how does the season treat thee?
     2) And how fares thy folk in this cold snap?
+    3) Put a question to them
     l) take your leave
   you: Weather aside, Roderick - how does the season treat thee?
   Roderick: I hear the work keeps thee busy at the day's work.
     1) Slow mornings, honest evenings - that is the day's work for thee.
     2) Ask the reeve about the day's work, not me. I keep my own count.
+    3) Put a question to them
     l) take your leave
   you: Slow mornings, honest evenings - that is the day's work for thee.
   Roderick: A rider from the castle came through before dawn.
     1) Let the miller and the rider sort their own affairs.
+    2) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 7 --villager 22 --picks 0,0,0,0,0 (talk seed 1275068437)

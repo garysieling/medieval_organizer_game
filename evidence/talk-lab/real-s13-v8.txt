@@ -16,18 +16,22 @@
   Wystan: Looks like rain again, doesn't it?
     1) It will be a wet week, mark me.
     2) That is not the way the elders told it.
+    3) Put a question to them
     l) take your leave
   you: It will be a wet week, mark me.
   Wystan: Aye, the year will turn and bring what it brings.
     1) True words; worry never baked a single loaf.
+    2) Put a question to them
     l) take your leave
   you: True words; worry never baked a single loaf.
   Wystan: The peddler's cart lost a wheel at the bridge.
     1) Aye? And what else did folk see?
+    2) Put a question to them
     l) take your leave
   you: Aye? And what else did folk see?
   Wystan: The herb-wife was seen out past the abbey wall at dusk.
     1) Tavern tales grow taller with each ale drawn.
     2) Nay, I see it differently, mark me.
+    3) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 13 --villager 8 --picks 0,0,0,0,0,0 (talk seed 1090519054)

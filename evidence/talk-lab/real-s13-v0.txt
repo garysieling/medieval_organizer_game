@@ -16,18 +16,22 @@
   Aldric: The frost sat late on the furrows this morning.
     1) It will be a wet week, mark me.
     2) Enough sky-talk - how goes the work these days?
+    3) Put a question to them
     l) take your leave
   you: It will be a wet week, mark me.
   Aldric: A steady hand and a patient mule see it through.
     1) That it will - the store is not empty yet.
+    2) Put a question to them
     l) take your leave
   you: That it will - the store is not empty yet.
   Aldric: They say the miller took an extra scoop of meal again.
     1) Aye? And what else did folk see?
+    2) Put a question to them
     l) take your leave
   you: Aye? And what else did folk see?
   Aldric: Old Wulfric swore he saw an owl perched on the tavern roof.
     1) I have heard that lie three times this week.
     2) Tavern tales grow taller with each ale drawn.
+    3) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 13 --villager 0 --picks 0,0,0,0,0,0 (talk seed 956301326)

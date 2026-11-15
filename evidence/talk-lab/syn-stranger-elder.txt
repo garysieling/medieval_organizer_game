@@ -7,6 +7,7 @@
   Voice: Well met. I am but a traveler seeking the ford across the water.
   Probe: Where does this trail lead past the ridge, traveler?
     1) [Answer] It leads down to the cathedral town and the salt wharves.
+    2) [Question] Put a question to them
   Voice: It leads down to the cathedral town and the salt wharves.
   Probe: The alehouse by the bridge offers straw beds if thou hast coin.
     1) [Farewell] The highway calls; farewell.

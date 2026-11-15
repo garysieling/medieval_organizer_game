@@ -434,6 +434,10 @@ pub struct UiModel {
     /// Villagers' (entity, facing, walking), for their walk cycles
     #[serde(default)]
     pub poses: Vec<(Entity, u8, bool)>,
+    /// The world's seed, so a filed report can be replayed (#1083).
+    /// Older servers omit it; a client should treat 0 as "unknown".
+    #[serde(default)]
+    pub seed: u64,
     pub tick: u64,
     /// Animation frame count (mill sails, smoke, the courier's ride)
     pub frame: u32,

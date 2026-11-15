@@ -621,6 +621,7 @@ impl Game {
                 LogEntryV { text: self.log[i].clone(), at: meta.at, who: meta.who }
             }).collect(),
             log_dropped: self.log_dropped,
+            seed: self.seed,
             sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
             reach_target: self.reach_target_at(seat),

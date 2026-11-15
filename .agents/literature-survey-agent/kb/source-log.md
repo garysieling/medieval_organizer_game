@@ -865,3 +865,9 @@ Condensed per-stream log; full per-source ratings live in each review's Key Sour
 - McGinnis & Goldstein, Skillstreaming - A- - numbered skill-steps per behavior
 - Garcia Winner, Social Thinking - B+ - expected/unexpected contextual framing
 - MacLeod, The Social Skills Guidebook - B - civilian version, same rule set
+### 2026-11-14 - Plays as Vignette Mines (#1211)
+- Second Shepherds' Play (Wakefield/Towneley) - A - concealed-theft vignette, kindness reveal
+- Everyman - A - reckoning-of-friends scene
+- Shakespeare, Merchant of Venice / Measure for Measure - A - mercy plea + technicality
+- Wakefield/York/Chester Noah plays - A- - public domestic row
+- Plautus / Comedy of Errors / Henry IV - B+ - disguise engine

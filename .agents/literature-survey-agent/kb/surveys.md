@@ -1032,3 +1032,12 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Key Sources:** Laugeson/PEERS (A); McGinnis/Goldstein Skillstreaming (A-); Garcia Winner Social Thinking (B+); MacLeod Guidebook (B)
 **Confidence:** High
 **Tags:** social-skills, peers, repair, conversation-rules, failure-modes, autism, adhd, curriculum
+## Plays as Vignette Mines (2026-11-14, issue #1211)
+
+**Findings:** Five stagable scenes pulled - the Second Shepherds' crib-bluff (theft concealed, revealed by kindness), Everyman's reckoning of friends, the mercy-plea trial form, the Noah domestic row in the street, the classical disguise engine as a counter-intel visitor.
+- 5 proposal tickets filed: #1254-#1258
+- Not proposed: Cade/Coriolanus mobs (= campaign beats), Lysistrata (= strike machinery), tavern temptations (= counter-pressure layer)
+
+**Key Sources:** Wakefield/Towneley Second Shepherds' Play (A); Everyman (A); Merchant of Venice/Measure for Measure (A); Noah cycle plays (A-); Plautine disguise tradition (B+)
+**Confidence:** High
+**Tags:** drama, vignettes, mystery-plays, shakespeare, everyman, trial, disguise, scenes

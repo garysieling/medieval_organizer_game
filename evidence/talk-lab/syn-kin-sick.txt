@@ -7,9 +7,11 @@
   Voice: Back to bed, Probe. I'll fetch the broth myself.
   Probe: The calves won't feed themselves - though our kin have offered, bless them.
     1) [Agree] Aye, but our house will see thee through it.
+    2) [Question] Put a question to them
   Voice: Aye, but our house will see thee through it.
   Probe: Has our cousin returned with the pack horse from the fair?
     1) [Answer] Aye, he brought home two bags of salt and a fine sickle.
+    2) [Question] Put a question to them
   Voice: Aye, he brought home two bags of salt and a fine sickle.
   Probe: Whatever befalls the village, our clan stands shoulder to shoulder.
     1) [Farewell] God's peace be upon thy cottage, Probe.

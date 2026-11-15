@@ -561,3 +561,108 @@ fn test_a_mismatch_keeps_the_asks_shallow_not_barred() {
     assert_eq!(t.asks, vec![PropKind::Introduce],
         "a mismatch stays slow - the light ask still on the table: {:?}", t.asks);
 }
+
+/// Pick through a Talk until the ask-slot shows, take it, and hand the
+/// topics it opened - `t.options` at that point is the question menu
+fn open_ask_menu(g: &mut Game) -> Vec<(Act, String)> {
+    for _ in 0..30 {
+        let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+        if let Some(i) = t.options.iter().position(|(_, l)| l == "Put a question to them") {
+            g.talk_pick_at(0, Some(i));
+            return g.seats[0].talk.as_ref().expect("the menu opens").options.clone();
+        }
+        match t.options.iter().position(|(a, _)| *a != Act::Farewell) {
+            Some(i) => g.talk_pick_at(0, Some(i)),
+            None => break,
+        }
+    }
+    panic!("the ask slot never showed");
+}
+
+#[test]
+fn test_a_talk_lets_you_put_your_own_questions() {
+    // the ask-slot rides the pick list (#1189): take it and the topics
+    // they can speak to open as a menu - your question, their answer,
+    // then the talk picks back up where it stood
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    // the standing asks never leave the table, and the out is a remark
+    assert!(menu.iter().any(|(_, l)| l == "Ask about themselves"), "{:?}", menu);
+    assert_eq!(menu.last().unwrap().1, "Say nothing of it");
+    let p = menu.iter().position(|(_, l)| l == "Ask about themselves").unwrap();
+    let pe = g.player;
+    g.talk_pick_at(0, Some(p));
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    let asks = crate::game::dialogue_trees::ASK_TOPICS.iter()
+        .find(|tp| tp.label == "themselves").unwrap().ask;
+    assert!(rec.lines.iter().any(|l| l.who == Some(pe) && asks.contains(&l.text.as_str())),
+        "your question's on the record: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    assert!(!t.options.is_empty(), "asking isn't a farewell - options stay live");
+}
+
+#[test]
+fn test_asking_what_weighs_on_them_draws_it_out() {
+    // a kept secret opens the deeper ask (#1189): putting the question
+    // is the way a trouble comes out - the same reveal a talk's opening
+    // might have rolled, landed because you asked
+    use crate::game::desires::{InnerLife, Known, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, l)| l == "Ask about what weighs on them")
+        .expect("a kept secret opens the deep ask");
+    g.talk_pick_at(0, Some(p));
+    let known = g.world.get_component::<Known>(v).expect("the asking drew something out");
+    assert!(!known.revealed.is_empty(), "nothing drawn: {:?}", known.revealed);
+    // and the telling of it lands on the talk's record
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.who == Some(v)),
+        "they told it on the record: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+
+#[test]
+fn test_the_trouble_they_told_is_an_ask() {
+    // what's already shared sits on the menu as its own question
+    // (#1189) - asking after it is following up, not prying anew
+    use crate::game::desires::{Known, Problem, Reveal};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    assert!(menu.iter().any(|(_, l)| l == "Ask about the trouble they told"),
+        "a shared trouble opens the follow-up: {:?}", menu);
+}
+
+#[test]
+fn test_a_live_mystery_is_its_own_ask() {
+    // folk are asking after something (#1189): putting the question
+    // pulls a piece of it the way the gossip line would
+    use crate::session::mystery::SeatMystery;
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.seats[0].mystery = Some(SeatMystery { def: 0, known: 0, asker: v });
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, l)| l == "Ask about the question folk whisper of")
+        .expect("a live mystery opens the ask");
+    let before = g.seats[0].mystery.as_ref().unwrap().heard();
+    g.talk_pick_at(0, Some(p));
+    let m = g.seats[0].mystery.as_ref().unwrap();
+    assert_eq!(m.heard(), before + 1, "the asking drew a fact");
+    let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    let facts: Vec<&str> = crate::game::mysteries::MYSTERIES[0].facts.to_vec();
+    assert!(rec.lines.iter().any(|l| l.who == Some(v) && facts.contains(&l.text.as_str())),
+        "they passed the piece on: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

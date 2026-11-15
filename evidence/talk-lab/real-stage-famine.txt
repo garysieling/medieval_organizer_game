@@ -14,14 +14,17 @@
   you: Can't say the name reached me - I keep to my own lane.
   Dagny: The sky can do what it likes - it's the empty pot that weighs on me.
     1) Tell me true, Dagny - how goes it with thee?
+    2) Put a question to them
     l) take your leave
   you: Tell me true, Dagny - how goes it with thee?
   Dagny: Well enough, thank thee, wanderer.
     1) A full hearth is a blessing in hard times.
+    2) Put a question to them
     l) take your leave
   you: A full hearth is a blessing in hard times.
   Dagny: The ditch along the south pasture needs clearing.
     1) There's always another ditch to dig.
     2) Every hand will be needed when the grain ripens.
+    3) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0 (talk seed 922746905)

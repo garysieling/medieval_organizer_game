@@ -6,6 +6,7 @@
   Voice: Well met indeed, friend. The chores are lighter for thy smile.
   Probe: Dost thou recall the summer the mill dam broke?
     1) [Answer] Aye, we were waist-deep in mud until midnight saving the sacks!
+    2) [Question] Put a question to them
   Voice: Aye, we were waist-deep in mud until midnight saving the sacks!
   Probe: We have shared crusts and sweat for twenty years now.
     1) [Farewell] Fair day, Probe - peace on thy household.

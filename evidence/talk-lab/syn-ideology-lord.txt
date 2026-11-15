@@ -10,6 +10,7 @@
   Voice: I've heard, and I mind my manners accordingly.
   Voice: A good tenant pays his boon-days without the tally being read twice.
     1) [Agree] The ditch will be cleared by the quarter day, m'lord.
+    2) [Question] Put a question to them
   Voice: The ditch will be cleared by the quarter day, m'lord.
   Voice: The rolls are kept fair; what thy father owed, thou owest, no more.
     1) [Farewell] Thy servant, m'lord - and my thanks for the hearing.

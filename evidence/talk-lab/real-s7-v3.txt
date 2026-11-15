@@ -15,5 +15,6 @@
   Corvin: A good tenant pays his boon-days without the tally being read twice.
     1) The rents bite deeper than the frost, begging m'lord's pardon.
     2) As thou sayest, m'lord.
+    3) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 7 --villager 3 --picks 0,0,0 (talk seed 956301334)

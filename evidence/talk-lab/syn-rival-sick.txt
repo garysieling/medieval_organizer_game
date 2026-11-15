@@ -7,14 +7,17 @@
   Voice: Even I'd not wish this on thee, Probe. Perhaps.
   Probe: The calves won't feed themselves - and I'd not ask thee for help, Voice.
     1) [Agree] Aye, work or starve - thou knowest it as well as I.
+    2) [Question] Put a question to them
   Voice: Aye, work or starve - thou knowest it as well as I.
   Probe: Thy lot still owes mine three groats, whatever lies thou tellest.
     1) [PushBack] The whole parish knows the measure of thy word.
     2) [PushBack] Thy pasture is mostly thistles anyway.
+    3) [Question] Put a question to them
   Voice: The whole parish knows the measure of thy word.
   Probe: Come closer and say that to my beard.
     1) [Remark] Not worth the breath or the bruise.
     2) [PushBack] Cur! Thou'lt regret those words.
+    3) [Question] Put a question to them
   Voice: Not worth the breath or the bruise.
   Probe: I have looked upon thy face long enough.
     1) [Farewell] Until we meet at the boundary ditch.

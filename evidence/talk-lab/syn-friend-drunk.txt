@@ -7,6 +7,7 @@
   Probe: Did I truly challenge the smith to a wrestling match at midnight?
     1) [PushBack] That is not the way the elders told it.
     2) [Agree] It was a merry night, though the morning pays the reckoning.
+    3) [Question] Put a question to them
   Voice: That is not the way the elders told it.
   Probe: The plough handles won't hold themselves, headache or no.
     1) [Farewell] May the sun be gentle on thy poor eyes today.

@@ -15,18 +15,22 @@
   Rowena: The morning dew was heavy on the clover.
     1) That is not the way the elders told it.
     2) Has thy brother returned from the market town?
+    3) Put a question to them
     l) take your leave
   you: That is not the way the elders told it.
   Rowena: A steady hand and a patient mule see it through.
     1) True words; worry never baked a single loaf.
+    2) Put a question to them
     l) take your leave
   you: True words; worry never baked a single loaf.
   Rowena: They say the miller took an extra scoop of meal again.
     1) Aye? And what else did folk see?
+    2) Put a question to them
     l) take your leave
   you: Aye? And what else did folk see?
   Rowena: The herb-wife was seen out past the abbey wall at dusk.
     1) Every tongue in the parish wags before sunset.
     2) Better to tend thy own hearth than watch the road.
+    3) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 7 --villager 15 --picks 0,0,0,0,0,0 (talk seed 1157627928)

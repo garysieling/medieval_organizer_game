@@ -136,6 +136,10 @@ pub struct PlayerTalk {
     /// Asks already put this talk - a vibe re-roll mustn't deal them
     /// back in (#1188)
     pub asks_taken: Vec<crate::game::organizing::PropKind>,
+    /// Topics from `Transcript.asked` already checked for a draw - the
+    /// replay accumulates them, the watermark marks what's been seen
+    /// (#1189)
+    pub asked_seen: usize,
     /// How the picks so far have left them feeling (#1183)
     pub mood: TalkMood,
     /// How their audition of you read, once it's been answered (#1187)
@@ -259,7 +263,7 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 /// Replay a Talk: the lines so far (speaker 0 the villager, 1 the
 /// player), the replies on offer if it's the player's turn, and how it
 /// ended if it has
-fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>) {
+fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, String)>> = None;
     let tr = converse_with(&t.villager, &t.player, t.rel, library(), 1, &mut |ch: &[Choice]| {
@@ -273,7 +277,7 @@ fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, 
     }, &mut TalkRng::new(t.seed));
     let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone())).collect();
     let ending = if offered.is_some() { None } else { tr.ending };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe)
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked)
 }
 
 impl Game {
@@ -448,6 +452,21 @@ impl Game {
                 villager.status.push("spoken");
             }
         }
+        if rare.is_none() {
+            // what they've told you opens the "trouble they told" ask;
+            // what they still keep opens the deeper one (#1189)
+            if self.world.get_component::<crate::game::desires::Known>(v)
+                .map(|k| !k.revealed.is_empty()).unwrap_or(false) {
+                villager.status.push("shared");
+            }
+            if !crate::game::desires::unrevealed(&self.world, v, self.tick).is_empty() {
+                villager.status.push("keeps_secret");
+            }
+            // a live mystery is its own ask: what folk say of it (#1189)
+            if self.seats[seat].mystery.as_ref().map(|m| !m.solved()).unwrap_or(false) {
+                villager.status.push("mystery");
+            }
+        }
         // how well they know you colours the talk - the trees key on the
         // stage as a status fact
         match crate::game::organizing::stage_of(&self.world, pe, v) {
@@ -482,7 +501,7 @@ impl Game {
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: vec![], asks,
-            asks_taken: vec![], mood: TalkMood::Cool, vibe: None,
+            asks_taken: vec![], asked_seen: 0, mood: TalkMood::Cool, vibe: None,
         });
         self.refresh_player_talk(seat);
     }
@@ -492,7 +511,7 @@ impl Game {
     fn refresh_player_talk(&mut self, seat: usize) {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
-        let (said, offered, ending, tree, vibe) = replay(&t);
+        let (said, offered, ending, tree, vibe, asked) = replay(&t);
         let vname = t.villager.name.clone();
         // the audition's read, the first time it's answered (#1187): a
         // good answer warms them and opens the deep material; a miss
@@ -532,6 +551,49 @@ impl Game {
         }
         if said.is_empty() { lines.extend(Self::gist_lines(&t, &vname)); }
         if let Some(r) = self.talk_record_mut(t.id) { r.lines = lines; }
+        // a question that draws (#1189): asking after their trouble is
+        // the way a kept secret comes out - the same reveal a talk's
+        // opening rolls for; and asking after the whisper pulls a piece
+        // of the mystery, the way the gossip line does
+        for label in asked.iter().skip(t.asked_seen) {
+            use crate::game::dialogue_trees::Draw;
+            let draw = crate::game::dialogue_trees::ASK_TOPICS.iter()
+                .find(|tp| tp.label == *label).map(|tp| tp.draws).unwrap_or(Draw::No);
+            match draw {
+                Draw::No => {}
+                Draw::Secret => {
+                    let pick = self.rng.next();
+                    if let Some(r) = crate::game::desires::next_reveal(&self.world, t.who, self.tick, pick) {
+                        let (did, said_line) = crate::game::desires::reveal_speech(&vname, &r);
+                        if let Some(issue) = crate::game::desires::hear(&mut self.world, pe, t.who, r, self.tick) {
+                            use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
+                            self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                            self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                                pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                        }
+                        if let Some(rec) = self.talk_record_mut(t.id) {
+                            rec.lines.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
+                            rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
+                        }
+                        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
+                    }
+                }
+                Draw::Mystery => {
+                    if let Some(fact) = self.mystery_fact_asked(seat) {
+                        if let Some(rec) = self.talk_record_mut(t.id) {
+                            rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: fact, gist: false });
+                        }
+                        if let Some(m) = &self.seats[seat].mystery {
+                            let def = &crate::game::mysteries::MYSTERIES[m.def];
+                            let note = format!("A piece of {} - {} of {} heard. Worth remembering.",
+                                def.title, m.known.count_ones(), def.facts.len());
+                            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(note); }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asked_seen = asked.len(); }
         self.warm_exchange(t.id);
         // the talk's spent when every reply left is an exit and there's no
         // ask to hang on (#1179): they take their leave as much as you do,

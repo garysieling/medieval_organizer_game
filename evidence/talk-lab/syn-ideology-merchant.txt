@@ -10,9 +10,11 @@
   Voice: I've heard, and I mind my manners accordingly.
   Voice: What exchange does the village offer for good salt this season?
     1) [Answer] Salt fetches well here; the winter salting never fails to call for it.
+    2) [Question] Put a question to them
   Voice: Salt fetches well here; the winter salting never fails to call for it.
   Voice: Coin talks where the tongue falls short, Voice.
     1) [Agree] Aye, and debt is a chain that rattles at night.
+    2) [Question] Put a question to them
   Voice: Aye, and debt is a chain that rattles at night.
   Voice: The road is long, but fair trade makes every mile worthwhile.
     1) [Farewell] Until the spring fair, merchant. Fare well.

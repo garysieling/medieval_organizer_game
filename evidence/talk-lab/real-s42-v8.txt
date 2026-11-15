@@ -16,20 +16,24 @@
   Wystan: Gray clouds gathering over the western hill.
     1) And the day's work - does it treat thee kindly?
     2) Tell me true, Wystan - how goes it with thee?
+    3) Put a question to them
     l) take your leave
   you: And the day's work - does it treat thee kindly?
   Wystan: Hard at it down at the day's work, are we?
     1) It goes, by the saints' grace. the day's work is kind to a steady hand.
     2) Well enough, aye. And how does the stone yard treat thee?
+    3) Put a question to them
     l) take your leave
   you: It goes, by the saints' grace. the day's work is kind to a steady hand.
   Wystan: The peddler's cart lost a wheel at the bridge.
     1) Aye? And what else did folk see?
     2) I'll not repeat marketplace whispers.
+    3) Put a question to them
     l) take your leave
   you: Aye? And what else did folk see?
   Wystan: Old Wulfric swore he saw an owl perched on the tavern roof.
     1) Well, that is talk enough for one morning.
     2) Nay, I see it differently, mark me.
+    3) Put a question to them
     l) take your leave
 REPRO: talk_lab talk --seed 42 --villager 8 --picks 0,0,0,0,0,0 (talk seed 989855755)

@@ -7,20 +7,25 @@
   Voice: A rough fever, by the look of thee.
   Probe: I'd rest in the straw if the chores would do themselves.
     1) [Agree] A poor man's bed is a luxury he can rarely afford.
+    2) [Question] Put a question to them
   Voice: A poor man's bed is a luxury he can rarely afford.
   Probe: The morning dew was heavy on the clover.
     1) [Agree] The thatch won't thank it if it pours.
+    2) [Question] Put a question to them
   Voice: The thatch won't thank it if it pours.
   Probe: Aye, the year will turn and bring what it brings.
     1) [Agree] True words; worry never baked a single loaf.
+    2) [Question] Put a question to them
   Voice: True words; worry never baked a single loaf.
   Probe: They say the miller took an extra scoop of meal again.
     1) [Remark] Aye? And what else did folk see?
     2) [PushBack] I'll not repeat marketplace whispers.
+    3) [Question] Put a question to them
   Voice: Aye? And what else did folk see?
   Probe: The herb-wife was seen out past the abbey wall at dusk.
     1) [Agree] Every tongue in the parish wags before sunset.
     2) [PushBack] That is not the way the elders told it.
+    3) [Question] Put a question to them
   Voice: Every tongue in the parish wags before sunset.
   Probe: As thou sayest, friend.
     1) [Farewell] Fare thee well until the morrow.

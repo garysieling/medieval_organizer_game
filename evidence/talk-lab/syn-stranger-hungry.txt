@@ -7,6 +7,7 @@
   Probe: We boiled a pot of turnip tops and barley chaff this noon.
     1) [PushBack] Everyone's bin is empty; don't look to my door for bread.
     2) [Agree] We have a sack of roots in the cellar. Let us divide it.
+    3) [Question] Put a question to them
   Voice: Everyone's bin is empty; don't look to my door for bread.
   -- WalksOff (trees: ["hunger_lean_times"])
 REPRO: talk_lab talk --name Probe --status hungry --seed 11 --rel Stranger --picks 0,0

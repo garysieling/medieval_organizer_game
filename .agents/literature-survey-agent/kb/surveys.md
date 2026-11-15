@@ -1012,3 +1012,13 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 **Confidence:** High
 **Tags:** printing, press-history, gutenberg, movable-type, jikji, korea, woodblock, engraving, common-press, stanhope, koenig, steam-press, albion, hoe-rotary, lithography, senefelder, chromolithography, offset-printing, kelsey-press, book-history, chronology, printer-arc
+
+## Organizer Roleplay Trainings (2026-11-14, issue #1208)
+
+**Findings:** Convergent pedagogy for the exact situations our game sims: Labor Notes' seven-beat organizing conversation (discover → agitate → blame the decision-maker → plan → hard ask → inoculate → follow-up), Ganz's Self/Us/Now testimony arc, IAF's relational meeting as talent-scouting.
+- 4 proposal tickets filed: #1246 inoculation, #1247 self-said ask, #1248 testimony opening, #1249 scouting pull
+- Deliberately not proposed: 80/20 listening (= ask-topics #1189), 1-5 charting (= stage_of ladder), post-talk scoring (= vibe/TalkMood)
+
+**Key Sources:** Labor Notes Secrets of a Successful Organizer (A); Ganz/LCN public narrative (A); Chambers/IAF Roots for Radicals (A-); IWW OT101/EWOC (B+)
+**Confidence:** High
+**Tags:** organizing, roleplay, one-on-one, inoculation, public-narrative, relational-meeting, house-visit, hard-ask

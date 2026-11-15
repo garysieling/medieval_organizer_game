@@ -1022,3 +1022,13 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Key Sources:** Labor Notes Secrets of a Successful Organizer (A); Ganz/LCN public narrative (A); Chambers/IAF Roots for Radicals (A-); IWW OT101/EWOC (B+)
 **Confidence:** High
 **Tags:** organizing, roleplay, one-on-one, inoculation, public-narrative, relational-meeting, house-visit, hard-ask
+
+## Social-Skills Training Literature (2026-11-14, issue #1210)
+
+**Findings:** Conversation decomposed into teachable rules - PEERS' trading-information sequence (common interest -> mention -> trade -> assess interest -> entry/exit), named failure modes (conversation hog, missed exit), repair as its own skill. Our trade-and-bid machinery already mirrors the taught model.
+- 2 proposal tickets filed: #1251 amends (repair a slighted bond), #1252 the hog (a villager who never trades)
+- Deliberately not proposed: information trading (= our engine), peer entry (= vibe probe #1187), exits (= farewells)
+
+**Key Sources:** Laugeson/PEERS (A); McGinnis/Goldstein Skillstreaming (A-); Garcia Winner Social Thinking (B+); MacLeod Guidebook (B)
+**Confidence:** High
+**Tags:** social-skills, peers, repair, conversation-rules, failure-modes, autism, adhd, curriculum

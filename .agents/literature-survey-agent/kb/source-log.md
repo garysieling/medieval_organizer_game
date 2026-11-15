@@ -871,3 +871,9 @@ Condensed per-stream log; full per-source ratings live in each review's Key Sour
 - Shakespeare, Merchant of Venice / Measure for Measure - A - mercy plea + technicality
 - Wakefield/York/Chester Noah plays - A- - public domestic row
 - Plautus / Comedy of Errors / Henry IV - B+ - disguise engine
+### 2026-11-14 - Comparative Labor Law (#1212)
+- Ordinance & Statute of Labourers 1349/1351 - A+ - wage caps, combination ban, in-kind leak
+- NLRA 1935 / Taft-Hartley 1947 - A - protected concerted activity, ULPs
+- Code du travail: prud'hommes, livret ouvrier - A - peer tribunal, standing document
+- Fueros + comisiones obreras - B+ - custom layers, co-opted councils
+- Webb/Epstein/Unwin guild & journeyman histories - A- - combinations as proto-unions

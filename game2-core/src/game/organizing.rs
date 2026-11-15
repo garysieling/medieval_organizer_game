@@ -876,14 +876,45 @@ pub fn prop_label(p: PropKind) -> &'static str {
     }
 }
 
-/// Which asks are on the table: those you haven't already secured, plus
-/// the always-on asks (come along, an introduction). Everything needs at
-/// least one piece of their self-interest heard - you can't put a claim
-/// on a stranger.
+/// The rung an ask sits on (#1188): an introduction is the light ask a
+/// new acquaintance will hear; asking them to vouch for you with their
+/// friends waits for known; the meeting asks - coming along, lending
+/// the house, taking a part - are commitments you put to a follower.
+fn ask_tier(p: PropKind) -> RelStage {
+    match p {
+        PropKind::Introduce => RelStage::Acquaintance,
+        PropKind::InviteFriends => RelStage::Known,
+        _ => RelStage::Follower,
+    }
+}
+
+/// Nudge a stage for the read of the moment: a villager who's taken you
+/// as safe hears a rung deeper, a mismatched one a rung shallower.
+fn bumped(s: RelStage, shift: i8) -> RelStage {
+    const LADDER: [RelStage; 5] = [RelStage::Stranger, RelStage::Acquaintance,
+        RelStage::Known, RelStage::Follower, RelStage::CoLeader];
+    let i = LADDER.iter().position(|r| *r == s).unwrap_or(0) as i8;
+    LADDER[(i + shift).clamp(0, 4) as usize]
+}
+
+/// Which asks are on the table: those you haven't already secured, and
+/// no deeper than the stage they hold with you (shifted by the talk's
+/// read) - a stranger hears nothing, a follower hears the meeting asks.
+/// Everything needs at least one piece of their self-interest heard.
 pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKind> {
+    props_on_offer_shifted(world, org, person, 0)
+}
+
+/// `props_on_offer` with the stage nudged - the audition's read bumps
+/// the rung this talk's asks climb to (#1187, #1188).
+pub fn props_on_offer_shifted(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<PropKind> {
     let heard = world.get_component::<crate::game::desires::Known>(person)
         .map(|k| !k.revealed.is_empty()).unwrap_or(false);
     if !heard { return vec![]; }
+    // `org` is the organization entity - the bond is with its leader
+    let stage = world.get_component::<Organization>(org)
+        .map(|o| stage_of(world, o.leader, person)).unwrap_or(RelStage::Stranger);
+    let reached = bumped(stage, shift);
     let mut out = vec![PropKind::ComeAlong, PropKind::Introduce];
     let empty = MeetingPlan::default();
     let plan = world.get_component::<MeetingPlan>(org).unwrap_or(&empty);
@@ -903,6 +934,8 @@ pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKin
         if plan.closer.is_none() { out.push(PropKind::CloseOut); }
     }
     if !plan.spreaders.contains(&person) { out.push(PropKind::InviteFriends); }
+    // nothing deeper than the rung they've reached with you
+    out.retain(|p| ask_tier(*p) <= reached);
     out
 }
 
@@ -940,8 +973,36 @@ pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind)
     (base + if suited { 0.2 } else { 0.0 } + skill * 0.15).min(0.98)
 }
 
+/// The excuse a declined ask earns (#1188): what you've heard of their
+/// burdens gives them a real reason to say not-yet - the reeve's eye,
+/// a mourning, a purse too thin - before a trait supplies one. None
+/// means a plain no.
+fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
+    use crate::game::desires::{Known, Problem, Reveal};
+    let reason = world.get_component::<Known>(person)
+        .and_then(|k| k.revealed.iter().find_map(|r| match r {
+            Reveal::Problem(Problem::Taxed) => Some("the reeve's eye is on me already"),
+            Reveal::Problem(Problem::Bereaved) => Some("I'm in mourning - not for gatherings"),
+            Reveal::Problem(Problem::NoHome) => Some("I've no roof of my own to keep"),
+            Reveal::Problem(Problem::Broke) => Some("every hand's for the purse just now"),
+            Reveal::Problem(Problem::Loss) => Some("I'm still counting what the wolves took"),
+            Reveal::Problem(Problem::SourGut) => Some("this gut's not done with me yet"),
+            _ => None,
+        }));
+    reason.or_else(|| world.get_component::<crate::game::traits::Personality>(person)
+        .and_then(|p| p.traits.iter().find_map(|t| match t {
+            crate::game::traits::Trait::Lazy => Some("that's work you're asking, and I'm short of it"),
+            crate::game::traits::Trait::Stingy => Some("mine's not for sharing out"),
+            crate::game::traits::Trait::Pious => Some("the church keeps my evenings"),
+            crate::game::traits::Trait::Proud => Some("I've a holding to keep - I'm nobody's recruit"),
+            crate::game::traits::Trait::Hotheaded => Some("you've a nerve, asking me that"),
+            _ => None,
+        })))
+}
+
 /// Put the proposition: the yes records the promise on the org's plan
-/// (or warms a new contact for Introduce); the no costs a small chill.
+/// (or warms a new contact for Introduce); the no costs a small chill,
+/// and names their reason when you know what's holding them back.
 /// `roll` is 0..1. Returns the log line, and for Introduce the friend
 /// they named - the one the camera's wanted on.
 pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity, p: PropKind, name: &str, roll: f32, tick: u64) -> (String, Option<Entity>) {
@@ -949,7 +1010,10 @@ pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity
     if yes_chance(world, organizer, person, p) <= roll {
         record_interaction(world, organizer, Interaction {
             other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
-        return (format!("{} won't hear it - not yet.", name), None);
+        return match no_reason(world, person) {
+            Some(why) => (format!("{} won't hear it - \"{}\"", name, why), None),
+            None => (format!("{} won't hear it - not yet.", name), None),
+        };
     }
     // the ask itself is practice at the craft
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, 0.01);

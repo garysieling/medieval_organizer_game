@@ -56,30 +56,27 @@ fn act_ctx(game: &mut Game, seat: usize, act: game2_core::session::CtxAct) {
 /// rejected ask before the day turns over would just grind trust down for
 /// nothing.
 fn call_meeting_if_earned(game: &mut Game, seat: usize, ready: &[usize], last_ask_day: &mut u64) -> bool {
-    use game2_core::game::desires::Known;
-    use game2_core::game::organizing::{propose, MeetingPlan, PropKind};
+    use game2_core::game::organizing::{propose, props_on_offer, MeetingPlan, PropKind};
     let oe = game.seats[seat].org;
     if game.world.get_component::<MeetingPlan>(oe).map(|p| p.ready()).unwrap_or(false) {
         game.call_meeting_at(seat);
         return true;
     }
     if *last_ask_day == game.tick { return false; }
-    // only someone you've heard something from will hear an ask, same
-    // as the Talk panel's own asks list (organizing::props_on_offer)
-    let heard = |g: &Game, v: game2_core::engine::ecs::Entity| g.world.get_component::<Known>(v)
-        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
+    // the same asks the Talk panel would put on the table (#1188):
+    // venue until one's lent, come-along for the rest
     let venue_set = game.world.get_component::<MeetingPlan>(oe).map(|p| p.venue.is_some()).unwrap_or(false);
+    let want = if venue_set { PropKind::ComeAlong } else { PropKind::LendVenue };
     let target = ready.iter().find(|&&i| {
         let v = game.villagers[i];
-        if !heard(game, v) { return false; }
-        if !venue_set { return game2_core::game::household::home_of(&game.world, v).is_some(); }
-        !game.world.get_component::<MeetingPlan>(oe)
+        if !props_on_offer(&game.world, oe, v).contains(&want) { return false; }
+        venue_set || !game.world.get_component::<MeetingPlan>(oe)
             .map(|p| p.coming.contains(&v) || p.spreaders.contains(&v)).unwrap_or(false)
     }).copied();
     let Some(i) = target else { return false };
     *last_ask_day = game.tick;
     let v = game.villagers[i];
-    let p = if venue_set { PropKind::ComeAlong } else { PropKind::LendVenue };
+    let p = want;
     let (pe, tick) = (game.seats[seat].player, game.tick);
     let roll = driver_roll(tick.wrapping_mul(0x1000_0001) ^ v as u64);
     let name = game2_core::session::vill_name(i);

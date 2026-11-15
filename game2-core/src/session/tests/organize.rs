@@ -153,16 +153,36 @@ fn test_the_ladder_climbs_from_stranger_to_co_leader() {
 
 #[test]
 fn test_you_cant_put_a_claim_on_a_stranger() {
-    use crate::game::organizing::{props_on_offer, PropKind};
+    use crate::game::organizing::{props_on_offer, PropKind, RelStage};
+    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::relationships::{record_interaction, find_relationship,
+        Interaction, InteractionKind, Relationship};
     let mut g = Game::new();
-    let v = g.villagers[1];
+    let (pe, v) = (g.player, g.villagers[1]);
     // nothing heard from them: no asks on the table
     assert!(props_on_offer(&g.world, g.org, v).is_empty());
-    // one piece heard: the asks open up - come along and the empty roles
-    use crate::game::desires::{Known, Problem, Reveal};
+    // one piece heard but no bond yet - heard alone isn't a claim
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    assert_eq!(props_on_offer(&g.world, g.org, v), Vec::<PropKind>::new());
+    // an acquaintance hears the light ask only: who to know next
+    record_interaction(&mut g.world, pe, Interaction {
+        other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
     let asks = props_on_offer(&g.world, g.org, v);
-    assert!(asks.contains(&PropKind::ComeAlong) && asks.contains(&PropKind::Introduce), "{:?}", asks);
+    assert_eq!(asks, vec![PropKind::Introduce], "{:?}", asks);
+    // known to you (three pieces): they'll hear about bringing friends,
+    // but a meeting's still too big a claim (#1188)
+    g.world.add_component(v, Known { revealed: vec![
+        Reveal::Problem(Problem::Taxed), Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love)] });
+    let asks = props_on_offer(&g.world, g.org, v);
+    assert!(asks.contains(&PropKind::Introduce) && asks.contains(&PropKind::InviteFriends), "{:?}", asks);
+    assert!(!asks.contains(&PropKind::ComeAlong), "{:?}", asks);
+    // a follower hears the meeting asks - the bond can carry them
+    find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.6;
+    assert_eq!(crate::game::organizing::stage_of(&g.world, pe, v), RelStage::Follower);
+    let asks = props_on_offer(&g.world, g.org, v);
+    assert!(asks.contains(&PropKind::ComeAlong) && asks.contains(&PropKind::OpenWithWord)
+        && asks.contains(&PropKind::Introduce), "{:?}", asks);
 }
 
 #[test]
@@ -173,6 +193,13 @@ fn test_one_job_apiece_spreads_the_meetings_work() {
     let (pe, first, next) = (g.player, g.villagers[1], g.villagers[2]);
     for v in [first, next] {
         g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+        // the meeting asks only open for a follower (#1188)
+        crate::game::relationships::record_interaction(&mut g.world, pe,
+            crate::game::relationships::Interaction { other: v,
+                kind: crate::game::relationships::InteractionKind::Conversation, intensity: 0.3 });
+        crate::game::relationships::find_relationship(&g.world, pe, v)
+            .and_then(|r| g.world.get_component_mut::<crate::game::relationships::Relationship>(r))
+            .unwrap().strength = 0.6;
     }
     // the first villager's promised the snacks: the rest of the roles
     // leave their card, though they'll still hear the standing asks

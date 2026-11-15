@@ -18,6 +18,22 @@ const MIN_ZOOM: f32 = client::MIN_ZOOM;
 const MAX_ZOOM: f32 = client::MAX_ZOOM;
 /// The speed key stays while the flag's on; web builds and the server drop it
 
+/// The report's context, snapped off the model the frame the key lets
+/// go - the worker files with no live game to ask (#1083)
+#[cfg(all(feature = "dev-voice", not(target_arch = "wasm32")))]
+fn voice_ctx(m: Option<&UiModel>) -> client::voice::VoiceCtx {
+    match m {
+        Some(m) => client::voice::VoiceCtx {
+            seed: m.seed, tick: m.tick, frame: m.frame,
+            camera: m.focus.map(|(x, y, _)| (x, y)),
+            // the model's log shows newest first; the report's tail
+            // reads oldest to newest like the day did
+            log_tail: m.log.iter().take(10).rev().map(|e| e.text.clone()).collect(),
+        },
+        None => client::voice::VoiceCtx { seed: 0, tick: 0, frame: 0, camera: None, log_tail: vec![] },
+    }
+}
+
 fn present(window: &mut Window, buf: &Buffer) {
     // RGBA -> 0xRRGGBB u32 pixels for minifb, into one buffer kept across
     // frames (a fresh 5.5MB Vec every frame was a measurable cost)
@@ -279,6 +295,10 @@ fn main() {
     let mut follow_hold: Option<(f32, f32)> = None;
     // the event camera: which civic event has it, and the eased centre
     let mut event_cam = EventCam::default();
+    // push-to-talk dev feedback (#1083): hold F9, say the bug or the
+    // idea, let go - the take lands as a dev-report issue
+    #[cfg(all(feature = "dev-voice", not(target_arch = "wasm32")))]
+    let mut voice = client::voice::Voice::new();
 
     // a Talk on offer draws "x) Take your leave": Escape presses it too,
     // ahead of the pause menu - the cancel layers sit before the door
@@ -705,6 +725,14 @@ fn main() {
         if manual_cam { event_cam.hold(); }
 
         if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", cur_model.as_ref().map(|m| m.frame).unwrap_or(0))).ok(); }
+        // hold F9, talk about a bug or an idea, let go - the local
+        // whisper-cli transcribes the clip and it's filed dev-report
+        // (#1083); the work rides a worker thread, the game doesn't wait
+        #[cfg(all(feature = "dev-voice", not(target_arch = "wasm32")))]
+        {
+            if window.is_key_pressed(Key::F9, minifb::KeyRepeat::No) { voice.press(); }
+            if window.is_key_released(Key::F9) { voice.release(voice_ctx(cur_model.as_ref())); }
+        }
         // a survey answer landed this frame: the shot goes into the
         // bundle the sim just wrote under feedback/ (#1085)
         if let Some(stem) = cur_model.as_ref().and_then(|m| m.feedback_capture.clone()) {

@@ -23,6 +23,10 @@ mod draw;
 mod hud;
 pub mod record;
 pub mod talk;
+// Push-to-talk dev feedback (#1083): cpal's native-only and the whole
+// module sits behind the flag so normal builds and wasm never see it
+#[cfg(all(feature = "dev-voice", not(target_arch = "wasm32")))]
+pub mod voice;
 #[cfg(test)]
 mod tests;
 mod view;

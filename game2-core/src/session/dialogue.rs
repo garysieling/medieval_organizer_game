@@ -1067,6 +1067,15 @@ impl Game {
                     .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
                 decides: false, leave: true });
         }
+        // the traveller's ask (#1085): last on the box - a live talk, a
+        // meeting under way, every real decision all outrank a pedlar
+        if self.seats[seat].survey.is_some() {
+            return Some(ConvoPanelV {
+                title: "THE TRAVELLER ASKS".into(),
+                rows: self.survey_rows(seat),
+                options: crate::session::survey::SURVEY_OPTIONS.iter().map(|s| s.to_string()).collect(),
+                decides: true, leave: false });
+        }
         None
     }
 }

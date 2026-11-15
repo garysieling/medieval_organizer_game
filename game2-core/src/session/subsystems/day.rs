@@ -604,6 +604,9 @@ impl Game {
         // now and then a mystery starts doing the rounds - the gossip's
         // out there to be heard a fact at a time
         crate::timed!("sim.mystery", self.mystery_dawn(tick, &mut rng));
+        // and after a beat worth asking on, the traveller puts his
+        // question (#1085)
+        crate::timed!("sim.survey", self.survey_dawn(tick));
         let folk = crate::infra::perf::scope("sim.day.villagers");
         let villagers = self.villagers.clone();
         // a promised visit outranks the day's routine but not the day's

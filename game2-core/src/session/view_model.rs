@@ -727,6 +727,12 @@ impl Game {
             }).collect(),
             talk: self.talk_panel_at(seat),
             convo: self.convo_panel_at(seat),
+            // the survey answer landed this frame - the client saves
+            // the shot under the same stem, once (#1085)
+            feedback_capture: match self.seats[seat].survey_capture {
+                Some((f, ref stem)) if f == self.frame_n => Some(stem.clone()),
+                _ => None,
+            },
             debug_lines: vec![],
             sfx: self.sfx.iter().map(|c| c.kind.to_string()).collect(),
             snowballs: self.snowballs.iter().map(|s| s.pos_at(self.frame_n)).collect(),

@@ -507,6 +507,11 @@ pub struct UiModel {
     /// way, the call after one) - None most of the time
     #[serde(default)]
     pub convo: Option<ConvoPanelV>,
+    /// A survey answer landed this frame (#1085): the file stem the
+    /// client saves the current buffer as, once - `feedback/<stem>.bmp`.
+    /// One frame only, so it never re-fires
+    #[serde(default)]
+    pub feedback_capture: Option<String>,
     pub sel: Selection,
     /// Villager indices within talk/meeting reach
     pub reach: Vec<usize>,

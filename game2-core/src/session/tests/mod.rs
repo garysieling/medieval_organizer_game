@@ -146,6 +146,7 @@ mod solstice;
 mod season_illness;
 mod sheriff;
 mod surveillance;
+mod survey;
 mod trade_rel;
 mod sisterhood;
 mod notices;

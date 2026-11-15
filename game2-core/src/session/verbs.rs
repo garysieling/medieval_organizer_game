@@ -2754,6 +2754,17 @@ impl Game {
                 return;
             }
         }
+        // the traveller's ask (#1085): it shows past every real
+        // decision and past a live talk or meeting, so it answers only
+        // when all of those are off the box
+        if self.seats[seat].pending_founding.is_none()
+            && self.seats[seat].pending_agenda.is_none()
+            && self.seats[seat].talk.is_none()
+            && self.meeting.as_ref().map_or(true, |m| m.seat != seat)
+            && self.seats[seat].survey.is_some() {
+            self.survey_answered(seat, pick);
+            return;
+        }
         let Some(d) = self.seats[seat].pending_founding.take() else { return };
         use crate::game::campaign::{self, DecisionRule, Framing};
         if let Some(mut vote) = d.vote {

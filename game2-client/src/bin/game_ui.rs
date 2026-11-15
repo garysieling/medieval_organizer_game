@@ -705,6 +705,11 @@ fn main() {
         if manual_cam { event_cam.hold(); }
 
         if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", cur_model.as_ref().map(|m| m.frame).unwrap_or(0))).ok(); }
+        // a survey answer landed this frame: the shot goes into the
+        // bundle the sim just wrote under feedback/ (#1085)
+        if let Some(stem) = cur_model.as_ref().and_then(|m| m.feedback_capture.clone()) {
+            buf.save_bmp(&format!("feedback/{}.bmp", stem)).ok();
+        }
         // the frame's done with: the next render draws into it
         view.recycle(buf);
 

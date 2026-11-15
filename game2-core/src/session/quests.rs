@@ -480,6 +480,7 @@ impl Game {
             );
         }
         self.toasts.push((format!("The parcel reached {}", name), self.tick + 60));
+        self.seats[seat].quests_done += 1;
     }
 }
 

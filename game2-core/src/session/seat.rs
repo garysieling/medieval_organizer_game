@@ -209,6 +209,20 @@ pub struct Seat {
     /// This seat's pair of hands has stopped and the work's been passed
     /// on (or died with them) - the succession runs once, per seat (#962)
     pub player_passed: bool,
+    /// The traveller's ask on the conversation box, waiting on their
+    /// pick (Command::Decide) - the in-fiction survey (#1085)
+    pub survey: Option<survey::SurveyOffer>,
+    /// The day the traveller may ask this seat again - the asks don't nag
+    pub survey_wait: u64,
+    /// The beats this seat's already been asked on (SurveyBeat::bit) -
+    /// the same question doesn't come round twice
+    pub survey_seen: u32,
+    /// Odd jobs seen through: the quest-done beat (#1085)
+    pub quests_done: u32,
+    /// The frame a survey answer landed on, and the file stem the
+    /// bundle was written under - the UiModel carries the flag for
+    /// exactly that frame so the client saves the shot once (#1085)
+    pub survey_capture: Option<(u32, String)>,
 }
 
 impl Default for Seat {
@@ -220,7 +234,8 @@ impl Default for Seat {
                quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,
-               player_passed: false }
+               player_passed: false, survey: None, survey_wait: 0, survey_seen: 0,
+               quests_done: 0, survey_capture: None }
     }
 }
 

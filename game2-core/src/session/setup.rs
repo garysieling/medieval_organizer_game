@@ -1233,6 +1233,7 @@ impl Game {
             inquisition: None,
             interdict: false,
             martyr_grave: None,
+            feedback_dir: Some("feedback".into()),
             prophet_movement: None,
             path_cache: crate::engine::det::HashMap::default(),
             villager_poses: crate::engine::det::HashMap::default(),

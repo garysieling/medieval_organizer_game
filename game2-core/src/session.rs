@@ -12,6 +12,7 @@ pub mod routine;
 pub mod country;
 pub mod quests;
 pub mod mystery;
+pub mod survey;
 pub mod rebels;
 pub mod roster;
 pub mod formation;
@@ -1466,6 +1467,9 @@ pub struct Game {
     pub hermit: Option<Entity>,
     /// The martyr's grave - where they hanged the one who said no
     pub martyr_grave: Option<(i32, i32)>,
+    /// Where the traveller's-ask bundles land (#1085): `feedback/` in
+    /// play; tests point it elsewhere, or None to write nothing
+    pub feedback_dir: Option<String>,
     /// The prophetic movement, while one's alive: the prophet who took
     /// the calling, the day the vision named, and whether the remnant
     /// stayed after it passed (#878)

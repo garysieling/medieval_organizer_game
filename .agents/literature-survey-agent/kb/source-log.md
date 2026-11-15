@@ -859,3 +859,9 @@ Condensed per-stream log; full per-source ratings live in each review's Key Sour
 - Marshall Ganz / Leading Change Network public narrative curriculum - A - Story of Self/Us/Now
 - Edward T. Chambers, *Roots for Radicals* ch.2 (IAF relational meeting) - A- - scouting 1:1, pull
 - IWW Organizer Training 101 / EWOC - B+ - charting, roleplay scoring
+
+### 2026-11-14 - Social-Skills Training (#1210)
+- Laugeson & Frankel, PEERS treatment manual + UCLA program papers - A - trading information, entry/exit, repair, failure modes
+- McGinnis & Goldstein, Skillstreaming - A- - numbered skill-steps per behavior
+- Garcia Winner, Social Thinking - B+ - expected/unexpected contextual framing
+- MacLeod, The Social Skills Guidebook - B - civilian version, same rule set

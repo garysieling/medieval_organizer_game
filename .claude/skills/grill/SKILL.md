@@ -73,6 +73,17 @@ tagging.
    "Option A / Option B". If the user says "use your judgment", record
    each judgment call and proceed. Don't ask what you can verify
    yourself.
+
+   Question quality (user feedback, #1225): a question the user can't
+   parse is a failed question. Before asking, translate the mechanic
+   into plain language - name the real-world analogue when one exists
+   ("is this bribery?"), define any coined term in the question text
+   itself, and spell out what each option concretely allows or forbids
+   ("can you bribe a total stranger who never told you anything, or
+   must they have shared at least one thing first?"). If a draft
+   question leans on a gate/stage/flag name, rewrite it as the player
+   experience it produces. When the user answers "Other" with
+   "I don't understand", reframe and re-ask - don't record a guess.
 4. **Record** - post one comment on the issue with the briefing summary,
    the Q&A and decisions, so a fresh session understands them without
    this chat:

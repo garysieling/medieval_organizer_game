@@ -1424,6 +1424,11 @@ pub struct Game {
     /// The village's own agreed rules - the neighbors' law beside the
     /// lord's book
     pub bylaws: Vec<crate::game::community_law::ByeLaw>,
+    /// The moot's bench: five villagers of standing who hear the
+    /// neighbors' wrongs - the peers' own court (#1262)
+    pub moot_seats: Vec<Entity>,
+    /// When the bench was last seated
+    pub moot_seated: u64,
     /// Incidents counted per friction kind until they earn a rule
     pub bylaw_friction: crate::engine::det::HashMap<crate::game::community_law::ByeKind, u32>,
     /// The grievance triples already counted, so each counts once

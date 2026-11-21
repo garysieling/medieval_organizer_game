@@ -31,6 +31,95 @@ fn named(g: &Game, v: Entity) -> &'static str {
 }
 
 impl Game {
+    /// The moot's day: peers judging peers - a bench of villagers of
+    /// standing hears one wrong a session, by craft custom not the
+    /// lord's book: outsiders lose, a packed bench favors the cause,
+    /// and the prentice's word can outweigh a cruel master's. The
+    /// loser may still ride it up to the lord (#1262)
+    pub(in crate::session) fn moot_tick(&mut self, tick: u64) {
+        if tick % 40 != 25 { return; }
+        let members: crate::engine::det::HashSet<Entity> = self.world
+            .get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
+        let is_member = |x| members.contains(&x);
+        // the bench stands a season: standing wins a seat, and the
+        // cause works the room like any other
+        if self.moot_seats.is_empty() || tick >= self.moot_seated + 240 {
+            let roster: Vec<Entity> = self.villagers.iter().copied()
+                .filter(|&v| live(self, v)
+                    && self.world.get_component::<Kid>(v).is_none()
+                    && self.world.get_component::<country::Outlander>(v).is_none())
+                .collect();
+            let mut scored: Vec<(f32, Entity)> = Vec::new();
+            for v in roster {
+                scored.push((self.rep_of(v) + if is_member(v) { 0.15 } else { 0.0 }, v));
+            }
+            scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+            self.moot_seats = scored.into_iter().take(5).map(|(_, v)| v).collect();
+            self.moot_seated = tick;
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor),
+                format!("t{}: the moot takes its bench - five of the village's own sit to judge.", tick),
+            );
+        }
+        if self.moot_seats.is_empty() { return; }
+        // one wrong a session: a live grievance laid on a real enemy
+        let mut cases: Vec<(Entity, Entity, &'static str)> = Vec::new();
+        for &v in self.villagers.iter() {
+            if !live(self, v) { continue; }
+            let probs = live_problems(self, v, tick);
+            let kind = probs.iter().find_map(|p| match p {
+                desires::Problem::ShortChanged | desires::Problem::Robbed => Some("light dealing"),
+                desires::Problem::Blamed => Some("slander"),
+                desires::Problem::Rowdy => Some("a fray"),
+                _ => None,
+            });
+            let Some(kind) = kind else { continue; };
+            let accused = self.villagers.iter().copied()
+                .filter(|&o| o != v && live(self, o))
+                .filter(|&o| bond_between(self, v, o) < -0.2)
+                .min_by(|&a, &b| bond_between(self, v, a)
+                    .partial_cmp(&bond_between(self, v, b)).unwrap_or(std::cmp::Ordering::Equal));
+            if let Some(a) = accused { cases.push((v, a, kind)); }
+        }
+        if cases.is_empty() { return; }
+        let (plaintiff, accused, kind) = cases[self.rng.below(cases.len() as i32) as usize];
+        // the verdict's custom: outsiders lose, a packed bench hears
+        // the cause, the prentice's word outweighs a cruel master's,
+        // else standing carries it
+        let packed = self.moot_seats.iter().filter(|&&s| is_member(s)).count() >= 3;
+        let outsider = self.world.get_component::<country::Outlander>(accused).is_some();
+        let prentice_suit = self.world.get_component::<Craft>(plaintiff)
+            .and_then(|c| c.master).map(|m| m == accused).unwrap_or(false);
+        let plaintiff_wins = outsider || (packed && is_member(plaintiff)) || prentice_suit
+            || self.rep_of(plaintiff) > self.rep_of(accused);
+        let (winner, loser) = if plaintiff_wins { (plaintiff, accused) } else { (accused, plaintiff) };
+        let (wname, lname) = (named(self, winner), named(self, loser));
+        let purse = self.world.get_component::<Purse>(loser).map(|p| p.gold).unwrap_or(0.0);
+        let fine = (purse * BYE_FINE_SHARE).max(BYE_FINE_MIN);
+        if let Some(p) = self.world.get_component_mut::<Purse>(loser) { p.gold -= fine.min(p.gold); }
+        self.log_entity_ev(
+            EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), loser,
+            format!(
+                "t{}: the moot hears the {} - it finds for {}, and {} pays {:.0} gold.",
+                tick, kind, wname, lname, fine
+            ),
+        );
+        // the peers' word isn't the last: a loser with the stomach
+        // rides it up to the lord's court
+        if self.rng.below(4) == 0 {
+            if let Some(p) = self.world.get_component_mut::<Purse>(loser) {
+                let fee = (p.gold * 0.05).min(p.gold);
+                p.gold -= fee;
+            }
+            self.lord_strength = (self.lord_strength + 0.01).min(1.0);
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor),
+                format!("t{}: {} won't take the moot's word - the suit rides up to the lord.", tick, lname),
+            );
+        }
+    }
+
     /// Each fresh grievance the neighbors could make a rule about is an
     /// incident: three of a kind and the village agrees a bye-law; once
     /// the rule stands, a fresh incident is a violation and draws a fine

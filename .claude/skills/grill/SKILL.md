@@ -47,11 +47,16 @@ tagging.
    law; `docs/bug-audit.md` and `docs/unwired-backlog.md` are the
    autopsy style).
 3. **Brief, then grill** - the user should never answer a question
-   cold. Before the first `ask_user_question` call, post a briefing in
-   chat covering:
+   cold. A grilling pass flits from ticket to ticket, so every ticket's
+   briefing must re-ground them completely. Before the first
+   `ask_user_question` call, post a briefing in chat covering:
    - Which ticket: `#N - <title>`, plus one or two sentences on what it
      wants in plain terms. No jargon, no "see the issue" - the user may
      not remember which ticket this is.
+   - The impact: what changes for the player or the game if this lands
+     (or what stays broken if it's a bug). One concrete sentence -
+     "the TALK panel would show X", "marches would keep failing when Y" -
+     so they know why the question matters before they're asked it.
    - What the code does today, with file paths - e.g. "`session/x.rs`
      already has `foo()` but nothing schedules it". This is what makes
      the question answerable.
@@ -70,9 +75,16 @@ tagging.
    Every question must stand alone: name the ticket in the question
    text and state the concrete fork ("Ticket #N: should X, or Y?").
    Option labels and descriptions carry the trade-offs - never bare
-   "Option A / Option B". If the user says "use your judgment", record
-   each judgment call and proceed. Don't ask what you can verify
-   yourself.
+   "Option A / Option B". Tag each question's kind so the user knows
+   what judgment they're lending:
+   - `[design]` - what the game should do: mechanics, feel, scope,
+     consequences. Most questions are these.
+   - `[arch]` - how it should be built: where code lives, data shapes,
+     wire changes, layering. Say which file/system the choice touches
+     ("should this live in `session/verbs.rs` or a new subsystem?") so
+     it doesn't read as a design question in disguise.
+   If the user says "use your judgment", record each judgment call and
+   proceed. Don't ask what you can verify yourself.
 
    Question quality (user feedback, #1225): a question the user can't
    parse is a failed question. Before asking, translate the mechanic
@@ -100,8 +112,10 @@ tagging.
 
 - One ticket at a time; never batch questions across tickets.
 - Questions and briefings stand alone: someone reading the chat (or the
-  recorded comment) cold must know which ticket, what the code does
-  today, and what the fork is - no "as discussed above" or bare jargon.
+  recorded comment) cold must know which ticket, what it changes, what
+  the code does today, and what the fork is - no "as discussed above"
+  or bare jargon. `[design]` asks land the game decision; `[arch]`
+  asks land the build decision.
 - The comment is the deliverable: `/ticket-loop` reads it in Stage 1/2,
   so write answers a stranger could implement from.
 - Don't edit the issue body; comments + label only.

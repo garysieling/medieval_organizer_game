@@ -177,3 +177,63 @@ fn test_the_communitys_pull_is_told_once() {
     assert_eq!(g.log.iter().filter(|l| l.contains("one voice")).count(), 1,
         "the band's told once each, not every week");
 }
+
+fn foe(g: &mut Game, a: Entity, b: Entity) {
+    for _ in 0..3 {
+        relationships::record_interaction(&mut g.world, a,
+            relationships::Interaction { other: b,
+                kind: relationships::InteractionKind::Conflict, intensity: 1.0 });
+    }
+}
+
+fn rep(g: &mut Game, v: Entity, score: f32) {
+    g.world.add_component(v, crate::sim::reputation_qsp::ReputationState {
+        stage: crate::sim::reputation_qsp::RepStage::Known, score, transition_rates: vec![] });
+}
+
+#[test]
+fn test_the_moot_sits_and_hears_a_wrong() {
+    let mut g = Game::new();
+    let (v, a) = (villager(&g), g.villagers[30]);
+    grieve(&mut g, v, desires::Problem::Blamed, 0);
+    foe(&mut g, v, a);
+    g.moot_tick(25);
+    assert_eq!(g.moot_seats.len(), 5, "the bench didn't sit");
+    assert!(g.log.iter().any(|l| l.contains("the moot hears")),
+        "no case was heard: {:?}", g.log.iter().rev().take(4).collect::<Vec<_>>());
+}
+
+#[test]
+fn test_the_outsider_loses_the_peers_ears() {
+    let mut g = Game::new();
+    let out = g.villagers.iter().copied()
+        .find(|&v| g.world.get_component::<country::Outlander>(v).is_some())
+        .expect("a country soul");
+    let v = villager(&g);
+    grieve(&mut g, v, desires::Problem::ShortChanged, 0);
+    foe(&mut g, v, out);
+    set_gold(&mut g, out, 30.0);
+    g.moot_tick(25);
+    let gold = g.world.get_component::<Purse>(out).map(|p| p.gold).unwrap_or(99.0);
+    assert!(gold < 30.0, "the outsider kept their purse");
+}
+
+#[test]
+fn test_a_packed_bench_hears_the_cause() {
+    let mut g = Game::new();
+    let members: Vec<Entity> = g.villagers.iter().copied().take(5).collect();
+    for &m in &members {
+        g.world.get_component_mut::<crate::sim::community::Organization>(g.org)
+            .map(|o| o.members.push(m));
+        rep(&mut g, m, 0.9);
+    }
+    let (v, a) = (members[0], g.villagers[6]);
+    grieve(&mut g, v, desires::Problem::Blamed, 0);
+    foe(&mut g, v, a);
+    // a's standing's higher - and loses anyway to the packed bench
+    rep(&mut g, a, 0.95);
+    set_gold(&mut g, a, 30.0);
+    g.moot_tick(25);
+    let gold = g.world.get_component::<Purse>(a).map(|p| p.gold).unwrap_or(99.0);
+    assert!(gold < 30.0, "the packed bench didn't find for its own");
+}

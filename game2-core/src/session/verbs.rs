@@ -2858,7 +2858,24 @@ impl Game {
         }
         // the call's question: put the matter, or probe what they
         // actually want (#1267)
+        // which of their own history the organizer tells (#1248)
+        if let Some((_, events)) = self.seats[seat].testimony_offer.take() {
+            if let Some(ev) = events.get(pick) {
+                if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+                    p.testimony = Some(ev.clone());
+                }
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: you'll open with your own story - why you're here.", self.tick),
+                );
+            }
+            return;
+        }
         if self.seats[seat].frame_offer.take().is_some() {
+            if pick == 2 && self.testimony_ready(seat) {
+                self.seats[seat].testimony_offer = Some((self.tick, self.testimony_events()));
+                return;
+            }
             let probe = pick == 1;
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
                 p.probe = probe;

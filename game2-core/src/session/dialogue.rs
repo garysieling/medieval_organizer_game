@@ -1501,7 +1501,22 @@ impl Game {
                 ],
                 decides: true, leave: false });
         }
+        if let Some((_, events)) = &s.testimony_offer {
+            return Some(ConvoPanelV {
+                title: "THE CALL - WHAT WILL YOU TELL".into(),
+                rows: vec![
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                        text: "Tell them why you're here: a thing you lived through, then what this room shares, then what tonight asks.".into() },
+                ],
+                options: events.clone(),
+                decides: true, leave: false });
+        }
         if s.frame_offer.is_some() {
+            let mut options: Vec<String> = vec![
+                "Put the matter - what ails the village".into(),
+                "Probe - what do you actually want, and for whom?".into(),
+            ];
+            if self.testimony_ready(seat) { options.push("Testify - tell them why you're here".into()); }
             return Some(ConvoPanelV {
                 title: "THE CALL - WHAT WILL YOU ASK".into(),
                 rows: vec![
@@ -1510,10 +1525,7 @@ impl Game {
                     TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
                         text: "Put the matter and they'll talk the village's troubles. Ask what they want and you'll hear them - and it stays with them after.".into() },
                 ],
-                options: vec![
-                    "Put the matter - what ails the village".into(),
-                    "Probe - what do you actually want, and for whom?".into(),
-                ],
+                options,
                 decides: true, leave: false });
         }
         if let Some(d) = &s.pending_founding {

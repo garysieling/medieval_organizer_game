@@ -197,6 +197,11 @@ matter, or **probe** - what do you actually want, and who are you doing
 it for? Followers name who they do it for (and if the lord's man is in
 the room, a writ finds that name); the guarded give up a want. Everyone
 who heard it carries a new want home that ripens about ten days later.
+Or **testify**: tell the room why you're here - pick one of the hard
+things you've lived through (a hanging, a writ, a fire), then what this
+room shares, then tonight's choice. A warm room carries it home and its
+alignment deepens; a cold one hears a stranger's story. It never hurts,
+but it waits about three months before you can tell it again.
 
 ### What Emerges
 

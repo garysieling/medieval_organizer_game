@@ -417,6 +417,9 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::TakeCache => Button { label: "Take the cache".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (120, 100, 60) },
         // the delivery sits in the clear below the log box
         CtxAct::ShareFindings => Button { label: "Tell them what you know".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
+        CtxAct::MarkBook => Button { label: "Mark their book free".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
+        CtxAct::ForgePass => Button { label: "Forge their pass".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
+        CtxAct::ReportMasterless => Button { label: "Report them masterless".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
         // a gift rides the card's bottom row between Seat and Strike
         CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
         // the sale shares the big row's left half with Gather's

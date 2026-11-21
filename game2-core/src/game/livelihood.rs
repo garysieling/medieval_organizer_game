@@ -93,6 +93,8 @@ pub fn needs_input(world: &World, e: Entity) -> Option<&'static str> {
 /// tasking arrangement skim a share for the senior. Returns the units of
 /// output made, the level reached if it changed, and where output went.
 pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocation::Level>) {
+    // the masterless take no lawful work (#1261)
+    if world.get_component::<crate::game::pass::Masterless>(e).is_some() { return (0.0, None); }
     let (vocation_, _has_master, has_tools, workplace, tasked_by, overseer_boost) = {
         let Some(c) = world.get_component::<Craft>(e) else { return (0.0, None) };
         let tools = world.get_component::<Satchel>(e)

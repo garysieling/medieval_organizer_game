@@ -1,0 +1,29 @@
+{
+ "created_at": 1795280037,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "fd93b004-7d0c-4b17-94d1-cc1e3ccfd181",
+ "outputs_retained_until": 1795366384,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 90,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "person-noble-m-tan-45dc6f88",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: male noble in fur-trimmed cloak and fine hose, warm tan skin and dark hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T11:53:56",
+ "seconds": 53.4
+}

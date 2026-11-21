@@ -27,8 +27,8 @@ fn the_roster_offers_adults_and_children() {
     let r = roster::roster(MAP_SEED);
     assert!(r.iter().any(|s| !s.kid), "the roster offers a grown-up");
     assert!(r.iter().any(|s| s.kid), "the roster offers a child");
-    // children only wear the young looks; grown-ups spread over the pack
-    assert!(r.iter().filter(|s| s.kid).all(|s| s.look < 2));
+    // children only wear the child looks; grown-ups spread over the pack
+    assert!(r.iter().filter(|s| s.kid).all(|s| s.look < 6));
     let looks: crate::engine::det::HashSet<usize> =
         r.iter().filter(|s| !s.kid).map(|s| s.look).collect();
     assert!(looks.len() > 1, "grown-ups don't all wear one face");

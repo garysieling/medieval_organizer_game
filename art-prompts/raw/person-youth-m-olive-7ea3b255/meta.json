@@ -1,0 +1,29 @@
+{
+ "created_at": 1795279517,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "49ac0935-74ef-4419-8c5a-2549b53931b8",
+ "outputs_retained_until": 1795365857,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 92,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "person-youth-m-olive-7ea3b255",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: teenage boy in a loose tunic, olive skin and dark wavy hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T11:45:16",
+ "seconds": 60.8
+}

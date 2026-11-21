@@ -1,0 +1,29 @@
+{
+ "created_at": 1795280079,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "34ae0621-861c-4147-a95c-feb0542e520b",
+ "outputs_retained_until": 1795366438,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 89,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "person-noble-f-fair-dceed394",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: female noble in long gown and headdress, fair skin and light brown hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T11:54:38",
+ "seconds": 41.4
+}

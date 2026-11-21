@@ -20,9 +20,17 @@ fn test_generated_ground_set_and_villager_walks_load() {
     assert_eq!((w.roads.len(), w.rivers.len(), w.rivers_ice.len()), (15, 17, 17));
     // crop fields: both growth stages of wheat and corn
     assert_eq!((art.tiles[0].wheat.len(), art.tiles[0].corn.len()), (2, 2));
-    // every villager look, the watch and the priest walk; the street is
-    // the generated cottages, with snowy versions for winter
-    assert!(art.villager_walks.iter().all(|w| w.is_some()), "every villager look has a walk sheet");
+    // every pack villager look, the watch and the priest walk; the street is
+    // the generated cottages, with snowy versions for winter. The pack's
+    // looks sit behind the generated children and ahead of the generated
+    // grown stills, which slide until their own walk cycles exist (#691)
+    assert!(art.villager_walks[art.kid_looks..art.kid_looks + art.pack_looks]
+        .iter().all(|w| w.is_some()), "every pack villager look has a walk sheet");
+    assert_eq!(art.kid_looks, 6, "the six generated children lead the looks");
+    assert!(art.villager_walks[..art.kid_looks].iter().all(|w| w.is_none()),
+        "the children slide, they don't stride");
+    assert!(art.villager_walks[art.kid_looks + art.pack_looks..].iter().all(|w| w.is_none()),
+        "the grown stills slide too");
     assert!(art.guard_walks.len() == 4 && art.guard_walks.iter().all(|w| w.is_some()));
     assert!(art.priest_walk.is_some());
     // 9 cottages plus the 3 botháns (squat thatch cottages, #708),
@@ -32,7 +40,7 @@ fn test_generated_ground_set_and_villager_walks_load() {
     // the botháns sit at the tail of the rotation, summer and winter
     assert!(art.houses[9..].iter().all(|s| s.is_some()));
     assert!(art.houses_winter[9..].iter().all(|s| s.is_some()));
-    let ws = art.villager_walks[0].as_ref().unwrap();
+    let ws = art.villager_walks[art.kid_looks].as_ref().unwrap();
     assert_eq!((ws.frames.len(), ws.frames[0].len()), (4, 4));
     assert!((28..=40).contains(&(ws.feet - ws.head)), "a grown-up is ~35px tall, not {}", ws.feet - ws.head);
 }

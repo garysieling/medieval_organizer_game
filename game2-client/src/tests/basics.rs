@@ -44,17 +44,34 @@ fn test_name_label_sits_just_above_the_head_and_centred() {
 
 #[test]
 fn test_children_wear_only_the_young_pack_looks() {
-    // the pack's first two figures are the peasant lad and lass: kids
-    // cycle just those, so no elder's beard or noble's poise lands on
-    // one - and they still get a boy and a girl between them
+    // with no child sprites loaded (kid_n = 0) kids still cycle the
+    // pack's two youngest figures, so no elder's beard or noble's poise
+    // lands on one - and they still get a boy and a girl between them
     for i in 0..40 {
-        let look = figure_look(true, i, 8);
+        let look = figure_look(true, i, 0, 8);
         assert!(look < 2, "kid {i} drew grown-up look {look}");
     }
-    assert_ne!(figure_look(true, 26, 8), figure_look(true, 27, 8), "the children should differ");
+    assert_ne!(figure_look(true, 26, 0, 8), figure_look(true, 27, 0, 8), "the children should differ");
     // grown folk still cycle the whole pack
-    assert_eq!(figure_look(false, 2, 8), 2);
-    assert_eq!(figure_look(false, 9, 8), 1);
+    assert_eq!(figure_look(false, 2, 0, 8), 2);
+    assert_eq!(figure_look(false, 9, 0, 8), 1);
+}
+
+#[test]
+fn test_kid_sprites_partition_the_looks() {
+    // the generated children lead villager_sprites: kids draw only
+    // them, grown looks all sit behind the kid range
+    for i in 0..40 {
+        let look = figure_look(true, i, 6, 53);
+        assert!(look < 6, "kid {i} drew grown-up look {look}");
+    }
+    for i in 0..40 {
+        let look = figure_look(false, i, 6, 53);
+        assert!(look >= 6, "grown {i} drew a child's look {look}");
+    }
+    // the six children and every grown look are all reachable
+    assert_eq!((0..6).map(|i| figure_look(true, i, 6, 53)).collect::<std::collections::HashSet<_>>().len(), 6);
+    assert_eq!((0..47).map(|i| figure_look(false, i, 6, 53)).collect::<std::collections::HashSet<_>>().len(), 47);
 }
 
 #[test]

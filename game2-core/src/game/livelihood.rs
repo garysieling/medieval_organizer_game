@@ -14,6 +14,13 @@ use crate::game::vocation::{self, Craft, TownRole};
 #[derive(Debug)]
 pub struct Purse { pub gold: f32 }
 
+/// A master's generosity: how free their table runs - the meals, the
+/// cloaks, the slack days a wage writ can't count - and the running
+/// tally of what they've paid off the book, the secret the cause
+/// holds (#1264)
+#[derive(Debug, Clone, Default)]
+pub struct Generosity { pub score: f32, pub in_kind: f32 }
+
 /// What a character carries on them
 #[derive(Debug, Default)]
 pub struct Satchel { pub goods: HashMap<String, u32> }

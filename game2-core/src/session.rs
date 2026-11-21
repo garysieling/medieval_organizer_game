@@ -1160,6 +1160,13 @@ pub struct Game {
     /// The reckoning of friends (#1255): whose public walk the dilemma
     /// card's asking about - stand beside them, or keep the distance
     pub reckoning: Option<Entity>,
+    /// The Noah row (#1257): the married pair carrying their row in
+    /// the street - live till the day ends or a mediator talks one down
+    pub noah_row: Option<crate::session::events::NoahRow>,
+    /// How often a house's rowed in public (#1257): the count that
+    /// wears the marital bond toward the separation line - the street
+    /// saw the crack first
+    pub row_count: crate::engine::det::HashMap<(Entity, Entity), u8>,
     /// The plea at sentencing (#1256): the sentence waits on the card -
     /// speak for mercy, or let it stand
     pub plea: Option<crate::game::sanctions::Plea>,

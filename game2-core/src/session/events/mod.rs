@@ -55,7 +55,7 @@ pub enum EventId {
     // ill luck
     ChimneyFire, FouledWell, GranaryLeak, CartOverturns, DrownedInPond,
     LostChild, Foundling, Quarrel, AlehouseBrawl, OldOakFalls, Assize,
-    CellarThief, SheepInCradle,
+    CellarThief, SheepInCradle, NoahRow,
     // findings
     CoinHoard, OldStones, SpringBubbles, HoneyTree, Truffle, HerbFlush,
     BerryYear, MushroomFlush, StormWashUp, ProdigalSon,
@@ -120,6 +120,37 @@ pub struct EweTheft {
     pub fork_open: bool,
     /// The choice made: the name stayed in your pocket for later
     pub held: bool,
+}
+
+/// The Noah row (#1257): a marriage's disagreement carried into the
+/// street. Live until the day ends or a mediator talks one down -
+/// the matter's seeded from real state: the meetings she won't
+/// stomach, the rent that bought a lute, or the folly she won't
+/// follow him into
+#[derive(Debug, Clone)]
+pub struct NoahRow {
+    /// One half of the union
+    pub a: Entity,
+    /// The other half
+    pub b: Entity,
+    /// What the row's over
+    pub matter: RowMatter,
+    /// The day it stops answering a Talk - the row's burnt out by then
+    pub until: u64,
+}
+
+/// What the street's hearing the pair row over (#1257)
+#[derive(Debug, Clone)]
+pub enum RowMatter {
+    /// A member's spouse denouncing the meetings - hazard and
+    /// opening both (the watcher who takes the member's side is
+    /// sympathetic to the cause)
+    Cause { member: Entity, issue: crate::game::desires::IssueTag },
+    /// Wants against means: the unsatisfied want that spent the rent -
+    /// `spender` is the half that wanted it
+    Want { want: crate::game::desires::Want, spender: Entity },
+    /// No ledger seed - the ark itself: a folly she won't follow
+    Folly,
 }
 
 /// The shape an event takes on the map
@@ -267,6 +298,7 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: Assize, name: "the assize of ale", kind: Moment, fig: Fig::Traveller, gap: 200, span: 140, stay: 0, cry: "" },
     EventSpec { id: CellarThief, name: "a thief in the night", kind: Moment, fig: Fig::Traveller, gap: 240, span: 160, stay: 0, cry: "" },
     EventSpec { id: SheepInCradle, name: "a ewe gone missing", kind: Moment, fig: Fig::Traveller, gap: 260, span: 180, stay: 0, cry: "" },
+    EventSpec { id: NoahRow, name: "a row in the street", kind: Moment, fig: Fig::Traveller, gap: 240, span: 160, stay: 0, cry: "" },
     EventSpec { id: OldOakFalls, name: "the old oak falls", kind: Moment, fig: Fig::Traveller, gap: 600, span: 400, stay: 0, cry: "" },
     // ---- findings ----
     EventSpec { id: CoinHoard, name: "a coin hoard", kind: Moment, fig: Fig::Traveller, gap: 500, span: 380, stay: 0, cry: "" },
@@ -370,7 +402,7 @@ pub fn prop_slug(id: EventId) -> Option<&'static str> {
         DrownedInPond => "prop-drowned-pond",
         LostChild => "prop-lost-child",
         Foundling => "prop-foundling",
-        Quarrel => "prop-quarrel",
+        Quarrel | NoahRow => "prop-quarrel",
         StormWashUp => "prop-driftwood",
         WindStorm => "prop-storm-leavings",
         _ => return None,
@@ -461,7 +493,7 @@ pub fn group(id: EventId) -> Group {
         Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger => Group::Road,
         Hailstorm | HeatWave | Drought | Flood | LightningStrike | LateFrost | IndianSummer | FirstSnow | Thaw | Aurora | MeteorShower | BloodMoon | DarkNoon | WindStorm | Mirage | SeaMonster => Group::Sky,
         WolfAtFold | FoxInYard | HawkStoops | StrayDog | StrayCat | RatPlague | Locusts | CaterpillarYear | Starlings | BeeTree | DeerInFields | WildBoar | OwlInTower | CrowsMob | FishRun => Group::Beasts,
-        ChimneyFire | FouledWell | GranaryLeak | CartOverturns | DrownedInPond | LostChild | Foundling | Quarrel | AlehouseBrawl | OldOakFalls | Assize | CellarThief | SheepInCradle => Group::IllLuck,
+        ChimneyFire | FouledWell | GranaryLeak | CartOverturns | DrownedInPond | LostChild | Foundling | Quarrel | AlehouseBrawl | OldOakFalls | Assize | CellarThief | SheepInCradle | NoahRow => Group::IllLuck,
         CoinHoard | OldStones | SpringBubbles | HoneyTree | Truffle | HerbFlush | BerryYear | MushroomFlush | StormWashUp | ProdigalSon => Group::Findings,
     }
 }
@@ -618,7 +650,7 @@ impl Game {
             EventId::ChimneyFire => self.building_entities.first()
                 .and_then(|&e| self.world.get_component::<Pos>(e))
                 .map(|p| (p.x, p.y)).unwrap_or(market),
-            EventId::GranaryLeak | EventId::Quarrel | EventId::CartOverturns
+            EventId::GranaryLeak | EventId::Quarrel | EventId::NoahRow | EventId::CartOverturns
             | EventId::Starlings | EventId::CrowsMob | EventId::WindStorm => market,
             EventId::LostChild | EventId::BeeTree | EventId::HoneyTree
             | EventId::OldOakFalls => wood_edge,

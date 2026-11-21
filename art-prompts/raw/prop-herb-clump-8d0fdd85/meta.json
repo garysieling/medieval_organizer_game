@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286757,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "0f7dc081-da57-4268-b1da-3c3ff6f422d8",
+ "outputs_retained_until": 1795373153,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 65,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "prop-herb-clump-8d0fdd85",
+ "prompt": "single isometric medieval village asset: clump of flowering medicinal herbs by a hedge",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:45:56",
+ "seconds": 4.4
+}

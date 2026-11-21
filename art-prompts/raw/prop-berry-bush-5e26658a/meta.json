@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286753,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "e67d5502-995f-4de0-a7c0-bb50b689bc3b",
+ "outputs_retained_until": 1795373148,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 65,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "prop-berry-bush-5e26658a",
+ "prompt": "single isometric medieval village asset: hedge bush heavy with dark berries",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:45:52",
+ "seconds": 4.7
+}

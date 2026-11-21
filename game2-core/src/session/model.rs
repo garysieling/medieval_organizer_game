@@ -560,6 +560,14 @@ pub struct UiModel {
     /// feast (the maypole stands there instead)
     #[serde(default)]
     pub market: Option<(f32, f32)>,
+    /// Which feast today is on the year's wheel: its name, on the feast
+    /// days - the client hangs its painting in the banner slot (#695)
+    #[serde(default)]
+    pub feast_name: Option<String>,
+    /// An event's mark still standing: its sprite's name and the spot -
+    /// a moment's leavings, a visitor's companion (#695)
+    #[serde(default)]
+    pub event_props: Vec<(f32, f32, String)>,
     /// Where the stocks stand by the market, once a sentence names their tile
     pub stocks: Option<(i32, i32)>,
     /// The village well and meeting hall on the grass by the market square

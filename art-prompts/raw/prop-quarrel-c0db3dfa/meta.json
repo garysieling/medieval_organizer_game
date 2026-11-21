@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286808,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "35450dc9-fc6c-4e82-8cfc-85e69e89a376",
+ "outputs_retained_until": 1795373204,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 64,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "prop-quarrel-c0db3dfa",
+ "prompt": "single isometric medieval village asset: two villagers face to face, fists up, small crowd",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:46:47",
+ "seconds": 4.8
+}

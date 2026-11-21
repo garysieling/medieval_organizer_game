@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286640,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "22c301bd-2b57-48b3-a724-076a9d5229ea",
+ "outputs_retained_until": 1795373035,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 68,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "creature-hawk-b744f4d7",
+ "prompt": "single isometric medieval village asset: stooping hawk with wings tucked, mid-dive",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:43:59",
+ "seconds": 5.8
+}

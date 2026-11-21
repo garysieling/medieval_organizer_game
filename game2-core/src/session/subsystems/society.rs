@@ -1199,13 +1199,6 @@ impl Game {
         // the celestial wheel: each feast falls on its own anchor day,
         // the solstices and the quarter-days the year turns on - not a
         // fixed rotation, the sky's own marking
-        const FEASTS: [(u64, &str); 5] = [
-            (81, "May Day"),            // the first of May, the spring's quarter
-            (172, "Midsummer"),         // the year's long day
-            (263, "the Harvest Home"),  // the autumn's turn
-            (314, "the Martinmas salting"), // the slaughter day's own work
-            (355, "Yule"),              // midwinter's dark
-        ];
         let Some(&(_, feast)) = FEASTS.iter().find(|(d, _)| tick % 365 == *d)
             else { return };
         // the salting day's own work: the cull and the brine land with
@@ -3678,6 +3671,21 @@ fn claim_strength(flow: f32, loyalty: f32, drag: f32) -> f32 {
 }
 
 /// Below this the lord's writ runs out: the dissolution's own bar
+/// The year's feasts, day-of-year -> name: the celestial wheel each
+/// feast hangs on
+pub const FEASTS: [(u64, &str); 5] = [
+    (81, "May Day"),            // the first of May, the spring's quarter
+    (172, "Midsummer"),         // the year's long day
+    (263, "the Harvest Home"),  // the autumn's turn
+    (314, "the Martinmas salting"), // the slaughter day's own work
+    (355, "Yule"),              // midwinter's dark
+];
+
+/// Which feast a tick falls on: the name, or none
+pub fn feast_of(tick: u64) -> Option<&'static str> {
+    FEASTS.iter().find(|(d, _)| tick % 365 == *d).map(|(_, n)| *n)
+}
+
 const DISSOLVE_AT: f32 = 0.15;
 /// Days the crown takes answering a broken writ - the reimposition
 /// is always late

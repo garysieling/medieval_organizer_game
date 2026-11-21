@@ -89,3 +89,16 @@ fn test_coming_of_age_draws_a_neighbourhood_celebration() {
     assert!(g.log.iter().any(|l| l.contains("comes of age")), "they take up a trade");
     assert!(g.log.iter().any(|l| l.contains("a small celebration")), "and the neighbours mark it");
 }
+
+/// The feast days carry their paintings to the model: the client's
+/// banner slot can name the feast and hang its card (#695)
+#[test]
+fn test_the_feast_names_itself_to_the_model() {
+    let mut g = Game::new();
+    g.tick = 172;
+    g.festival_tick(172);
+    let m = g.ui_model();
+    assert_eq!(m.feast_name.as_deref(), Some("Midsummer"));
+    // an ordinary day names nothing
+    assert!(Game::new().ui_model().feast_name.is_none());
+}

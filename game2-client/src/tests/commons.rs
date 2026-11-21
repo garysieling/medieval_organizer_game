@@ -143,3 +143,48 @@ fn test_chimney_smoke_uses_the_generated_wisps() {
     assert!(with.pixels.iter().zip(without.pixels.iter()).any(|(a, b)| a != b),
         "the smoke frames never drew");
 }
+
+/// The feast day's dressing (#695): decor stands round the market only
+/// when the model names the day a feast, and a feast's own card hangs in
+/// the banner slot - keyed off the day, since the column can still be
+/// walking it in when the day ends
+#[test]
+fn test_a_feast_day_dresses_the_ring_and_hangs_its_card() {
+    let game = Game::new_seeded(MAP_SEED);
+    let mut m = game.ui_model();
+    m.feast = true;
+    m.feast_name = Some("Midsummer".into());
+    let art = Art::load_fs("../assets", 0);
+    assert_eq!(art.feast_decor.len(), 7, "the ring's seven dressings sliced");
+    assert!(art.feast_card("Midsummer").is_some(), "the summer card loaded");
+    let mut view = View::new(art);
+    (view.cam_x, view.cam_y) = cam_centred_on(m.market.unwrap().0, m.market.unwrap().1);
+    view.zoom = 2.0;
+    let dressed = view.render(&m, (-1, -1));
+    // no feast: the market ring stays bare and no card hangs
+    m.feast = false;
+    m.feast_name = None;
+    let bare = view.render(&m, (-1, -1));
+    assert!(dressed.pixels.iter().zip(bare.pixels.iter()).any(|(a, b)| a != b),
+        "a feast day draws its dressing");
+}
+
+/// An event's mark (#695): when the model feeds an event prop the
+/// sprite stands at its spot, drawn with the props
+#[test]
+fn test_an_event_prop_stands_at_its_spot() {
+    let game = Game::new_seeded(MAP_SEED);
+    let mut m = game.ui_model();
+    let (mx, my) = m.market.unwrap();
+    m.event_props.push((mx + 2.0, my + 1.0, "prop-fallen-oak".into()));
+    let art = Art::load_fs("../assets", 0);
+    assert!(art.event_prop("prop-fallen-oak").is_some(), "the oak sliced into the atlas");
+    let mut view = View::new(art);
+    (view.cam_x, view.cam_y) = cam_centred_on(mx + 2.0, my + 1.0);
+    view.zoom = 2.0;
+    let with = view.render(&m, (-1, -1));
+    m.event_props.clear();
+    let without = view.render(&m, (-1, -1));
+    assert!(with.pixels.iter().zip(without.pixels.iter()).any(|(a, b)| a != b),
+        "the oak never drew");
+}

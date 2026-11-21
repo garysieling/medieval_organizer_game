@@ -313,6 +313,53 @@ pub fn visit_slug(id: EventId) -> Option<&'static str> {
     VISIT_SLUGS.iter().find(|&&x| x == slug).copied()
 }
 
+/// Which generated sprite marks an event's spot
+/// (assets/rd/events/<slug>.png, #695): a Moment's leavings stand a
+/// couple of days where it fell; the bear-ward's bear stands beside his
+/// pitch the whole stay. `None` for events with no mapped art - their
+/// sprites, if sliced, sit in the atlas unwired.
+pub fn prop_slug(id: EventId) -> Option<&'static str> {
+    Some(match id {
+        // the beasts: the creature itself standing where it struck
+        WolfAtFold => "creature-wolf",
+        FoxInYard => "creature-fox",
+        HawkStoops => "creature-hawk",
+        RatPlague => "creature-rat-swarm",
+        Locusts => "creature-locust-cloud",
+        CaterpillarYear => "creature-caterpillar",
+        Starlings => "creature-starling-flock",
+        DeerInFields => "creature-deer",
+        WildBoar => "creature-wild-boar",
+        OwlInTower => "creature-barn-owl",
+        CrowsMob => "creature-crow-mob",
+        FishRun => "creature-leaping-fish",
+        Truffle => "creature-truffle-pig",
+        // the bear-ward leads his bear: it stands at the pitch
+        BearWard => "creature-bear",
+        // the findings and ill luck: the thing itself left at its spot
+        BeeTree => "prop-bee-tree",
+        HoneyTree => "prop-honey-tree",
+        OldOakFalls => "prop-fallen-oak",
+        OldStones => "prop-old-stones",
+        SpringBubbles => "prop-spring",
+        MushroomFlush => "prop-mushroom-cluster",
+        BerryYear => "prop-berry-bush",
+        HerbFlush => "prop-herb-clump",
+        CoinHoard => "prop-coin-hoard",
+        CartOverturns => "prop-cart-overturned",
+        FouledWell => "prop-fouled-well",
+        GranaryLeak => "prop-granary-leak",
+        ChimneyFire => "prop-chimney-fire",
+        DrownedInPond => "prop-drowned-pond",
+        LostChild => "prop-lost-child",
+        Foundling => "prop-foundling",
+        Quarrel => "prop-quarrel",
+        StormWashUp => "prop-driftwood",
+        WindStorm => "prop-storm-leavings",
+        _ => return None,
+    })
+}
+
 /// `id` by name: the variant ("Tinker") or the map name ("the tinker") -
 /// what the wasm and ws test surfaces take
 pub fn event_id(name: &str) -> Option<EventId> {
@@ -489,6 +536,8 @@ impl Game {
                     aux: 0,
                     petters: Default::default(),
                 });
+                // a companion at his side (the bear-ward's bear)
+                self.dress_event_spot(id, (at.0 as f32 + 1.0, at.1 as f32));
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
                     format!("t{}: {} has come to town.", self.tick, s.name),
@@ -500,12 +549,16 @@ impl Game {
                 self.rare.push(RareEvent { id, e: None, path: vec![], until: Some(self.tick + s.stay),
                     at: None, leaving: false, aux: 0, petters: Default::default() });
                 self.event_began(id);
+                // its mark stands the spell's whole run, not a moment's
+                // two days - dress_event_spot already keeps it `stay` days
+                self.dress_event_spot(id, self.prop_spot(id));
                 // its first day is this one - the daily tick for tomorrow
                 // hasn't come yet, and a one-day spell sees no other
                 self.event_day(id, self.tick);
             }
             EventKind::Moment => {
                 self.event_moment(id);
+                self.dress_event_spot(id, self.prop_spot(id));
             }
         }
         self.rare_fired.push((id, self.tick));
@@ -526,6 +579,44 @@ impl Game {
                 self.map.nearest_buildable(mp.0 + 2, mp.1 + 2).unwrap_or(self.village)
             }
         }
+    }
+
+    /// Where an event's mark stands: the pond for a drowning, the well
+    /// for a fouling, the church door for a foundling, the fields' edge
+    /// for the beasts and findings, the square for a quarrel (#695)
+    fn prop_spot(&self, id: EventId) -> (f32, f32) {
+        let market = self.world.get_component::<Pos>(self.market_food)
+            .map(|p| (p.x, p.y)).unwrap_or((self.village.0 as f32, self.village.1 as f32));
+        let church = self.church.and_then(|e| self.world.get_component::<Pos>(e))
+            .map(|p| (p.x, p.y)).unwrap_or(market);
+        let field = self.crop_fields.first().and_then(|&e| self.world.get_component::<Pos>(e))
+            .map(|p| (p.x, p.y)).unwrap_or(market);
+        let wood_edge = (self.town_wall.0 as f32 - 1.5, self.town_wall.1 as f32 - 1.5);
+        let lane_edge = (self.town_wall.2 as f32 + 1.5, self.town_wall.3 as f32 + 1.5);
+        match id {
+            EventId::FouledWell => self.well_tile.map(|(x, y)| (x as f32, y as f32)).unwrap_or(market),
+            EventId::DrownedInPond | EventId::FishRun =>
+                self.pit.map(|(x, y)| (x as f32, y as f32)).unwrap_or(market),
+            EventId::Foundling | EventId::OwlInTower | EventId::HawkStoops => church,
+            EventId::ChimneyFire => self.building_entities.first()
+                .and_then(|&e| self.world.get_component::<Pos>(e))
+                .map(|p| (p.x, p.y)).unwrap_or(market),
+            EventId::GranaryLeak | EventId::Quarrel | EventId::CartOverturns
+            | EventId::Starlings | EventId::CrowsMob | EventId::WindStorm => market,
+            EventId::LostChild | EventId::BeeTree | EventId::HoneyTree
+            | EventId::OldOakFalls => wood_edge,
+            EventId::StormWashUp | EventId::WolfAtFold | EventId::WildBoar => lane_edge,
+            _ => field,
+        }
+    }
+
+    /// A moment that leaves a mark: the mapped sprite stands at the
+    /// event's spot - a moment's two days, a visitor companion's whole
+    /// stay - then clears like a toast (#695)
+    fn dress_event_spot(&mut self, id: EventId, at: (f32, f32)) {
+        let Some(slug) = prop_slug(id) else { return };
+        let s = spec(id);
+        self.event_props.push((at, slug, self.tick + s.stay.max(2)));
     }
 
     /// Next time it can come: the gap window from now, jittered off the

@@ -658,6 +658,9 @@ impl Game {
             market: world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y)),
             feast: self.villagers.iter().any(|&v| world.get_component::<routine::Routine>(v)
                 .is_some_and(|r| r.mode == routine::Mode::Feasting && r.day == self.tick)),
+            feast_name: subsystems::society::feast_of(self.tick).map(str::to_string),
+            event_props: self.event_props.iter()
+                .map(|&(at, slug, _)| (at.0, at.1, slug.to_string())).collect(),
             stalls: self.stalls_standing(),
             trails: self.trails.iter().filter(|(_, t)| t.strength > 0.3)
                 .map(|(&(x, y), t)| (x as f32, y as f32, t.strength)).collect(),

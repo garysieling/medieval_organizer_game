@@ -385,6 +385,22 @@ impl View {
             let s = if m.feast { art.maypole.as_ref().or(art.market_cross.as_ref()) } else { art.market_cross.as_ref() };
             if let Some(s) = s { standing.push((x, y, Piece::Stand(s))); }
         }
+        // a feast day dresses the ring: the decor stood round the
+        // market, fixed spots so it hangs the same every year - it keys
+        // off the day, not the formed ring, since the column can still
+        // be walking it in when the day ends (#695)
+        if m.feast_name.is_some() {
+            if let Some((mx, my)) = m.market {
+                for (i, s) in art.feast_decor.iter().enumerate() {
+                    let a = i as f32 * std::f32::consts::FRAC_PI_4;
+                    standing.push((mx + a.cos() * 3.5, my + a.sin() * 3.5, Piece::Stand(s)));
+                }
+            }
+        }
+        // an event's mark still standing where it fell: the creature
+        // that struck, the thing it left (#695)
+        standing.extend(m.event_props.iter()
+            .filter_map(|&(x, y, ref slug)| art.event_prop(slug).map(|s| (x, y, Piece::Stand(s)))));
         if let Some((x, y)) = m.stocks {
             if let Some(s) = art.stocks.as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
         }
@@ -609,7 +625,13 @@ impl View {
                 Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
                 Piece::Cache => draw_cache(buf, sx, sy, zoom),
                 Piece::Skep => draw_skep(buf, sx, sy, zoom),
-                Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
+                // a swarm on the wing: the generated cloud when it's
+                // loaded, the drawn dots when it isn't (#695)
+                Piece::Swarm => match art.event_prop("creature-bee-swarm") {
+                    Some(s) if in_cave => draw_standing(buf, &dim(s), sx, sy, zoom),
+                    Some(s) => draw_standing(buf, s, sx, sy, zoom),
+                    None => draw_swarm(buf, sx, sy, zoom),
+                },
                 Piece::Stand(s) => if in_cave { draw_standing(buf, &dim(s), sx, sy, zoom); }
                     else { draw_standing(buf, s, sx, sy, zoom); },
                 Piece::Gaol => {
@@ -1382,6 +1404,22 @@ impl View {
             let bw = banner.len() as i32 * GLYPH_W + 16;
             buf.rect(MAP_W as i32 / 2 - bw / 2, 56, bw, 16, 20, 20, 35);
             draw_text(&mut buf, MAP_W as i32 / 2 - bw / 2 + 8, 60, &banner, 255, 220, 130);
+        }
+
+        // a feast day hangs its painting in the banner slot: the small
+        // card top-centre, the feast's name beneath - on the day itself,
+        // parade or no, since the column can walk the whole day (#695)
+        if let Some(name) = &m.feast_name {
+            if let Some(card) = art.feast_card(name) {
+                let cw = (card.width / 3).min(120) as i32;
+                let ch = card.height as i32 * cw / card.width as i32;
+                let nw = name.len() as i32 * GLYPH_W + 12;
+                let w = cw.max(nw) + 8;
+                let cx = MAP_W as i32 / 2 - w / 2;
+                buf.rect(cx, 52, w, ch + 24, 20, 20, 35);
+                card.blit_resized(&mut buf, cx + (w - cw) / 2, 56, cw as usize, ch as usize);
+                draw_text(&mut buf, cx + (w - nw + 12) / 2 + 2, 56 + ch + 6, name, 255, 220, 130);
+            }
         }
 
 

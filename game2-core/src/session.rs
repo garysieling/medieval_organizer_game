@@ -1181,6 +1181,10 @@ pub struct Game {
     pub built_count: usize,
     pub works: Vec<Works>, // houses still being built
     pub toasts: Toasts,  // (msg, shown until tick, where it happened)
+    /// An event's mark on the map: the sprite, the spot it stands on,
+    /// the day it clears - a moment's leavings, a visitor's companion
+    /// (#695); transient, not save state
+    pub event_props: Vec<((f32, f32), &'static str, u64)>,
     pub last_guild_count: usize,
     pub tick: u64,
     pub paused: bool,
@@ -2366,8 +2370,9 @@ impl Game {
         }
         self.last_guild_count = gc;
 
-        // expire speech bubbles and toasts
+        // expire speech bubbles, toasts and the events' marks
         toasts.retain(|(_, until, _, _)| tick < *until);
+        self.event_props.retain(|(_, _, until)| tick < *until);
         for (e, before) in people.iter().zip(stood) {
             let (Some(before), Some(now)) = (before, self.world.get_component::<Pos>(*e).copied()) else { continue };
             let blocked = |p: &Pos| self.map.is_occupied(p.x.round() as i32, p.y.round() as i32);

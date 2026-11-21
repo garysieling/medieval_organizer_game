@@ -1,0 +1,28 @@
+{
+ "created_at": 1795298481,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "b0d51242-7bae-40dd-a098-f4e79700f71a",
+ "outputs_retained_until": 1795384840,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 61,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "sheet-villager-poses-5af51f87",
+ "prompt": "small chibi medieval peasant villager in nine poses: standing, walking, carrying a sack, kneeling, hammering, hoeing, sitting, waving, sleeping, consistent matched set",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-21T17:01:20",
+ "seconds": 41.1
+}

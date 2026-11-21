@@ -800,6 +800,17 @@ impl View {
                             let s = if facing == 3 { art.mounted_flip.as_ref().unwrap_or(ms) } else { ms };
                             let h = draw_animal(&mut buf, s, sx, sy, zoom);
                             sy - h + 24
+                        } else if let Some(ps) = (pv.pose != 0 && !(pv.pose == pose::WALKING
+                                && art.villager_walks.get(art.figure_look(pv.kid, i))
+                                    .and_then(|o| o.as_ref()).is_some()))
+                            .then(|| pose::NAMES.get(pv.pose as usize - 1).copied().unwrap_or(""))
+                            .and_then(|n| art.pose(n)) {
+                            // the day's doing wears its own still: a
+                            // working bench, a seated rest, a night's
+                            // sleep - a posed figure still slides
+                            // between tiles like the stills do (#1280)
+                            let h = draw_animal(&mut buf, ps, sx, sy, zoom);
+                            sy - h + 24
                         } else if let (false, Some(s)) = (pv.kid, pv.person.as_deref()
                                 .and_then(|t| art.person(&format!("{}-{}", t, art.look_sex(
                                     art.figure_look(pv.kid, i))))

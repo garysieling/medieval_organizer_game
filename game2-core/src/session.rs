@@ -1234,6 +1234,9 @@ pub struct Game {
     /// Pairs of people standing near each other, and the day each pair last chatted
     pub near: Vec<(Entity, Entity)>,
     pub last_chat: Vec<((Entity, Entity), u64)>,
+    /// The day a pair's signature scene last ran (#1227): keyed with the
+    /// smaller entity first, so order in the street doesn't matter
+    pub scene_marks: crate::engine::det::HashMap<(Entity, Entity), u64>,
     /// Every conversation heard - villagers in passing, the player's Talk,
     /// house meetings - for the TALK panel (session::dialogue)
     pub talk_log: Vec<dialogue::TalkRecord>,

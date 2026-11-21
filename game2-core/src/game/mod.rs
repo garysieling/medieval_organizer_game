@@ -48,5 +48,6 @@ pub mod reactions;
 pub mod dungeon;
 pub mod conversation;
 pub mod dialogue_trees;
+pub mod scenes;
 pub mod mysteries;
 pub mod prophetic;

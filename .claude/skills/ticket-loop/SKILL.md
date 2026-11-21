@@ -53,6 +53,27 @@ gh issue view <N> -R garysieling/game2 --comments             # grilling answers
 - Claim it: `gh issue edit <N> -R garysieling/game2 --add-label in-progress`
   and comment `Taking this - <agent name> (<model>)`.
 
+### Parallel sharding (`queue-N` labels)
+
+Every filed ticket carries one `queue-N` label (N in 1..12). When
+you're one of several ticket-loop agents running at once:
+
+1. **Ask the user two things first** (question UI, one call):
+   - how many parallel agents are running: 2, 3, 4, or 6 (the divisors
+     of 12 — every agent then owns a whole number of queues);
+   - which item number this agent is: 1..N.
+2. Compute your owned queues: label `queue-q` is yours iff
+   `(q - 1) % N == (k - 1) % N`, where N is the agent count and k is
+   your item number. E.g. with N=3: agent 1 owns queues 1,4,7,10.
+3. Only claim `grilled`/`agent-ready` issues carrying one of your
+   `queue-N` labels. Dependency chains share a queue on purpose - a
+   chain is all yours or none of it.
+4. Issues without any `queue-N` label predate the scheme: they're a
+   shared pool any agent may claim; the `in-progress` label still
+   arbitrates. (If your shard is empty but the shared pool isn't,
+   say so and take from the pool.)
+5. Running solo (no parallel agents)? Ignore queue labels entirely.
+
 ## Stage 1 - Pull the issue apart
 
 Read the issue and every comment. Then census the code it touches before

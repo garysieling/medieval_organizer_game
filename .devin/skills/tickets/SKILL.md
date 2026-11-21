@@ -17,6 +17,11 @@ File GitHub issues for the game2 repo (`garysieling/game2`) from a list of featu
    - `art` (#fbca04) — needs new sprites/art
    - `audio` (#6f42c1) — sound/music
    Apply 1–2 per issue.
+
+   **Queue labels** — every ticket also gets exactly one `queue-N` label, N in 1..12, for parallel agent sharding:
+   - Pick N at random per ticket (`$((RANDOM % 12 + 1))`) — the point is distinct tags so parallel agents can pull disjoint sets.
+   - **Exception — dependency chains share a queue.** Tickets that block each other, build on each other's changes, or rewrite the same code region get the SAME queue-N, so one agent pulls the whole chain instead of colliding mid-flight. Group by dependency graph, not by topic similarity.
+   - Create missing labels: `gh label create queue-<N> --color c5def5 --description "Parallel ticket shard <N> of 12"` (ignore "already exists").
 5. **Write bodies** in this shape:
    - `## Summary` — what the user wants, in their words tightened up.
    - `## Details` or `## Proposal` — where it touches (file paths, existing systems to build on, design questions/constraints like determinism or the art pipeline).
@@ -31,7 +36,7 @@ File GitHub issues for the game2 repo (`garysieling/game2`) from a list of featu
    ```
 
    Run it, confirm the URLs, then `rm` the script. Bodies contain backticks and quotes — the quoted `<<'EOF'` heredoc keeps them literal.
-7. **Report back** a table mapping issue number → title, plus a short note on any audit findings or cross-references between tickets.
+7. **Report back** a table mapping issue number → title → queue label, plus a short note on any audit findings, cross-references between tickets, and which tickets were deliberately grouped on the same queue (and why).
 
 ## Project testing cheat-sheet (put relevant commands in each ticket's How to test)
 

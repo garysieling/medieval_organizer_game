@@ -3461,6 +3461,21 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: NOAH_ROW_TREE,
             criteria: &[Has("self:status:rowing"), Lacks("self:status:child")],
             root: &NOAH_GREET, rejoin: None },
+        // the false traveller (#1258): three criteria outrank the
+        // archetype trees - the motive status only exists while he's
+        // about, so the wrong questions never fire on an honest pedlar
+        DialogueTree { name: FT_SPY_TREE,
+            criteria: &[Has("self:status:visitor"), Has("self:status:false-traveller"),
+                Has("self:status:ft-spy")],
+            root: &FT_SPY_GREET, rejoin: None },
+        DialogueTree { name: FT_THIEF_TREE,
+            criteria: &[Has("self:status:visitor"), Has("self:status:false-traveller"),
+                Has("self:status:ft-thief")],
+            root: &FT_THIEF_GREET, rejoin: None },
+        DialogueTree { name: FT_RUN_TREE,
+            criteria: &[Has("self:status:visitor"), Has("self:status:false-traveller"),
+                Has("self:status:ft-runaway")],
+            root: &FT_RUN_GREET, rejoin: None },
         // the road's visitors (#1168): the again-tree leads - at two
         // criteria it ties the kind/archetype trees and library order
         // makes the repeat the shorter talk
@@ -4740,5 +4755,177 @@ const NOAH_GREET: Exchange = Exchange {
             lines: &["I'll leave you to it, then."],
             voice: &[],
             then: None, end: Some(Farewell) },
+    ],
+};
+
+// the false traveller (#1258): a pedlar's pack that never sells - the
+// motive trees key on the visitor+false-traveller+motive statuses the
+// session pushes, so the wrong questions show up in his lines and
+// nowhere else. The accusation puts the plays on the card; the card
+// asks which lie he carries home.
+/// The spy's tree's name - the session hooks its accusation pick
+pub const FT_SPY_TREE: &str = "the_ears_in_the_pack";
+/// The thief's tree's name
+pub const FT_THIEF_TREE: &str = "the_full_larder";
+/// The runaway's tree's name
+pub const FT_RUN_TREE: &str = "the_quick_road";
+/// The pick that calls the disguise: the plays go on the card
+pub const FT_ACCUSE: &str = "You're no pedlar. Who sent you?";
+/// The pick that calls the runaway's disguise
+pub const FT_ACCUSE_RUN: &str = "Those aren't a tinker's questions. Who's after you?";
+
+const FT_SPARK: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["found", "sharp"],
+    calls: &[
+        "...sharp eyes. Sharper than a market's used to.",
+        "A pedlar's wares are what a pedlar says they are - and what he carries home is his own.",
+        "Careful with the naming, friend. Names ride home.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["We'll see what rides home."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const FT_SPY_TELL: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["names", "asking"],
+    calls: &[
+        "Names, friend - who stands with whom when the doors are shut?",
+        "And which houses meet nights? Good to know your way, on the road.",
+        "Who's aggrieved here, eh? The folk a lord should know about - for a price on a pot, mind.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["accuse", "pedlar"],
+            lines: &[FT_ACCUSE],
+            voice: &[],
+            then: Some(FT_SPARK), end: None },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to your pack."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const FT_SPY_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["wares", "asking"],
+    calls: &[
+        "Pins and pots, friend - though first, tell me: who's about this village worth the naming?",
+        "A pedlar's pack and a fair price - say, which houses keep their doors shut after dark?",
+        "Odds and ends! - and tell me, friend, is there talk here? Talk a man should hear?",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["accuse", "pedlar"],
+            lines: &[FT_ACCUSE],
+            voice: &[],
+            then: Some(FT_SPARK), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Remark, concepts: &["smalltalk"],
+            lines: &["What news off the road?", "Show me the pack, then."],
+            voice: &[],
+            then: Some(FT_SPY_TELL), end: None },
+    ],
+};
+
+const FT_THIEF_TELL: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["larder", "asking"],
+    calls: &[
+        "And the doors - which hold what? A pedlar likes to know where the buying's best.",
+        "A fat larder, a full cradle, a purse left loose - which house has all three?",
+        "Say there's a house worth a pedlar's whole stock - which door would you point him at?",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["accuse", "pedlar"],
+            lines: &[FT_ACCUSE],
+            voice: &[],
+            then: Some(FT_SPARK), end: None },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to your pack."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const FT_THIEF_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["wares", "asking"],
+    calls: &[
+        "Pots and pins, all a pedlar carries - which house here keeps the fullest larder?",
+        "Fine village, this. Fat purses like quiet houses, do they not?",
+        "Odds and ends! - and which door's got a purse worth the knocking, eh?",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["accuse", "pedlar"],
+            lines: &[FT_ACCUSE],
+            voice: &[],
+            then: Some(FT_SPARK), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Remark, concepts: &["smalltalk"],
+            lines: &["What news off the road?", "Show me the pack, then."],
+            voice: &[],
+            then: Some(FT_THIEF_TELL), end: None },
+    ],
+};
+
+const FT_RUN_TELL: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["road", "castle", "asking"],
+    calls: &[
+        "The castle, friend - when do its riders pass, and which way?",
+        "If a man wanted forgetting by a lord - which road would you tell him?",
+        "No lord's men about, are there? None that watch the road, anyway.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["accuse", "tinker"],
+            lines: &[FT_ACCUSE_RUN],
+            voice: &[],
+            then: Some(FT_SPARK), end: None },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Safe road to you, then."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const FT_RUN_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["wares", "road", "asking"],
+    calls: &[
+        "Tinker, me - mender of pans. Tell me quick: which road leaves this place fastest?",
+        "Pans mended, kettles patched - and tell me, do the castle's men ride through often?",
+        "Odds and ends, friend - and is there work for a pair of hands that's only passing?",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["accuse", "tinker"],
+            lines: &[FT_ACCUSE_RUN],
+            voice: &[],
+            then: Some(FT_SPARK), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Remark, concepts: &["smalltalk"],
+            lines: &["What news off the road?", "Pans to mend, then? I've a pot."],
+            voice: &[],
+            then: Some(FT_RUN_TELL), end: None },
     ],
 };

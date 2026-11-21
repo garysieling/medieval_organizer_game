@@ -43,7 +43,7 @@ pub enum EventId {
     Glazier, Thatcher, WellDigger, CharcoalBurner, LimeBurner, Tanner,
     CandleMaker, Potter, HorseCop, Eggler, CheeseMonger, FortuneTeller,
     Astrologer, Alchemist, Quack, Midwife, Sowgelder, Farrier, CornFactor,
-    Messenger,
+    Messenger, FalseTraveller,
     // the sky and the weather
     Hailstorm, HeatWave, Drought, Flood, LightningStrike, LateFrost,
     IndianSummer, FirstSnow, Thaw, Aurora, MeteorShower, BloodMoon,
@@ -151,6 +151,35 @@ pub enum RowMatter {
     Want { want: crate::game::desires::Want, spender: Entity },
     /// No ledger seed - the ark itself: a folly she won't follow
     Folly,
+}
+
+/// The false traveller (#1258): a visitor who isn't what they say -
+/// the cry's honest pedlar, the asking isn't. What carries him, which
+/// card stage his fork's on, and whether a play's already landed
+#[derive(Debug, Clone, Copy)]
+pub struct FalseTraveller {
+    /// The figure the road brought in
+    pub e: Entity,
+    /// What he's really after
+    pub motive: FalseMotive,
+    /// Which card his fork's on: 0 none, 1 the plays, 2 which lie
+    pub card: u8,
+    /// Whether a play's landed: 0 nothing yet, 1 exposed, 2 fed a story
+    pub handled: u8,
+}
+
+/// What a false traveller's really after (#1258): the disguise shape
+/// isn't always hostile, which keeps the player guessing
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FalseMotive {
+    /// The lord's ears: asks after names and which houses meet nights -
+    /// unmissed or ignored, the eyes inside grow
+    Spy,
+    /// A pedlar who never sells: casing larders and fat purses
+    Thief,
+    /// Not hostile at all: asks the roads out and whether the castle's
+    /// men ride this way
+    Runaway,
 }
 
 /// The shape an event takes on the map
@@ -314,6 +343,9 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: Dilemma, name: "the burdened man", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 150, stay: 4, cry: "Two ways to be wrong - who\'ll hear me?" },
     EventSpec { id: VaccinationAct, name: "the vaccination act", kind: Visitor, fig: Fig::Traveller, gap: 500, span: 350, stay: 12, cry: "The Act's officer rides through - the lancet waits on the square." },
     EventSpec { id: SeaMonster, name: "the deep one", kind: Moment, fig: Fig::Traveller, gap: 500, span: 360, stay: 0, cry: "" },
+    // late additions keep the tail: `initial_due` rolls off one stream
+    // in array order, so an insert here shifts nobody's first date
+    EventSpec { id: FalseTraveller, name: "a pedlar's pack", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 200, stay: 3, cry: "Odds and ends! Pins and pots!" },
 ];
 
 /// The spec for `id`
@@ -335,7 +367,7 @@ pub const VISIT_SLUGS: &[&str] = &[
     "lime-burner", "tanner", "candle-maker", "potter", "horse-coper",
     "eggler", "cheese-monger", "fortune-teller", "astrologer", "alchemist",
     "quack", "midwife", "sowgelder", "farrier", "corn-factor", "messenger",
-    "prodigal",
+    "prodigal", "false-traveller",
 ];
 
 /// Which visitor sprite a `Fig::Traveller` figure draws with - the
@@ -490,7 +522,7 @@ pub enum Group { Road, Sky, Beasts, IllLuck, Findings }
 pub fn group(id: EventId) -> Group {
     match id {
         Dilemma | VaccinationAct => Group::Road,
-        Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger => Group::Road,
+        Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger | FalseTraveller => Group::Road,
         Hailstorm | HeatWave | Drought | Flood | LightningStrike | LateFrost | IndianSummer | FirstSnow | Thaw | Aurora | MeteorShower | BloodMoon | DarkNoon | WindStorm | Mirage | SeaMonster => Group::Sky,
         WolfAtFold | FoxInYard | HawkStoops | StrayDog | StrayCat | RatPlague | Locusts | CaterpillarYear | Starlings | BeeTree | DeerInFields | WildBoar | OwlInTower | CrowsMob | FishRun => Group::Beasts,
         ChimneyFire | FouledWell | GranaryLeak | CartOverturns | DrownedInPond | LostChild | Foundling | Quarrel | AlehouseBrawl | OldOakFalls | Assize | CellarThief | SheepInCradle | NoahRow => Group::IllLuck,
@@ -808,6 +840,32 @@ impl Game {
                     None,
                 );
             }
+            EventId::FalseTraveller => {
+                // a pedlar's pack, the cry's pedlar enough - what's
+                // underneath is rolled here: the lord's ears, a casing
+                // thief, or a runaway asking the roads out. The tell's
+                // in his talk, never on a flag (#1258)
+                let motive = match self.rare_roll(id) % 3 {
+                    0 => FalseMotive::Spy,
+                    1 => FalseMotive::Thief,
+                    _ => FalseMotive::Runaway,
+                };
+                if let Some(e) = e {
+                    self.say(e, s.cry, TALK_BUBBLE_SECS * 2);
+                    self.false_traveller = Some(FalseTraveller {
+                        e, motive, card: 0, handled: 0,
+                    });
+                }
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: {} sets up by the market - a pedlar's pack, though he seems in no hurry to sell.",
+                        self.tick, s.name
+                    ),
+                    pitch,
+                    None,
+                );
+            }
             EventId::StrayDog => {
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
@@ -953,7 +1011,7 @@ pub fn visitor_archetype(id: EventId) -> &'static str {
     match id {
         Tinker | RagAndBone | SaltSeller | WoolMerchant | WineMerchant
         | SpiceMerchant | Bookseller | CornFactor | CheeseMonger
-        | FishHawker | Eggler | HorseCop => "arch-trader",
+        | FishHawker | Eggler | HorseCop | FalseTraveller => "arch-trader",
         KnifeGrinder | ChimneySweep | RatCatcher | Dowser | Scribe
         | ToothDrawer | BarberSurgeon | Glazier | Thatcher | WellDigger
         | CharcoalBurner | LimeBurner | Farrier | Midwife | Sowgelder

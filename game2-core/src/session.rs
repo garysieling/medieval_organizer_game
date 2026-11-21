@@ -1171,6 +1171,10 @@ pub struct Game {
     /// wears the marital bond toward the separation line - the street
     /// saw the crack first
     pub row_count: crate::engine::det::HashMap<(Entity, Entity), u8>,
+    /// The false traveller (#1258): which road visitor isn't what they
+    /// say - the motive under the disguise, which card stage his
+    /// fork's on, and whether a play's landed
+    pub false_traveller: Option<crate::session::events::FalseTraveller>,
     /// The plea at sentencing (#1256): the sentence waits on the card -
     /// speak for mercy, or let it stand
     pub plea: Option<crate::game::sanctions::Plea>,

@@ -1576,7 +1576,220 @@ impl Game {
                     );
                 }
             }
+            EventId::FalseTraveller => {
+                // he goes back down the road as he came - what he
+                // carries home was decided by whether anyone heard
+                // the tell (#1258): a missed spy reports, a missed
+                // thief takes, a missed runaway just slips off
+                if let Some(ft) = self.false_traveller {
+                    if ft.handled == 0 {
+                        match ft.motive {
+                            FalseMotive::Spy => {
+                                self.penetration = (self.penetration + 0.1).min(1.0);
+                                self.log.push_ev_at_who(
+                                    EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                                    format!(
+                                        "t{}: the pedlar's gone - and the eyes inside the village grow.",
+                                        tick
+                                    ),
+                                    pitch,
+                                    None,
+                                );
+                            }
+                            FalseMotive::Thief => {
+                                // a purse goes light in a house he cased
+                                let roll = self.rare_roll(id);
+                                let marks: Vec<Entity> = self.villagers.iter().copied()
+                                    .filter(|&v| self.world.get_component::<Purse>(v)
+                                        .map(|p| p.gold > 0.5).unwrap_or(false))
+                                    .collect();
+                                if let Some(&mark) = marks.get(roll as usize % marks.len().max(1)) {
+                                    let name = self.name_of(mark);
+                                    if let Some(p) = self.world.get_component_mut::<Purse>(mark) {
+                                        p.gold = (p.gold - 2.0).max(0.0);
+                                    }
+                                    self.log.push_ev_at_who(
+                                        EvTag::new(Thread::Visitor, Valence::Negative, Sev::Minor),
+                                        format!(
+                                            "t{}: the pedlar's gone - and {name}'s purse has gone light with him.",
+                                            tick
+                                        ),
+                                        pitch,
+                                        None,
+                                    );
+                                }
+                            }
+                            FalseMotive::Runaway => {
+                                self.log.push_ev_at_who(
+                                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                                    format!(
+                                        "t{}: the pedlar's gone - slipped off before his name was ever asked.",
+                                        tick
+                                    ),
+                                    pitch,
+                                    None,
+                                );
+                            }
+                        }
+                    }
+                }
+                self.false_traveller = None;
+            }
             _ => {}
+        }
+    }
+
+    /// The tell's named (#1258): the accusation lifts his fork onto
+    /// the card - say nothing, cry him out, or feed him a story
+    pub(in crate::session) fn false_accused(&mut self, _seat: usize) {
+        let Some(ft) = self.false_traveller else { return };
+        // a card already up means the accusation lands in the talk but
+        // the plays wait - the hand that's answering keeps its knot
+        if self.dilemma.is_some() { return; }
+        self.false_traveller = Some(FalseTraveller { card: 1, ..ft });
+        self.dilemma = Some(MoralKnot {
+            text: "the stranger's no pedlar - but he's listening. What do you do with him?".into(),
+            branches: vec![
+                DilemmaBranch { text: "say nothing - let him carry back what he's heard".into(),
+                    debt: 0.0, victim: ft.e },
+                DilemmaBranch { text: "cry him out before the street - a false traveller!".into(),
+                    debt: 0.0, victim: ft.e },
+                DilemmaBranch { text: "feed him a story to carry home".into(),
+                    debt: 0.0, victim: ft.e },
+            ] });
+    }
+
+    /// The card's answered (#1258): `stage` 1 is the plays, `stage` 2
+    /// which lie he carries. The lie card follows the feed pick
+    pub(in crate::session) fn resolve_false_fork(&mut self, seat: usize, stage: u8, pick: usize) {
+        let Some(ft) = self.false_traveller else { return };
+        match stage {
+            1 => match pick {
+                // say nothing - he reports back what he found anyway:
+                // the motive lands at depart as if the tell went unheard
+                0 => {
+                    self.false_traveller = Some(FalseTraveller { card: 0, ..ft });
+                    self.narrate_talk(seat,
+                        "You let it lie - he'll carry back what he's heard.");
+                }
+                // cry him out - the street sees him for what he is
+                1 => self.false_expose(seat),
+                // feed him a story - the card asks which lie
+                _ => {
+                    self.false_traveller = Some(FalseTraveller { card: 2, ..ft });
+                    self.dilemma = Some(MoralKnot {
+                        text: "what story does he carry home?".into(),
+                        branches: vec![
+                            DilemmaBranch { text: "the wrong names - blame the harmless".into(),
+                                debt: 0.0, victim: ft.e },
+                            DilemmaBranch { text: "the meetings stopped a season back".into(),
+                                debt: 0.0, victim: ft.e },
+                            DilemmaBranch { text: "they gather at the stones, not the hall".into(),
+                                debt: 0.0, victim: ft.e },
+                        ] });
+                }
+            },
+            _ => self.false_fed(seat, pick),
+        }
+    }
+
+    /// Cried out before the street (#1258): the disguise cracks in
+    /// public - he goes for the road with the whole village watching,
+    /// and folk remember strangers a touch less kindly after
+    fn false_expose(&mut self, seat: usize) {
+        let Some(ft) = self.false_traveller else { return };
+        let at = self.world.get_component::<Pos>(ft.e)
+            .map(|p| (p.x.round() as i32 as f32 + 0.5, p.y.round() as i32 as f32 + 0.5));
+        let what = match ft.motive {
+            FalseMotive::Spy => "the lord's ears",
+            FalseMotive::Thief => "a thief come to case the doors",
+            FalseMotive::Runaway => "a runaway, no pedlar at all",
+        };
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Visitor, Valence::Negative, Sev::Notable),
+            format!(
+                "t{}: cried out on the square - {what}, and the whole street sees it. Folk will look twice at the next stranger's cry.",
+                self.tick
+            ),
+            at,
+            None,
+        );
+        self.toasts.push_at(("A false traveller".into(), self.tick + 40), at);
+        self.narrate_talk(seat,
+            "The street turns - he's seen for what he is, and the road takes him.");
+        // the lord knows you know his ears are out: exposure costs
+        // escalation as well as the stranger-trust the crying spent
+        if ft.motive == FalseMotive::Spy {
+            let lords: Vec<Entity> = self.sites.iter().filter_map(|s| s.lord).collect();
+            for l in lords {
+                if let Some(w) = self.world
+                    .get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                    w.paranoia = (w.paranoia + 0.1).min(1.0);
+                }
+            }
+        }
+        self.false_traveller = Some(FalseTraveller { card: 0, handled: 1, ..ft });
+        if let Some(ri) = self.rare.iter().position(|r| r.e == Some(ft.e)) {
+            self.depart_event(ri);
+        }
+    }
+
+    /// The lie he carries home (#1258): each motive takes the wrong
+    /// thing away with it
+    fn false_fed(&mut self, seat: usize, pick: usize) {
+        let Some(ft) = self.false_traveller else { return };
+        let lie = ["the wrong names", "the meetings stopped", "they gather at the stones"]
+            .get(pick).copied().unwrap_or("a wrong tale");
+        self.false_traveller = Some(FalseTraveller { card: 0, handled: 2, ..ft });
+        let at = self.world.get_component::<Pos>(ft.e)
+            .map(|p| (p.x.round() as i32 as f32 + 0.5, p.y.round() as i32 as f32 + 0.5));
+        match ft.motive {
+            FalseMotive::Spy => {
+                // the ears carry the lie back - the eyes inside dim a
+                // touch for the misdirection
+                self.penetration = (self.penetration - 0.12).max(0.0);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Law, Valence::Positive, Sev::Notable),
+                    format!(
+                        "t{}: the pedlar's gone - carrying {lie}. What rides home is what you gave him.",
+                        self.tick
+                    ),
+                    at,
+                    None,
+                );
+                self.narrate_talk(seat,
+                    "He laps it up - the story rides home with him, wrong as it is.");
+            }
+            FalseMotive::Thief => {
+                // he goes where the story pointed: a cold hearth, a
+                // wrong door - nothing comes home lighter tonight
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: the pedlar's gone - and tonight he goes where your story pointed: a cold hearth, a wrong door.",
+                        self.tick
+                    ),
+                    at,
+                    None,
+                );
+                self.narrate_talk(seat,
+                    "He stores it away - he'll go where the story pointed, and find a cold hearth.");
+            }
+            FalseMotive::Runaway => {
+                // a kind story travels with him: no harm asked, none
+                // given - the road's a touch less hard
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: the pedlar's gone - a kind story travels with him, whatever was chasing him left none the wiser.",
+                        self.tick
+                    ),
+                    at,
+                    None,
+                );
+                self.narrate_talk(seat,
+                    "A kind story travels with him - whatever's chasing him, it's none the wiser.");
+            }
         }
     }
 }

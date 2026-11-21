@@ -1792,6 +1792,9 @@ pub struct Game {
     /// age - compartmentalization and vetting move the tradeoff, not
     /// the accrual itself
     pub penetration: f32,
+    /// Hirers who paid over the statute's wage cap since the last
+    /// edict beat - the informers' queue of reports (#1260)
+    pub excess_wages: Vec<Entity>,
     /// The cult's own end when it comes - which of the four ways the
     /// fold's own cage broke, read off the dials
     pub cult_collapse: Option<crate::sim::religion::CollapseMode>,

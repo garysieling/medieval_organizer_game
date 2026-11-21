@@ -525,6 +525,7 @@ impl Game {
                     (p.song, "song"), (p.closer, "closer")] {
                     if let Some(e) = slot { roles.push(format!("{}: {}", label, who(e))); }
                 }
+                if p.probe { roles.push("question: what they want".into()); }
                 MeetingPlanV {
                     coming: p.coming.iter().map(|&e| who(e)).collect(),
                     spreaders: p.spreaders.iter().map(|&e| who(e)).collect(),

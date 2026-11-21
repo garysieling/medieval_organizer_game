@@ -863,3 +863,50 @@ pub fn lift_grievance(world: &mut World, e: Entity, p: Problem) {
         life.grievances.retain(|(g, _)| *g != p);
     }
 }
+
+/// Days a want the probing question planted takes to ripen into one
+/// they carry (#1267)
+pub const PLANT_RIPEN_DAYS: u64 = 10;
+
+/// What "what do you actually want?" can put in a head that didn't
+/// carry it before
+const PROBE_WANTS: [Want; 5] = [Want::Security, Want::Mastery, Want::Love, Want::Finery, Want::BetterTools];
+
+/// Wants a probing question put in someone's head (#1267): (the want,
+/// the day it ripens, who asked). Till then it's only a thought - it
+/// can't be drawn out; once ripe it's a want like any other
+#[derive(Debug, Default)]
+pub struct Planted {
+    pub wants: Vec<(Want, u64, Entity)>,
+}
+
+/// Plant a want the hearer doesn't already carry, ripening in
+/// PLANT_RIPEN_DAYS. `seed` picks which; None when there's nothing new
+/// to plant (or a child heard it)
+pub fn plant_want(world: &mut World, e: Entity, asker: Entity, tick: u64, seed: u64) -> Option<Want> {
+    if is_kid(world, e) { return None; }
+    let carried = world.get_component::<InnerLife>(e)?.wants.clone();
+    let planted: Vec<Want> = world.get_component::<Planted>(e)
+        .map(|p| p.wants.iter().map(|(w, _, _)| *w).collect()).unwrap_or_default();
+    let open: Vec<Want> = PROBE_WANTS.iter().copied()
+        .filter(|w| !carried.contains(w) && !planted.contains(w)).collect();
+    if open.is_empty() { return None; }
+    let w = open[(seed % open.len() as u64) as usize];
+    if world.get_component::<Planted>(e).is_none() { world.add_component(e, Planted::default()); }
+    world.get_component_mut::<Planted>(e).unwrap().wants.push((w, tick + PLANT_RIPEN_DAYS, asker));
+    Some(w)
+}
+
+/// The planted wants whose day has come: each becomes a want they
+/// carry. Returns (want, who asked) for each that ripened
+pub fn ripen_planted(world: &mut World, e: Entity, tick: u64) -> Vec<(Want, Entity)> {
+    let Some(p) = world.get_component_mut::<Planted>(e) else { return vec![] };
+    let (ripe, rest): (Vec<_>, Vec<_>) = p.wants.drain(..).partition(|(_, day, _)| tick >= *day);
+    p.wants = rest;
+    if let Some(life) = world.get_component_mut::<InnerLife>(e) {
+        for (w, _, _) in &ripe {
+            if !life.wants.contains(w) { life.wants.push(*w); }
+        }
+    }
+    ripe.into_iter().map(|(w, _, a)| (w, a)).collect()
+}

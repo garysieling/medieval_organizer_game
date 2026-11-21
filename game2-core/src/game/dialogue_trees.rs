@@ -2990,6 +2990,43 @@ pub const MEET_PROMPT: MeetingPrompt = MeetingPrompt {
     concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:fuel", "concern:bridge", "concern:harvest", "concern:commons", "concern:grief"],
 };
 
+/// The probing question (#1267): not the village's trouble but the
+/// person's own - what they want, and who they're doing it for
+pub const MEET_PROBE: MeetingPrompt = MeetingPrompt {
+    text: "Leave the village's troubles a moment. What do you actually want - and who are you doing it for?",
+    concepts: &["probe:want", "probe:love"],
+};
+
+/// What the room says to the probe when nobody's naming names
+pub const MEET_PROBE_LINES: &[MeetingLine] = &[
+    MeetingLine {
+        act: Act::Remark, concepts: &["probe:want"], bias: &[],
+        lines: &["To feel I did right by them, when it's all done.", "Not to be afraid of the knock at the door.",
+            "To be more than the work my hands do.", "That my children won't bow as low as I do."],
+    },
+    MeetingLine {
+        act: Act::Remark, concepts: &["probe:love"], bias: &[],
+        lines: &["For my own - who else would I do it for?", "For the ones at my table. That's the whole of it.",
+            "For the ones who can't stand up for themselves."],
+    },
+    MeetingLine {
+        act: Act::Agree, concepts: &["probe:want", "probe:love"], bias: &[],
+        lines: &["Aye - {other} says what I'd not have said aloud.", "That's it. That's mine too."],
+    },
+    MeetingLine {
+        act: Act::PushBack, concepts: &["probe:want", "probe:love"], bias: &[],
+        lines: &["Wants are a luxury, {other}. The rent isn't.", "Feelings won't fill the granary."],
+    },
+];
+
+/// A trusting answer to the probe: they name who they do it for
+/// (`{name}`) - the room hears the bond (#1267)
+pub const PROBE_NAMES: &[&str] = &[
+    "For {name}. If it comes right for them, it's come right for me.",
+    "{name}. It's always been {name}.",
+    "Truth? For {name}. I'd not say it anywhere but here.",
+];
+
 // The rite that frames a meeting (#1185): a devout attendee's prayer
 // opens it - old-ways folk get their own words - a gregarious one offers
 // a verse, a believer gives the benediction, and when the room offers

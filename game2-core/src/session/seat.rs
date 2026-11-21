@@ -183,6 +183,10 @@ pub struct Seat {
     /// box, waiting on their pick (Command::Decide). The tick it was
     /// asked, so an unanswered one can lapse like the founding's
     pub meet_offer: Option<u64>,
+    /// The question-question the day pick leaves open (#1267): put the
+    /// matter or probe what they want, waiting on their pick
+    /// (Command::Decide). The tick it was asked; it lapses like the day's
+    pub frame_offer: Option<u64>,
     /// The agenda a campaign Meet leaves open on the conversation box:
     /// the motions the cause's size can carry and the tick it was asked,
     /// waiting on their pick (Command::Decide) - the last option's always
@@ -238,7 +242,7 @@ impl Default for Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, buy_walk: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
-               pending_founding: None, meet_offer: None, pending_agenda: None,
+               pending_founding: None, meet_offer: None, frame_offer: None, pending_agenda: None,
                quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,

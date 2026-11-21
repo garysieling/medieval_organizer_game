@@ -2189,6 +2189,9 @@ impl Game {
                         if let Some(g) = self.village_gaol {
                             self.send_far(taken, g, Goal::GoGaol);
                         }
+                        // hauled off under escort - the crowd reads who
+                        // steps up beside them (#1255)
+                        self.reckoning(taken, "the gaol");
                         
                         // hauled off mid-errand: whatever they were doing is dropped
                         self.travels.retain(|t| t.who != taken);
@@ -2768,6 +2771,23 @@ impl Game {
             self.resolve_ewe_fork(pick);
             return;
         }
+        // the reckoning's fork answers its own way too (#1255): stand
+        // beside your member where all can see, or keep the distance -
+        // but only when the card's still the reckoning's own knot
+        let ours = match (self.reckoning, &self.dilemma) {
+            (Some(c), Some(k)) => k.branches.len() == 2
+                && k.branches.iter().all(|b| b.victim == c),
+            _ => false,
+        };
+        if ours {
+            self.dilemma = None;
+            self.resolve_reckoning_fork(seat, pick);
+            return;
+        }
+        // a different knot took the card off it - the walk's over
+        if self.reckoning.is_some() && self.dilemma.is_none() {
+            self.reckoning = None;
+        }
         // the burdened man's knot answers first: a pick writes its debt
         // and the debt comes home when its day does
         if let Some(knot) = self.dilemma.take() {
@@ -2792,6 +2812,21 @@ impl Game {
             }
             return;
         }
+        // the call's question: put the matter, or probe what they
+        // actually want (#1267)
+        if self.seats[seat].frame_offer.take().is_some() {
+            let probe = pick == 1;
+            if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+                p.probe = probe;
+            }
+            if probe {
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: you'll not put the matter this time - you'll ask them what they actually want.", self.tick),
+                );
+            }
+            return;
+        }
         // the call's own day: two days out, four, or a week - the plan
         // keeps taking yeses and roles until the door
         if self.seats[seat].meet_offer.take().is_some() {
@@ -2804,6 +2839,8 @@ impl Game {
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
                 p.for_day = Some(for_day);
             }
+            // and then what's asked when they're in (#1267)
+            self.seats[seat].frame_offer = Some(self.tick);
             self.notices.push((
                 "meet".into(),
                 format!("the word's out - folk gather at {} in {} days", label, n),

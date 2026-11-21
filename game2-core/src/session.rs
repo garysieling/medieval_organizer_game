@@ -569,6 +569,8 @@ pub struct Meeting {
     /// still play in the room, but a purchased yes reads cheaper - no
     /// kept-promise warmth, no pull of friends in their name
     pub bought: Vec<Entity>,
+    /// The host asks the probe, not the matter (#1267)
+    pub probe: bool,
 }
 
 impl Meeting {
@@ -1155,6 +1157,9 @@ pub struct Game {
     /// The sheep in the cradle (#1254): a stolen ewe, the bluffing house
     /// that has it, and what you do with the name once the lid's lifted
     pub ewe_theft: Option<crate::session::events::EweTheft>,
+    /// The reckoning of friends (#1255): whose public walk the dilemma
+    /// card's asking about - stand beside them, or keep the distance
+    pub reckoning: Option<Entity>,
 
     /// The vaccination act's officer waiting on the square for his
     /// answer - the scratch, the fine, or the Leicester way

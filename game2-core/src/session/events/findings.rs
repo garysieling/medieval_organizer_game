@@ -263,6 +263,18 @@ impl Game {
                     }
                     self.say(able[off], "The reach gives back - driftwood and a barrel on the strand!", CHAT_BUBBLE_SECS);
                     self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: a storm's leavings - the reach gives back driftwood and a barrel, and the strand's picked clean by noon.", self.tick));
+                    // and the beat's acted out (#1273): the pickers who
+                    // got the leavings walk the strand for them
+                    let pickers: Vec<Entity> = (0..able.len().min(3))
+                        .map(|i| able[(off + i) % able.len()]).collect();
+                    let strand = self.world.get_component::<Pos>(self.market_food)
+                        .and_then(|p| crate::session::shore_site(
+                            &self.map, (p.x.round() as i32, p.y.round() as i32)))
+                        .map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5));
+                    if let Some(at) = strand {
+                        self.stage_gathering(at, crate::session::routine::Spot::Creek,
+                            crate::session::routine::Mode::Working, &pickers, self.tick);
+                    }
                 } else {
                     self.log.push_ev(
                         EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),

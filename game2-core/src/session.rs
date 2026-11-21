@@ -940,7 +940,7 @@ impl Rng {
 
 /// The buildable tile with water lapping it nearest `to`: where a fishing
 /// hut goes. None when there's no shore within reach.
-fn shore_site(map: &TileMap, to: (i32, i32)) -> Option<(i32, i32)> {
+pub(in crate::session) fn shore_site(map: &TileMap, to: (i32, i32)) -> Option<(i32, i32)> {
     let mut best: Option<((i32, i32), i32)> = None;
     for y in 1..map.height as i32 - 1 {
         for x in 1..map.width as i32 - 1 {

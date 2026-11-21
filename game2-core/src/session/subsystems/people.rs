@@ -695,6 +695,18 @@ impl Game {
                         tick, oname, took
                     ),
                 );
+                // the lift's acted out (#1273): the members take a field
+                // together, ringed round the day's work
+                let members: Vec<Entity> = self.world.get_component::<Organization>(oe)
+                    .map(|o| o.members.clone()).unwrap_or_default();
+                let field = self.crop_fields.get(seat)
+                    .or_else(|| self.crop_fields.first())
+                    .and_then(|&f| self.world.get_component::<Pos>(f))
+                    .map(|p| (p.x, p.y));
+                if let Some(at) = field {
+                    self.stage_gathering(at, routine::Spot::Fields,
+                        routine::Mode::Working, &members, tick);
+                }
             }
         }
     }

@@ -190,6 +190,7 @@ mod provocateur;
 mod production;
 mod progression;
 mod protest;
+mod scene_beats;
 mod prophet;
 mod recipes;
 mod quests;

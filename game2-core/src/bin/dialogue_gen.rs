@@ -62,6 +62,7 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
             traits,
             ideology,
             status,
+            trade: None,
         });
     }
     roster

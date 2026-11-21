@@ -241,6 +241,37 @@ fn trade_status(v: Vocation) -> Option<&'static str> {
     })
 }
 
+/// The trade word a vocation speaks with in a meeting (#1238)
+fn trade_word(v: Vocation) -> &'static str {
+    match v {
+        Vocation::Farmer => "farmer",
+        Vocation::Baker => "baker",
+        Vocation::Toolmaker => "smith",
+        Vocation::Knight => "knight",
+        Vocation::Tailor => "tailor",
+        Vocation::Glazier => "glazier",
+        Vocation::Printmaker => "printer",
+        Vocation::Mason => "mason",
+        Vocation::Priest => "priest",
+        Vocation::Luthier => "luthier",
+        Vocation::Shepherd => "shepherd",
+        Vocation::Beekeeper => "beekeeper",
+        Vocation::Weaver => "weaver",
+        Vocation::Perfumer => "perfumer",
+        Vocation::Painter => "painter",
+        Vocation::Shoemaker => "shoemaker",
+        Vocation::Bookbinder => "bookbinder",
+        Vocation::Miner => "miner",
+        Vocation::Fisher => "fisher",
+        Vocation::Alewife => "alewife",
+        Vocation::Brewer => "brewer",
+        Vocation::Vintner => "vintner",
+        Vocation::Distiller => "distiller",
+        Vocation::Cooper => "cooper",
+        Vocation::Taverner => "taverner",
+    }
+}
+
 /// `who` as a conversation speaker, read off the world at `tick`
 pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker {
     let mut s = Speaker::new(name);
@@ -255,6 +286,7 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
         _ => "laborer",
     };
     if let Some(st) = craft.and_then(trade_status) { s.status.push(st); }
+    s.trade = craft.map(trade_word);
     if crate::game::livelihood::has_role(world, who, TownRole::Herbologist) { s.status.push("herb_wife"); }
     if super::is_sick(world, who) { s.status.push("sick"); }
     if world.get_component::<Hunger>(who).map(|h| h.value < 30.0).unwrap_or(false) { s.status.push("hungry"); }

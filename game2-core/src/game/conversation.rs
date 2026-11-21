@@ -856,10 +856,13 @@ pub fn trades_owning(concept: &str) -> &'static [&'static str] {
     }
 }
 
-/// How much `sp`'s word on a line about `concepts` weighs, by trade
-pub fn counsel_weight(sp: &Speaker, concepts: &[&str]) -> f32 {
+/// How much `sp`'s word on a line about `concepts` weighs, by trade -
+/// judged only on the concepts it shares with what it answers, `matter`
+/// (a generic "aye" carries every concern, but speaks to one)
+pub fn counsel_weight(sp: &Speaker, concepts: &[&str], matter: &[&str]) -> f32 {
+    let on = |c: &&&str| matter.contains(*c);
     let mut owned = false;
-    for c in concepts {
+    for c in concepts.iter().filter(on) {
         let trades = trades_owning(c);
         if trades.is_empty() { continue; }
         if sp.trade.is_some_and(|t| trades.contains(&t)) { return TRADE_FIT; }
@@ -867,7 +870,7 @@ pub fn counsel_weight(sp: &Speaker, concepts: &[&str]) -> f32 {
     }
     if owned {
         if sp.trade.is_some() { TRADE_MISFIT } else { 1.0 }
-    } else if concepts.iter().any(|c| c.starts_with("concern:")) && sp.status.contains(&"elder") {
+    } else if concepts.iter().filter(on).any(|c| c.starts_with("concern:")) && sp.status.contains(&"elder") {
         ELDER_FIT
     } else { 1.0 }
 }
@@ -989,7 +992,7 @@ pub fn run_meeting<'a>(
                     let kind = if open_q {
                         if overlap { ReplyKind::Answer } else { ReplyKind::NewTopic }
                     } else if l.act == Act::PushBack { ReplyKind::Object } else { ReplyKind::BuildOn };
-                    let mut s = score * pull * fit * counsel_weight(sp, l.concepts);
+                    let mut s = score * pull * fit * counsel_weight(sp, l.concepts, &s.concepts);
                     for (t, m) in l.bias {
                         if sp.traits.contains(t) { s *= m; }
                     }
@@ -1350,12 +1353,17 @@ mod tests {
         baker.trade = Some("baker");
         let laborer = Speaker::new("Wat");
         let harvest = ["concern:harvest"];
-        assert_eq!(counsel_weight(&farmer, &harvest), TRADE_FIT);
-        assert_eq!(counsel_weight(&baker, &harvest), TRADE_MISFIT, "the baker on the fields is heard as a baker");
-        assert_eq!(counsel_weight(&laborer, &harvest), 1.0);
-        assert_eq!(counsel_weight(&baker, &["concern:food"]), TRADE_FIT);
+        assert_eq!(counsel_weight(&farmer, &harvest, &harvest), TRADE_FIT);
+        assert_eq!(counsel_weight(&baker, &harvest, &harvest), TRADE_MISFIT, "the baker on the fields is heard as a baker");
+        assert_eq!(counsel_weight(&laborer, &harvest, &harvest), 1.0);
+        assert_eq!(counsel_weight(&baker, &["concern:food"], &["concern:food"]), TRADE_FIT);
         // off the matters entirely, nobody's trade counts
-        assert_eq!(counsel_weight(&farmer, &["smalltalk"]), 1.0);
+        assert_eq!(counsel_weight(&farmer, &["smalltalk"], &["smalltalk"]), 1.0);
+        // a generic "aye" carries every concern, but on the harvest it's
+        // still the baker talking fields
+        let aye = meeting_pool(&laborer).into_iter().find(|l| l.concepts.len() > 3).expect("a catch-all line").concepts;
+        assert_eq!(counsel_weight(&baker, aye, &harvest), TRADE_MISFIT);
+        assert_eq!(counsel_weight(&farmer, aye, &harvest), TRADE_FIT);
 
         let prompt = MeetingPrompt { text: "The harvest - what do we do?", concepts: &["concern:harvest"] };
         let (counts, said) = floor_by(&[&farmer, &baker, &laborer], &prompt, 60);
@@ -1373,10 +1381,10 @@ mod tests {
         elder.status.extend(["elder", "grieving"]);
         let mut young = Speaker::new("Jack");
         young.status.push("grieving");
-        assert_eq!(counsel_weight(&elder, &["concern:grief"]), ELDER_FIT);
-        assert_eq!(counsel_weight(&young, &["concern:grief"]), 1.0);
+        assert_eq!(counsel_weight(&elder, &["concern:grief"], &["concern:grief"]), ELDER_FIT);
+        assert_eq!(counsel_weight(&young, &["concern:grief"], &["concern:grief"]), 1.0);
         // where a trade owns it, age alone doesn't
-        assert_eq!(counsel_weight(&elder, &["concern:harvest"]), 1.0);
+        assert_eq!(counsel_weight(&elder, &["concern:harvest"], &["concern:harvest"]), 1.0);
         let mut young2 = Speaker::new("Ivo");
         young2.status.push("grieving");
         let prompt = MeetingPrompt { text: "We've lost so many.", concepts: &["concern:grief"] };

@@ -37,7 +37,8 @@ fn test_talk_with_no_pick_singles_out_the_least_lately_heard_nearby() {
         *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: at.0, y: at.1 };
     }
     g.world.add_component(g.villagers[1], TalkCount {
-        value: 1, last_day_by: [(g.player, g.tick)].into_iter().collect() });
+        value: 1, last_day_by: [(g.player, g.tick)].into_iter().collect(),
+        ..Default::default() });
     g.act(0);
     assert_eq!(g.selected_target, 3, "the unheard one over the one just talked to");
     assert!(g.picked && g.pick_near, "T's choice becomes the pick");

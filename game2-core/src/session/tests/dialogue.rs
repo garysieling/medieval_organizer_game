@@ -969,3 +969,107 @@ fn test_the_causes_weather_is_a_sworn_privilege() {
     let (_, said) = g.cause_gist(0, v).unwrap();
     assert!(said.contains("tomorrow"), "{}", said);
 }
+
+// --- the first greeting carries the warmth (#1232): one ledger beat a day ---
+
+/// How many bond-beats the pair's ledger has taken: every recorded
+/// interaction is one
+fn ledger(g: &Game, a: Entity, b: Entity) -> u32 {
+    crate::game::relationships::find_relationship(&g.world, a, b)
+        .and_then(|r| g.world.get_component::<crate::game::relationships::Relationship>(r))
+        .map(|r| r.interactions).unwrap_or(0)
+}
+
+/// Pick the first bond-moving option on offer (a kind answer, a slight,
+/// a hello or a goodbye); false if none are up right now
+fn pick_bond_moving(g: &mut Game) -> bool {
+    let idx = g.seats[0].talk.as_ref().and_then(|t| t.options.iter()
+        .position(|(a, _)| matches!(a, Act::PushBack | Act::Agree | Act::Answer
+            | Act::Greet | Act::Farewell)));
+    match idx { Some(i) => { g.talk_pick_at(0, Some(i)); true } None => false }
+}
+
+#[test]
+fn test_a_re_talk_the_same_day_leaves_the_bond_alone() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let pe = g.player;
+    let v = talk_beside(&mut g, i);
+    let mut p = 0;
+    while g.seats[0].talk.is_some() && p < 30 {
+        if !pick_bond_moving(&mut g) { g.talk_pick_at(0, Some(0)); }
+        p += 1;
+    }
+    assert!(crate::game::player::pick_spent_today(&g.world, v, pe, g.tick),
+        "the first talk spent the day's beat");
+    // let the sit-down's armed depth settle - it's the first talk's own
+    // beat, and the baseline shouldn't count it as the re-talk's
+    crate::engine::ecs::System::run(&mut crate::sim::community::OneOnOneSystem, &mut g.world);
+    let beat = ledger(&g, pe, v);
+    assert!(beat > 0, "the first talk moved the bond");
+    let rap = crate::game::player::rapport(&g.world, pe, v);
+    // a second sit-down the same day: the lines play, the ledger doesn't
+    talk_beside(&mut g, i);
+    let mut p = 0;
+    while g.seats[0].talk.is_some() && p < 30 {
+        if !pick_bond_moving(&mut g) { g.talk_pick_at(0, Some(0)); }
+        p += 1;
+    }
+    crate::engine::ecs::System::run(&mut crate::sim::community::OneOnOneSystem, &mut g.world);
+    assert_eq!(ledger(&g, pe, v), beat,
+        "a re-talk's picks and its sit-down's depth spend nothing more");
+    // rapport isn't the bond ledger - the catch-up still counts
+    assert!(crate::game::player::rapport(&g.world, pe, v) > rap,
+        "rapport grows on the repeat all the same");
+}
+
+#[test]
+fn test_the_first_pick_spends_the_days_beat_either_valence() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let pe = g.player;
+    let v = talk_beside(&mut g, i);
+    let before = ledger(&g, pe, v);
+    // the first bond-moving pick of the day - whatever it is - lands
+    // and stamps; inside the same talk the rest read as flavour
+    let mut stamped = false;
+    for _ in 0..30 {
+        if g.seats[0].talk.is_none() { break; }
+        if pick_bond_moving(&mut g) { stamped = true; break; }
+        g.talk_pick_at(0, Some(0));
+    }
+    assert!(stamped, "the talk offered a bond-moving pick");
+    assert!(crate::game::player::pick_spent_today(&g.world, v, pe, g.tick));
+    assert!(ledger(&g, pe, v) <= before + 1, "one pick, one beat at most");
+    // and a second bond-moving pick inside the same talk adds nothing
+    let now = ledger(&g, pe, v);
+    for _ in 0..30 {
+        if g.seats[0].talk.is_none() { break; }
+        if pick_bond_moving(&mut g) { break; }
+        g.talk_pick_at(0, Some(0));
+    }
+    assert_eq!(ledger(&g, pe, v), now,
+        "a second pick in the same talk records nothing more");
+}
+
+#[test]
+fn test_a_new_day_earns_a_new_beat() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let pe = g.player;
+    let v = talk_beside(&mut g, i);
+    let mut p = 0;
+    while g.seats[0].talk.is_some() && p < 30 { g.talk_pick_at(0, Some(0)); p += 1; }
+    let beat = ledger(&g, pe, v);
+    g.tick += 1;
+    talk_beside(&mut g, i);
+    // the morning's beat is fresh - the day's first bond-moving pick lands
+    let mut took = false;
+    for _ in 0..30 {
+        if g.seats[0].talk.is_none() { break; }
+        if pick_bond_moving(&mut g) { took = true; break; }
+        g.talk_pick_at(0, Some(0));
+    }
+    assert!(took);
+    assert!(ledger(&g, pe, v) > beat, "a new day earns a new beat");
+}

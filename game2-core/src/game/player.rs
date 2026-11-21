@@ -54,6 +54,34 @@ pub struct TalkCount {
     /// repeat doesn't deepen the bond, but a different player's talk
     /// on the same day still does
     pub last_day_by: crate::engine::det::HashMap<Entity, u64>,
+    /// (day, talk) each player's last bond-moving pick landed here
+    /// (#1232): one ledger beat a day per pair - a re-talk still plays
+    /// its lines but its act deltas record ~nil. The talk id tells a
+    /// re-talk's stamp from this talk's own.
+    pub last_pick_by: crate::engine::det::HashMap<Entity, (u64, u64)>,
+}
+
+/// The pair's bond beat for `day` is spent: a bond-moving pick already
+/// landed today (#1232)
+pub fn pick_spent_today(world: &World, target: Entity, player: Entity, day: u64) -> bool {
+    world.get_component::<TalkCount>(target)
+        .and_then(|c| c.last_pick_by.get(&player).copied())
+        .map(|(d, _)| d == day).unwrap_or(false)
+}
+
+/// ...spent by ANOTHER talk than `talk` - a talk's own beat still lands
+/// within it; only a re-talk finds the day's beat already gone
+pub fn pick_spent_elsewhere(world: &World, target: Entity, player: Entity, day: u64, talk: u64) -> bool {
+    world.get_component::<TalkCount>(target)
+        .and_then(|c| c.last_pick_by.get(&player).copied())
+        .map(|(d, t)| d == day && t != talk).unwrap_or(false)
+}
+
+/// Stamp the pair's pick-day with the talk that spent it
+pub fn note_pick_moved(world: &mut World, target: Entity, player: Entity, day: u64, talk: u64) {
+    let mut count = world.get_component::<TalkCount>(target).cloned().unwrap_or_default();
+    count.last_pick_by.insert(player, (day, talk));
+    world.add_component(target, count);
 }
 
 pub const TALK_RAPPORT_STEP: f32 = 0.15;

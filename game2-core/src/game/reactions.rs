@@ -22,6 +22,20 @@ pub struct Sympathized {
 /// A tie strong enough that watching a friend in the street moves you
 pub const WITNESS_TIE: f32 = 0.3;
 
+/// The side a watcher takes when two folk row in the street (#1257):
+/// their bond to each half of it says which shoulder they stand at -
+/// a gap too thin to read means they keep their peace. Returns the
+/// favored one
+pub fn take_side(world: &World, watcher: Entity, a: Entity, b: Entity) -> Option<Entity> {
+    if is_dead(world, watcher) || watcher == a || watcher == b { return None; }
+    let strength = |x: Entity| find_relationship(world, watcher, x)
+        .and_then(|r| world.get_component::<Relationship>(r))
+        .map(|r| r.strength).unwrap_or(0.0);
+    let (sa, sb) = (strength(a), strength(b));
+    if (sa - sb).abs() < 0.2 { return None; }
+    Some(if sa > sb { a } else { b })
+}
+
 /// Whether watching `participants` moves `observer` to the cause:
 /// the issue is already their stake, or someone they care for stood
 /// in the street. Returns the sympathetic mark, if it lands.

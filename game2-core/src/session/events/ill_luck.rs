@@ -108,6 +108,7 @@ impl Game {
             EventId::Assize => self.assize_moment(),
             EventId::CellarThief => self.cellar_thief_moment(),
             EventId::SheepInCradle => self.sheep_cradle_moment(),
+            EventId::NoahRow => self.noah_row_moment(),
             EventId::ChimneyFire => {
                 // a rolled home's flue catches - the fire ticks and
                 // spreads the way any fire does, and the house grieves
@@ -728,5 +729,247 @@ impl Game {
         let tn = self.name_of(t.thief);
         self.narrate_talk(seat, &format!(
             "{tn} presses {gold:.0} gold into your hand, and what's in his cradle stays between you."));
+    }
+}
+
+impl Game {
+    /// The Noah row (#1257): a marriage's disagreement carried into the
+    /// street. The matter's seeded from real state - a member's spouse
+    /// who won't stomach the meetings, the want that ate the rent, or
+    /// the folly she won't follow him into. The street turns out, each
+    /// watcher takes a side by their own bonds, and both halves wear
+    /// the mark of it. A house that keeps rowing in public wears its
+    /// own bond down - the street sees the crack first
+    pub(in crate::session) fn noah_row_moment(&mut self) {
+        use crate::game::relationships as rel;
+        let tick = self.tick;
+        // standing marriages: the union holds (form 0), both halves
+        // alive and about, grown. Each pair counted once, by the
+        // villagers' own order
+        let mut pairs: Vec<(Entity, Entity)> = vec![];
+        for &v in self.villagers.iter() {
+            if villager::is_dead(&self.world, v)
+                || crate::game::dungeon::unavailable(&self.world, v)
+                || self.world.get_component::<crate::game::vocation::Kid>(v).is_some() { continue; }
+            let Some(m) = self.world.get_component::<rel::Married>(v) else { continue };
+            if m.form != 0 { continue; }
+            let s = m.spouse;
+            if villager::is_dead(&self.world, s)
+                || crate::game::dungeon::unavailable(&self.world, s)
+                || self.world.get_component::<crate::game::vocation::Kid>(s).is_some() { continue; }
+            let (vi, si) = (self.villagers.iter().position(|&x| x == v).unwrap_or(usize::MAX),
+                self.villagers.iter().position(|&x| x == s).unwrap_or(usize::MAX));
+            if vi < si { pairs.push((v, s)); }
+        }
+        if pairs.is_empty() {
+            self.log.push_ev(EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                format!("t{tick}: raised voices behind a shutter somewhere - nothing came of it."));
+            return;
+        }
+        // each pair's own matter: the meetings one of them keeps and the
+        // other won't stomach, the want that spent the rent, or the ark
+        // itself. Villager order, first seed that fits
+        let mut seeded: Vec<(Entity, Entity, crate::session::events::RowMatter)> = vec![];
+        for &(a, b) in &pairs {
+            // the cause row: one's signed on, the other won't have it
+            let mut matter = None;
+            for st in self.seats.iter() {
+                let mem = |x| self.world.get_component::<crate::sim::community::Organization>(st.org)
+                    .map(|o| o.members.contains(&x)).unwrap_or(false);
+                let (member, _) = match (mem(a), mem(b)) {
+                    (true, false) => (a, b),
+                    (false, true) => (b, a),
+                    _ => continue,
+                };
+                let issue = crate::game::campaign::campaign_of(&self.world, st.org)
+                    .and_then(|ce| self.world.get_component::<crate::game::campaign::Campaign>(ce))
+                    .map(|c| c.issue.clone());
+                if let Some(issue) = issue {
+                    matter = Some(crate::session::events::RowMatter::Cause { member, issue });
+                    break;
+                }
+            }
+            // wants against means: a costly unsatisfied want in a house
+            // that's short - the rent that bought a lute
+            if matter.is_none() {
+                for &(who, other) in &[(a, b), (b, a)] {
+                    let short = desires::problems_of(&self.world, who, tick)
+                        .contains(&desires::Problem::Broke)
+                        || desires::problems_of(&self.world, other, tick)
+                            .contains(&desires::Problem::Broke)
+                        || self.world.get_component::<Purse>(who)
+                            .map(|p| p.gold < 3.0).unwrap_or(false)
+                        || self.world.get_component::<Purse>(other)
+                            .map(|p| p.gold < 3.0).unwrap_or(false);
+                    if !short { continue; }
+                    let want = self.world.get_component::<desires::InnerLife>(who)
+                        .map(|l| l.wants.iter().copied().find(|&w|
+                            matches!(w, desires::Want::Instrument | desires::Want::Finery
+                                | desires::Want::BetterTools | desires::Want::Drink)
+                            && !desires::is_satisfied(&self.world, who, w, tick)))
+                        .flatten();
+                    if let Some(want) = want {
+                        matter = Some(crate::session::events::RowMatter::Want { want, spender: who });
+                        break;
+                    }
+                }
+            }
+            seeded.push((a, b, matter.unwrap_or(crate::session::events::RowMatter::Folly)));
+        }
+        let roll = self.rare_roll(EventId::NoahRow);
+        let (a, b, matter) = seeded[(roll as usize / 3) % seeded.len()].clone();
+        let at = toast_spot(&self.world, a);
+        // the house's tally on the street's book: the count wears the
+        // marital bond harder each time the row's a public one
+        let key = if self.villagers.iter().position(|&x| x == a)
+            < self.villagers.iter().position(|&x| x == b) { (a, b) } else { (b, a) };
+        let nth = self.row_count.get(&key).copied().unwrap_or(0) + 1;
+        self.row_count.insert(key, nth);
+        let (an, bn) = (self.name_of(a), self.name_of(b));
+        // the words themselves, by the matter - and who's saying them
+        let (accuser, accused) = match &matter {
+            crate::session::events::RowMatter::Cause { member, .. } =>
+                (if a == *member { b } else { a }, *member),
+            crate::session::events::RowMatter::Want { spender, .. } =>
+                (if a == *spender { b } else { a }, *spender),
+            crate::session::events::RowMatter::Folly =>
+                (if roll % 2 == 0 { a } else { b }, if roll % 2 == 0 { b } else { a }),
+        };
+        let (accuse, defend) = match &matter {
+            crate::session::events::RowMatter::Cause { .. } =>
+                ("Thy meetings! I'll not have thee wasting thy nights in their company!",
+                 "It's bread for the both of us, love."),
+            crate::session::events::RowMatter::Want { want, .. } => match want {
+                desires::Want::Instrument =>
+                    ("A lute! The rent's not yet paid and a lute it was!",
+                     "A body's got to have summat to sing with."),
+                desires::Want::Finery =>
+                    ("Ribbons and silks - and the roof lets the rain in!",
+                     "A body's allowed one fine thing."),
+                desires::Want::BetterTools =>
+                    ("New chisels, was it? We eat air this week, then.",
+                     "Blunt tools earn nothing."),
+                _ =>
+                    ("The alehouse got our flour money again!",
+                     "A dry throat's no way to end a day."),
+            },
+            crate::session::events::RowMatter::Folly =>
+                ("I'll not come in thy ark!",
+                 "It's a roof-beam, love - a roof-beam!"),
+        };
+        self.say(accuser, accuse, CHAT_BUBBLE_SECS);
+        self.say(accused, defend, CHAT_BUBBLE_SECS);
+        // the row's own record: each half carries the conflict, and the
+        // union's bond wears - heavier each time the street's heard it
+        rel::record_interaction(&mut self.world, a,
+            rel::Interaction { other: b, kind: rel::InteractionKind::Conflict, intensity: 0.5 });
+        rel::record_interaction(&mut self.world, b,
+            rel::Interaction { other: a, kind: rel::InteractionKind::Conflict, intensity: 0.5 });
+        let wear = 0.06 * nth as f32;
+        for &(who, other) in &[(a, b), (b, a)] {
+            if let Some(bond) = self.world.get_component_mut::<crate::sim::psychology::Bond>(who) {
+                if bond.target == other {
+                    bond.security = (bond.security - wear).max(0.0);
+                }
+            }
+        }
+        // the mark on both standings: the street saw the crack
+        self.rep_apply(a, crate::sim::reputation_qsp::RepAction::BadDeed);
+        self.rep_apply(b, crate::sim::reputation_qsp::RepAction::BadDeed);
+        // the street turns out and takes its sides: each watcher's own
+        // bonds say which shoulder they stand at. On a cause row the
+        // member's side-takers are the cause's opening
+        let mut for_a = 0usize;
+        let mut for_b = 0usize;
+        let mut woken = 0usize;
+        if let Some((ax, ay)) = at {
+            for &w in self.villagers.iter() {
+                if w == a || w == b || villager::is_dead(&self.world, w)
+                    || crate::game::dungeon::unavailable(&self.world, w)
+                    || self.world.get_component::<crate::game::vocation::Kid>(w).is_some() { continue; }
+                let near = self.world.get_component::<Pos>(w)
+                    .map(|p| (p.x - ax).abs() + (p.y - ay).abs() <= 10.0).unwrap_or(false);
+                if !near { continue; }
+                let Some(fav) = crate::game::reactions::take_side(&self.world, w, a, b) else { continue };
+                let unfav = if fav == a { b } else { a };
+                if fav == a { for_a += 1; } else { for_b += 1; }
+                rel::record_interaction(&mut self.world, w,
+                    rel::Interaction { other: fav, kind: rel::InteractionKind::Conversation,
+                        intensity: 0.1 });
+                rel::record_interaction(&mut self.world, w,
+                    rel::Interaction { other: unfav, kind: rel::InteractionKind::Conflict,
+                        intensity: 0.05 });
+                if let crate::session::events::RowMatter::Cause { member, ref issue } = matter {
+                    if fav == member
+                        && crate::game::reactions::witness(&mut self.world, w, issue,
+                            &[member], tick) { woken += 1; }
+                }
+            }
+        }
+        let tilt = if for_a > for_b { format!(" The street's mostly with {an}.") }
+            else if for_b > for_a { format!(" The street's mostly with {bn}.") }
+            else { String::new() };
+        let woke = if woken > 0 { format!(" {woken} of the watchers heard the cause in it.") }
+            else { String::new() };
+        let again = if nth >= 3 { " The street's seen this pair before - the crack's showing.".to_string() }
+            else { String::new() };
+        let what = match &matter {
+            crate::session::events::RowMatter::Cause { .. } => "over the meetings".to_string(),
+            crate::session::events::RowMatter::Want { want, .. } => format!(
+                "over the {}", match want {
+                    desires::Want::Instrument => "lute",
+                    desires::Want::Finery => "ribbons",
+                    desires::Want::BetterTools => "tools",
+                    _ => "ale money" }),
+            crate::session::events::RowMatter::Folly => "over his ark".to_string(),
+        };
+        let who = self.villagers.iter().position(|&v| v == a);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Notable),
+            format!("t{tick}: {an} and {bn} row in the street {what} - the whole row's on show.{tilt}{woke}{again}"),
+            at, who);
+        self.toasts.push_at(("A row in the street".into(), tick + 40), at);
+        self.noah_row = Some(crate::session::events::NoahRow {
+            a, b, matter, until: tick });
+    }
+
+    /// The mediator's word lands (#1257): talked down before the whole
+    /// street, the row goes out like a lamp. The wear the row already
+    /// did stands; what heals is the heat
+    pub(in crate::session) fn row_calmed(&mut self, seat: usize, who: Entity) {
+        let Some(r) = self.noah_row.take() else { return };
+        if who != r.a && who != r.b { self.noah_row = Some(r); return; }
+        let pe = self.seats[seat].player;
+        use crate::game::relationships as rel;
+        for &e in &[r.a, r.b] {
+            rel::record_interaction(&mut self.world, e,
+                rel::Interaction { other: pe, kind: rel::InteractionKind::Conversation,
+                    intensity: 0.3 });
+        }
+        let (an, bn) = (self.name_of(r.a), self.name_of(r.b));
+        self.narrate_talk(seat, "The words go out of it - the street drifts off, and it's just the two of them breathing.");
+        self.log.push_ev(EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+            format!("t{}: talked down - {an} and {bn}'s row goes out like a lamp.", self.tick));
+    }
+
+    /// The mediator takes a side instead (#1257): the sided-with warms
+    /// to the voice that backed them, the other cools - and the row
+    /// keeps burning
+    pub(in crate::session) fn row_sided(&mut self, seat: usize, favored: Entity) {
+        let Some(r) = self.noah_row.as_ref() else { return };
+        if favored != r.a && favored != r.b { return; }
+        let (other, pe) = (if favored == r.a { r.b } else { r.a }, self.seats[seat].player);
+        use crate::game::relationships as rel;
+        rel::record_interaction(&mut self.world, favored,
+            rel::Interaction { other: pe, kind: rel::InteractionKind::Conversation,
+                intensity: 0.3 });
+        rel::record_interaction(&mut self.world, other,
+            rel::Interaction { other: pe, kind: rel::InteractionKind::Conflict,
+                intensity: 0.2 });
+        let (fn_, on) = (self.name_of(favored), self.name_of(other));
+        self.narrate_talk(seat,
+            "You take a side where the street can see it - and the row burns on.");
+        self.log.push_ev(EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+            format!("t{}: you took {fn_}'s part in it - {on} won't forget whose side.", self.tick));
     }
 }

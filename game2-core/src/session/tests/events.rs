@@ -7,7 +7,7 @@ use crate::session::PKind;
 /// The whole registry's its hundred and counting, every id once
 #[test]
 fn test_the_registry_is_a_hundred() {
-    assert_eq!(EVENTS.len(), 106);
+    assert_eq!(EVENTS.len(), 107);
     for i in 0..EVENTS.len() {
         for j in (i + 1)..EVENTS.len() {
             assert_ne!(EVENTS[i].id, EVENTS[j].id, "duplicate id in the registry");
@@ -3000,4 +3000,222 @@ fn test_the_held_name_pays_out_once() {
     let talk = g.seats[0].talk.clone().expect("the talk's open");
     assert_ne!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_PRICE_TREE),
         "the squeeze is spent");
+}
+
+/// A marriage for the test: the union stands on both halves (#1257)
+fn wedlock(g: &mut Game, a: Entity, b: Entity) {
+    use crate::game::relationships::Married;
+    g.world.add_component(a, Married { spouse: b, form: 0 });
+    g.world.add_component(b, Married { spouse: a, form: 0 });
+}
+
+/// A bond at a strength: the interaction writes the ledger, the
+/// strength's set on the record (#1257)
+fn side_bond(g: &mut Game, a: Entity, b: Entity, strength: f32) {
+    use crate::game::relationships as rel;
+    rel::record_interaction(&mut g.world, a,
+        rel::Interaction { other: b, kind: rel::InteractionKind::Conversation,
+            intensity: 0.1 });
+    let re = rel::find_relationship(&g.world, a, b).expect("the bond wrote");
+    g.world.get_component_mut::<rel::Relationship>(re).unwrap().strength = strength;
+}
+
+/// The pair rows in the street - both halves wear the mark and the
+/// street's count of it starts (#1257)
+#[test]
+fn test_the_row_in_the_street() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<crate::game::vocation::Kid>(v).is_none());
+    let a = it.next().unwrap();
+    let b = it.next().unwrap();
+    wedlock(&mut g, a, b);
+    g.force_event(EventId::NoahRow);
+    let r = g.noah_row.clone().expect("the row's on");
+    assert_eq!((r.a, r.b), (a, b), "the only union rows");
+    assert!(g.log.iter().any(|l| l.contains("row in the street")));
+    // both halves carry the quarrel on their bond
+    let rel = crate::game::relationships::find_relationship(&g.world, a, b)
+        .and_then(|re| g.world.get_component::<crate::game::relationships::Relationship>(re));
+    assert!(rel.map(|r| r.strength < 0.0).unwrap_or(false),
+        "the row's on their own record");
+    assert_eq!(*g.row_count.values().next().unwrap_or(&0), 1,
+        "the street counts the row");
+}
+
+/// The watchers take their sides by their own bonds - a friend of one
+/// half leans to their shoulder (#1257)
+#[test]
+fn test_the_street_takes_sides() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<crate::game::vocation::Kid>(v).is_none());
+    let a = it.next().unwrap();
+    let b = it.next().unwrap();
+    let w = it.next().unwrap();
+    wedlock(&mut g, a, b);
+    side_bond(&mut g, w, a, 0.9);
+    // the watcher's at her shoulder when the row spills
+    if let Some(p) = g.world.get_component::<Pos>(a).copied() {
+        g.world.add_component(w, p);
+    }
+    g.force_event(EventId::NoahRow);
+    assert!(g.noah_row.is_some(), "the row's on");
+    // the tilt's on the ledger: warmed to her side, cooled to his
+    let wa = crate::game::relationships::find_relationship(&g.world, w, a)
+        .and_then(|re| g.world.get_component::<crate::game::relationships::Relationship>(re));
+    assert!(wa.map(|r| r.strength >= 0.9).unwrap_or(false), "the tilt kept her bond");
+    let wb = crate::game::relationships::find_relationship(&g.world, w, b)
+        .and_then(|re| g.world.get_component::<crate::game::relationships::Relationship>(re));
+    assert!(wb.map(|r| r.strength < 0.0).unwrap_or(false),
+        "a side taken cools the other shoulder");
+    assert!(g.log.iter().any(|l| l.contains("mostly with")),
+        "the street's lean says in the log: {:?}",
+        g.log.iter().last());
+}
+
+/// The cause row: a member's spouse denounces the meetings in the
+/// street - hazard and opening both, for the watcher the row wakes
+/// (#1257)
+#[test]
+fn test_the_row_over_the_meetings() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<crate::game::vocation::Kid>(v).is_none());
+    let a = it.next().unwrap();
+    let b = it.next().unwrap();
+    let w = it.next().unwrap();
+    wedlock(&mut g, a, b);
+    // his union won't have the meetings: he's signed on, she won't
+    let oe = g.org;
+    g.world.get_component_mut::<crate::sim::community::Organization>(oe)
+        .unwrap().members.push(a);
+    let ce = g.world.create_entity();
+    g.world.add_component(ce, crate::game::campaign::Campaign {
+        issue: "the tax".into(),
+        framing: crate::game::campaign::Framing::SharedGrievance,
+        org: oe, founded_day: 0, dissenters: vec![],
+        decision_rule: crate::game::campaign::DecisionRule::Majority,
+        seats: vec![], target: None, dossier: None, directive: None,
+        phase: crate::game::campaign::CampaignPhase::Listening });
+    // the watcher stands at his shoulder already
+    side_bond(&mut g, w, a, 0.9);
+    if let Some(p) = g.world.get_component::<Pos>(a).copied() {
+        g.world.add_component(w, p);
+    }
+    g.force_event(EventId::NoahRow);
+    let r = g.noah_row.clone().expect("the row's on");
+    assert!(matches!(r.matter, crate::session::events::RowMatter::Cause { .. }),
+        "the meetings are the matter");
+    assert!(g.log.iter().any(|l| l.contains("over the meetings")),
+        "the street hears what the row's over");
+    // and the watcher who took the member's side heard the cause in it
+    let woke = g.world.get_component::<crate::game::reactions::Sympathized>(w)
+        .map(|s| s.issues.iter().any(|(i, _)| i == "the tax")).unwrap_or(false);
+    assert!(woke, "the sympathetic watcher's a recruiting opening");
+}
+
+/// The rent spent on a lute: a costly unsatisfied want in a short
+/// house is the row's own matter (#1257)
+#[test]
+fn test_the_row_over_the_lute() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<crate::game::vocation::Kid>(v).is_none());
+    let a = it.next().unwrap();
+    let b = it.next().unwrap();
+    wedlock(&mut g, a, b);
+    g.world.add_component(a, crate::game::desires::InnerLife {
+        wants: vec![crate::game::desires::Want::Instrument],
+        grievances: vec![(crate::game::desires::Problem::Broke, 9999)],
+        satisfied: vec![] });
+    g.force_event(EventId::NoahRow);
+    let r = g.noah_row.clone().expect("the row's on");
+    assert!(matches!(r.matter, crate::session::events::RowMatter::Want {
+        want: crate::game::desires::Want::Instrument, spender } if spender == a),
+        "the lute's the matter and she's the spender");
+    assert!(g.log.iter().any(|l| l.contains("over the lute")),
+        "the street hears the rent went on it");
+}
+
+/// A house that keeps rowing in public wears its own bond down to the
+/// separation line - the street sees the crack first (#1257)
+#[test]
+fn test_the_row_that_keeps_coming_wears_the_union() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<crate::game::vocation::Kid>(v).is_none());
+    let a = it.next().unwrap();
+    let b = it.next().unwrap();
+    wedlock(&mut g, a, b);
+    // the union's bond, thin already
+    g.world.add_component(a, crate::sim::psychology::Bond {
+        target: b, security: 0.4 });
+    for _ in 0..3 { g.noah_row_moment(); }
+    assert_eq!(*g.row_count.values().next().unwrap_or(&0), 3,
+        "the street's counted every one");
+    let thin = g.world.get_component::<crate::sim::psychology::Bond>(a)
+        .map(|bond| bond.security < 0.3).unwrap_or(false);
+    assert!(thin, "three public rows wore the bond under the line");
+    // and the machinery that reads it takes the union apart
+    g.separation_tick(47);
+    let ended = g.world.get_component::<crate::game::relationships::Married>(a)
+        .map(|m| m.form != 0).unwrap_or(false);
+    assert!(ended, "the crack the street saw first opens");
+}
+
+/// Talked down before the whole street: the mediator's word puts the
+/// row out like a lamp (#1257)
+#[test]
+fn test_the_mediator_puts_the_row_out() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<crate::game::vocation::Kid>(v).is_none());
+    let a = it.next().unwrap();
+    let b = it.next().unwrap();
+    wedlock(&mut g, a, b);
+    g.force_event(EventId::NoahRow);
+    assert!(g.noah_row.is_some(), "the row's burning");
+    g.open_player_talk(0, a, crate::game::conversation::Relation::Acquaintance,
+        "raised voices out there");
+    let talk = g.seats[0].talk.clone().expect("the talk's open");
+    assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::NOAH_ROW_TREE),
+        "mid-row, the talk's the row's own: {:?}", talk.opt_tree);
+    let i = talk.options.iter()
+        .position(|o| o.1 == crate::game::dialogue_trees::NOAH_PEACE)
+        .expect("the peace word's on offer");
+    g.talk_pick_at(0, Some(i));
+    assert!(g.noah_row.is_none(), "the row goes out like a lamp");
+    assert!(g.log.iter().any(|l| l.contains("talked down")));
+    let warm = crate::game::relationships::find_relationship(&g.world, a, g.player)
+        .and_then(|re| g.world.get_component::<crate::game::relationships::Relationship>(re));
+    assert!(warm.map(|r| r.strength > 0.0).unwrap_or(false),
+        "the one talked down warms to the voice that did it");
+}
+
+/// The mediator takes a side instead: the backed one warms, the other
+/// cools, and the row burns on (#1257)
+#[test]
+fn test_the_mediator_takes_a_side() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<crate::game::vocation::Kid>(v).is_none());
+    let a = it.next().unwrap();
+    let b = it.next().unwrap();
+    wedlock(&mut g, a, b);
+    g.force_event(EventId::NoahRow);
+    g.open_player_talk(0, a, crate::game::conversation::Relation::Acquaintance,
+        "raised voices out there");
+    let talk = g.seats[0].talk.clone().expect("the talk's open");
+    let i = talk.options.iter()
+        .position(|o| o.1 == crate::game::dialogue_trees::NOAH_SIDE_THEM)
+        .expect("the side pick's on offer");
+    g.talk_pick_at(0, Some(i));
+    assert!(g.noah_row.is_some(),
+        "a side taken lets the row burn on");
+    assert!(g.log.iter().any(|l| l.contains("won't forget whose side")));
+    let cooled = crate::game::relationships::find_relationship(&g.world, b, g.player)
+        .and_then(|re| g.world.get_component::<crate::game::relationships::Relationship>(re));
+    assert!(cooled.map(|r| r.strength < 0.0).unwrap_or(false),
+        "the unbacked half won't forget whose side you took");
 }

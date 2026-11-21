@@ -3456,6 +3456,11 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: EWE_VICTIM_TREE,
             criteria: &[Has("self:status:ewe_victim"), Lacks("self:status:child")],
             root: &EWE_VICTIM_GREET, rejoin: None },
+        // the row in the street (#1257): either half mid-row answers
+        // the mediator's opening
+        DialogueTree { name: NOAH_ROW_TREE,
+            criteria: &[Has("self:status:rowing"), Lacks("self:status:child")],
+            root: &NOAH_GREET, rejoin: None },
         // the road's visitors (#1168): the again-tree leads - at two
         // criteria it ties the kind/archetype trees and library order
         // makes the repeat the shorter talk
@@ -4661,6 +4666,75 @@ const EWE_PRICE_GREET: Exchange = Exchange {
             lines: &["Just checking the fold is quiet.", "Fine day for the flocks."],
             voice: &[],
             then: Some(EWE_TENSION), end: None },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to it, then."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+pub const NOAH_ROW_TREE: &str = "the_noah_row";
+/// The mediator's word - the pick that talks one down (#1257)
+pub const NOAH_PEACE: &str = "Peace - the whole street's watching.";
+/// Backing the one you're talking to (#1257)
+pub const NOAH_SIDE_THEM: &str = "You've the right of it - hold your line.";
+
+const NOAH_LAMP: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["peace", "street"],
+    calls: &[
+        "...the whole street, aye. And me giving it a show.",
+        "Huh. Let them find another supper, then.",
+        "You're not wrong. Not about the watching, anyway.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Take it home, now. The door's the place for it."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const NOAH_BACKED: Exchange = Exchange {
+    act: Act::Agree,
+    concepts: &["right", "row"],
+    calls: &[
+        "There - someone with sense! Tell THEM that.",
+        "I knew it. I bloody knew I had the right of it.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Best keep walking - the row's not done."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const NOAH_GREET: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["row", "street"],
+    calls: &[
+        "What? The whole street's had its look already - say your piece.",
+        "I'm in no mood for callers, and that's the truth of it.",
+        "If you've come to gawp, the gawping's over there with the rest.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Remark, concepts: &["peace", "street"],
+            lines: &[NOAH_PEACE],
+            voice: &[],
+            then: Some(NOAH_LAMP), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Agree, concepts: &["side", "row"],
+            lines: &[NOAH_SIDE_THEM],
+            voice: &[],
+            then: Some(NOAH_BACKED), end: None },
         Reply { criteria: &[], weight: 0.5, bias: &[],
             act: Act::Farewell, concepts: &["parting"],
             lines: &["I'll leave you to it, then."],

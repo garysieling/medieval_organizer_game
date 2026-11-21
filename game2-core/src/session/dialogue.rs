@@ -627,6 +627,13 @@ impl Game {
                     villager.status.push("ewe_leverage");
                 }
             }
+            // the Noah row (#1257): while the row's still burning, a
+            // Talk to either half of it is the mediator's opening
+            if let Some(r) = &self.noah_row {
+                if r.until == self.tick && (v == r.a || v == r.b) {
+                    villager.status.push("rowing");
+                }
+            }
         }
         // how well they know you colours the talk - the trees key on the
         // stage as a status fact
@@ -980,8 +987,8 @@ impl Game {
         let act = t.options[i].0;
         let pick_text = t.options[i].1.clone();
         let pe = self.seats[seat].player;
-        let (tid, old_scores, opt_tree) =
-            (t.id, t.opt_tree == Some("old_scores"), t.opt_tree);
+        let (tid, twho, old_scores, opt_tree) =
+            (t.id, t.who, t.opt_tree == Some("old_scores"), t.opt_tree);
         // an audition pick isn't read by its act - standing up to a
         // hothead is the right answer, not a slight; the vibe read it
         // sets is the whole effect (#1187)
@@ -1056,6 +1063,15 @@ impl Game {
             if let Some(th) = self.ewe_theft.as_ref().map(|t| t.thief) {
                 let tn = self.name_of(th);
                 self.narrate_talk(seat, &format!("She names him at last: {tn}."));
+            }
+        }
+        // the Noah row (#1257): the mediator's word talks one down, or
+        // the pick takes a side where the street can see it
+        if opt_tree == Some(crate::game::dialogue_trees::NOAH_ROW_TREE) {
+            if pick_text == crate::game::dialogue_trees::NOAH_PEACE {
+                self.row_calmed(seat, twho);
+            } else if pick_text == crate::game::dialogue_trees::NOAH_SIDE_THEM {
+                self.row_sided(seat, twho);
             }
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }

@@ -27,8 +27,13 @@ fn test_speaker_reads_traits_trade_and_circumstance_off_the_world() {
     let s = speaker_of(&g.world, v, "Eliza", g.tick);
     assert_eq!(s.traits, vec![Trait::Hotheaded]);
     assert!(s.status.contains(&"weaver") && s.status.contains(&"hungry"), "{:?}", s.status);
+    assert_eq!(s.trade, Some("weaver"));
     g.world.add_component(v, crate::game::vocation::craft(Vocation::Priest, 0.5));
     assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).ideology, "clergy");
+    // every trade speaks as itself, even ones with no status word (#1238)
+    assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).trade, Some("priest"));
+    g.world.add_component(v, crate::game::vocation::craft(Vocation::Farmer, 0.5));
+    assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).trade, Some("farmer"));
     g.world.add_component(v, Kid);
     assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).status, vec!["child"]);
 }

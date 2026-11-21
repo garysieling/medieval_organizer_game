@@ -2977,12 +2977,56 @@ pub fn meeting_pool(speaker: &Speaker) -> Vec<MeetingLine> {
         "lord" => MEET_RENTS,
         _ => MEET_WAGES,
     });
+    // the trade's own counsel, on its own ground (#1238)
+    pool.extend(MEET_COUNSEL.iter().filter(|(t, _)| speaker.trade == Some(*t)).map(|(_, l)| l.clone()));
     pool.extend_from_slice(MEET_HARVEST);
     pool.extend_from_slice(MEET_COMMONS);
     pool.extend_from_slice(MEET_BRIDGE);
     pool.extend_from_slice(MEET_COMMON);
     pool
 }
+
+/// A trade's authority on the matter it owns (#1238): the farmer on the
+/// harvest, the mason on the bridge - words the other trades don't have
+pub const MEET_COUNSEL: &[(&str, MeetingLine)] = &[
+    ("farmer", MeetingLine { act: Act::Remark, concepts: &["concern:harvest"], bias: &[],
+        lines: &["I've cut thirty harvests - the field won't give what it hasn't got. Rest the low strip a year.",
+            "I've walked that ground since I could hold a sickle. Sow it late, or the frost takes it."] }),
+    ("farmer", MeetingLine { act: Act::Remark, concepts: &["concern:commons"], bias: &[],
+        lines: &["My plough's turned every furrow by the common. Fence it and we all go short."] }),
+    ("shepherd", MeetingLine { act: Act::Remark, concepts: &["concern:commons", "concern:harvest"], bias: &[],
+        lines: &["I've kept the fold twenty winters. The flock needs the common grazing, or there's no wool and no milk.",
+            "Ask the sheep - the hill grass is thin. Move them down in the wet months."] }),
+    ("beekeeper", MeetingLine { act: Act::Remark, concepts: &["concern:harvest"], bias: &[],
+        lines: &["The skeps tell the season before the fields do. Mark the clover - it's late this year."] }),
+    ("baker", MeetingLine { act: Act::Remark, concepts: &["concern:food"], bias: &[],
+        lines: &["I've fired that oven every dawn for years. Give me the flour and I'll feed the street.",
+            "Bread's only as good as the grain that comes to my door. Mend the mill and the loaves follow."] }),
+    ("alewife", MeetingLine { act: Act::Remark, concepts: &["concern:food"], bias: &[],
+        lines: &["Small ale's fed this village longer than the church has stood. Spare the barley for the vat."] }),
+    ("brewer", MeetingLine { act: Act::Remark, concepts: &["concern:food"], bias: &[],
+        lines: &["I know grain the way a priest knows psalms. Hold back a sack and brew it - it keeps when bread won't."] }),
+    ("taverner", MeetingLine { act: Act::Remark, concepts: &["concern:food"], bias: &[],
+        lines: &["I feed the whole road at my tables. Pool the stores and I'll stretch them further than any of you."] }),
+    ("smith", MeetingLine { act: Act::Remark, concepts: &["concern:wages"], bias: &[],
+        lines: &["I've worked iron since I could lift the hammer. A day's pay doesn't buy the charcoal for a day's work."] }),
+    ("mason", MeetingLine { act: Act::Remark, concepts: &["concern:bridge", "concern:wages"], bias: &[],
+        lines: &["I've laid stone thirty years - that pier's been going since the flood. Mend it before the spring melt.",
+            "A mason's wage is set by men who've never lifted a block. Name the price and we'll hold to it."] }),
+    ("cooper", MeetingLine { act: Act::Remark, concepts: &["concern:bridge", "concern:wages"], bias: &[],
+        lines: &["I know wood - those planks are soft to the heart. Replace them now, not one at a time."] }),
+    ("shoemaker", MeetingLine { act: Act::Remark, concepts: &["concern:wages"], bias: &[],
+        lines: &["I've shod half this village. A pair takes me three days; the price they pay is one."] }),
+    ("weaver", MeetingLine { act: Act::Remark, concepts: &["concern:wages"], bias: &[],
+        lines: &["The loom doesn't lie - an ell of cloth is a day of my life. They pay for half of it."] }),
+    ("tailor", MeetingLine { act: Act::Remark, concepts: &["concern:wages"], bias: &[],
+        lines: &["Every seam in this room is my work or my master's. Our needles feed us less each year."] }),
+    ("miner", MeetingLine { act: Act::Remark, concepts: &["concern:wages"], bias: &[],
+        lines: &["I've been down the pit since my father was. The ore's worth ten times what they pay us to cut it."] }),
+    ("priest", MeetingLine { act: Act::Remark, concepts: &["concern:faith"], bias: &[],
+        lines: &["I've said the office at that altar many years. The faith isn't failing - the bell is, and the roof.",
+            "I've buried and married most of you. The church will stand with you, if you'll come back to it."] }),
+];
 
 /// A worked-example agenda for a house meeting
 pub const MEET_PROMPT: MeetingPrompt = MeetingPrompt {

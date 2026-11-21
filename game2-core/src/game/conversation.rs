@@ -78,11 +78,14 @@ pub struct Speaker {
     pub traits: Vec<Trait>,
     pub ideology: &'static str,
     pub status: Vec<&'static str>,
+    /// The speaker's trade ("farmer", "baker") - whose counsel weighs on
+    /// which matter (#1238)
+    pub trade: Option<&'static str>,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![] }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -832,6 +835,43 @@ const LAST_PULL: f32 = 2.5;
 const OLD_PULL: f32 = 1.0;
 const QUESTION_SCORE: f32 = 3.0;
 
+/// The voice should fit the matter (#1238): a trade's counsel weighs more
+/// on its own ground, a mismatched trade's less, and where no trade owns
+/// the matter the village's memory - an elder - carries the weight
+pub const TRADE_FIT: f32 = 1.4;
+pub const TRADE_MISFIT: f32 = 0.85;
+pub const ELDER_FIT: f32 = 1.2;
+
+/// The trades that own a meeting matter; empty for the matters no craft
+/// owns (rents, roads, fuel, grief, sickness)
+pub fn trades_owning(concept: &str) -> &'static [&'static str] {
+    match concept {
+        "concern:harvest" => &["farmer", "shepherd", "beekeeper"],
+        "concern:food" => &["baker", "alewife", "brewer", "taverner", "farmer"],
+        "concern:wages" => &["smith", "mason", "cooper", "shoemaker", "weaver", "tailor", "miner"],
+        "concern:bridge" => &["mason", "cooper"],
+        "concern:faith" => &["priest"],
+        "concern:commons" => &["shepherd", "farmer", "beekeeper"],
+        _ => &[],
+    }
+}
+
+/// How much `sp`'s word on a line about `concepts` weighs, by trade
+pub fn counsel_weight(sp: &Speaker, concepts: &[&str]) -> f32 {
+    let mut owned = false;
+    for c in concepts {
+        let trades = trades_owning(c);
+        if trades.is_empty() { continue; }
+        if sp.trade.is_some_and(|t| trades.contains(&t)) { return TRADE_FIT; }
+        owned = true;
+    }
+    if owned {
+        if sp.trade.is_some() { TRADE_MISFIT } else { 1.0 }
+    } else if concepts.iter().any(|c| c.starts_with("concern:")) && sp.status.contains(&"elder") {
+        ELDER_FIT
+    } else { 1.0 }
+}
+
 /// Floor statements the room can run without answering the matter before
 /// the organizer calls it back (#1186)
 const DRIFT_LIMIT: usize = 3;
@@ -949,7 +989,7 @@ pub fn run_meeting<'a>(
                     let kind = if open_q {
                         if overlap { ReplyKind::Answer } else { ReplyKind::NewTopic }
                     } else if l.act == Act::PushBack { ReplyKind::Object } else { ReplyKind::BuildOn };
-                    let mut s = score * pull * fit;
+                    let mut s = score * pull * fit * counsel_weight(sp, l.concepts);
                     for (t, m) in l.bias {
                         if sp.traits.contains(t) { s *= m; }
                     }
@@ -1281,6 +1321,67 @@ mod tests {
         assert!(choices_seen > 0);
         assert!(tr_play.turns.len() > 1);
         assert_ne!(tr_play.ending, Some(Ending::LeavesEarly));
+    }
+
+    /// #1238: floor statements (and lines) each speaker got on `prompt`, over many seeds
+    fn floor_by(attendees: &[&Speaker], prompt: &MeetingPrompt, seeds: u64) -> (Vec<usize>, Vec<String>) {
+        let pools: Vec<Vec<MeetingLine>> = attendees.iter().map(|s| meeting_pool(s)).collect();
+        let refs: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
+        let mut counts = vec![0; attendees.len()];
+        let mut said = vec![];
+        for seed in 0..seeds {
+            let mut rng = Rng::new(seed);
+            let rec = run_meeting(&Speaker::new("Reeve"), attendees, prompt, &refs, &MEET_RITES, &mut rng);
+            for st in rec.iter().filter(|s| s.speaker < attendees.len() && s.replying_to.is_some()) {
+                if st.concepts.iter().any(|c| prompt.concepts.contains(c)) {
+                    counts[st.speaker] += 1;
+                    said.push(st.text.clone());
+                }
+            }
+        }
+        (counts, said)
+    }
+
+    #[test]
+    fn test_a_trades_counsel_weighs_on_its_own_ground() {
+        let mut farmer = Speaker::new("Hugh");
+        farmer.trade = Some("farmer");
+        let mut baker = Speaker::new("Alys");
+        baker.trade = Some("baker");
+        let laborer = Speaker::new("Wat");
+        let harvest = ["concern:harvest"];
+        assert_eq!(counsel_weight(&farmer, &harvest), TRADE_FIT);
+        assert_eq!(counsel_weight(&baker, &harvest), TRADE_MISFIT, "the baker on the fields is heard as a baker");
+        assert_eq!(counsel_weight(&laborer, &harvest), 1.0);
+        assert_eq!(counsel_weight(&baker, &["concern:food"]), TRADE_FIT);
+        // off the matters entirely, nobody's trade counts
+        assert_eq!(counsel_weight(&farmer, &["smalltalk"]), 1.0);
+
+        let prompt = MeetingPrompt { text: "The harvest - what do we do?", concepts: &["concern:harvest"] };
+        let (counts, said) = floor_by(&[&farmer, &baker, &laborer], &prompt, 60);
+        assert!(counts[0] > counts[1], "the farmer holds the floor on the harvest: {:?}", counts);
+        let counsel: Vec<&str> = MEET_COUNSEL.iter().filter(|(t, _)| *t == "farmer").flat_map(|(_, l)| l.lines.iter().copied()).collect();
+        assert!(said.iter().any(|s| counsel.contains(&s.as_str())), "the farmer speaks with a farmer's authority");
+        // and only the farmer has those words
+        let baker_pool = meeting_pool(&baker);
+        assert!(baker_pool.iter().all(|l| l.lines.iter().all(|x| !counsel.contains(x))));
+    }
+
+    #[test]
+    fn test_an_elder_carries_the_matter_no_trade_owns() {
+        let mut elder = Speaker::new("Old Maud");
+        elder.status.extend(["elder", "grieving"]);
+        let mut young = Speaker::new("Jack");
+        young.status.push("grieving");
+        assert_eq!(counsel_weight(&elder, &["concern:grief"]), ELDER_FIT);
+        assert_eq!(counsel_weight(&young, &["concern:grief"]), 1.0);
+        // where a trade owns it, age alone doesn't
+        assert_eq!(counsel_weight(&elder, &["concern:harvest"]), 1.0);
+        let mut young2 = Speaker::new("Ivo");
+        young2.status.push("grieving");
+        let prompt = MeetingPrompt { text: "We've lost so many.", concepts: &["concern:grief"] };
+        let (counts, _) = floor_by(&[&elder, &young, &young2], &prompt, 60);
+        assert!(counts[0] > counts[1] && counts[0] > counts[2], "the village's memory speaks where no craft does: {:?}", counts);
     }
 
     #[test]

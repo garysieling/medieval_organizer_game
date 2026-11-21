@@ -58,3 +58,31 @@ fn test_the_model_names_who_wears_the_art() {
     assert!(m.people.iter().any(|p| matches!(p.kind, PKind::Villager(_)) && p.person.is_none()),
         "uncovered villagers fall back to the pack figure");
 }
+
+/// The watch's pose stills (#1279): the sheet's four cells load at
+/// guard height, and a man at ready draws differently from the one
+/// standing easy
+#[test]
+fn test_the_watchs_pose_stills_load_and_draw() {
+    let art = Art::load_fs("../assets", 0);
+    assert_eq!(art.guard_poses.len(), 4,
+        "standing/marching/ready/saluting sliced: {:?}",
+        art.guard_poses.iter().map(|(n, _)| n).collect::<Vec<_>>());
+    for (n, s) in &art.guard_poses {
+        assert!((18..=45).contains(&s.height), "{} is {}px tall - should read as a person", n, s.height);
+        assert!(s.pixels.chunks(4).any(|p| p[3] == 0), "{}: background not keyed out", n);
+    }
+    let game = Game::new_seeded(MAP_SEED);
+    let mut m = game.ui_model();
+    let gi = m.people.iter().position(|p| matches!(p.kind, PKind::Guard(_))).expect("a gate guard");
+    let gp = m.people[gi].pos;
+    let mut view = View::new(art);
+    (view.cam_x, view.cam_y) = cam_centred_on(gp.0, gp.1);
+    view.zoom = 4.0;
+    m.people[gi].pose = guard_pose::STANDING;
+    let standing = view.render(&m, (-1, -1));
+    m.people[gi].pose = guard_pose::READY;
+    let ready = view.render(&m, (-1, -1));
+    assert!(standing.pixels.iter().zip(ready.pixels.iter()).any(|(a, b)| a != b),
+        "the ready stance draws the sheet's cell");
+}

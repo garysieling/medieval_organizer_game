@@ -1073,3 +1073,118 @@ fn test_a_new_day_earns_a_new_beat() {
     assert!(took);
     assert!(ledger(&g, pe, v) > beat, "a new day earns a new beat");
 }
+
+// --- villager chats type their own bond delta (#1230): a spat cools ---
+
+/// The pair's bond strength, for reading a chat's landing
+fn bond(g: &Game, a: Entity, b: Entity) -> f32 {
+    crate::game::relationships::find_relationship(&g.world, a, b)
+        .and_then(|r| g.world.get_component::<crate::game::relationships::Relationship>(r))
+        .map(|r| r.strength).unwrap_or(0.0)
+}
+
+/// A transcript's acts and its close read as the pair's temp: push-backs
+/// and a walk-off go cold, agrees and a kind parting stay warm
+#[test]
+fn test_the_acts_say_how_the_chat_landed() {
+    use crate::game::conversation::{chat_temp, Act, Ending, Transcript, Turn};
+    let tr = |acts: &[(usize, Act)], ending| Transcript {
+        speakers: ["A".into(), "B".into()], trees_walked: vec![],
+        turns: acts.iter().map(|&(speaker, act)| Turn {
+            speaker, act, text: "x".into(), concepts: vec![], tree: "t",
+        }).collect(),
+        ending, vibe: None, asked: vec![],
+    };
+    // a warm exchange
+    assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],
+        Some(Ending::Farewell))) > 0.5);
+    // one sharp word in an easy talk isn't a spat
+    let easy = chat_temp(&tr(&[(0, Act::Greet), (1, Act::PushBack), (0, Act::Agree)],
+        Some(Ending::Farewell)));
+    assert!(easy > crate::session::SPAT_TEMP && easy < 1.0, "{easy}");
+    // but pushed back and walked off is a quarrel
+    assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::PushBack), (0, Act::Remark)],
+        Some(Ending::WalksOff))) <= crate::session::SPAT_TEMP);
+    // a pair's bent is a constant - same pair, same read, every time
+    let (a, b) = (7u32, 13u32);
+    assert_eq!(crate::game::conversation::pair_bias(a, b),
+        crate::game::conversation::pair_bias(a, b));
+    assert!(crate::game::conversation::pair_bias(a, b).abs() <= 1.0);
+    assert_eq!(crate::game::conversation::pair_bias(a, b),
+        crate::game::conversation::pair_bias(b, a), "the bent's the pair's, not a side's");
+}
+
+#[test]
+fn test_sharp_words_chill_the_bond_and_make_the_log() {
+    let mut g = Game::new();
+    let a = g.villagers[0];
+    let b = g.villagers[1];
+    let before = bond(&g, a, b);
+    g.chat_lands(a, b, -1.0, a);
+    assert!(bond(&g, a, b) < before, "a spat cools what a warm talk heats");
+    assert!(g.log.iter().any(|l| l.contains("sharp words")),
+        "the quarrel's a log beat");
+    assert_eq!(g.spats.get(&(a.min(b), a.max(b))).copied(), Some((1, g.tick)),
+        "the spat goes on the tally");
+    // and a cold chat is no warmth beat - the record knows it ran cold
+    let w0 = g.world.get_component::<crate::sim::psychology::AttachmentHistory>(a)
+        .map(|h| h.warmth_episodes).unwrap_or(0);
+    g.push_talk_cold(crate::session::dialogue::TalkKind::Chat, vec![a, b], vec![
+        crate::session::dialogue::TalkLine { who: Some(a), name: "A".into(), text: "get out of my road".into(), gist: false },
+        crate::session::dialogue::TalkLine { who: Some(b), name: "B".into(), text: "and good riddance".into(), gist: false }], true);
+    assert_eq!(g.world.get_component::<crate::sim::psychology::AttachmentHistory>(a)
+        .map(|h| h.warmth_episodes).unwrap_or(0), w0,
+        "a spat counts no warmth");
+}
+
+#[test]
+fn test_a_warm_word_between_two_still_warms() {
+    let mut g = Game::new();
+    let a = g.villagers[0];
+    let b = g.villagers[1];
+    let before = bond(&g, a, b);
+    g.chat_lands(a, b, 1.0, a);
+    assert!(bond(&g, a, b) > before, "a warm chat warms the bond");
+    // and the ledger still knows they spoke
+    assert!(ledger(&g, a, b) > 0 || ledger(&g, b, a) > 0);
+}
+
+#[test]
+fn test_quarrels_pile_up_into_a_feud() {
+    let mut g = Game::new();
+    let a = g.villagers[0];
+    let b = g.villagers[1];
+    // the bond's already cold, and this is their third spat of the season
+    crate::game::relationships::record_interaction(&mut g.world, a,
+        crate::game::relationships::Interaction { other: b,
+            kind: crate::game::relationships::InteractionKind::Conflict, intensity: 1.0 });
+    g.spats.insert((a.min(b), a.max(b)), (crate::session::SPAT_FEUD_N - 1, g.tick));
+    g.chat_lands(a, b, -1.0, a);
+    let feud = g.world.query::<crate::game::feuds::Feud>().iter().any(|&f| {
+        g.world.get_component::<crate::game::feuds::Feud>(f).map(|x|
+            (x.offender, x.aggrieved) == (a, b)).unwrap_or(false)
+    });
+    assert!(feud, "quarrels piling up while the bond's cold open a feud");
+    assert!(!g.spats.contains_key(&(a.min(b), a.max(b))), "the tally's spent");
+    assert!(g.log.iter().any(|l| l.contains("Bad blood")));
+}
+
+#[test]
+fn test_the_street_only_goes_so_deep() {
+    let mut g = Game::new();
+    let (a, b, c, d) = (g.villagers[0], g.villagers[1], g.villagers[2], g.villagers[3]);
+    // one pair already fast friends, one pair strangers - the same warm
+    // chat lands on each
+    crate::game::relationships::record_interaction(&mut g.world, a,
+        crate::game::relationships::Interaction { other: b,
+            kind: crate::game::relationships::InteractionKind::Conversation, intensity: 1.0 });
+    let r = crate::game::relationships::find_relationship(&g.world, a, b).unwrap();
+    g.world.get_component_mut::<crate::game::relationships::Relationship>(r).unwrap().strength = 0.7;
+    g.chat_lands(a, b, 1.0, a);
+    g.chat_lands(c, d, 1.0, c);
+    let deep_gain = bond(&g, a, b) - 0.7;
+    let new_gain = bond(&g, c, d);
+    assert!(new_gain > 0.01, "a warm chat still warms strangers: {new_gain}");
+    assert!(deep_gain < new_gain * 0.5,
+        "past the friend mark the street only keeps the bond warm: {deep_gain} vs {new_gain}");
+}

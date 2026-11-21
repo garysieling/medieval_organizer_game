@@ -2189,6 +2189,9 @@ impl Game {
                         if let Some(g) = self.village_gaol {
                             self.send_far(taken, g, Goal::GoGaol);
                         }
+                        // hauled off under escort - the crowd reads who
+                        // steps up beside them (#1255)
+                        self.reckoning(taken, "the gaol");
                         
                         // hauled off mid-errand: whatever they were doing is dropped
                         self.travels.retain(|t| t.who != taken);
@@ -2767,6 +2770,23 @@ impl Game {
             self.dilemma = None;
             self.resolve_ewe_fork(pick);
             return;
+        }
+        // the reckoning's fork answers its own way too (#1255): stand
+        // beside your member where all can see, or keep the distance -
+        // but only when the card's still the reckoning's own knot
+        let ours = match (self.reckoning, &self.dilemma) {
+            (Some(c), Some(k)) => k.branches.len() == 2
+                && k.branches.iter().all(|b| b.victim == c),
+            _ => false,
+        };
+        if ours {
+            self.dilemma = None;
+            self.resolve_reckoning_fork(seat, pick);
+            return;
+        }
+        // a different knot took the card off it - the walk's over
+        if self.reckoning.is_some() && self.dilemma.is_none() {
+            self.reckoning = None;
         }
         // the burdened man's knot answers first: a pick writes its debt
         // and the debt comes home when its day does

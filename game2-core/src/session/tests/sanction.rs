@@ -192,3 +192,141 @@ fn test_the_gauge_counts_souls_under_the_shoulder() {
     let n = g.secret_kpis().iter().find(|(k, _)| *k == "sanctioned").unwrap().1;
     assert_eq!(n, 1.0, "one soul under the shoulder, the gossip doesn't count");
 }
+
+/// A bond written straight onto the record: the interaction creates the
+/// entity, then the kind and strength are set - the reckoning reads the
+/// ledger, not the history (#1255)
+fn bond(g: &mut Game, a: Entity, b: Entity,
+    kind: crate::game::relationships::RelKind, strength: f32) {
+    crate::game::relationships::record_interaction(&mut g.world, a,
+        crate::game::relationships::Interaction { other: b,
+            kind: crate::game::relationships::InteractionKind::Conversation,
+            intensity: 0.1 });
+    let re = crate::game::relationships::find_relationship(&g.world, a, b)
+        .expect("the bond wrote");
+    let r = g.world.get_component_mut::<crate::game::relationships::Relationship>(re).unwrap();
+    r.kind = kind;
+    r.strength = strength;
+}
+
+/// A friend steps up beside him - and wears the mark of it after (#1255)
+#[test]
+fn test_the_friend_steps_up_at_the_stocks() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let f = it.next().unwrap();
+    g.world.add_component(v, ReputationState {
+        stage: RepStage::Known, score: 0.3, transition_rates: vec![] });
+    bond(&mut g, v, f, crate::game::relationships::RelKind::Friend, 0.9);
+    g.apply_sanction(v, Sanction::Stocks, 10);
+    assert!(g.world.get_component::<crate::game::sanctions::StoodBy>(f).is_some(),
+        "the stander's marked");
+    assert!(g.log.iter().any(|l| l.contains("step") && l.contains("melt into the crowd")),
+        "the village reads who stood: {:?}", g.log.iter().last());
+    assert!(!g.log.iter().any(|l| l.contains("nobody steps up")));
+}
+
+/// A bond too thin for what standing costs melts into the crowd - and
+/// the melted carry the grief of it (#1255)
+#[test]
+fn test_the_thin_bond_melts() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let f = it.next().unwrap();
+    g.world.add_component(v, ReputationState {
+        stage: RepStage::Known, score: 0.3, transition_rates: vec![] });
+    bond(&mut g, v, f, crate::game::relationships::RelKind::Friend, 0.4);
+    g.apply_sanction(v, Sanction::Stocks, 10);
+    assert!(g.world.get_component::<crate::game::sanctions::StoodBy>(f).is_none(),
+        "a thin bond doesn't stand");
+    assert!(g.log.iter().any(|l| l.contains("nobody steps up")),
+        "the crowd reads that too");
+    assert!(desires::problems_of(&g.world, f, 15).contains(&desires::Problem::Grief),
+        "they watched themselves melt - and it sits with them");
+}
+
+/// Exposure outweighs the bond: a friend the crowd already blames
+/// doesn't step up (#1255)
+#[test]
+fn test_the_exposed_melt() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let f = it.next().unwrap();
+    g.world.add_component(v, ReputationState {
+        stage: RepStage::Known, score: 0.3, transition_rates: vec![] });
+    bond(&mut g, v, f, crate::game::relationships::RelKind::Friend, 0.7);
+    grieve(&mut g, f, 4, 8);
+    g.apply_sanction(v, Sanction::Stocks, 10);
+    assert!(g.world.get_component::<crate::game::sanctions::StoodBy>(f).is_none(),
+        "most to fear means melting");
+    assert!(g.log.iter().any(|l| l.contains("nobody steps up")));
+}
+
+/// The road out draws the same reckoning - and his kin warm toward the
+/// one who stood (#1255)
+#[test]
+fn test_the_road_out_reckons_and_kin_remember() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let f = it.next().unwrap();
+    let k = it.next().unwrap();
+    bond(&mut g, v, f, crate::game::relationships::RelKind::Friend, 0.9);
+    bond(&mut g, v, k, crate::game::relationships::RelKind::Family, 0.9);
+    // the kin's own bond holds too, or they'd be counted a stander
+    g.reckoning(v, "the road out");
+    assert!(g.world.get_component::<crate::game::sanctions::StoodBy>(f).is_some());
+    assert!(g.world.get_component::<crate::game::sanctions::StoodBy>(k).is_some(),
+        "kin stand beside their own");
+    let kf = crate::game::relationships::find_relationship(&g.world, k, f)
+        .and_then(|re| g.world.get_component::<crate::game::relationships::Relationship>(re));
+    assert!(kf.map(|r| r.strength > 0.0).unwrap_or(false),
+        "his kin remember who stood");
+}
+
+/// The organizer's own reckoning: a member on the walk puts the fork on
+/// the card (#1255)
+#[test]
+fn test_the_organizer_stands_or_keeps_distance() {
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied().find(|&v|
+        g.world.get_component::<TownRole>(v).is_none()).unwrap();
+    g.world.add_component(v, ReputationState {
+        stage: RepStage::Known, score: 0.3, transition_rates: vec![] });
+    // a stranger to the cause walks it without the card
+    g.apply_sanction(v, Sanction::Stocks, 10);
+    assert!(g.dilemma.is_none() && g.reckoning.is_none(),
+        "no member, no organizer's fork");
+    // a member on the walk is asked for
+    let oe = g.org;
+    g.world.get_component_mut::<crate::sim::community::Organization>(oe)
+        .unwrap().members.push(v);
+    g.apply_sanction(v, Sanction::Stocks, 10);
+    assert!(g.dilemma.is_some() && g.reckoning == Some(v),
+        "the card asks who walks beside your own");
+    let before = g.penetration;
+    g.decide_at(0, 0);
+    assert!(g.world.get_component::<crate::game::sanctions::StoodBy>(g.player).is_some(),
+        "you're marked as theirs");
+    assert!(g.penetration > before, "the informers read the leader's loyalty");
+    assert!(g.log.iter().any(|l| l.contains("the whole village sees whose you are")));
+    // and the quiet choice costs nothing but a line
+    let mut g2 = Game::new();
+    let v2 = g2.villagers.iter().copied().find(|&v|
+        g2.world.get_component::<TownRole>(v).is_none()).unwrap();
+    g2.world.get_component_mut::<crate::sim::community::Organization>(g2.org)
+        .unwrap().members.push(v2);
+    g2.reckoning(v2, "the stocks");
+    assert!(g2.dilemma.is_some());
+    g2.decide_at(0, 1);
+    assert!(g2.log.iter().any(|l| l.contains("walks it alone")),
+        "the distance is what the village reads");
+    assert!(g2.world.get_component::<crate::game::sanctions::StoodBy>(g2.player).is_none());
+}

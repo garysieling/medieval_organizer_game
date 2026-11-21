@@ -469,6 +469,8 @@ impl Game {
                     }
                     self.send(v, Goal::GoStocks);
                     self.say(v, "...all right. All right.", TALK_BUBBLE_SECS);
+                    // the walk's public - the crowd reads who steps up
+                    self.reckoning(v, "the stocks");
                 }
             }
             Sanction::Exile => {
@@ -481,7 +483,142 @@ impl Game {
                     ),
                 );
                 self.send(v, Goal::Exile);
+                // the road out's a walk the whole village watches
+                self.reckoning(v, "the road out");
             }
+        }
+    }
+
+    /// The reckoning of friends (#1255): a public walk - the stocks, the
+    /// road out, the gaol - and the crowd reads who steps up. The bonds
+    /// say who stands: friends, kin and lovers whose strength outweighs
+    /// what standing costs them. The standers are marked as theirs; the
+    /// melted carry what they watched themselves do
+    pub(in crate::session) fn reckoning(&mut self, condemned: Entity, what: &'static str) {
+        let tick = self.tick;
+        // the bonded read the moment: friends, kin, lovers. Acquaintance
+        // doesn't answer a summons like this, and the strength has to be
+        // there to weigh at all
+        let mut bonded: Vec<(Entity, f32)> = vec![];
+        for re in self.world.query::<crate::game::relationships::Relationship>() {
+            let Some(r) = self.world.get_component::<crate::game::relationships::Relationship>(re) else { continue };
+            let other = if r.from == condemned { r.other }
+                else if r.other == condemned { r.from } else { continue };
+            if !matches!(r.kind, crate::game::relationships::RelKind::Friend
+                | crate::game::relationships::RelKind::Family
+                | crate::game::relationships::RelKind::Lover)
+                || r.strength <= 0.3 { continue; }
+            if villager::is_dead(&self.world, other)
+                || crate::game::dungeon::unavailable(&self.world, other) { continue; }
+            bonded.push((other, r.strength));
+        }
+        // stand or melt: the bond's weight against what standing costs -
+        // grievances the crowd already holds against them, a shame rung
+        // they're already serving. No rolls: the ledger decides
+        let mut stood = vec![];
+        let mut melted = vec![];
+        for (f, strength) in bonded {
+            let exposure = desires::problems_of(&self.world, f, tick).len() as f32 * 0.1
+                + if self.sanctioned.iter().any(|(e, _, u)| *e == f && tick < *u) { 0.3 } else { 0.0 };
+            if strength - exposure > 0.5 { stood.push(f); } else { melted.push(f); }
+        }
+        let cname = self.name_of(condemned);
+        let cat = toast_spot(&self.world, condemned);
+        let cwho = self.villagers.iter().position(|&v| v == condemned);
+        if stood.is_empty() {
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                format!("t{}: {cname} walks to {what} - nobody steps up beside them.", tick),
+                cat, cwho);
+        } else {
+            let names: Vec<String> = stood.iter().map(|&f| self.name_of(f)).collect();
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable),
+                format!("t{}: {} step{} up beside {cname} - the rest melt into the crowd.",
+                    tick, names.join(" and "), if stood.len() > 1 { "" } else { "s" }),
+                cat, cwho);
+        }
+        for &f in &stood {
+            self.world.add_component(f, sanctions::StoodBy { of: condemned, at: tick });
+        }
+        for &f in &melted {
+            desires::add_grievance(&mut self.world, f, desires::Problem::Grief, tick + 20);
+        }
+        // the condemned's own know who stood: their kin and housemates
+        // warm toward each stander
+        let mut kin: Vec<Entity> = vec![];
+        for re in self.world.query::<crate::game::relationships::Relationship>() {
+            let Some(r) = self.world.get_component::<crate::game::relationships::Relationship>(re) else { continue };
+            if r.kind != crate::game::relationships::RelKind::Family { continue; }
+            let other = if r.from == condemned { r.other }
+                else if r.other == condemned { r.from } else { continue };
+            kin.push(other);
+        }
+        if let Some(h) = household::home_of(&self.world, condemned) {
+            for &o in self.world.get_component::<Building>(h)
+                .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                if o != condemned && !kin.contains(&o) { kin.push(o); }
+            }
+        }
+        for &f in &stood {
+            for &k in &kin {
+                if villager::is_dead(&self.world, k) { continue; }
+                relationships::record_interaction(&mut self.world, k,
+                    relationships::Interaction { other: f,
+                        kind: relationships::InteractionKind::Conversation, intensity: 0.25 });
+            }
+        }
+        // the organizer's own reckoning: a member of the cause on the
+        // walk, and the card asks whether the leader stands where all
+        // can see - solidarity the informers read, or the distance the
+        // movement keeps
+        let member = self.seats.iter().any(|s|
+            self.world.get_component::<Organization>(s.org)
+                .map(|o| o.members.contains(&condemned)).unwrap_or(false));
+        if member && self.dilemma.is_none() && self.reckoning.is_none() {
+            self.reckoning = Some(condemned);
+            self.dilemma = Some(crate::session::events::MoralKnot {
+                text: format!("{cname} walks to {what} - one of yours. Stand beside them where all can see, or keep the cause's distance?"),
+                branches: vec![
+                    crate::session::events::DilemmaBranch {
+                        text: "stand beside them".into(), debt: 0.0, victim: condemned },
+                    crate::session::events::DilemmaBranch {
+                        text: "let the cause keep its distance".into(), debt: 0.0, victim: condemned },
+                ] });
+        }
+    }
+
+    /// The organizer's reckoning resolves (#1255): stand beside your
+    /// member and the village reads whose you are - the mark, the
+    /// informers' closer look, the kin's warmth - or keep the cause's
+    /// distance and let them walk it alone
+    pub(in crate::session) fn resolve_reckoning_fork(&mut self, seat: usize, pick: usize) {
+        let Some(condemned) = self.reckoning.take() else { return };
+        let cname = self.name_of(condemned);
+        if pick == 0 {
+            let pe = self.seats[seat].player;
+            self.world.add_component(pe, sanctions::StoodBy { of: condemned, at: self.tick });
+            self.penetration = (self.penetration + 0.05).min(1.0);
+            // the condemned's own know who stood at the walk
+            for re in self.world.query::<crate::game::relationships::Relationship>() {
+                let Some(r) = self.world.get_component::<crate::game::relationships::Relationship>(re) else { continue };
+                if r.kind != crate::game::relationships::RelKind::Family { continue; }
+                let other = if r.from == condemned { r.other }
+                    else if r.other == condemned { r.from } else { continue };
+                if villager::is_dead(&self.world, other) { continue; }
+                relationships::record_interaction(&mut self.world, other,
+                    relationships::Interaction { other: pe,
+                        kind: relationships::InteractionKind::Conversation, intensity: 0.3 });
+            }
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+                format!("t{}: you stand beside {cname} - the whole village sees whose you are.",
+                    self.tick));
+            self.toasts.push(("the village sees whose you are".into(), self.tick + 40));
+        } else {
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the cause keeps its distance - {cname} walks it alone.", self.tick));
         }
     }
 

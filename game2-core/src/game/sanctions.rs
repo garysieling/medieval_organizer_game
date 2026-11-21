@@ -5,6 +5,19 @@
 //! answer decides whether a rung lands or turns back on the accusers.
 
 
+use crate::engine::ecs::Entity;
+
+/// The reckoning's mark (#1255): who stood beside the condemned when
+/// the rest of the crowd melted. A loyalty fact the lord's informers
+/// can read later - standing in the open costs the stander their cover
+#[derive(Debug, Clone, Copy)]
+pub struct StoodBy {
+    /// Whose walk they stood at
+    pub of: Entity,
+    /// The day the crowd watched it
+    pub at: u64,
+}
+
 /// The rungs of the ladder, mildest to worst
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Sanction {

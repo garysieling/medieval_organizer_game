@@ -1061,6 +1061,7 @@ impl Game {
             notices: vec![],
             dilemma: None, dilemma_debts: vec![],
             ewe_theft: None,
+            reckoning: None,
             vax_offer: None, vax_done: false, leicester_backing: None,
             boats: vec![(10, 5), (20, 8)],
             construction_sites: vec![],

@@ -356,6 +356,7 @@ impl Game {
         // the village's own law: bye-laws, sureties, partnerships, and
         // the community's pull beneath them all
         crate::timed!("sim.bylaw", self.bylaw_tick(tick));
+        crate::timed!("sim.moot", self.moot_tick(tick));
         crate::timed!("sim.partners", self.partnership_tick(tick));
         crate::timed!("sim.pledges", self.pledge_tick(tick));
         crate::timed!("sim.community", self.community_tick(tick));

@@ -1126,6 +1126,8 @@ impl Game {
             protests: vec![],
             feud_told: Default::default(),
             bylaws: vec![],
+            moot_seats: vec![],
+            moot_seated: 0,
             bylaw_friction: Default::default(),
             bylaw_seen: Default::default(),
             vouches: vec![],

@@ -1189,6 +1189,7 @@ impl Game {
             oath_intensity: 0,
             cover: false,
             penetration: 0.0,
+            excess_wages: Vec::new(),
             lawfare: None,
             compliance_burden: 0.0,
             separation_pressure: 0.0,

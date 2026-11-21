@@ -1516,6 +1516,39 @@ impl Game {
                     );
                 }
             }
+            "excess_wage" => {
+                // paid over the statute's rate: the master's side of
+                // the breach - a fine off the purse
+                if let Some(p) = self.world.get_component_mut::<Purse>(who) {
+                    let cut = (p.gold * 0.2).min(p.gold);
+                    p.gold -= cut;
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                        who,
+                        format!(
+                            "t{}: {} fined {:.0} gold - paid over the statute's rate.",
+                            tick,
+                            self.name_of(who),
+                            cut
+                        ),
+                    );
+                }
+            }
+            "combining" => {
+                // the statute's real teeth: asking together is the
+                // conspiracy - the stocks for whoever the informers
+                // named
+                self.apply_sanction(who, crate::game::sanctions::Sanction::Stocks, tick);
+                self.log_entity_ev(
+                    EvTag::new(Thread::Law, Valence::Negative, Sev::Major),
+                    who,
+                    format!(
+                        "t{}: {} taken for combining against the statute.",
+                        tick,
+                        self.name_of(who)
+                    ),
+                );
+            }
             "assembly" => {
                 // over the cap the law calls it a mob: the stocks for a
                 // ringleader, a fine for the rest
@@ -2899,6 +2932,62 @@ impl Game {
         // the ladder runs once to the relapse - the maintenance stage,
         // not a perpetual re-harvest
         self.inquisition = Some((stage + 1).min(4));
+    }
+
+    /// The Statute of Labourers, live: when hands run so scarce the
+    /// wage climbs on its own and the cause is stirring, the lord
+    /// posts the cap - and thereafter the informers count what's paid.
+    /// Over-cap pay is a breach; the cause's own talking about wages
+    /// is the conspiracy the statute was written to name (#1260).
+    pub(in crate::session) fn wage_edict_tick(&mut self, tick: u64) {
+        if tick % 30 != 19 { return; }
+        if self.law_book.realm.wage_cap <= 0.0 {
+            // the levy: posted when pay genuinely runs hot and folk
+            // are already talking together about it
+            if self.wage_mult() < 1.4 { return; }
+            let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            let organizing: f32 = members.iter().map(|&m|
+                self.world.get_component::<crate::game::org_skills::Organizing>(m)
+                    .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                        + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0)).sum();
+            if organizing < 0.5 { return; }
+            // the posted most: base day-rates only - what scarcity
+            // pays above them is the breach
+            self.law_book.realm.wage_cap = crate::game::livelihood::ODD_JOB_MIN + 2.0;
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Negative, Sev::Major),
+                format!(
+                    "t{}: a writ is posted - the statute names the most a day's hire may pay, and calls it conspiracy to ask for more together.",
+                    tick
+                ),
+            );
+            self.notices.push((
+                "writ".into(),
+                "the statute caps the day's wage".into(),
+                tick + 7,
+            ));
+            self.toasts.push(("The lord posts a wage cap.".into(), tick + 80));
+            return;
+        }
+        // enforcement: the informers' queue of over-cap reports -
+        // how many land depends on the eyes inside
+        let reports: Vec<Entity> = std::mem::take(&mut self.excess_wages);
+        for who in reports {
+            if villager::is_dead(&self.world, who) { continue; }
+            let caught = self.rng.next() % 1000 < (250.0 + self.penetration * 500.0) as u64;
+            if caught { self.apply_penalty(0, who, "excess_wage", tick); }
+        }
+        // the conspiracy clause: the cause's own members, denounced
+        // for combining - born criminal while the statute stands
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        for m in members {
+            if villager::is_dead(&self.world, m) { continue; }
+            if self.penetration < 0.1 { break; }
+            let caught = self.rng.next() % 1000 < (self.penetration * 120.0) as u64;
+            if caught { self.apply_penalty(0, m, "combining", tick); }
+        }
     }
 
     /// The lord's own parley: while the org's a threat, an offer to

@@ -21,11 +21,14 @@ pub struct Law {
     pub drink_levy: f32,
     /// How hard a writ lands: 1.0 is the crown's ordinary weight
     pub writ_mult: f32,
+    /// The statute's posted most a day's hire may pay: 0.0 is no cap.
+    /// Over-cap pay is a breach of the statute itself
+    pub wage_cap: f32,
 }
 
 impl Default for Law {
     fn default() -> Self {
-        Self { tax_share: 0.20, assembly_cap: 2, drink_levy: 0.25, writ_mult: 1.0 }
+        Self { tax_share: 0.20, assembly_cap: 2, drink_levy: 0.25, writ_mult: 1.0, wage_cap: 0.0 }
     }
 }
 

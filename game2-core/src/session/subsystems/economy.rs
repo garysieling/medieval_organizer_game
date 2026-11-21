@@ -711,6 +711,10 @@ impl Game {
                 if let Some(from) = livelihood::seller_for(&self.world, input, pos)
                     .filter(|&s| !self.boycotted(s)) {
                     let pay = (livelihood::ODD_JOB_MIN + self.rng.below(4) as f32) * self.wage_mult();
+                    // scarce hands bid pay over the statute's cap -
+                    // the hirer pays anyway, and takes the breach (#1260)
+                    let cap = self.law_book.realm.wage_cap;
+                    if cap > 0.0 && pay > cap { self.excess_wages.push(v); }
                     self.world.add_component(k, OddJob {
                         hirer: v, good: input.to_string(), qty: 2, from, to: v, pay, loaded: false });
                     self.send(k, Goal::RunOddJob);

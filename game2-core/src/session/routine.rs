@@ -78,6 +78,9 @@ pub enum Spot {
     Play,
     /// A picket or march gathering: a ring of signs facing the middle
     Rally,
+    /// Out with the harvest crowd, or wherever a named beat gathers
+    /// folk to work (#1273)
+    Fields,
     Church,
     StoneCircle,
     Grove,
@@ -178,6 +181,7 @@ pub fn routine_text(world: &World, v: Entity, bench: Option<&str>) -> Option<Str
         (Mode::Selling, _) => "selling at the market".into(),
         (_, Spot::Notices) => "reading the notices".into(),
         (_, Spot::Creek) => "walking by the creek".into(),
+        (_, Spot::Fields) => "out in the fields".into(),
         (_, Spot::Woods) => "walking in the woods".into(),
         (_, Spot::Stones) => "out by the stones".into(),
         (_, Spot::Tavern) => "at the tavern".into(),
@@ -619,6 +623,18 @@ impl Game {
         if self.emergency.is_some() { return; }
         self.protests.push(Protest { rally, folk: folk.clone(), sign, until });
         self.seat_protest(rally, &folk, tick);
+    }
+
+    /// A named beat acted out (#1273): the folk the beat's about gather
+    /// ringed at `anchor` for the rest of the day - the harvest lift at
+    /// the field, the strand-pickers at the water. No signs: a working
+    /// crowd, not a picket. Whoever can't come keeps a normal day
+    pub(in crate::session) fn stage_gathering(&mut self, anchor: (f32, f32), spot: Spot,
+        mode: Mode, folk: &[Entity], tick: u64) -> usize {
+        let folk: Vec<Entity> = folk.iter().copied().filter(|&v| self.free_to_gather(v)).collect();
+        if folk.is_empty() { return 0; }
+        let slots = self.ring_round(anchor, folk.len(), 1.4);
+        self.assemble(tick, mode, spot, None, &folk, &slots, anchor, PROTEST_REACH)
     }
 
     /// A picket's crowd: the sanctioned one's nearest neighbours who can come

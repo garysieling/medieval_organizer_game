@@ -3406,6 +3406,19 @@ const KIDS_GREET: Exchange = Exchange {
 /// The full dialogue library: 30 circumstance and vocation trees plus smalltalk tail
 pub fn village_library() -> Vec<DialogueTree> {
     vec![
+        // the sheep in the cradle (#1254): status-only trees, pushed by
+        // the session while the vignette's live - first for the shortest
+        // tie-break. The ewe trees never fire in villager-villager chat:
+        // the statuses only exist on player-talk speakers
+        DialogueTree { name: EWE_TREE,
+            criteria: &[Has("self:status:ewe_secret"), Lacks("self:status:child")],
+            root: &EWE_GREET, rejoin: None },
+        DialogueTree { name: EWE_PRICE_TREE,
+            criteria: &[Has("self:status:ewe_leverage"), Lacks("self:status:child")],
+            root: &EWE_PRICE_GREET, rejoin: None },
+        DialogueTree { name: EWE_VICTIM_TREE,
+            criteria: &[Has("self:status:ewe_victim"), Lacks("self:status:child")],
+            root: &EWE_VICTIM_GREET, rejoin: None },
         // the road's visitors (#1168): the again-tree leads - at two
         // criteria it ties the kind/archetype trees and library order
         // makes the repeat the shorter talk
@@ -4347,6 +4360,273 @@ const VIS_FORTUNE_GREET: Exchange = Exchange {
         Reply { criteria: &[], weight: 1.0, bias: &[(Pious, 1.5)],
             act: Act::Farewell, concepts: &["parting"],
             lines: &["I keep my fate to myself - good day."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+// ---- the sheep in the cradle (#1254) ----
+// A stolen ewe folded into a cradle and dyed dark. The bluffing house
+// answers with evasions until a kindness lifts the lid; the robbed one
+// names the pot; and once the name's held, the squeeze sits in his talk.
+
+/// The bluff tree's name - session hooks on it for the gift pick
+pub const EWE_TREE: &str = "the_sheep_in_the_cradle";
+/// The squeeze tree's name - session hooks on it for the hush pick
+pub const EWE_PRICE_TREE: &str = "the_ewes_price";
+/// The robbed one's tree's name - session hooks on it for the naming
+pub const EWE_VICTIM_TREE: &str = "the_missing_ewe";
+/// The pick text that lifts the lid - a kindness the house can't hold
+pub const EWE_GIFT: &str = "I've brought a little something for the house.";
+/// The pick text that spends the held name for hush money
+pub const EWE_SQUEEZE: &str = "We both know what's in your cradle.";
+/// The pick text that gets the robbed one to name the thief
+pub const EWE_WHOSE_POT: &str = "Whose pot, then? Say it.";
+
+const EWE_CRACKED: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["ewe", "guilt"],
+    calls: &[
+        "...she walked in herself, so help me. What's done is done.",
+        "Ye saw nothing. The house's luck is all it is.",
+        "Take it up with the cradle, then - not with me.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll think on what I've seen."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+        Reply { criteria: &[], weight: 0.8, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Good day to the house."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_STONEWALL: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["ewe", "bluff"],
+    calls: &[
+        "I've said all I'll say - the door's there.",
+        "You'll have the watch called on you, pushing at folk's doors so.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Remark, concepts: &["gift", "ewe"],
+            lines: &["I've brought a little something for the house."],
+            voice: &[],
+            then: Some(EWE_CRACKED), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to it, then."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_DENY: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["ewe", "bluff"],
+    calls: &[
+        "No ewe here but the one in my soup.",
+        "Folk talk. I mind my own kettle.",
+        "Search if you like - you'll find a babe asleep and nothing more.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Remark, concepts: &["gift", "ewe"],
+            lines: &["I've brought a little something for the house."],
+            voice: &[],
+            then: Some(EWE_CRACKED), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["ewe", "accusation"],
+            lines: &["You're lying, and we both know it.", "The dye's on your hands, friend."],
+            voice: &[],
+            then: Some(EWE_STONEWALL), end: None },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to it, then."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_EVADE: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["ewe", "bluff"],
+    calls: &[
+        "Quiet house, aye - the babe keeps us up all night.",
+        "Folk pass, folk talk - there's no harm in a closed door.",
+        "The wife's not herself since the babe came. We keep to ourselves.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Remark, concepts: &["gift", "ewe"],
+            lines: &["I've brought a little something for the house."],
+            voice: &[],
+            then: Some(EWE_CRACKED), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["ewe", "accusation"],
+            lines: &["Word is a ewe walked into this house last night."],
+            voice: &[],
+            then: Some(EWE_DENY), end: None },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to it, then."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["ewe", "bluff"],
+    calls: &[
+        "Hush - the babe sleeps. Say your piece at the door.",
+        "My wife's laid up - come another day.",
+        "Whatever it is, make it short.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Remark, concepts: &["gift", "ewe"],
+            lines: &["I've brought a little something for the house."],
+            voice: &[],
+            then: Some(EWE_CRACKED), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["ewe", "accusation"],
+            lines: &["Word is a ewe walked into this house last night."],
+            voice: &[],
+            then: Some(EWE_DENY), end: None },
+        Reply { criteria: &[], weight: 0.8, bias: &[],
+            act: Act::Remark, concepts: &["smalltalk"],
+            lines: &["Just passing - quiet house today.", "Fine weather for the fold."],
+            voice: &[],
+            then: Some(EWE_EVADE), end: None },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to it, then."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_VICTIM_NAMES: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["ewe", "theft"],
+    calls: &[
+        "Him - I saw the dye-stain on his hands.",
+        "It walked into his house and never came out. Ask me again and I'll say it louder.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["ewe", "promise"],
+            lines: &["I'll look into it.", "I'll pay the house a visit."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["Keep it quiet until I do."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_VICTIM_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["ewe", "theft", "loss"],
+    calls: &[
+        "{other}! My ewe's gone - gone from the fold, and I know whose pot it's in.",
+        "A word, {other} - my best ewe's walked off, and not on her own legs.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Question, concepts: &["ewe", "theft"],
+            lines: &["Whose pot, then? Say it."],
+            voice: &[],
+            then: Some(EWE_VICTIM_NAMES), end: None },
+        Reply { criteria: &[], weight: 0.8, bias: &[],
+            act: Act::Agree, concepts: &["ewe", "promise"],
+            lines: &["We'll find her - I promise it."],
+            voice: &[],
+            then: Some(EWE_VICTIM_NAMES), end: None },
+        Reply { criteria: &[], weight: 0.4, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I've no time for lost sheep today."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_PAYS: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["ewe", "hush"],
+    calls: &[
+        "Take it - and we never spoke.",
+        "Here. It's all I've put by. Say nothing.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["We never spoke."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_TENSION: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["ewe", "hush"],
+    calls: &[
+        "There's nothing to say. The house sleeps early.",
+        "Mind your own pots, {other}.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["ewe", "hush"],
+            lines: &["We both know what's in your cradle."],
+            voice: &[],
+            then: Some(EWE_PAYS), end: None },
+        Reply { criteria: &[], weight: 0.6, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to it, then."],
+            voice: &[],
+            then: None, end: Some(Farewell) },
+    ],
+};
+
+const EWE_PRICE_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["ewe", "hush"],
+    calls: &[
+        "{other}. What brings you back here?",
+        "Aye - what do you want of me now?",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.0, bias: &[],
+            act: Act::PushBack, concepts: &["ewe", "hush"],
+            lines: &["We both know what's in your cradle."],
+            voice: &[],
+            then: Some(EWE_PAYS), end: None },
+        Reply { criteria: &[], weight: 0.8, bias: &[],
+            act: Act::Remark, concepts: &["smalltalk"],
+            lines: &["Just checking the fold is quiet.", "Fine day for the flocks."],
+            voice: &[],
+            then: Some(EWE_TENSION), end: None },
+        Reply { criteria: &[], weight: 0.5, bias: &[],
+            act: Act::Farewell, concepts: &["parting"],
+            lines: &["I'll leave you to it, then."],
             voice: &[],
             then: None, end: Some(Farewell) },
     ],

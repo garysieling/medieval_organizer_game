@@ -2691,6 +2691,14 @@ impl Game {
             }
             return;
         }
+        // the ewe's fork answers its own way (#1254): the name goes
+        // public and his standing collapses, or it stays in your pocket
+        if self.ewe_theft.as_ref().map(|t| t.fork_open).unwrap_or(false)
+            && self.dilemma.is_some() {
+            self.dilemma = None;
+            self.resolve_ewe_fork(pick);
+            return;
+        }
         // the burdened man's knot answers first: a pick writes its debt
         // and the debt comes home when its day does
         if let Some(knot) = self.dilemma.take() {

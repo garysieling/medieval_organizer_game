@@ -107,6 +107,7 @@ impl Game {
             EventId::AlehouseBrawl => self.brawl_moment(),
             EventId::Assize => self.assize_moment(),
             EventId::CellarThief => self.cellar_thief_moment(),
+            EventId::SheepInCradle => self.sheep_cradle_moment(),
             EventId::ChimneyFire => {
                 // a rolled home's flue catches - the fire ticks and
                 // spreads the way any fire does, and the house grieves
@@ -581,5 +582,148 @@ impl Game {
             mark_at,
             None,
         );
+    }
+}
+
+impl Game {
+    /// The sheep in the cradle (#1254): her ewe's gone, and she knows
+    /// whose pot it's in. She walks to your door to say it; the house
+    /// that has it bluffs until somebody's kindness lifts the lid
+    pub(super) fn sheep_cradle_moment(&mut self) {
+        let roll = self.rare_roll(EventId::SheepInCradle);
+        let grown: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+            !villager::is_dead(&self.world, v)
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && self.world.get_component::<crate::game::vocation::Kid>(v).is_none()).collect();
+        if grown.len() < 2 { return; }
+        // a shepherd knows her ewe first; any grown hand can be the one robbed
+        let shepherds: Vec<Entity> = grown.iter().copied().filter(|&v|
+            self.world.get_component::<crate::game::vocation::Craft>(v)
+                .map(|c| c.vocation == crate::game::vocation::Vocation::Shepherd)
+                .unwrap_or(false)).collect();
+        let victim = if shepherds.is_empty() {
+            grown[(roll as usize / 3) % grown.len()]
+        } else {
+            shepherds[(roll as usize / 3) % shepherds.len()]
+        };
+        let vhome = household::home_of(&self.world, victim);
+        // the thief keeps it in his own cradle: a grown soul in a house
+        // that isn't hers
+        let thieves: Vec<Entity> = grown.iter().copied().filter(|&v| {
+            if v == victim { return false; }
+            let h = household::home_of(&self.world, v);
+            h.is_some() && h != vhome
+        }).collect();
+        if thieves.is_empty() { return; }
+        let thief = thieves[(roll as usize / 11) % thieves.len()];
+        self.ewe_theft = Some(EweTheft {
+            victim, thief, fork_open: false, held: false });
+        desires::add_grievance(&mut self.world, victim, desires::Problem::Loss, self.tick + 30);
+        // she brings it to your door: a long walk to where you stand
+        let at = self.world.get_component::<Pos>(self.player)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32));
+        if let Some(at) = at { self.send_far(victim, at, Goal::TalkTo(self.player)); }
+        let (vn, tn) = (self.name_of(victim), self.name_of(thief));
+        let vat = toast_spot(&self.world, victim);
+        let who = self.villagers.iter().position(|&v| v == victim);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Law, Valence::Negative, Sev::Minor),
+            format!(
+                "t{}: {}'s ewe is gone from the fold - she swears it's {}'s pot it's in.",
+                self.tick, vn, tn),
+            vat, who);
+        self.toasts.push_at((format!("{}'s ewe is gone", vn), self.tick + 40), vat);
+    }
+
+    /// The gift lifts the lid (#1254): something for the house and the
+    /// cradle's no babe. The talk says what it found and the fork goes
+    /// on the card - name him before the village, or keep the name
+    pub(in crate::session) fn ewe_cracked(&mut self, seat: usize) {
+        let Some(t) = self.ewe_theft.as_mut() else { return };
+        if t.fork_open || t.held { return; }
+        t.fork_open = true;
+        let victim = t.victim;
+        self.narrate_talk(seat,
+            "The lid lifts on the cradle - it's no babe: a ewe folds there, wool dyed dark.");
+        self.dilemma = Some(MoralKnot {
+            text: "It's her ewe, folded into the cradle and dyed. The name's yours to spend.".into(),
+            branches: vec![
+                DilemmaBranch { text: "name him before the village".into(),
+                    debt: 0.0, victim },
+                DilemmaBranch { text: "keep the name - a word in his ear another day".into(),
+                    debt: 0.0, victim },
+            ] });
+    }
+
+    /// The ewe's fork resolves (#1254): the name goes public and his
+    /// standing collapses, or it stays in your pocket as leverage
+    pub(in crate::session) fn resolve_ewe_fork(&mut self, pick: usize) {
+        let Some(t) = self.ewe_theft.take() else { return };
+        let (vn, tn) = (self.name_of(t.victim), self.name_of(t.thief));
+        if pick == 0 {
+            // expose: the parish knows what's in the cradle. The theft's
+            // on their bond's record, his standing falls out from under
+            // him, and the house that hid it wears the blame
+            crate::game::relationships::record_interaction(&mut self.world, t.victim,
+                crate::game::relationships::Interaction { other: t.thief,
+                    kind: crate::game::relationships::InteractionKind::Betrayal, intensity: 0.8 });
+            if self.world.get_component::<crate::sim::reputation_qsp::ReputationState>(t.thief).is_none() {
+                self.world.add_component(t.thief, crate::sim::reputation_qsp::ReputationState {
+                    stage: crate::sim::reputation_qsp::RepStage::Known, score: 0.45, transition_rates: vec![] });
+            }
+            for _ in 0..2 {
+                if let Some(r) = self.world.get_component_mut::<crate::sim::reputation_qsp::ReputationState>(t.thief) {
+                    crate::sim::reputation_qsp::apply_action(r, crate::sim::reputation_qsp::RepAction::Betrayal);
+                }
+            }
+            if let Some(h) = household::home_of(&self.world, t.thief) {
+                for &o in self.world.get_component::<household::Building>(h)
+                    .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                    if villager::is_dead(&self.world, o) { continue; }
+                    desires::add_grievance(&mut self.world, o,
+                        desires::Problem::Blamed, self.tick + 60);
+                }
+            }
+            let tat = toast_spot(&self.world, t.thief);
+            let who = self.villagers.iter().position(|&v| v == t.thief);
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                format!(
+                    "t{}: the ewe comes out of {}'s cradle before the whole parish - he stands disgraced, and {} has her beast home.",
+                    self.tick, tn, vn),
+                tat, who);
+            self.toasts.push_at((format!("{} stands disgraced", tn), self.tick + 40), tat);
+        } else {
+            // hold: the name stays in your pocket - his Talk carries the
+            // squeeze until it's paid out
+            self.ewe_theft = Some(EweTheft { fork_open: false, held: true, ..t });
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: you keep what you saw in {}'s cradle - a word for another day.",
+                    self.tick, tn),
+            );
+        }
+    }
+
+    /// The squeeze pays out once (#1254): hush money out of his purse
+    /// into yours, and the name's spent
+    pub(in crate::session) fn ewe_squeezed(&mut self, seat: usize) {
+        let Some(t) = self.ewe_theft.clone() else { return };
+        if !t.held { return; }
+        const EWE_HUSH: f32 = 4.0;
+        let pe = self.seats[seat].player;
+        let gold = self.world.get_component::<Purse>(t.thief)
+            .map(|p| p.gold.min(EWE_HUSH)).unwrap_or(0.0);
+        if let Some(p) = self.world.get_component_mut::<Purse>(t.thief) {
+            p.gold -= gold;
+        }
+        if let Some(p) = self.world.get_component_mut::<Purse>(pe) {
+            p.gold += gold;
+        }
+        self.ewe_theft = None;
+        let tn = self.name_of(t.thief);
+        self.narrate_talk(seat, &format!(
+            "{tn} presses {gold:.0} gold into your hand, and what's in his cradle stays between you."));
     }
 }

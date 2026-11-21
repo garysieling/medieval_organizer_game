@@ -79,6 +79,9 @@ fn test_the_argument_waits_on_knowing_them() {
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
     assert_eq!(stage_of(&g.world, g.player, v), RelStage::Acquaintance);
     assert!(!crate::game::organizing::ask_offers(&g.world, g.org, v, 0).iter().any(|o| o.kind == PropKind::Argue));
+    // nor does a safe read lift an acquaintance to it: they couldn't be moved
+    assert!(!crate::game::organizing::ask_offers(&g.world, g.org, v, 1).iter().any(|o| o.kind == PropKind::Argue));
+    assert_eq!(persuasion::magnitude(&g.world, g.player, v, &"the taxes".to_string(), ArgueMove::HearOut, g.tick), 0.0);
 }
 
 #[test]

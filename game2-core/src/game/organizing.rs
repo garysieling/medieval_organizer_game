@@ -1048,8 +1048,10 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
     let mut out = vec![];
     // the argument's earned or not at all (#1234): coin doesn't buy a
     // hearing for your case, and you can't press one on a stranger;
-    // it leads the asks so it's never crowded off the choice list
-    if crate::game::persuasion::can_argue(reached) {
+    // it leads the asks so it's never crowded off the choice list. A
+    // safe read doesn't lift it early: the case moves them by the bond
+    // they actually hold, so an acquaintance couldn't be swayed
+    if crate::game::persuasion::can_argue(stage) && crate::game::persuasion::can_argue(reached) {
         out.push(AskOffer { kind: PropKind::Argue, key: AskKey::Earned, price: 0.0 });
     }
     for p in ask_candidates(world, org, person) {

@@ -1,6 +1,7 @@
 //! Power and its pushback: sanctions and reputation, edicts, the dungeon and the guards, marks and the martyr, discoveries, organized power, and the festival.
 
 use crate::session::*;
+use crate::game::livelihood::Generosity;
 
 impl Game {
     /// The ladder of shame: when a villager's grievances pile past a
@@ -3010,6 +3011,86 @@ impl Game {
                 format!("t{}: the petition's presented - the names stand under the demand, protected in form.", tick),
             );
             self.toasts.push(("The petition's presented.".into(), tick + 80));
+        }
+    }
+
+    /// How free a master's table runs (seeded mid if never tracked)
+    pub(in crate::session) fn generosity_of(&mut self, v: Entity) -> f32 {
+        if self.world.get_component::<Generosity>(v).is_none() {
+            let score = ((v as usize).wrapping_mul(2654435761) >> 8) % 100;
+            self.world.add_component(v, Generosity { score: score as f32 / 100.0, in_kind: 0.0 });
+        }
+        self.world.get_component::<Generosity>(v).map(|g| g.score).unwrap_or(0.5)
+    }
+
+    /// What the day's hire declares under the statute: a generous
+    /// master pays the cap in coin and the rest off the book - the
+    /// table, the cloak, the slack day the writ can't count - and the
+    /// cause holds the tally. A mean one pays over the cap in open
+    /// coin and takes the breach (#1264)
+    pub(in crate::session) fn declared_wage(&mut self, hirer: Entity, pay: f32) -> f32 {
+        let cap = self.law_book.realm.wage_cap;
+        if cap <= 0.0 || pay <= cap { return pay; }
+        if self.generosity_of(hirer) > 0.4 {
+            if let Some(g) = self.world.get_component_mut::<Generosity>(hirer) {
+                g.in_kind += pay - cap;
+            }
+            // hands read the whole table, not the rate: a master who
+            // feeds them keeps them, and the village hears of it
+            self.rep_apply(hirer, RepAction::GoodDeed);
+            cap
+        } else {
+            self.excess_wages.push(hirer);
+            pay
+        }
+    }
+
+    /// The quiet channel: the cause's own patronage runs off-book too
+    /// - a member slips a needy neighbor a little - and the masters'
+    /// kindness tally is a held secret: one who earns the cause's
+    /// boycott finds the reeve suddenly knows where the extras went
+    /// (#1264)
+    pub(in crate::session) fn kind_tick(&mut self, tick: u64) {
+        if tick % 30 != 27 { return; }
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        if let Some(giver) = members.iter().copied().find(|&m|
+            !villager::is_dead(&self.world, m)
+                && self.world.get_component::<Purse>(m).map(|p| p.gold > 12.0).unwrap_or(false)) {
+            let poor = self.villagers.iter().copied()
+                .filter(|&v| v != giver && !villager::is_dead(&self.world, v)
+                    && self.world.get_component::<Kid>(v).is_none()
+                    && self.world.get_component::<Purse>(v).map(|p| p.gold < 4.0).unwrap_or(false))
+                .min_by(|&a, &b| {
+                    let ga = self.world.get_component::<Purse>(a).map(|p| p.gold).unwrap_or(0.0);
+                    let gb = self.world.get_component::<Purse>(b).map(|p| p.gold).unwrap_or(0.0);
+                    ga.partial_cmp(&gb).unwrap_or(std::cmp::Ordering::Equal)
+                });
+            if let Some(poor) = poor {
+                if let Some(p) = self.world.get_component_mut::<Purse>(giver) { p.gold -= 1.0; }
+                if let Some(p) = self.world.get_component_mut::<Purse>(poor) { p.gold += 1.0; }
+                self.rep_apply(giver, RepAction::GoodDeed);
+                let (gname, pname) = (self.name_of(giver), self.name_of(poor));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                    format!("t{}: {} slips {} a little on the quiet - the cause looks after its neighbors.", tick, gname, pname));
+            }
+        }
+        // the held secret: the tally stays quiet until the master's
+        // crossed the cause - then the reeve hears where it went
+        if self.law_book.realm.wage_cap <= 0.0 { return; }
+        let villagers = self.villagers.clone();
+        let exposed: Vec<Entity> = villagers.iter().copied().filter(|&v|
+            self.world.get_component::<Generosity>(v).map(|g| g.in_kind >= 4.0).unwrap_or(false)
+            && self.sanctioned.iter().any(|(e, s, u)| *e == v && *s >= Sanction::Boycott && self.tick < *u)
+        ).collect();
+        for m in exposed {
+            if let Some(g) = self.world.get_component_mut::<Generosity>(m) { g.in_kind = 0.0; }
+            let name = self.name_of(m);
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                format!("t{}: word reaches the reeve - {}'s table has been paying past the statute.", tick, name));
+            self.apply_penalty(0, m, "excess_wage", tick);
         }
     }
 

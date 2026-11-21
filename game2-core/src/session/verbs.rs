@@ -2809,6 +2809,29 @@ impl Game {
             }
             self.plea = None;
         }
+        // the false traveller's cards answer their own way (#1258):
+        // the plays, then which lie - only when the card's still his
+        // own knot (every branch's victim is his figure)
+        let ours = match (self.false_traveller, &self.dilemma) {
+            (Some(ft), Some(k)) => ft.card != 0
+                && k.branches.iter().all(|b| b.victim == ft.e),
+            _ => false,
+        };
+        if ours {
+            let stage = self.false_traveller.map(|ft| ft.card).unwrap_or(0);
+            self.dilemma = None;
+            self.resolve_false_fork(seat, stage, pick);
+            return;
+        }
+        // a different knot took the card off him - the plays are lost,
+        // he carries what he carries
+        if self.false_traveller.map(|ft| ft.card != 0).unwrap_or(false)
+            && self.dilemma.is_none() {
+            if let Some(ft) = self.false_traveller {
+                self.false_traveller = Some(
+                    crate::session::events::FalseTraveller { card: 0, ..ft });
+            }
+        }
         // the burdened man's knot answers first: a pick writes its debt
         // and the debt comes home when its day does
         if let Some(knot) = self.dilemma.take() {

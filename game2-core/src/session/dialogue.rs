@@ -576,6 +576,17 @@ impl Game {
             villager.status.push("visitor");
             villager.status.push(super::events::visitor_archetype(id));
             if let Some(s) = super::events::visit_slug(id) { villager.status.push(s); }
+            // the false traveller carries the motive's status: it keys
+            // the asking lines that don't fit the pedlar's cry (#1258)
+            if let Some(ft) = self.false_traveller {
+                if ft.e == v {
+                    villager.status.push(match ft.motive {
+                        super::events::FalseMotive::Spy => "ft-spy",
+                        super::events::FalseMotive::Thief => "ft-thief",
+                        _ => "ft-runaway",
+                    });
+                }
+            }
             const QUIRKS: [crate::game::traits::Trait; 8] = [
                 crate::game::traits::Trait::Kind, crate::game::traits::Trait::Proud,
                 crate::game::traits::Trait::Gregarious, crate::game::traits::Trait::Hotheaded,
@@ -1073,6 +1084,15 @@ impl Game {
             } else if pick_text == crate::game::dialogue_trees::NOAH_SIDE_THEM {
                 self.row_sided(seat, twho);
             }
+        }
+        // the false traveller (#1258): naming the disguise puts the
+        // plays on the card - say nothing, cry him out, or feed a story
+        if matches!(opt_tree, Some(crate::game::dialogue_trees::FT_SPY_TREE)
+            | Some(crate::game::dialogue_trees::FT_THIEF_TREE)
+            | Some(crate::game::dialogue_trees::FT_RUN_TREE))
+            && (pick_text == crate::game::dialogue_trees::FT_ACCUSE
+                || pick_text == crate::game::dialogue_trees::FT_ACCUSE_RUN) {
+            self.false_accused(seat);
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }
         self.refresh_player_talk(seat);

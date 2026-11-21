@@ -7,7 +7,7 @@ use crate::session::PKind;
 /// The whole registry's its hundred and counting, every id once
 #[test]
 fn test_the_registry_is_a_hundred() {
-    assert_eq!(EVENTS.len(), 107);
+    assert_eq!(EVENTS.len(), 108);
     for i in 0..EVENTS.len() {
         for j in (i + 1)..EVENTS.len() {
             assert_ne!(EVENTS[i].id, EVENTS[j].id, "duplicate id in the registry");
@@ -3218,4 +3218,163 @@ fn test_the_mediator_takes_a_side() {
         .and_then(|re| g.world.get_component::<crate::game::relationships::Relationship>(re));
     assert!(cooled.map(|r| r.strength < 0.0).unwrap_or(false),
         "the unbacked half won't forget whose side you took");
+}
+
+/// The false traveller (#1258): walk him to his pitch like the road
+/// would - the motive rolls under the pedlar's cry
+fn walk_in_false_traveller(g: &mut Game) -> Entity {
+    g.force_event(EventId::FalseTraveller);
+    for _ in 0..4000 {
+        if g.rare.iter().any(|r| r.id == EventId::FalseTraveller && r.until.is_some()) { break; }
+        g.advance_rare();
+    }
+    g.rare.iter().find(|r| r.id == EventId::FalseTraveller).unwrap().e.unwrap()
+}
+
+/// The accusation's index in the open talk's options (#1258)
+fn accuse_pick(g: &Game) -> usize {
+    let t = g.seats[0].talk.as_ref().expect("the talk's open");
+    t.options.iter().position(|o|
+        o.1 == crate::game::dialogue_trees::FT_ACCUSE
+        || o.1 == crate::game::dialogue_trees::FT_ACCUSE_RUN)
+        .unwrap_or_else(|| panic!("the accusation's on offer: {:?} (tree {:?})",
+            t.options, t.opt_tree))
+}
+
+/// The pedlar who never sells (#1258): the tell comes out in his
+/// asking, the accusation puts the plays on the card
+#[test]
+fn test_the_pedlar_who_never_sells() {
+    let mut g = Game::new();
+    let e = walk_in_false_traveller(&mut g);
+    assert!(g.false_traveller.is_some(), "the motive's rolled under the cry");
+    assert!(g.log.iter().any(|l| l.contains("no hurry to sell")),
+        "the log smells it faintly");
+    // the tell's in his opening calls - the nameable wrongness sits
+    // among your first replies
+    g.open_player_talk(0, e, crate::game::conversation::Relation::Stranger,
+        "the market's busy");
+    let t = g.seats[0].talk.clone().expect("the talk's open");
+    assert!(matches!(t.opt_tree,
+            Some(crate::game::dialogue_trees::FT_SPY_TREE)
+            | Some(crate::game::dialogue_trees::FT_THIEF_TREE)
+            | Some(crate::game::dialogue_trees::FT_RUN_TREE)),
+        "his talk's a motive tree, not the honest pedlar's: {:?}", t.opt_tree);
+    let i = accuse_pick(&g);
+    g.talk_pick_at(0, Some(i));
+    let knot = g.dilemma.clone().expect("the plays stand on the card");
+    assert_eq!(knot.branches.len(), 3, "nothing, cry him out, feed a story");
+    assert!(knot.branches.iter().all(|b| b.victim == e),
+        "every branch hangs on his figure");
+    assert_eq!(g.false_traveller.map(|ft| ft.card), Some(1));
+}
+
+/// Say nothing (#1258): the ears report back anyway - the eyes inside
+/// grow when he reaches the road's end
+#[test]
+fn test_say_nothing_lets_the_ears_report() {
+    let mut g = Game::new();
+    let e = walk_in_false_traveller(&mut g);
+    g.false_traveller = Some(FalseTraveller {
+        motive: FalseMotive::Spy, ..g.false_traveller.unwrap() });
+    g.penetration = 0.3;
+    g.open_player_talk(0, e, crate::game::conversation::Relation::Stranger, "");
+    let i = accuse_pick(&g);
+    g.talk_pick_at(0, Some(i));
+    g.decide_at(0, 0);
+    assert_eq!(g.false_traveller.map(|ft| ft.handled), Some(0),
+        "no play landed - he reports what he found");
+    stage::run_days(&mut g, 5);
+    assert!(g.penetration > 0.39, "the eyes inside grew: {}", g.penetration);
+    assert!(g.log.iter().any(|l| l.contains("eyes inside the village grow")),
+        "the log marks the report");
+    assert!(g.false_traveller.is_none(), "the road took him");
+}
+
+/// Cry him out (#1258): the disguise cracks in public, he's gone for
+/// the road before the day - and the ears carry nothing new home
+#[test]
+fn test_cry_him_out_before_the_street() {
+    let mut g = Game::new();
+    let e = walk_in_false_traveller(&mut g);
+    g.false_traveller = Some(FalseTraveller {
+        motive: FalseMotive::Spy, ..g.false_traveller.unwrap() });
+    let before = g.penetration;
+    g.open_player_talk(0, e, crate::game::conversation::Relation::Stranger, "");
+    let i = accuse_pick(&g);
+    g.talk_pick_at(0, Some(i));
+    g.decide_at(0, 1);
+    assert_eq!(g.false_traveller.map(|ft| ft.handled), Some(1), "exposed");
+    assert!(g.rare.iter().any(|r| r.e == Some(e) && r.leaving),
+        "he's gone for the road");
+    assert!(g.log.iter().any(|l| l.contains("cried out on the square")),
+        "the street saw it");
+    stage::run_days(&mut g, 5);
+    assert_eq!(g.penetration, before, "nothing new rides home");
+    assert!(g.log.iter().all(|l| !l.contains("eyes inside")),
+        "the ears heard nothing worth reporting");
+}
+
+/// Feed a story (#1258): the second card asks which lie, and the ears
+/// carry that home instead - the eyes inside dim a touch
+#[test]
+fn test_a_story_to_carry_home() {
+    let mut g = Game::new();
+    let e = walk_in_false_traveller(&mut g);
+    g.false_traveller = Some(FalseTraveller {
+        motive: FalseMotive::Spy, ..g.false_traveller.unwrap() });
+    g.penetration = 0.5;
+    g.open_player_talk(0, e, crate::game::conversation::Relation::Stranger, "");
+    let i = accuse_pick(&g);
+    g.talk_pick_at(0, Some(i));
+    g.decide_at(0, 2);
+    // the feed asks which lie he carries
+    let knot = g.dilemma.clone().expect("the story card's up");
+    assert_eq!(knot.branches.len(), 3, "a pick-list of planted lies");
+    assert!(knot.branches.iter().all(|b| b.victim == e));
+    assert_eq!(g.false_traveller.map(|ft| ft.card), Some(2));
+    g.decide_at(0, 0);
+    assert_eq!(g.false_traveller.map(|ft| ft.handled), Some(2), "fed");
+    assert!((g.penetration - 0.38).abs() < 0.001,
+        "the wrong names dim the eyes inside: {}", g.penetration);
+    assert!(g.log.iter().any(|l| l.contains("carrying the wrong names")),
+        "the log says what he took home");
+}
+
+/// The casing pedlar (#1258): unmissed, a purse goes light in a house
+/// he asked after
+#[test]
+fn test_the_casing_pedlar_takes() {
+    let mut g = Game::new();
+    walk_in_false_traveller(&mut g);
+    g.false_traveller = Some(FalseTraveller {
+        motive: FalseMotive::Thief, ..g.false_traveller.unwrap() });
+    let mark = g.villagers[5];
+    if let Some(p) = g.world.get_component_mut::<Purse>(mark) { p.gold = 5.0; }
+    stage::run_days(&mut g, 5);
+    assert!(g.log.iter().any(|l| l.contains("purse has gone light")),
+        "the log marks the take");
+    let name = g.name_of(mark);
+    let took_mark = g.log.iter().any(|l| l.contains(&name)
+        && l.contains("purse has gone light"));
+    if took_mark {
+        let gold = g.world.get_component::<Purse>(mark).map(|p| p.gold).unwrap_or(9.0);
+        assert!(gold < 4.0, "his purse went light: {}", gold);
+    }
+}
+
+/// The runaway (#1258): nobody hostile at all - he slips off before
+/// his name was ever asked
+#[test]
+fn test_the_runaway_slips_quiet() {
+    let mut g = Game::new();
+    walk_in_false_traveller(&mut g);
+    g.false_traveller = Some(FalseTraveller {
+        motive: FalseMotive::Runaway, ..g.false_traveller.unwrap() });
+    let before = g.penetration;
+    stage::run_days(&mut g, 5);
+    assert!(g.log.iter().any(|l| l.contains("slipped off")),
+        "he's gone without a ripple");
+    assert_eq!(g.penetration, before, "nothing reports back");
+    assert!(g.false_traveller.is_none(), "the road took him");
 }

@@ -114,6 +114,14 @@ pub enum CtxAct {
     /// Tell the picked villager what the gossip added up to - the
     /// mystery's asker, once it's whole
     ShareFindings,
+    /// Mark a held member's book free - out from under the master,
+    /// and paperless (#1261)
+    MarkBook,
+    /// A literate member writes a masterless one a pass (#1261)
+    ForgePass,
+    /// Tell the watch the picked one's masterless - the org's own
+    /// sanction for a turned ear (#1261)
+    ReportMasterless,
     /// Throw water on the flames - offered standing by a fire
     Douse,
     /// Give the picked villager something from your satchel - the meal

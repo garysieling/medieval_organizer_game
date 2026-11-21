@@ -417,6 +417,9 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::TakeCache => Button { label: "Take the cache".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (120, 100, 60) },
         // the delivery sits in the clear below the log box
         CtxAct::ShareFindings => Button { label: "Tell them what you know".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
+        CtxAct::MarkBook => Button { label: "Mark their book free".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
+        CtxAct::ForgePass => Button { label: "Forge their pass".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
+        CtxAct::ReportMasterless => Button { label: "Report them masterless".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
         // a gift rides the card's bottom row between Seat and Strike
         CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
         // the sale shares the big row's left half with Gather's
@@ -1149,6 +1152,9 @@ pub struct Game {
     /// home later, when someone remembers
     pub dilemma: Option<crate::session::events::MoralKnot>,
     pub dilemma_debts: Vec<crate::session::events::DilemmaDebt>,
+    /// The sheep in the cradle (#1254): a stolen ewe, the bluffing house
+    /// that has it, and what you do with the name once the lid's lifted
+    pub ewe_theft: Option<crate::session::events::EweTheft>,
 
     /// The vaccination act's officer waiting on the square for his
     /// answer - the scratch, the fine, or the Leicester way
@@ -1421,6 +1427,11 @@ pub struct Game {
     /// The village's own agreed rules - the neighbors' law beside the
     /// lord's book
     pub bylaws: Vec<crate::game::community_law::ByeLaw>,
+    /// The moot's bench: five villagers of standing who hear the
+    /// neighbors' wrongs - the peers' own court (#1262)
+    pub moot_seats: Vec<Entity>,
+    /// When the bench was last seated
+    pub moot_seated: u64,
     /// Incidents counted per friction kind until they earn a rule
     pub bylaw_friction: crate::engine::det::HashMap<crate::game::community_law::ByeKind, u32>,
     /// The grievance triples already counted, so each counts once
@@ -1792,6 +1803,9 @@ pub struct Game {
     /// age - compartmentalization and vetting move the tradeoff, not
     /// the accrual itself
     pub penetration: f32,
+    /// Hirers who paid over the statute's wage cap since the last
+    /// edict beat - the informers' queue of reports (#1260)
+    pub excess_wages: Vec<Entity>,
     /// The cult's own end when it comes - which of the four ways the
     /// fold's own cage broke, read off the dials
     pub cult_collapse: Option<crate::sim::religion::CollapseMode>,

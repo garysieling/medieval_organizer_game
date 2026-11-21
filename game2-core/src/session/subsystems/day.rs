@@ -356,6 +356,7 @@ impl Game {
         // the village's own law: bye-laws, sureties, partnerships, and
         // the community's pull beneath them all
         crate::timed!("sim.bylaw", self.bylaw_tick(tick));
+        crate::timed!("sim.moot", self.moot_tick(tick));
         crate::timed!("sim.partners", self.partnership_tick(tick));
         crate::timed!("sim.pledges", self.pledge_tick(tick));
         crate::timed!("sim.community", self.community_tick(tick));
@@ -536,6 +537,9 @@ impl Game {
         crate::timed!("sim.discovery", self.discovery_tick(tick));
         // and the castle sends its writs on a season's turn
         crate::timed!("sim.edict", self.edict_tick(tick));
+        crate::timed!("sim.wage_edict", self.wage_edict_tick(tick));
+        crate::timed!("sim.pass", self.pass_tick(tick));
+        crate::timed!("sim.petition_law", self.petition_law_tick(tick));
         // and every other winter runs long and tests the village
         crate::timed!("sim.winter", self.winter_tick(tick));
         // and the painter lays color on the village's halls

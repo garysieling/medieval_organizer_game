@@ -52,3 +52,4 @@ pub mod dialogue_trees;
 pub mod scenes;
 pub mod mysteries;
 pub mod prophetic;
+pub mod pass;

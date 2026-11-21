@@ -647,6 +647,26 @@ impl Game {
             if self.seats[seat].mystery.as_ref().map(|m| !m.solved()).unwrap_or(false) {
                 villager.status.push("mystery");
             }
+            // the sheep in the cradle (#1254): she'll tell you whose
+            // pot it's in; the house that has it evades until a kindness
+            // lifts the lid; and once the name's held the squeeze sits
+            // in his talk until it's paid
+            if let Some(t) = &self.ewe_theft {
+                if !t.fork_open && !t.held {
+                    if v == t.victim {
+                        villager.status.push("ewe_victim");
+                    } else {
+                        let thome = crate::game::household::home_of(&self.world, t.thief);
+                        if v == t.thief
+                            || (thome.is_some()
+                                && thome == crate::game::household::home_of(&self.world, v)) {
+                            villager.status.push("ewe_secret");
+                        }
+                    }
+                } else if t.held && v == t.thief {
+                    villager.status.push("ewe_leverage");
+                }
+            }
         }
         // how well they know you colours the talk - the trees key on the
         // stage as a status fact
@@ -1006,8 +1026,10 @@ impl Game {
             return;
         }
         let act = t.options[i].0;
+        let pick_text = t.options[i].1.clone();
         let pe = self.seats[seat].player;
-        let (tid, old_scores) = (t.id, t.opt_tree == Some("old_scores"));
+        let (tid, old_scores, opt_tree) =
+            (t.id, t.opt_tree == Some("old_scores"), t.opt_tree);
         // an audition pick isn't read by its act - standing up to a
         // hothead is the right answer, not a slight; the vibe read it
         // sets is the whole effect (#1187)
@@ -1066,6 +1088,22 @@ impl Game {
                     }
                     _ => {}
                 }
+            }
+        }
+        // the sheep in the cradle (#1254): the gift lifts the lid and
+        // puts the fork on the card; the squeeze spends the held name;
+        // the robbed one's answer names him in the record
+        if opt_tree == Some(crate::game::dialogue_trees::EWE_TREE)
+            && pick_text == crate::game::dialogue_trees::EWE_GIFT {
+            self.ewe_cracked(seat);
+        } else if opt_tree == Some(crate::game::dialogue_trees::EWE_PRICE_TREE)
+            && pick_text == crate::game::dialogue_trees::EWE_SQUEEZE {
+            self.ewe_squeezed(seat);
+        } else if opt_tree == Some(crate::game::dialogue_trees::EWE_VICTIM_TREE)
+            && pick_text == crate::game::dialogue_trees::EWE_WHOSE_POT {
+            if let Some(th) = self.ewe_theft.as_ref().map(|t| t.thief) {
+                let tn = self.name_of(th);
+                self.narrate_talk(seat, &format!("She names him at last: {tn}."));
             }
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }

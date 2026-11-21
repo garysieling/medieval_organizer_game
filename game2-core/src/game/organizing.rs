@@ -842,6 +842,22 @@ pub fn plan_for<'a>(world: &'a mut World, org: Entity) -> &'a mut MeetingPlan {
     world.get_component_mut::<MeetingPlan>(org).unwrap()
 }
 
+/// The cause's schedule of grievances, carried on the org: the demand,
+/// the names that speak for it (spokesmen - the full protection), and
+/// the names under it (signatories - protected in the signing, no
+/// standing to press it). Presented when it's gathered enough names to
+/// read aloud (#1263)
+#[derive(Debug, Clone, Default)]
+pub struct Petition {
+    pub demand: String,
+    pub spokesmen: Vec<Entity>,
+    pub signatories: Vec<Entity>,
+    pub presented: Option<u64>,
+}
+
+/// The names a petition has to gather before it can be put to the lord
+pub const PETITION_NAMES: usize = 5;
+
 /// A proposition the organizer can put to someone mid-talk
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PropKind {
@@ -863,6 +879,9 @@ pub enum PropKind {
     InviteFriends,
     /// "Is there someone I should know?"
     Introduce,
+    /// "Would you put your name to it?" - the petition's schedule of
+    /// names (#1263)
+    SignPetition,
     /// "Hear me out on something" - the one-on-one argument (#1234),
     /// played out in the talk rather than landed by `propose`
     Argue,
@@ -880,6 +899,7 @@ pub fn prop_label(p: PropKind) -> &'static str {
         PropKind::CloseOut => "Ask them to close us out",
         PropKind::InviteFriends => "Ask them to bring their friends",
         PropKind::Introduce => "Ask who you should talk to next",
+        PropKind::SignPetition => "Ask them to put their name to the petition",
         PropKind::Argue => "Argue a point with them",
     }
 }
@@ -891,7 +911,7 @@ pub fn prop_label(p: PropKind) -> &'static str {
 fn ask_tier(p: PropKind) -> RelStage {
     match p {
         PropKind::Introduce => RelStage::Acquaintance,
-        PropKind::InviteFriends | PropKind::Argue => RelStage::Known,
+        PropKind::InviteFriends | PropKind::SignPetition | PropKind::Argue => RelStage::Known,
         _ => RelStage::Follower,
     }
 }
@@ -951,6 +971,14 @@ fn ask_candidates(world: &World, org: Entity, person: Entity) -> Vec<PropKind> {
         if plan.closer.is_none() { out.push(PropKind::CloseOut); }
     }
     if !plan.spreaders.contains(&person) { out.push(PropKind::InviteFriends); }
+    // a drafted petition wants names: ask anyone unsigned while it's
+    // still gathering (#1263)
+    if let Some(pet) = world.get_component::<Petition>(org) {
+        if pet.presented.is_none() && !pet.spokesmen.contains(&person)
+            && !pet.signatories.contains(&person) {
+            out.push(PropKind::SignPetition);
+        }
+    }
     out
 }
 
@@ -993,6 +1021,7 @@ pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
         PropKind::OpenWithWord | PropKind::GiveSong | PropKind::CloseOut => 10.0,
         PropKind::InviteFriends => 12.0,
         PropKind::Introduce => 6.0,
+        PropKind::SignPetition => 8.0,
         PropKind::Argue => 0.0,
     };
     let at = LADDER.iter().position(|r| *r == stage).unwrap_or(0) as i8;
@@ -1044,7 +1073,7 @@ fn ask_suits(p: PropKind, r: &crate::game::desires::Reveal) -> bool {
         PropKind::BringSnacks => matches!(r, Reveal::Want(Want::GoodFood) | Reveal::Problem(Problem::LongWinter)),
         PropKind::LendVenue => matches!(r, Reveal::Want(Want::Shelter) | Reveal::Problem(Problem::NoHome)),
         PropKind::ComeAlong => matches!(r, Reveal::Problem(_) | Reveal::Want(Want::Love)),
-        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::Argue => false,
+        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue => false,
     }
 }
 
@@ -1182,6 +1211,15 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
         PropKind::InviteFriends => {
             if !plan.spreaders.contains(&person) { plan.spreaders.push(person); }
             format!("{} will bring their friends.", name)
+        }
+        PropKind::SignPetition => {
+            // the first two names speak for the rest: the spokesmen
+            // the protection's fullest on (#1263)
+            if let Some(pet) = world.get_component_mut::<Petition>(org) {
+                if pet.spokesmen.len() < 2 { pet.spokesmen.push(person); }
+                else if !pet.signatories.contains(&person) { pet.signatories.push(person); }
+            }
+            format!("{} puts their name to it.", name)
         }
         PropKind::Introduce => unreachable!("callers take Introduce before land_ask"),
         PropKind::Argue => unreachable!("an argument plays out in the talk, not through propose"),

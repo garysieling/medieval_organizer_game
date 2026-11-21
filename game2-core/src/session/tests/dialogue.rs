@@ -871,3 +871,101 @@ fn test_a_pair_with_no_story_small_talks() {
     assert!(!r.lines.iter().any(|l| scripted.contains(&l.text.as_str())),
         "no scene lines for an unmatched pair: {:?}", r.lines);
 }
+
+// --- the bond register (#1228): how well they know you swaps how they talk ---
+
+/// Walk the organizer's bond with a villager to a strength (and mark it
+/// spoken-to, so the stage ladder can climb past stranger)
+fn bond_to(g: &mut Game, v: Entity, strength: f32) {
+    let pe = g.player;
+    crate::game::relationships::record_interaction(&mut g.world, pe,
+        crate::game::relationships::Interaction { other: v,
+            kind: crate::game::relationships::InteractionKind::Conversation, intensity: 0.3 });
+    crate::game::relationships::find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component_mut::<crate::game::relationships::Relationship>(r))
+        .unwrap().strength = strength;
+}
+
+#[test]
+fn test_an_acquaintance_opens_like_a_neighbor() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    bond_to(&mut g, v, 0.2);
+    assert_eq!(crate::game::organizing::stage_of(&g.world, g.player, v),
+        crate::game::organizing::RelStage::Acquaintance);
+    talk_beside(&mut g, i);
+    let rec = g.talk_log.last().unwrap().clone();
+    let first = rec.lines.iter().find(|l| l.who == Some(v) && !l.gist)
+        .map(|l| l.text.clone()).unwrap_or_default();
+    let calls = ["Morrow, ", "good to see a familiar face", "Well met, ", "Neighbor!"];
+    assert!(calls.iter().any(|c| first.contains(c)),
+        "the neighbor register greets, not the sky's smalltalk: {}", first);
+}
+
+#[test]
+fn test_two_members_carry_the_cause_in_the_street() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    // no shared cause yet: they small-talk like any neighbors
+    assert!(g.villagers_chat(a, b));
+    let before = g.talk_log.last().unwrap().clone();
+    assert!(!before.lines.iter().any(|l| l.text.contains("the cause")
+        || l.text.contains("the meet's")), "open-air talk: {:?}", before.lines);
+    // sworn to the same org, the next hello drops to a quiet word
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org)
+        .unwrap().members = vec![a, b];
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let calls = ["the meet's", "the cause keeps", "folk are talking", "Between us and the wall"];
+    assert!(calls.iter().any(|c| r.lines[0].text.contains(c)),
+        "the fellows register greets: {}", r.lines[0].text);
+}
+
+#[test]
+fn test_one_member_still_small_talks() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org)
+        .unwrap().members = vec![a];
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let calls = ["the meet's", "the cause keeps", "Between us and the wall"];
+    assert!(!calls.iter().any(|c| r.lines[0].text.contains(c)),
+        "a lone member gets open-air talk: {}", r.lines[0].text);
+}
+
+#[test]
+fn test_a_follower_opens_with_the_causes_weather() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    bond_to(&mut g, v, 0.6);
+    g.seats[0].mystery = None;
+    let pe = g.player;
+    g.world.add_component(pe, crate::game::organizing::MeetingPlan {
+        for_day: Some(g.tick + 3), ..Default::default() });
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    assert!(t.gist.contains("e gather in 3 days"),
+        "the meet's on the gist, not the sky: {}", t.gist);
+}
+
+#[test]
+fn test_the_causes_weather_is_a_sworn_privilege() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    // no bond - no inside weather
+    assert!(g.cause_gist(0, v).is_none());
+    // acquaintance is still the street's weather: the stage gates it
+    bond_to(&mut g, v, 0.2);
+    assert!(g.cause_gist(0, v).is_none());
+    // sworn, with a live plan - the meet's the weather
+    bond_to(&mut g, v, 0.6);
+    let pe = g.player;
+    g.world.add_component(pe, crate::game::organizing::MeetingPlan {
+        for_day: Some(g.tick + 1), ..Default::default() });
+    let (_, said) = g.cause_gist(0, v).unwrap();
+    assert!(said.contains("tomorrow"), "{}", said);
+}

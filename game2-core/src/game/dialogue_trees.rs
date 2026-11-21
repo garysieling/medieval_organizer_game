@@ -3529,6 +3529,9 @@ pub fn village_library() -> Vec<DialogueTree> {
         // the bond ladder: how well they know the organizer changes how
         // they meet them - two criteria so it outranks friendship and the
         // one-criterion circumstances: the stage speaks first
+        DialogueTree { name: "the_bond_acquainted",
+            criteria: &[Has("self:status:acquainted"), Has("any:status:acquainted")],
+            root: &ACQUAINTED_GREET, rejoin: Some(&NEIGHBOR_CHAT) },
         DialogueTree { name: "the_bond_known",
             criteria: &[Has("self:status:known"), Has("any:status:known")],
             root: &KNOWN_GREET, rejoin: Some(&BOND_CHAT) },
@@ -3538,6 +3541,12 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: "the_bond_coleader",
             criteria: &[Has("self:status:coleader"), Has("any:status:coleader")],
             root: &COLEADER_GREET, rejoin: Some(&BOND_CHAT) },
+        // two members of one cause carry its register in the street too
+        // (#1228): both chairs must hold the fact, so the player's Talk -
+        // where the organizer isn't a member - never lands here
+        DialogueTree { name: "the_cause_fellows",
+            criteria: &[Has("self:status:cause_member"), Has("other:status:cause_member")],
+            root: &FELLOW_GREET, rejoin: Some(&FELLOW_CHAT) },
         // a marked soul's name greets ahead of smalltalk (#950): single
         // criterion and declared late, so a trade, a circumstance or a
         // bond outranks it - the name only speaks when nothing else does
@@ -3672,8 +3681,102 @@ pub fn backstory(s: &Speaker) -> String {
 }
 
 /// The bond ladder, spoken aloud: how a villager meets someone who has
+/// The bond ladder's lowest rung (#1228): a face they've seen about is a
+/// neighbor, not a stranger - familiar talk, a notch warmer than the
+/// weather and a notch colder than knowing their mind. The rungs above:
 /// heard their self-interest (known), earned their trust (follower), or
 /// taken them on as a leader beside them (co-leader)
+const ACQUAINTED_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "smalltalk"],
+    calls: &[
+        "Morrow, {other} - a fine day to be out, isn't it?",
+        "{other} - good to see a familiar face about.",
+        "Well met, {other} - how does the morning find thee?",
+        "Neighbor! Out early like the rest of us, {other}.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["smalltalk"],
+            lines: &["Fair enough, and to thee.", "Well enough - and thine?", "Out and about early today."],
+            voice: &[],
+            then: Some(NEIGHBOR_CHAT), end: None },
+        Reply { criteria: &[], weight: 0.30, bias: &[(Stingy, 2.0)],
+            act: Act::PushBack, concepts: &["smalltalk"],
+            lines: &["Morrow. I'd best keep moving.", "Aye. Good day to thee."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None },
+    ],
+};
+
+/// Where a neighbor's hello goes: lanes, roofs, wells - the small world
+/// two folk share once they've nodded a few times
+const NEIGHBOR_CHAT: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["smalltalk"],
+    calls: &[
+        "The lane's quieter since the rain, thank goodness.",
+        "Thy roof's holding better than mine in this wind, I'd wager.",
+        "Folk say the well water runs sweet again.",
+        "Keep an eye on the sky - there's weather in it yet.",
+        "Saw thy lass helping at the press yesterday.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["smalltalk"],
+            lines: &["Aye, the village turns on small things.", "As do we all, neighbor.", "Good news, if it keeps."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None },
+    ],
+};
+
+/// Two members of one cause meet in the street (#1228): the register
+/// drops to a quiet word - what's coming, kept close
+const FELLOW_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "the_cause"],
+    calls: &[
+        "Quiet word, {other} - the meet's not far off now.",
+        "{other} - the cause keeps, and so do we.",
+        "Good to see thee about, {other} - folk are talking.",
+        "Between us and the wall, {other} - soon, I think.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["the_cause"],
+            lines: &["Aye - low voices till then.", "The cause keeps us both.", "Say the word and I'm ready."],
+            voice: &[],
+            then: Some(FELLOW_CHAT), end: None },
+    ],
+};
+
+const FELLOW_CHAT: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["the_cause"],
+    calls: &[
+        "Folk at the well ask what's brewing - I keep it close.",
+        "The others are ready when the word comes.",
+        "I've kept my promise - has thine held?",
+        "Word travels - keep thy voice low round the square.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["the_cause"],
+            lines: &["Mine's held. It'll hold.", "Kept and quiet both.", "Low and steady - it'll hold."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None },
+        Reply { criteria: &[], weight: 0.30, bias: &[(Proud, 2.0)],
+            act: Act::Remark, concepts: &["the_cause"],
+            lines: &["Let them guess - they'll know soon enough.", "The walls have ears, it's true."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None },
+    ],
+};
+
 const KNOWN_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "smalltalk"],

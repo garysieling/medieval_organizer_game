@@ -366,7 +366,10 @@ impl Game {
                     whispered = true;
                     (format!("{} passes on a rumor", vill_name(who)), text)
                 }
-                None => talk_response(&self.world, v, vill_name(who), talks_before, self.tick),
+                // a sworn villager's opening is the cause's weather, not
+                // the sky's (#1228); no live cause, ordinary small talk
+                None => self.cause_gist(seat, v)
+                    .unwrap_or_else(|| talk_response(&self.world, v, vill_name(who), talks_before, self.tick)),
             },
         };
         let pe = self.seats[seat].player;

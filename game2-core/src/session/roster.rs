@@ -29,8 +29,8 @@ pub struct CharacterSheet {
     /// The short epithet under the name: a trade, or "a child"
     pub work: String,
     pub kid: bool,
-    /// Which of the pack's figure looks (children only ever wear the
-    /// two youngest - the view mods it through `figure_look`)
+    /// Which villager figure look to wear (children only ever draw from
+    /// the view's child range - `figure_look` mods it there either way)
     pub look: usize,
     /// The trade, for a grown-up; None for a child
     pub vocation: Option<Vocation>,
@@ -119,7 +119,9 @@ pub fn roster(seed: u64) -> Vec<CharacterSheet> {
             out.push(CharacterSheet {
                 name, backstory,
                 work: "a child".into(), kid: true,
-                look: rng.below(2) as usize,
+                // the client's six generated child sprites lead the
+                // look table; the view mods whatever count loaded
+                look: rng.below(6) as usize,
                 vocation: None, class, skill: 0.0,
                 gold: livelihood::seed_gold(class, true, roll),
                 wants: desires::sample_wants(class, None, true, &mut || rng.next()),
@@ -145,7 +147,9 @@ pub fn roster(seed: u64) -> Vec<CharacterSheet> {
             out.push(CharacterSheet {
                 name, backstory,
                 work: vocation::vocation_name(voc).into(), kid: false,
-                look: rng.below(8) as usize,
+                // the client's grown looks: the pack's 8 plus the
+                // generated stills; the view mods whatever count loaded
+                look: rng.below(47) as usize,
                 vocation: Some(voc), class, skill,
                 gold: livelihood::seed_gold(class, false, roll),
                 wants: desires::sample_wants(class, Some(voc), false, &mut || rng.next()),

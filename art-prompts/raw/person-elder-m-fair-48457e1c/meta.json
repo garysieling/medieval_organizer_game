@@ -1,0 +1,29 @@
+{
+ "created_at": 1795279183,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "379f23f2-fa07-4339-b438-8cdd8b994aac",
+ "outputs_retained_until": 1795365533,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 94,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "person-elder-m-fair-48457e1c",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: elderly man with white beard and walking stick, fair skin and light brown hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T11:39:42",
+ "seconds": 50.4
+}

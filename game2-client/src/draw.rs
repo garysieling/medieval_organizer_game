@@ -724,16 +724,20 @@ pub(crate) fn hair_tint(look: u8) -> (u8, u8, u8) {
     }
 }
 
-pub(crate) fn figure_look(kid: bool, i: usize, n: usize) -> usize {
+/// villager_sprites' layout: the `kid_n` leading slots are generated
+/// child figures, the rest grown (the pack's figures, then the
+/// generated stills). Kids pick only from the child range - or the
+/// pack's two youngest when no child sprite loaded; grown looks cycle
+/// the slots behind it.
+pub(crate) fn figure_look(kid: bool, i: usize, kid_n: usize, n: usize) -> usize {
     let n = n.max(1);
-    if kid { i % n.min(2) } else { i % n }
-}
-
-/// The sex the pack look presents (vpeople order in art.rs: the women
-/// sit at looks 1, 4, 6 and 7) - so a generated figure matches the
-/// figure it replaces. Placeholder until the sim carries Sex (#681).
-pub(crate) fn look_sex(look: usize) -> &'static str {
-    if matches!(look, 1 | 4 | 6 | 7) { "f" } else { "m" }
+    let kid_n = kid_n.min(n);
+    if kid {
+        if kid_n > 0 { i % kid_n } else { i % n.min(2) }
+    } else {
+        let grown = n - kid_n;
+        if grown == 0 { i % n } else { kid_n + i % grown }
+    }
 }
 
 /// Draw a child's figure - the pack has none, so they're a scaled-down

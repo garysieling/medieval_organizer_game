@@ -115,6 +115,18 @@ pub struct CastleGrand {
 #[derive(Default)]
 pub struct Art {
     pub villager_sprites: Vec<Sprite>,
+    /// villager_sprites' leading count that are generated child figures
+    /// (assets/rd/people/child-*): `figure_look` points kids into this
+    /// range; 0 when no child sprite loaded, and kids fall back to the
+    /// pack's two youngest grown looks like before
+    pub kid_looks: usize,
+    /// How many pack figures sit behind the children (the vpeople list):
+    /// the looks a walk sheet can hang on; generated grown stills load
+    /// after them
+    pub pack_looks: usize,
+    /// The sex each villager_sprites entry presents ("m"/"f"), same
+    /// order - a placeholder until the sim carries Sex (#681)
+    pub villager_sexes: Vec<&'static str>,
     /// The rivals' figures: the same pack's outlined look, so they read foreign
     pub rival_sprites: Vec<Sprite>,
     /// The cottages a home can be: colour, timber or plaster, and the door
@@ -574,6 +586,34 @@ impl TileSet {
     }
 }
 
+/// The generated villager looks (assets/rd/people/<name>.png, exported
+/// @24 like the posting/trade stills): the six children first -
+/// `figure_look`'s kid range indexes only these - then the grown looks
+/// behind the pack's eight. Three skin tones each (issue #689). The
+/// person-player-* stills load but stay out of the looks: nobody else
+/// should wear the organizer's green.
+/// (name, the sex the figure presents - a placeholder until the sim
+/// carries Sex, #681)
+pub(crate) const KID_SPRITES: [(&str, &str); 6] = [
+    ("child-m-fair", "m"), ("child-m-olive", "m"), ("child-m-brown", "m"),
+    ("child-f-pale", "f"), ("child-f-tan", "f"), ("child-f-deep", "f"),
+];
+pub(crate) const GROWN_SPRITES: [(&str, &str); 39] = [
+    ("peasant-m-brown", "m"), ("peasant-m-fair", "m"), ("peasant-m-olive", "m"),
+    ("peasant-f-deep", "f"), ("peasant-f-pale", "f"), ("peasant-f-tan", "f"),
+    ("worker-m-brown", "m"), ("worker-m-fair", "m"), ("worker-m-olive", "m"),
+    ("worker-f-deep", "f"), ("worker-f-pale", "f"), ("worker-f-tan", "f"),
+    ("elder-m-brown", "m"), ("elder-m-fair", "m"), ("elder-m-olive", "m"),
+    ("elder-f-deep", "f"), ("elder-f-pale", "f"), ("elder-f-tan", "f"),
+    ("youth-m-brown", "m"), ("youth-m-fair", "m"), ("youth-m-olive", "m"),
+    ("youth-f-deep", "f"), ("youth-f-pale", "f"), ("youth-f-tan", "f"),
+    ("noble-m-deep", "m"), ("noble-m-pale", "m"), ("noble-m-tan", "m"),
+    ("noble-f-brown", "f"), ("noble-f-fair", "f"), ("noble-f-olive", "f"),
+    ("parent-infant-brown", "f"), ("parent-infant-fair", "f"), ("parent-infant-olive", "f"),
+    ("princess-deep", "f"), ("princess-pale", "f"), ("princess-tan", "f"),
+    ("queen-brown", "f"), ("queen-fair", "f"), ("queen-olive", "f"),
+];
+
 /// Every generated people still the loader looks for
 /// (assets/rd/people/<name>.png): the postings first, then the ten
 /// covered trades in -m/-f pairs. The sex suffix is a placeholder until
@@ -648,6 +688,20 @@ impl Art {
         self.icons.iter().find(|(n, _)| n == name).map(|(_, s)| s)
     }
 
+    /// Which villager_sprites slot a villager draws: kids cycle the
+    /// leading generated child figures (or the pack's two youngest when
+    /// none loaded); grown looks sit behind them. Same answer for the
+    /// same (kid, i) every frame.
+    pub fn figure_look(&self, kid: bool, i: usize) -> usize {
+        crate::draw::figure_look(kid, i, self.kid_looks, self.villager_sprites.len())
+    }
+
+    /// The sex the look presents ("m"/"f") - a placeholder until the
+    /// sim carries Sex (#681)
+    pub fn look_sex(&self, look: usize) -> &'static str {
+        self.villager_sexes.get(look).copied().unwrap_or("m")
+    }
+
     /// Load every sprite through `fetch` (rel path -> png bytes): the file
     /// system on desktop, a bundled pack on the web.
     /// Load from an asset folder on disk ("assets" from the repo root).
@@ -683,14 +737,30 @@ impl Art {
                 .or_else(|| v.into_iter().find_map(|s| s))
         };
 
-        // Load villager sprites (every look the villagers pack has, one
-        // each): role and gender as villager_sprite knows them
+        // Load villager sprites: the generated children lead (kids draw
+        // only these when present - figure_look's kid range), then every
+        // look the villagers pack has (role and gender as
+        // villager_sprite knows them), then the generated grown stills
+        let mut villager_sexes: Vec<&'static str> = Vec::new();
+        let kid_people: Vec<Sprite> = KID_SPRITES.iter()
+            .filter_map(|&(n, sex)| {
+                at(&format!("rd/people/{}.png", n)).map(|s| { villager_sexes.push(sex); s })
+            }).collect();
         let vpeople: [(&str, &str); 8] = [
             ("peasant", "m"), ("peasant", "f"), ("elder", "m"), ("noble", "m"),
             ("princess", "f"), ("worker", "m"), ("elder", "f"), ("noble", "f"),
         ];
-        let villager_sprites: Vec<Sprite> = vpeople.iter()
+        villager_sexes.extend(vpeople.iter().map(|&(_, g)| g));
+        let pack_sprites: Vec<Sprite> = vpeople.iter()
             .map(|&(role, gender)| figure(&at, &assets.villager_sprite(role, gender))).collect();
+        let grown_people: Vec<Sprite> = GROWN_SPRITES.iter()
+            .filter_map(|&(n, sex)| {
+                at(&format!("rd/people/{}.png", n)).map(|s| { villager_sexes.push(sex); s })
+            }).collect();
+        let kid_looks = kid_people.len();
+        let pack_looks = pack_sprites.len();
+        let villager_sprites: Vec<Sprite> = kid_people.into_iter()
+            .chain(pack_sprites).chain(grown_people).collect();
         // the rivals: same figures, the outlined look, and their matriarch
         // is the pack's queen - every villager sprite ends up in use
         let rival_sprites: Vec<Sprite> = ["MiniVillagerMan", "MiniWorker", "MiniQueen"].iter()
@@ -738,12 +808,18 @@ impl Art {
             }
         }
 
-        // walk cycles: the player's, and the villager looks that have one
-        // (same order as vpeople: the peasant man and woman so far)
+        // walk cycles: the player's, and the pack villager looks that
+        // have one (the pack sits behind the generated children; the
+        // generated stills slide rather than stride until walk cycles
+        // exist for them)
         let walk = |rel: &str| at(rel).map(|s| WalkSheet::from_sheet(&s));
         let player_walk = walk("rd/player/walk.png");
-        let villager_walks: Vec<Option<WalkSheet>> = vpeople.iter()
-            .map(|&(role, gender)| walk(&format!("rd/villagers/{}-{}.png", role, gender))).collect();
+        let villager_walks: Vec<Option<WalkSheet>> = std::iter::repeat_with(|| None).take(kid_looks)
+            .chain(vpeople.iter()
+                .map(|&(role, gender)| walk(&format!("rd/villagers/{}-{}.png", role, gender))))
+            .chain(std::iter::repeat_with(|| None)
+                .take(villager_sprites.len() - kid_looks - pack_looks))
+            .collect();
         // the knight's mount: one horse-and-rider figure, mirrored for
         // the leftward ride
         let mounted = at("rd/mounted/knight.png");
@@ -850,6 +926,9 @@ impl Art {
 
         Art {
             villager_sprites,
+            kid_looks,
+            pack_looks,
+            villager_sexes,
             rival_sprites,
             houses,
             houses_winter,

@@ -760,8 +760,8 @@ impl View {
                             let h = draw_animal(&mut buf, s, sx, sy, zoom);
                             sy - h + 24
                         } else if let (false, Some(s)) = (pv.kid, pv.person.as_deref()
-                                .and_then(|t| art.person(&format!("{}-{}", t, look_sex(
-                                    figure_look(pv.kid, i, art.villager_sprites.len()))))
+                                .and_then(|t| art.person(&format!("{}-{}", t, art.look_sex(
+                                    art.figure_look(pv.kid, i))))
                                     .or_else(|| art.person(t)))) {
                             // a generated still for their posting or
                             // trade: it slides rather than strides
@@ -769,7 +769,7 @@ impl View {
                             let h = draw_animal(&mut buf, s, sx, sy, zoom);
                             sy - h + 24
                         } else {
-                            let look = figure_look(pv.kid, i, art.villager_sprites.len());
+                            let look = art.figure_look(pv.kid, i);
                             let fig = &art.villager_sprites[look];
                             if let Some(Some(ws)) = art.villager_walks.get(look) {
                                 // a generated walk cycle: facing and striding as they move
@@ -777,6 +777,14 @@ impl View {
                                 let scale = if pv.kid { 0.6 * zoom } else { zoom };
                                 let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
                                 ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD
+                            } else if look < art.kid_looks || look >= art.kid_looks + art.pack_looks {
+                                // a generated still: the children wear their own
+                                // small figure drawn a touch smaller again; the
+                                // grown stills slide like the trade sprites until
+                                // their walk cycles exist (#691)
+                                let h = draw_animal(&mut buf, fig, sx, sy,
+                                    if pv.kid { 0.65 * zoom } else { zoom });
+                                sy - h + if pv.kid { 16 } else { 24 }
                             } else {
                                 // children draw small and flagged: the pack has no
                                 // figure for them, so they're a scaled villager
@@ -913,7 +921,7 @@ impl View {
                     // the picked look: a villager figure, small for a
                     // childhood pick - the dedicated player sprite only
                     // when the pack has no figures at all
-                    let look = figure_look(pv.kid, pv.look as usize, art.villager_sprites.len());
+                    let look = art.figure_look(pv.kid, pv.look as usize);
                     let vws = art.villager_walks.get(look).and_then(|o| o.as_ref());
                     let vfig = art.villager_sprites.get(look);
                     let scale = if pv.kid { 0.6 * zoom } else { zoom };
@@ -929,9 +937,17 @@ impl View {
                         let (hr, hg, hb) = hair_tint(pv.look);
                         buf.rect(sx - 2, sy - 34, 5, 3, hr, hg, hb);
                     } else if let Some(fig) = vfig {
-                        if pv.kid { draw_kid(&mut buf, fig, sx, sy, zoom); }
-                        else { draw_character(&mut buf, fig, sx, sy, zoom); }
-                        anchor = Some(sprite_label_anchor(fig, sy, zoom));
+                        if look < art.kid_looks || look >= art.kid_looks + art.pack_looks {
+                            // a generated still: child or grown, it slides
+                            // like the trade sprites until walk cycles exist
+                            let h = draw_animal(&mut buf, fig, sx, sy,
+                                if pv.kid { 0.65 * zoom } else { zoom });
+                            anchor = Some(sy - h + if pv.kid { 16 } else { 24 });
+                        } else {
+                            if pv.kid { draw_kid(&mut buf, fig, sx, sy, zoom); }
+                            else { draw_character(&mut buf, fig, sx, sy, zoom); }
+                            anchor = Some(sprite_label_anchor(fig, sy, zoom));
+                        }
                     } else if let Some(ws) = &art.player_walk {
                         let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
                         anchor = Some(ws.draw(&mut buf, facing, walking,
@@ -1170,7 +1186,7 @@ impl View {
             if insp.dead {
                 draw_grave(&mut buf, lx(PORTRAIT_FOOT.0), ly(PORTRAIT_FOOT.1), 2.0);
             } else if let Some(fig_i) = insp.fig {
-                let look = figure_look(insp.kid, fig_i, art.villager_sprites.len());
+                let look = art.figure_look(insp.kid, fig_i);
                 let fig = &art.villager_sprites[look];
                 fig.blit_scaled(&mut buf, lx(6), ly(322), 2);
             }
@@ -1863,7 +1879,7 @@ pub fn render_picker(art: &Art, cards: &[roster::RosterCard], sel: usize) -> Buf
         }
         // the figure: the pack's look, small for a child
         if !art.villager_sprites.is_empty() {
-            let look = figure_look(c.kid, c.look, art.villager_sprites.len());
+            let look = art.figure_look(c.kid, c.look);
             let s = &art.villager_sprites[look];
             let scale = if c.kid { 1.1 } else { 1.5 };
             let fw = (s.width as f32 * scale) as i32;

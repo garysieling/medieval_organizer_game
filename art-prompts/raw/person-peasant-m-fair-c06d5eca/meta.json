@@ -1,0 +1,29 @@
+{
+ "created_at": 1795278438,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "56def3b6-1990-4942-be69-970e7602d1b4",
+ "outputs_retained_until": 1795364783,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 97,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "person-peasant-m-fair-c06d5eca",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: male peasant villager in rough brown tunic, fair skin and light brown hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T11:27:17",
+ "seconds": 54.7
+}

@@ -1,0 +1,29 @@
+{
+ "created_at": 1795278081,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "d8c3a006-e027-4f4e-9e70-bdda5dd1775e",
+ "outputs_retained_until": 1795364429,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 99,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "person-child-m-fair-40539903",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: small boy child in short tunic, fair skin and light brown hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T11:21:20",
+ "seconds": 52.8
+}

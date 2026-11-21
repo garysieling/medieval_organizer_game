@@ -284,7 +284,15 @@ The file name is the PersonV.person token: a posting ("tax-collector",
 ("baker", "farmer", ...); the ten covered trades carry -m/-f pairs
 until the sim knows a villager's Sex (#681). Unmapped figures
 (archer, king, mage, minstrel, plague-doctor, ...) load dormant.
-`toolmaker-f` came out as a whole workbench scene; its `--force`
+
+Issue #689 added the villager-look set: 6 `child-{m,f}-<tone>` and 39
+grown `<role>-<tone>` stills (three skin tones each), same recipe and
+@24 export. `villager_sprites` leads with the children, then the
+pack's eight, then these; `figure_look` partitions kids into the child
+range and grown-ups into everything behind it. Kids draw their own
+figure at ~0.65x rather than a scaled pack adult. The 3
+`person-player-*` stills are here too but stay dormant - nobody else
+wears the organizer's green. `toolmaker-f` came out as a whole workbench scene; its `--force`
 regen (raw ...-20261111152416) is a smith holding hot work.
 
 ## icons

@@ -1,0 +1,29 @@
+{
+ "created_at": 1795278158,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "add6f0bc-9e7c-400d-90d4-6808529c5c13",
+ "outputs_retained_until": 1795364482,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 99,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "person-child-m-olive-14c4bcf7",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: small boy child in short tunic, olive skin and dark wavy hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T11:22:37",
+ "seconds": 76.3
+}

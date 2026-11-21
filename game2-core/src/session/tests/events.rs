@@ -2843,3 +2843,30 @@ fn test_the_flood_takes_the_riverside() {
     assert!(!g.ruined.iter().any(|&i| g.building_entities[i] == g.market_food),
         "the village store stands");
 }
+
+/// A mapped event leaves its mark: the event's sprite stands at its
+/// spot a couple of days (a spell's, its whole run), then clears like
+/// a toast (#695)
+#[test]
+fn test_an_event_leaves_its_prop_at_the_spot() {
+    let mut g = Game::new();
+    g.force_event(events::EventId::OldOakFalls);
+    let &(_, _, until) = g.event_props.iter()
+        .find(|(_, s, _)| *s == "prop-fallen-oak")
+        .expect("the fallen oak stands where it fell");
+    assert!(until > g.tick, "it lingers past today");
+    // an unmapped moment leaves nothing
+    g.force_event(events::EventId::Assize);
+    assert!(g.event_props.iter().all(|(_, s, _)| *s == "prop-fallen-oak"),
+        "the assize has no mark");
+    // a spell's mark stands at the spell's own spot, its whole run
+    g.force_event(events::EventId::FouledWell);
+    let &(_, _, s_until) = g.event_props.iter()
+        .find(|(_, s, _)| *s == "prop-fouled-well")
+        .expect("the fouled well shows its taint");
+    assert!(s_until >= g.tick + 7, "the spell's mark outlasts a moment's");
+    // and the mark clears with the days like a toast
+    g.event_props.iter_mut().for_each(|p| p.2 = g.tick);
+    g.update();
+    assert!(g.event_props.is_empty(), "the mark doesn't linger past its day");
+}

@@ -318,8 +318,10 @@ glass, ink, cloth) were left in the raw.
 The rest of the P1 catalog is reference art for features that have no
 renderer yet - each group names its consumer issue:
 
-- `decor/` (8 props, `rd_tile__tile_object`): wreath, yule-log and a
-  maypole for feast dressing; marginalia-hybrid, memento-mori,
+- `decor/` (13 props, `rd_tile__tile_object`): the feast-ring dressing
+  (#695) - bonfire, wreath, feast-table, flower-garland, harvest-display,
+  lantern-post and yule-log stand round the market on feast days (the
+  maypole already takes the centre); marginalia-hybrid, memento-mori,
   painted-hall, sign-engraved and wonder-eggshell for hall interiors.
   Consumer: #1275.
 - `regions/scotland/` (24 pieces, `rd_pro__isometric` 160px +
@@ -336,6 +338,19 @@ renderer yet - each group names its consumer issue:
 - `weather/` (5 looks, 256px opaque): haar, dreich, smirr, stinging
   shower, four-seasons - palette/overlay reference for weather_fx.
   Consumer: #1274.
+- `events/` (35 sprites, `rd_tile__tile_object` @~40px): a rare event's
+  mark standing at its spot (#695) - 15 creatures and 20 prop leavings.
+  Wired via `EventId` -> `events::prop_slug` -> `m.event_props` -> a
+  `Piece::Stand` at the event's own spot (the pond for a drowning, the
+  well for a fouling, the wall's wood edge for the fallen oak); the
+  bear-ward's bear stands beside his pitch his whole stay, and
+  `creature-bee-swarm` doubles as the swarm-following sprite.
+  `prop-truffle` stays in the atlas - the truffle event shows the pig.
+- `festivals/` (4 paintings, 256px opaque, copied not sliced):
+  spring/summer/autumn/winter-equinox cards. A feast day
+  (`society::FEASTS`) hangs its painting in the banner slot with the
+  feast's name - May Day, Midsummer, the Harvest Home and Yule; the
+  Martinmas salting has no card of its own.
 - `construction/stage1..3.png`: the build flourish (`BldgV.risen`)
   draws foundation, frame and half-roof stages for the first three
   quarters of the rise, then the real sprite fills in. Sliced from

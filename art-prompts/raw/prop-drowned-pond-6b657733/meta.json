@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286790,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "6533f8ab-ef06-40fe-af10-93bc921f9e56",
+ "outputs_retained_until": 1795373184,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 64,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "prop-drowned-pond-6b657733",
+ "prompt": "single isometric medieval village asset: village pond with a small ring of ripples and a dropped basket",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:46:29",
+ "seconds": 6.4
+}

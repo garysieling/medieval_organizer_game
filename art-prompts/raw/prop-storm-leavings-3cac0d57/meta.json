@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286820,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "386f46ec-9845-4879-8501-46380dba014c",
+ "outputs_retained_until": 1795373215,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 64,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "prop-storm-leavings-3cac0d57",
+ "prompt": "single isometric medieval village asset: scattered planks and a staved barrel after a storm",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:46:59",
+ "seconds": 5.3
+}

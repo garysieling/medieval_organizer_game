@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286672,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "8eabb2e7-9c2c-4ed0-9c0c-76ab81692101",
+ "outputs_retained_until": 1795373065,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 67,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "creature-deer-f8c2574a",
+ "prompt": "single isometric medieval village asset: red deer doe grazing in a crop field",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:44:31",
+ "seconds": 6.6
+}

@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286722,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "bdb6efc1-d3cc-490d-b97b-6d38a745132c",
+ "outputs_retained_until": 1795373116,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 66,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "prop-fallen-oak-ebc01cad",
+ "prompt": "single isometric medieval village asset: giant old oak fallen across a lane, split trunk",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:45:21",
+ "seconds": 6.7
+}

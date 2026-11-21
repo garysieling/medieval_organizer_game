@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286695,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "7d163413-530d-469c-8fe1-1c8718799cbf",
+ "outputs_retained_until": 1795373091,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 67,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "creature-leaping-fish-843be811",
+ "prompt": "single isometric medieval village asset: silver fish leaping in the shallows",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:44:54",
+ "seconds": 4.6
+}

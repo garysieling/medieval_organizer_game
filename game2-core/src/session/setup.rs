@@ -987,6 +987,7 @@ impl Game {
             flyers: vec![],
             rival_homes,
             toasts: Toasts::default(),
+            event_props: Vec::new(),
             last_guild_count: 0,
             tick: 0,
             paused: false,

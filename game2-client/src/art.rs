@@ -242,6 +242,22 @@ pub struct Art {
     /// square (assets/rd/bits); None: they go undrawn
     pub well_s: Option<Sprite>,
     pub hall_s: Option<Sprite>,
+    /// The event art atlas (assets/rd/events/<slug>.png): a Moment's
+    /// mark standing at its spot - the creature that struck, the thing
+    /// it left. Empty: events stay text-only (#695)
+    pub event_props: Vec<(String, Sprite)>,
+    /// The festival paintings, one card per painted feast
+    /// (assets/rd/festivals/festival-*.png): spring-equinox,
+    /// summer-solstice, autumn-equinox, winter-solstice
+    pub feast_cards: [Option<Sprite>; 4],
+    /// The feast ring's dressing (assets/rd/decor): bonfire, wreath,
+    /// feast-table, garland, harvest display, lantern post, yule log -
+    /// stood round the market on feast days only (the maypole's own
+    /// swap already takes the centre)
+    pub feast_decor: Vec<Sprite>,
+    /// The five weather paintings (assets/rd/weather): static looks
+    /// registered for a title/menu surface that isn't built yet (#695)
+    pub weather_art: Vec<Sprite>,
     /// Chimney-smoke frames (assets/rd/bits/smoke*): wispy puffs rising;
     /// empty keeps the drawn puffs
     pub smoke: Vec<Sprite>,
@@ -692,6 +708,42 @@ pub(crate) const ICON_SPRITES: [&str; 97] = [
     "good-blocks", "good-needle",
 ];
 
+/// The event art atlas the loader looks for (assets/rd/events/<slug>.png):
+/// the moment creatures and prop leavings (#695)
+pub(crate) const EVENT_ART: [&str; 35] = [
+    "creature-wolf", "creature-fox", "creature-hawk", "creature-rat-swarm",
+    "creature-locust-cloud", "creature-caterpillar", "creature-starling-flock",
+    "creature-bee-swarm", "creature-deer", "creature-wild-boar",
+    "creature-barn-owl", "creature-crow-mob", "creature-leaping-fish",
+    "creature-truffle-pig", "creature-bear",
+    "prop-bee-tree", "prop-honey-tree", "prop-fallen-oak", "prop-old-stones",
+    "prop-spring", "prop-truffle", "prop-mushroom-cluster", "prop-berry-bush",
+    "prop-herb-clump", "prop-coin-hoard", "prop-cart-overturned",
+    "prop-fouled-well", "prop-granary-leak", "prop-chimney-fire",
+    "prop-drowned-pond", "prop-lost-child", "prop-foundling", "prop-quarrel",
+    "prop-driftwood", "prop-storm-leavings",
+];
+
+/// The four festival paintings (assets/rd/festivals/<name>.png), in
+/// feast_card() order
+pub(crate) const FEAST_CARDS: [&str; 4] = [
+    "festival-spring-equinox", "festival-summer-solstice",
+    "festival-autumn-equinox", "festival-winter-solstice",
+];
+
+/// The feast ring's dressing (assets/rd/decor/<name>.png): all but the
+/// maypole, which already stands at the market cross on feast days
+pub(crate) const FEAST_DECOR: [&str; 7] = [
+    "bonfire", "wreath", "feast-table", "flower-garland",
+    "harvest-display", "lantern-post", "yule-log",
+];
+
+/// The weather paintings (assets/rd/weather/<name>.png)
+pub(crate) const WEATHER_ART: [&str; 5] = [
+    "weather-dreich", "weather-four-seasons", "weather-haar",
+    "weather-smirr", "weather-stinging-shower",
+];
+
 /// A villager sprite cropped to its standing frame (each sheet is a grid
 /// of 32x32 cells)
 pub(crate) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
@@ -716,6 +768,25 @@ impl Art {
     /// "good-bread"). None: the caller keeps its text glyph.
     pub fn icon(&self, name: &str) -> Option<&Sprite> {
         self.icons.iter().find(|(n, _)| n == name).map(|(_, s)| s)
+    }
+
+    /// The atlas sprite an event's mark draws ("creature-wolf",
+    /// "prop-fallen-oak"). None: the event leaves no mark.
+    pub fn event_prop(&self, slug: &str) -> Option<&Sprite> {
+        self.event_props.iter().find(|(n, _)| n == slug).map(|(_, s)| s)
+    }
+
+    /// The painting a feast day hangs in the banner slot: May Day and
+    /// Midsummer, the Harvest Home and Yule; the salting day has no card
+    pub fn feast_card(&self, feast: &str) -> Option<&Sprite> {
+        let i = match feast {
+            "May Day" => 0,
+            "Midsummer" => 1,
+            "the Harvest Home" => 2,
+            "Yule" => 3,
+            _ => return None,
+        };
+        self.feast_cards[i].as_ref()
     }
 
     /// Which villager_sprites slot a villager draws: kids cycle the
@@ -1075,6 +1146,14 @@ impl Art {
             trader_stall: at("rd/bits/trader-stall.png"),
             well_s: at("rd/bits/well.png"),
             hall_s: at("rd/bits/meeting-hall.png"),
+            event_props: EVENT_ART.iter()
+                .filter_map(|&n| at(&format!("rd/events/{}.png", n)).map(|s| (n.to_string(), s)))
+                .collect(),
+            feast_cards: FEAST_CARDS.map(|n| at(&format!("rd/festivals/{}.png", n))),
+            feast_decor: FEAST_DECOR.iter()
+                .filter_map(|&n| at(&format!("rd/decor/{}.png", n))).collect(),
+            weather_art: WEATHER_ART.iter()
+                .filter_map(|&n| at(&format!("rd/weather/{}.png", n))).collect(),
             smoke: bits("smoke"),
             bridges: [at("rd/bits/bridge_x.png"), at("rd/bits/bridge_y.png")],
             skeps: bits("skep"),

@@ -1,0 +1,29 @@
+{
+ "created_at": 1795286780,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "036df6ac-1865-45a1-abb5-f51938421258",
+ "outputs_retained_until": 1795373175,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 65,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "prop-granary-leak-80ff4545",
+ "prompt": "single isometric medieval village asset: grain store with wet sacks and drips from the eaves",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:46:19",
+ "seconds": 5.3
+}

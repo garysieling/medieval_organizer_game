@@ -1,0 +1,29 @@
+{
+ "created_at": 1795287074,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "43c66932-cfd3-4e13-8f57-7353f9158bb4",
+ "outputs_retained_until": 1795373468,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 62,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "decor-flower-garland-c3694997",
+ "prompt": "single isometric medieval village asset: flower garland strung between posts",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 96,
+  "height": 96,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T13:51:14",
+ "seconds": 7.0
+}

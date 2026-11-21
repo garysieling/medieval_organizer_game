@@ -43,6 +43,8 @@ pub const PLAYER_TALK_DAYS: u64 = 8;
 /// What a reply does to the bond: agreeing warms, pushing back cools
 const AGREE_WARMTH: f32 = 0.3;
 const PUSHBACK_CHILL: f32 = 0.2;
+/// What arguing a case your cause doesn't hold quietly costs (#1234)
+const INSINCERE_CHILL: f32 = 0.1;
 /// How much a good answer to their audition warms the bond (#1187) -
 /// a heavier beat than a single agreeable word
 const VIBE_WARMTH: f32 = 0.5;
@@ -162,6 +164,36 @@ pub struct PlayerTalk {
     pub mood: TalkMood,
     /// How their audition of you read, once it's been answered (#1187)
     pub vibe: Option<crate::game::conversation::Vibe>,
+    /// An argument under way (#1234): while it is, the choices are its
+    pub argue: Option<Argument>,
+    /// What the argument put on the record, each after the replay line
+    /// it followed - the replay rewrites the record, these ride along
+    pub argued: Vec<(usize, TalkLine)>,
+}
+
+/// The one-on-one argument as it stands (#1234): which issue, then
+/// which side, then the answer to their counter
+#[derive(Debug, Clone)]
+pub struct Argument {
+    pub issues: Vec<crate::game::desires::IssueTag>,
+    pub issue: Option<crate::game::desires::IssueTag>,
+    pub stance: Option<crate::game::persuasion::Stance>,
+}
+
+impl Argument {
+    pub fn labels(&self) -> Vec<String> {
+        use crate::game::persuasion::{move_label, Stance, MOVES};
+        let name = |t: &crate::game::desires::IssueTag| crate::game::desires::issue_name(t.clone());
+        match (&self.issue, self.stance) {
+            (None, _) => self.issues.iter().map(|t| format!("Argue {}", name(t)))
+                .chain(std::iter::once("Let it drop".to_string())).collect(),
+            (Some(t), None) => [Stance::For, Stance::Against].iter().map(|s| match s {
+                Stance::For => format!("Argue for taking up {}", name(t)),
+                Stance::Against => format!("Argue against stirring up {}", name(t)),
+            }).chain(std::iter::once("Let it drop".to_string())).collect(),
+            (Some(_), Some(_)) => MOVES.iter().map(|m| move_label(*m).to_string()).collect(),
+        }
+    }
 }
 
 /// The most choices a Talk offers at once - the replies plus however
@@ -175,6 +207,14 @@ impl PlayerTalk {
     /// turn can still come up on a later one.
     pub(crate) fn asks_shown(&self) -> usize {
         TALK_MAX_CHOICES.saturating_sub(self.options.len()).min(self.asks.len())
+    }
+
+    /// The choice list as shown: an argument's own steps while one's
+    /// under way, else the replies then the asks that fit
+    pub fn choice_labels(&self) -> Vec<String> {
+        if let Some(a) = &self.argue { return a.labels(); }
+        self.options.iter().map(|o| o.1.clone())
+            .chain(self.asks.iter().take(self.asks_shown()).map(crate::game::organizing::ask_label)).collect()
     }
 }
 
@@ -695,7 +735,7 @@ impl Game {
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: vec![], asks,
             asks_taken: vec![], asked_seen: 0, mood: TalkMood::Cool, vibe: None,
-            tired,
+            tired, argue: None, argued: vec![],
         });
         self.refresh_player_talk(seat);
     }
@@ -743,8 +783,11 @@ impl Game {
             let (who, name) = if *sp == 0 { (t.who, vname.clone()) } else { (pe, self.speaker_name(pe)) };
             lines.push(TalkLine { who: Some(who), name, text: text.clone(), gist: false });
             if k == 0 { lines.extend(Self::gist_lines(&t, &vname)); }
+            lines.extend(t.argued.iter().filter(|(at, _)| *at == k + 1).map(|(_, l)| l.clone()));
         }
         if said.is_empty() { lines.extend(Self::gist_lines(&t, &vname)); }
+        lines.extend(t.argued.iter().filter(|(at, _)| *at > said.len())
+            .map(|(_, l)| l.clone()));
         if let Some(r) = self.talk_record_mut(t.id) { r.lines = lines; }
         // a question that draws (#1189): asking after their trouble is
         // the way a kept secret comes out - the same reveal a talk's
@@ -794,7 +837,7 @@ impl Game {
         // ask to hang on (#1179): they take their leave as much as you do,
         // so close on a mutual parting rather than an exit menu
         if let Some(opts) = &offered {
-            if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty()
+            if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none()
                 && opts.iter().all(|(a, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");
                 // a spent talk parts kindly - unless the last word chosen
@@ -949,6 +992,7 @@ impl Game {
     /// their leave
     pub fn talk_pick_at(&mut self, seat: usize, pick: Option<usize>) {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        if let (Some(_), Some(i)) = (&t.argue, pick) { self.argue_pick_at(seat, i); return; }
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let Some(i) = pick.filter(|&i| i < n + asks) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
@@ -958,6 +1002,10 @@ impl Game {
         // doesn't, and the word of it goes on the record
         if i >= n {
             let o = t.asks[i - n];
+            if o.kind == crate::game::organizing::PropKind::Argue {
+                self.open_argument(seat, o);
+                return;
+            }
             let (pe, oe, name) = (self.seats[seat].player, self.seats[seat].org, t.villager.name.clone());
             let roll = (self.rng.next() % 1000) as f32 / 1000.0;
             let (msg, named) = crate::game::organizing::propose_keyed(
@@ -1078,6 +1126,105 @@ impl Game {
         self.refresh_player_talk(seat);
     }
 
+    /// Put a line from the argument on the talk's record, after what's
+    /// been said so far (#1234)
+    fn argue_line(&mut self, seat: usize, who: Option<Entity>, text: String) {
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let at = replay(t).0.len().max(1);
+        let name = match who { Some(w) if w == t.who => t.villager.name.clone(), Some(w) => self.speaker_name(w), None => String::new() };
+        if let Some(cur) = self.seats[seat].talk.as_mut() {
+            cur.argued.push((at, TalkLine { who, name, text, gist: false }));
+        }
+    }
+
+    /// "Hear me out on something" (#1234): the argument opens on the live
+    /// issues worth arguing - or, with none, there's nothing to argue
+    fn open_argument(&mut self, seat: usize, o: crate::game::organizing::AskOffer) {
+        let (pe, oe) = (self.seats[seat].player, self.seats[seat].org);
+        let Some(t) = self.seats[seat].talk.as_mut() else { return };
+        t.asks.retain(|a| *a != o);
+        t.asks_taken.push(o);
+        let who = t.who;
+        let issues = crate::game::persuasion::arguable_issues(&self.world, oe, pe, who);
+        if issues.is_empty() {
+            self.argue_line(seat, None, "There's nothing live between you to argue just now.".into());
+        } else if let Some(t) = self.seats[seat].talk.as_mut() {
+            t.argue = Some(Argument { issues, issue: None, stance: None });
+        }
+        self.refresh_player_talk(seat);
+    }
+
+    /// A pick inside the argument (#1234): the issue, then the side -
+    /// they answer it from their temper - then how you meet their
+    /// answer, which resolves it. A won case sets them thinking; they
+    /// come round days later (`persuasion::mature`). Arguing what your
+    /// cause doesn't hold is allowed and quietly costs you with them.
+    fn argue_pick_at(&mut self, seat: usize, i: usize) {
+        use crate::game::persuasion::{self, Outcome, Stance, MOVES};
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let Some(a) = t.argue.clone() else { return };
+        if i >= a.labels().len() { return; }
+        let (who, vname) = (t.who, t.villager.name.clone());
+        let (pe, oe) = (self.seats[seat].player, self.seats[seat].org);
+        match (a.issue.clone(), a.stance) {
+            (None, _) => {
+                if i >= a.issues.len() { return self.drop_argument(seat); }
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.argue = Some(Argument { issue: Some(a.issues[i].clone()), ..a });
+                }
+            }
+            (Some(issue), None) => {
+                if i >= 2 { return self.drop_argument(seat); }
+                let stance = if i == 0 { Stance::For } else { Stance::Against };
+                self.argue_line(seat, Some(pe), persuasion::case_line(stance, &issue));
+                let traits = self.world.get_component::<Personality>(who).map(|p| p.traits.clone()).unwrap_or_default();
+                self.argue_line(seat, Some(who), persuasion::counter_line(&traits, stance, &issue));
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.argue = Some(Argument { stance: Some(stance), ..a });
+                }
+            }
+            (Some(issue), Some(stance)) => {
+                let m = MOVES[i];
+                self.argue_line(seat, Some(pe), format!("You {}.", persuasion::move_label(m).to_lowercase()));
+                let roll = (self.rng.next() % 1000) as f32 / 1000.0;
+                let outcome = persuasion::resolve(&self.world, pe, who, m, roll);
+                let mag = persuasion::magnitude(&self.world, pe, who, &issue, m, self.tick);
+                persuasion::push_argument(&mut self.world, who, &issue, stance, outcome, mag, self.tick);
+                // a case the cause doesn't hold leaves its mark - no word
+                // of it, just a cooler bond
+                if persuasion::insincere(&self.world, oe, pe, &issue, stance) {
+                    relationships::record_interaction(&mut self.world, pe,
+                        Interaction { other: who, kind: InteractionKind::Conflict, intensity: INSINCERE_CHILL });
+                }
+                let note = match outcome {
+                    Outcome::Won => format!("{vname} turns it over. They'll think on it."),
+                    Outcome::Stalemate => format!("{vname} shrugs. Neither of you moves the other."),
+                    Outcome::Lost => format!("{vname}'s answer carries it - if anything, you've argued them the other way."),
+                    Outcome::Pressed => format!("{vname} bristles - you've pushed too hard."),
+                };
+                if outcome == Outcome::Pressed {
+                    if !crate::game::player::pick_spent_today(&self.world, who, pe, self.tick) {
+                        relationships::record_interaction(&mut self.world, pe,
+                            Interaction { other: who, kind: InteractionKind::Conflict, intensity: PUSHBACK_CHILL });
+                        let tid = self.seats[seat].talk.as_ref().map(|t| t.id).unwrap_or(0);
+                        crate::game::player::note_pick_moved(&mut self.world, who, pe, self.tick, tid);
+                    }
+                    if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Slighted; }
+                }
+                self.argue_line(seat, None, note);
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.argue = None; }
+            }
+        }
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.since = self.tick; }
+        self.refresh_player_talk(seat);
+    }
+
+    fn drop_argument(&mut self, seat: usize) {
+        self.argue_line(seat, None, "You let it drop.".into());
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.argue = None; }
+        self.refresh_player_talk(seat);
+    }
+
     /// "I'll take it" with a road visitor: the purse pays or gains, the
     /// satchel takes the ware, and the note goes on the talk's record
     /// (#1168)
@@ -1170,8 +1317,7 @@ impl Game {
         }
         let in_talk = matches!(&s.talk, Some(t) if shown.contains(&t.id));
         let options = match &s.talk {
-            Some(t) if in_talk => t.options.iter().map(|o| o.1.clone())
-                .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::ask_label(a))).collect(),
+            Some(t) if in_talk => t.choice_labels(),
             _ => vec![],
         };
         let empty = if picked.is_some() { "Nothing heard from them yet." } else { "Talk to someone (T) and it shows here." };
@@ -1376,8 +1522,7 @@ impl Game {
             return Some(ConvoPanelV {
                 title: format!("TALK - {}", t.villager.name.to_uppercase()),
                 rows: self.record_rows(seat, t.id),
-                options: t.options.iter().map(|o| o.1.clone())
-                    .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::ask_label(a))).collect(),
+                options: t.choice_labels(),
                 decides: false, leave: true });
         }
         // the traveller's ask (#1085): last on the box - a live talk, a

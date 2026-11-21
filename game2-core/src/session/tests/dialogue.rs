@@ -674,3 +674,72 @@ fn test_a_live_mystery_is_its_own_ask() {
     assert!(rec.lines.iter().any(|l| l.who == Some(v) && facts.contains(&l.text.as_str())),
         "they passed the piece on: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
+
+/// A villager pressed twice in a day runs dry (#1226): the second talk
+/// opens flat - no fresh mind to speak, no propositions, one word at a
+/// time - where the first ran full
+#[test]
+fn test_a_second_pressing_runs_flat() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = talk_beside(&mut g, i);
+    assert_eq!(g.seats[0].talk.as_ref().unwrap().tired, 1, "the day's first pressing runs full");
+    g.close_player_talk(0, None);
+    assert_eq!(talk_beside(&mut g, i), v, "same villager, pressed again");
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on, flatter").clone();
+    assert_eq!(t.tired, 2, "the day's tally counted the second pressing");
+    // flat: no propositions, no fresh mind to speak, and they say so
+    assert!(t.asks.is_empty(), "a tired villager keeps their asks: {:?}", t.asks);
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    assert!(!rec.lines.iter().any(|l| l.gist), "the gist's already been said today");
+    assert!(rec.lines.iter().any(|l| l.text.contains("Still here")),
+        "they acknowledge the pressing: {:?}", rec.lines);
+    // and what comes back runs a word at a time
+    let mut saw_short = false;
+    for _ in 0..4 {
+        let Some(t) = g.seats[0].talk.as_ref() else { break };
+        assert!(t.options.len() <= 1, "the pressed list runs short: {:?}", t.options);
+        saw_short |= t.options.len() == 1;
+        g.talk_pick_at(0, Some(0));
+    }
+    assert!(saw_short, "a flat talk still answers");
+}
+
+/// The third pressing of a day finds them nearly talked out (#1226): a
+/// word or two and the talk itself calls it done
+#[test]
+fn test_a_third_pressing_runs_dry() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    for _ in 0..2 { talk_beside(&mut g, i); g.close_player_talk(0, None); }
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().expect("a third talk still opens").clone();
+    assert_eq!(t.tired, 3);
+    let id = t.id;
+    let mut picks = 0;
+    while g.seats[0].talk.is_some() && picks < 6 {
+        g.talk_pick_at(0, Some(0));
+        picks += 1;
+    }
+    assert!(g.seats[0].talk.is_none(), "the third pressing doesn't linger");
+    assert!(picks <= 3, "it ran a word or two, not a conversation: {} picks", picks);
+    let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.text.contains("run out of things to say")),
+        "the thin parting's on the record: {:?}", rec.lines.last().map(|l| l.text.clone()));
+}
+
+/// The tally lifts at dawn (#1226): yesterday's pressings don't follow
+/// a villager into the next day's talk
+#[test]
+fn test_a_new_day_lifts_the_tiredness() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    g.close_player_talk(0, None);
+    g.tick += 1;
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().expect("a fresh day's talk").clone();
+    assert_eq!(t.tired, 1, "dawn lifts the tally");
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.gist), "a fresh day's talk opens with the gist again");
+}

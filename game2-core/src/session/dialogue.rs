@@ -70,6 +70,17 @@ pub struct TalkMemory {
     pub tick: u64,
 }
 
+/// How many times they've been pressed to talk today (#1226): the tally
+/// is the villager's, not any seat's - anyone's asking counts, and it
+/// lifts at dawn like the routine does
+#[derive(Clone, Copy, Debug)]
+pub struct TalkTired {
+    /// The day the tally's for - yesterday's count doesn't carry
+    pub day: u64,
+    /// Talks opened today, the current one counted
+    pub n: u8,
+}
+
 /// What kind of talk a record holds
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TalkKind {
@@ -138,6 +149,9 @@ pub struct PlayerTalk {
     /// Asks already put this talk - a vibe re-roll mustn't deal them
     /// back in (#1188)
     pub asks_taken: Vec<crate::game::organizing::AskOffer>,
+    /// Which of today's pressings this talk is (#1226): the first runs
+    /// full, the second flat, the third's near talked out already
+    pub tired: u8,
     /// Topics from `Transcript.asked` already checked for a draw - the
     /// replay accumulates them, the watermark marks what's been seen
     /// (#1189)
@@ -478,9 +492,19 @@ impl Game {
             _ => {}
         }
         let mut asks = crate::game::organizing::ask_offers(&self.world, self.seats[seat].org, v, 0);
+        // pressing is the act (#1226): the tally counts this talk the
+        // moment it opens, whoever's seat asked - and it lifts at dawn
+        let tired = {
+            let so_far = self.world.get_component::<TalkTired>(v)
+                .filter(|t| t.day == self.tick).map(|t| t.n).unwrap_or(0);
+            let t = TalkTired { day: self.tick, n: so_far.saturating_add(1) };
+            self.world.add_component(v, t);
+            t.n
+        };
         // they won't hear a proposition from you while the last talk
-        // still smarts - a cold ending closes what they'll offer (#1183)
-        if self.talk_mood_of(v) == Some(TalkMood::Slighted) { asks.clear(); }
+        // still smarts - a cold ending closes what they'll offer (#1183);
+        // a pressed villager keeps them to themselves just the same (#1226)
+        if self.talk_mood_of(v) == Some(TalkMood::Slighted) || tired >= 2 { asks.clear(); }
         let pname = self.world.get_component::<crate::game::player::PlayerCharacter>(pe)
             .map(|p| p.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "friend".into());
         // spoken to, "The Wanderer" is "wanderer": "A peaceful day to thee, wanderer."
@@ -504,6 +528,7 @@ impl Game {
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: vec![], asks,
             asks_taken: vec![], asked_seen: 0, mood: TalkMood::Cool, vibe: None,
+            tired,
         });
         self.refresh_player_talk(seat);
     }
@@ -613,8 +638,21 @@ impl Game {
                 return;
             }
         }
+        // the third pressing of a day finds them nearly talked out
+        // (#1226): a word or two is all they still have - then the
+        // parting, on the talk's own say-so. A real ending under way
+        // (a walk-off) still lands as it would
+        if t.tired >= 3 && !t.picks.is_empty()
+            && matches!(&offered, Some(o) if !o.is_empty()) {
+            self.close_player_talk(seat,
+                Some(&format!("You and {vname} run out of things to say, and part.")));
+            return;
+        }
         match offered {
             Some(opts) if !opts.is_empty() => {
+                // a pressed talk comes one word at a time (#1226): the
+                // flat of the day shows as a shorter list, not new lines
+                let opts = if t.tired >= 2 { opts.into_iter().take(1).collect() } else { opts };
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.options = opts; cur.opt_tree = tree; }
             }
             _ => {
@@ -659,7 +697,12 @@ impl Game {
         if !t.profile.is_empty() {
             v.push(TalkLine { who: None, name: String::new(), text: t.profile.clone(), gist: false });
         }
-        if !t.gist.is_empty() {
+        // a pressed-again villager has no fresh mind to speak (#1226):
+        // the gist's already been said today, and they say so
+        if t.tired >= 2 {
+            v.push(TalkLine { who: Some(t.who), name: vname.to_string(),
+                text: "Still here, then.".into(), gist: false });
+        } else if !t.gist.is_empty() {
             v.push(TalkLine { who: Some(t.who), name: vname.to_string(), text: t.gist.clone(), gist: true });
         }
         v.extend(t.notes.iter().map(|n| TalkLine { who: None, name: String::new(), text: n.clone(), gist: false }));

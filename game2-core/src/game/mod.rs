@@ -46,6 +46,7 @@ pub mod org_skills;
 pub mod actions;
 pub mod reactions;
 pub mod persuasion;
+pub mod rhetoric;
 pub mod dungeon;
 pub mod conversation;
 pub mod dialogue_trees;

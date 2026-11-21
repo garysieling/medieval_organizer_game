@@ -779,6 +779,9 @@ pub fn stage_label(s: RelStage) -> &'static str {
 /// What a meeting needs before it can happen, gathered one ask at a
 /// time. A promise lives on the org's plan; the more that come true,
 /// the better the meeting runs.
+/// Days before the organizer can testify again: testimony repeated is a speech (#1248)
+pub const TESTIMONY_COOLDOWN_DAYS: u64 = 90;
+
 #[derive(Debug, Default)]
 pub struct MeetingPlan {
     /// Who said we could meet at their house, and the house they meant
@@ -807,6 +810,9 @@ pub struct MeetingPlan {
     /// The call's question is the probe, not the matter (#1267): what do
     /// you actually want, who are you doing it for
     pub probe: bool,
+    /// The organizer opens with testimony (#1248): the event from their
+    /// own history they'll tell
+    pub testimony: Option<String>,
 }
 
 impl MeetingPlan {

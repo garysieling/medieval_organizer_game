@@ -5,6 +5,11 @@ use crate::session::*;
 /// How warm a follower's tie to someone must be before they'll name them
 /// as who they do it for (#1267)
 const PROBE_NAME_TIE: f32 = 0.5;
+use crate::game::organizing::TESTIMONY_COOLDOWN_DAYS;
+/// How many of their own events the organizer picks among
+const TESTIMONY_CHOICES: usize = 3;
+/// The mean tie to the organizer a room needs for testimony to land full
+const TESTIMONY_WARM_TIE: f32 = 0.3;
 
 impl Game {
     /// The end of a house meeting, once those who came have talked it over.
@@ -395,7 +400,8 @@ impl Game {
         }
         // an unanswered question-question leaves the matter (#1267)
         self.seats[seat].frame_offer = None;
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, bought: plan.bought });
+        self.seats[seat].testimony_offer = None;
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, bought: plan.bought });
         msg
     }
 
@@ -403,13 +409,19 @@ impl Game {
     /// what's on their mind - now and then a secret slips out, and every
     /// parallel complaint already voiced makes the next speaker likelier
     /// to share their own. Three voices in a family surface an issue.
-    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool), probe: bool) -> Vec<(Entity, String)> {
+    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool), probe: bool, testimony: Option<&str>) -> Vec<(Entity, String)> {
         // the seat that called it hosts: its player asks, and hears what comes out
         let host_e = self.seats[seat].player;
         if came.is_empty() { return vec![]; }
         // the probe replaces the host's question (#1267)
         let ask = if probe { crate::game::dialogue_trees::MEET_PROBE.text } else { MEETING_PROMPTS[0] };
         let mut lines = vec![(host_e, ask.to_string())];
+        // testimony opens ahead of the ask: Self, Us, Now (#1248)
+        if let Some(ev) = testimony {
+            let arc = self.testimony_arc(ev, came);
+            lines.splice(0..0, arc.into_iter().map(|l| (host_e, l)));
+            self.testify(seat, came);
+        }
         self.voiced.clear();
         // what each attendee says when no secret comes out of them: the
         // meeting's talk from conversation::run_meeting - answers to the
@@ -543,6 +555,89 @@ impl Game {
         lines
     }
 
+    /// The organizer's history worth testifying to (#1248): the latest
+    /// hard news the log holds - a hanging, a writ, a fire, a death -
+    /// told as it was logged, at most TESTIMONY_CHOICES of them
+    pub fn testimony_events(&self) -> Vec<String> {
+        let mut out: Vec<String> = vec![];
+        for i in (0..self.log.len()).rev() {
+            let Some(ev) = self.log.ev(i) else { continue };
+            if ev.valence != Valence::Negative || ev.sev == Sev::Minor
+                || matches!(ev.thread, Thread::Weather | Thread::Player | Thread::Org | Thread::Other) { continue; }
+            let line = &self.log[i];
+            let text = match line.split_once(": ") {
+                Some((t, rest)) if t.starts_with('t') && t[1..].chars().all(|c| c.is_ascii_digit()) => rest,
+                _ => line.as_str(),
+            };
+            if !out.iter().any(|o| o == text) { out.push(text.to_string()); }
+            if out.len() >= TESTIMONY_CHOICES { break; }
+        }
+        out
+    }
+
+    /// Testimony's on offer: off cooldown, and there's history to tell
+    pub fn testimony_ready(&self, seat: usize) -> bool {
+        self.seats[seat].last_testimony
+            .map(|t| self.tick.saturating_sub(t) >= TESTIMONY_COOLDOWN_DAYS).unwrap_or(true)
+            && !self.testimony_events().is_empty()
+    }
+
+    /// The three beats of testimony: Self (the event, told first-person),
+    /// Us (what the room shares), Now (tonight's choice)
+    fn testimony_arc(&self, ev: &str, came: &[Entity]) -> Vec<String> {
+        let mut counts: Vec<(String, usize)> = vec![];
+        for &v in came {
+            for p in desires::problems_of(&self.world, v, self.tick) {
+                let label = desires::problem_label(&p);
+                match counts.iter_mut().find(|(l, _)| *l == label) {
+                    Some(c) => c.1 += 1,
+                    None => counts.push((label, 1)),
+                }
+            }
+        }
+        let shared = counts.iter().fold(None::<&(String, usize)>, |best, c| match best {
+            Some(b) if b.1 >= c.1 => Some(b),
+            _ => Some(c),
+        });
+        let us = match shared {
+            Some((label, _)) => format!("And it's not mine alone - every house in this room knows {}.", label),
+            None => "And it's not mine alone - every house in this room has felt the lord's hand.".into(),
+        };
+        vec![
+            format!("I'll tell you why I stand here. I saw it: {} I couldn't keep quiet after that.", ev.trim_end_matches('.').to_string() + "."),
+            us,
+            "So tonight's the choosing: stand together on it, or each go home and bear it alone.".into(),
+        ]
+    }
+
+    /// What testimony does to the room: never a loss, but it wants a
+    /// warmed room - a warm one carries two moments of warmth with the
+    /// organizer home (alignment deepens), a cold one hears a stranger's
+    /// story and carries one. Starts the cooldown
+    fn testify(&mut self, seat: usize, came: &[Entity]) {
+        use crate::sim::psychology::{record_episode, Episode, EpisodeKind};
+        let host = self.seats[seat].player;
+        let room: Vec<Entity> = came.iter().copied()
+            .filter(|&v| v != host && !villager::is_dead(&self.world, v)).collect();
+        if room.is_empty() { return; }
+        let warmth = room.iter().map(|&v| relationships::find_relationship(&self.world, v, host)
+            .and_then(|r| self.world.get_component::<relationships::Relationship>(r))
+            .map(|r| r.strength).unwrap_or(0.0)).sum::<f32>() / room.len() as f32;
+        let warm = warmth >= TESTIMONY_WARM_TIE;
+        for &v in &room {
+            for _ in 0..if warm { 2 } else { 1 } {
+                record_episode(&mut self.world, v, Episode { with: host, kind: EpisodeKind::Warmth });
+            }
+        }
+        self.seats[seat].last_testimony = Some(self.tick);
+        let line = if warm {
+            format!("t{}: the room hears your testimony and leans in - your story is theirs now too.", self.tick)
+        } else {
+            format!("t{}: you tell it to a cold room - they hear a stranger's story, but they hear it.", self.tick)
+        };
+        self.log.push_ev(EvTag::new(Thread::Org, if warm { Valence::Positive } else { Valence::Neutral }, Sev::Minor), line);
+    }
+
     /// One attendee's answer to the probe (#1267), as deep as they trust
     /// the asker: a follower names who they do it for - the room hears
     /// the bond, and so does the lord's ear if it's in the room - a
@@ -674,7 +769,7 @@ impl Game {
                     let in_room = |e: Option<Entity>| e.map(|e| m.invited.contains(&e)).unwrap_or(false);
                     m.roles = (in_room(m.role_people[0]), in_room(m.role_people[1]),
                         in_room(m.role_people[2]), in_room(m.role_people[3]), in_room(m.role_people[4]));
-                    m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe);
+                    m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());
                     self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);
                     // the TALK panel keeps the meeting's record as it's said

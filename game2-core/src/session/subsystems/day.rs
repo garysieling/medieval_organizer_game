@@ -128,6 +128,10 @@ impl Game {
                 .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
                 self.seats[seat].frame_offer = None;
             }
+            if self.seats[seat].testimony_offer.as_ref()
+                .map(|(t, _)| tick.saturating_sub(*t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+                self.seats[seat].testimony_offer = None;
+            }
         }
         // what the probing question planted ripens into a want they
         // carry; one who's warm to the asker comes a step nearer (#1267)

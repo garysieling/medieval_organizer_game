@@ -978,7 +978,7 @@ fn test_a_probe_meeting_asks_what_they_want_and_who_for() {
     g.world.get_component_mut::<InnerLife>(guarded).unwrap().wants = vec![Want::Music];
     g.world.add_component(guarded, Known::default());
     let came = vec![deep, guarded];
-    let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), true);
+    let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), true, None);
     assert!(lines.iter().any(|(e, l)| *e == pe && l == crate::game::dialogue_trees::MEET_PROBE.text),
         "the host asks the probe: {:?}", lines);
     let loved_name = g.name_of(loved);
@@ -998,7 +998,7 @@ fn test_the_lords_ear_takes_the_name_home() {
     tie(&mut g, pe, deep, 0.8);
     tie(&mut g, deep, loved, 0.95);
     g.plant = Some(spy);
-    g.meeting_lines(&[deep, spy], 0, (false, false, false, false, false), true);
+    g.meeting_lines(&[deep, spy], 0, (false, false, false, false, false), true, None);
     assert!(g.world.get_component::<InnerLife>(loved).unwrap().grievances.iter()
         .any(|(p, _)| *p == Problem::WritBorne), "a writ finds the one named");
 }
@@ -1014,7 +1014,7 @@ fn test_the_probe_plants_a_want_that_ripens() {
     tie(&mut g, pe, v, 0.3);
     let bond = relationships::find_relationship(&g.world, pe, v).unwrap();
     g.world.add_component(bond, crate::game::organizing::Deeds { n: 1 });
-    g.meeting_lines(&[v], 0, (false, false, false, false, false), true);
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None);
     let (w, _, _) = g.world.get_component::<Planted>(v).expect("the question stays with them").wants[0];
     assert!(!g.world.get_component::<InnerLife>(v).unwrap().wants.contains(&w), "only a thought yet");
     let before = g.world.get_component::<relationships::Relationship>(bond).unwrap().strength;
@@ -1030,7 +1030,7 @@ fn test_the_matter_plants_nothing() {
     use crate::game::desires::Planted;
     let mut g = Game::new();
     let v = g.villagers[3];
-    g.meeting_lines(&[v], 0, (false, false, false, false, false), false);
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), false, None);
     assert!(g.world.get_component::<Planted>(v).is_none());
 }
 
@@ -1040,10 +1040,82 @@ fn test_a_planted_want_dies_with_its_hearer() {
     let mut g = Game::new();
     let v = g.villagers[3];
     g.world.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
-    g.meeting_lines(&[v], 0, (false, false, false, false, false), true);
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None);
     assert!(g.world.get_component::<Planted>(v).is_some());
     g.world.add_component(v, crate::game::villager::Dead);
     let t = g.tick + PLANT_RIPEN_DAYS;
     g.livelihood_tick(t);
     assert!(g.world.get_component::<InnerLife>(v).unwrap().wants.is_empty(), "the dead take no new wants");
+}
+
+fn hard_news(g: &mut Game) -> String {
+    let line = "the bailiff returns with knights - Bram is hanged for the defiance.";
+    g.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), format!("t{}: {}", g.tick, line));
+    line.to_string()
+}
+
+#[test]
+fn test_testimony_is_offered_from_real_history() {
+    let mut g = Game::new();
+    let (host, bram) = (g.villagers[1], g.villagers[2]);
+    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
+    let ev = hard_news(&mut g);
+    g.seats[0].frame_offer = Some(g.tick);
+    let p = g.convo_panel_at(0).unwrap();
+    assert_eq!(p.options.len(), 3, "testify is on offer: {:?}", p.options);
+    g.decide_at(0, 2);
+    let p = g.convo_panel_at(0).expect("which story to tell");
+    assert_eq!(p.title, "THE CALL - WHAT WILL YOU TELL");
+    assert_eq!(p.options[0], ev, "the organizer's own history, as it happened");
+    g.decide_at(0, 0);
+    assert!(g.seats[0].testimony_offer.is_none());
+    assert_eq!(g.world.get_component::<MeetingPlan>(g.org).unwrap().testimony.as_deref(), Some(ev.as_str()));
+    assert!(g.ui_model().panel.meeting.unwrap().roles.iter().any(|r| r == "opening: your testimony"));
+}
+
+#[test]
+fn test_testimony_waits_out_its_cooldown() {
+    let mut g = Game::new();
+    hard_news(&mut g);
+    g.seats[0].last_testimony = Some(g.tick);
+    g.seats[0].frame_offer = Some(g.tick);
+    assert_eq!(g.convo_panel_at(0).unwrap().options.len(), 2, "testimony repeated is a speech");
+    g.seats[0].last_testimony = Some(0);
+    g.tick += crate::game::organizing::TESTIMONY_COOLDOWN_DAYS;
+    assert_eq!(g.convo_panel_at(0).unwrap().options.len(), 3);
+}
+
+fn episodes(g: &Game, v: Entity) -> usize {
+    g.world.get_component::<crate::sim::psychology::AttachmentHistory>(v).map(|h| h.episodes.len()).unwrap_or(0)
+}
+
+#[test]
+fn test_testimony_tells_self_us_now_and_lands_on_a_warm_room() {
+    let mut g = Game::new();
+    let pe = g.player;
+    let (a, b) = (g.villagers[1], g.villagers[2]);
+    let ev = hard_news(&mut g);
+    tie(&mut g, a, pe, 0.6);
+    tie(&mut g, b, pe, 0.6);
+    let before = (episodes(&g, a), episodes(&g, b));
+    let lines = g.meeting_lines(&[a, b], 0, (false, false, false, false, false), false, Some(&ev));
+    let host: Vec<&String> = lines.iter().filter(|(e, _)| *e == pe).map(|(_, l)| l).collect();
+    assert!(host.iter().any(|l| l.contains(&ev)), "Self tells the event: {:?}", host);
+    assert!(host.iter().any(|l| l.starts_with("And it's not mine alone")), "Us");
+    assert!(host.iter().any(|l| l.starts_with("So tonight's the choosing")), "Now");
+    assert_eq!((episodes(&g, a), episodes(&g, b)), (before.0 + 2, before.1 + 2), "a warm room carries it home");
+    assert_eq!(g.seats[0].last_testimony, Some(g.tick));
+}
+
+#[test]
+fn test_testimony_to_a_cold_room_lands_weaker_but_never_hurts() {
+    let mut g = Game::new();
+    let pe = g.player;
+    let a = g.villagers[3];
+    let ev = hard_news(&mut g);
+    tie(&mut g, a, pe, 0.0);
+    let before = episodes(&g, a);
+    g.meeting_lines(&[a], 0, (false, false, false, false, false), false, Some(&ev));
+    assert_eq!(episodes(&g, a), before + 1);
+    assert!(g.log.last().unwrap().contains("cold room"));
 }

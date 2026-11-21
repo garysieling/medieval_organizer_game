@@ -188,3 +188,20 @@ fn test_the_calls_question_rows_decide_the_probe() {
     g.command(Command::Decide(1));
     assert!(g.seats[0].frame_offer.is_none(), "the pick answers it");
 }
+
+#[test]
+fn test_the_testimony_rows_decide_the_story() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    g.seats[0].testimony_offer = Some((g.tick, vec!["the bailiff hanged Bram.".into(), "the mill burned.".into()]));
+    let c = g.convo_panel_at(0).expect("which story to tell");
+    assert_eq!(c.title, "THE CALL - WHAT WILL YOU TELL");
+    let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+    draw_convo_panel(&mut buf, &c, (-1, -1));
+    assert!(convo_layout(&c).0.len() >= 2, "both stories are buttons");
+    match digit_cmd(Some(&c), 1) {
+        Some(Command::Decide(1)) => {}
+        other => panic!("a digit on the stories picked: {:?}", other),
+    }
+    g.command(Command::Decide(1));
+    assert!(g.seats[0].testimony_offer.is_none(), "the pick answers it");
+}

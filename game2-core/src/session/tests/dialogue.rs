@@ -224,7 +224,7 @@ fn test_each_seat_sees_its_own_lines_as_you_and_hosts_its_own_meeting() {
     let (p0, p1) = (g.seats[0].player, g.seats[s1].player);
     let v = g.villagers[adults(&g)[0]];
     // seat 1 hosts: the prompts are theirs, not seat 0's
-    let lines = g.meeting_lines(&[v], s1, (false, false, false, false, false), false);
+    let lines = g.meeting_lines(&[v], s1, (false, false, false, false, false), false, None);
     assert!(lines.iter().any(|l| l.0 == p1) && !lines.iter().any(|l| l.0 == p0), "seat 1 asks the questions");
     let n1 = g.speaker_name(p1);
     g.record_meeting(vec![p1, p0, v], vec![(Some(p1), n1.clone(), "Thanks for coming.".into())]);

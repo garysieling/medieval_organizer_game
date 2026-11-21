@@ -571,6 +571,8 @@ pub struct Meeting {
     pub bought: Vec<Entity>,
     /// The host asks the probe, not the matter (#1267)
     pub probe: bool,
+    /// The organizer opens with testimony: the event they tell (#1248)
+    pub testimony: Option<String>,
 }
 
 impl Meeting {

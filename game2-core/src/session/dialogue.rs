@@ -343,7 +343,12 @@ impl Game {
                     crate::game::relationships::Interaction { other: w,
                         kind: crate::game::relationships::InteractionKind::Conversation, intensity: d });
             }
-            self.world.add_component(a, crate::sim::community::OneOnOne { with: b, depth: 0.7 });
+            // but a re-talk the same day doesn't re-arm it (#1232): the
+            // pair's beat already spent, the sit-down's depth stays what
+            // the first talk armed
+            if !crate::game::player::pick_spent_elsewhere(&self.world, b, a, self.tick, id) {
+                self.world.add_component(a, crate::sim::community::OneOnOne { with: b, depth: 0.7 });
+            }
             // and the one doing the talking learns the craft of it
             crate::game::org_skills::practice(&mut self.world, a,
                 crate::game::org_skills::OrgSkill::OneOnOne,
@@ -607,9 +612,10 @@ impl Game {
                 cur.asks = asks;
                 if safe { cur.mood = TalkMood::Warmed; }
             }
-            if safe {
+            if safe && !crate::game::player::pick_spent_today(&self.world, t.who, pe, self.tick) {
                 // safe folk warm faster - the audition carries more
-                // weight than a single kind word
+                // weight than a single kind word; but only where the
+                // day's beat isn't already spent (#1232)
                 relationships::record_interaction(&mut self.world, pe,
                     Interaction { other: t.who, kind: InteractionKind::Conversation, intensity: VIBE_WARMTH });
             }
@@ -864,20 +870,26 @@ impl Game {
         }
         let act = t.options[i].0;
         let pe = self.seats[seat].player;
+        let (tid, old_scores) = (t.id, t.opt_tree == Some("old_scores"));
         // an audition pick isn't read by its act - standing up to a
         // hothead is the right answer, not a slight; the vibe read it
         // sets is the whole effect (#1187)
         let probing = t.opt_tree == Some(crate::game::conversation::PROBE_TREE);
         // how you answer them counts for a little either way - and it
         // lingers: the last pick's mood is what they carry out (#1183)
+        // the day's first bond-moving pick lands the ledger beat; picks
+        // after it still play their lines - the talk's the talk - but
+        // they don't grind the bond (#1232)
+        let spent = crate::game::player::pick_spent_today(&self.world, who, pe, self.tick);
         match act {
             _ if probing => {}
-            Act::PushBack => { relationships::record_interaction(&mut self.world, pe,
-                Interaction { other: who, kind: InteractionKind::Conflict, intensity: PUSHBACK_CHILL });
+            Act::PushBack => {
+                if !spent { relationships::record_interaction(&mut self.world, pe,
+                    Interaction { other: who, kind: InteractionKind::Conflict, intensity: PUSHBACK_CHILL }); }
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Slighted; } }
             Act::Agree | Act::Answer => {
-                relationships::record_interaction(&mut self.world, pe,
-                    Interaction { other: who, kind: InteractionKind::Conversation, intensity: AGREE_WARMTH });
+                if !spent { relationships::record_interaction(&mut self.world, pe,
+                    Interaction { other: who, kind: InteractionKind::Conversation, intensity: AGREE_WARMTH }); }
                 if let Some(r) = self.talk_record_mut(t.id) { r.positive = true; }
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Warmed; }
             }
@@ -888,6 +900,18 @@ impl Game {
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Warmed; }
             }
             _ => {}
+        }
+        // a pick that can move the bond spends the day's beat, either
+        // valence - a morning slight and an evening kindness don't both
+        // count (#1232); a rival's cold greet moves nothing and spends
+        // nothing, and an audition read isn't a pick at all
+        let bond_moving = !probing && match act {
+            Act::PushBack | Act::Agree | Act::Answer => true,
+            Act::Greet | Act::Farewell => !old_scores,
+            _ => false,
+        };
+        if bond_moving && !spent {
+            crate::game::player::note_pick_moved(&mut self.world, who, pe, self.tick, tid);
         }
         // a visitor's first answer carries the deal: Agree is "I'll take
         // it", PushBack on the darker kinds sends them down the road

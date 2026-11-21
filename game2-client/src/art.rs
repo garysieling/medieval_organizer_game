@@ -219,6 +219,10 @@ pub struct Art {
     /// mid-routine draws the cell for what they're doing - 0 keeps the
     /// usual still or walk cycle (#1280)
     pub poses: Vec<(String, Sprite)>,
+    /// The watch's pose stills (assets/rd/guards/poses): a guard's
+    /// `PersonV.pose` picks the cell for his state - ready while
+    /// there's danger, saluting a lord or the player (#1279)
+    pub guard_poses: Vec<(String, Sprite)>,
     /// Generated UI icons (assets/rd/icons), by file name: icon-<slug>
     /// for the HUD marks, action buttons and meters, event-<slug> for
     /// the log's named events, good-<slug> for satchel goods. A missing
@@ -861,6 +865,12 @@ impl Art {
         self.poses.iter().find(|(n, _)| n == name).map(|(_, s)| s)
     }
 
+    /// The guard's pose still for a `guard_pose::NAMES` cell
+    /// ("standing", "ready"). None: the caller keeps the usual figure.
+    pub fn guard_pose(&self, name: &str) -> Option<&Sprite> {
+        self.guard_poses.iter().find(|(n, _)| n == name).map(|(_, s)| s)
+    }
+
     /// The generated icon for a token ("icon-sick", "event-flood",
     /// "good-bread"). None: the caller keeps its text glyph.
     pub fn icon(&self, name: &str) -> Option<&Sprite> {
@@ -1217,6 +1227,12 @@ impl Art {
             // cell the sheet carried, keyed by PersonV.pose (#1280)
             poses: game2_core::session::model::pose::NAMES.iter()
                 .filter_map(|n| at(&format!("rd/people/poses/{}.png", n)).map(|s| (n.to_string(), s)))
+                .collect(),
+            // the watch's pose stills (assets/rd/guards/poses): standing,
+            // ready and saluting live; marching's sliced for a patrol
+            // state that doesn't exist yet (#1279)
+            guard_poses: game2_core::session::model::guard_pose::NAMES.iter()
+                .filter_map(|n| at(&format!("rd/guards/poses/{}.png", n)).map(|s| (n.to_string(), s)))
                 .collect(),
             // the HUD's icon set (assets/rd/icons): a name that didn't
             // come back leaves its text glyph standing

@@ -88,6 +88,7 @@ mod graveyard;
 mod grief;
 mod growth;
 mod grudge;
+mod guard_pose;
 mod guilds;
 mod heart;
 mod harvest;

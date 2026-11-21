@@ -358,13 +358,17 @@ renderer yet - each group names its consumer issue:
   dormant.
 - Sliced dormant pending consumers: `seasons/` cottage seasons
   (#1276), `crops/` growth stages (#1277), `trees/growth/` (#1278),
-  `guards/poses/` (#1279), `people/visitors/` the visitor-pack's 39
-  sprites (#1281). `sheet-villager-poses` first came back as scene cards -
-  figures embedded in backdrops, no cut-out poses; the retry with a
-  3x3-isolated-cells prompt landed and slices to `people/poses/`
-  (standing, walking, carrying, kneeling, hammering, hoeing, sitting,
-  waving, sleeping at ~31px; standing's redundant with the default
-  still so 8 cells wire). Consumer: #1280.
+  `people/visitors/` the visitor-pack's 39 sprites (#1281).
+  `guards/poses/` is wired (#1279): the 35 cells slice in pose rows
+  (standing 01-07, marching 08-14 + 29-35, ready the wide 15-21,
+  saluting 22-28); standing/marching/ready/saluting got named copies,
+  the watch draws ready while there's danger and salutes a passing
+  knight or the player. `sheet-villager-poses` first came back as
+  scene cards - figures embedded in backdrops, no cut-out poses; the
+  retry with a 3x3-isolated-cells prompt landed and slices to
+  `people/poses/` (standing, walking, carrying, kneeling, hammering,
+  hoeing, sitting, waving, sleeping at ~31px; standing's redundant
+  with the default still so 8 cells wire). Consumer: #1280.
 
 The goods sheet (`rd_pro__inventory_items`, goods-sheet-644710b6) comes
 back on a white lattice, not a plain field - the border fill keys the

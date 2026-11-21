@@ -19,3 +19,20 @@ fn test_autumn_grass_turns_gold_and_summer_is_the_base_palette() {
     assert!(r > 100 && r as i32 > g as i32 - 20, "autumn grass should turn golden: {:?}", (r, g));
     assert_eq!(season_colour(0.25, Season::Summer), terrain_colour(0.25));
 }
+
+#[test]
+fn test_the_cottages_have_a_slot_for_every_season() {
+    // the seasonal pool (#1276): every season's slot resolves - the
+    // base look for the green seasons, the snowed set for winter -
+    // until a per-cottage seasonal sheet lands (rd/seasons/
+    // cottage<i>-<season>.png), when only that slot swaps
+    let art = Art::load_fs("../assets", 0);
+    for season in [Season::Spring, Season::Summer, Season::Autumn] {
+        assert_eq!(art.house_season(0, season).is_some(), art.house(0).is_some(),
+            "{:?}'s cottage lost its base look", season);
+    }
+    assert_eq!(art.house_season(0, Season::Winter).is_some(), art.houses_winter[0].is_some(),
+        "winter's cottage lost its snowed look");
+    assert!(art.houses_by_season.iter().all(|s| s.len() == art.houses.len()),
+        "a season's pool doesn't match the cottage pool");
+}

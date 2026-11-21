@@ -75,6 +75,9 @@ pub struct View {
     last_camera: std::cell::Cell<(i32, i32)>,
     /// The frame being drawn is winter: buildings use their snowy looks
     winter: std::cell::Cell<bool>,
+    /// The frame's own season: the cottages' seasonal slots read it
+    /// (#1276)
+    season: std::cell::Cell<Season>,
     /// Walk-cycle phase per entity: ground covered, so a stroll and a
     /// sprint stride at their own pace instead of every figure
     /// moonwalking to the same beat. (last x, last y, tiles walked, frame)
@@ -129,6 +132,7 @@ impl View {
             last_zoom: std::cell::Cell::new(f32::NAN),
             last_camera: std::cell::Cell::new((i32::MIN, i32::MIN)),
             winter: std::cell::Cell::new(false),
+            season: std::cell::Cell::new(Season::Spring),
             walk: std::cell::RefCell::new(game2_core::engine::det::HashMap::default()),
         }
     }
@@ -229,10 +233,8 @@ impl View {
     /// The sprite a building draws with
     pub(crate) fn sprite_of(&self, b: BSprite) -> &Option<Sprite> {
         match b {
-            BSprite::House(i) if self.winter.get() => self.art.house_winter(i),
-            BSprite::House(i) => self.art.house(i),
-            BSprite::Rowhouse(i) if self.winter.get() => self.art.house_winter(i),
-            BSprite::Rowhouse(i) => self.art.house(i),
+            BSprite::House(i) => self.art.house_season(i, self.season.get()),
+            BSprite::Rowhouse(i) => self.art.house_season(i, self.season.get()),
             BSprite::Mansion if self.winter.get() && self.art.trades_winter[1].is_some() =>
                 &self.art.trades_winter[1],
             BSprite::Mansion => &self.art.guildhall_s,
@@ -269,6 +271,7 @@ impl View {
         let art = &self.art;
         let (tick, cam_x, cam_y, zoom) = (m.tick, self.cam_x, self.cam_y, self.zoom);
         self.winter.set(season_tiles(m.season) == 2);
+        self.season.set(m.season);
         let mut prof = Prof::new();
 
         // a recycled frame needs no clearing: the ground (cached or drawn

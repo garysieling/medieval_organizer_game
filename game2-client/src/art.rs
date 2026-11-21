@@ -151,6 +151,12 @@ pub struct Art {
     pub houses: Vec<Option<Sprite>>,
     /// The houses with their greens snowed over, for winter
     pub houses_winter: Vec<Option<Sprite>>,
+    /// The cottages by season [spring, summer, autumn, winter]: a slot
+    /// carries the seasonal variant where one's generated, else the
+    /// base look (winter's snowed). A lone seasonal cottage never
+    /// ships - only a full pool's worth changes what a season draws
+    /// (#1276)
+    pub houses_by_season: [Vec<Option<Sprite>>; 4],
     pub mill_frames: Vec<Sprite>, // the sails only: they turn on mill_tower
     pub mill_tower: Option<Sprite>,
     /// The windmill is generated (assets/rd/windmill): the tower stands at
@@ -840,10 +846,13 @@ impl Art {
         self.houses.get(i % self.houses.len().max(1)).unwrap_or(&NO_SPRITE)
     }
 
-    /// The same cottage in winter: the generated ones stand on a grass
-    /// base, which snows over (and moss on a thatch roof gets a dusting)
-    pub(crate) fn house_winter(&self, i: usize) -> &Option<Sprite> {
-        self.houses_winter.get(i % self.houses_winter.len().max(1)).unwrap_or(&NO_SPRITE)
+    /// The cottage `i` in `season`: the slot's seasonal variant where
+    /// one's generated, else the season's base look (#1276)
+    pub(crate) fn house_season(&self, i: usize, season: Season) -> &Option<Sprite> {
+        let set = &self.houses_by_season[match season {
+            Season::Spring => 0, Season::Summer => 1,
+            Season::Autumn => 2, Season::Winter => 3 }];
+        set.get(i % set.len().max(1)).unwrap_or(&NO_SPRITE)
     }
 
     /// Load every sprite, `seed` settling which variant each single-choice
@@ -926,6 +935,19 @@ impl Art {
         let houses = if rd_houses.is_empty() { houses } else { rd_houses };
         let mut houses_winter: Vec<Option<Sprite>> = houses.iter()
             .map(|h| h.as_ref().map(|s| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85)))).collect();
+        // the seasonal pool (#1276): a cottage with its own seasonal
+        // variant (rd/seasons/cottage<i>-<season>.png) swaps into that
+        // season's slot; the base and snowed sets stand in where a
+        // season has no art of its own
+        let mut houses_by_season = [
+            houses.clone(), houses.clone(), houses.clone(), houses_winter.clone()];
+        for i in 0..houses.len() {
+            for (si, season) in ["spring", "summer", "autumn", "winter"].iter().enumerate() {
+                if let Some(s) = at(&format!("rd/seasons/cottage{}-{}.png", i + 1, season)) {
+                    houses_by_season[si][i] = Some(s);
+                }
+            }
+        }
         // a bothán's winter sprite replaces its recoloured summer self:
         // snow loads the thatch differently than a green tint can show
         for (i, slot) in bothan_slots {
@@ -1060,6 +1082,7 @@ impl Art {
             rival_sprites,
             houses,
             houses_winter,
+            houses_by_season,
             tiles: [TileSet::load(&at, 0), TileSet::load(&at, 1), TileSet::load(&at, 2)],
             faces: [0, 1, 2].map(|season| TileSet::load(&at, season).map_blocks(face_only)),
             mill_frames: if mill_rd { rd_sails } else { (1..=4).filter_map(|i|

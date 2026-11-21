@@ -3129,6 +3129,113 @@ impl Game {
         }
     }
 
+    /// The survey's day of asking (#1270): each canvasser knocks a
+    /// couple of reachable doors the round hasn't touched, the asking
+    /// feeds the eyes inside, and a door pressed too hard wears the
+    /// tie. The count lands when the days run out
+    pub(in crate::session) fn survey_tick(&mut self, tick: u64) {
+        let Some(sv) = self.org_survey.clone() else { return };
+        let Some(org) = self.world.get_component::<crate::game::campaign::Campaign>(sv.campaign)
+            .map(|c| c.org) else {
+            self.org_survey = None;
+            return;
+        };
+        // the day's round: hands to doors the asking hasn't reached
+        let reachable = crate::game::campaign::survey_respondents(
+            &self.world, org, &sv.canvassers, &self.villagers);
+        let mut knocked = sv.knocked.clone();
+        for (i, &m) in sv.canvassers.iter().enumerate() {
+            let roll = crate::session::routine::mix(m, tick) as usize;
+            let mut doors = 0;
+            for k in 0..reachable.len() {
+                if doors >= 2 { break; }
+                let v = reachable[(roll + i + k) % reachable.len()];
+                if knocked.contains(&v) { continue; }
+                let door = crate::game::household::home_of(&self.world, v)
+                    .and_then(|h| self.world.get_component::<Pos>(h))
+                    .or_else(|| self.world.get_component::<Pos>(v))
+                    .map(|p| (p.x.round() as i32, p.y.round() as i32));
+                let Some(at) = door else { continue };
+                if !self.send_far(m, at, Goal::TalkTo(v)) { continue; }
+                knocked.insert(v);
+                doors += 1;
+                // a pressed door that doesn't share the worry wears the
+                // tie a touch - canvassing is pushing, after all
+                if !crate::game::campaign::has_issue(&self.world, v, &sv.issue, tick) {
+                    if let Some(r) = crate::game::relationships::find_relationship(&self.world, m, v) {
+                        if let Some(rel) = self.world
+                            .get_component_mut::<crate::game::relationships::Relationship>(r) {
+                            rel.strength -= 0.02;
+                        }
+                    }
+                }
+            }
+        }
+        // canvassing is what agitators do: the asking feeds the eyes
+        // inside whether the doors open or not
+        self.penetration = (self.penetration + 0.02).min(1.0);
+        let days_left = sv.days_left.saturating_sub(1);
+        let issue = sv.issue.clone();
+        self.org_survey = Some(crate::game::campaign::OrgSurvey {
+            days_left, knocked: knocked.clone(), ..sv });
+        if days_left == 0 {
+            // the count's of the doors the asking actually reached:
+            // knocked, and still inside the ties when it lands
+            let asked: Vec<Entity> = reachable.iter().copied()
+                .filter(|v| knocked.contains(v)).collect();
+            self.survey_tally(org, &asked, &issue, tick);
+            self.org_survey = None;
+        }
+    }
+
+    /// The count comes back (#1270): rings, never names - own house,
+    /// family's, a friend's - fuzzed to the nearest few, with the
+    /// reach read off how much of the village the ties could carry
+    fn survey_tally(&mut self, org: Entity, asked: &[Entity],
+        issue: &crate::game::desires::IssueTag, tick: u64) {
+        let mut rings = [0usize; 4];
+        for &v in asked {
+            rings[crate::game::campaign::survey_ring(&self.world, v, issue, tick) as usize] += 1;
+        }
+        // the asking itself is the practice: a real action the org's
+        // hands learn from
+        crate::sim::organized_power::record_action(
+            &mut self.world, org, crate::sim::organized_power::ActionQuality::Transactional);
+        let fuzz = |n: usize| match n {
+            0 => "hardly a soul".to_string(),
+            1..=2 => "a couple of doors".to_string(),
+            _ => format!("about {}", ((n as f32 / 3.0).round() * 3.0).max(3.0) as usize),
+        };
+        let name = crate::game::desires::issue_name(issue.clone());
+        let adults = self.villagers.iter()
+            .filter(|&&v| self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+                && !villager::is_dead(&self.world, v)).count().max(1) as f32;
+        // the doors that answered are the cause's reach made legible -
+        // how much of the village the ties could carry (#1270)
+        let share = asked.len() as f32 / adults;
+        let reach = if share >= 0.5 { "the asking reached most of the village"
+            } else if share >= 0.25 { "a fair share of the doors answered"
+            } else { "only a few doors - the cause's ties are thin" };
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+            format!(
+                "t{}: the count's back - {} answered. On {name}: {} have it in their own house, {} in a family's, {} know it in a friend's - {reach}.",
+                tick,
+                fuzz(asked.len()),
+                fuzz(rings[3]), fuzz(rings[2]), fuzz(rings[1]),
+            ),
+        );
+        if asked.is_empty() {
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: the asking went on paper more than on feet - the count's thin for it.",
+                    tick
+                ),
+            );
+        }
+    }
+
     /// The iron rule's own work: the leader's own weight - the
     /// dependence's a vulnerability when the leader's taken, and the
     /// cold-anger screen keeps the brittle ones off the ladder

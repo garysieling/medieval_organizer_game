@@ -407,6 +407,13 @@ impl View {
                     let a = i as f32 * std::f32::consts::FRAC_PI_4;
                     standing.push((mx + a.cos() * 3.5, my + a.sin() * 3.5, Piece::Stand(s)));
                 }
+                // and the banners strung on their poles (#1275): runs
+                // along the square's edges, the hall pieces hung as
+                // bunting for the day
+                if let Some(b) = art.feast_banner.as_ref() {
+                    standing.push((mx - 3.5, my - 2.0, Piece::Stand(b)));
+                    standing.push((mx + 3.5, my + 2.0, Piece::Stand(b)));
+                }
             }
         }
         // an event's mark still standing where it fell: the creature

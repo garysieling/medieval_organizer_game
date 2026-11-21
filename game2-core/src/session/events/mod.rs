@@ -55,7 +55,7 @@ pub enum EventId {
     // ill luck
     ChimneyFire, FouledWell, GranaryLeak, CartOverturns, DrownedInPond,
     LostChild, Foundling, Quarrel, AlehouseBrawl, OldOakFalls, Assize,
-    CellarThief,
+    CellarThief, SheepInCradle,
     // findings
     CoinHoard, OldStones, SpringBubbles, HoneyTree, Truffle, HerbFlush,
     BerryYear, MushroomFlush, StormWashUp, ProdigalSon,
@@ -104,6 +104,22 @@ pub struct DilemmaDebt {
     pub witness: Entity,
     pub victim: Entity,
     pub weight: f32,
+}
+
+/// The sheep in the cradle (#1254): whose ewe it was and whose cradle
+/// it's folded in. Live while the bluff holds, then fork_open while the
+/// name's on the card; held keeps the name in your pocket until the
+/// squeeze pays it out
+#[derive(Debug, Clone)]
+pub struct EweTheft {
+    /// Her ewe it was - she walks to your door to say it
+    pub victim: Entity,
+    /// The house that has it folded in the cradle
+    pub thief: Entity,
+    /// The lid's lifted and the fork stands: name the thief or hold it
+    pub fork_open: bool,
+    /// The choice made: the name stayed in your pocket for later
+    pub held: bool,
 }
 
 /// The shape an event takes on the map
@@ -250,6 +266,7 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: AlehouseBrawl, name: "an alehouse brawl", kind: Moment, fig: Fig::Traveller, gap: 260, span: 180, stay: 0, cry: "" },
     EventSpec { id: Assize, name: "the assize of ale", kind: Moment, fig: Fig::Traveller, gap: 200, span: 140, stay: 0, cry: "" },
     EventSpec { id: CellarThief, name: "a thief in the night", kind: Moment, fig: Fig::Traveller, gap: 240, span: 160, stay: 0, cry: "" },
+    EventSpec { id: SheepInCradle, name: "a ewe gone missing", kind: Moment, fig: Fig::Traveller, gap: 260, span: 180, stay: 0, cry: "" },
     EventSpec { id: OldOakFalls, name: "the old oak falls", kind: Moment, fig: Fig::Traveller, gap: 600, span: 400, stay: 0, cry: "" },
     // ---- findings ----
     EventSpec { id: CoinHoard, name: "a coin hoard", kind: Moment, fig: Fig::Traveller, gap: 500, span: 380, stay: 0, cry: "" },
@@ -444,7 +461,7 @@ pub fn group(id: EventId) -> Group {
         Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger => Group::Road,
         Hailstorm | HeatWave | Drought | Flood | LightningStrike | LateFrost | IndianSummer | FirstSnow | Thaw | Aurora | MeteorShower | BloodMoon | DarkNoon | WindStorm | Mirage | SeaMonster => Group::Sky,
         WolfAtFold | FoxInYard | HawkStoops | StrayDog | StrayCat | RatPlague | Locusts | CaterpillarYear | Starlings | BeeTree | DeerInFields | WildBoar | OwlInTower | CrowsMob | FishRun => Group::Beasts,
-        ChimneyFire | FouledWell | GranaryLeak | CartOverturns | DrownedInPond | LostChild | Foundling | Quarrel | AlehouseBrawl | OldOakFalls | Assize | CellarThief => Group::IllLuck,
+        ChimneyFire | FouledWell | GranaryLeak | CartOverturns | DrownedInPond | LostChild | Foundling | Quarrel | AlehouseBrawl | OldOakFalls | Assize | CellarThief | SheepInCradle => Group::IllLuck,
         CoinHoard | OldStones | SpringBubbles | HoneyTree | Truffle | HerbFlush | BerryYear | MushroomFlush | StormWashUp | ProdigalSon => Group::Findings,
     }
 }

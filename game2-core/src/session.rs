@@ -1152,6 +1152,9 @@ pub struct Game {
     /// home later, when someone remembers
     pub dilemma: Option<crate::session::events::MoralKnot>,
     pub dilemma_debts: Vec<crate::session::events::DilemmaDebt>,
+    /// The sheep in the cradle (#1254): a stolen ewe, the bluffing house
+    /// that has it, and what you do with the name once the lid's lifted
+    pub ewe_theft: Option<crate::session::events::EweTheft>,
 
     /// The vaccination act's officer waiting on the square for his
     /// answer - the scratch, the fine, or the Leicester way

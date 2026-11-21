@@ -7,7 +7,7 @@ use crate::session::PKind;
 /// The whole registry's its hundred and counting, every id once
 #[test]
 fn test_the_registry_is_a_hundred() {
-    assert_eq!(EVENTS.len(), 105);
+    assert_eq!(EVENTS.len(), 106);
     for i in 0..EVENTS.len() {
         for j in (i + 1)..EVENTS.len() {
             assert_ne!(EVENTS[i].id, EVENTS[j].id, "duplicate id in the registry");
@@ -2869,4 +2869,135 @@ fn test_an_event_leaves_its_prop_at_the_spot() {
     g.event_props.iter_mut().for_each(|p| p.2 = g.tick);
     g.update();
     assert!(g.event_props.is_empty(), "the mark doesn't linger past its day");
+}
+
+/// The sheep in the cradle (#1254): the robbed one comes to your door
+/// with her loss on the record, and the house that has it isn't hers
+#[test]
+fn test_the_ewe_walks_to_your_door() {
+    let mut g = Game::new();
+    g.force_event(EventId::SheepInCradle);
+    let t = g.ewe_theft.clone().expect("the theft's on");
+    assert_ne!(t.victim, t.thief, "she can't have robbed herself");
+    assert_ne!(crate::game::household::home_of(&g.world, t.victim),
+        crate::game::household::home_of(&g.world, t.thief),
+        "it's folded in a house that isn't hers");
+    assert!(crate::game::desires::problems_of(&g.world, t.victim, g.tick)
+        .contains(&crate::game::desires::Problem::Loss),
+        "her loss is on her record");
+    assert!(g.log.iter().any(|l| l.contains("ewe is gone")),
+        "the log carries the word of it");
+    assert!(g.travels.iter().any(|tr| tr.who == t.victim
+        && matches!(tr.goal, Goal::TalkTo(e) if e == g.player)),
+        "she's walking it to your door");
+    assert!(!t.fork_open && !t.held);
+}
+
+/// She'll tell you whose pot it's in - the naming lands in the talk's
+/// record (#1254)
+#[test]
+fn test_she_names_the_pot() {
+    let mut g = Game::new();
+    g.force_event(EventId::SheepInCradle);
+    let t = g.ewe_theft.clone().unwrap();
+    g.open_player_talk(0, t.victim, crate::game::conversation::Relation::Acquaintance,
+        "the fold's been quiet");
+    let talk = g.seats[0].talk.clone().expect("the talk's open");
+    assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_VICTIM_TREE),
+        "her talk's the naming one: {:?}", talk.opt_tree);
+    let i = talk.options.iter()
+        .position(|o| o.1 == crate::game::dialogue_trees::EWE_WHOSE_POT)
+        .expect("the whose-pot ask is on offer");
+    g.talk_pick_at(0, Some(i));
+    let tn = g.name_of(t.thief);
+    let talk = g.seats[0].talk.clone().expect("the talk's still open");
+    assert!(talk.notes.iter().any(|n| n.contains(&tn)),
+        "she names him at last: {:?}", talk.notes);
+}
+
+/// The bluff holds until a kindness lifts the lid - then the fork
+/// stands on the card (#1254)
+#[test]
+fn test_the_gift_lifts_the_lid() {
+    let mut g = Game::new();
+    g.force_event(EventId::SheepInCradle);
+    let t = g.ewe_theft.clone().unwrap();
+    // the house answers evasions
+    g.open_player_talk(0, t.thief, crate::game::conversation::Relation::Acquaintance,
+        "just passing through");
+    let talk = g.seats[0].talk.clone().expect("the talk's open");
+    assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_TREE),
+        "his talk's the bluffing one: {:?}", talk.opt_tree);
+    let i = talk.options.iter()
+        .position(|o| o.1 == crate::game::dialogue_trees::EWE_GIFT)
+        .expect("the gift's on offer");
+    g.talk_pick_at(0, Some(i));
+    assert!(g.ewe_theft.as_ref().map(|t| t.fork_open).unwrap_or(false),
+        "the lid's lifted and the fork stands");
+    let knot = g.dilemma.clone().expect("the fork's on the card");
+    assert_eq!(knot.branches.len(), 2, "expose or hold");
+    assert!(g.seats[0].talk.as_ref().unwrap().notes.iter()
+        .any(|n| n.contains("no babe")), "the lid's lifted in the record");
+}
+
+/// Name him before the village: his standing collapses and the house
+/// that hid it wears the blame (#1254)
+#[test]
+fn test_naming_him_tumbles_his_standing() {
+    let mut g = Game::new();
+    g.force_event(EventId::SheepInCradle);
+    let t = g.ewe_theft.clone().unwrap();
+    g.ewe_cracked(0);
+    g.decide_at(0, 0);
+    assert!(g.ewe_theft.is_none(), "the name's spent");
+    let rep = g.world.get_component::<crate::sim::reputation_qsp::ReputationState>(t.thief)
+        .expect("his standing's tracked now");
+    assert_eq!(rep.stage, crate::sim::reputation_qsp::RepStage::Disgraced,
+        "he stands disgraced");
+    assert!(g.log.iter().any(|l| l.contains("stands disgraced")),
+        "the parish knows");
+    assert!(g.log.iter().all(|l| !l.contains("word for another day")),
+        "nothing stays in your pocket");
+}
+
+/// Keep the name and it sits in his talk as a squeeze - paid once,
+/// then spent (#1254)
+#[test]
+fn test_the_held_name_pays_out_once() {
+    let mut g = Game::new();
+    g.force_event(EventId::SheepInCradle);
+    let t = g.ewe_theft.clone().unwrap();
+    g.ewe_cracked(0);
+    g.decide_at(0, 1);
+    assert!(g.ewe_theft.as_ref().map(|t| t.held).unwrap_or(false),
+        "the name stays in your pocket");
+    assert!(g.log.iter().any(|l| l.contains("word for another day")),
+        "the quiet choice is on the record");
+    // his talk carries the squeeze until it pays
+    g.open_player_talk(0, t.thief, crate::game::conversation::Relation::Acquaintance,
+        "back again, then");
+    let talk = g.seats[0].talk.clone().expect("the talk's open");
+    assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_PRICE_TREE),
+        "his talk's the squeezed one: {:?}", talk.opt_tree);
+    let i = talk.options.iter()
+        .position(|o| o.1 == crate::game::dialogue_trees::EWE_SQUEEZE)
+        .expect("the squeeze is on offer");
+    if g.world.get_component::<crate::game::livelihood::Purse>(t.thief).is_none() {
+        g.world.add_component(t.thief, crate::game::livelihood::Purse { gold: 9.0 });
+    } else {
+        g.world.get_component_mut::<crate::game::livelihood::Purse>(t.thief).unwrap().gold = 9.0;
+    }
+    g.world.get_component_mut::<crate::game::livelihood::Purse>(g.player).unwrap().gold = 0.0;
+    g.talk_pick_at(0, Some(i));
+    assert!(g.ewe_theft.is_none(), "the name's spent once it pays");
+    let gold = g.world.get_component::<crate::game::livelihood::Purse>(g.player).unwrap().gold;
+    assert!(gold > 0.0, "the hush money's in your purse");
+    assert!(g.world.get_component::<crate::game::livelihood::Purse>(t.thief).unwrap().gold < 9.0,
+        "and out of his");
+    // and his talk's a plain one after - the squeeze doesn't deal twice
+    g.open_player_talk(0, t.thief, crate::game::conversation::Relation::Acquaintance,
+        "still about, then");
+    let talk = g.seats[0].talk.clone().expect("the talk's open");
+    assert_ne!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_PRICE_TREE),
+        "the squeeze is spent");
 }

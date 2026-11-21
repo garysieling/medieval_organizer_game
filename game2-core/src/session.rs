@@ -291,6 +291,20 @@ const BUCKET_REACH: i32 = 30;
 const CHAT_RANGE: f32 = 1.5;
 const CHAT_COOLDOWN: u64 = 20;
 const CHAT_INTENSITY: f32 = 0.2;
+/// What brushing past someone is worth (#1230): neighbours stay
+/// neighbours, but standing near someone isn't a conversation - the
+/// chat's own typed delta does the real warming
+const PASS_INTENSITY: f32 = 0.05;
+/// A chat this cold is a spat (#1230): log it, count it against the pair
+const SPAT_TEMP: f32 = -0.25;
+/// Spats counted within this window feed a feud (#1230)
+const SPAT_WINDOW: u64 = 60;
+/// This many spats in the window while the bond's cold opens a feud
+const SPAT_FEUD_N: u32 = 3;
+/// Street talk only goes so deep (#1230): past this bond strength a
+/// chat's warmth is a hello between friends, not a deepening - deeper
+/// ties want a shared table or a deed
+const CHAT_FRIEND_CAP: f32 = 0.6;
 /// A promised visit counts as found within this many tiles of where the
 /// walk ended - and how many empty doorsteps they check before giving up
 const VISIT_RANGE: f32 = 3.0;
@@ -1234,6 +1248,10 @@ pub struct Game {
     /// Pairs of people standing near each other, and the day each pair last chatted
     pub near: Vec<(Entity, Entity)>,
     pub last_chat: Vec<((Entity, Entity), u64)>,
+    /// Quarrels piling up between a pair (#1230): sorted pair ->
+    /// (spats seen, window's first tick) - enough in the window while
+    /// the bond's already cold opens a feud
+    pub spats: crate::engine::det::HashMap<(Entity, Entity), (u32, u64)>,
     /// The day a pair's signature scene last ran (#1227): keyed with the
     /// smaller entity first, so order in the street doesn't matter
     pub scene_marks: crate::engine::det::HashMap<(Entity, Entity), u64>,

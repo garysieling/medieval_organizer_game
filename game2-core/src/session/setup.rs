@@ -1017,6 +1017,7 @@ impl Game {
             snowballs: vec![],
             near: vec![],
             last_chat: vec![],
+            spats: Default::default(),
             scene_marks: Default::default(),
             talk_log: vec![],
             talk_next_id: 0,

@@ -115,6 +115,8 @@ pub struct TalkRecord {
     pub warmed: bool,
     /// A kind answer landed - a Talk warms on those, not push-backs
     pub positive: bool,
+    /// The exchange ran cold (#1230) - a spat is no warmth beat
+    pub cold: bool,
 }
 
 /// A Talk the player is in the middle of: replayed from its seed and the
@@ -298,9 +300,15 @@ fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, 
 
 impl Game {
     pub(in crate::session) fn push_talk(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>) -> u64 {
+        self.push_talk_cold(kind, with, lines, false)
+    }
+
+    /// push_talk, with the exchange's temp (#1230): a cold chat doesn't
+    /// count a warmth beat in warm_exchange
+    pub(in crate::session) fn push_talk_cold(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>, cold: bool) -> u64 {
         self.talk_next_id += 1;
         let id = self.talk_next_id;
-        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines, warmed: false, positive: false });
+        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines, warmed: false, positive: false, cold });
         if self.talk_log.len() > TALK_LOG_MAX {
             let extra = self.talk_log.len() - TALK_LOG_MAX;
             self.talk_log.drain(..extra);
@@ -317,7 +325,7 @@ impl Game {
     /// chat or a Talk counts it, and only once both have spoken
     fn warm_exchange(&mut self, id: u64) {
         let Some(r) = self.talk_log.iter().find(|r| r.id == id) else { return };
-        if r.warmed || r.with.len() != 2
+        if r.warmed || r.cold || r.with.len() != 2
             || matches!(r.kind, TalkKind::Meeting) { return }
         // a Talk warms on a kind answer, not a push-back
         if matches!(r.kind, TalkKind::Talk) && !r.positive { return }
@@ -446,7 +454,11 @@ impl Game {
                         TalkLine { who: Some(who), name, text: text.to_string(), gist: false }
                     }).collect();
                     self.scene_marks.insert(key, self.tick);
-                    self.push_talk(TalkKind::Chat, vec![a, b], lines);
+                    // the take moves with the bond (#1230): a feuding
+                    // pair's scene is a spat, anyone else's a warm one
+                    let temp = if self.rel_kind(a, b) == Some(RelKind::Rival) { -1.0 } else { 0.6 };
+                    self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, temp <= super::SPAT_TEMP);
+                    self.chat_lands(a, b, temp, a);
                     return true;
                 }
             }
@@ -457,6 +469,15 @@ impl Game {
         let seed = self.tick.wrapping_mul(0x9E37_79B9)
             ^ ((a as u64) << 32) ^ (b as u64) ^ self.last_chat.len() as u64;
         let tr = converse(&sa, &sb, rel, library(), &mut TalkRng::new(seed));
+        // the exchange types what it does to the bond (#1230): the acts
+        // and the close read warm or cold before the lines go on record
+        let temp = crate::game::conversation::chat_temp(&tr);
+        // who threw the sharp words, for the feud's tale if it comes to one
+        let spat_by = {
+            let pa = tr.turns.iter().filter(|t| t.speaker == 0 && t.act == Act::PushBack).count();
+            let pb = tr.turns.iter().filter(|t| t.speaker == 1 && t.act == Act::PushBack).count();
+            if pa >= pb { a } else { b }
+        };
         let lines: Vec<TalkLine> = tr.turns.iter()
             // kids keep to the children's tree: the rest is grown-up talk
             .take_while(|t| !kids.0 || t.tree == KID_TREE)
@@ -466,8 +487,76 @@ impl Game {
                 TalkLine { who: Some(who), name, text: t.text.clone(), gist: false }
             }).collect();
         if lines.is_empty() { return false; }
-        self.push_talk(TalkKind::Chat, vec![a, b], lines);
+        self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, temp <= super::SPAT_TEMP);
+        self.chat_lands(a, b, temp, spat_by);
         true
+    }
+
+    /// The chat's acts land on the bond (#1230): a kind talk warms as it
+    /// was one-sided, a spat cools it - the pair's own bent leans on the
+    /// landing a little, and past the Friend mark street talk only keeps
+    /// the bond warm, it doesn't deepen it. A spat goes on the record as
+    /// a quarrel beat, and quarrels piling up while the bond's already
+    /// cold open a feud.
+    pub(in crate::session) fn chat_lands(&mut self, a: Entity, b: Entity, temp: f32, spat_by: Entity) {
+        use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
+        let bias = crate::game::conversation::pair_bias(a, b);
+        let cold = temp <= super::SPAT_TEMP;
+        let mut inten = if cold {
+            // a real quarrel cools more than a sharp word or two; the
+            // pair's bent means their slights land lighter (warm pair)
+            // or their kindnesses thinner (cold pair), a quarter either way
+            (0.15 + 0.25 * temp.abs()).min(0.4) * (1.0 - 0.25 * bias)
+        } else {
+            super::CHAT_INTENSITY * (0.6 + 0.4 * temp.max(0.0)) * (1.0 + 0.25 * bias)
+        };
+        if !cold {
+            let s = crate::game::relationships::find_relationship(&self.world, a, b)
+                .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                .map(|r| r.strength).unwrap_or(0.0);
+            // acquaintance is as deep as a street chat takes it: friends
+            // nod and stay friends, the deepening wants a shared table
+            if s >= super::CHAT_FRIEND_CAP { inten *= 0.2; }
+        }
+        relationships::record_interaction(&mut self.world, a, Interaction {
+            other: b,
+            kind: if cold { InteractionKind::Conflict } else { InteractionKind::Conversation },
+            intensity: inten,
+        });
+        if !cold { return; }
+        let (na, nb) = (self.name_of(a), self.name_of(b));
+        let at = super::toast_spot(&self.world, a);
+        let who = self.villagers.iter().position(|&v| v == a);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Other, Valence::Negative, Sev::Minor),
+            format!("t{}: {} and {} exchanged sharp words", self.tick, na, nb),
+            at, who);
+        self.toasts.push_at((format!("{} and {} exchanged sharp words", na, nb), self.tick + 40), at);
+        // the tally (#1230): this many spats in a window while the bond's
+        // already cold opens a feud, the counter spent once it does
+        let key = (a.min(b), a.max(b));
+        let (n, first) = self.spats.get(&key).copied().unwrap_or((0, self.tick));
+        let (n, first) = if self.tick > first + super::SPAT_WINDOW { (1, self.tick) } else { (n + 1, first) };
+        self.spats.insert(key, (n, first));
+        if n < super::SPAT_FEUD_N { return; }
+        let bond = crate::game::relationships::find_relationship(&self.world, a, b)
+            .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+            .map(|r| r.strength).unwrap_or(0.0);
+        if bond > -0.1 { return; }
+        let feuding = self.world.query::<crate::game::feuds::Feud>().iter().any(|&f| {
+            self.world.get_component::<crate::game::feuds::Feud>(f).map(|x|
+                !matches!(x.status, crate::game::feuds::FeudStatus::Resolved)
+                    && x.offender.min(x.aggrieved) == key.0
+                    && x.offender.max(x.aggrieved) == key.1).unwrap_or(false)
+        });
+        if feuding { return; }
+        crate::game::feuds::spawn_feud(&mut self.world, spat_by,
+            if spat_by == a { b } else { a }, "sharp words");
+        self.spats.remove(&key);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Other, Valence::Negative, Sev::Notable),
+            format!("t{}: Bad blood between {} and {} - the quarrels have come to a feud", self.tick, na, nb),
+            at, who);
     }
 
     /// The player has just talked with `v` (Talk's own effects are done):

@@ -23,6 +23,7 @@
 //! to a chooser that sees two sampled options and may end it early.
 
 use crate::engine::det::HashSet;
+use crate::engine::ecs::Entity;
 
 use crate::game::traits::Trait;
 
@@ -325,6 +326,40 @@ pub struct Probe {
     pub pass: (Act, &'static [&'static str]),
     /// The wrong note, and the act it answers with
     pub fail: (Act, &'static [&'static str]),
+}
+
+/// How the exchange landed on the pair (#1230), -1..1: push-backs cool,
+/// agrees and answers warm, and the close carries the most weight - a
+/// walk-off sours where a kind parting leaves it well. One sharp word in
+/// a long easy talk isn't a spat; the score only goes cold when the cold
+/// acts outnumber the kind ones.
+pub fn chat_temp(tr: &Transcript) -> f32 {
+    let mut score = 0i32;
+    for t in &tr.turns {
+        score += match t.act {
+            Act::PushBack => -1,
+            Act::Agree | Act::Answer => 1,
+            _ => 0,
+        };
+    }
+    score += match tr.ending {
+        Some(Ending::WalksOff) => -2,
+        Some(Ending::Farewell) => 1,
+        _ => 0,
+    };
+    (score as f32 / 3.0).clamp(-1.0, 1.0)
+}
+
+/// The pair's hidden constant (#1230): two folk just get along or just
+/// don't, a little - hashed off the pair's ids, no stored state, nothing
+/// an event can shift. -1..1; a warm read means their kindnesses land a
+/// touch heavier and their slights a touch lighter.
+pub fn pair_bias(a: Entity, b: Entity) -> f32 {
+    let (lo, hi) = (a.min(b) as u64, a.max(b) as u64);
+    let h = lo.wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        ^ hi.wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+    let h = h ^ (h >> 33);
+    (h % 2001) as f32 / 1000.0 - 1.0
 }
 
 /// The tree name the audition beat reports as (#1187)

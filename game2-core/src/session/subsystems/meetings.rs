@@ -688,8 +688,12 @@ impl Game {
                 else { self.villagers_chat(a, b); }
             }
             let (pe, other) = (self.player, if b == self.player { a } else { b });
+            // a greeting for the player stays what it was; two villagers
+            // brushing past only nod - the chat's own typed delta does the
+            // real warming when words were actually exchanged (#1230)
             relationships::record_interaction(&mut self.world, if b == pe { b } else { a }, relationships::Interaction {
-                other, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
+                other, kind: relationships::InteractionKind::Conversation,
+                intensity: if b == pe { CHAT_INTENSITY } else { PASS_INTENSITY },
             });
             self.last_chat.retain(|(p, _)| *p != (a, b));
             self.last_chat.push(((a, b), tick));

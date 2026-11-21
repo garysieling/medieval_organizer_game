@@ -800,6 +800,10 @@ pub struct MeetingPlan {
     /// The day the call's set for, once the organizer picks it - till
     /// then the plan stays open: roles and yeses still count
     pub for_day: Option<u64>,
+    /// Whose promise came by coin, not bond (#1225): a bought yes fills
+    /// its slot and shows at the meeting, but the room reads a purchased
+    /// yes cheaper - no friends pulled in their name, no kept-role warmth
+    pub bought: Vec<Entity>,
 }
 
 impl MeetingPlan {
@@ -915,6 +919,15 @@ pub fn props_on_offer_shifted(world: &World, org: Entity, person: Entity, shift:
     let stage = world.get_component::<Organization>(org)
         .map(|o| stage_of(world, o.leader, person)).unwrap_or(RelStage::Stranger);
     let reached = bumped(stage, shift);
+    // nothing deeper than the rung they've reached with you
+    let mut out = ask_candidates(world, org, person);
+    out.retain(|p| ask_tier(*p) <= reached);
+    out
+}
+
+/// The asks the plan could still use, before any gating: the standing
+/// asks, the venue for a householder, the unfilled roles, the pull.
+fn ask_candidates(world: &World, org: Entity, person: Entity) -> Vec<PropKind> {
     let mut out = vec![PropKind::ComeAlong, PropKind::Introduce];
     let empty = MeetingPlan::default();
     let plan = world.get_component::<MeetingPlan>(org).unwrap_or(&empty);
@@ -934,8 +947,77 @@ pub fn props_on_offer_shifted(world: &World, org: Entity, person: Entity, shift:
         if plan.closer.is_none() { out.push(PropKind::CloseOut); }
     }
     if !plan.spreaders.contains(&person) { out.push(PropKind::InviteFriends); }
-    // nothing deeper than the rung they've reached with you
-    out.retain(|p| ask_tier(*p) <= reached);
+    out
+}
+
+/// What a proposition's put with (#1225): the earned ask a warm bond
+/// carries, the coin that buys what the bond can't, the nerve that
+/// presses a thread they've already let you see
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AskKey { Earned, Coin, Nerve }
+
+/// An ask on offer: which proposition, how it's put, and the coin's
+/// price when it's priced (#1225)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AskOffer {
+    pub kind: PropKind,
+    pub key: AskKey,
+    pub price: f32,
+}
+
+/// How the offer reads on the talk's choice list - the coin's price is
+/// in the label ("for 15g"), the nerve's the push it is
+pub fn ask_label(o: &AskOffer) -> String {
+    match o.key {
+        AskKey::Earned => prop_label(o.kind).to_string(),
+        AskKey::Coin => format!("{} - for {}g", prop_label(o.kind), o.price as u32),
+        AskKey::Nerve => format!("{} - press them on it", prop_label(o.kind)),
+    }
+}
+
+/// The coin's price: a flat sum per ask kind plus a surcharge per rung
+/// of the relationship ladder skipped - buying a stranger's meeting yes
+/// costs more than an acquaintance's (#1225)
+pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
+    const LADDER: [RelStage; 5] = [RelStage::Stranger, RelStage::Acquaintance,
+        RelStage::Known, RelStage::Follower, RelStage::CoLeader];
+    let base = match p {
+        PropKind::ComeAlong => 8.0,
+        PropKind::LendVenue => 10.0,
+        PropKind::BringSnacks => 6.0,
+        PropKind::TakeNotes => 8.0,
+        PropKind::OpenWithWord | PropKind::GiveSong | PropKind::CloseOut => 10.0,
+        PropKind::InviteFriends => 12.0,
+        PropKind::Introduce => 6.0,
+    };
+    let at = LADDER.iter().position(|r| *r == stage).unwrap_or(0) as i8;
+    let need = LADDER.iter().position(|r| *r == ask_tier(p)).unwrap_or(0) as i8;
+    base + 5.0 * (need - at).max(0) as f32
+}
+
+/// Every ask on the table, any currency (#1225): the earned asks the
+/// bond reaches, and where the ladder locks one out, the coin's priced
+/// variant (which reaches anyone the purse can pay) and the nerve's
+/// pressed one (which needs a piece of them heard to pull on).
+pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<AskOffer> {
+    let heard = world.get_component::<crate::game::desires::Known>(person)
+        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
+    let (stage, purse) = world.get_component::<Organization>(org)
+        .map(|o| (stage_of(world, o.leader, person),
+            world.get_component::<crate::game::livelihood::Purse>(o.leader)
+                .map(|p| p.gold).unwrap_or(0.0)))
+        .unwrap_or((RelStage::Stranger, 0.0));
+    let reached = bumped(stage, shift);
+    let mut out = vec![];
+    for p in ask_candidates(world, org, person) {
+        if heard && ask_tier(p) <= reached {
+            out.push(AskOffer { kind: p, key: AskKey::Earned, price: 0.0 });
+            continue;
+        }
+        if heard { out.push(AskOffer { kind: p, key: AskKey::Nerve, price: 0.0 }); }
+        let price = ask_price(p, stage);
+        if purse >= price { out.push(AskOffer { kind: p, key: AskKey::Coin, price }); }
+    }
     out
 }
 
@@ -1006,7 +1088,43 @@ fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
 /// `roll` is 0..1. Returns the log line, and for Introduce the friend
 /// they named - the one the camera's wanted on.
 pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity, p: PropKind, name: &str, roll: f32, tick: u64) -> (String, Option<Entity>) {
+    propose_keyed(world, organizer, org, person, p, name, roll, tick, AskKey::Earned, 0.0)
+}
+
+/// `propose` under one of the three keys (#1225): the earned ask rolls
+/// the bond's odds as it ever did; the coin's offer pays the price out
+/// of the organizer's purse and lands without a roll - unless they're
+/// the sort who won't be bought, which costs a chill; the nerve's press
+/// rolls the same odds and pays warmth past a plain yes when it lands.
+pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: Entity, p: PropKind, name: &str, roll: f32, tick: u64, key: AskKey, price: f32) -> (String, Option<Entity>) {
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    // coin reaches anyone - except the folk who won't be bought, and
+    // they don't forgive the asking (#1225)
+    if key == AskKey::Coin {
+        let refuses = world.get_component::<crate::game::traits::Personality>(person)
+            .map(|ps| ps.traits.iter().any(|t| matches!(t,
+                crate::game::traits::Trait::Stingy | crate::game::traits::Trait::Proud)))
+            .unwrap_or(false);
+        if refuses {
+            record_interaction(world, organizer, Interaction {
+                other: person, kind: InteractionKind::Conflict, intensity: 0.15 });
+            return (format!("{} won't be bought - and won't forget you tried.", name), None);
+        }
+        let gold = world.get_component::<crate::game::livelihood::Purse>(organizer)
+            .map(|pu| pu.gold).unwrap_or(0.0);
+        if gold < price {
+            return (format!("Your purse comes up short - {} won't wait.", name), None);
+        }
+        if let Some(pu) = world.get_component_mut::<crate::game::livelihood::Purse>(organizer) {
+            pu.gold -= price;
+        }
+        // a purchased yes lands like a given one, and the plan keeps
+        // whose it was: at the meeting the room reads it cheaper (#1225)
+        if p != PropKind::Introduce { plan_for(world, org).bought.push(person); }
+        if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
+        let msg = land_ask(world, org, person, p, name);
+        return (format!("{} The coin changes hands.", msg), None);
+    }
     if yes_chance(world, organizer, person, p) <= roll {
         record_interaction(world, organizer, Interaction {
             other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
@@ -1017,9 +1135,26 @@ pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity
     }
     // the ask itself is practice at the craft
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, 0.01);
+    if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
+    let msg = land_ask(world, org, person, p, name);
+    // a yes is a small warmth too - a pressed yes that lands warms more:
+    // the gamble paid on both ends (#1225)
+    let warmth = if key == AskKey::Nerve { 0.4 } else { 0.2 };
+    record_interaction(world, organizer, Interaction {
+        other: person, kind: InteractionKind::Aid, intensity: warmth });
+    if key == AskKey::Nerve {
+        return (format!("{} Pressed, they mean it.", msg), None);
+    }
+    (msg, None)
+}
+
+/// The promise lands on the org's plan: the slot the ask fills, and the
+/// line said back. Callers take `Introduce` before here - it runs its
+/// own referral path.
+fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &str) -> String {
     let home = if p == PropKind::LendVenue { crate::game::household::home_of(world, person) } else { None };
     let plan = plan_for(world, org);
-    let msg = match p {
+    match p {
         PropKind::ComeAlong => {
             if !plan.coming.contains(&person) { plan.coming.push(person); }
             format!("{} says they'll come.", name)
@@ -1037,12 +1172,8 @@ pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity
             if !plan.spreaders.contains(&person) { plan.spreaders.push(person); }
             format!("{} will bring their friends.", name)
         }
-        PropKind::Introduce => return introduce(world, organizer, person, name, tick),
-    };
-    // a yes is a small warmth too
-    record_interaction(world, organizer, Interaction {
-        other: person, kind: InteractionKind::Aid, intensity: 0.2 });
-    (msg, None)
+        PropKind::Introduce => unreachable!("callers take Introduce before land_ask"),
+    }
 }
 
 /// "Who should I talk to?": the strongest of their bonds that shares

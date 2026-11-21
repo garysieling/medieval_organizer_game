@@ -501,7 +501,7 @@ fn test_an_introduction_names_someone_to_look_at() {
         }
         let Some(t) = g.seats[0].talk.as_ref() else { break };
         let (n, shown) = (t.options.len(), t.asks_shown());
-        let intro = t.asks.iter().take(shown).position(|a| *a == PropKind::Introduce);
+        let intro = t.asks.iter().take(shown).position(|a| a.kind == PropKind::Introduce);
         match intro {
             Some(k) => {
                 g.talk_pick_at(0, Some(n + k));
@@ -765,4 +765,166 @@ fn test_spreaders_bring_their_friends_and_nobody_twice() {
     assert!(invited.contains(&friend), "the friend came: {:?}", invited);
     assert_eq!(invited.iter().filter(|&&e| e == friend).count(), 1,
         "one invite however many spreaders name them: {:?}", invited);
+}
+
+/// Coin reaches where the bond can't (#1225): a stranger - nothing
+/// heard, no bond - is offered only priced asks, and taking one pays
+/// the purse, lands the promise, and marks it bought on the plan
+#[test]
+fn test_coin_buys_an_ask_the_bond_cant_reach() {
+    use crate::game::organizing::{ask_label, ask_offers, propose_keyed, AskKey, MeetingPlan, PropKind};
+    use crate::game::livelihood::Purse;
+    use crate::game::relationships::find_relationship;
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[1]);
+    g.world.get_component_mut::<Purse>(pe).unwrap().gold = 100.0;
+    // they'll take coin - nothing in them refuses the asking
+    g.world.add_component(v, crate::game::traits::Personality { traits: vec![] });
+    // nothing heard, nothing between you: coin's the only key that turns
+    let offers = ask_offers(&g.world, g.org, v, 0);
+    assert!(offers.iter().all(|o| o.key == AskKey::Coin), "{:?}", offers);
+    let o = offers.iter().find(|o| o.kind == PropKind::ComeAlong).expect("come is priced");
+    assert!(ask_label(o).contains("for "), "{}", ask_label(o));
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, _) = propose_keyed(&mut g.world, pe, oe, v, o.kind, "Bram", 0.0, tick, o.key, o.price);
+    assert!(msg.contains("coin"), "{}", msg);
+    let plan = g.world.get_component::<MeetingPlan>(g.org).unwrap();
+    assert!(plan.coming.contains(&v) && plan.bought.contains(&v), "{:?}", plan.coming);
+    // the price came out of the purse, and a bought yes buys no warmth
+    let gold = g.world.get_component::<Purse>(pe).unwrap().gold;
+    assert!((gold - (100.0 - o.price)).abs() < 0.001, "gold {}", gold);
+    assert!(find_relationship(&g.world, pe, v).is_none(), "a bought yes is no warmth");
+}
+
+/// The folk who won't be bought don't forgive the asking (#1225): a
+/// Proud or Stingy villager refuses the coin outright, keeps their
+/// purse's distance, and the offer itself costs a chill
+#[test]
+fn test_the_proud_wont_be_bought() {
+    use crate::game::organizing::{propose_keyed, AskKey, MeetingPlan, PropKind};
+    use crate::game::livelihood::Purse;
+    use crate::game::relationships::{find_relationship, Relationship};
+    use crate::game::traits::{Personality, Trait};
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[1]);
+    g.world.get_component_mut::<Purse>(pe).unwrap().gold = 100.0;
+    g.world.add_component(v, Personality { traits: vec![Trait::Proud] });
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, _) = propose_keyed(&mut g.world, pe, oe, v, PropKind::ComeAlong,
+        "Bram", 0.0, tick, AskKey::Coin, 8.0);
+    assert!(msg.contains("won't be bought"), "{}", msg);
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert!(r.strength < 0.0, "the asking itself smarts: {}", r.strength);
+    assert_eq!(g.world.get_component::<Purse>(pe).unwrap().gold, 100.0);
+    assert!(g.world.get_component::<MeetingPlan>(g.org).map(|p| p.coming.is_empty()).unwrap_or(true));
+}
+
+/// Nerve presses past the rung you haven't reached (#1225): a piece of
+/// self-interest heard is thread enough to pull on - a pressed yes
+/// lands and warms deeper than a plain one; a pressed no costs the
+/// decline's chill
+#[test]
+fn test_nerve_presses_past_the_stage_gate() {
+    use crate::game::organizing::{ask_offers, propose_keyed, AskKey, MeetingPlan, PropKind};
+    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::relationships::{find_relationship, record_interaction,
+        Interaction, InteractionKind, Relationship};
+    let mut g = Game::new();
+    let (pe, v, v2) = (g.player, g.villagers[1], g.villagers[2]);
+    for p in [v, v2] {
+        g.world.add_component(p, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+        record_interaction(&mut g.world, pe, Interaction {
+            other: p, kind: InteractionKind::Conversation, intensity: 0.3 });
+    }
+    // an acquaintance: the meeting asks are above their rung, so the
+    // press - not the plain ask - is what's on the table for them
+    let offers = ask_offers(&g.world, g.org, v, 0);
+    let pressed = offers.iter().find(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve);
+    assert!(pressed.is_some(), "{:?}", offers);
+    assert!(!offers.iter().any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Earned));
+    // the press lands: the promise is theirs, and the warmth runs past
+    // a plain yes's - the gamble paid on both ends
+    let before = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap().strength;
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, _) = propose_keyed(&mut g.world, pe, oe, v, PropKind::ComeAlong,
+        "Bram", 0.0, tick, AskKey::Nerve, 0.0);
+    assert!(msg.contains("mean it"), "{}", msg);
+    let after = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap().strength;
+    assert!(after - before > 0.1, "a pressed yes warms past a plain one: {} -> {}", before, after);
+    assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().coming.contains(&v));
+    // and when the press fails it costs what a no costs
+    let before = find_relationship(&g.world, pe, v2)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap().strength;
+    let (msg, _) = propose_keyed(&mut g.world, pe, oe, v2, PropKind::ComeAlong,
+        "Corvin", 1.0, tick, AskKey::Nerve, 0.0);
+    assert!(msg.contains("won't hear it"), "{}", msg);
+    let after = find_relationship(&g.world, pe, v2)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap().strength;
+    assert!(after < before, "a pressed no chills: {} -> {}", before, after);
+    assert!(!g.world.get_component::<MeetingPlan>(g.org).unwrap().coming.contains(&v2));
+}
+
+/// A thin purse prices the coin out (#1225): nothing in the purse, no
+/// priced asks on the table - the nerve's press is the only key left
+#[test]
+fn test_a_short_purse_offers_no_coin() {
+    use crate::game::organizing::{ask_offers, AskKey};
+    use crate::game::livelihood::Purse;
+    use crate::game::desires::{Known, Problem, Reveal};
+    let mut g = Game::new();
+    let (pe, v, heard_v) = (g.player, g.villagers[1], g.villagers[2]);
+    g.world.get_component_mut::<Purse>(pe).unwrap().gold = 0.0;
+    // the stranger has nothing for you: coin's the only key that turns
+    // for them, and yours is empty
+    assert!(ask_offers(&g.world, g.org, v, 0).is_empty());
+    // someone you've heard still takes the press, free of coin
+    g.world.add_component(heard_v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let offers = ask_offers(&g.world, g.org, heard_v, 0);
+    assert!(offers.iter().all(|o| o.key == AskKey::Nerve), "{:?}", offers);
+}
+
+/// A purchased yes reads cheap at the reckoning (#1225): bought
+/// promise-keepers still fill their slots and show, but they pull no
+/// friends in their name and a bought role counts nothing toward the
+/// meeting's kept-promise warmth
+#[test]
+fn test_bought_promises_read_cheap_at_the_meeting() {
+    use crate::game::organizing::{propose_keyed, AskKey, PropKind};
+    use crate::game::livelihood::Purse;
+    use crate::game::relationships::Relationship;
+    let mut g = Game::new();
+    let (pe, host, spreader, snack) = (g.player, g.villagers[1],
+        g.villagers[2], g.villagers[4]);
+    // the friend is nobody else's bond: only the spreader's word could
+    // ever bring them, so their absence is the bought mark's doing
+    let friend = g.world.create_entity();
+    g.villagers.push(friend);
+    g.world.get_component_mut::<Purse>(pe).unwrap().gold = 100.0;
+    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[host]);
+    // a bought snacks-keeper and a bought spreader - both will take it
+    for p in [snack, spreader] {
+        g.world.add_component(p, crate::game::traits::Personality { traits: vec![] });
+    }
+    let (oe, tick) = (g.org, g.tick);
+    let _ = propose_keyed(&mut g.world, pe, oe, snack, PropKind::BringSnacks, "Agnes", 0.0, tick, AskKey::Coin, 6.0);
+    let _ = propose_keyed(&mut g.world, pe, oe, spreader, PropKind::InviteFriends, "Bram", 0.0, tick, AskKey::Coin, 12.0);
+    // the bought spreader's dearest friend would surely be pulled, if
+    // the word were earned
+    let r = g.world.create_entity();
+    g.world.add_component(r, Relationship { from: spreader, other: friend,
+        kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+    let rf = g.world.create_entity();
+    g.world.add_component(rf, Relationship { from: pe, other: friend,
+        kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+    g.call_meeting();
+    let m = g.meeting.as_ref().expect("a meeting was called");
+    // bought folk still fill their slots and walk to the door...
+    assert!(m.bought.contains(&snack) && m.bought.contains(&spreader), "{:?}", m.bought);
+    // ...but the purchased word pulls nobody in
+    assert!(!m.invited.contains(&friend), "a bought spreader pulls no friends: {:?}", m.invited);
+    // and the bought role counts nothing toward the kept-promise warmth
+    assert!(!m.credit_roles().0, "a bought table reads cheap");
 }

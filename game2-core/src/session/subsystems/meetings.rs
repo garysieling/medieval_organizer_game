@@ -330,9 +330,12 @@ impl Game {
         let mut pool: Vec<(Entity, org::Invite)> = plan.holders().iter()
             .map(|&h| (h, org::Invite::Yes)).collect();
         for &s in &plan.spreaders {
+            // a bought spreader shows, but their friends weren't bought (#1225)
+            if plan.bought.contains(&s) { continue; }
             for f in org::friends_of(&self.world, s, 2) { pool.push((f, org::Invite::Pulled)); }
         }
         for &h in &plan.holders() {
+            if plan.bought.contains(&h) { continue; }
             for f in org::friends_of(&self.world, h, 1) { pool.push((f, org::Invite::Pulled)); }
         }
         pool.retain(|(e, _)| *e != pe && self.villagers.contains(e)
@@ -386,7 +389,7 @@ impl Game {
         if stayed > 0 {
             msg = format!("{} - {} of those asked stayed home.", msg.trim_end_matches('.'), stayed);
         }
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people });
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, bought: plan.bought });
         msg
     }
 
@@ -592,7 +595,7 @@ impl Game {
                     let in_room = |e: Option<Entity>| e.map(|e| m.invited.contains(&e)).unwrap_or(false);
                     m.roles = (in_room(m.role_people[0]), in_room(m.role_people[1]),
                         in_room(m.role_people[2]), in_room(m.role_people[3]), in_room(m.role_people[4]));
-                    m.lines = self.meeting_lines(&m.invited, m.seat, m.roles);
+                    m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles());
                     self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);
                     // the TALK panel keeps the meeting's record as it's said
@@ -619,7 +622,7 @@ impl Game {
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
-                    else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.roles) };
+                    else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.credit_roles()) };
                 let at = toast_spot(&self.world, self.seats[m.seat].player);
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),

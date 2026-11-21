@@ -131,11 +131,13 @@ pub struct PlayerTalk {
     pub since: u64,
     /// Narration after the gist ("You talk the helplessness out of them.")
     pub notes: Vec<String>,
-    /// Propositions on offer after the replies (self-interest known)
-    pub asks: Vec<crate::game::organizing::PropKind>,
+    /// Propositions on offer after the replies: the earned asks the
+    /// bond reaches, the coin's priced variants, the nerve's pressed
+    /// ones (#1225)
+    pub asks: Vec<crate::game::organizing::AskOffer>,
     /// Asks already put this talk - a vibe re-roll mustn't deal them
     /// back in (#1188)
-    pub asks_taken: Vec<crate::game::organizing::PropKind>,
+    pub asks_taken: Vec<crate::game::organizing::AskOffer>,
     /// Topics from `Transcript.asked` already checked for a draw - the
     /// replay accumulates them, the watermark marks what's been seen
     /// (#1189)
@@ -475,7 +477,7 @@ impl Game {
             crate::game::organizing::RelStage::CoLeader => villager.status.push("coleader"),
             _ => {}
         }
-        let mut asks = crate::game::organizing::props_on_offer(&self.world, self.seats[seat].org, v);
+        let mut asks = crate::game::organizing::ask_offers(&self.world, self.seats[seat].org, v, 0);
         // they won't hear a proposition from you while the last talk
         // still smarts - a cold ending closes what they'll offer (#1183)
         if self.talk_mood_of(v) == Some(TalkMood::Slighted) { asks.clear(); }
@@ -526,9 +528,9 @@ impl Game {
             // the read moves the asks a rung (#1188): someone who took
             // you as safe hears a deeper ask early; a miss keeps what
             // they offer slow - anything already put stays spent
-            let mut asks = crate::game::organizing::props_on_offer_shifted(
+            let mut asks = crate::game::organizing::ask_offers(
                 &self.world, self.seats[seat].org, t.who, if safe { 1 } else { -1 });
-            asks.retain(|p| !t.asks_taken.contains(p));
+            asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 cur.vibe = Some(v);
                 cur.asks = asks;
@@ -705,10 +707,11 @@ impl Game {
         // a pick past the replies is a proposition: the ask lands or it
         // doesn't, and the word of it goes on the record
         if i >= n {
-            let p = t.asks[i - n];
+            let o = t.asks[i - n];
             let (pe, oe, name) = (self.seats[seat].player, self.seats[seat].org, t.villager.name.clone());
             let roll = (self.rng.next() % 1000) as f32 / 1000.0;
-            let (msg, named) = crate::game::organizing::propose(&mut self.world, pe, oe, who, p, &name, roll, self.tick);
+            let (msg, named) = crate::game::organizing::propose_keyed(
+                &mut self.world, pe, oe, who, o.kind, &name, roll, self.tick, o.key, o.price);
             // an introduction's name is the one to look at: select them
             // and ask the camera over
             if let Some(f) = named {
@@ -725,8 +728,8 @@ impl Game {
             self.say(who, &msg, 5);
             self.narrate_talk(seat, &msg);
             if let Some(cur) = self.seats[seat].talk.as_mut() {
-                cur.asks.retain(|a| *a != p);
-                cur.asks_taken.push(p);
+                cur.asks.retain(|a| *a != o);
+                cur.asks_taken.push(o);
             }
             self.refresh_player_talk(seat);
             return;
@@ -873,7 +876,7 @@ impl Game {
         let in_talk = matches!(&s.talk, Some(t) if shown.contains(&t.id));
         let options = match &s.talk {
             Some(t) if in_talk => t.options.iter().map(|o| o.1.clone())
-                .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
+                .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::ask_label(a))).collect(),
             _ => vec![],
         };
         let empty = if picked.is_some() { "Nothing heard from them yet." } else { "Talk to someone (T) and it shows here." };
@@ -1064,7 +1067,7 @@ impl Game {
                 title: format!("TALK - {}", t.villager.name.to_uppercase()),
                 rows: self.record_rows(seat, t.id),
                 options: t.options.iter().map(|o| o.1.clone())
-                    .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
+                    .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::ask_label(a))).collect(),
                 decides: false, leave: true });
         }
         // the traveller's ask (#1085): last on the box - a live talk, a

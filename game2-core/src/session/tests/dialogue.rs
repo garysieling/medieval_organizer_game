@@ -101,7 +101,7 @@ fn test_talk_opens_a_conversation_on_the_talk_panel_with_replies() {
     let t = g.seats[0].talk.as_ref().expect("a talk under way").clone();
     assert!(!t.options.is_empty() && t.options.len() <= 2);
     let panel = g.talk_panel_at(0);
-    assert!(panel.in_talk && panel.options.len() == t.options.len());
+    assert!(panel.in_talk && panel.options.len() == t.options.len() + t.asks_shown());
     // pick the first reply: it's said, as previewed
     g.talk_pick_at(0, Some(0));
     let rec = g.talk_log.iter().find(|r| r.id == rec.id).unwrap();
@@ -191,7 +191,8 @@ fn test_a_spent_talk_closes_itself_on_a_mutual_parting() {
     }
     assert!(g.seats[0].talk.is_none(), "a spent talk doesn't hover");
     let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
-    assert!(rec.lines.iter().any(|l| l.text.contains("part") || l.text.contains("leave") || l.text.contains("walks off")),
+    assert!(rec.lines.iter().any(|l| l.text.contains("part") || l.text.contains("leave")
+        || l.text.contains("walks off") || l.text.contains("in peace")),
         "the parting's on the record: {:?}", rec.lines.last().map(|l| l.text.clone()));
 }
 
@@ -518,7 +519,10 @@ fn test_a_wrong_note_keeps_the_talk_polite() {
     let (_, id) = audition(&mut g, i, false);
     let t = g.seats[0].talk.as_ref().expect("the talk goes on, politely").clone();
     assert_eq!(t.vibe, Some(Vibe::Mismatch));
-    assert!(t.asks.is_empty(), "a mismatch brings no proposition");
+    // coin and nerve still stand to be tried (#1225) - it's the bond's
+    // own asks a bad read keeps out of reach
+    assert!(t.asks.iter().all(|o| o.key != crate::game::organizing::AskKey::Earned),
+        "a mismatch brings no earned proposition: {:?}", t.asks);
     let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
     assert!(rec.lines.iter().any(|l| l.text.contains("keeps it to the weather")),
         "the shallow read is narrated: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
@@ -528,7 +532,7 @@ fn test_a_wrong_note_keeps_the_talk_polite() {
 fn test_a_safe_read_opens_the_next_rung_early() {
     use crate::game::conversation::Vibe;
     use crate::game::desires::{Problem, Reveal};
-    use crate::game::organizing::PropKind;
+    use crate::game::organizing::{AskKey, PropKind};
     let mut g = Game::new();
     let i = adults(&g)[0];
     // an acquaintance with one piece heard offers only the light ask at
@@ -537,16 +541,18 @@ fn test_a_safe_read_opens_the_next_rung_early() {
     audition_bonded(&mut g, i, true, vec![Reveal::Problem(Problem::Taxed)], true);
     let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
     assert_eq!(t.vibe, Some(Vibe::Safe));
-    assert!(t.asks.contains(&PropKind::Introduce) && t.asks.contains(&PropKind::InviteFriends),
+    assert!(t.asks.iter().any(|o| o.kind == PropKind::Introduce && o.key == AskKey::Earned)
+        && t.asks.iter().any(|o| o.kind == PropKind::InviteFriends && o.key == AskKey::Earned),
         "safe: the known-tier asks open early: {:?}", t.asks);
-    assert!(!t.asks.contains(&PropKind::ComeAlong), "meetings still wait on the bond: {:?}", t.asks);
+    assert!(!t.asks.iter().any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Earned),
+        "meetings still wait on the bond: {:?}", t.asks);
 }
 
 #[test]
 fn test_a_mismatch_keeps_the_asks_shallow_not_barred() {
     use crate::game::conversation::Vibe;
     use crate::game::desires::{Problem, Reveal, Want};
-    use crate::game::organizing::{PropKind, RelStage};
+    use crate::game::organizing::{AskKey, PropKind, RelStage};
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
@@ -558,7 +564,9 @@ fn test_a_mismatch_keeps_the_asks_shallow_not_barred() {
     assert_eq!(crate::game::organizing::stage_of(&g.world, g.player, v), RelStage::Known);
     let t = g.seats[0].talk.as_ref().expect("the talk goes on, politely").clone();
     assert_eq!(t.vibe, Some(Vibe::Mismatch));
-    assert_eq!(t.asks, vec![PropKind::Introduce],
+    let earned: Vec<PropKind> = t.asks.iter()
+        .filter(|o| o.key == AskKey::Earned).map(|o| o.kind).collect();
+    assert_eq!(earned, vec![PropKind::Introduce],
         "a mismatch stays slow - the light ask still on the table: {:?}", t.asks);
 }
 

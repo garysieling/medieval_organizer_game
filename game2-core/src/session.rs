@@ -548,6 +548,21 @@ pub struct Meeting {
     /// Who promised each part, same order as `roles` - a part only
     /// happens if its keeper actually made it (#1076)
     pub role_people: [Option<Entity>; 5],
+    /// Whose promises came by coin (#1225): they show and their parts
+    /// still play in the room, but a purchased yes reads cheaper - no
+    /// kept-promise warmth, no pull of friends in their name
+    pub bought: Vec<Entity>,
+}
+
+impl Meeting {
+    /// The roles that count as earned at the reckoning: kept, and by a
+    /// keeper who wasn't bought (#1225)
+    pub fn credit_roles(&self) -> (bool, bool, bool, bool, bool) {
+        let credit = |i: usize, kept: bool| kept
+            && !self.role_people[i].map(|e| self.bought.contains(&e)).unwrap_or(false);
+        (credit(0, self.roles.0), credit(1, self.roles.1), credit(2, self.roles.2),
+            credit(3, self.roles.3), credit(4, self.roles.4))
+    }
 }
 
 /// The founding call a finished house meeting left with its organizer:

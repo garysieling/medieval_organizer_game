@@ -149,7 +149,7 @@ pub fn roster(seed: u64) -> Vec<CharacterSheet> {
                 work: vocation::vocation_name(voc).into(), kid: false,
                 // the client's grown looks: the pack's 8 plus the
                 // generated stills; the view mods whatever count loaded
-                look: rng.below(47) as usize,
+                look: rng.below(96) as usize,
                 vocation: Some(voc), class, skill,
                 gold: livelihood::seed_gold(class, false, roll),
                 wants: desires::sample_wants(class, Some(voc), false, &mut || rng.next()),

@@ -1,0 +1,29 @@
+{
+ "created_at": 1795282229,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "35b7617f-ea2a-4687-9d9b-c5383d74b4fe",
+ "outputs_retained_until": 1795368572,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 82,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-bridge-of-sighs-d7979a23",
+ "prompt": "single isometric medieval village asset: single-span stone bridge up to a walled cemetery, grey scottish light",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:30:29",
+ "seconds": 58.3
+}

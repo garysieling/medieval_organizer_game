@@ -1,0 +1,29 @@
+{
+ "created_at": 1795282413,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "91ff9457-bfbc-42a0-b235-4c73dabc9e64",
+ "outputs_retained_until": 1795368750,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 81,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-cannonball-house-64713408",
+ "prompt": "single isometric medieval village asset: stone merchant house with a patched war scar in its gable wall, grey scottish light",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:33:32",
+ "seconds": 63.7
+}

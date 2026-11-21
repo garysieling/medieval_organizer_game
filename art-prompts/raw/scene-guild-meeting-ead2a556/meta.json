@@ -1,0 +1,28 @@
+{
+ "created_at": 1795283801,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "9517b757-3c8f-4d6b-9109-4f124d5eaf49",
+ "outputs_retained_until": 1795370146,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 75,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scene-guild-meeting-ead2a556",
+ "prompt": "single isometric medieval village asset, wide lively scene: craftsmen meeting in a timber guildhall, villagers of varied ages and skin tones",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-21T12:56:40",
+ "seconds": 55.7
+}

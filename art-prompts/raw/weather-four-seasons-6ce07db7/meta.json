@@ -1,0 +1,28 @@
+{
+ "created_at": 1795284937,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "f8e3e99c-1280-46d1-927a-29a44b820217",
+ "outputs_retained_until": 1795371288,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 69,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "weather-four-seasons-6ce07db7",
+ "prompt": "wide isometric view: medieval village under sunlit showers: bright patches and falling rain in the same sky",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-21T13:15:36",
+ "seconds": 48.8
+}

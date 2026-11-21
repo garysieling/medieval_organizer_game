@@ -222,6 +222,10 @@ pub struct Art {
     /// the same snowed over; an empty set wears a cottage instead
     pub works: [Vec<Option<Sprite>>; WorkLook::N],
     pub works_winter: [Vec<Option<Sprite>>; WorkLook::N],
+    /// A building's construction stages (assets/rd/construction/stage1..4):
+    /// foundation, frame, half-roof, finished. Empty: a rising building
+    /// still draws its bottom crop
+    pub constr: Vec<Sprite>,
     /// The market cross with its notice board, and the maypole that
     /// stands there on a feast day
     /// The stocks by the market: two posts, a foot bar, a seat - drawn,
@@ -614,6 +618,26 @@ pub(crate) const GROWN_SPRITES: [(&str, &str); 39] = [
     ("queen-brown", "f"), ("queen-fair", "f"), ("queen-olive", "f"),
 ];
 
+/// The variants sheet's folk (`assets/rd/people/folk-*`, sliced
+/// strip-base @24): more grown stills in the same pool, so a village
+/// of thirty reads as thirty people
+pub(crate) const FOLK_SPRITES: [(&str, &str); 49] = [
+    ("folk-f-01", "f"), ("folk-f-02", "f"), ("folk-m-01", "m"), ("folk-m-02", "m"),
+    ("folk-f-03", "f"), ("folk-f-04", "f"), ("folk-f-05", "f"),
+    ("folk-f-06", "f"), ("folk-m-03", "m"), ("folk-m-04", "m"), ("folk-m-05", "m"),
+    ("folk-f-07", "f"), ("folk-m-06", "m"), ("folk-f-08", "f"),
+    ("folk-f-09", "f"), ("folk-m-07", "m"), ("folk-m-08", "m"), ("folk-f-10", "f"),
+    ("folk-f-11", "f"), ("folk-f-12", "f"), ("folk-f-13", "f"),
+    ("folk-m-09", "m"), ("folk-m-10", "m"), ("folk-f-14", "f"), ("folk-f-15", "f"),
+    ("folk-f-16", "f"), ("folk-f-17", "f"), ("folk-m-11", "m"),
+    ("folk-f-18", "f"), ("folk-f-19", "f"), ("folk-f-20", "f"), ("folk-m-12", "m"),
+    ("folk-m-13", "m"), ("folk-f-21", "f"), ("folk-f-22", "f"),
+    ("folk-f-23", "f"), ("folk-f-24", "f"), ("folk-f-25", "f"), ("folk-f-26", "f"),
+    ("folk-m-14", "m"), ("folk-f-27", "f"), ("folk-m-15", "m"),
+    ("folk-f-28", "f"), ("folk-f-29", "f"), ("folk-m-16", "m"), ("folk-f-30", "f"),
+    ("folk-f-31", "f"), ("folk-m-17", "m"), ("folk-f-32", "f"),
+];
+
 /// Every generated people still the loader looks for
 /// (assets/rd/people/<name>.png): the postings first, then the ten
 /// covered trades in -m/-f pairs. The sex suffix is a placeholder until
@@ -634,7 +658,7 @@ pub(crate) const PEOPLE_SPRITES: [&str; 36] = [
 /// Every generated UI icon the loader looks for (assets/rd/icons/<name>.png):
 /// the HUD and mark set (icon-), the log's named events (event-), and the
 /// goods sliced off the inventory sheet (good-)
-pub(crate) const ICON_SPRITES: [&str; 76] = [
+pub(crate) const ICON_SPRITES: [&str; 97] = [
     // status marks and HUD reads
     "icon-hungry", "icon-finding-food", "icon-busy", "icon-sick", "icon-dead",
     "icon-grieving", "icon-happy", "icon-cold", "icon-injured",
@@ -655,11 +679,17 @@ pub(crate) const ICON_SPRITES: [&str; 76] = [
     "event-indian-summer", "event-late-frost", "event-lightning", "event-lost-child",
     "event-meteor-shower", "event-mirage", "event-quarrel", "event-thaw",
     "event-thief", "event-windstorm",
-    // the satchel's goods, sliced off the inventory sheet
+    // the satchel's goods, sliced off the inventory sheets
     "good-wheat", "good-bread", "good-flour", "good-stone", "good-wood",
     "good-sand", "good-paper", "good-ink", "good-pamphlets", "good-pigment",
     "good-cloth", "good-glass", "good-garments", "good-tools", "good-lute",
     "good-gold", "good-prints",
+    // the food, materials and tools sheets (#694)
+    "good-cheese", "good-ale", "good-honey", "good-fish", "good-eggs",
+    "good-milk", "good-apples", "good-pottage", "good-roots", "good-peas",
+    "good-sausages", "good-timber", "good-fieldstone", "good-crocks",
+    "good-linen", "good-vellum", "good-wool", "good-hides", "good-candles",
+    "good-blocks", "good-needle",
 ];
 
 /// A villager sprite cropped to its standing frame (each sheet is a grid
@@ -754,6 +784,7 @@ impl Art {
         let pack_sprites: Vec<Sprite> = vpeople.iter()
             .map(|&(role, gender)| figure(&at, &assets.villager_sprite(role, gender))).collect();
         let grown_people: Vec<Sprite> = GROWN_SPRITES.iter()
+            .chain(FOLK_SPRITES.iter())
             .filter_map(|&(n, sex)| {
                 at(&format!("rd/people/{}.png", n)).map(|s| { villager_sexes.push(sex); s })
             }).collect();
@@ -921,6 +952,8 @@ impl Art {
             set.into_iter().map(Some).collect::<Vec<_>>()
         });
         let works_winter = works.clone().map(|set| set.iter().map(|s| s.as_ref().map(snowed)).collect());
+        // a building going up: foundation, frame, half-roof, finished
+        let constr: Vec<Sprite> = (1..=4).filter_map(|i| at(&format!("rd/construction/stage{}.png", i))).collect();
         // the village's small things (assets/rd/bits), numbered from 1
         let bits = |name: &str| -> Vec<Sprite> { (1..=6).filter_map(|i| at(&format!("rd/bits/{}{}.png", name, i))).collect() };
 
@@ -1004,6 +1037,7 @@ impl Art {
             details_k,
             works,
             works_winter,
+            constr,
             stocks: Some({
                 // the stocks: two posts, a foot bar between them, a low
                 // seat - brown timber on transparent ground

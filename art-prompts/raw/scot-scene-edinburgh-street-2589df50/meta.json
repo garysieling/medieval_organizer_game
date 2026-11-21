@@ -1,0 +1,28 @@
+{
+ "created_at": 1795283327,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "cdddd93d-6920-48f8-9022-1e4ebf98f73a",
+ "outputs_retained_until": 1795369685,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 77,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-scene-edinburgh-street-2589df50",
+ "prompt": "single isometric medieval village asset, wide view: steep old burgh street of tall stone lands and crow-stepped gables under a low grey sky, villagers of varied ages and skin tones",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-21T12:48:46",
+ "seconds": 41.9
+}

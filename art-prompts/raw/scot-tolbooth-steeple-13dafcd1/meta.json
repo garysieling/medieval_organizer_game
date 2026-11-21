@@ -1,0 +1,29 @@
+{
+ "created_at": 1795283578,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "fc6d9859-b95e-476b-8d48-82b99e18bfb8",
+ "outputs_retained_until": 1795369913,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 76,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-tolbooth-steeple-13dafcd1",
+ "prompt": "single isometric medieval village asset: lone stone steeple standing free at a crossroads, grey scottish light",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:52:57",
+ "seconds": 64.8
+}

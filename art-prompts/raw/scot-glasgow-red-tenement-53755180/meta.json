@@ -1,0 +1,29 @@
+{
+ "created_at": 1795283014,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "8e1461b3-e3d9-46de-9c5c-9553a58b7210",
+ "outputs_retained_until": 1795369333,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 79,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-glasgow-red-tenement-53755180",
+ "prompt": "single isometric medieval village asset: red sandstone burgh house, three storeys, steep slated roof, grey scottish light",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:43:33",
+ "seconds": 81.3
+}

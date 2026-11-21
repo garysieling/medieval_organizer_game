@@ -1,0 +1,29 @@
+{
+ "created_at": 1795282652,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "e837fd50-c051-4be1-8113-c326a7dddb99",
+ "outputs_retained_until": 1795368980,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 80,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-edinburgh-land-d23f93c0",
+ "prompt": "single isometric medieval village asset: tall narrow stone burgh 'land', six storeys, harled stone, crow-stepped gables, dormer windows, grey scottish light",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:37:32",
+ "seconds": 73.1
+}

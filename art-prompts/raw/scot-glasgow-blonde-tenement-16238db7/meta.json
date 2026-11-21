@@ -1,0 +1,29 @@
+{
+ "created_at": 1795282872,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "56ddf7e0-7cfc-4539-9de0-114bbe70dee3",
+ "outputs_retained_until": 1795369210,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 79,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-glasgow-blonde-tenement-16238db7",
+ "prompt": "single isometric medieval village asset: honey sandstone burgh house with a corner turret, grey scottish light",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:41:11",
+ "seconds": 61.7
+}

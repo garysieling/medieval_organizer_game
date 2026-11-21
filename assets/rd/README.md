@@ -303,6 +303,51 @@ Exported flat to `assets/rd/icons/` as `icon-<slug>.png`,
 `event-<slug>.png`, `good-<slug>.png`; a name that didn't come back
 leaves its text glyph standing (draw_icon's None arm).
 
+Issue #694 added 21 goods from three sheets (`rd_pro__inventory_items`,
+$0.18 each): `food-sheet` gave cheese, ale, honey, fish, eggs, milk,
+apples, pottage, roots, peas and sausages; `materials-sheet` gave
+timber, fieldstone, crocks, linen, vellum, wool, hides, candles and
+blocks; `tools-sheet`'s needle became `good-needle`, and its other
+cells (sickle, hoe, axe, mallet, maul, saw, chisel, trowel, tongs,
+plane, quill-ink) sit dormant in `tools/` until a trade or signage
+feature wants them. Cells whose good already had an icon (bread, sand,
+glass, ink, cloth) were left in the raw.
+
+## decor, regions/scotland, scenes, weather, construction (#694)
+
+The rest of the P1 catalog is reference art for features that have no
+renderer yet - each group names its consumer issue:
+
+- `decor/` (8 props, `rd_tile__tile_object`): wreath, yule-log and a
+  maypole for feast dressing; marginalia-hybrid, memento-mori,
+  painted-hall, sign-engraved and wonder-eggshell for hall interiors.
+  Consumer: #1275.
+- `regions/scotland/` (24 pieces, `rd_pro__isometric` 160px +
+  two 256px scenes): medievalized Edinburgh/Glasgow landmarks -
+  baronial turret, castle crag, crown spire, tolbooth steeple,
+  kirkyard, burgh 'lands' and so on. The catalog's anachronistic
+  entries (traffic cone, camera obscura, Victorian tenements) were
+  rewritten at source in `generate_art_prompts.py` before spending.
+  Consumer: #1272.
+- `scenes/` (12 wide scenes, 256px opaque): church service, funeral,
+  guild meeting, hard winter, harvest-in, market day, minstrel visit,
+  outbreak, pilgrims, storm damage, tax day, wedding - one per log
+  beat. Consumer: #1273.
+- `weather/` (5 looks, 256px opaque): haar, dreich, smirr, stinging
+  shower, four-seasons - palette/overlay reference for weather_fx.
+  Consumer: #1274.
+- `construction/stage1..3.png`: the build flourish (`BldgV.risen`)
+  draws foundation, frame and half-roof stages for the first three
+  quarters of the rise, then the real sprite fills in. Sliced from
+  `sheet-cottage-construction`; its finished-cottage cell is stage4,
+  dormant.
+- Sliced dormant pending consumers: `seasons/` cottage seasons
+  (#1276), `crops/` growth stages (#1277), `trees/growth/` (#1278),
+  `guards/poses/` (#1279), `people/visitors/` the visitor-pack's 39
+  sprites (#1281). `sheet-villager-poses` came back as scene cards -
+  figures embedded in backdrops, no cut-out poses - so it was kept as
+  raw only; #1280 tracks a regeneration.
+
 The goods sheet (`rd_pro__inventory_items`, goods-sheet-644710b6) comes
 back on a white lattice, not a plain field - the border fill keys the
 white but not the grey gridlines, so the cells are blob-detected on

@@ -62,16 +62,16 @@ fn test_kid_sprites_partition_the_looks() {
     // the generated children lead villager_sprites: kids draw only
     // them, grown looks all sit behind the kid range
     for i in 0..40 {
-        let look = figure_look(true, i, 6, 53);
+        let look = figure_look(true, i, 6, 102);
         assert!(look < 6, "kid {i} drew grown-up look {look}");
     }
     for i in 0..40 {
-        let look = figure_look(false, i, 6, 53);
+        let look = figure_look(false, i, 6, 102);
         assert!(look >= 6, "grown {i} drew a child's look {look}");
     }
     // the six children and every grown look are all reachable
-    assert_eq!((0..6).map(|i| figure_look(true, i, 6, 53)).collect::<std::collections::HashSet<_>>().len(), 6);
-    assert_eq!((0..47).map(|i| figure_look(false, i, 6, 53)).collect::<std::collections::HashSet<_>>().len(), 47);
+    assert_eq!((0..6).map(|i| figure_look(true, i, 6, 102)).collect::<std::collections::HashSet<_>>().len(), 6);
+    assert_eq!((0..96).map(|i| figure_look(false, i, 6, 102)).collect::<std::collections::HashSet<_>>().len(), 96);
 }
 
 #[test]

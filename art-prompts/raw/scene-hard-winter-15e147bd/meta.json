@@ -1,0 +1,28 @@
+{
+ "created_at": 1795283861,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "d5a1a71e-48c7-45f2-89fe-7b98ea59b963",
+ "outputs_retained_until": 1795370202,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 75,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scene-hard-winter-15e147bd",
+ "prompt": "single isometric medieval village asset, wide lively scene: village in deep snow, thin smoke from chimneys, bleak hard winter, villagers of varied ages and skin tones",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-21T12:57:40",
+ "seconds": 59.9
+}

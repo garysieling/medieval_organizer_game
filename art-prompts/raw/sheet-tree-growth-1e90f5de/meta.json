@@ -1,0 +1,28 @@
+{
+ "created_at": 1795284644,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "490638bb-16a9-489f-a7d4-7ccfa8166e6e",
+ "outputs_retained_until": 1795370969,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 71,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "sheet-tree-growth-1e90f5de",
+ "prompt": "isometric oak tree growth stages: sapling, young tree, mature, ancient, consistent matched set",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-21T13:10:43",
+ "seconds": 75.8
+}

@@ -31,6 +31,10 @@ fn test_generated_ground_set_and_villager_walks_load() {
         "the children slide, they don't stride");
     assert!(art.villager_walks[art.kid_looks + art.pack_looks..].iter().all(|w| w.is_none()),
         "the grown stills slide too");
+    // the build flourish's staged sprites and the 21 satchel goods (#694)
+    assert_eq!(art.constr.len(), 4, "the construction stages sliced");
+    assert!(art.icon("good-cheese").is_some() && art.icon("good-needle").is_some()
+        && art.icon("good-wool").is_some());
     assert!(art.guard_walks.len() == 4 && art.guard_walks.iter().all(|w| w.is_some()));
     assert!(art.priest_walk.is_some());
     // 9 cottages plus the 3 botháns (squat thatch cottages, #708),

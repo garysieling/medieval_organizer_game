@@ -1,0 +1,28 @@
+{
+ "created_at": 1795283392,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "adf315b7-bb5a-45ea-835c-7c16770daaf4",
+ "outputs_retained_until": 1795369727,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 77,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-scene-glasgow-green-570df6c7",
+ "prompt": "single isometric medieval village asset, wide view: sandstone burgh houses round a green, a stone kirk at one edge, villagers of varied ages and skin tones",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-21T12:49:51",
+ "seconds": 65.1
+}

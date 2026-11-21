@@ -756,38 +756,38 @@ for slug, p in [
 
 SCOTTISH = [
     # Edinburgh: medieval skyscrapers of the Old Town
-    ("edinburgh-land", "tall narrow old town tenement 'land', six storeys, harled stone, crow-stepped gables, dormer windows"),
+    ("edinburgh-land", "tall narrow stone burgh 'land', six storeys, harled stone, crow-stepped gables, dormer windows"),
     ("edinburgh-crown-spire", "gothic kirk with a crown-shaped steeple"),
     ("edinburgh-castle-crag", "castle on a sheer volcanic rock crag above the town"),
-    ("scott-monument", "spindly black victorian gothic rocket-spire monument"),
-    ("calton-folly", "unfinished greek temple columns alone on a hilltop"),
-    ("georgian-crescent", "blonde sandstone georgian terrace, columns and fanlights"),
-    ("camera-obscura", "old outlook tower with a domed camera chamber on top"),
-    ("cannonball-house", "stone merchant house with a cannonball lodged in its gable wall"),
+    ("scott-monument", "slender gothic market cross, crocketed spire and pinnacles"),
+    ("calton-folly", "roofless ruined chapel, bare gothic arches alone on a hilltop"),
+    ("georgian-crescent", "curved row of stone burgh houses, stepped gables facing a green"),
+    ("camera-obscura", "round stone watchtower with a timber lookout chamber on top"),
+    ("cannonball-house", "stone merchant house with a patched war scar in its gable wall"),
     ("baronial-turret", "scots baronial corner turret with a conical witch's-hat roof"),
     ("whitehorse-close", "white-harled courtyard inn with outside forestairs"),
-    ("painted-terrace", "curved terrace of brightly painted shopfronts"),
+    ("painted-terrace", "curved row of timber-fronted shops with painted signboards"),
     # Glasgow: sandstone, gothic, and one perfect folly
-    ("glasgow-red-tenement", "red sandstone tenement block, four storeys, bay windows"),
-    ("glasgow-blonde-tenement", "honey blonde sandstone tenement with a corner turret"),
-    ("glasgow-cathedral", "dark gothic cathedral, soot-blackened stone"),
-    ("necropolis", "hilltop victorian cemetery, monument spires along the skyline"),
-    ("templeton-factory", "carpet factory dressed as a venetian gothic palace, polychrome glazed brick"),
+    ("glasgow-red-tenement", "red sandstone burgh house, three storeys, steep slated roof"),
+    ("glasgow-blonde-tenement", "honey sandstone burgh house with a corner turret"),
+    ("glasgow-cathedral", "dark gothic cathedral, weathered stone"),
+    ("necropolis", "hilltop kirkyard, stone crosses and a lychgate along the skyline"),
+    ("templeton-factory", "great stone wool hall with tall mullioned windows"),
     ("tolbooth-steeple", "lone stone steeple standing free at a crossroads"),
     ("bridge-of-sighs", "single-span stone bridge up to a walled cemetery"),
-    ("finnieston-crane", "giant grey cantilever crane over a river"),
-    ("peoples-palace", "red sandstone museum with a glass winter-gardens dome"),
-    ("saracen-bandstand", "ornate victorian cast-iron bandstand"),
-    ("cone-statue", "equestrian statue with a traffic cone on its head"),
+    ("finnieston-crane", "timber treadwheel dockside crane over a river quay"),
+    ("peoples-palace", "stone guildhall with a timber-louvred roof lantern"),
+    ("saracen-bandstand", "canopied timber market cross pavilion"),
+    ("cone-statue", "weathered stone equestrian statue on a plinth"),
 ]
 for slug, b in SCOTTISH:
     add("regions/scotland", f"scot-{slug}", f"{ISO}: {b}, grey scottish light",
         w=160, h=160, tier="p1",
-        notes="real building - Edinburgh or Glasgow landmark")
+        notes="Scottish burgh landmark, medievalized")
 
 for slug, s in [
-    ("edinburgh-street", "steep old town street of tall tenements and crow-stepped gables under a low grey sky"),
-    ("glasgow-green", "sandstone tenements round a green, a gaudy venetian-gothic factory at one edge"),
+    ("edinburgh-street", "steep old burgh street of tall stone lands and crow-stepped gables under a low grey sky"),
+    ("glasgow-green", "sandstone burgh houses round a green, a stone kirk at one edge"),
 ]:
     add("regions/scotland", f"scot-scene-{slug}", f"{ISO}, wide view: {s}, {CROWD}",
         w=256, h=256, remove_bg=False, tier="p1")

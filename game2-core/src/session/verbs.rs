@@ -727,6 +727,24 @@ impl Game {
                     self.seats[seat].ctx_actions.push(CtxAct::ShareFindings);
                 }
             }
+            // the paper regime's asks (#1261): a held member's book
+            // wants marking free; a masterless one wants a forgery;
+            // a carried pass can be reported away
+            let pe = self.seats[seat].player;
+            let org = self.seats[seat].org;
+            let org_has = |x| self.world.get_component::<crate::sim::community::Organization>(org)
+                .map(|o| o.members.contains(&x)).unwrap_or(false);
+            if org_has(v) && crate::game::pass::held(&self.world, v) {
+                self.seats[seat].ctx_actions.push(CtxAct::MarkBook);
+            }
+            if self.world.get_component::<crate::game::pass::Masterless>(v).is_some()
+                && self.villagers.iter().any(|&m| org_has(m) && self.literate(m)) {
+                self.seats[seat].ctx_actions.push(CtxAct::ForgePass);
+            }
+            if self.world.get_component::<crate::game::pass::Pass>(v).is_some()
+                && !org_has(v) && org_has(pe) {
+                self.seats[seat].ctx_actions.push(CtxAct::ReportMasterless);
+            }
             // a picked neighbour with no pact yet can be sworn to; the
             // button greys until they've heard you speak and the wax's
             // paid for - an oath needs a name (#1061)
@@ -1531,6 +1549,57 @@ impl Game {
             }
             CtxAct::TakeJob => self.accept_quest_at(seat),
             CtxAct::ShareFindings => self.mystery_deliver_at(seat),
+            CtxAct::MarkBook => {
+                // the liberation ask: their book's marked free - out
+                // from under the master, and paperless with it (#1261)
+                let v = self.villagers[self.seats[seat].selected_target];
+                if let Some(c) = self.world.get_component_mut::<Craft>(v) { c.tasked_by = None; }
+                self.world.remove_component::<crate::game::pass::Pass>(v);
+                self.world.add_component(v, crate::game::pass::Masterless);
+                let n = self.name_of(v);
+                self.log_entity_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), v,
+                    format!("t{}: {}'s book is marked free - out of service, and paperless.", tick, n));
+                format!("{}'s book is marked free - they're out, and masterless.", n)
+            }
+            CtxAct::ForgePass => {
+                // the hidden scribe's real work: a literate member
+                // writes the masterless one a pass (#1261)
+                let v = self.villagers[self.seats[seat].selected_target];
+                let org = self.seats[seat].org;
+                let scribe = self.villagers.iter().copied().find(|&m| {
+                    self.world.get_component::<crate::sim::community::Organization>(org)
+                        .map(|o| o.members.contains(&m)).unwrap_or(false) && self.literate(m)
+                });
+                match scribe {
+                    Some(s) => {
+                        self.world.remove_component::<crate::game::pass::Masterless>(v);
+                        self.world.add_component(v, crate::game::pass::Pass {
+                            marked_by: Some(s), since: tick, forged: true });
+                        let n = self.name_of(v);
+                        format!("{} carries a fresh pass - {}'s hand wrote it.", n, self.name_of(s))
+                    }
+                    None => "No one in the cause can write it.".into(),
+                }
+            }
+            CtxAct::ReportMasterless => {
+                // the org's own sanction: the word to the watch that
+                // their paper's no good - and word gets out who spoke
+                // (#1261)
+                let v = self.villagers[self.seats[seat].selected_target];
+                let pe = self.seats[seat].player;
+                self.world.remove_component::<crate::game::pass::Pass>(v);
+                if let Some(c) = self.world.get_component_mut::<Craft>(v) { c.tasked_by = None; }
+                self.world.add_component(v, crate::game::pass::Masterless);
+                crate::game::relationships::record_interaction(&mut self.world, pe,
+                    crate::game::relationships::Interaction { other: v,
+                        kind: crate::game::relationships::InteractionKind::Conflict, intensity: 0.6 });
+                let n = self.name_of(v);
+                self.log_entity_ev(
+                    EvTag::new(Thread::Org, Valence::Negative, Sev::Notable), v,
+                    format!("t{}: word reaches the watch - {} has no mark worth showing.", tick, n));
+                format!("{}'s reported masterless - they'll feel it, and word gets out who spoke.", n)
+            }
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Tame => self.tame_stroke_at(seat),
             CtxAct::School => self.school_at(seat),

@@ -1549,6 +1549,20 @@ impl Game {
                     ),
                 );
             }
+            "vagrancy" => {
+                // the watch takes up a masterless one: the stocks,
+                // and the mark of it on the book
+                self.apply_sanction(who, crate::game::sanctions::Sanction::Stocks, tick);
+                self.log_entity_ev(
+                    EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                    who,
+                    format!(
+                        "t{}: {} taken up by the watch - masterless, no mark to show.",
+                        tick,
+                        self.name_of(who)
+                    ),
+                );
+            }
             "assembly" => {
                 // over the cap the law calls it a mob: the stocks for a
                 // ringleader, a fine for the rest
@@ -2890,10 +2904,7 @@ impl Game {
         // alone - the cause has to be a real one, its own work loud
         let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
             .map(|o| o.members.clone()).unwrap_or_default();
-        let organizing: f32 = members.iter().map(|&m|
-            self.world.get_component::<crate::game::org_skills::Organizing>(m)
-                .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
-                    + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0)).sum();
+        let organizing: f32 = members.iter().map(|&m| self.organizing_of(m)).sum();
         if organizing < 0.5 { return; }
         let stage = self.inquisition.unwrap_or(0);
         let org = self.org;
@@ -2934,6 +2945,56 @@ impl Game {
         self.inquisition = Some((stage + 1).min(4));
     }
 
+    /// A hired hand's organizing weight: folk whose book holds them to
+    /// a master carry half - their pass is a leash until somebody
+    /// marks them free (#1261)
+    pub(in crate::session) fn organizing_of(&self, m: Entity) -> f32 {
+        let o = self.world.get_component::<crate::game::org_skills::Organizing>(m)
+            .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0);
+        if crate::game::pass::held(&self.world, m) { o * 0.5 } else { o }
+    }
+
+    /// The paper regime's own beat: hired hands get their books
+    /// marked, the wanderer's letter rides along, and the masterless
+    /// draw the watch's eye in proportion to how watched the lord
+    /// already is (#1261)
+    pub(in crate::session) fn pass_tick(&mut self, tick: u64) {
+        if tick % 20 != 12 { return; }
+        // books marked: whoever hires a hand out owns the mark
+        let stamp: Vec<(Entity, Entity)> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::game::pass::Pass>(v).is_none()
+                && self.world.get_component::<crate::game::pass::Masterless>(v).is_none())
+            .filter_map(|v| self.world.get_component::<crate::game::vocation::Craft>(v)
+                .and_then(|c| c.tasked_by).map(|m| (v, m)))
+            .collect();
+        for (v, m) in stamp {
+            self.world.add_component(v, crate::game::pass::Pass { marked_by: Some(m), since: tick, forged: false });
+        }
+        // the wanderer's own paper: a pedlar's letter, carried from
+        // the road - it isn't much, but it's a name
+        let pe = self.player;
+        if self.world.get_component::<crate::game::pass::Pass>(pe).is_none()
+            && self.world.get_component::<crate::game::pass::Masterless>(pe).is_none() {
+            self.world.add_component(pe, crate::game::pass::Pass { marked_by: None, since: tick, forged: false });
+        }
+        // the sweep: the masterless are who the watch reaches for
+        // first - how hard it leans is the watcher's own nerves
+        let paranoia = self.sites.iter().filter_map(|s| s.lord)
+            .filter_map(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia).fold(0.0f32, f32::max);
+        if paranoia < 0.3 { return; }
+        for v in self.villagers.clone() {
+            if self.world.get_component::<crate::game::pass::Masterless>(v).is_none() { continue; }
+            if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+            if self.sanctioned.iter().any(|(e, _, u)| *e == v && self.tick < *u) { continue; }
+            if self.rng.next() % 1000 < (paranoia * 200.0) as u64 {
+                self.apply_penalty(0, v, "vagrancy", tick);
+            }
+        }
+    }
+
     /// The Statute of Labourers, live: when hands run so scarce the
     /// wage climbs on its own and the cause is stirring, the lord
     /// posts the cap - and thereafter the informers count what's paid.
@@ -2947,10 +3008,7 @@ impl Game {
             if self.wage_mult() < 1.4 { return; }
             let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
                 .map(|o| o.members.clone()).unwrap_or_default();
-            let organizing: f32 = members.iter().map(|&m|
-                self.world.get_component::<crate::game::org_skills::Organizing>(m)
-                    .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
-                        + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0)).sum();
+            let organizing: f32 = members.iter().map(|&m| self.organizing_of(m)).sum();
             if organizing < 0.5 { return; }
             // the posted most: base day-rates only - what scarcity
             // pays above them is the breach
@@ -3002,10 +3060,7 @@ impl Game {
         // record: Turnout + Agitation on whoever's carrying the word
         let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
             .map(|o| o.members.clone()).unwrap_or_default();
-        let organizing: f32 = members.iter().map(|&m|
-            self.world.get_component::<crate::game::org_skills::Organizing>(m)
-                .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
-                    + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0)).sum();
+        let organizing: f32 = members.iter().map(|&m| self.organizing_of(m)).sum();
         if organizing < 0.5 { return; }
         for site in &self.sites {
             let Some(l) = site.lord else { continue };

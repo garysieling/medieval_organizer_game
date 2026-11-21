@@ -537,6 +537,7 @@ impl Game {
         // and the castle sends its writs on a season's turn
         crate::timed!("sim.edict", self.edict_tick(tick));
         crate::timed!("sim.wage_edict", self.wage_edict_tick(tick));
+        crate::timed!("sim.pass", self.pass_tick(tick));
         // and every other winter runs long and tests the village
         crate::timed!("sim.winter", self.winter_tick(tick));
         // and the painter lays color on the village's halls

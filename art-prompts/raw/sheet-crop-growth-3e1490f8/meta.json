@@ -1,0 +1,28 @@
+{
+ "created_at": 1795284525,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "1763bcd7-e72b-41e3-8076-67121d6ee2fd",
+ "outputs_retained_until": 1795370863,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 71,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "sheet-crop-growth-3e1490f8",
+ "prompt": "isometric wheat field patch growth stages: bare soil, green shoots, half-grown, ripe golden heads, consistent matched set",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-21T13:08:44",
+ "seconds": 62.9
+}

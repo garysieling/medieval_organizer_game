@@ -1,0 +1,29 @@
+{
+ "created_at": 1795281775,
+ "credit_cost": 4,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "30fea00d-ff63-464f-8be7-0868b35c36e3",
+ "outputs_retained_until": 1795368164,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 85,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "decor-marginalia-hybrid-4d9b2961",
+ "prompt": "single isometric medieval marginalia creature: a bird with long human ears and thin legs, chalky green and rose pink, bosch style",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 96,
+  "height": 96,
+  "num_images": 2,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:22:55",
+ "seconds": 12.2
+}

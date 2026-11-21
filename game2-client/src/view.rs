@@ -634,9 +634,16 @@ impl View {
                         if matches!(piece, Piece::Cutaway(_, _)) { draw_cutaway(buf, s, sx, sy, zoom, press_era); }
                         else { draw_on_tile(buf, s, sx, sy, zoom); }
                     } else if up > 0.0 {
-                        // going up: the bottom of the house, from the ground up
-                        let rows = ((s.height as f32 * up).round() as usize).max(1);
-                        draw_on_tile(buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
+                        // going up: the staged build where the sheet's cut
+                        // (foundation, frame, half-roof), then the house
+                        // itself filling in to the ridge
+                        match art.constr.get((up * 4.0) as usize).filter(|_| up < 0.75) {
+                            Some(stage) => draw_on_tile(buf, stage, sx, sy, zoom),
+                            None => {
+                                let rows = ((s.height as f32 * up).round() as usize).max(1);
+                                draw_on_tile(buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
+                            }
+                        }
                     }
                 },
             }

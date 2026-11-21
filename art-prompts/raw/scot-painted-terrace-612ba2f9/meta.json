@@ -1,0 +1,29 @@
+{
+ "created_at": 1795283187,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "f46fc1bb-4244-4d6e-b422-cad0300e39c1",
+ "outputs_retained_until": 1795369515,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 78,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "scot-painted-terrace-612ba2f9",
+ "prompt": "single isometric medieval village asset: curved row of timber-fronted shops with painted signboards, grey scottish light",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:46:26",
+ "seconds": 72.2
+}

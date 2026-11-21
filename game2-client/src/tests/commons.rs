@@ -50,6 +50,58 @@ fn test_the_well_and_hall_draw_by_the_market() {
     assert_eq!(far, 0, "the commons diff escaped its tiles");
 }
 
+/// The build flourish (#694): a house mid-rise draws the staged sheet
+/// (foundation, frame, roof) instead of cropping the finished sprite;
+/// without the sheet the crop path still draws, and the last stretch
+/// always belongs to the house itself
+#[test]
+fn test_a_house_mid_rise_draws_the_stage_sheet() {
+    let game = Game::new_seeded(MAP_SEED);
+    let mut m = game.ui_model();
+    let b = m.buildings.iter().find(|b| !b.derelict).copied().expect("a house on the model");
+    m.buildings.iter_mut().for_each(|bb| bb.risen = if (bb.x, bb.y) == (b.x, b.y) { 0.4 } else { 1.0 });
+    let art = Art::load_fs("../assets", 0);
+    assert_eq!(art.constr.len(), 4, "the construction stages sliced");
+    let mut view = View::new(art);
+    (view.cam_x, view.cam_y) = cam_centred_on(b.x, b.y);
+    view.zoom = 2.0;
+    let staged = view.render(&m, (-1, -1));
+    // no sheet: the flourish falls back to cropping the finished sprite
+    let art_plain = Art::load(&|rel: &str| {
+        if rel.contains("construction") { None } else {
+            std::fs::read(std::path::Path::new("../assets").join(rel)).ok()
+        }
+    }, 0);
+    let mut view_plain = View::new(art_plain);
+    (view_plain.cam_x, view_plain.cam_y) = (view.cam_x, view.cam_y);
+    view_plain.zoom = 2.0;
+    let cropped = view_plain.render(&m, (-1, -1));
+    // near the tile the two must differ - the sheet drew; far off the
+    // frames must match - nothing else touched
+    let (sx, sy) = iso_to_screen_cam(b.x, b.y, view.cam_x, view.cam_y, 2.0);
+    let mut near = 0;
+    for y in 0..staged.height {
+        for x in 0..staged.width {
+            let i = (y * staged.width + x) * 4;
+            if staged.pixels[i..i + 3] == cropped.pixels[i..i + 3] { continue; }
+            // the stage is shorter than the cropped house, so a piece
+            // standing behind it can show through - count the tile's own
+            // rect as near and bound the rest to the building's block
+            if (x as i32 - sx).abs() <= 80 && (y as i32 - sy) <= 40 && (y as i32 - sy) >= -140 { near += 1 }
+            else {
+                assert!((x as i32 - sx).abs() <= 200 && (y as i32 - sy) <= 80 && (y as i32 - sy) >= -260,
+                    "the flourish leaked off the block: diff at {x},{y} vs tile at {sx},{sy}");
+            }
+        }
+    }
+    assert!(near > 0, "the stage sheet never drew");
+    // the last stretch shows the house rising to its ridge, not a stage
+    m.buildings.iter_mut().find(|bb| (bb.x, bb.y) == (b.x, b.y)).unwrap().risen = 0.9;
+    let top = view.render(&m, (-1, -1));
+    assert!(top.pixels.iter().zip(staged.pixels.iter()).any(|(a, bb)| a != bb),
+        "the last stretch still shows a stage, not the house itself");
+}
+
 /// The six new shop looks (#688) load their sliced sprites, summer and
 /// snowed winter sets alike; the look names match the sim's WorkLook
 #[test]

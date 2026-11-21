@@ -8,474 +8,10 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 303,
-  "est_total_usd": 56.36
+  "count": 242,
+  "est_total_usd": 41.84
  },
  "prompts": [
-  {
-   "id": "event-alehouse-brawl-93c2a390",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event alehouse brawl",
-   "prompt": "small game UI icon of two tankards clashing, spilled ale, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-assize-e947c98c",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event assize",
-   "prompt": "small game UI icon of weighing scales with a loaf and a tankard, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-aurora-26ad8ff2",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event aurora",
-   "prompt": "small game UI icon of green aurora ribbons over a village at night, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-blood-moon-933be15c",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event blood moon",
-   "prompt": "small game UI icon of large red moon over rooftops, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-cellar-thief-c53befce",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event cellar thief",
-   "prompt": "small game UI icon of dark figure slipping out of a cellar door with a sack, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-dark-noon-1a67a84e",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event dark noon",
-   "prompt": "small game UI icon of black disc of an eclipse over a pale sky, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-drought-b56bee44",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event drought",
-   "prompt": "small game UI icon of cracked dry earth under a pale sun, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-first-snow-acd8aa20",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event first snow",
-   "prompt": "small game UI icon of first thin snowflakes over a cottage, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-flood-c05a7fca",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event flood",
-   "prompt": "small game UI icon of brown river water risen over a bank, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-foundling-icn-b425f819",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event foundling icn",
-   "prompt": "small game UI icon of basket with a swaddled bundle, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-hailstorm-480c176f",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event hailstorm",
-   "prompt": "small game UI icon of white hailstones bouncing off a roof, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-heat-wave-9572e189",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event heat wave",
-   "prompt": "small game UI icon of shimmering heat lines over dry crops, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-indian-summer-99a3c218",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event indian summer",
-   "prompt": "small game UI icon of golden warm haze over autumn fields, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-late-frost-04a5d118",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event late frost",
-   "prompt": "small game UI icon of white frost on a green sprout, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-lightning-717fe433",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event lightning",
-   "prompt": "small game UI icon of a single lightning bolt striking a field, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-lost-child-icn-6cabe3bc",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event lost child icn",
-   "prompt": "small game UI icon of small empty shoe beside a path, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-meteor-shower-2155f2df",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event meteor shower",
-   "prompt": "small game UI icon of streaking meteors in a night sky, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-mirage-544deb21",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event mirage",
-   "prompt": "small game UI icon of shimmering false city on the horizon, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-quarrel-icn-0f42edb5",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event quarrel icn",
-   "prompt": "small game UI icon of two raised fists face to face, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-thaw-03f09edb",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event thaw",
-   "prompt": "small game UI icon of dripping icicle melting into a puddle, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-thief-icn-3efd606e",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event thief icn",
-   "prompt": "small game UI icon of shadowed hand lifting a jar, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "event-windstorm-418a5877",
-   "tier": "p0",
-   "group": "events/icons",
-   "title": "event windstorm",
-   "prompt": "small game UI icon of bent trees and flying thatch in wind, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-build-66e1be52",
-   "tier": "p0",
-   "group": "icons/actions",
-   "title": "icon build",
-   "prompt": "small game UI icon of mallet and wooden beam, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-inspect-41581a0b",
-   "tier": "p0",
-   "group": "icons/actions",
-   "title": "icon inspect",
-   "prompt": "small game UI icon of magnifying glass over a face, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-invest-af59bb96",
-   "tier": "p0",
-   "group": "icons/actions",
-   "title": "icon invest",
-   "prompt": "small game UI icon of gold coins into a pot, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-organize-4a0fc1fb",
-   "tier": "p0",
-   "group": "icons/actions",
-   "title": "icon organize",
-   "prompt": "small game UI icon of raised fist with banner, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-recruit-9d797f6f",
-   "tier": "p0",
-   "group": "icons/actions",
-   "title": "icon recruit",
-   "prompt": "small game UI icon of clasped handshake, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-talk-e3097146",
-   "tier": "p0",
-   "group": "icons/actions",
-   "title": "icon talk",
-   "prompt": "small game UI icon of speech bubble, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-wait-6063425e",
-   "tier": "p0",
-   "group": "icons/actions",
-   "title": "icon wait",
-   "prompt": "small game UI icon of hourglass, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
   {
    "id": "good-blocks-92a5620d",
    "tier": "p0",
@@ -781,341 +317,6 @@
    "notes": ""
   },
   {
-   "id": "goods-sheet-644710b6",
-   "tier": "p0",
-   "group": "icons/goods",
-   "title": "goods sheet",
-   "prompt": "inventory item sheet: wheat sheaf, bread loaf, flour sack, stone block, log stack, sand pile, paper, ink pot, pamphlet, pigment pots, cloth bolt, glass pane, garments, hammer tools, lute, gold coins",
-   "request": {
-    "prompt_style": "rd_pro__inventory_items",
-    "width": 256,
-    "height": 256,
-    "num_images": 1
-   },
-   "est_cost_usd": 0.18,
-   "notes": "one call draws a matched set; include_downloadable_data returns the item atlas"
-  },
-  {
-   "id": "icon-faith-85d2ed91",
-   "tier": "p0",
-   "group": "icons/meters",
-   "title": "icon faith",
-   "prompt": "small game UI icon of lit candle, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-gold-29451986",
-   "tier": "p0",
-   "group": "icons/meters",
-   "title": "icon gold",
-   "prompt": "small game UI icon of gold coin stack, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-health-564ed4a3",
-   "tier": "p0",
-   "group": "icons/meters",
-   "title": "icon health",
-   "prompt": "small game UI icon of red heart, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-hunger-9508a3bd",
-   "tier": "p0",
-   "group": "icons/meters",
-   "title": "icon hunger",
-   "prompt": "small game UI icon of bread loaf, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-mood-c2d13ad6",
-   "tier": "p0",
-   "group": "icons/meters",
-   "title": "icon mood",
-   "prompt": "small game UI icon of sun behind small cloud, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-power-c4187156",
-   "tier": "p0",
-   "group": "icons/meters",
-   "title": "icon power",
-   "prompt": "small game UI icon of raised banner on pole, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-trust-73e6f253",
-   "tier": "p0",
-   "group": "icons/meters",
-   "title": "icon trust",
-   "prompt": "small game UI icon of two joined hands, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-autumn-3e5e3a91",
-   "tier": "p0",
-   "group": "icons/seasons",
-   "title": "icon autumn",
-   "prompt": "small game UI icon of orange maple leaf, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-spring-46030de0",
-   "tier": "p0",
-   "group": "icons/seasons",
-   "title": "icon spring",
-   "prompt": "small game UI icon of sprouting seedling with flower, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-summer-25ecfbcf",
-   "tier": "p0",
-   "group": "icons/seasons",
-   "title": "icon summer",
-   "prompt": "small game UI icon of golden wheat sheaf and sun, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-winter-4f941d54",
-   "tier": "p0",
-   "group": "icons/seasons",
-   "title": "icon winter",
-   "prompt": "small game UI icon of bare branch with snow, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-busy-fdfcd209",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon busy",
-   "prompt": "small game UI icon of hammer mid-swing, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-cold-621d2a39",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon cold",
-   "prompt": "small game UI icon of blue snowflake, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-dead-f61f5104",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon dead",
-   "prompt": "small game UI icon of small skull, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-finding-food-3b4521be",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon finding food",
-   "prompt": "small game UI icon of basket with bread loaf, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-grieving-e3922e2a",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon grieving",
-   "prompt": "small game UI icon of wilted flower, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-happy-f8d37953",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon happy",
-   "prompt": "small game UI icon of smiling sun face, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-hungry-4ceb9208",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon hungry",
-   "prompt": "small game UI icon of empty bowl with spoon, warning feel, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-injured-4bc46d86",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon injured",
-   "prompt": "small game UI icon of bandaged arm, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-sick-92df90ab",
-   "tier": "p0",
-   "group": "icons/status",
-   "title": "icon sick",
-   "prompt": "small game UI icon of green face with sweat drop, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
    "id": "ui-button-c5bf7b01",
    "tier": "p0",
    "group": "icons/ui",
@@ -1266,166 +467,6 @@
    "notes": "ui_panel draws a matched chrome set; slice per element"
   },
   {
-   "id": "icon-drizzle-7e180c5d",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon drizzle",
-   "prompt": "small game UI icon of pale cloud with fine slanting drizzle, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-fog-6c76f6da",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon fog",
-   "prompt": "small game UI icon of low fog bank swallowing a rooftop, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-heavy-rain-aa8537ee",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon heavy rain",
-   "prompt": "small game UI icon of dark storm cloud with heavy rain, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-heavy-snow-ee1a9201",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon heavy snow",
-   "prompt": "small game UI icon of blizzard cloud, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-overcast-8e788526",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon overcast",
-   "prompt": "small game UI icon of flat grey cloud, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-rain-2b017fed",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon rain",
-   "prompt": "small game UI icon of grey cloud with rain streaks, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-rainbow-7248914e",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon rainbow",
-   "prompt": "small game UI icon of rainbow arc over small cloud, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-snow-dfa3832b",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon snow",
-   "prompt": "small game UI icon of white cloud with snowflakes, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-storm-1fa52396",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon storm",
-   "prompt": "small game UI icon of cloud with lightning bolt, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
-   "id": "icon-sun-eecfc994",
-   "tier": "p0",
-   "group": "icons/weather",
-   "title": "icon sun",
-   "prompt": "small game UI icon of bright sun, simple, readable at tiny size",
-   "request": {
-    "prompt_style": "rd_mini__skill_icon",
-    "width": 32,
-    "height": 32,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.24,
-   "notes": "batch of 4 variants; keep the clearest"
-  },
-  {
    "id": "decor-marginalia-hybrid-4d9b2961",
    "tier": "p1",
    "group": "art-history",
@@ -1472,22 +513,6 @@
    },
    "est_cost_usd": 0.12,
    "notes": "painted halls as clout (#804)"
-  },
-  {
-   "id": "goods-print-sheet-28e12e22",
-   "tier": "p1",
-   "group": "art-history",
-   "title": "goods print sheet",
-   "prompt": "inventory item sheet: a small woodcut print, monochrome hatched engraving of a hare on aged paper, durer style",
-   "request": {
-    "prompt_style": "rd_pro__inventory_items",
-    "width": 256,
-    "height": 256,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "a printmaker's sellable print good (#804)"
   },
   {
    "id": "sign-engraved-de5f19db",
@@ -1628,7 +653,7 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
    "id": "scot-bridge-of-sighs-d7979a23",
@@ -1644,14 +669,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-calton-folly-49fb32dd",
+   "id": "scot-calton-folly-e57753e4",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot calton folly",
-   "prompt": "single isometric medieval village asset: unfinished greek temple columns alone on a hilltop, grey scottish light",
+   "prompt": "single isometric medieval village asset: roofless ruined chapel, bare gothic arches alone on a hilltop, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1660,14 +685,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-camera-obscura-5014f35d",
+   "id": "scot-camera-obscura-63932438",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot camera obscura",
-   "prompt": "single isometric medieval village asset: old outlook tower with a domed camera chamber on top, grey scottish light",
+   "prompt": "single isometric medieval village asset: round stone watchtower with a timber lookout chamber on top, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1676,14 +701,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-cannonball-house-fdffc9e1",
+   "id": "scot-cannonball-house-64713408",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot cannonball house",
-   "prompt": "single isometric medieval village asset: stone merchant house with a cannonball lodged in its gable wall, grey scottish light",
+   "prompt": "single isometric medieval village asset: stone merchant house with a patched war scar in its gable wall, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1692,14 +717,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-cone-statue-7aa650a4",
+   "id": "scot-cone-statue-b6071d7d",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot cone statue",
-   "prompt": "single isometric medieval village asset: equestrian statue with a traffic cone on its head, grey scottish light",
+   "prompt": "single isometric medieval village asset: weathered stone equestrian statue on a plinth, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1708,7 +733,7 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
    "id": "scot-edinburgh-castle-crag-25ab04c1",
@@ -1724,7 +749,7 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
    "id": "scot-edinburgh-crown-spire-3e360d4d",
@@ -1740,14 +765,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-edinburgh-land-f6be6282",
+   "id": "scot-edinburgh-land-d23f93c0",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot edinburgh land",
-   "prompt": "single isometric medieval village asset: tall narrow old town tenement 'land', six storeys, harled stone, crow-stepped gables, dormer windows, grey scottish light",
+   "prompt": "single isometric medieval village asset: tall narrow stone burgh 'land', six storeys, harled stone, crow-stepped gables, dormer windows, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1756,14 +781,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-finnieston-crane-0d601a96",
+   "id": "scot-finnieston-crane-cbec56d9",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot finnieston crane",
-   "prompt": "single isometric medieval village asset: giant grey cantilever crane over a river, grey scottish light",
+   "prompt": "single isometric medieval village asset: timber treadwheel dockside crane over a river quay, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1772,14 +797,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-georgian-crescent-99ea9db0",
+   "id": "scot-georgian-crescent-9b407c67",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot georgian crescent",
-   "prompt": "single isometric medieval village asset: blonde sandstone georgian terrace, columns and fanlights, grey scottish light",
+   "prompt": "single isometric medieval village asset: curved row of stone burgh houses, stepped gables facing a green, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1788,14 +813,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-glasgow-blonde-tenement-3ff9f2f9",
+   "id": "scot-glasgow-blonde-tenement-16238db7",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot glasgow blonde tenement",
-   "prompt": "single isometric medieval village asset: honey blonde sandstone tenement with a corner turret, grey scottish light",
+   "prompt": "single isometric medieval village asset: honey sandstone burgh house with a corner turret, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1804,14 +829,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-glasgow-cathedral-0f5b67e8",
+   "id": "scot-glasgow-cathedral-39974026",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot glasgow cathedral",
-   "prompt": "single isometric medieval village asset: dark gothic cathedral, soot-blackened stone, grey scottish light",
+   "prompt": "single isometric medieval village asset: dark gothic cathedral, weathered stone, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1820,14 +845,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-glasgow-red-tenement-5682eaf9",
+   "id": "scot-glasgow-red-tenement-53755180",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot glasgow red tenement",
-   "prompt": "single isometric medieval village asset: red sandstone tenement block, four storeys, bay windows, grey scottish light",
+   "prompt": "single isometric medieval village asset: red sandstone burgh house, three storeys, steep slated roof, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1836,14 +861,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-necropolis-692760bd",
+   "id": "scot-necropolis-f3916c14",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot necropolis",
-   "prompt": "single isometric medieval village asset: hilltop victorian cemetery, monument spires along the skyline, grey scottish light",
+   "prompt": "single isometric medieval village asset: hilltop kirkyard, stone crosses and a lychgate along the skyline, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1852,14 +877,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-painted-terrace-5e5e65e8",
+   "id": "scot-painted-terrace-612ba2f9",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot painted terrace",
-   "prompt": "single isometric medieval village asset: curved terrace of brightly painted shopfronts, grey scottish light",
+   "prompt": "single isometric medieval village asset: curved row of timber-fronted shops with painted signboards, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1868,14 +893,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-peoples-palace-987db61c",
+   "id": "scot-peoples-palace-3310baf5",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot peoples palace",
-   "prompt": "single isometric medieval village asset: red sandstone museum with a glass winter-gardens dome, grey scottish light",
+   "prompt": "single isometric medieval village asset: stone guildhall with a timber-louvred roof lantern, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1884,14 +909,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-saracen-bandstand-6ffa24d8",
+   "id": "scot-saracen-bandstand-b5aadf10",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot saracen bandstand",
-   "prompt": "single isometric medieval village asset: ornate victorian cast-iron bandstand, grey scottish light",
+   "prompt": "single isometric medieval village asset: canopied timber market cross pavilion, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1900,14 +925,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-scene-edinburgh-street-64d33c3f",
+   "id": "scot-scene-edinburgh-street-2589df50",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot scene edinburgh street",
-   "prompt": "single isometric medieval village asset, wide view: steep old town street of tall tenements and crow-stepped gables under a low grey sky, villagers of varied ages and skin tones",
+   "prompt": "single isometric medieval village asset, wide view: steep old burgh street of tall stone lands and crow-stepped gables under a low grey sky, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -1918,11 +943,11 @@
    "notes": ""
   },
   {
-   "id": "scot-scene-glasgow-green-2f8a15ce",
+   "id": "scot-scene-glasgow-green-570df6c7",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot scene glasgow green",
-   "prompt": "single isometric medieval village asset, wide view: sandstone tenements round a green, a gaudy venetian-gothic factory at one edge, villagers of varied ages and skin tones",
+   "prompt": "single isometric medieval village asset, wide view: sandstone burgh houses round a green, a stone kirk at one edge, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -1933,11 +958,11 @@
    "notes": ""
   },
   {
-   "id": "scot-scott-monument-2099d9be",
+   "id": "scot-scott-monument-848f83b1",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot scott monument",
-   "prompt": "single isometric medieval village asset: spindly black victorian gothic rocket-spire monument, grey scottish light",
+   "prompt": "single isometric medieval village asset: slender gothic market cross, crocketed spire and pinnacles, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1946,14 +971,14 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
-   "id": "scot-templeton-factory-d187c4a2",
+   "id": "scot-templeton-factory-709cbbf8",
    "tier": "p1",
    "group": "regions/scotland",
    "title": "scot templeton factory",
-   "prompt": "single isometric medieval village asset: carpet factory dressed as a venetian gothic palace, polychrome glazed brick, grey scottish light",
+   "prompt": "single isometric medieval village asset: great stone wool hall with tall mullioned windows, grey scottish light",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 160,
@@ -1962,7 +987,7 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
    "id": "scot-tolbooth-steeple-13dafcd1",
@@ -1978,7 +1003,7 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
    "id": "scot-whitehorse-close-a6d0b1dd",
@@ -1994,7 +1019,7 @@
     "remove_bg": true
    },
    "est_cost_usd": 0.18,
-   "notes": "real building - Edinburgh or Glasgow landmark"
+   "notes": "Scottish burgh landmark, medievalized"
   },
   {
    "id": "scene-church-service-3bba79cd",

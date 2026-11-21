@@ -1,0 +1,29 @@
+{
+ "created_at": 1795281803,
+ "credit_cost": 2,
+ "balance_cost": 0.0,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "b8cf220c-a7c8-4a95-ae39-61604fde2054",
+ "outputs_retained_until": 1795368196,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 84,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "sign-engraved-de5f19db",
+ "prompt": "single isometric medieval village asset: hanging shop sign, a wood-engraved monochrome hare in dense hatched lines on a weathered board, durer style",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 96,
+  "height": 96,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-21T12:23:22",
+ "seconds": 7.0
+}

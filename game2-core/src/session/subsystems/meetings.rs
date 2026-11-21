@@ -2,6 +2,10 @@
 
 use crate::session::*;
 
+/// How warm a follower's tie to someone must be before they'll name them
+/// as who they do it for (#1267)
+const PROBE_NAME_TIE: f32 = 0.5;
+
 impl Game {
     /// The end of a house meeting, once those who came have talked it over.
     /// Those who already trust you join the org; everyone who came gets to
@@ -389,7 +393,9 @@ impl Game {
         if stayed > 0 {
             msg = format!("{} - {} of those asked stayed home.", msg.trim_end_matches('.'), stayed);
         }
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, bought: plan.bought });
+        // an unanswered question-question leaves the matter (#1267)
+        self.seats[seat].frame_offer = None;
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, bought: plan.bought });
         msg
     }
 
@@ -397,11 +403,13 @@ impl Game {
     /// what's on their mind - now and then a secret slips out, and every
     /// parallel complaint already voiced makes the next speaker likelier
     /// to share their own. Three voices in a family surface an issue.
-    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool)) -> Vec<(Entity, String)> {
+    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool), probe: bool) -> Vec<(Entity, String)> {
         // the seat that called it hosts: its player asks, and hears what comes out
         let host_e = self.seats[seat].player;
         if came.is_empty() { return vec![]; }
-        let mut lines = vec![(host_e, MEETING_PROMPTS[0].to_string())];
+        // the probe replaces the host's question (#1267)
+        let ask = if probe { crate::game::dialogue_trees::MEET_PROBE.text } else { MEETING_PROMPTS[0] };
+        let mut lines = vec![(host_e, ask.to_string())];
         self.voiced.clear();
         // what each attendee says when no secret comes out of them: the
         // meeting's talk from conversation::run_meeting - answers to the
@@ -409,15 +417,20 @@ impl Game {
         // seeded off the meeting, not the game's rng
         let (mut said, mut host_q, rite, send_off) = {
             use crate::game::conversation::{run_meeting, MeetingLine, Rng as TalkRng, Speaker};
-            use crate::game::dialogue_trees::{meeting_pool, MEET_PROMPT, MEET_RITES};
+            use crate::game::dialogue_trees::{meeting_pool, MEET_PROBE, MEET_PROBE_LINES, MEET_PROMPT, MEET_RITES};
             let speakers: Vec<Speaker> = came.iter()
                 .map(|&v| dialogue::speaker_of(&self.world, v, &self.name_of(v), self.tick)).collect();
-            let pools: Vec<Vec<MeetingLine>> = speakers.iter().map(meeting_pool).collect();
+            let pools: Vec<Vec<MeetingLine>> = speakers.iter().map(|s| {
+                let mut p = meeting_pool(s);
+                if probe { p.extend_from_slice(MEET_PROBE_LINES); }
+                p
+            }).collect();
+            let prompt = if probe { &MEET_PROBE } else { &MEET_PROMPT };
             let pool_refs: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
             let refs: Vec<&Speaker> = speakers.iter().collect();
             let host = self.world.get_component::<PlayerCharacter>(host_e).map(|p| p.name.clone()).unwrap_or_default();
             let seed = self.tick.wrapping_mul(0x51_7CC1) ^ came.iter().fold(0u64, |h, &v| h.rotate_left(7) ^ v as u64);
-            let record = run_meeting(&Speaker::new(&host), &refs, &MEET_PROMPT, &pool_refs, &MEET_RITES, &mut TalkRng::new(seed));
+            let record = run_meeting(&Speaker::new(&host), &refs, prompt, &pool_refs, &MEET_RITES, &mut TalkRng::new(seed));
             // the record frames the floor: statement 0 is the rite, the
             // last is the send-off - they air first and last, whoever gave
             // them (the host stands in when the organizer did)
@@ -450,6 +463,13 @@ impl Game {
         for round in 0..2 {
             for (ci, &v) in came.iter().enumerate() {
                 let Some(i) = self.villagers.iter().position(|x| *x == v) else { continue };
+                // the probe's first round: each answers as deep as they trust
+                if probe && round == 0 {
+                    if let Some(line) = self.probe_answer(host_e, v, came) {
+                        lines.push((v, line));
+                        continue;
+                    }
+                }
                 let mine: crate::engine::det::HashSet<desires::IssueTag> =
                     desires::unrevealed(&self.world, v, self.tick).iter()
                         .map(|r| desires::issue_tag(&self.world, v, r)).collect();
@@ -512,7 +532,66 @@ impl Game {
         // is the last word of the night (#1185)
         lines.insert(0, rite);
         lines.push(send_off);
+        // the question stays with them: each who heard it goes home with
+        // a want they didn't carry, ripening in its own time (#1267)
+        if probe {
+            for &v in came {
+                let seed = self.rng.next();
+                desires::plant_want(&mut self.world, v, host_e, self.tick, seed);
+            }
+        }
         lines
+    }
+
+    /// One attendee's answer to the probe (#1267), as deep as they trust
+    /// the asker: a follower names who they do it for - the room hears
+    /// the bond, and so does the lord's ear if it's in the room - a
+    /// guarded one gives up a want and no more. None: nothing to give,
+    /// they take their turn like any other
+    fn probe_answer(&mut self, asker: Entity, v: Entity, came: &[Entity]) -> Option<String> {
+        use crate::game::organizing::{friends_of, stage_of, RelStage};
+        let name = self.name_of(v);
+        if stage_of(&self.world, asker, v) >= RelStage::Follower {
+            let loved = friends_of(&self.world, v, 3).into_iter().find(|&f| f != asker
+                && relationships::find_relationship(&self.world, v, f)
+                    .and_then(|r| self.world.get_component::<relationships::Relationship>(r))
+                    .map(|r| r.strength >= PROBE_NAME_TIE).unwrap_or(false));
+            if let Some(l) = loved {
+                use crate::game::dialogue_trees::PROBE_NAMES;
+                let lname = self.name_of(l);
+                let said = PROBE_NAMES[(self.rng.next() % PROBE_NAMES.len() as u64) as usize].replace("{name}", &lname);
+                self.log_entity_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    asker,
+                    format!("t{}: {} names {} - who they're doing it for. The room knows it now.", self.tick, name, lname),
+                );
+                // the cost of a true answer: the lord's man takes the name home
+                if self.plant.map(|p| came.contains(&p)).unwrap_or(false) {
+                    desires::add_grievance(&mut self.world, l, desires::Problem::WritBorne, self.tick + 30);
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                        asker,
+                        format!("t{}: the lord's ear was in the room - a writ finds {}.", self.tick, lname),
+                    );
+                }
+                return Some(said);
+            }
+        }
+        let wants: Vec<desires::Want> = desires::unrevealed(&self.world, v, self.tick).into_iter()
+            .filter_map(|r| match r { desires::Reveal::Want(w) => Some(w), _ => None }).collect();
+        if wants.is_empty() { return None; }
+        let r = desires::Reveal::Want(wants[(self.rng.next() % wants.len() as u64) as usize]);
+        let (_, said) = desires::reveal_speech(&name, &r);
+        self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
+        if let Some(issue) = desires::hear(&mut self.world, asker, v, r, self.tick) {
+            self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+            self.log_entity_ev(
+                EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                asker,
+                format!("t{}: Organizer discovers issue {}", self.tick, issue),
+            );
+        }
+        Some(said)
     }
 
     /// The scheduled parts of a meeting, spliced into its lines and
@@ -595,7 +674,7 @@ impl Game {
                     let in_room = |e: Option<Entity>| e.map(|e| m.invited.contains(&e)).unwrap_or(false);
                     m.roles = (in_room(m.role_people[0]), in_room(m.role_people[1]),
                         in_room(m.role_people[2]), in_room(m.role_people[3]), in_room(m.role_people[4]));
-                    m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles());
+                    m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe);
                     self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);
                     // the TALK panel keeps the meeting's record as it's said

@@ -192,6 +192,11 @@ Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to
 share. Three voices on one trouble inside a year and the organizer sees
 the issue - shown on the panel's ISSUES line.
+Once a meeting's day is picked, the call asks what you'll ask: put the
+matter, or **probe** - what do you actually want, and who are you doing
+it for? Followers name who they do it for (and if the lord's man is in
+the room, a writ finds that name); the guarded give up a want. Everyone
+who heard it carries a new want home that ripens about ten days later.
 
 ### What Emerges
 

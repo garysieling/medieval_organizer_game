@@ -2715,6 +2715,21 @@ impl Game {
             }
             return;
         }
+        // the call's question: put the matter, or probe what they
+        // actually want (#1267)
+        if self.seats[seat].frame_offer.take().is_some() {
+            let probe = pick == 1;
+            if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+                p.probe = probe;
+            }
+            if probe {
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: you'll not put the matter this time - you'll ask them what they actually want.", self.tick),
+                );
+            }
+            return;
+        }
         // the call's own day: two days out, four, or a week - the plan
         // keeps taking yeses and roles until the door
         if self.seats[seat].meet_offer.take().is_some() {
@@ -2727,6 +2742,8 @@ impl Game {
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
                 p.for_day = Some(for_day);
             }
+            // and then what's asked when they're in (#1267)
+            self.seats[seat].frame_offer = Some(self.tick);
             self.notices.push((
                 "meet".into(),
                 format!("the word's out - folk gather at {} in {} days", label, n),

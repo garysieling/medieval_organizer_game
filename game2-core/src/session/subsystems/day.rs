@@ -132,6 +132,7 @@ impl Game {
         // what the probing question planted ripens into a want they
         // carry; one who's warm to the asker comes a step nearer (#1267)
         for v in self.villagers.clone() {
+            if crate::game::villager::is_dead(&self.world, v) { continue; }
             for (w, asker) in desires::ripen_planted(&mut self.world, v, tick) {
                 use crate::game::organizing::{stage_of, RelStage};
                 if stage_of(&self.world, asker, v) < RelStage::Known { continue; }

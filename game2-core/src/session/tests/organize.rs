@@ -1033,3 +1033,17 @@ fn test_the_matter_plants_nothing() {
     g.meeting_lines(&[v], 0, (false, false, false, false, false), false);
     assert!(g.world.get_component::<Planted>(v).is_none());
 }
+
+#[test]
+fn test_a_planted_want_dies_with_its_hearer() {
+    use crate::game::desires::{InnerLife, Planted, PLANT_RIPEN_DAYS};
+    let mut g = Game::new();
+    let v = g.villagers[3];
+    g.world.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true);
+    assert!(g.world.get_component::<Planted>(v).is_some());
+    g.world.add_component(v, crate::game::villager::Dead);
+    let t = g.tick + PLANT_RIPEN_DAYS;
+    g.livelihood_tick(t);
+    assert!(g.world.get_component::<InnerLife>(v).unwrap().wants.is_empty(), "the dead take no new wants");
+}

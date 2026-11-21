@@ -914,6 +914,8 @@ impl Game {
     /// way back - this is just the floor under "stuck forever".
     pub fn marks_tick(&mut self, tick: u64) {
         for v in self.villagers.clone() {
+            // an argument they've turned over long enough takes (#1234)
+            crate::game::persuasion::mature(&mut self.world, v, tick);
             crate::game::reactions::cool_off(&mut self.world, v, tick);
             crate::game::actions::lifts_with_time(&mut self.world, v, tick);
             // and a name fades the same way: esteem cools without upkeep,

@@ -45,6 +45,7 @@ pub mod campaign_arc;
 pub mod org_skills;
 pub mod actions;
 pub mod reactions;
+pub mod persuasion;
 pub mod dungeon;
 pub mod conversation;
 pub mod dialogue_trees;

@@ -411,10 +411,19 @@ impl Game {
     pub fn villagers_chat(&mut self, a: Entity, b: Entity) -> bool {
         if a == b { return false; }
         let (na, nb) = (self.name_of(a), self.name_of(b));
-        let sa = speaker_of(&self.world, a, &na, self.tick);
-        let sb = speaker_of(&self.world, b, &nb, self.tick);
+        let mut sa = speaker_of(&self.world, a, &na, self.tick);
+        let mut sb = speaker_of(&self.world, b, &nb, self.tick);
         let kids = (sa.status.contains(&"child"), sb.status.contains(&"child"));
         if kids.0 != kids.1 { return false; }
+        // two members of one cause carry its register in the street too
+        // (#1228): the org they both belong to puts the fact on them both
+        let shared_cause = self.world.query::<crate::sim::community::Organization>().iter().any(|&o|
+            self.world.get_component::<crate::sim::community::Organization>(o)
+                .map(|g| g.members.contains(&a) && g.members.contains(&b)).unwrap_or(false));
+        if shared_cause {
+            sa.status.push("cause_member");
+            sb.status.push("cause_member");
+        }
         // a pair the table knows plays their signature scene instead of
         // small talk (#1227): depth where the village has a story, and
         // the take it plays moves with the bond - then a fortnight's
@@ -508,10 +517,25 @@ impl Game {
         // how well they know you colours the talk - the trees key on the
         // stage as a status fact
         match crate::game::organizing::stage_of(&self.world, pe, v) {
+            // a first hello is still the street's weather: this talk
+            // itself already sits on the bond's tally, so Acquaintance
+            // only earns the neighbor register once they've met before
+            crate::game::organizing::RelStage::Acquaintance => {
+                let met_before = crate::game::relationships::find_relationship(&self.world, pe, v)
+                    .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                    .map(|r| r.interactions > 1).unwrap_or(false);
+                if met_before { villager.status.push("acquainted"); }
+            }
             crate::game::organizing::RelStage::Known => villager.status.push("known"),
             crate::game::organizing::RelStage::Follower => villager.status.push("follower"),
             crate::game::organizing::RelStage::CoLeader => villager.status.push("coleader"),
             _ => {}
+        }
+        // the seat's own wears the cause's colors too (#1228): the fact
+        // lands on their Speaker so the cause can key lines off it
+        if self.world.get_component::<crate::sim::community::Organization>(self.seats[seat].org)
+            .map(|o| o.members.contains(&v)).unwrap_or(false) {
+            villager.status.push("cause_member");
         }
         let mut asks = crate::game::organizing::ask_offers(&self.world, self.seats[seat].org, v, 0);
         // pressing is the act (#1226): the tally counts this talk the
@@ -729,6 +753,45 @@ impl Game {
         }
         v.extend(t.notes.iter().map(|n| TalkLine { who: None, name: String::new(), text: n.clone(), gist: false }));
         v
+    }
+
+    /// What a sworn villager opens a Talk with (#1228): the cause's own
+    /// weather, not the sky's - live org state where their stage earns
+    /// it. A real secret or a whispered clue outranks it; so does no
+    /// cause at all.
+    pub(in crate::session) fn cause_gist(&self, seat: usize, v: Entity) -> Option<(String, String)> {
+        use crate::game::organizing::{MeetingPlan, RelStage};
+        let pe = self.seats[seat].player;
+        if !matches!(crate::game::organizing::stage_of(&self.world, pe, v),
+            RelStage::Follower | RelStage::CoLeader) { return None; }
+        let plan = self.world.get_component::<MeetingPlan>(pe);
+        let issue = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
+            .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+            .map(|c| crate::game::desires::issue_name(c.issue.clone()));
+        let line = if let Some(d) = plan.and_then(|p| p.for_day) {
+            let when = match d.saturating_sub(self.tick) {
+                0 => "today".to_string(),
+                1 => "tomorrow".to_string(),
+                n => format!("in {} days", n),
+            };
+            match &issue {
+                Some(i) => format!("{} won't wait - we gather {}.", i, when),
+                None => format!("We gather {} - my door's ready.", when),
+            }
+        } else if plan.map(|p| !p.holders().is_empty()).unwrap_or(false) {
+            let n = plan.map(|p| p.holders().len()).unwrap_or(0);
+            match &issue {
+                Some(i) => format!("{} - we've {} promised already.", i, n),
+                None => format!("We've {} promised for the next meet.", n),
+            }
+        } else if let Some(i) = issue {
+            format!("{} sits on folk's minds - I keep it in mine too.", i)
+        } else if self.world.get_component::<crate::sim::community::Organization>(self.seats[seat].org)
+            .map(|o| o.members.iter().filter(|&&m| !villager::is_dead(&self.world, m)).count() > 1)
+            .unwrap_or(false) {
+            "We stand ready - say the word and we move.".to_string()
+        } else { return None; };
+        Some((format!("{} talks the cause", self.name_of(v)), line))
     }
 
     /// How the last sit-down with them ended, while it's still fresh

@@ -51,6 +51,11 @@ pub struct PersonV {
     pub sick: bool,
     /// Activity marker: 0 idle, 1 seeking food, 2 busy
     pub act_mark: u8,
+    /// The figure's stance for the pose sheet when one fits what
+    /// they're doing (a [`pose`] index; 0 keeps the usual still or
+    /// walk cycle) - absent on older servers (#1280)
+    #[serde(default)]
+    pub pose: u8,
     /// A pet bonded strongly to its owner (the <3 label)
     pub bond: bool,
     /// What the find box matches against, already folded by [`find_key`]:
@@ -659,4 +664,22 @@ pub struct UiModel {
     /// so the client's marker can point the way
     #[serde(default)]
     pub quest_target: Option<(f32, f32)>,
+}
+
+/// `PersonV.pose` values: the `rd/people/poses` cells, in order - 0
+/// keeps the usual still or walk cycle (#1280). Carrying, kneeling and
+/// waving are sliced but unwired until a finer state exists.
+pub mod pose {
+    pub const STILL: u8 = 0;
+    pub const HAMMERING: u8 = 1;
+    pub const HOEING: u8 = 2;
+    pub const SITTING: u8 = 3;
+    pub const WALKING: u8 = 4;
+    pub const SLEEPING: u8 = 5;
+    pub const CARRYING: u8 = 6;
+    pub const KNEELING: u8 = 7;
+    pub const WAVING: u8 = 8;
+    /// The cell's file name under rd/people/poses, by index - 1
+    pub const NAMES: [&str; 8] = ["hammering", "hoeing", "sitting", "walking",
+        "sleeping", "carrying", "kneeling", "waving"];
 }

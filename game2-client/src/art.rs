@@ -215,6 +215,10 @@ pub struct Art {
     /// postings and trades the pack has no figure for. Drawn standing at
     /// 1x by draw_animal; a missing name leaves the pack figure in use
     pub people: Vec<(String, Sprite)>,
+    /// The activity-pose stills (assets/rd/people/poses): a villager
+    /// mid-routine draws the cell for what they're doing - 0 keeps the
+    /// usual still or walk cycle (#1280)
+    pub poses: Vec<(String, Sprite)>,
     /// Generated UI icons (assets/rd/icons), by file name: icon-<slug>
     /// for the HUD marks, action buttons and meters, event-<slug> for
     /// the log's named events, good-<slug> for satchel goods. A missing
@@ -794,6 +798,12 @@ impl Art {
         self.people.iter().find(|(n, _)| n == name).map(|(_, s)| s)
     }
 
+    /// The pose still for a `pose::NAMES` cell ("hammering",
+    /// "sleeping"). None: the caller keeps the usual figure.
+    pub fn pose(&self, name: &str) -> Option<&Sprite> {
+        self.poses.iter().find(|(n, _)| n == name).map(|(_, s)| s)
+    }
+
     /// The generated icon for a token ("icon-sick", "event-flood",
     /// "good-bread"). None: the caller keeps its text glyph.
     pub fn icon(&self, name: &str) -> Option<&Sprite> {
@@ -1141,6 +1151,11 @@ impl Art {
             // 48px stills resampled to villager height at export
             people: PEOPLE_SPRITES.iter().copied().chain(events::VISIT_SLUGS.iter().copied())
                 .filter_map(|n| at(&format!("rd/people/{}.png", n)).map(|s| (n.to_string(), s)))
+                .collect(),
+            // the activity poses (assets/rd/people/poses): one still per
+            // cell the sheet carried, keyed by PersonV.pose (#1280)
+            poses: game2_core::session::model::pose::NAMES.iter()
+                .filter_map(|n| at(&format!("rd/people/poses/{}.png", n)).map(|s| (n.to_string(), s)))
                 .collect(),
             // the HUD's icon set (assets/rd/icons): a name that didn't
             // come back leaves its text glyph standing

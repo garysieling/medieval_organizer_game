@@ -12,7 +12,7 @@ fn test_a_visitor_draws_his_own_figure() {
     m.people.push(PersonV {
         e: u32::MAX, kind: PKind::Traveller, pos: (p.0 as f32, p.1 as f32),
         label: None, dead: false, kid: false, selected: false, in_reach: false,
-        hungry: false, sick: false, act_mark: 0, bond: false, look: 0,
+        hungry: false, sick: false, act_mark: 0, bond: false, look: 0, pose: 0,
         find: String::new(), person: Some("tinker".into()),
         sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0,
     });
@@ -45,7 +45,7 @@ fn test_a_visitor_draws_at_his_sprite_s_height() {
     m.people.push(PersonV {
         e: u32::MAX, kind: PKind::Traveller, pos: (tx, ty),
         label: None, dead: false, kid: false, selected: false, in_reach: false,
-        hungry: false, sick: false, act_mark: 0, bond: false, look: 0,
+        hungry: false, sick: false, act_mark: 0, bond: false, look: 0, pose: 0,
         find: String::new(), person: Some("refugee-family".into()),
         sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0,
     });
@@ -60,7 +60,7 @@ fn test_a_visitor_draws_at_his_sprite_s_height() {
     m.people.push(PersonV {
         e: u32::MAX, kind: PKind::Traveller, pos: (tx, ty),
         label: None, dead: false, kid: false, selected: false, in_reach: false,
-        hungry: false, sick: false, act_mark: 0, bond: false, look: 0,
+        hungry: false, sick: false, act_mark: 0, bond: false, look: 0, pose: 0,
         find: String::new(), person: Some("refugee-family".into()),
         sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0,
     });
@@ -92,7 +92,7 @@ fn test_a_travellers_label_draws() {
     m.people.push(PersonV {
         e: u32::MAX, kind: PKind::Traveller, pos: (tx, ty),
         label: Some("the tinker".into()), dead: false, kid: false, selected: false, in_reach: false,
-        hungry: false, sick: false, act_mark: 0, bond: false, look: 0,
+        hungry: false, sick: false, act_mark: 0, bond: false, look: 0, pose: 0,
         find: String::new(), person: Some("tinker".into()),
         sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0,
     });

@@ -610,8 +610,10 @@ impl Game {
                 .map(|h| h.value).unwrap_or(100.0),
             bubbles,
             castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),
+            // the market towns' own skyline: burgh houses off the
+            // region set, seeded per tile like the cottages (#1272)
             settlement_houses: self.map.settlement_houses.iter().map(|&(x, y)|
-                (x as f32, y as f32, BSprite::House((noise(x, y, 41) * 97.0) as usize))).collect(),
+                (x as f32, y as f32, BSprite::Burgh((noise(x, y, 41) * 97.0) as usize))).collect(),
             toasts: self.toasts.iter().filter(|(_, until, _, _)| self.tick < *until)
                 .map(|(m, _, at, born)| ToastV { text: m.clone(), at: *at, born: Some(*born) }).collect(),
             // only the lines the window would show - cloning the whole

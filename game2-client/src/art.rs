@@ -112,6 +112,23 @@ pub struct CastleGrand {
 }
 
 /// Every sprite the game draws, loaded once up front
+/// The burgh pieces' draw height: taller than a cottage, shorter than
+/// a keep - the market towns read grander than the village (#1272)
+const BURGH_H: usize = 80;
+
+/// The burgh set's single pieces under assets/rd/regions/scotland -
+/// the keeps (castle crag, crown spire) and the wide scenes stand
+/// apart from the house pool
+const BURGH_PIECES: [&str; 20] = [
+    "scot-baronial-turret", "scot-bridge-of-sighs", "scot-calton-folly",
+    "scot-camera-obscura", "scot-cannonball-house", "scot-cone-statue",
+    "scot-edinburgh-land", "scot-finnieston-crane", "scot-georgian-crescent",
+    "scot-glasgow-blonde-tenement", "scot-glasgow-cathedral",
+    "scot-glasgow-red-tenement", "scot-necropolis", "scot-painted-terrace",
+    "scot-peoples-palace", "scot-saracen-bandstand", "scot-scott-monument",
+    "scot-templeton-factory", "scot-tolbooth-steeple", "scot-whitehorse-close",
+];
+
 #[derive(Default)]
 pub struct Art {
     pub villager_sprites: Vec<Sprite>,
@@ -172,6 +189,13 @@ pub struct Art {
     /// The keep in each castle's courtyard (assets/rd/castle/keep*): the
     /// tallest thing the country raises. None: tower_s stands in.
     pub keep_s: Option<Sprite>,
+    /// The market towns' own skyline: the burgh set (assets/rd/regions/
+    /// scotland), resampled to burgh height at load. Empty: the cottages
+    /// stand in (#1272)
+    pub burgh: Vec<Option<Sprite>>,
+    /// The castle sites' own keep: the region set's crag, drawn at its
+    /// own size. None: keep_s or tower_s stands in (#1272)
+    pub burgh_keep: Option<Sprite>,
     pub church_s: Option<Sprite>,
     pub guildhall_s: Option<Sprite>,
     pub rival_house: Option<Sprite>,
@@ -1072,6 +1096,15 @@ impl Art {
                 None => [4, 3].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))) },
             castle_grand,
             keep_s,
+            // the country settlements' own skyline (#1272): the burgh
+            // set, 160px pieces resampled to townhouse height; the
+            // castles' crag stands at its own size
+            burgh: BURGH_PIECES.iter().map(|n|
+                at(&format!("rd/regions/scotland/{}.png", n))
+                    .map(|s| s.scaled((s.width * BURGH_H / s.height.max(1)).max(1), BURGH_H)))
+                .collect(),
+            burgh_keep: at("rd/regions/scotland/scot-edinburgh-castle-crag.png")
+                .or_else(|| at("rd/regions/scotland/scot-edinburgh-crown-spire.png")),
             // a generated stone church, else one of the pack's tall keeps
             church_s: chosen((1..=2).map(|i| at(&format!("rd/buildings/church{}.png", i))).collect())
                 .or_else(|| chosen([7, 8, 9].iter().map(|i| pack(&format!("Towers/Blue towers/castle_tower_blue({}).png", i))).collect())),

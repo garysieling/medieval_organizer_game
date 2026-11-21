@@ -993,6 +993,10 @@ pub enum BSprite {
     /// A workplace's own look; the index picks the variant (and the
     /// cottage that stands in when that look has no art)
     Work(WorkLook, usize),
+    /// A burgh house in a market town: the index picks from the
+    /// region's set (a cottage stands in where the set has no art) -
+    /// older servers never send it (#1272)
+    Burgh(usize),
 }
 
 /// The workplaces that wear their own look instead of a cottage's

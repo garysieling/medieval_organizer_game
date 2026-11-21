@@ -396,6 +396,13 @@ impl Game {
 
     /// A rung lands: what the village does to its own
     pub(in crate::session) fn apply_sanction(&mut self, v: Entity, s: Sanction, tick: u64) {
+        // the plea moment comes between the sentence and the service
+        // (#1256): a bonded voice may beg the court, and the card asks
+        // the player whether the crowd's temper should hear it
+        if s >= Sanction::Stocks
+            && self.try_plea(v, crate::game::sanctions::PleaSentence::Sanction(s)) {
+            return;
+        }
         let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("someone");
         // a bad word travels ahead of every rung
         self.rep_apply(v, RepAction::BadDeed);
@@ -622,6 +629,177 @@ impl Game {
         }
     }
 
+    /// The quality of mercy (#1256): between the sentence and its
+    /// service, a bonded voice may beg - kin first, then the truest
+    /// friend. The plea goes on the card and the sentence waits on it:
+    /// speak for mercy, or let it stand. True while the plea holds
+    pub(in crate::session) fn try_plea(&mut self,
+        condemned: Entity, s: crate::game::sanctions::PleaSentence) -> bool {
+        let tick = self.tick;
+        if self.plea.is_some() || self.dilemma.is_some() { return false; }
+        // one plea a neck a day - the softened re-entry can't re-beg
+        if self.last_plea == Some((condemned, tick)) { return false; }
+        // the voice the court hears: kin before friends, the strongest
+        // bond speaking. Nobody close enough, no plea - the sentence
+        // just lands
+        let mut best: Option<(Entity, f32, u8)> = None;
+        for re in self.world.query::<crate::game::relationships::Relationship>() {
+            let Some(r) = self.world.get_component::<crate::game::relationships::Relationship>(re) else { continue };
+            let other = if r.from == condemned { r.other }
+                else if r.other == condemned { r.from } else { continue };
+            let tier = match r.kind {
+                crate::game::relationships::RelKind::Family
+                | crate::game::relationships::RelKind::Lover => 2,
+                crate::game::relationships::RelKind::Friend => 1,
+                _ => continue,
+            };
+            if r.strength <= 0.4 { continue; }
+            if villager::is_dead(&self.world, other)
+                || crate::game::dungeon::unavailable(&self.world, other) { continue; }
+            let cand = (other, r.strength, tier);
+            if best.map(|(_, s, t)| (t, s) < (tier, r.strength)).unwrap_or(true) {
+                best = Some(cand);
+            }
+        }
+        let Some((pleader, _, _)) = best else { return false };
+        self.plea = Some(crate::game::sanctions::Plea { condemned, pleader, sentence: s });
+        self.last_plea = Some((condemned, tick));
+        let (pn, cn) = (self.name_of(pleader), self.name_of(condemned));
+        let what = match s {
+            crate::game::sanctions::PleaSentence::Sanction(x) => sanctions::label(x),
+            crate::game::sanctions::PleaSentence::Gibbet => "the rope",
+        };
+        let kin = matches!(self.world.query::<crate::game::relationships::Relationship>().iter()
+            .filter_map(|&re| self.world.get_component::<crate::game::relationships::Relationship>(re))
+            .find(|r| (r.from == condemned && r.other == pleader)
+                || (r.from == pleader && r.other == condemned))
+            .map(|r| r.kind), Some(crate::game::relationships::RelKind::Family
+                | crate::game::relationships::RelKind::Lover));
+        self.say(pleader, if kin { "Mercy - they're kin!" } else { "Mercy, I beg the village!" },
+            TALK_BUBBLE_SECS);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable),
+            format!("t{}: {pn} begs mercy for {cn} - {what} waits on the crowd's temper.", tick),
+            toast_spot(&self.world, condemned),
+            self.villagers.iter().position(|&v| v == condemned));
+        self.dilemma = Some(crate::session::events::MoralKnot {
+            text: format!("{pn} begs mercy for {cn} - {what} was read out. Speak for mercy, or let it stand?"),
+            branches: vec![
+                crate::session::events::DilemmaBranch {
+                    text: "speak for mercy".into(), debt: 0.0, victim: condemned },
+                crate::session::events::DilemmaBranch {
+                    text: "let it stand".into(), debt: 0.0, victim: condemned },
+            ] });
+        true
+    }
+
+    /// The plea answers (#1256): the player's word is crowd-weight, not
+    /// judge-weight - it moves the temper, the bench still decides. The
+    /// pleader's standing and the condemned's own name carry the rest.
+    /// Mercy softens what lands; a refused plea stings the pleader
+    pub(in crate::session) fn resolve_plea(&mut self, seat: usize, pick: usize) {
+        let Some(p) = self.plea.take() else { return };
+        let tick = self.tick;
+        let spoke_for = pick == 0;
+        let cn = self.name_of(p.condemned);
+        let mercy = 0.5 * self.rep_of(p.pleader) + 0.5 * self.rep_of(p.condemned)
+            + if spoke_for { 0.2 } else { -0.05 };
+        let granted = mercy >= 0.55;
+        if granted {
+            match p.sentence {
+                crate::game::sanctions::PleaSentence::Sanction(s) => {
+                    // the rung steps down the ladder - the stocks become
+                    // the crowd at the door, the road out becomes the
+                    // stocks. Below Gossip there's no rung to give
+                    let i = sanctions::LADDER.iter().position(|&x| x == s).unwrap_or(0);
+                    if i == 0 {
+                        self.log.push_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Notable),
+                            format!("t{}: mercy moves the crowd - {cn} walks free of it all.", tick));
+                    } else {
+                        let softer = sanctions::LADDER[i - 1];
+                        self.log.push_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Notable),
+                            format!("t{}: mercy moves the crowd - {cn}'s sentence softens to {}.",
+                                tick, sanctions::label(softer)));
+                        self.apply_sanction(p.condemned, softer, tick);
+                    }
+                }
+                crate::game::sanctions::PleaSentence::Gibbet => {
+                    // the rope stays in its coil - the cells take them,
+                    // where a ransom can still reach
+                    self.dungeon.push((p.condemned, tick));
+                    self.log.push_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Major),
+                        format!("t{}: mercy moves even the bailiff - {cn} goes to the castle's cells, not the rope.", tick));
+                }
+            }
+            // a plea that lands warms the beggar toward the voice that
+            // carried it
+            if spoke_for {
+                let pe = self.seats[seat].player;
+                relationships::record_interaction(&mut self.world, p.pleader,
+                    relationships::Interaction { other: pe,
+                        kind: relationships::InteractionKind::Conversation, intensity: 0.3 });
+            }
+        } else {
+            // the bench doesn't bend: the sentence lands as read, and
+            // the begging leaves its bruise - on the pleader always, and
+            // on the voice that let it stand
+            self.log.push_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
+                format!("t{}: the plea falls flat - {cn}'s sentence stands.", tick));
+            desires::add_grievance(&mut self.world, p.pleader, desires::Problem::Grief, tick + 30);
+            if !spoke_for {
+                let pe = self.seats[seat].player;
+                relationships::record_interaction(&mut self.world, p.pleader,
+                    relationships::Interaction { other: pe,
+                        kind: relationships::InteractionKind::Conflict, intensity: 0.25 });
+            }
+            match p.sentence {
+                crate::game::sanctions::PleaSentence::Sanction(s) =>
+                    self.apply_sanction(p.condemned, s, tick),
+                crate::game::sanctions::PleaSentence::Gibbet =>
+                    self.gibbet_death(p.condemned, tick),
+            }
+        }
+    }
+
+    /// The sentence lands as it was read (#1256): for a plea whose card
+    /// never got its answer - no sting, the begging was never heard out
+    pub(in crate::session) fn land_sentence(&mut self,
+        p: crate::game::sanctions::Plea, tick: u64) {
+        match p.sentence {
+            crate::game::sanctions::PleaSentence::Sanction(s) =>
+                self.apply_sanction(p.condemned, s, tick),
+            crate::game::sanctions::PleaSentence::Gibbet =>
+                self.gibbet_death(p.condemned, tick),
+        }
+    }
+
+    /// The gibbet at max repression (#1256): the bailiff returns with
+    /// knights and the village watches it done. Extracted so the
+    /// refused plea can land the same death
+    fn gibbet_death(&mut self, m: Entity, tick: u64) {
+        let name = self.name_of(m);
+        let at = self.world.get_component::<Pos>(m).map(|p| (p.x, p.y));
+        self.world.add_component(m, villager::Dead);
+        if let Some(i) = self.villagers.iter().position(|&x| x == m) {
+            self.died_on[i] = Some(tick);
+        }
+        if let Some(p) = self.world.get_component::<Pos>(m) {
+            self.martyr_grave = Some((p.x.round() as i32, p.y.round() as i32));
+        }
+        self.repression_debt = 0;
+        self.log_entity_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), m,
+            format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
+        // mass grief: everyone saw it
+        for v in self.villagers.iter().take(8).copied().collect::<Vec<_>>() {
+            if !villager::is_dead(&self.world, v) {
+                desires::add_grievance(&mut self.world, v, desires::Problem::Grief, tick + 60);
+            }
+        }
+        // and the wronged remember: the spark of recruits arrives on a
+        // delay - repression's deferred debt
+        if let Some(at) = at { self.mark_radicalized(at, tick); }
+    }
+
     /// Their standing with the crowd (seeded mid if never tracked)
     pub(in crate::session) fn rep_of(&mut self, v: Entity) -> f32 {
         if self.world.get_component::<ReputationState>(v).is_none() {
@@ -787,27 +965,12 @@ impl Game {
                         .map(|o| o.members.contains(&m)).unwrap_or(false);
                     if member && self.lord_esteem > 0.7 && debt >= 2 {
                         // the third defiance: the bailiff doesn't come back
-                        // alone - a writ at max repression is a gibbet
-                        let name = self.name_of(m);
-                        let at = self.world.get_component::<Pos>(m).map(|p| (p.x, p.y));
-                        self.world.add_component(m, villager::Dead);
-                        if let Some(i) = self.villagers.iter().position(|&x| x == m) {
-                            self.died_on[i] = Some(tick);
+                        // alone - a writ at max repression is a gibbet.
+                        // A bonded voice may still beg (#1256): the plea
+                        // waits on the card, and the rope waits on it
+                        if !self.try_plea(m, crate::game::sanctions::PleaSentence::Gibbet) {
+                            self.gibbet_death(m, tick);
                         }
-                        if let Some(p) = self.world.get_component::<Pos>(m) {
-                            self.martyr_grave = Some((p.x.round() as i32, p.y.round() as i32));
-                        }
-                        self.repression_debt = 0;
-                        self.log_entity_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), m, format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
-                        // mass grief: everyone saw it
-                        for v in self.villagers.iter().take(8).copied().collect::<Vec<_>>() {
-                            if !villager::is_dead(&self.world, v) {
-                                desires::add_grievance(&mut self.world, v, desires::Problem::Grief, tick + 60);
-                            }
-                        }
-                        // and the wronged remember: the spark of recruits
-                        // arrives on a delay - repression's deferred debt
-                        if let Some(at) = at { self.mark_radicalized(at, tick); }
                     } else if member && self.lord_esteem > 0.7 {
                         self.repression_debt += 1;
                         self.log_entity_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Major), m, format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));

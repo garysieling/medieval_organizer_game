@@ -18,6 +18,31 @@ pub struct StoodBy {
     pub at: u64,
 }
 
+/// What the plea stands in front of (#1256): the sentence as it was
+/// read - a village rung, or the writ's rope. Mercy doesn't unwrite it;
+/// it softens what lands
+#[derive(Debug, Clone, Copy)]
+pub enum PleaSentence {
+    /// A village rung - mercy drops it one step down the ladder
+    Sanction(Sanction),
+    /// The rope at max repression - mercy turns the gibbet to the
+    /// castle's cells, where a ransom can still reach
+    Gibbet,
+}
+
+/// A live plea for mercy (#1256): whose sentence waits on the card and
+/// whose voice begged. Set when the card goes up, cleared when it
+/// answers - the sentence itself sits deferred inside
+#[derive(Debug, Clone, Copy)]
+pub struct Plea {
+    /// Who the rope or the rung is for
+    pub condemned: Entity,
+    /// Who begged - kin first, then the truest friend
+    pub pleader: Entity,
+    /// What was read out
+    pub sentence: PleaSentence,
+}
+
 /// The rungs of the ladder, mildest to worst
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Sanction {

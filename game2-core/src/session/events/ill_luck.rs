@@ -639,6 +639,9 @@ impl Game {
     /// cradle's no babe. The talk says what it found and the fork goes
     /// on the card - name him before the village, or keep the name
     pub(in crate::session) fn ewe_cracked(&mut self, seat: usize) {
+        // another card's already up - the lid stays on until the
+        // card's free to ask the fork (#1256)
+        if self.dilemma.is_some() { return; }
         let Some(t) = self.ewe_theft.as_mut() else { return };
         if t.fork_open || t.held { return; }
         t.fork_open = true;

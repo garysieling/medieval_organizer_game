@@ -804,6 +804,9 @@ pub struct MeetingPlan {
     /// its slot and shows at the meeting, but the room reads a purchased
     /// yes cheaper - no friends pulled in their name, no kept-role warmth
     pub bought: Vec<Entity>,
+    /// The call's question is the probe, not the matter (#1267): what do
+    /// you actually want, who are you doing it for
+    pub probe: bool,
 }
 
 impl MeetingPlan {

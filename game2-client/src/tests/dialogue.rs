@@ -169,3 +169,22 @@ fn test_the_conversation_box_draws_its_buttons() {
         assert!(b.x >= CONVO_X && b.x + b.w <= CONVO_X + CONVO_W);
     }
 }
+
+#[test]
+fn test_the_calls_question_rows_decide_the_probe() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    g.seats[0].frame_offer = Some(g.tick);
+    let c = g.convo_panel_at(0).expect("the question on the box");
+    assert_eq!(c.title, "THE CALL - WHAT WILL YOU ASK");
+    assert!(c.decides && c.options.len() == 2);
+    match digit_cmd(Some(&c), 1) {
+        Some(Command::Decide(1)) => {}
+        other => panic!("a digit on the question picked: {:?}", other),
+    }
+    let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+    draw_convo_panel(&mut buf, &c, (-1, -1));
+    let (boxes, _) = convo_layout(&c);
+    assert!(boxes.len() >= c.options.len(), "both questions are buttons");
+    g.command(Command::Decide(1));
+    assert!(g.seats[0].frame_offer.is_none(), "the pick answers it");
+}

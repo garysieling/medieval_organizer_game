@@ -569,6 +569,8 @@ pub struct Meeting {
     /// still play in the room, but a purchased yes reads cheaper - no
     /// kept-promise warmth, no pull of friends in their name
     pub bought: Vec<Entity>,
+    /// The host asks the probe, not the matter (#1267)
+    pub probe: bool,
 }
 
 impl Meeting {

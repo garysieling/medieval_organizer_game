@@ -928,3 +928,122 @@ fn test_bought_promises_read_cheap_at_the_meeting() {
     // and the bought role counts nothing toward the kept-promise warmth
     assert!(!m.credit_roles().0, "a bought table reads cheap");
 }
+
+fn tie(g: &mut Game, a: Entity, b: Entity, strength: f32) {
+    relationships::record_interaction(&mut g.world, a, relationships::Interaction {
+        other: b, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    relationships::find_relationship(&g.world, a, b)
+        .and_then(|r| g.world.get_component_mut::<relationships::Relationship>(r)).unwrap().strength = strength;
+}
+
+#[test]
+fn test_the_day_pick_asks_what_the_call_will_ask() {
+    let mut g = Game::new();
+    let (host, bram) = (g.villagers[1], g.villagers[2]);
+    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
+    g.seats[0].meet_offer = Some(g.tick);
+    g.decide_at(0, 1);
+    assert!(g.seats[0].frame_offer.is_some(), "the day picked, the question's asked");
+    let p = g.convo_panel_at(0).expect("the question on the box");
+    assert_eq!(p.title, "THE CALL - WHAT WILL YOU ASK");
+    assert!(p.decides && p.options.len() == 2);
+    g.decide_at(0, 1);
+    assert!(g.seats[0].frame_offer.is_none());
+    assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().probe, "the probe is the plan's question");
+    assert!(g.ui_model().panel.meeting.unwrap().roles.iter().any(|r| r == "question: what they want"));
+}
+
+#[test]
+fn test_putting_the_matter_or_letting_it_lapse_keeps_the_matter() {
+    let mut g = Game::new();
+    let (host, bram) = (g.villagers[1], g.villagers[2]);
+    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
+    g.seats[0].frame_offer = Some(g.tick);
+    g.decide_at(0, 0);
+    assert!(!g.world.get_component::<MeetingPlan>(g.org).unwrap().probe);
+    g.seats[0].frame_offer = Some(g.tick);
+    g.livelihood_tick(g.tick + FOUNDING_OFFER_EXPIRY_DAYS);
+    assert!(g.seats[0].frame_offer.is_none(), "the question lapses");
+    assert!(!g.world.get_component::<MeetingPlan>(g.org).unwrap().probe, "and the matter stands");
+}
+
+#[test]
+fn test_a_probe_meeting_asks_what_they_want_and_who_for() {
+    use crate::game::desires::{InnerLife, Known, Reveal, Want};
+    let mut g = Game::new();
+    let pe = g.player;
+    let (deep, loved, guarded) = (g.villagers[1], g.villagers[2], g.villagers[3]);
+    tie(&mut g, pe, deep, 0.8);
+    tie(&mut g, deep, loved, 0.95);
+    g.world.get_component_mut::<InnerLife>(guarded).unwrap().wants = vec![Want::Music];
+    g.world.add_component(guarded, Known::default());
+    let came = vec![deep, guarded];
+    let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), true);
+    assert!(lines.iter().any(|(e, l)| *e == pe && l == crate::game::dialogue_trees::MEET_PROBE.text),
+        "the host asks the probe: {:?}", lines);
+    let loved_name = g.name_of(loved);
+    assert!(lines.iter().any(|(e, l)| *e == deep && l.contains(&loved_name)),
+        "the follower names who they do it for: {:?}", lines);
+    assert!(g.log.iter().any(|l| l.contains(&format!("names {}", loved_name))), "the room hears the bond");
+    assert!(g.world.get_component::<Known>(guarded).unwrap().revealed.contains(&Reveal::Want(Want::Music)),
+        "the guarded one gives up a want");
+}
+
+#[test]
+fn test_the_lords_ear_takes_the_name_home() {
+    use crate::game::desires::{InnerLife, Problem};
+    let mut g = Game::new();
+    let pe = g.player;
+    let (deep, loved, spy) = (g.villagers[1], g.villagers[2], g.villagers[4]);
+    tie(&mut g, pe, deep, 0.8);
+    tie(&mut g, deep, loved, 0.95);
+    g.plant = Some(spy);
+    g.meeting_lines(&[deep, spy], 0, (false, false, false, false, false), true);
+    assert!(g.world.get_component::<InnerLife>(loved).unwrap().grievances.iter()
+        .any(|(p, _)| *p == Problem::WritBorne), "a writ finds the one named");
+}
+
+#[test]
+fn test_the_probe_plants_a_want_that_ripens() {
+    use crate::game::desires::{InnerLife, Planted, PLANT_RIPEN_DAYS};
+    let mut g = Game::new();
+    let pe = g.player;
+    let v = g.villagers[3];
+    g.world.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
+    // known to you: a deed done
+    tie(&mut g, pe, v, 0.3);
+    let bond = relationships::find_relationship(&g.world, pe, v).unwrap();
+    g.world.add_component(bond, crate::game::organizing::Deeds { n: 1 });
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true);
+    let (w, _, _) = g.world.get_component::<Planted>(v).expect("the question stays with them").wants[0];
+    assert!(!g.world.get_component::<InnerLife>(v).unwrap().wants.contains(&w), "only a thought yet");
+    let before = g.world.get_component::<relationships::Relationship>(bond).unwrap().strength;
+    let t = g.tick + PLANT_RIPEN_DAYS;
+    g.livelihood_tick(t);
+    assert!(g.world.get_component::<InnerLife>(v).unwrap().wants.contains(&w), "it ripens into a want");
+    assert!(g.world.get_component::<relationships::Relationship>(bond).unwrap().strength > before,
+        "and the warm hearer comes a step nearer");
+}
+
+#[test]
+fn test_the_matter_plants_nothing() {
+    use crate::game::desires::Planted;
+    let mut g = Game::new();
+    let v = g.villagers[3];
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), false);
+    assert!(g.world.get_component::<Planted>(v).is_none());
+}
+
+#[test]
+fn test_a_planted_want_dies_with_its_hearer() {
+    use crate::game::desires::{InnerLife, Planted, PLANT_RIPEN_DAYS};
+    let mut g = Game::new();
+    let v = g.villagers[3];
+    g.world.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true);
+    assert!(g.world.get_component::<Planted>(v).is_some());
+    g.world.add_component(v, crate::game::villager::Dead);
+    let t = g.tick + PLANT_RIPEN_DAYS;
+    g.livelihood_tick(t);
+    assert!(g.world.get_component::<InnerLife>(v).unwrap().wants.is_empty(), "the dead take no new wants");
+}

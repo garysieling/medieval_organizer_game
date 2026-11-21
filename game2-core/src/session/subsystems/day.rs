@@ -124,6 +124,28 @@ impl Game {
                 .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
                 self.seats[seat].meet_offer = None;
             }
+            if self.seats[seat].frame_offer
+                .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+                self.seats[seat].frame_offer = None;
+            }
+        }
+        // what the probing question planted ripens into a want they
+        // carry; one who's warm to the asker comes a step nearer (#1267)
+        for v in self.villagers.clone() {
+            if crate::game::villager::is_dead(&self.world, v) { continue; }
+            for (w, asker) in desires::ripen_planted(&mut self.world, v, tick) {
+                use crate::game::organizing::{stage_of, RelStage};
+                if stage_of(&self.world, asker, v) < RelStage::Known { continue; }
+                relationships::record_interaction(&mut self.world, asker, relationships::Interaction {
+                    other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+                let name = self.name_of(v);
+                self.log_entity_ev(
+                    EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                    asker,
+                    format!("t{}: {} keeps turning your question over - {} - and comes a step nearer the cause.",
+                        tick, name, desires::want_label(w)),
+                );
+            }
         }
         // the felt worths slide a little back toward ordinary each day
         goods::drift(&mut self.world);

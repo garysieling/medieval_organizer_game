@@ -1287,6 +1287,21 @@ impl Game {
                 ],
                 decides: true, leave: false });
         }
+        if s.frame_offer.is_some() {
+            return Some(ConvoPanelV {
+                title: "THE CALL - WHAT WILL YOU ASK".into(),
+                rows: vec![
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                        text: "The word's out. When they're in the room, what's the question?".into() },
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                        text: "Put the matter and they'll talk the village's troubles. Ask what they want and you'll hear them - and it stays with them after.".into() },
+                ],
+                options: vec![
+                    "Put the matter - what ails the village".into(),
+                    "Probe - what do you actually want, and for whom?".into(),
+                ],
+                decides: true, leave: false });
+        }
         if let Some(d) = &s.pending_founding {
             let mut rows = self.record_rows(seat, d.record);
             let (lean, options) = match &d.vote {

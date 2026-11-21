@@ -484,3 +484,138 @@ fn test_the_slate_grows_with_the_cause_and_sends_an_organizer() {
     assert!(woke > 0, "the town's folk wake to the issue");
 }
 
+
+/// A bond strong enough for a door to answer (#1270)
+fn survey_bond(g: &mut Game, a: Entity, b: Entity) {
+    let r = g.world.create_entity();
+    g.world.add_component(r, crate::game::relationships::Relationship {
+        from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
+        strength: 0.5, interactions: 1 });
+}
+
+/// A four-hand cause on "the taxes" with the meeting pulled
+fn tax_cause(g: &mut Game, hands: usize) -> Entity {
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 400);
+    }
+    let grown: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .take(hands).collect();
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown;
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 0;
+    c
+}
+
+#[test]
+fn test_the_survey_motion_sends_the_doors_asking() {
+    let mut g = Game::new();
+    use crate::game::campaign::Motion;
+    let c = tax_cause(&mut g, 4);
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
+    let pick = slate.iter().position(|&m| m == Motion::Survey)
+        .expect("four hands carry the asking: {slate:?}");
+    g.decide_at(0, pick);
+    // the cause's own question's the only one on the floor, so the
+    // asking starts at once - no card, hands named, three days out
+    let sv = g.org_survey.clone().expect("the asking's under way");
+    assert_eq!(sv.campaign, c);
+    assert_eq!(sv.issue, "the taxes");
+    assert!(!sv.canvassers.is_empty() && sv.canvassers.len() <= 6);
+    assert_eq!(sv.days_left, 3);
+    assert!(g.survey_pick.is_none() && g.dilemma.is_none());
+    // and one round of asking at a time: the motion's off the slate
+    // while the count's out
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    assert!(!slate.contains(&Motion::Survey), "the asking's still out: {slate:?}");
+}
+
+#[test]
+fn test_the_floor_picks_the_surveys_question() {
+    let mut g = Game::new();
+    let c = tax_cause(&mut g, 4);
+    // a second question the organizer's heard ledger knows
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the wolves".into());
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|&m| m == crate::game::campaign::Motion::Survey).unwrap();
+    g.decide_at(0, pick);
+    // two candidate questions on the floor: the card asks which rides
+    let (cc, issues) = g.survey_pick.clone().expect("the floor's asked");
+    assert_eq!(cc, c);
+    assert_eq!(issues.len(), 2);
+    let k = g.dilemma.clone().expect("the card's out");
+    assert_eq!(k.branches.len(), 2);
+    // the second question it is - the asking starts on it
+    g.decide_at(0, 1);
+    let sv = g.org_survey.clone().expect("the asking's under way");
+    assert_eq!(sv.issue, "the wolves");
+    assert!(g.survey_pick.is_none() && g.dilemma.is_none());
+}
+
+#[test]
+fn test_the_count_comes_back_fuzzed_and_the_asking_feeds_the_eyes() {
+    let mut g = Game::new();
+    let c = tax_cause(&mut g, 4);
+    g.world.get_component_mut::<crate::game::campaign::Campaign>(c).unwrap()
+        .target = g.collector;
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|&m| m == crate::game::campaign::Motion::Survey).unwrap();
+    g.decide_at(0, pick);
+    let canvassers = g.org_survey.as_ref().unwrap().canvassers.clone();
+    // doors the ties can reach: three souls the canvassers know, two
+    // carrying the taxed worry themselves
+    let outside: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+            && !g.world.get_component::<Organization>(g.org).unwrap().members.contains(&v))
+        .take(3).collect();
+    for &v in &outside {
+        survey_bond(&mut g, canvassers[0], v);
+    }
+    desires::add_grievance(&mut g.world, outside[0], desires::Problem::Taxed, g.tick + 400);
+    desires::add_grievance(&mut g.world, outside[1], desires::Problem::Taxed, g.tick + 400);
+    // and the canvasser carries the worry too: a door that doesn't
+    // share it still answers "a friend has it" (#1270)
+    desires::add_grievance(&mut g.world, canvassers[0], desires::Problem::Taxed, g.tick + 400);
+    let reach = crate::game::campaign::survey_respondents(
+        &g.world, g.org, &canvassers, &g.villagers);
+    assert!(reach.len() >= 3, "the bonds carry the asking's reach: {reach:?}");
+    assert_eq!(crate::game::campaign::survey_ring(&g.world, outside[0], &"the taxes".into(), g.tick), 3,
+        "their own house has it");
+    assert_eq!(crate::game::campaign::survey_ring(&g.world, outside[2], &"the taxes".into(), g.tick), 1,
+        "a friend of theirs has it");
+    let pen_before = g.penetration;
+    // three days' asking, then the count lands
+    for _ in 0..30000 {
+        g.update();
+        if g.org_survey.is_none() { break; }
+    }
+    assert!(g.org_survey.is_none(), "the count came back");
+    assert!(g.log.iter().any(|l| l.contains("the count's back") && l.contains("answered")),
+        "the tally lands in the log: {:?}", g.log.iter().last());
+    // fuzzed, never named: no villager's name rides the count
+    let tally = g.log.iter().find(|l| l.contains("the count's back")).unwrap();
+    for &v in &outside {
+        if let Some(i) = g.villagers.iter().position(|&x| x == v) {
+            assert!(!tally.contains(vill_name(i)), "the count keeps no names: {tally}");
+        }
+    }
+    // and the asking fed the eyes inside - canvassing is what
+    // agitators do
+    assert!(g.penetration > pen_before, "the asking fed the eyes: {}", g.penetration);
+    // the doors themselves got walked: canvassers took the road out
+    assert!(g.log.iter().any(|l| l.contains("three days' asking")),
+        "the going-out was noted");
+}

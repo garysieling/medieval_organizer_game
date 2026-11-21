@@ -1177,6 +1177,12 @@ pub struct Game {
     /// say - the motive under the disguise, which card stage his
     /// fork's on, and whether a play's landed
     pub false_traveller: Option<crate::session::events::FalseTraveller>,
+    /// The org's survey (#1270): which campaign's asking, the issue,
+    /// the hands on the doors, the days left before the count
+    pub org_survey: Option<crate::game::campaign::OrgSurvey>,
+    /// The survey's issue card (#1270): the campaign asking and the
+    /// candidate issues in branch order, while the floor's pick waits
+    pub survey_pick: Option<(Entity, Vec<crate::game::desires::IssueTag>)>,
     /// The plea at sentencing (#1256): the sentence waits on the card -
     /// speak for mercy, or let it stand
     pub plea: Option<crate::game::sanctions::Plea>,

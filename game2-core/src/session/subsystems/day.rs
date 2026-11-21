@@ -545,6 +545,7 @@ impl Game {
         crate::timed!("sim.movement_school", self.movement_school_tick(tick));
         crate::timed!("sim.leader", self.leader_tick(tick));
         crate::timed!("sim.canvass", self.canvass_tick(tick));
+        crate::timed!("sim.survey", self.survey_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
         crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman

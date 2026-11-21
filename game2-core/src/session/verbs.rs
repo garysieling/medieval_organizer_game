@@ -2832,6 +2832,24 @@ impl Game {
                     crate::session::events::FalseTraveller { card: 0, ..ft });
             }
         }
+        // the survey's issue card answers its own way (#1270): every
+        // branch hangs on the campaign, pick and the asking starts
+        let ours = match (&self.survey_pick, &self.dilemma) {
+            (Some((c, issues)), Some(k)) => k.branches.len() == issues.len()
+                && k.branches.iter().all(|b| b.victim == *c),
+            _ => false,
+        };
+        if ours {
+            let (c, issues) = self.survey_pick.take().unwrap();
+            self.dilemma = None;
+            let issue = issues.get(pick).cloned().unwrap_or_else(|| issues[0].clone());
+            self.survey_begin(seat, c, issue);
+            return;
+        }
+        // a different knot took the card off it - the asking waits
+        if self.survey_pick.is_some() && self.dilemma.is_none() {
+            self.survey_pick = None;
+        }
         // the burdened man's knot answers first: a pick writes its debt
         // and the debt comes home when its day does
         if let Some(knot) = self.dilemma.take() {
@@ -3174,6 +3192,10 @@ impl Game {
             }),
             Motion::SendOrganizer =>
                 self.spare_organizer(seat, c).is_some() && self.open_post(c).is_some(),
+            // one round of asking at a time - and the floor's question
+            // card can't ride while another knot's out (#1270)
+            Motion::Survey => self.org_survey.is_none() && self.survey_pick.is_none()
+                && self.dilemma.is_none(),
             // a warm post is always worth staging - the vote's the point
             Motion::ParallelEvent(_) => true,
         }).collect()
@@ -3266,6 +3288,7 @@ impl Game {
             Motion::TwoFronts => format!("{} {}", self.march_at(seat), self.strike_at(seat)),
             Motion::SendOrganizer => self.dispatch_organizer(seat, c),
             Motion::ParallelEvent(site) => self.parallel_event_at(seat, site),
+            Motion::Survey => self.survey_motion(seat, c),
         }
     }
 
@@ -3402,6 +3425,71 @@ impl Game {
         let name = self.villagers.iter().position(|&v| v == who)
             .map(vill_name).unwrap_or("one of theirs");
         format!("the vote sends {} to raise {} for the cause.", name, self.sites[site].name)
+    }
+
+    /// The survey motion carried (#1270): the floor's asked which
+    /// question rides - the campaign's own cause plus what the
+    /// organizer's heard ledger knows. One candidate and the asking
+    /// starts at once
+    fn survey_motion(&mut self, seat: usize, c: Entity) -> String {
+        let Some(cc) = self.world.get_component::<crate::game::campaign::Campaign>(c)
+            .map(|cc| cc.issue.clone()) else {
+            return "There's no cause to ask for.".into();
+        };
+        let mut issues: Vec<crate::game::desires::IssueTag> = vec![cc];
+        let pe = self.seats[seat].player;
+        if let Some(o) = self.world.get_component::<crate::game::desires::Organizer>(pe) {
+            for i in &o.issues {
+                if !issues.contains(i) { issues.push(i.clone()); }
+            }
+        }
+        if issues.len() == 1 || self.dilemma.is_some() {
+            // one question, or another knot holding the card - either
+            // way the cause's own question rides
+            let name = crate::game::desires::issue_name(issues[0].clone());
+            self.survey_begin(seat, c, issues[0].clone());
+            return format!("the vote sends the doors asking about {name}.");
+        }
+        // which question rides is the floor's pick on the card
+        self.survey_pick = Some((c, issues.clone()));
+        self.dilemma = Some(crate::session::events::MoralKnot {
+            text: "the survey's carried - which question do the doors get asked?".into(),
+            branches: issues.iter().map(|i| crate::session::events::DilemmaBranch {
+                text: format!("ask about {}", crate::game::desires::issue_name(i.clone())),
+                debt: 0.0, victim: c }).collect(),
+        });
+        "the vote carries the asking - now the floor picks the question.".into()
+    }
+
+    /// The survey's own start (#1270): the free grown members carry
+    /// the question door to door - three days' asking, then the count
+    pub(in crate::session) fn survey_begin(&mut self, seat: usize, c: Entity,
+        issue: crate::game::desires::IssueTag) {
+        use crate::game::campaign::{OrgSurvey, SURVEY_MAX_HANDS};
+        let org = self.world.get_component::<crate::game::campaign::Campaign>(c)
+            .map(|cc| cc.org).unwrap_or(self.seats[seat].org);
+        let canvassers: Vec<Entity> = self.world.get_component::<Organization>(org)
+            .map(|o| o.members.iter().copied()
+                .filter(|&m| !villager::is_dead(&self.world, m)
+                    && self.world.get_component::<Kid>(m).is_none()
+                    && !crate::game::dungeon::unavailable(&self.world, m)
+                    && !self.seats.iter().any(|s| s.player == m))
+                .take(SURVEY_MAX_HANDS).collect())
+            .unwrap_or_default();
+        if canvassers.is_empty() { return; }
+        let name = crate::game::desires::issue_name(issue.clone());
+        self.org_survey = Some(OrgSurvey {
+            campaign: c, issue, canvassers,
+            days_left: crate::game::campaign::SURVEY_DAYS,
+            knocked: crate::engine::det::HashSet::default(),
+        });
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+            format!(
+                "t{}: the cause's survey goes out - hands on the doors, three days' asking about {name}.",
+                self.tick
+            ),
+        );
     }
 
     /// The parallel-event motion carried: the posted organizer stages

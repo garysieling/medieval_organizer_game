@@ -250,6 +250,10 @@ impl View {
             BSprite::RivalHouse => &self.art.rival_house,
             BSprite::RivalWoodhouse => &self.art.rival_woodhouse,
             BSprite::CastleKeep => &self.art.tower_s,
+            BSprite::Burgh(i) => {
+                if self.art.burgh.is_empty() { self.sprite_of(BSprite::House(i)) }
+                else { &self.art.burgh[i % self.art.burgh.len()] }
+            }
             BSprite::Work(w, i) => {
                 let set = if self.winter.get() { &self.art.works_winter[w as usize] } else { &self.art.works[w as usize] };
                 if set.is_empty() { self.sprite_of(BSprite::House(i)) } else { &set[i % set.len()] }
@@ -354,6 +358,11 @@ impl View {
         // pack fallback keeps the stretch it always had)
         let keep = art.keep_s.as_ref().or(art.tower_s.as_ref());
         let (kwk, kkh) = if art.castle_rd { (1.0, 1.0) } else { (KEEP_WK, KEEP_K) };
+        // the region set's crag stands for the castles' keeps when it
+        // loads, at its own size (#1272)
+        let (keep, kwk, kkh) = if art.burgh_keep.is_some() {
+            (art.burgh_keep.as_ref(), 1.0, 1.0)
+        } else { (keep, kwk, kkh) };
         standing.extend(m.castle_keeps.iter().map(|&(x, y)|
             (x, y, Piece::Castle(keep, kwk, kkh))));
         // a wood is a mix of the pack's trees, stable per tile

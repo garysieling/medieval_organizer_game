@@ -310,9 +310,11 @@ indexed ones are `House`, `Rowhouse` and `Barracks`. `Work`'s looks are
 `Workshop`, `Factory`, `Tailor`, `Glazier`, `Printshop`, `MasonsYard`,
 `Luthier` and `Farmhouse` - the sim names a look and the client's art
 pack resolves it to pixels, standing a cottage in where a look has no
-art yet. Older servers never send the company-town sprites (`Mansion`,
-`Rowhouse`, `Barracks`, `Factory`); a client that doesn't know a sprite
-should draw a cottage and move on.
+art yet. `Burgh(i)` (i: usize) marks a market town's own skyline, the
+region set standing a cottage in where it has no art. Older servers
+never send the company-town sprites (`Mansion`, `Rowhouse`, `Barracks`,
+`Factory`) or `Burgh`; a client that doesn't know a sprite should draw
+a cottage and move on.
 
 `well` and `hall` are the village well and meeting hall on the grass
 beside the market square - `[x,y]` tiles or absent (older servers omit

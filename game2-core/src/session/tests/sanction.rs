@@ -221,6 +221,9 @@ fn test_the_friend_steps_up_at_the_stocks() {
         stage: RepStage::Known, score: 0.3, transition_rates: vec![] });
     bond(&mut g, v, f, crate::game::relationships::RelKind::Friend, 0.9);
     g.apply_sanction(v, Sanction::Stocks, 10);
+    // the bond that steps up begs first - let the plea fall so the
+    // walk can happen
+    if g.plea.is_some() { g.decide_at(0, 1); }
     assert!(g.world.get_component::<crate::game::sanctions::StoodBy>(f).is_some(),
         "the stander's marked");
     assert!(g.log.iter().any(|l| l.contains("step") && l.contains("melt into the crowd")),
@@ -263,6 +266,7 @@ fn test_the_exposed_melt() {
     bond(&mut g, v, f, crate::game::relationships::RelKind::Friend, 0.7);
     grieve(&mut g, f, 4, 8);
     g.apply_sanction(v, Sanction::Stocks, 10);
+    if g.plea.is_some() { g.decide_at(0, 1); }
     assert!(g.world.get_component::<crate::game::sanctions::StoodBy>(f).is_none(),
         "most to fear means melting");
     assert!(g.log.iter().any(|l| l.contains("nobody steps up")));
@@ -329,4 +333,145 @@ fn test_the_organizer_stands_or_keeps_distance() {
     assert!(g2.log.iter().any(|l| l.contains("walks it alone")),
         "the distance is what the village reads");
     assert!(g2.world.get_component::<crate::game::sanctions::StoodBy>(g2.player).is_none());
+}
+
+/// Kin begs at the stocks - the sentence waits on the card (#1256)
+#[test]
+fn test_kin_begs_and_the_sentence_waits() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let k = it.next().unwrap();
+    g.world.add_component(v, ReputationState {
+        stage: RepStage::Known, score: 0.3, transition_rates: vec![] });
+    bond(&mut g, v, k, crate::game::relationships::RelKind::Family, 0.9);
+    g.apply_sanction(v, Sanction::Stocks, 10);
+    assert!(g.plea.map(|p| p.condemned == v && p.pleader == k).unwrap_or(false),
+        "her voice waits on the card");
+    assert!(g.dilemma.is_some(), "the fork's asked");
+    assert!(!g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Stocks),
+        "the stocks wait on the answer");
+    assert!(g.log.iter().any(|l| l.contains("begs mercy")));
+}
+
+/// The beloved's plea lands: the rung steps down the ladder (#1256)
+#[test]
+fn test_a_beloved_thief_gets_a_lighter_rung() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let k = it.next().unwrap();
+    // beloved pleader, middling condemned: mercy lands, but not so
+    // loved that the crowd refuses the softened stocks outright
+    g.world.add_component(v, ReputationState {
+        stage: RepStage::Known, score: 0.5, transition_rates: vec![] });
+    g.world.add_component(k, ReputationState {
+        stage: RepStage::Esteemed, score: 0.9, transition_rates: vec![] });
+    bond(&mut g, v, k, crate::game::relationships::RelKind::Family, 0.9);
+    g.apply_sanction(v, Sanction::Exile, 10);
+    assert!(g.plea.is_some(), "the plea waits");
+    g.decide_at(0, 0);
+    assert!(g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Stocks),
+        "mercy softens the road out to the stocks");
+    assert!(!g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Exile));
+    assert!(g.log.iter().any(|l| l.contains("sentence softens")));
+}
+
+/// The hated one's plea falls flat - the sentence lands as read, and
+/// the begging leaves its bruise (#1256)
+#[test]
+fn test_a_hated_ones_plea_falls_flat() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let k = it.next().unwrap();
+    for &e in &[v, k] {
+        g.world.add_component(e, ReputationState {
+            stage: RepStage::Unknown, score: 0.1, transition_rates: vec![] });
+    }
+    bond(&mut g, v, k, crate::game::relationships::RelKind::Family, 0.9);
+    g.apply_sanction(v, Sanction::Exile, 10);
+    g.decide_at(0, 0);
+    assert!(g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Exile),
+        "the bench doesn't bend for a hated name");
+    assert!(g.log.iter().any(|l| l.contains("plea falls flat")));
+    assert!(desires::problems_of(&g.world, k, 15).contains(&desires::Problem::Grief),
+        "the refused begging sits with the beggar");
+}
+
+/// Letting it stand costs the pleader's warmth toward the voice that
+/// let it (#1256)
+#[test]
+fn test_let_it_stand_chills_the_pleader() {
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let k = it.next().unwrap();
+    for &e in &[v, k] {
+        g.world.add_component(e, ReputationState {
+            stage: RepStage::Unknown, score: 0.1, transition_rates: vec![] });
+    }
+    bond(&mut g, v, k, crate::game::relationships::RelKind::Family, 0.9);
+    g.apply_sanction(v, Sanction::Exile, 10);
+    g.decide_at(0, 1);
+    let kf = crate::game::relationships::find_relationship(&g.world, k, g.player)
+        .and_then(|re| g.world.get_component::<crate::game::relationships::Relationship>(re));
+    assert!(kf.map(|r| r.strength < 0.0).unwrap_or(false),
+        "the line you take is remembered");
+    assert!(g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Exile));
+}
+
+/// No bonded voice, no plea - the sentence just lands (#1256)
+#[test]
+fn test_no_voice_means_no_plea() {
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied().find(|&v|
+        g.world.get_component::<TownRole>(v).is_none()).unwrap();
+    g.world.add_component(v, ReputationState {
+        stage: RepStage::Known, score: 0.3, transition_rates: vec![] });
+    g.apply_sanction(v, Sanction::Stocks, 10);
+    assert!(g.plea.is_none() && g.dilemma.is_none(), "nobody begs for a stranger");
+    assert!(g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Stocks));
+}
+
+/// The rope waits on the crowd too: mercy turns the gibbet to the
+/// cells, a flat plea lands the hanging (#1256)
+#[test]
+fn test_the_gibbet_hears_the_plea() {
+    // mercy: beloved condemned, beloved pleader
+    let mut g = Game::new();
+    let mut it = g.villagers.iter().copied().filter(|&v|
+        g.world.get_component::<TownRole>(v).is_none());
+    let v = it.next().unwrap();
+    let k = it.next().unwrap();
+    for &e in &[v, k] {
+        g.world.add_component(e, ReputationState {
+            stage: RepStage::Esteemed, score: 0.9, transition_rates: vec![] });
+    }
+    bond(&mut g, v, k, crate::game::relationships::RelKind::Family, 0.9);
+    assert!(g.try_plea(v, crate::game::sanctions::PleaSentence::Gibbet), "the rope waits");
+    g.decide_at(0, 0);
+    assert!(!villager::is_dead(&g.world, v), "the coil stays wound");
+    assert!(g.dungeon.iter().any(|(e, _)| *e == v),
+        "the cells take them - a ransom can still reach");
+    assert!(g.log.iter().any(|l| l.contains("the castle's cells")));
+    // and a flat plea lands the hanging as read
+    let mut g2 = Game::new();
+    let mut it2 = g2.villagers.iter().copied().filter(|&v|
+        g2.world.get_component::<TownRole>(v).is_none());
+    let v2 = it2.next().unwrap();
+    let k2 = it2.next().unwrap();
+    for &e in &[v2, k2] {
+        g2.world.add_component(e, ReputationState {
+            stage: RepStage::Unknown, score: 0.1, transition_rates: vec![] });
+    }
+    bond(&mut g2, v2, k2, crate::game::relationships::RelKind::Family, 0.9);
+    assert!(g2.try_plea(v2, crate::game::sanctions::PleaSentence::Gibbet));
+    g2.decide_at(0, 0);
+    assert!(villager::is_dead(&g2.world, v2), "the bench doesn't bend");
+    assert!(g2.log.iter().any(|l| l.contains("hanged for the defiance")));
 }

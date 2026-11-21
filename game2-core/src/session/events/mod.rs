@@ -719,7 +719,10 @@ impl Game {
             EventId::Dilemma => {
                 // the burdened man sets his knot down: the granary burns,
                 // and there's one way to be wrong - the grain or the
-                // children inside it
+                // children inside it. Another card already up means he
+                // holds his piece - the knot's not taken from the hand
+                // that's still answering (#1256)
+                if self.dilemma.is_some() { return; }
                 let victim = *self.villagers.first().unwrap_or(&0);
                 self.dilemma = Some(MoralKnot {
                     text: "the granary's caught - the grain feeds the village all winter, but two children are inside. Which do you carry out first?".into(),

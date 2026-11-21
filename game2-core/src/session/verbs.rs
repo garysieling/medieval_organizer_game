@@ -2788,6 +2788,27 @@ impl Game {
         if self.reckoning.is_some() && self.dilemma.is_none() {
             self.reckoning = None;
         }
+        // the plea answers its own way (#1256): speak for mercy or let
+        // it stand - only when the card's still the plea's own knot
+        let ours = match (self.plea, &self.dilemma) {
+            (Some(p), Some(k)) => k.branches.len() == 2
+                && k.branches.iter().all(|b| b.victim == p.condemned),
+            _ => false,
+        };
+        if ours {
+            self.dilemma = None;
+            self.resolve_plea(seat, pick);
+            return;
+        }
+        // the card was lost under the plea: the sentence lands as read
+        // - the begging never reached the court's ear. The plea stays
+        // set through the landing so it can't re-beg itself (#1256)
+        if self.plea.is_some() && self.dilemma.is_none() {
+            if let Some(p) = self.plea {
+                self.land_sentence(p, self.tick);
+            }
+            self.plea = None;
+        }
         // the burdened man's knot answers first: a pick writes its debt
         // and the debt comes home when its day does
         if let Some(knot) = self.dilemma.take() {

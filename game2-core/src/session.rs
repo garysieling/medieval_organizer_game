@@ -1160,6 +1160,12 @@ pub struct Game {
     /// The reckoning of friends (#1255): whose public walk the dilemma
     /// card's asking about - stand beside them, or keep the distance
     pub reckoning: Option<Entity>,
+    /// The plea at sentencing (#1256): the sentence waits on the card -
+    /// speak for mercy, or let it stand
+    pub plea: Option<crate::game::sanctions::Plea>,
+    /// Who already had their plea today (#1256): the down-runged
+    /// re-entry can't open the card again for the same neck
+    pub last_plea: Option<(Entity, u64)>,
 
     /// The vaccination act's officer waiting on the square for his
     /// answer - the scratch, the fine, or the Leicester way

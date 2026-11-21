@@ -92,3 +92,49 @@ fn test_combining_is_the_conspiracy_charge() {
     assert!(g.sanctioned.iter().any(|(e, ..)| members.contains(e)),
         "the charge never landed a sanction");
 }
+
+#[test]
+fn test_the_petition_drafts_on_a_real_wrong_and_presents_on_names() {
+    let mut g = Game::new();
+    let members: Vec<Entity> = g.villagers.iter().copied().take(3).collect();
+    for &m in &members {
+        g.world.get_component_mut::<crate::sim::community::Organization>(g.org)
+            .map(|o| o.members.push(m));
+    }
+    crate::game::desires::add_grievance(&mut g.world, members[0],
+        crate::game::desires::Problem::Taxed, 9999);
+    g.petition_law_tick(23 + 30);
+    assert!(g.world.get_component::<crate::game::organizing::Petition>(g.org).is_some(),
+        "no schedule of grievances drafted");
+    // names gather through the talk ask
+    let (pe, oe) = (g.player, g.org);
+    for &v in g.villagers.iter().skip(3).take(5) {
+        crate::game::organizing::propose_keyed(&mut g.world, pe, oe, v,
+            crate::game::organizing::PropKind::SignPetition, "they", -1.0, 10,
+            crate::game::organizing::AskKey::Earned, 0.0);
+    }
+    g.petition_law_tick(23 + 60);
+    let pet = g.world.get_component::<crate::game::organizing::Petition>(g.org).unwrap();
+    assert_eq!(pet.spokesmen.len(), 2, "the first names speak for the rest");
+    assert!(pet.presented.is_some(), "it never stood to be read");
+}
+
+#[test]
+fn test_the_petitions_form_protects_the_spokesmen() {
+    let mut g = Game::new();
+    let (spokes, signer, v) = (g.villagers[0], g.villagers[1], g.villagers[2]);
+    g.world.add_component(g.org, crate::game::organizing::Petition {
+        demand: "the wage".into(),
+        spokesmen: vec![spokes], signatories: vec![signer], presented: Some(10) });
+    g.apply_penalty(0, spokes, "combining", 50);
+    assert!(g.sanctioned.iter().all(|(e, ..)| *e != spokes),
+        "a spokesman was punished for the asking");
+    // a signatory's name is half a defense - over enough charges it
+    // stands for them at least once
+    for t in 0..12 { g.apply_penalty(0, signer, "combining", 60 + t); }
+    assert!(g.log.iter().any(|l| l.contains("name on the schedule")),
+        "the schedule never spoke for them");
+    // and the unprotected take the charge
+    g.apply_penalty(0, v, "combining", 80);
+    assert!(g.sanctioned.iter().any(|(e, ..)| *e == v), "the unprotected walked");
+}

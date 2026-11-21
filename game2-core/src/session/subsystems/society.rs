@@ -1499,6 +1499,30 @@ impl Game {
     #[allow(dead_code)]
     pub(in crate::session) fn apply_penalty(&mut self, site: usize, who: Entity, crime: &str, tick: u64) {
         let _law = self.law_book.law_for(site);
+        // the petition's form: while it stands presented, the spokesmen
+        // can't be punished for the asking, and a name on the schedule
+        // is itself half a defense - the moot won't hear it (#1263)
+        if matches!(crime, "combining" | "excess_wage" | "assembly") {
+            if let Some(pet) = self.world.get_component::<crate::game::organizing::Petition>(self.org) {
+                if pet.presented.is_some() {
+                    if pet.spokesmen.contains(&who) {
+                        let n = self.name_of(who);
+                        self.log.push_ev(
+                            EvTag::new(Thread::Law, Valence::Positive, Sev::Notable),
+                            format!("t{}: the charge won't stand - {} speaks for the petition, protected in form.", tick, n),
+                        );
+                        return;
+                    }
+                    if pet.signatories.contains(&who) && self.rng.below(2) == 0 {
+                        self.log_entity_ev(
+                            EvTag::new(Thread::Law, Valence::Positive, Sev::Minor), who,
+                            format!("t{}: the charge won't stand against a name on the schedule.", tick),
+                        );
+                        return;
+                    }
+                }
+            }
+        }
         match crime {
             "theft" | "smuggling" => {
                 if let Some(p) = self.world.get_component_mut::<Purse>(who) {
@@ -2945,6 +2969,50 @@ impl Game {
         self.inquisition = Some((stage + 1).min(4));
     }
 
+    /// The schedule of grievances: once the cause has a real wrong to
+    /// name, the petition drafts itself, and at enough names it's
+    /// presented - the same document the statute reads as conspiracy.
+    /// A literate member's fair copy needs fewer names to stand (#1263)
+    pub(in crate::session) fn petition_law_tick(&mut self, tick: u64) {
+        if tick % 30 != 23 { return; }
+        let org = self.org;
+        if self.world.get_component::<crate::game::organizing::Petition>(org).is_none() {
+            let members = self.world.get_component::<crate::sim::community::Organization>(org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            if members.len() < 3 { return; }
+            let demand = members.iter().find_map(|&m|
+                self.world.get_component::<crate::game::desires::InnerLife>(m)
+                    .and_then(|l| l.grievances.iter().find(|(_, u)| tick < *u))
+                    .map(|(p, _)| crate::game::desires::wrong_phrase(*p)));
+            let Some(demand) = demand else { return; };
+            self.world.add_component(org, crate::game::organizing::Petition {
+                demand: demand.into(), ..Default::default() });
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the cause sets its grievance to paper - a petition of {} is drafting.", tick, demand),
+            );
+            return;
+        }
+        let (count, presented) = self.world.get_component::<crate::game::organizing::Petition>(org)
+            .map(|p| (p.spokesmen.len() + p.signatories.len(), p.presented.is_some()))
+            .unwrap_or((0, true));
+        if presented { return; }
+        // the clerk's fair copy: a literate member carries it sooner
+        let literate = self.world.get_component::<crate::sim::community::Organization>(org)
+            .map(|o| o.members.iter().any(|&m| self.literate(m))).unwrap_or(false);
+        let need = if literate { crate::game::organizing::PETITION_NAMES - 1 } else { crate::game::organizing::PETITION_NAMES };
+        if count >= need {
+            if let Some(p) = self.world.get_component_mut::<crate::game::organizing::Petition>(org) {
+                p.presented = Some(tick);
+            }
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Neutral, Sev::Notable),
+                format!("t{}: the petition's presented - the names stand under the demand, protected in form.", tick),
+            );
+            self.toasts.push(("The petition's presented.".into(), tick + 80));
+        }
+    }
+
     /// A hired hand's organizing weight: folk whose book holds them to
     /// a master carry half - their pass is a leash until somebody
     /// marks them free (#1261)
@@ -3036,10 +3104,17 @@ impl Game {
             let caught = self.rng.next() % 1000 < (250.0 + self.penetration * 500.0) as u64;
             if caught { self.apply_penalty(0, who, "excess_wage", tick); }
         }
-        // the conspiracy clause: the cause's own members, denounced
-        // for combining - born criminal while the statute stands
-        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+        // the conspiracy clause: the cause's own members - and the
+        // names on the presented petition, the same document read the
+        // statute's way - denounced for combining (#1260, #1263)
+        let mut members = self.world.get_component::<crate::sim::community::Organization>(self.org)
             .map(|o| o.members.clone()).unwrap_or_default();
+        if let Some(pet) = self.world.get_component::<crate::game::organizing::Petition>(self.org) {
+            if pet.presented.is_some() {
+                members.extend(pet.spokesmen.iter().copied());
+                members.extend(pet.signatories.iter().copied());
+            }
+        }
         for m in members {
             if villager::is_dead(&self.world, m) { continue; }
             if self.penetration < 0.1 { break; }

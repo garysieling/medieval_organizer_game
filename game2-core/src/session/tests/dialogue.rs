@@ -743,3 +743,131 @@ fn test_a_new_day_lifts_the_tiredness() {
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
     assert!(rec.lines.iter().any(|l| l.gist), "a fresh day's talk opens with the gist again");
 }
+
+// --- signature scenes (#1227): the village's small set of stories ---
+
+/// Two grown villagers with no scene waiting for them
+fn plain_pair(g: &Game) -> (Entity, Entity) {
+    let ad = adults(g);
+    for &i in &ad {
+        for &j in &ad {
+            if i == j { continue; }
+            let (a, b) = (g.villagers[i], g.villagers[j]);
+            if crate::game::scenes::scene_for(&g.world, a, b, g.tick).is_none() { return (a, b); }
+        }
+    }
+    panic!("expected a pair with no signature scene");
+}
+
+#[test]
+fn test_a_feuding_pair_plays_their_scene() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3 });
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    assert_eq!(r.kind, TalkKind::Chat);
+    assert_eq!(r.lines[0].text, "Thy fence still leans on my strip.");
+    // the offender speaks first, however the street order fell
+    assert_eq!(r.lines[0].who, Some(a));
+    assert_eq!(r.lines[1].who, Some(b));
+    // and the TALK panel shows it like any village chat
+    let i = g.villagers.iter().position(|&v| v == b).unwrap();
+    g.seats[0].selected_target = i;
+    g.seats[0].picked = true;
+    assert!(g.talk_panel_at(0).rows.iter().any(|row| row.text == r.lines[0].text));
+}
+
+#[test]
+fn test_the_scene_take_moves_with_the_bond() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
+    let rel = crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: a, other: b, kind: RelKind::Rival, strength: 0.0, interactions: 1 });
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    assert_eq!(r.lines[0].text, "Thy boy ran my fence line yesterday.",
+        "a cooling feud plays the middle take: {:?}", r.lines);
+    // bonds warm, the feud thaws - the next telling is a kinder one
+    g.world.get_component_mut::<crate::game::relationships::Relationship>(rel).unwrap().strength = 0.5;
+    g.tick += 14;
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    assert_eq!(r.lines[0].text, "Cold coming in early this year.",
+        "a thawed feud plays the warm take: {:?}", r.lines);
+}
+
+#[test]
+fn test_the_widow_and_the_priest_have_theirs() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    g.world.add_component(a, crate::game::desires::InnerLife {
+        wants: vec![], satisfied: vec![],
+        grievances: vec![(crate::game::desires::Problem::Bereaved, g.tick + 10)] });
+    g.world.add_component(b, crate::game::vocation::craft(Vocation::Priest, 0.9));
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    assert_eq!(r.lines[0].text, "I saw thee at the grave again, child.");
+    assert_eq!(r.lines[0].who, Some(b), "the priest opens: {:?}", r.lines);
+    assert_eq!(r.lines[1].who, Some(a));
+}
+
+#[test]
+fn test_the_pedlar_and_the_watch_have_theirs() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    g.world.add_component(a, crate::game::vocation::TownRole::Trader);
+    g.world.add_component(b, crate::game::vocation::craft(Vocation::Knight, 0.5));
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    assert_eq!(r.lines[0].text, "Honest goods, watch - same as the last three times.");
+    assert_eq!(r.lines[0].who, Some(a), "the pedlar opens: {:?}", r.lines);
+    // and it holds whichever way the street lists them
+    let mut g2 = Game::new();
+    let (a2, b2) = (a, b);
+    g2.world.add_component(a2, crate::game::vocation::TownRole::Trader);
+    g2.world.add_component(b2, crate::game::vocation::craft(Vocation::Knight, 0.5));
+    assert!(g2.villagers_chat(b2, a2));
+    let r2 = g2.talk_log.last().unwrap().clone();
+    assert_eq!(r2.lines[0].who, Some(a2));
+    assert_eq!(r2.lines[0].text, r.lines[0].text);
+}
+
+#[test]
+fn test_a_scene_cools_off_between_tellings() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3 });
+    assert!(g.villagers_chat(a, b));
+    assert_eq!(g.talk_log.last().unwrap().lines[0].text,
+        "Thy fence still leans on my strip.");
+    // pressed again the same day, they fall back to small talk
+    assert!(g.villagers_chat(a, b));
+    assert_ne!(g.talk_log.last().unwrap().lines[0].text,
+        "Thy fence still leans on my strip.");
+    // a fortnight on, the scene's theirs again
+    g.tick += 14;
+    assert!(g.villagers_chat(a, b));
+    assert_eq!(g.talk_log.last().unwrap().lines[0].text,
+        "Thy fence still leans on my strip.");
+}
+
+#[test]
+fn test_a_pair_with_no_story_small_talks() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let scripted: Vec<&str> = crate::game::scenes::SCENES.iter()
+        .flat_map(|s| s.variants).flat_map(|v| v.lines.iter().map(|l| l.1)).collect();
+    assert!(!r.lines.iter().any(|l| scripted.contains(&l.text.as_str())),
+        "no scene lines for an unmatched pair: {:?}", r.lines);
+}

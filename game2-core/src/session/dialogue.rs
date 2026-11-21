@@ -415,6 +415,28 @@ impl Game {
         let sb = speaker_of(&self.world, b, &nb, self.tick);
         let kids = (sa.status.contains(&"child"), sb.status.contains(&"child"));
         if kids.0 != kids.1 { return false; }
+        // a pair the table knows plays their signature scene instead of
+        // small talk (#1227): depth where the village has a story, and
+        // the take it plays moves with the bond - then a fortnight's
+        // quiet before the scene's their own again
+        const SCENE_COOLDOWN: u64 = 14;
+        if !kids.0 {
+            let key = (a.min(b), a.max(b));
+            let fresh = self.scene_marks.get(&key).map(|t| self.tick >= t + SCENE_COOLDOWN).unwrap_or(true);
+            if fresh {
+                if let Some((_scene, variant, order)) =
+                    crate::game::scenes::scene_for(&self.world, a, b, self.tick) {
+                    let lines: Vec<TalkLine> = variant.lines.iter().take(CHAT_MAX_LINES).map(|&(i, text)| {
+                        let (who, name) = if i == 0 { (order.0, self.name_of(order.0)) }
+                            else { (order.1, self.name_of(order.1)) };
+                        TalkLine { who: Some(who), name, text: text.to_string(), gist: false }
+                    }).collect();
+                    self.scene_marks.insert(key, self.tick);
+                    self.push_talk(TalkKind::Chat, vec![a, b], lines);
+                    return true;
+                }
+            }
+        }
         let rel = relation_of(self.rel_kind(a, b));
         // seeded off the meeting itself, not the game's rng: chatter on the
         // street mustn't shift every other roll in the sim

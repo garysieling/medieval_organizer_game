@@ -1269,6 +1269,8 @@ impl Game {
         self.mentorship_tick(tick);
         // a warm bond asks the organizer in to eat (#1241)
         self.table_tick(tick);
+        // a friend's long bond lays an old wound to rest (#1243)
+        self.hooks_tick(tick);
         for v in self.villagers.clone() {
             // an argument they've turned over long enough takes (#1234)
             crate::game::persuasion::mature(&mut self.world, v, tick);

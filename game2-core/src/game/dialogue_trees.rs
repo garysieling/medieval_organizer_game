@@ -220,6 +220,15 @@ pub const SMALL_CHAT: Exchange = Exchange {
     voice: &[
         Voice { criteria: &[Has("self:status:hungry")], lines: &["A thin soup and a thinner week, {other}.", "The sky can do what it likes - it's the empty pot that weighs on me."] },
         Voice { criteria: &[Has("self:status:grieving")], lines: &["The mornings are long since the burying, {other}.", "Gray clouds, gray days - I scarce mark the weather now."] },
+        // the old wounds they carry, hinted long before they're named (#1243)
+        Voice { criteria: &[Has("self:hook:brother_soldier")], lines: &["Gray sky over the levy road - I watch that road more than I should, {other}."] },
+        Voice { criteria: &[Has("self:hook:brother_fate")], lines: &["They say the levy came home from the north. Not all of it, {other}."] },
+        Voice { criteria: &[Has("self:hook:miller_debt")], lines: &["I take the long way round the mill these days, {other}. Mud's better that side."] },
+        Voice { criteria: &[Has("self:hook:old_faith")], lines: &["The stones on the hill look lonely in this light, don't they?"] },
+        Voice { criteria: &[Has("self:hook:child_buried")], lines: &["There's a small grave by the yew I keep weeded. Rain or no."] },
+        Voice { criteria: &[Has("self:hook:burnt_barn")], lines: &["Dry weather. I can't abide the smell of smoke, not since."] },
+        Voice { criteria: &[Has("self:hook:blamed_neighbor")], lines: &["Hob looks at me across the lane like he knows something, {other}."] },
+        Voice { criteria: &[Has("self:hook:broken_troth")], lines: &["The road to the next valley - I've not walked it in years."] },
         Voice { criteria: &[Has("self:status:cold")], lines: &["The hearth's been out a week - a cold wind feels personal now."] },
         Voice { criteria: &[Has("self:status:drunk")], lines: &["Is it raining, or is that the ale talking? *hic*"] },
         Voice { criteria: &[Has("self:ideology:lord")], lines: &["The sky owes my wheat a fortnight of sun.", "The weather keeps my stewards busy, I'll warrant."] },

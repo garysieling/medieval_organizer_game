@@ -115,6 +115,8 @@ pub enum CtxAct {
     PickCaps,
     /// Sit down at the table of the villager who's asked you in (#1241)
     Dine,
+    /// Ask a deep bond after the old wound they carry (#1243)
+    AskAfter,
     /// Tell the picked villager what the gossip added up to - the
     /// mystery's asker, once it's whole
     ShareFindings,

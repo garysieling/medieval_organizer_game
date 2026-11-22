@@ -733,6 +733,11 @@ impl Game {
             if in_earshot && self.table_offered(seat, v) {
                 self.seats[seat].ctx_actions.push(CtxAct::Dine);
             }
+            // a deep bond can be asked after the wound they carry (#1243)
+            if in_earshot && crate::game::hooks::open(&self.world, v).is_some()
+                && crate::game::organizing::stage_of(&self.world, self.seats[seat].player, v) >= crate::game::organizing::RelStage::Follower {
+                self.seats[seat].ctx_actions.push(CtxAct::AskAfter);
+            }
             // a solved mystery wants delivering to whoever's been asking
             if let Some(m) = &self.seats[seat].mystery {
                 if m.solved() && v == m.asker {
@@ -1582,6 +1587,7 @@ impl Game {
             CtxAct::TakeJob => self.accept_quest_at(seat),
             CtxAct::ShareFindings => self.mystery_deliver_at(seat),
             CtxAct::Dine => self.sit_at_table(seat),
+            CtxAct::AskAfter => self.ask_after_at(seat),
             CtxAct::MarkBook => {
                 // the liberation ask: their book's marked free - out
                 // from under the master, and paperless with it (#1261)

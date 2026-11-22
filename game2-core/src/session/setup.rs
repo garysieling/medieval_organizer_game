@@ -525,6 +525,8 @@ impl Game {
             world.add_component(v, traits);
             world.add_component(v, Satchel::default());
             world.add_component(v, Known::default());
+            // the old wounds they carry in (#1243)
+            world.add_component(v, crate::game::hooks::seed(i as u64));
             if i < 23 {
                 // a working adult: the level roll sets the skill band
                 let skill = match rng.below(100) {

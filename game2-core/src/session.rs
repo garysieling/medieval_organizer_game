@@ -417,6 +417,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::PickCaps => Button { label: "Pick caps".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (110, 90, 50) },
         CtxAct::TakeCache => Button { label: "Take the cache".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (120, 100, 60) },
         // the delivery sits in the clear below the log box
+        CtxAct::AskAfter => Button { label: "Ask after their old trouble".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (110, 90, 130) },
         CtxAct::Dine => Button { label: "Sit at their table".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 100, 60) },
         CtxAct::ShareFindings => Button { label: "Tell them what you know".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
         CtxAct::MarkBook => Button { label: "Mark their book free".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },

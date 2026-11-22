@@ -81,11 +81,15 @@ pub struct Speaker {
     /// The speaker's trade ("farmer", "baker") - whose counsel weighs on
     /// which matter (#1238)
     pub trade: Option<&'static str>,
+    /// How far their voice carries in the room (#1249): ~0.5 is nobody
+    /// in particular; `speaker_of` reads it off the world, hand-made
+    /// speakers default to a middling voice
+    pub pull: f32,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8 }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -987,7 +991,7 @@ pub fn run_meeting<'a>(
             if st.speaker == usize::MAX { return 1.0; }
             counsel_weight(attendees[st.speaker],
                 ties.get(st.speaker).copied().unwrap_or(Relation::Stranger),
-                &st.concepts, &prompt.concepts)
+                &st.concepts, &prompt.concepts) * attendees[st.speaker].pull
         };
 
         // Bid: (speaker, target statement, line, kind, score)
@@ -995,7 +999,9 @@ pub fn run_meeting<'a>(
         for (i, sp) in attendees.iter().enumerate() {
             if i == last_speaker { continue; } // you can't answer yourself
             let pool = pools[i];
-            let mut score = 1.0f32;
+            // the room's own read on who to hear (#1249): a voice that
+            // already carries bids heavier for the floor
+            let mut score = sp.pull;
             for (t, m) in [(Trait::Gregarious, 1.5), (Trait::Proud, 0.8), (Trait::Ambitious, 1.2)] {
                 if sp.traits.contains(&t) { score *= m; }
             }
@@ -1627,6 +1633,29 @@ mod tests {
         let attendees = [&a, &b, &c];
         seeds.map(|seed| run_meeting(&organizer, &attendees, &[], &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(seed)))
             .collect()
+    }
+
+    #[test]
+    fn test_pull_carries_the_floor() {
+        // #1249: all else equal, the voice the room already follows
+        // bids heavier and takes more of it
+        let organizer = Speaker::new("Reeve");
+        let mut quiet_a = Speaker::new("Hob");
+        quiet_a.pull = 0.4;
+        let mut quiet_b = Speaker::new("Osric");
+        quiet_b.pull = 0.4;
+        let mut loud = Speaker::new("Tilda");
+        loud.pull = 2.0;
+        let pools = [meeting_pool(&quiet_a), meeting_pool(&quiet_b), meeting_pool(&loud)];
+        let pools: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
+        let attendees = [&quiet_a, &quiet_b, &loud];
+        let mut floor = [0usize; 3];
+        for seed in 0..60u64 {
+            let rec = run_meeting(&organizer, &attendees, &[], &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(seed));
+            for st in &rec { if st.speaker < 3 { floor[st.speaker] += 1; } }
+        }
+        assert!(floor[2] > floor[0] && floor[2] > floor[1],
+            "the voice that carries takes the floor: {floor:?}");
     }
 
     #[test]

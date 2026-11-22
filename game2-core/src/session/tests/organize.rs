@@ -1144,3 +1144,47 @@ fn test_the_ask_quotes_their_trouble_back() {
     assert!(ask_label(&g.world, v_taxed, &friends).contains("company"),
         "{}", ask_label(&g.world, v_taxed, &friends));
 }
+
+/// The scouting read (#1249): an acquaintance will tell you who the
+/// room follows - the ask yields their picture in fuzzy words, and the
+/// ask's spent for the talk once put
+#[test]
+fn test_the_scout_ask_names_who_the_room_follows() {
+    use crate::game::organizing::{ask_offers, pull_of, PropKind, RelStage, stage_of};
+    let mut g = Game::new();
+    let (pe, talker, bellwether) = (g.player, g.villagers[1], g.villagers[2]);
+    // a stranger reads no room for you; an acquaintance does
+    assert!(!ask_offers(&g.world, g.org, talker, 0).iter().any(|o| o.kind == PropKind::Scout));
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: talker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    assert_eq!(stage_of(&g.world, pe, talker), RelStage::Acquaintance);
+    assert!(ask_offers(&g.world, g.org, talker, 0).iter().any(|o| o.kind == PropKind::Scout));
+    // the bellwether holds strong family bonds - the room leans on them
+    for kin in g.villagers.iter().copied().skip(3).take(6) {
+        let r = g.world.create_entity();
+        g.world.add_component(r, Relationship { from: bellwether, other: kin,
+            kind: RelKind::Family, strength: 0.9, interactions: 30 });
+    }
+    assert!(pull_of(&g.world, bellwether) > pull_of(&g.world, talker).max(1.0),
+        "bonds carry the voice: {} vs {}", pull_of(&g.world, bellwether), pull_of(&g.world, talker));
+    // open the talk, take the scouting ask: the read names the bellwether
+    let i = g.villagers.iter().position(|&x| x == talker).unwrap();
+    let p = *g.world.get_component::<Pos>(talker).unwrap();
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+    g.seats[0].selected_target = i;
+    g.seats[0].picked = true;
+    g.act_at(0, 0);
+    let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
+    let pick = labels.iter().position(|l| l.starts_with("Ask who folk turn to"))
+        .unwrap_or_else(|| panic!("scout ask on offer: {labels:?}"));
+    g.talk_pick_at(0, Some(pick));
+    let id = g.seats[0].talk.as_ref().unwrap().id;
+    let texts: Vec<String> = g.talk_log.iter().find(|r| r.id == id).unwrap()
+        .lines.iter().map(|l| l.text.clone()).collect();
+    assert!(texts.iter().any(|t| t.contains("Who do folk turn to")), "{texts:?}");
+    assert!(texts.iter().any(|t| t.contains(&g.name_of(bellwether))),
+        "names the bellwether: {texts:?}");
+    let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
+    assert!(!labels.iter().any(|l| l.starts_with("Ask who folk turn to")),
+        "spent for the talk: {labels:?}");
+}

@@ -571,8 +571,8 @@ fn test_a_mismatch_keeps_the_asks_shallow_not_barred() {
     assert_eq!(t.vibe, Some(Vibe::Mismatch));
     let earned: Vec<PropKind> = t.asks.iter()
         .filter(|o| o.key == AskKey::Earned).map(|o| o.kind).collect();
-    assert_eq!(earned, vec![PropKind::Introduce],
-        "a mismatch stays slow - the light ask still on the table: {:?}", t.asks);
+    assert_eq!(earned, vec![PropKind::Scout, PropKind::Introduce],
+        "a mismatch stays slow - the light asks still on the table: {:?}", t.asks);
 }
 
 /// Pick through a Talk until the ask-slot shows, take it, and hand the

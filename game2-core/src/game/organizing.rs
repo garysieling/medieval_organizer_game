@@ -897,6 +897,10 @@ pub enum PropKind {
     /// "How d'you think the lord will answer?" - the inoculation
     /// (#1246), rehearsed in the talk rather than landed by `propose`
     Inoculate,
+    /// "Who do folk turn to around here?" - the scouting read (#1249):
+    /// their picture of who the room follows, yielded in the talk
+    /// rather than landed by `propose`
+    Scout,
 }
 
 /// The ask as the player sees it in the talk options
@@ -914,6 +918,7 @@ pub fn prop_label(p: PropKind) -> &'static str {
         PropKind::SignPetition => "Ask them to put their name to the petition",
         PropKind::Argue => "Argue a point with them",
         PropKind::Inoculate => "Ask how they think the lord will answer",
+        PropKind::Scout => "Ask who folk turn to around here",
     }
 }
 
@@ -1106,7 +1111,7 @@ pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
         PropKind::InviteFriends => 12.0,
         PropKind::Introduce => 6.0,
         PropKind::SignPetition => 8.0,
-        PropKind::Argue | PropKind::Inoculate => 0.0,
+        PropKind::Argue | PropKind::Inoculate | PropKind::Scout => 0.0,
     };
     let at = LADDER.iter().position(|r| *r == stage).unwrap_or(0) as i8;
     let need = LADDER.iter().position(|r| *r == ask_tier(p)).unwrap_or(0) as i8;
@@ -1134,6 +1139,12 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
     // they actually hold, so an acquaintance couldn't be swayed
     if crate::game::persuasion::can_argue(stage) && crate::game::persuasion::can_argue(reached) {
         out.push(AskOffer { kind: PropKind::Argue, key: AskKey::Earned, price: 0.0 });
+    }
+    // the scouting read (#1249): an acquaintance will tell you who the
+    // room follows - the answer's the talk's yield, so it's earned or
+    // not offered; you don't pay for a picture of the room
+    if reached >= RelStage::Acquaintance {
+        out.push(AskOffer { kind: PropKind::Scout, key: AskKey::Earned, price: 0.0 });
     }
     for p in ask_candidates(world, org, person) {
         if heard && ask_tier(p) <= reached {
@@ -1166,7 +1177,7 @@ fn ask_suits(p: PropKind, r: &crate::game::desires::Reveal) -> bool {
         PropKind::BringSnacks => matches!(r, Reveal::Want(Want::GoodFood) | Reveal::Problem(Problem::LongWinter)),
         PropKind::LendVenue => matches!(r, Reveal::Want(Want::Shelter) | Reveal::Problem(Problem::NoHome)),
         PropKind::ComeAlong => matches!(r, Reveal::Problem(_) | Reveal::Want(Want::Love)),
-        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate => false,
+        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate | PropKind::Scout => false,
     }
 }
 
@@ -1186,6 +1197,39 @@ pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind)
     let skill = world.get_component::<crate::game::org_skills::Organizing>(organizer)
         .map(|o| o.one_on_one).unwrap_or(0.0);
     (base + if suited { 0.2 } else { 0.0 } + skill * 0.15).min(0.98)
+}
+
+/// How far a voice carries in the room (#1249): a computed read, not a
+/// stored field - it moves as the village does. The bonds held tell who
+/// the room already leans on, seniority lends weight, standing counts
+/// the deeds, and a dead loss lends the kin a moral pull. About 0.5 is
+/// nobody in particular; the scout read and the meeting bids both work
+/// off it.
+pub fn pull_of(world: &World, v: Entity) -> f32 {
+    use crate::game::relationships::RelKind;
+    let bonds = crate::game::relationships::bonds_of(world, v).iter().filter_map(|&b| {
+        let r = world.get_component::<crate::game::relationships::Relationship>(b)?;
+        let w = match r.kind {
+            RelKind::Family | RelKind::Lover | RelKind::Mentor => 1.0,
+            RelKind::Friend => 0.7,
+            RelKind::Apprentice => 0.5,
+            RelKind::Acquaintance => 0.2,
+            RelKind::Stranger | RelKind::Rival => 0.0,
+        };
+        Some(w * r.strength.clamp(0.0, 1.0))
+    }).sum::<f32>();
+    let senior = world.get_component::<crate::game::lifecycle::Age>(v)
+        .map(|a| a.stage == crate::game::lifecycle::LifeStage::Elder).unwrap_or(false);
+    // standing is seeded mid the first time it's tracked - a
+    // never-tracked one reads the same, not as a nobody
+    let rep = world.get_component::<crate::sim::reputation_qsp::ReputationState>(v)
+        .map(|r| r.score).unwrap_or(0.45);
+    let mourns = world.get_component::<crate::sim::psychology::AttachmentHistory>(v)
+        .map(|h| h.episodes.iter().any(|e|
+            matches!(e.kind, crate::sim::psychology::EpisodeKind::Loss)
+                && crate::game::villager::is_dead(world, e.with))).unwrap_or(false);
+    (0.5 + bonds * 0.3 + if senior { 0.3 } else { 0.0 }
+        + (rep - 0.45) * 0.8 + if mourns { 0.3 } else { 0.0 }).clamp(0.3, 2.2)
 }
 
 /// The excuse a declined ask earns (#1188): what you've heard of their
@@ -1317,6 +1361,7 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
         PropKind::Introduce => unreachable!("callers take Introduce before land_ask"),
         PropKind::Argue => unreachable!("an argument plays out in the talk, not through propose"),
         PropKind::Inoculate => unreachable!("the inoculation plays out in the talk, not through propose"),
+        PropKind::Scout => unreachable!("the scouting read plays out in the talk, not through propose"),
     }
 }
 

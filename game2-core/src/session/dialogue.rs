@@ -269,6 +269,9 @@ fn trade_status(v: Vocation) -> Option<&'static str> {
 /// `who` as a conversation speaker, read off the world at `tick`
 pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker {
     let mut s = Speaker::new(name);
+    // the voice's own weight in the room (#1249): bonds, seniority,
+    // standing, the moral pull of a dead loss - read live, not stored
+    s.pull = crate::game::organizing::pull_of(world, who);
     if let Some(p) = world.get_component::<Personality>(who) { s.traits = p.traits.clone(); }
     if world.get_component::<Kid>(who).is_some() { s.status.push("child"); return s; }
     let craft = world.get_component::<Craft>(who).map(|c| c.vocation);
@@ -1096,6 +1099,18 @@ impl Game {
                 self.refresh_player_talk(seat);
                 return;
             }
+            if o.kind == crate::game::organizing::PropKind::Scout {
+                let read = self.scout_read(seat);
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.asks.retain(|a| *a != o);
+                    cur.asks_taken.push(o);
+                }
+                self.argue_line(seat, Some(self.seats[seat].player),
+                    "Who do folk turn to around here, when the roof leaks?".into());
+                for l in read { self.argue_line(seat, Some(who), l); }
+                self.refresh_player_talk(seat);
+                return;
+            }
             let (pe, oe, name) = (self.seats[seat].player, self.seats[seat].org, t.villager.name.clone());
             let roll = (self.rng.next() % 1000) as f32 / 1000.0;
             let (msg, named) = crate::game::organizing::propose_keyed(
@@ -1234,6 +1249,55 @@ impl Game {
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }
         self.refresh_player_talk(seat);
+    }
+
+    /// The scouting read (#1249): who the room already follows, said in
+    /// fuzzy words - no numbers, you build the map yourself. The names
+    /// are the village's strongest voices (pull, computed live), one a
+    /// resented one if they hold a grudge, and their own read on how
+    /// far their own voice carries
+    fn scout_read(&self, seat: usize) -> Vec<String> {
+        use crate::game::relationships::{RelKind, Relationship};
+        let Some(t) = self.seats[seat].talk.as_ref() else { return vec![] };
+        let who = t.who;
+        // clear-voiced: above this a name's worth naming
+        const CLEAR: f32 = 0.85;
+        let mut ranked: Vec<(f32, Entity)> = self.villagers.iter().copied()
+            .filter(|&v| v != who && !crate::game::villager::is_dead(&self.world, v))
+            .map(|v| (crate::game::organizing::pull_of(&self.world, v), v))
+            .collect();
+        ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.1.cmp(&b.1)));
+        let mut out: Vec<String> = vec![];
+        let clear: Vec<Entity> = ranked.iter().take(2)
+            .filter(|(p, _)| *p >= CLEAR).map(|&(_, v)| v).collect();
+        if clear.is_empty() {
+            out.push("Folk keep their own counsel here - nobody the whole room looks to.".into());
+        } else {
+            out.push(format!("When the roof leaks, it's {} folk fetch.", self.name_of(clear[0])));
+            if clear.len() > 1 {
+                out.push(format!("And {} gets heard, most times.", self.name_of(clear[1])));
+            }
+        }
+        // who they resent: a rival bond they carry, worst first
+        let mut rivals: Vec<(f32, Entity)> = crate::game::relationships::bonds_of(&self.world, who)
+            .iter().filter_map(|&b| {
+                let r = self.world.get_component::<Relationship>(b)?;
+                if r.kind != RelKind::Rival { return None; }
+                let other = if r.from == who { r.other } else { r.from };
+                if crate::game::villager::is_dead(&self.world, other) { return None; }
+                Some((r.strength.abs(), other))
+            }).collect();
+        rivals.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.1.cmp(&b.1)));
+        if let Some(&(_, r)) = rivals.first() {
+            out.push(format!("{} though - I'd not follow them anywhere, mind.", self.name_of(r)));
+        }
+        let own = crate::game::organizing::pull_of(&self.world, who);
+        out.push(if own >= 1.2 { "Me? Folk come to me when it counts.".into() }
+            else if own >= 0.8 { "Me? They hear me out, mostly.".into() }
+            else { "Me? Nobody much minds me.".into() });
+        out
     }
 
     /// "I've pieced it together": the mystery told across the talk - your

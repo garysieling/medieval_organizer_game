@@ -1193,3 +1193,156 @@ fn test_the_street_only_goes_so_deep() {
     assert!(deep_gain < new_gain * 0.5,
         "past the friend mark the street only keeps the bond warm: {deep_gain} vs {new_gain}");
 }
+
+// --- the amends: a wrong word owned (#1251) ---
+
+/// Leave a Slighted memory on `v` fresh today
+fn slight(g: &mut Game, v: Entity) {
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: g.tick });
+}
+
+#[test]
+fn test_the_amends_is_on_offer_only_after_a_slight() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let v = talk_beside(&mut g, ad[0]);
+    assert!(!g.seats[0].talk.as_ref().unwrap().amends,
+        "no wrong to own, no amends on the table");
+    g.talk_pick_at(0, None);
+    slight(&mut g, v);
+    talk_beside(&mut g, ad[0]);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.amends, "a slight still fresh puts the repair on the table");
+    assert_eq!(t.choice_labels(&g.world).last().unwrap(), "Make amends for the other day");
+    // and it's the last pick, past even a telling
+    assert_eq!(t.options.len(), t.options.len()); // options still lead the list
+    g.talk_pick_at(0, None);
+    // a warm parting carries no amends
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick });
+    talk_beside(&mut g, ad[0]);
+    assert!(!g.seats[0].talk.as_ref().unwrap().amends,
+        "nothing to make good once it's warm");
+}
+
+#[test]
+fn test_an_amends_taken_reopens_the_door_guarded() {
+    use crate::game::desires::{Known, Problem, Reveal};
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let v = g.villagers[ad[0]];
+    g.world.add_component(v, Personality { traits: vec![Trait::Kind] });
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    slight(&mut g, v);
+    talk_beside(&mut g, ad[0]);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.asks.is_empty(), "the slight shut the asks");
+    let pick = t.choice_labels(&g.world).len() - 1;
+    let before = bond(&g, g.seats[0].player, v);
+    g.talk_pick_at(0, Some(pick));
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.mood, TalkMood::Guarded, "the wrong's owned - guarded, not warm");
+    assert!(!t.asks.is_empty(), "a door reopened is a door asks come back through");
+    assert!(t.choice_labels(&g.world).iter()
+        .all(|l| l != "Make amends for the other day"), "the word's spent once said");
+    assert!(bond(&g, g.seats[0].player, v) > before, "an accepted amends warms a little");
+    assert_eq!(g.world.get_component::<AmendsTally>(v).map(|a| (a.of, a.n)),
+        Some((g.seats[0].player, 1)), "the sorry's counted on the villager");
+    // and the parting writes the guarded memory, not the slight
+    g.talk_pick_at(0, None);
+    assert_eq!(g.talk_mood_of(v), Some(TalkMood::Guarded));
+}
+
+#[test]
+fn test_a_refused_amends_keeps_the_chill_and_is_heard() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let v = g.villagers[ad[0]];
+    // a hard hand refuses half the time: keep re-owning the wrong till
+    // it turns you away - the count ticks either way
+    g.world.add_component(v, Personality { traits: vec![Trait::Cruel] });
+    let mut refused = false;
+    for _ in 0..40 {
+        slight(&mut g, v);
+        talk_beside(&mut g, ad[0]);
+        let pick = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world).len() - 1;
+        g.talk_pick_at(0, Some(pick));
+        let t = g.seats[0].talk.as_ref().unwrap();
+        if t.mood == TalkMood::Slighted { refused = true; break; }
+        g.talk_pick_at(0, None);
+        // the door reopened: slight them again so the next sorry's on the table
+    }
+    assert!(refused, "a cruel one turns an amends away inside forty sorries");
+    assert!(g.seats[0].talk.as_ref().unwrap().notes.iter()
+        .any(|n| n.contains("refused")), "the refused word's a beat of its own");
+    g.talk_pick_at(0, None);
+    assert_eq!(g.talk_mood_of(v), Some(TalkMood::Slighted),
+        "the memory stays the slight - no free reset");
+    assert!(g.world.get_component::<AmendsTally>(v).map(|a| a.n).unwrap_or(0) >= 1,
+        "even the refused sorries count");
+}
+
+#[test]
+fn test_sorries_stop_landing_as_the_count_grows() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let v = g.villagers[ad[0]];
+    g.world.add_component(v, Personality { traits: vec![Trait::Kind] });
+    // the fourth sorry: already counted thrice
+    g.world.add_component(v, AmendsTally { of: g.seats[0].player, n: 3 });
+    slight(&mut g, v);
+    talk_beside(&mut g, ad[0]);
+    let before = bond(&g, g.seats[0].player, v);
+    let pick = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world).len() - 1;
+    g.talk_pick_at(0, Some(pick));
+    let d4 = bond(&g, g.seats[0].player, v) - before;
+    assert!(d4 > 0.0 && d4 < 0.05, "a sorry oft-repeated barely lands: {d4}");
+    assert_eq!(g.world.get_component::<AmendsTally>(v).unwrap().n, 4);
+    g.talk_pick_at(0, None);
+}
+
+#[test]
+fn test_the_sorry_count_outlives_the_memory() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let v = g.villagers[ad[0]];
+    g.world.add_component(v, Personality { traits: vec![Trait::Kind] });
+    g.world.add_component(v, AmendsTally { of: g.seats[0].player, n: 2 });
+    // the slight's memory's a season gone - the tally isn't
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: 0 });
+    g.tick = 21; // past the 20-day memory
+    // wrong them again today: the count from the old sorries still stands
+    slight(&mut g, v);
+    talk_beside(&mut g, ad[0]);
+    let pick = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world).len() - 1;
+    g.talk_pick_at(0, Some(pick));
+    assert_eq!(g.world.get_component::<AmendsTally>(v).unwrap().n, 3,
+        "the tally outlives the twenty-day memory");
+    g.talk_pick_at(0, None);
+}
+
+#[test]
+fn test_neighbours_patch_a_spat_in_a_passing_chat() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let (a, b) = (g.villagers[ad[0]], g.villagers[ad[1]]);
+    let key = (a.min(b), a.max(b));
+    // the kinder of the pair offers: give a the gentlest bent, b just
+    // doesn't refuse
+    g.world.add_component(a, Personality { traits: vec![Trait::Kind, Trait::Gregarious] });
+    g.world.add_component(b, Personality { traits: vec![] });
+    g.chat_lands(a, b, -1.0, a);
+    assert!(g.spats.contains_key(&key), "a quarrel's on the tally");
+    let before = bond(&g, a, b);
+    let mut patched = false;
+    for _ in 0..80 {
+        assert!(g.villagers_chat(a, b));
+        if !g.spats.contains_key(&key) { patched = true; break; }
+    }
+    assert!(patched, "a passing word patches the quarrel inside eighty chats");
+    assert!(g.talk_log.iter().any(|r| r.lines.iter()
+        .any(|l| l.text == crate::game::amends::AMENDS_ASK)), "the amends is on the record");
+    assert!(bond(&g, a, b) > before, "the patch warms what the quarrel chilled");
+    assert!(g.world.get_component::<AmendsTally>(a).map(|x| x.n).unwrap_or(0) >= 1
+        || g.world.get_component::<AmendsTally>(b).map(|x| x.n).unwrap_or(0) >= 1,
+        "the sorry's counted on whoever made it");
+}

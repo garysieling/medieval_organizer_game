@@ -61,6 +61,9 @@ pub enum TalkMood {
     Cool,
     /// Talked back at, or shaken off mid-word
     Slighted,
+    /// The wrong was owned and heard (#1251): not warm - but the door's
+    /// no longer shut the way a slight leaves it
+    Guarded,
 }
 
 /// Carried on the villager: how the last sit-down ended, so the next one
@@ -70,6 +73,15 @@ pub struct TalkMemory {
     pub mood: TalkMood,
     /// The day it was set; past TALK_MEMORY_DAYS it fades
     pub tick: u64,
+}
+
+/// How many times `of` has made amends to the bearer (#1251): the
+/// count outlives the 20-day memory - a sorry repeated too often stops
+/// landing, and that wears longer than the slight it was for
+#[derive(Clone, Copy, Debug)]
+pub struct AmendsTally {
+    pub of: Entity,
+    pub n: u8,
 }
 
 /// How many times they've been pressed to talk today (#1226): the tally
@@ -178,6 +190,9 @@ pub struct PlayerTalk {
     /// it's still untold: rides past the cap, last, so it's never crowded
     /// off and the picks before it keep their numbers
     pub tell: Option<String>,
+    /// The repair move on offer (#1251): the talk opened on a slight, so
+    /// the last slot is owning the wrong
+    pub amends: bool,
 }
 
 /// The one-on-one argument as it stands (#1234): which issue, then
@@ -239,7 +254,8 @@ impl PlayerTalk {
                 .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
             .chain(self.inoculation_beyond().as_ref()
                 .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
-            .chain(self.tell.clone()).collect()
+            .chain(self.tell.clone())
+            .chain(self.amends.then(|| "Make amends for the other day".to_string())).collect()
     }
 }
 
@@ -507,6 +523,63 @@ impl Game {
         if shared_cause {
             sa.status.push("cause_member");
             sb.status.push("cause_member");
+        }
+        // a spat still fresh between them can be patched over a passing
+        // word (#1251): the kinder of the pair offers the amends, the
+        // other answers by trait; a refused peace leaves the quarrel
+        // standing. It preempts the signature scene - the quarrel's the
+        // livelier story
+        let key = (a.min(b), a.max(b));
+        let spat_fresh = self.spats.get(&key)
+            .map(|&(_, first)| self.tick <= first + super::SPAT_WINDOW).unwrap_or(false);
+        if !kids.0 && spat_fresh {
+            let seed = self.tick.wrapping_mul(0x9E37_79B9)
+                ^ ((a as u64) << 32) ^ (b as u64) ^ self.last_chat.len() as u64 ^ 0xA4E1_D5;
+            // the kinder of the pair extends the hand: kindly or
+            // sociable lifts, a proud or cruel bent lowers - ties fall
+            // to the earlier entity
+            let bent = |s: &Speaker| -> f32 {
+                s.traits.iter().map(|t| match t {
+                    crate::game::traits::Trait::Kind => 1.0,
+                    crate::game::traits::Trait::Gregarious => 0.5,
+                    crate::game::traits::Trait::Proud => -0.5,
+                    crate::game::traits::Trait::Cruel => -1.0,
+                    _ => 0.0,
+                }).sum()
+            };
+            let maker_first = (bent(&sa), -(a as i64)) >= (bent(&sb), -(b as i64));
+            let (maker, target) = if maker_first { (a, b) } else { (b, a) };
+            let mtraits = if maker_first { &sa.traits } else { &sb.traits };
+            let mut mr = TalkRng::new(seed);
+            if (mr.below(1000) as f32) < crate::game::amends::attempt_chance(mtraits) * 1000.0 {
+                use crate::game::amends::{self, Answer};
+                let ttraits = if maker_first { &sb.traits } else { &sa.traits };
+                let refused = (mr.below(1000) as f32)
+                    < amends::refusal_chance(ttraits) * 1000.0;
+                let answer = amends::their_answer(ttraits, refused);
+                let prior = self.world.get_component::<AmendsTally>(maker)
+                    .filter(|x| x.of == target).map(|x| x.n).unwrap_or(0);
+                let lines = vec![
+                    TalkLine { who: Some(maker), name: self.name_of(maker),
+                        text: amends::AMENDS_ASK.into(), gist: false },
+                    TalkLine { who: Some(target), name: self.name_of(target),
+                        text: amends::answer_line(answer).into(), gist: false },
+                ];
+                self.world.add_component(maker,
+                    AmendsTally { of: target, n: prior.saturating_add(1) });
+                if answer == Answer::Refused {
+                    // the peace refused is its own beat - the quarrel
+                    // stands, but it was offered and heard
+                    self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, true);
+                    return true;
+                }
+                self.spats.remove(&key);
+                relationships::record_interaction(&mut self.world, maker, Interaction {
+                    other: target, kind: InteractionKind::Conversation,
+                    intensity: amends::warmth_back(prior) });
+                self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, false);
+                return true;
+            }
         }
         // a pair the table knows plays their signature scene instead of
         // small talk (#1227): depth where the village has a story, and
@@ -810,6 +883,8 @@ impl Game {
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
             asks_taken: vec![], asked_seen: 0, mood: TalkMood::Cool, vibe: None,
             tired, argue: None, argued: vec![], inoculating: false, tell,
+            // a talk opened on a slight carries the repair move (#1251)
+            amends: self.talk_mood_of(v) == Some(TalkMood::Slighted),
         });
         self.refresh_player_talk(seat);
     }
@@ -1072,13 +1147,19 @@ impl Game {
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let extra = t.inoculation_beyond();
         let tell_at = n + asks + extra.is_some() as usize;
-        let Some(i) = pick.filter(|&i| i < tell_at + t.tell.is_some() as usize) else {
+        let amends_at = tell_at + t.tell.is_some() as usize;
+        let Some(i) = pick.filter(|&i| i < amends_at + t.amends as usize) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
         };
         // the last pick, when it's there: tell them the mystery's answer
         if t.tell.is_some() && i == tell_at {
             self.talk_tell_mystery(seat);
+            return;
+        }
+        // past even the telling: own the wrong word (#1251)
+        if t.amends && i == amends_at {
+            self.talk_amends(seat);
             return;
         }
         // a pick past the replies is a proposition: the ask lands or it
@@ -1298,6 +1379,51 @@ impl Game {
             else if own >= 0.8 { "Me? They hear me out, mostly.".into() }
             else { "Me? Nobody much minds me.".into() });
         out
+    }
+
+    /// "About the other day" (#1251): owning the wrong word - a beat of
+    /// the talk spent on it, their cool answer part of the price.
+    /// Accepted, the door reopens - guarded, not warm, but they'll hear
+    /// an ask again; refused, the chill stands. The count of sorries
+    /// ticks either way - repeated sorries stop landing
+    fn talk_amends(&mut self, seat: usize) {
+        use crate::game::amends::{self, Answer};
+        let (pe, oe) = (self.seats[seat].player, self.seats[seat].org);
+        let Some(t) = self.seats[seat].talk.as_mut() else { return };
+        t.amends = false;
+        let who = t.who;
+        let prior = self.world.get_component::<AmendsTally>(who)
+            .filter(|a| a.of == pe).map(|a| a.n).unwrap_or(0);
+        let traits: Vec<crate::game::traits::Trait> = self.world
+            .get_component::<crate::game::traits::Personality>(who)
+            .map(|p| p.traits.clone()).unwrap_or_default();
+        let roll = (self.rng.next() % 1000) as f32 / 1000.0;
+        let answer = amends::their_answer(&traits, roll < amends::refusal_chance(&traits));
+        self.argue_line(seat, Some(pe), amends::AMENDS_ASK.into());
+        self.argue_line(seat, Some(who), amends::answer_line(answer).into());
+        self.world.add_component(who, AmendsTally { of: pe, n: prior.saturating_add(1) });
+        if answer == Answer::Refused {
+            // the chill stands - the memory's still the slight, so the
+            // next hello opens cold again; but the word was heard, and
+            // it counts on the tally
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Slighted; }
+            self.narrate_talk(seat, "They turn from it. The amends is heard, and refused.");
+        } else {
+            relationships::record_interaction(&mut self.world, pe, Interaction {
+                other: who, kind: InteractionKind::Conversation,
+                intensity: amends::warmth_back(prior) });
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Guarded; }
+            // repair reopens the ask path: the asks a slight cleared
+            // come back on the table - the work isn't over, it's heard
+            let mut asks = crate::game::organizing::ask_offers(
+                &self.world, oe, who, crate::game::rhetoric::ask_shift(&self.world, who, oe));
+            if let Some(cur) = self.seats[seat].talk.as_mut() {
+                asks.retain(|o| !cur.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
+                cur.asks = asks;
+            }
+            self.narrate_talk(seat, "The wrong's owned. They hear you out - guarded, but hearing.");
+        }
+        self.refresh_player_talk(seat);
     }
 
     /// "I've pieced it together": the mystery told across the talk - your

@@ -79,11 +79,10 @@ pub fn reach_target(world: &World, org: Entity, leader: Entity, candidates: &[En
     let mut best: Option<(Entity, f32)> = None;
     for &c in candidates {
         if c == leader || o.members.contains(&c) || c == o.leader
-            || crate::game::villager::is_dead(world, c)
+            || crate::game::dungeon::unavailable(world, c)
             || world.get_component::<crate::game::vocation::Kid>(c).is_some()
             || world.get_component::<crate::session::country::Outlander>(c).is_some()
-            || world.get_component::<crate::game::prophetic::Follower>(c).is_some()
-            || world.get_component::<crate::game::dungeon::Imprisoned>(c).is_some() { continue; }
+            || world.get_component::<crate::game::prophetic::Follower>(c).is_some() { continue; }
         let t = tie(world, leader, c);
         if best.map(|(_, b)| t > b).unwrap_or(true) { best = Some((c, t)); }
     }
@@ -100,7 +99,8 @@ pub fn run_reach(world: &mut World, leader: Entity, day: u64) -> Option<(Entity,
     let r = *world.get_component::<Reach>(leader)?;
     if r.due > day { return None; }
     world.remove_component::<Reach>(leader);
-    if crate::game::villager::is_dead(world, leader) || crate::game::villager::is_dead(world, r.target) { return None; }
+    // dead, jailed or held at the castle: the sit-down never happens
+    if crate::game::dungeon::unavailable(world, leader) || crate::game::dungeon::unavailable(world, r.target) { return None; }
     crate::game::organizing::one_on_one(world, leader, r.target, day);
     let t = tie(world, leader, r.target);
     // a first developer, in any org, keeps the credit

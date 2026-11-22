@@ -193,6 +193,9 @@ pub struct PlayerTalk {
     /// The repair move on offer (#1251): the talk opened on a slight, so
     /// the last slot is owning the wrong
     pub amends: bool,
+    /// The listener's trade (#1252): with a hog, the last slot is letting
+    /// them run - the monologue yields their own story, never the village's
+    pub let_run: bool,
 }
 
 /// The one-on-one argument as it stands (#1234): which issue, then
@@ -255,7 +258,8 @@ impl PlayerTalk {
             .chain(self.inoculation_beyond().as_ref()
                 .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
             .chain(self.tell.clone())
-            .chain(self.amends.then(|| "Make amends for the other day".to_string())).collect()
+            .chain(self.amends.then(|| "Make amends for the other day".to_string()))
+            .chain(self.let_run.then(|| "Let them run on".to_string())).collect()
     }
 }
 
@@ -885,6 +889,10 @@ impl Game {
             tired, argue: None, argued: vec![], inoculating: false, tell,
             // a talk opened on a slight carries the repair move (#1251)
             amends: self.talk_mood_of(v) == Some(TalkMood::Slighted),
+            // and a hog carries the listener's trade (#1252)
+            let_run: self.world.get_component::<crate::game::traits::Personality>(v)
+                .map(|p| p.traits.contains(&crate::game::traits::Trait::SelfAbsorbed))
+                .unwrap_or(false),
         });
         self.refresh_player_talk(seat);
     }
@@ -1148,7 +1156,8 @@ impl Game {
         let extra = t.inoculation_beyond();
         let tell_at = n + asks + extra.is_some() as usize;
         let amends_at = tell_at + t.tell.is_some() as usize;
-        let Some(i) = pick.filter(|&i| i < amends_at + t.amends as usize) else {
+        let let_run_at = amends_at + t.amends as usize;
+        let Some(i) = pick.filter(|&i| i < let_run_at + t.let_run as usize) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
         };
@@ -1160,6 +1169,11 @@ impl Game {
         // past even the telling: own the wrong word (#1251)
         if t.amends && i == amends_at {
             self.talk_amends(seat);
+            return;
+        }
+        // and past the amends, if both ride at once: hold the space (#1252)
+        if t.let_run && i == let_run_at {
+            self.talk_let_run(seat);
             return;
         }
         // a pick past the replies is a proposition: the ask lands or it
@@ -1423,6 +1437,43 @@ impl Game {
             }
             self.narrate_talk(seat, "The wrong's owned. They hear you out - guarded, but hearing.");
         }
+        self.refresh_player_talk(seat);
+    }
+
+    /// "Let them run on" (#1252): holding the space a hog fills. The
+    /// monologue yields what they'd never trade for - their own story:
+    /// an unrevealed trouble or want if they've one left, and their
+    /// opinions of everyone either way. The village's business - the
+    /// rumors, the mysteries - isn't theirs to give
+    fn talk_let_run(&mut self, seat: usize) {
+        let (pe, who) = (self.seats[seat].player, self.seats[seat].talk.as_ref().map(|t| t.who).unwrap());
+        if let Some(t) = self.seats[seat].talk.as_mut() { t.let_run = false; }
+        use crate::game::desires;
+        if let Some(r) = desires::next_reveal(&self.world, who, self.tick, self.rng.next()) {
+            let name = self.name_of(who);
+            let (_did, said) = desires::reveal_speech(name.as_str(), &r);
+            self.argue_line(seat, Some(who), said);
+            if let Some(issue) = desires::hear(&mut self.world, pe, who, r, self.tick) {
+                self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                self.log_entity_ev(
+                    super::gamelog::EvTag::new(
+                        super::gamelog::Thread::Org,
+                        super::gamelog::Valence::Positive,
+                        super::gamelog::Sev::Minor),
+                    pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+            }
+        }
+        // and the rest of the run: their past, their opinions of everyone
+        let someones: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| v != who && !villager::is_dead(&self.world, v)).collect();
+        // nobody else left to opine on? a hog names themselves just fine
+        let other = someones.get((self.rng.next() as usize) % someones.len().max(1))
+            .copied().unwrap_or(who);
+        let run = crate::game::conversation::HOG_RUN;
+        let line = run[(self.rng.next() as usize) % run.len()]
+            .replace("{someone}", &self.name_of(other));
+        self.argue_line(seat, Some(who), line);
+        self.narrate_talk(seat, "You let them run - they fill the space with themselves.");
         self.refresh_player_talk(seat);
     }
 

@@ -338,11 +338,17 @@ impl Game {
         // how the last talk ended opens or closes what they'll share
         // (#1183): a warm ending loosens tongues, a cold one shuts them
         let mood = self.talk_mood_of(v);
+        // the hog doesn't trade (#1252): their trouble comes out of the
+        // monologue if you hold the space, rarely out of the usual draw
+        let hog = self.world.get_component::<crate::game::traits::Personality>(v)
+            .map(|p| p.traits.contains(&crate::game::traits::Trait::SelfAbsorbed))
+            .unwrap_or(false);
+        let hog_factor = if hog { 0.3 } else { 1.0 };
         let reveal_factor = match mood {
             Some(dialogue::TalkMood::Slighted) => 0.35,
             Some(dialogue::TalkMood::Warmed) => 1.6,
             _ => 1.0,
-        };
+        } * hog_factor;
         let revealed = if (self.rng.next() % 1000) < (desires::REVEAL_BASE * reveal_factor * if smelly { 900.0 } else { 1000.0 }) as u64 {
             let pick = self.rng.next();
             desires::next_reveal(&self.world, v, self.tick, pick)
@@ -368,15 +374,21 @@ impl Game {
             // still smarting: what's on their mind is you
             None if mood == Some(dialogue::TalkMood::Slighted) =>
                 crate::game::organizing::cold_gist(vill_name(who)),
-            None => match self.mystery_fact_at(seat) {
+            None => match if hog { None } else { self.mystery_fact_at(seat) } {
                 // gossip carries a piece of the mystery, now and then
                 Some(text) => {
                     whispered = true;
                     (format!("{} passes on a rumor", vill_name(who)), text)
                 }
                 // a sworn villager's opening is the cause's weather, not
-                // the sky's (#1228); no live cause, ordinary small talk
+                // the sky's (#1228); no live cause, ordinary small talk -
+                // and the hog's small talk is themselves (#1252)
                 None => self.cause_gist(seat, v)
+                    .or_else(|| hog.then(|| {
+                        let gists = crate::game::conversation::HOG_GISTS;
+                        (format!("{} holds forth", vill_name(who)),
+                            gists[(self.rng.next() as usize) % gists.len()].to_string())
+                    }))
                     .unwrap_or_else(|| talk_response(&self.world, v, vill_name(who), talks_before, self.tick)),
             },
         };

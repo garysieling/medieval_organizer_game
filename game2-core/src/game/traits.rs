@@ -17,12 +17,13 @@ pub enum Trait {
     Wary,        // watches who's asking before they answer
     Stolid,      // keeps to themselves, unmoved by talk
     Cruel,       // hard hand, quick to wound
+    SelfAbsorbed, // the conversation hog: talks at you, never asks back (#1252)
 }
 
 /// Every trait, in a fixed order (ties over "most common" settle on it)
-pub const TRAITS: [Trait; 12] = [Trait::Lazy, Trait::Ambitious, Trait::Kind, Trait::Stingy,
+pub const TRAITS: [Trait; 13] = [Trait::Lazy, Trait::Ambitious, Trait::Kind, Trait::Stingy,
     Trait::Pious, Trait::Hotheaded, Trait::Gregarious, Trait::Proud,
-    Trait::Steady, Trait::Wary, Trait::Stolid, Trait::Cruel];
+    Trait::Steady, Trait::Wary, Trait::Stolid, Trait::Cruel, Trait::SelfAbsorbed];
 
 impl Trait {
     /// The trait that can't sit beside this one: a taught trait drives
@@ -82,6 +83,8 @@ pub fn modifies(p: &Personality, behavior: &str) -> f32 {
             (Trait::Cruel, "feud") => 1.5,
             (Trait::Cruel, "share") => 0.5,
             (Trait::Cruel, "talk") => 0.7,
+            (Trait::SelfAbsorbed, "talk") => 1.3,
+            (Trait::SelfAbsorbed, "social") => 1.2,
             _ => 1.0,
         };
     }
@@ -99,6 +102,7 @@ pub fn personality_from_seed(seed: u64) -> Personality {
         2 | 3 => Some(Trait::Wary),
         4 => Some(Trait::Stolid),
         5 => Some(Trait::Cruel),
+        6 | 7 => Some(Trait::SelfAbsorbed),
         _ => None,
     };
     if let Some(t) = extra.filter(|t| t.opposite().map(|o| !traits.contains(&o)).unwrap_or(true)) {

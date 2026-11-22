@@ -57,6 +57,7 @@ fn test_the_card_tells_the_biography_you_know() {
             crate::game::traits::Trait::Wary => "wary",
             crate::game::traits::Trait::Stolid => "stolid",
             crate::game::traits::Trait::Cruel => "cruel",
+            crate::game::traits::Trait::SelfAbsorbed => "self-absorbed",
         };
         bio.contains(w)
     });
@@ -76,6 +77,7 @@ fn test_the_card_tells_the_biography_you_know() {
             crate::game::traits::Trait::Wary => "slow to trust",
             crate::game::traits::Trait::Stolid => "keeps to themselves",
             crate::game::traits::Trait::Cruel => "a heavy hand",
+            crate::game::traits::Trait::SelfAbsorbed => "talks at you",
         };
         bio.contains(h)
     });

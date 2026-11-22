@@ -44,6 +44,9 @@ pub enum Command {
     /// Let the pick go: the ring, the walk-over and the talk under way
     /// (the window's double-tap of Talk)
     Unselect,
+    /// Open or shut the market board's postings panel - a set, not a
+    /// toggle, so the client's Esc can't desync the seat's state
+    Board(bool),
 }
 
 /// A contextual action offered under the main buttons: what the player can
@@ -295,6 +298,7 @@ impl Game {
             Command::TalkPick(n) => self.talk_pick_at(seat, n),
             Command::Decide(i) => self.decide_at(seat, i),
             Command::Unselect => self.unselect_at(seat),
+            Command::Board(open) => self.seats[seat].notice_panel = open,
         }
     }
 
@@ -630,6 +634,9 @@ impl Game {
                 return;
             }
         }
+        // a click anywhere else on the map lets the board go - the
+        // postings panel isn't a modal, it steps aside (#1349)
+        if mx < MAP_W as i32 { self.seats[seat].notice_panel = false; }
         // click on a rival villager -> they rebuff you (foreign village is wary)
         for (i, rv) in self.rivals.clone().into_iter().enumerate() {
             if let Some(p) = self.world.get_component::<Pos>(rv) {

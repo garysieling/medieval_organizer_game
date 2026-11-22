@@ -36,6 +36,7 @@ mod memorials;
 mod mounted;
 mod mystery_click;
 mod nature;
+mod notices;
 mod panel;
 mod pause_box;
 mod person;

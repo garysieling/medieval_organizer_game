@@ -1660,10 +1660,10 @@ impl View {
 
         // the board's postings: the notices panel, read at the market
         if m.notice_panel && !m.notices.is_empty() {
-            let lines: Vec<String> = m.notices.iter()
-                .map(|(k, t)| format!("[{}] {}", k, t)).collect();
+            let lines = notice_lines(&m.notices);
             let refs: Vec<&str> = lines.iter().map(String::as_str).collect();
-            draw_overlay(&mut buf, 480, "the board's postings", (255, 240, 200), &refs, 120, None);
+            draw_overlay(&mut buf, 480, "the board's postings", (255, 240, 200), &refs,
+                NOTICE_ROW, Some("Esc or a click away closes it"));
         }
         // a flyer's hover: mouse near a posted door and its words show
         if let Some((mx, my)) = self.mouse {

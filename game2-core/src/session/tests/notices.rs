@@ -41,3 +41,33 @@ fn test_the_board_opens_only_for_the_seat_that_reads_it() {
     assert!(g.ui_model_at(1).notice_panel, "the reading seat's panel didn't open");
     assert!(!g.ui_model_at(0).notice_panel, "a click by seat 1 opened seat 0's panel");
 }
+
+#[test]
+fn test_the_board_command_shuts_the_panel() {
+    let mut g = Game::new();
+    g.seats[0].notice_panel = true;
+    g.command(Command::Board(false));
+    assert!(!g.seats[0].notice_panel, "the Esc's command didn't shut the panel");
+    // a set, not a toggle: closing a closed panel stays closed
+    g.command(Command::Board(false));
+    assert!(!g.seats[0].notice_panel);
+    g.command(Command::Board(true));
+    assert!(g.seats[0].notice_panel);
+}
+
+#[test]
+fn test_a_click_away_lets_the_board_go() {
+    let mut g = Game::new();
+    let mp = *g.world.get_component::<Pos>(g.market_food).unwrap();
+    let cam_x = -((mp.x - mp.y) * TILE_W as f32).round() as i32;
+    let cam_y = (460.0 - (mp.x + mp.y) * TILE_H as f32).round() as i32;
+    // the board click still toggles - open, then shut on the board itself
+    g.click_map_at(0, 540, 400, cam_x, cam_y, 1.0);
+    assert!(g.seats[0].notice_panel, "the board click didn't open the panel");
+    g.click_map_at(0, 540, 400, cam_x, cam_y, 1.0);
+    assert!(!g.seats[0].notice_panel, "the board click didn't toggle shut");
+    // open again, then a click away from it lets it go
+    g.click_map_at(0, 540, 400, cam_x, cam_y, 1.0);
+    g.click_map_at(0, 50, 50, cam_x, cam_y, 1.0);
+    assert!(!g.seats[0].notice_panel, "a click away left the panel up");
+}

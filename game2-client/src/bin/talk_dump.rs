@@ -12,7 +12,9 @@
 //! Usage:
 //!   cargo run -p game2-client --bin talk_dump -- [--seed 7] [--days 20] [--max 100] [-o out.json]
 
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::env;
 
 use game2_client::Art;
@@ -82,7 +84,14 @@ fn main() -> std::io::Result<()> {
                 speakers.push(sheet);
             }
             out.push(serde_json::json!({
-                "id": format!("village-s{}-{}", seed, r.id),
+                // plus a fingerprint of what was said: a later build's
+                // talk under the same log id is a different conversation,
+                // and mustn't inherit feedback filed against this one
+                "id": format!("village-s{}-{}-{:x}", seed, r.id, {
+                    let mut h = DefaultHasher::new();
+                    for l in &r.lines { l.name.hash(&mut h); l.text.hash(&mut h); }
+                    h.finish()
+                }),
                 "source": "village",
                 "kind": format!("{:?}", r.kind),
                 "day": r.tick,

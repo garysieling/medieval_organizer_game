@@ -38,6 +38,7 @@ impl Game {
             Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(..) | Goal::Post(_)
             | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..) | Goal::LevyCart(_)
             | Goal::FieldPost(_) => return false, // country walks go through send_far
+            Goal::WorkParty(_) => return false, // party walks go through send_far
             Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
             Goal::AttendRite => return false, // rites walk to their tile through send_tile_walk
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
@@ -279,6 +280,9 @@ impl Game {
         }
         self.travels.retain(|t| !t.path.is_empty());
         for (who, goal) in arrived { self.arrive(who, goal); }
+        // a work party resolves when its hands are on the site - or
+        // when the day it's given the stragglers runs out (#1344)
+        self.party_sweep();
         // the mount goes when the ride does: arrived, cancelled, or
         // otherwise no longer under way
         for &m in &mounted {
@@ -827,6 +831,21 @@ impl Game {
                 // the laborer reaches the site: the crew counts them on it
                 if let Some(p) = self.world.get_component_mut::<Pos>(who) {
                     p.x = t.0 as f32 + 0.5; p.y = t.1 as f32 + 0.5;
+                }
+            }
+            Goal::WorkParty(i) => {
+                // a hand on the ground: the party counts them toward
+                // the take (#1344) - only their own party's roll, so a
+                // late straggler can't land on a party that took the
+                // slot over
+                let t = self.work_parties.get(i)
+                    .filter(|p| p.hands.contains(&who) && !p.arrived.contains(&who))
+                    .map(|p| p.tile);
+                if let Some(t) = t {
+                    if let Some(p) = self.world.get_component_mut::<Pos>(who) {
+                        p.x = t.0 as f32 + 0.5; p.y = t.1 as f32 + 0.5;
+                    }
+                    if let Some(p) = self.work_parties.get_mut(i) { p.arrived.push(who); }
                 }
             }
             Goal::FarmWork(f) => {

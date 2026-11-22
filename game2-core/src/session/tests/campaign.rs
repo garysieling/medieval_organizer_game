@@ -884,3 +884,87 @@ fn test_the_floor_carries_the_pooled_buy() {
         "the surplus' coin is the cause's");
     let _ = c;
 }
+
+#[test]
+fn test_the_party_walks_out_and_the_take_fills_the_chest() {
+    let mut g = Game::new();
+    use crate::game::campaign::{Motion, PartyKind};
+    let _c = tax_cause(&mut g, 4);
+    // a good patch flushed and waiting on the pickers
+    g.mush_patches[0].kind = crate::game::mycology::MushKind::FieldMushroom;
+    for p in g.mush_patches.iter_mut() { p.next_ready = 0; }
+    // the first member has a friend outside the cause - the party's
+    // soft ask brings them along
+    let members = g.world.get_component::<Organization>(g.org).unwrap().members.clone();
+    let guest = g.villagers.iter().copied()
+        .find(|&v| !members.contains(&v)
+            && g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .unwrap();
+    survey_bond(&mut g, members[0], guest);
+    let warm0 = crate::game::relationships::find_relationship(&g.world, guest, members[0])
+        .and_then(|r| g.world.get_component::<crate::game::relationships::Relationship>(r))
+        .map(|r| r.strength).unwrap_or(0.0);
+    let res0 = g.world.get_component::<Organization>(g.org).unwrap().resources;
+
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|m| matches!(m, Motion::WorkParty(PartyKind::Forage)))
+        .expect("four hands carry a picking party: {slate:?}");
+    g.decide_at(0, pick);
+
+    // the party's out: members and the guest walking, the organizer home
+    assert_eq!(g.work_parties.len(), 1, "the party's under way");
+    let pi = g.work_parties[0].patch.expect("a patch party");
+    assert!(g.work_parties[0].hands.contains(&guest), "the guest came along");
+    assert!(!g.work_parties[0].hands.contains(&g.player), "the organizer's hands stay clean");
+    for _ in 0..12000 { g.update(); if g.work_parties.is_empty() { break; } }
+    assert!(g.work_parties.is_empty(), "the party resolves once the hands are in");
+
+    // the take pooled to the chest, the patch flushed, the shared day warmed
+    let res1 = g.world.get_component::<Organization>(g.org).unwrap().resources;
+    assert!(res1 > res0, "the caps sell into the chest");
+    assert!(g.mush_patches[pi].next_ready > g.tick, "the patch is picked");
+    let warm1 = crate::game::relationships::find_relationship(&g.world, guest, members[0])
+        .and_then(|r| g.world.get_component::<crate::game::relationships::Relationship>(r))
+        .map(|r| r.strength).unwrap_or(0.0);
+    assert!(warm1 > warm0, "the guest walks home warmer to their host: {warm0} -> {warm1}");
+    let m_warm = crate::game::relationships::find_relationship(&g.world, members[0], members[1])
+        .and_then(|r| g.world.get_component::<crate::game::relationships::Relationship>(r))
+        .map(|r| r.strength).unwrap_or(0.0);
+    assert!(m_warm > 0.0, "the hands warmed to each other over the work");
+}
+
+#[test]
+fn test_the_raising_turns_the_village_out() {
+    let mut g = Game::new();
+    use crate::game::campaign::{Motion, PartyKind};
+    let _c = tax_cause(&mut g, 5);
+    let members = g.world.get_component::<Organization>(g.org).unwrap().members.clone();
+    // the folk nearest the plot answer the open call: one bystander bonded
+    // so the host-warmth lands on a tie we can read
+    let guest = g.villagers.iter().copied()
+        .find(|&v| !members.contains(&v)
+            && g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .unwrap();
+    survey_bond(&mut g, members[0], guest);
+    // the open call reads the site: put the friend in reach of wherever
+    // the roof goes - beside the player, where the plot scan centers
+    let pp = g.world.get_component::<Pos>(g.player).copied().unwrap();
+    g.world.get_component_mut::<Pos>(guest).unwrap().x = pp.x + 3.0;
+    g.world.get_component_mut::<Pos>(guest).unwrap().y = pp.y;
+    let n0 = g.buildings.len();
+
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|m| matches!(m, Motion::WorkParty(PartyKind::Raise)))
+        .expect("five hands carry a raising: {slate:?}");
+    g.decide_at(0, pick);
+    assert_eq!(g.work_parties.len(), 1);
+    let tile = g.work_parties[0].tile;
+    let _ = tile;
+    for _ in 0..12000 { g.update(); if g.work_parties.is_empty() { break; } }
+    assert!(g.work_parties.is_empty(), "the party resolves");
+    assert!(g.buildings.len() > n0, "the roof went up");
+}

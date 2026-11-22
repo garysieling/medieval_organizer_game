@@ -926,6 +926,20 @@ pub enum Motion {
     /// The room pools its coin and buys together at a discount
     /// (#1343): index into `BUY_GOODS`, and the gold promised behind it
     GroupBuy(usize, u32),
+    /// The members take the work out together - a picking party or a
+    /// raising (#1344): the take fills the chest, the shared day warms
+    /// the hands
+    WorkParty(PartyKind),
+}
+
+/// The work a party walks out to (#1344): caps under the trees, or a
+/// roof the whole village turns out for
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum PartyKind {
+    /// A flushed mushroom patch: the take sells into the chest
+    Forage,
+    /// A barnraising: the roof goes up, the village sees the cause work
+    Raise,
 }
 
 /// The rhetorical line a motion takes (#1310): the street verbs are the
@@ -937,6 +951,7 @@ pub fn motion_line(m: Motion) -> Option<crate::game::rhetoric::Line> {
         Motion::March | Motion::Strike | Motion::Townhall | Motion::TwoFronts => Some(Line::Firebrand),
         Motion::Flyers | Motion::Survey => Some(Line::Patient),
         Motion::GroupBuy(..) => Some(Line::Patient),
+        Motion::WorkParty(_) => Some(Line::Patient),
         Motion::SendOrganizer | Motion::ParallelEvent(_) => None,
     }
 }
@@ -975,6 +990,10 @@ pub fn motion_label(m: Motion) -> String {
         Motion::Survey => "Run a survey - the doors get asked, the count comes back".into(),
         Motion::GroupBuy(gi, pledged) =>
             format!("Go in together on the {} - {} gold promised", BUY_GOODS[gi], pledged),
+        Motion::WorkParty(PartyKind::Forage) =>
+            "Send a work party out for the caps - the take fills the chest".into(),
+        Motion::WorkParty(PartyKind::Raise) =>
+            "Raise a roof together - call the village out for it".into(),
     }
 }
 
@@ -1005,17 +1024,23 @@ pub const FIELD_DAILY: f32 = 1.0;
 
 /// Living grown members free to act: the size the slate's read off
 pub fn living_members(world: &World, campaign: Entity) -> usize {
-    let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else { return 0 };
+    living_member_list(world, campaign).len()
+}
+
+/// The living members as entities, in roll order (#1344): the work
+/// party's hands - the same bar `living_members` counts
+pub fn living_member_list(world: &World, campaign: Entity) -> Vec<Entity> {
+    let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else { return vec![] };
     let dues = world.get_component::<Dues>(org).map(|d| d.missed.clone()).unwrap_or_default();
     world.get_component::<Organization>(org)
-        .map(|o| o.members.iter().filter(|&&m| {
+        .map(|o| o.members.iter().copied().filter(|&m| {
             !is_dead(world, m)
                 && world.get_component::<crate::game::vocation::Kid>(m).is_none()
                 && !crate::game::dungeon::unavailable(world, m)
                 // a lapsed name stays on the rolls but doesn't carry
                 // a motion's headcount (#1342)
                 && dues.get(&m).copied().unwrap_or(0) == 0
-        }).count()).unwrap_or(0)
+        }).collect()).unwrap_or_default()
 }
 
 /// The goods a pooled buy can be for (#1343): the wants the village's
@@ -1430,6 +1455,11 @@ pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
     if n >= 8 { ms.push(Motion::SendOrganizer); }
     // any cause big enough to act can first go asking
     if n >= 2 { ms.push(Motion::Survey); }
+    // the quiet work of hands (#1344): a few members pick, a bigger
+    // room raises - the site check is the agenda's, the slate just
+    // needs the hands
+    if n >= 3 { ms.push(Motion::WorkParty(PartyKind::Forage)); }
+    if n >= 5 { ms.push(Motion::WorkParty(PartyKind::Raise)); }
     // the room's own coin: when the pledges gather behind a good, the
     // floor can carry the pooled buy - quiet work, no legwork asked
     if let Some((gi, pledgers)) = group_pledges(world, campaign).into_iter()
@@ -2021,5 +2051,31 @@ mod tests {
         let slate = motions_open(&w, c2);
         assert!(!slate.iter().any(|m| matches!(m, Motion::GroupBuy(..))),
             "thin purses don't promise a bulk: {slate:?}");
+    }
+
+    #[test]
+    fn test_the_party_waits_for_the_hands() {
+        let mut w = World::new();
+        // two hands can't walk a party out; three pick, five raise
+        let two: Vec<Entity> = (0..2).map(|_| member(&mut w)).collect();
+        let (_o, c) = campaign_with(&mut w, &two);
+        let slate = motions_open(&w, c);
+        assert!(!slate.iter().any(|m| matches!(m, Motion::WorkParty(..))),
+            "two hands can't field a party: {slate:?}");
+        let three: Vec<Entity> = (0..3).map(|_| member(&mut w)).collect();
+        let (_o3, c3) = campaign_with(&mut w, &three);
+        let slate = motions_open(&w, c3);
+        assert!(slate.iter().any(|m| matches!(m, Motion::WorkParty(PartyKind::Forage))),
+            "three hands pick: {slate:?}");
+        assert!(!slate.iter().any(|m| matches!(m, Motion::WorkParty(PartyKind::Raise))),
+            "three hands don't raise: {slate:?}");
+        let five: Vec<Entity> = (0..5).map(|_| member(&mut w)).collect();
+        let (_o5, c5) = campaign_with(&mut w, &five);
+        let slate = motions_open(&w, c5);
+        assert!(slate.iter().any(|m| matches!(m, Motion::WorkParty(PartyKind::Raise))),
+            "five hands raise: {slate:?}");
+        // the work's quiet: no legwork asked, and it reads Patient
+        assert_eq!(motion_line(Motion::WorkParty(PartyKind::Forage)),
+            Some(crate::game::rhetoric::Line::Patient));
     }
 }

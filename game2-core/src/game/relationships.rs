@@ -107,6 +107,9 @@ pub struct Interaction {
 pub enum InteractionKind {
     Conversation,
     SharedMeal,
+    /// A day of work done shoulder to shoulder (#1344): the work
+    /// party's warmth - closer than a shared table, short of a deed
+    SharedWork,
     Conflict,
     Aid,
     Betrayal,
@@ -214,6 +217,7 @@ pub fn record_interaction(world: &mut World, from: Entity, interaction: Interact
     let base_delta = match interaction.kind {
         InteractionKind::Conversation => 0.10,
         InteractionKind::SharedMeal => 0.20,
+        InteractionKind::SharedWork => 0.25,
         InteractionKind::Conflict => -0.20,
         InteractionKind::Aid => 0.40,
         InteractionKind::Betrayal => -0.40,

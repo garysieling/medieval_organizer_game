@@ -739,6 +739,9 @@ pub enum Goal {
     /// for the cause (site index) - they stay out there on the post till
     /// it stages its day or they're brought home (#1157)
     FieldPost(usize),
+    /// A work-party hand walking out to the site (index into
+    /// Game.work_parties) - arrival counts them on the work (#1344)
+    WorkParty(usize),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -757,6 +760,30 @@ pub struct Travel {
     pub who: Entity,
     pub path: Vec<(i32, i32)>,
     pub goal: Goal,
+}
+
+/// A carried work-party motion (#1344): the hands who walked out, the
+/// site they work, and who invited whom. Resolves when everyone's
+/// arrived - or `due` runs out on the stragglers - pooling the take to
+/// the cause's chest and warming the hands to each other
+pub struct WorkParty {
+    /// The campaign's org the take and the warmth answer to
+    pub org: Entity,
+    /// Caps under the trees, or a roof the village turns out for
+    pub kind: crate::game::campaign::PartyKind,
+    /// The ground they work
+    pub tile: (i32, i32),
+    /// Forage: the patch they pick (index into mush_patches)
+    pub patch: Option<usize>,
+    /// The members and the guests who came
+    pub hands: Vec<Entity>,
+    /// (guest, the member who brought them) - the soft ask a party is
+    pub hosts: Vec<(Entity, Entity)>,
+    /// The hands who made the site (they're the ones the warmth and
+    /// the take count)
+    pub arrived: Vec<Entity>,
+    /// The day the stragglers are given up on
+    pub due: u64,
 }
 
 /// The plague doctor: rides in when the sickness takes three, works
@@ -1418,6 +1445,9 @@ pub struct Game {
     pub courtships: Vec<(Entity, Entity, u64)>,
     /// Wild mushroom patches in the shade of the wood
     pub mush_patches: Vec<MushPatch>,
+    /// Work parties under way (a carried WorkParty motion) - the hands
+    /// walk, then the take and the warmth resolve (#1344)
+    pub work_parties: Vec<WorkParty>,
     /// (who, the day they last gathered) - so the wood isn't stripped by one soul
     pub shroom_breaks: Vec<(Entity, u64)>,
     /// (who, the patch indices they've learned are death) - the wood

@@ -3309,6 +3309,12 @@ impl Game {
             Motion::ParallelEvent(_) => true,
             // the pledges that put it on the slate carry it through
             Motion::GroupBuy(..) => true,
+            // the party needs its ground: a flushed patch to pick, a
+            // free plot to raise on (#1344)
+            Motion::WorkParty(crate::game::campaign::PartyKind::Forage) =>
+                self.party_patch().is_some(),
+            Motion::WorkParty(crate::game::campaign::PartyKind::Raise) =>
+                self.build_site_at(seat).is_some(),
         }).collect()
     }
 
@@ -3448,7 +3454,231 @@ impl Game {
             Motion::ParallelEvent(site) => self.parallel_event_at(seat, site),
             Motion::Survey => self.survey_motion(seat, c),
             Motion::GroupBuy(gi, _) => self.group_buy_at(seat, c, gi),
+            Motion::WorkParty(kind) => self.work_party_at(seat, c, kind),
         }
+    }
+
+    /// A work party carried (#1344): the organizer picks the ground and
+    /// sends the hands - members with a guest each for the picking, the
+    /// village called out for a raising. The work itself resolves when
+    /// the hands arrive (party_sweep); the organizer's hands stay clean
+    fn work_party_at(&mut self, seat: usize, c: Entity,
+            kind: crate::game::campaign::PartyKind) -> String {
+        use crate::game::campaign::PartyKind;
+        let org = self.world.get_component::<crate::game::campaign::Campaign>(c)
+            .map(|cc| cc.org).unwrap_or(0);
+        let (tile, patch) = match kind {
+            PartyKind::Forage => match self.party_patch() {
+                Some(pi) => (self.mush_patches[pi].tile, Some(pi)),
+                None => return "No patch is flushed - the wood's been picked.".into(),
+            },
+            PartyKind::Raise => match self.build_site_at(seat) {
+                Some((x, y)) => ((x as i32, y as i32), None),
+                None => return "There's no plot free to raise on.".into(),
+            },
+        };
+        // the hands: the living members (the leader organizes, doesn't
+        // work), each bringing their warmest non-member friend along -
+        // the party doubles as the soft ask
+        let members = crate::game::campaign::living_member_list(&self.world, c);
+        let leader = crate::game::organizing::living_leader(&mut self.world, org);
+        let members: Vec<Entity> = members.into_iter()
+            .filter(|&m| Some(m) != leader).collect();
+        let member_set: crate::engine::det::HashSet<Entity> =
+            members.iter().copied().chain(leader).collect();
+        let mut hands: Vec<Entity> = vec![];
+        let mut hosts: Vec<(Entity, Entity)> = vec![];
+        for &m in &members {
+            if let Some(g) = self.party_guest(m, &member_set, &hands) {
+                hosts.push((g, m));
+                hands.push(g);
+            }
+        }
+        // a raising is the public do: the folk nearest the plot turn
+        // out whether or not a member asked them
+        if matches!(kind, PartyKind::Raise) {
+            for &v in self.villagers.clone().iter() {
+                if hands.iter().filter(|h| !member_set.contains(h)).count() >= 6 { break; }
+                if member_set.contains(&v) || hands.contains(&v) { continue; }
+                if !self.party_guest_able(v) { continue; }
+                let near = self.world.get_component::<Pos>(v)
+                    .map(|p| (p.x - tile.0 as f32).abs() + (p.y - tile.1 as f32).abs() <= 14.0)
+                    .unwrap_or(false);
+                if !near { continue; }
+                // their host is the member they're warmest with - or
+                // the organizer whose call they answered
+                let host = self.party_host(v, &members)
+                    .or(leader).or_else(|| members.first().copied());
+                let Some(host) = host else { break };
+                hosts.push((v, host));
+                hands.push(v);
+            }
+        }
+        hands.extend(members.iter().copied());
+        let mut went = 0usize;
+        for &h in &hands.clone() {
+            if self.send_far(h, tile, Goal::WorkParty(self.work_parties.len())) { went += 1; }
+        }
+        if went == 0 {
+            return "Nobody could get away for it - the party stands down.".into();
+        }
+        let idx = self.work_parties.len();
+        self.work_parties.push(WorkParty {
+            org, kind, tile, patch,
+            hands: hands.into_iter()
+                .filter(|h| self.travels.iter().any(|t| t.who == *h
+                    && matches!(t.goal, Goal::WorkParty(i) if i == idx)))
+                .collect(),
+            hosts, arrived: vec![], due: self.tick + 3,
+        });
+        match kind {
+            PartyKind::Forage =>
+                format!("{} set out under the trees for the caps - the take comes back to the chest.", went),
+            PartyKind::Raise =>
+                format!("{} turn out to raise the roof - the work will be seen.", went),
+        }
+    }
+
+    /// The flushed patch nearest the market a party could walk to
+    fn party_patch(&self) -> Option<usize> {
+        let mp = self.world.get_component::<Pos>(self.market_food).copied()?;
+        self.mush_patches.iter().enumerate()
+            .filter(|(_, p)| self.tick >= p.next_ready && !p.deadly())
+            .map(|(i, p)| { let dx = p.tile.0 as f32 - mp.x; let dy = p.tile.1 as f32 - mp.y;
+                (i, dx * dx + dy * dy) })
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i)
+    }
+
+    /// Can `v` be called out for the day: a living adult villager not
+    /// otherwise held
+    fn party_guest_able(&self, v: Entity) -> bool {
+        !villager::is_dead(&self.world, v)
+            && self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+            && !crate::game::dungeon::unavailable(&self.world, v)
+            && !self.in_player_talk(v)
+    }
+
+    /// The member `v` is warmest with (the host an open-call guest
+    /// answers to), strongest tie first
+    fn party_host(&self, v: Entity, members: &[Entity]) -> Option<Entity> {
+        self.world.query::<crate::game::relationships::Relationship>().iter()
+            .filter_map(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+            .filter_map(|r| {
+                let other = if r.from == v { Some(r.other) }
+                    else if r.other == v { Some(r.from) } else { None }?;
+                members.contains(&other).then_some((other, r.strength))
+            })
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(m, _)| m)
+    }
+
+    /// The guest a member brings: their warmest tie who isn't already
+    /// a member, isn't coming on another invite, and can get away
+    fn party_guest(&self, m: Entity, member_set: &crate::engine::det::HashSet<Entity>,
+            hands: &[Entity]) -> Option<Entity> {
+        self.world.query::<crate::game::relationships::Relationship>().iter()
+            .filter_map(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+            .filter_map(|r| {
+                let other = if r.from == m { Some(r.other) }
+                    else if r.other == m { Some(r.from) } else { None }?;
+                Some((other, r.strength))
+            })
+            .filter(|&(o, _)| !member_set.contains(&o) && !hands.contains(&o)
+                && self.villagers.contains(&o) && self.party_guest_able(o))
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(o, _)| o)
+    }
+
+    /// A party's hands have come in - or the day it gave them is out:
+    /// the take pools to the chest, the shared day warms the hands, and
+    /// the guests carry the warmth back to whoever brought them
+    pub(in crate::session) fn party_sweep(&mut self) {
+        let mut i = 0;
+        while i < self.work_parties.len() {
+            let p = &self.work_parties[i];
+            let ready = p.arrived.len() >= p.hands.len() || self.tick >= p.due;
+            if ready {
+                let p = self.work_parties.remove(i);
+                self.resolve_party(p);
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    /// The work's done: take to the chest, warmth between the hands
+    fn resolve_party(&mut self, party: WorkParty) {
+        use crate::game::campaign::PartyKind;
+        let tick = self.tick;
+        let WorkParty { org, kind, tile, patch, hosts, arrived, .. } = party;
+        // the hands who made the ground and still stand - the take and
+        // the warmth count them
+        let present: Vec<Entity> = arrived.into_iter()
+            .filter(|&h| !villager::is_dead(&self.world, h)).collect();
+        match kind {
+            PartyKind::Forage => {
+                if let Some(pi) = patch {
+                    if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = tick + 60; }
+                    let worth = crate::game::goods::worth_at(&self.world, "mushrooms");
+                    let take = worth * present.len() as f32;
+                    if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
+                        o.resources += take;
+                    }
+                    if let Some(&h) = present.first() {
+                        self.say(h, "Good caps, these - the chest eats well tonight.", TALK_BUBBLE_SECS);
+                    }
+                    self.log.push_ev(
+                        EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+                        format!("t{}: the picking party comes back - {:.0} gold of caps for the chest.",
+                            tick, take),
+                    );
+                }
+            }
+            PartyKind::Raise => {
+                // the road reaches out, then the roof rises - the same
+                // scene a player's own build gets
+                if self.map.buildable(tile.0, tile.1) {
+                    let (bx, by) = (tile.0 as f32, tile.1 as f32);
+                    self.buildings.push((bx, by, BSprite::House(self.rng.below(97) as usize)));
+                    self.map.build_at(tile.0, tile.1);
+                    let road = self.map.plan_road(tile);
+                    self.works.push(Works { building: self.buildings.len() - 1, road, frames: 0 });
+                    self.built_count += 1;
+                }
+                // the hat goes round the watching street: the cause's
+                // chest takes the day's collection
+                let hat = present.len() as f32 * 0.5;
+                if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
+                    o.resources += hat;
+                }
+                if let Some(&h) = present.first() {
+                    self.say(h, "She'll stand a hundred years.", TALK_BUBBLE_SECS);
+                }
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Positive, Sev::Major),
+                    format!("t{}: the roof went up - the whole village saw the cause at work.", tick),
+                );
+            }
+        }
+        // the shared day warms the hands to each other - and a guest to
+        // the member who brought them, a little closer
+        use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+        for (a, &m1) in present.iter().enumerate() {
+            for &m2 in &present[a + 1..] {
+                record_interaction(&mut self.world, m1,
+                    Interaction { other: m2, kind: InteractionKind::SharedWork, intensity: 0.4 });
+                record_interaction(&mut self.world, m2,
+                    Interaction { other: m1, kind: InteractionKind::SharedWork, intensity: 0.4 });
+            }
+        }
+        for &(g, host) in &hosts {
+            if !present.contains(&g) || villager::is_dead(&self.world, host) { continue; }
+            record_interaction(&mut self.world, g,
+                Interaction { other: host, kind: InteractionKind::SharedWork, intensity: 0.6 });
+        }
+        crate::sim::organized_power::record_action(&mut self.world, org,
+            crate::sim::organized_power::ActionQuality::Transformational);
     }
 
     /// The pooled buy carried (#1343): the pledges collect, the shop

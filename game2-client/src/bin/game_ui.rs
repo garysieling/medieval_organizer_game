@@ -576,8 +576,8 @@ fn main() {
         // pointer honestly is; and a conversation box over the rim is
         // UI, not map, so it doesn't scroll either
         let pointer_in = window.get_mouse_pos(MouseMode::Discard).is_some();
-        let convo_cover = cur_model.as_ref().and_then(|m| m.convo.as_ref()).map(|p| {
-            let (_, h) = client::talk::convo_layout(p, &mut view.convo_pin.borrow_mut());
+        let convo_cover = cur_model.as_ref().and_then(|m| m.convo.as_ref().map(|p| (m.frame, p))).map(|(frame, p)| {
+            let (_, h) = client::talk::convo_layout(p, &mut view.convo_pin.borrow_mut(), frame);
             mx >= client::talk::CONVO_X && mx < client::talk::CONVO_X + client::talk::CONVO_W
                 && my >= client::talk::CONVO_Y && my < client::talk::CONVO_Y + h
         }).unwrap_or(false);
@@ -686,7 +686,7 @@ fn main() {
                 // the conversation box: a speaker's line selects them, a
                 // choice button answers it (a reply, leave, or the call)
                 if let Some(c) = &m.convo {
-                    if let Some(click) = client::talk::convo_click(c, mx, my, &mut view.convo_pin.borrow_mut()) {
+                    if let Some(click) = client::talk::convo_click(c, mx, my, &mut view.convo_pin.borrow_mut(), m.frame) {
                         cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                         match click {
                             client::talk::ConvoClick::Speaker(i) => cmds.push(Command::Select(i)),

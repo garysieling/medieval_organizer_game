@@ -57,14 +57,14 @@ fn test_the_talk_fills_the_conversation_box_with_clickable_lines() {
     let c = g.convo_panel_at(0).expect("the talk on the conversation box");
     assert!(c.leave && !c.decides && !c.options.is_empty(), "{:?}", c.options);
     // a reply button clicks through as that reply
-    let (boxes, _) = convo_layout(&c, &mut ConvoPin::default());
+    let (boxes, _) = convo_layout(&c, &mut ConvoPin::default(), 30);
     let reply = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Reply(Some(0)))))
         .expect("a reply button");
-    assert_eq!(convo_click(&c, reply.x + 2, reply.y + 2, &mut ConvoPin::default()), Some(ConvoClick::Reply(Some(0))));
+    assert_eq!(convo_click(&c, reply.x + 2, reply.y + 2, &mut ConvoPin::default(), 30), Some(ConvoClick::Reply(Some(0))));
     // and the villager's own line selects them
     let line = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(_))))
         .expect("a speaker's line");
-    match convo_click(&c, line.x + 2, line.y + 2, &mut ConvoPin::default()) {
+    match convo_click(&c, line.x + 2, line.y + 2, &mut ConvoPin::default(), 30) {
         Some(ConvoClick::Speaker(v)) => assert_eq!(v, i),
         other => panic!("a speaker's line clicked: {:?}", other),
     }
@@ -96,10 +96,10 @@ fn test_a_house_meeting_ends_in_the_organizers_call_not_a_done_deal() {
     let issue = game2_core::game::desires::issue_name("the taxes".into());
     assert!(c.options.iter().take(3).all(|o| o.contains(&issue)), "{:?} vs {}", c.options, issue);
     // letting it rest answers the call and founds nothing
-    let (boxes, _) = convo_layout(&c, &mut ConvoPin::default());
+    let (boxes, _) = convo_layout(&c, &mut ConvoPin::default(), 30);
     let rest = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Decide(3))))
         .expect("the let-it-rest button");
-    assert_eq!(convo_click(&c, rest.x + 2, rest.y + 2, &mut ConvoPin::default()), Some(ConvoClick::Decide(3)));
+    assert_eq!(convo_click(&c, rest.x + 2, rest.y + 2, &mut ConvoPin::default(), 30), Some(ConvoClick::Decide(3)));
     g.decide_at(0, 3);
     assert!(g.seats[0].pending_founding.is_none());
     assert!(game2_core::game::campaign::campaign_of(&g.world, g.org).is_none());
@@ -162,8 +162,8 @@ fn test_the_conversation_box_draws_its_buttons() {
         decides: true, leave: false,
     };
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default());
-    let (boxes, h) = convo_layout(&p, &mut ConvoPin::default());
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30);
+    let (boxes, h) = convo_layout(&p, &mut ConvoPin::default(), 30);
     for b in &boxes {
         assert!(b.y >= CONVO_Y && b.y + b.h <= CONVO_Y + h, "a button sits inside the box");
         assert!(b.x >= CONVO_X && b.x + b.w <= CONVO_X + CONVO_W);
@@ -182,8 +182,8 @@ fn test_the_calls_question_rows_decide_the_probe() {
         other => panic!("a digit on the question picked: {:?}", other),
     }
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default());
-    let (boxes, _) = convo_layout(&c, &mut ConvoPin::default());
+    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30);
+    let (boxes, _) = convo_layout(&c, &mut ConvoPin::default(), 30);
     assert!(boxes.len() >= c.options.len(), "both questions are buttons");
     g.command(Command::Decide(1));
     assert!(g.seats[0].frame_offer.is_none(), "the pick answers it");
@@ -206,9 +206,9 @@ fn test_the_conversation_box_pins_its_lines() {
         options: vec![], decides: false, leave: false,
     };
     let mut pin = ConvoPin::default();
-    let (boxes, _) = convo_layout(&p, &mut pin);
+    let (boxes, _) = convo_layout(&p, &mut pin, 30);
     p.rows.push(row(10));
-    let (boxes2, _) = convo_layout(&p, &mut pin);
+    let (boxes2, _) = convo_layout(&p, &mut pin, 30);
     assert_eq!(boxes2.len(), boxes.len() + 1, "the new line appended");
     for (a, b) in boxes.iter().zip(boxes2.iter()) { assert_eq!(a.y, b.y, "a drawn line moved"); }
 
@@ -220,11 +220,11 @@ fn test_the_conversation_box_pins_its_lines() {
         options: vec![], decides: false, leave: false,
     };
     let mut pin = ConvoPin::default();
-    let (boxes, _) = convo_layout(&p, &mut pin);
+    let (boxes, _) = convo_layout(&p, &mut pin, 30);
     let head = boxes[0].rows[0].1.clone();
     let drop = boxes[0].h + 3;
     p.rows.push(row(60));
-    let (boxes2, _) = convo_layout(&p, &mut pin);
+    let (boxes2, _) = convo_layout(&p, &mut pin, 30);
     assert_eq!(boxes2.len(), boxes.len(), "a line still shows per drop");
     assert_ne!(boxes2[0].rows[0].1, head, "the oldest line didn't drop");
     assert_eq!(boxes2[0].rows[0].1, boxes[1].rows[0].1, "the drop wasn't the oldest");
@@ -239,7 +239,7 @@ fn test_the_conversation_box_pins_its_lines() {
         name: None, text: "a whisper over the talk".into(),
         gist: true, you: false, rule: false, who: None,
     });
-    let (boxes3, _) = convo_layout(&p, &mut pin);
+    let (boxes3, _) = convo_layout(&p, &mut pin, 30);
     assert!(boxes3.iter().all(|b| b.rows.iter().all(|(_, t, _, _)| !t.contains("whisper"))),
         "a line inserted above the fold showed");
     assert_eq!(boxes3[0].rows[0].1, boxes2[0].rows[0].1,
@@ -258,11 +258,11 @@ fn test_the_conversation_box_pins_its_lines() {
         decides: false, leave: true,
     };
     let mut pin = ConvoPin::default();
-    let (boxes, _) = convo_layout(&p, &mut pin);
+    let (boxes, _) = convo_layout(&p, &mut pin, 30);
     let lines1 = boxes.iter().filter(|b| !b.choice).count();
     p.options.clear();
     p.leave = false;
-    let (boxes2, _) = convo_layout(&p, &mut pin);
+    let (boxes2, _) = convo_layout(&p, &mut pin, 30);
     assert_eq!(boxes2.len(), lines1, "dropped lines came back");
     assert_eq!(boxes2[0].rows[0].1, boxes[0].rows[0].1,
         "the fold reopened behind the choices");
@@ -273,8 +273,67 @@ fn test_the_conversation_box_pins_its_lines() {
         rows: (0..3).map(row).collect(),
         options: vec![], decides: false, leave: false,
     };
-    let (boxes4, _) = convo_layout(&q, &mut pin);
+    let (boxes4, _) = convo_layout(&q, &mut pin, 30);
     assert_eq!(boxes4[0].rows[0].1, "line 0", "a new panel didn't open on its first line");
+}
+
+/// New lines fade up over CONVO_FADE frames while their elders hold
+/// full colour (#1318); the box's shape never reflows for it
+#[test]
+fn test_new_lines_fade_in_as_theyre_said() {
+    let row = |i: usize| TalkRowV {
+        name: Some(format!("Speaker{}", i)),
+        text: format!("line {}", i),
+        gist: false, you: false, rule: false, who: Some(i),
+    };
+    let mut p = ConvoPanelV {
+        title: "talk".into(),
+        rows: (0..3).map(row).collect(),
+        options: vec!["a reply".into()], decides: false, leave: false,
+    };
+    let mut pin = ConvoPin::default();
+    let (fresh, h1) = convo_layout(&p, &mut pin, 100);
+    let (aged, h2) = convo_layout(&p, &mut pin, 100 + CONVO_FADE);
+    assert_eq!(h1, h2, "the fade reflowed the box");
+    // drawn: the same panel at first sight vs faded in differs in pixels,
+    // and nowhere outside the said lines' rows
+    let draw = |pin: &mut ConvoPin, frame: u32| {
+        let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+        draw_convo_panel(&mut buf, &p, (-1, -1), pin, frame);
+        buf
+    };
+    let mut pin2 = ConvoPin::default();
+    let b0 = draw(&mut pin2, 200);
+    let b1 = draw(&mut pin2, 200 + CONVO_FADE);
+    let rows_hi = fresh.iter().rev().find(|b| !b.choice).map(|b| b.y + b.h).unwrap_or(0);
+    let (mut diff_in, mut diff_out) = (0, 0);
+    for y in 0..game2_core::session::H as i32 {
+        for x in CONVO_X..CONVO_X + CONVO_W {
+            let i = (y as usize * b0.width + x as usize) * 4;
+            if b0.pixels[i..i + 3] != b1.pixels[i..i + 3] {
+                if y < rows_hi { diff_in += 1; } else { diff_out += 1; }
+            }
+        }
+    }
+    assert!(diff_in > 0, "the said lines didn't fade in the drawn frame");
+    assert_eq!(diff_out, 0, "the choices or the frame dimmed too");
+    // a said line dims at first sight and fills to the body colour
+    let d = fresh[0].rows[0].2;
+    let f = aged[0].rows[0].2;
+    assert!(d.0 < f.0 && d.1 < f.1 && d.2 < f.2, "a line didn't fade up: {:?} -> {:?}", d, f);
+    assert_eq!(f, (215, 215, 200), "the full colour isn't the body colour");
+    // the speaker's name fades with its line
+    assert!(fresh[0].rows[0].3.as_ref().unwrap().1.0 < aged[0].rows[0].3.as_ref().unwrap().1.0,
+        "the name didn't fade with its line");
+    // the reply button never dims
+    let choice = fresh.iter().find(|b| b.choice).expect("a reply button");
+    assert_eq!(choice.rows[0].2, (140, 230, 140), "a choice faded like a said line");
+    // a line landing later fades alone - its elders stay full
+    p.rows.push(row(3));
+    let (boxes, _) = convo_layout(&p, &mut pin, 100 + CONVO_FADE + 1);
+    let new = boxes.iter().rev().find(|b| !b.choice).unwrap();
+    assert_eq!(new.rows[0].2, d, "the new line didn't start dim");
+    assert_eq!(boxes[0].rows[0].2, f, "an elder line dimmed with it");
 }
 
 #[test]
@@ -284,8 +343,8 @@ fn test_the_testimony_rows_decide_the_story() {
     let c = g.convo_panel_at(0).expect("which story to tell");
     assert_eq!(c.title, "THE CALL - WHAT WILL YOU TELL");
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default());
-    assert!(convo_layout(&c, &mut ConvoPin::default()).0.len() >= 2, "both stories are buttons");
+    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30);
+    assert!(convo_layout(&c, &mut ConvoPin::default(), 30).0.len() >= 2, "both stories are buttons");
     match digit_cmd(Some(&c), 1) {
         Some(Command::Decide(1)) => {}
         other => panic!("a digit on the stories picked: {:?}", other),

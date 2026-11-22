@@ -1419,7 +1419,7 @@ impl View {
 
         // the conversation box, top-right of the map: a Talk under way or
         // a house meeting's lines as they're said - and the call one leaves
-        if let Some(c) = &m.convo { talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut()); }
+        if let Some(c) = &m.convo { talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut(), m.frame); }
 
         // what the marks over villagers' heads mean, under the log
         let mut mx = UI_X as i32 + 14;

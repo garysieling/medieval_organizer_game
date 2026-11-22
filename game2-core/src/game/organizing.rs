@@ -1064,12 +1064,6 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
     if crate::game::persuasion::can_argue(stage) && crate::game::persuasion::can_argue(reached) {
         out.push(AskOffer { kind: PropKind::Argue, key: AskKey::Earned, price: 0.0 });
     }
-    // once they've signed on, the counter can be named before it lands
-    // (#1246) - offered while some counter's still unreadied
-    if crate::game::inoculation::committed(world, org, person)
-        && crate::game::inoculation::COUNTERS.iter().any(|&c| !crate::game::inoculation::shielded(world, person, c)) {
-        out.push(AskOffer { kind: PropKind::Inoculate, key: AskKey::Earned, price: 0.0 });
-    }
     for p in ask_candidates(world, org, person) {
         if heard && ask_tier(p) <= reached {
             out.push(AskOffer { kind: p, key: AskKey::Earned, price: 0.0 });
@@ -1078,6 +1072,13 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
         if heard { out.push(AskOffer { kind: p, key: AskKey::Nerve, price: 0.0 }); }
         let price = ask_price(p, stage);
         if purse >= price { out.push(AskOffer { kind: p, key: AskKey::Coin, price }); }
+    }
+    // once they've signed on, the counter can be named before it lands
+    // (#1246) - offered while some counter's still unreadied. It comes
+    // last so a saved talk's pick numbers still reach the asks they did
+    if crate::game::inoculation::committed(world, org, person)
+        && crate::game::inoculation::COUNTERS.iter().any(|&c| !crate::game::inoculation::shielded(world, person, c)) {
+        out.push(AskOffer { kind: PropKind::Inoculate, key: AskKey::Earned, price: 0.0 });
     }
     out
 }

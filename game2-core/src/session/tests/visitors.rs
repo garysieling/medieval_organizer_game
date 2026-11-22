@@ -386,3 +386,64 @@ fn test_the_talk_holds_him_still() {
         "he never left after the talk ended");
 }
 
+
+/// The pedlar's the shabby end of the road trade (#1281): a ware for
+/// pennies, cheaper than the tinker's pot
+#[test]
+fn test_the_pedlar_undersells_the_tinker() {
+    let mut g = Game::new();
+    let pe = g.player;
+    if let Some(p) = g.world.get_component_mut::<crate::game::livelihood::Purse>(pe) {
+        p.gold = 10.0;
+    } else {
+        g.world.add_component(pe, crate::game::livelihood::Purse { gold: 10.0 });
+    }
+    let _e = land_event(&mut g, events::EventId::Pedlar);
+    g.seats[0].picked = false;
+    g.act_at(0, 0);
+    let t = g.seats[0].talk.as_ref().expect("no talk opened");
+    let deal = t.options.iter().position(|(a, _)| *a == crate::game::conversation::Act::Agree)
+        .expect("no deal fork on offer");
+    let pre = g.world.get_component::<crate::game::livelihood::Purse>(pe).unwrap().gold;
+    g.talk_pick_at(0, Some(deal));
+    let after = g.world.get_component::<crate::game::livelihood::Purse>(pe).unwrap().gold;
+    let tinkers = events::visitor_offer(events::EventId::Tinker).gold_out;
+    let pedlars = events::visitor_offer(events::EventId::Pedlar).gold_out;
+    assert!(pedlars < tinkers, "the shabby pack should undercut the tinker: {pedlars} vs {tinkers}");
+    assert!((pre - after - pedlars).abs() < 0.01,
+        "the pedlar's price didn't land: {} spent, want {}", pre - after, pedlars);
+    let sat = g.world.get_component::<crate::game::livelihood::Satchel>(pe)
+        .expect("no satchel to take the ware");
+    assert_eq!(sat.goods.get("trinket").copied().unwrap_or(0), 1,
+        "the trinket never reached the satchel");
+}
+
+/// The beggar's ask is the alms (#1281): agreeing gives, it doesn't buy
+#[test]
+fn test_the_beggar_asks_and_takes_alms() {
+    let mut g = Game::new();
+    let pe = g.player;
+    if let Some(p) = g.world.get_component_mut::<crate::game::livelihood::Purse>(pe) {
+        p.gold = 10.0;
+    } else {
+        g.world.add_component(pe, crate::game::livelihood::Purse { gold: 10.0 });
+    }
+    let _e = land_event(&mut g, events::EventId::Beggar);
+    g.seats[0].picked = false;
+    g.act_at(0, 0);
+    let t = g.seats[0].talk.as_ref().expect("no talk opened");
+    let deal = t.options.iter().position(|(a, _)| *a == crate::game::conversation::Act::Agree)
+        .expect("no deal fork on offer");
+    let pre = g.world.get_component::<crate::game::livelihood::Purse>(pe).unwrap().gold;
+    g.talk_pick_at(0, Some(deal));
+    let after = g.world.get_component::<crate::game::livelihood::Purse>(pe).unwrap().gold;
+    assert!((pre - after - 1.0).abs() < 0.01,
+        "the alms didn't leave the purse: {} spent, want 1.0", pre - after);
+    let o = events::visitor_offer(events::EventId::Beggar);
+    assert!(o.good.is_none(), "the beggar's ask sells nothing");
+    assert_eq!(events::visitor_archetype(events::EventId::Beggar), "arch-needy",
+        "the beggar should speak the road-poor's voice");
+    let rec = g.talk_log.last().unwrap();
+    assert!(rec.lines.iter().any(|l| l.text.contains("beggar's palm")),
+        "the alms note never went on the record");
+}

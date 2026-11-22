@@ -127,9 +127,10 @@ pub fn recruit(world: &mut World, org: Entity, citizen: Entity, rel_quality: f32
     if let Some(o) = world.get_component_mut::<Organization>(org) {
         if o.members.contains(&citizen) { return false; }
         o.members.push(citizen);
-        return true;
-    }
-    false
+    } else { return false; }
+    // whoever brought them in is on the record: leaders make leaders
+    crate::game::leadership::credit(world, org, citizen);
+    true
 }
 
 /// An org's current sway: its members' pooled influence, amplified by the

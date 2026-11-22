@@ -137,6 +137,14 @@ impl Game {
                     Some("the chest can't outfit a crew".to_string())
                 } else { None }
             }
+            CtxAct::Reach => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                if self.world.get_component::<crate::game::leadership::Reach>(v).is_some() {
+                    Some("already out talking".into())
+                } else if crate::game::leadership::reach_target(&self.world, self.seats[seat].org, v, &self.villagers).is_none() {
+                    Some("no one left to ask".into())
+                } else { None }
+            }
             CtxAct::Delegate => {
                 let c = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
                 let open = [crate::game::campaign::Role::TurnoutCoordinator,
@@ -926,6 +934,12 @@ impl Game {
                         && self.world.get_component::<crate::game::prophetic::Follower>(v).is_none() {
                         self.seats[seat].ctx_actions.push(CtxAct::Recruit);
                     }
+                    // a leader - one who's brought someone in - can go out
+                    // and hold a one-on-one of their own
+                    if is_member && crate::game::leadership::rung(&self.world, self.seats[seat].org, v)
+                            == crate::game::leadership::Rung::Leader {
+                        self.seats[seat].ctx_actions.push(CtxAct::Reach);
+                    }
                     if let Some(c) = cause {
                         // seats go to the picked member, but only while one
                         // stands empty - a full roster offers nothing
@@ -1222,6 +1236,20 @@ impl Game {
             // motions the floor votes (#1157); the arms stay for any
             // wire-side CtxAct that still comes in
             CtxAct::Strike => self.strike_at(seat),
+            CtxAct::Reach => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                let name = vill_name(self.seats[seat].selected_target);
+                let org = self.seats[seat].org;
+                match crate::game::leadership::reach_target(&self.world, org, v, &self.villagers) {
+                    Some(t) => {
+                        let tn = self.name_of(t);
+                        self.world.add_component(v, crate::game::leadership::Reach {
+                            org, target: t, due: tick + crate::game::leadership::REACH_DAYS });
+                        format!("{} goes out to sit down with {} - on their own, without you.", name, tn)
+                    }
+                    None => format!("{} has no one left to ask.", name),
+                }
+            }
             CtxAct::Townhall => self.townhall_at(seat),
             CtxAct::Gather => {
                 self.seats[seat].meet_offer = Some(self.tick);

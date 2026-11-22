@@ -378,10 +378,11 @@ flag: while it runs the snow keeps falling and the store thins.
 
 `panel.campaign` is the org's settled fight, or absent before the vote:
 `{"issue","framing","dissenters","seats","shadow","state","resolves",
-"due","cadence_days","assembly"}` - the issue the vote picked, how it's framed, the
+"due","cadence_days","assembly","leaders"}` - the issue the vote picked, how it's framed, the
 losers left grumbling, the three seats' keepers ("turnout: Aldric" /
 "notes: (empty)"), the resolutions passed, whether a meeting's due, and
-the days between them. `shadow` names the member whose ties drive the
+the days between them. `leaders` counts the members grown into leaders -
+each one has brought another member in (older servers omit it; read 0). `shadow` names the member whose ties drive the
 room when no live coordinator holds the seat - `null` while the formal
 structure holds it. `state` is the cause's posture in a word - "won
 through", "their demand's refused", "crackdown's on", "the room's

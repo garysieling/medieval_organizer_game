@@ -64,6 +64,8 @@ pub enum CtxAct {
     March,
     /// Give the picked member a campaign seat (turnout, notes, chair)
     Delegate,
+    /// Send the picked leader out to hold a one-on-one of their own (#1268)
+    Reach,
     /// Ballot the picked member's trade: nine of ten, or a public failure
     Strike,
     /// Put the campaign's demands to the collector, in public
@@ -499,6 +501,7 @@ impl Game {
                 let own = crate::game::campaign::stake_for(&self.world, who, &issue, self.tick).is_some();
                 if !(woken || own) { return Err("the cause hasn't reached you - come to a meeting first".into()); }
                 if let Some(o) = self.world.get_component_mut::<Organization>(oe) { o.members.push(who); }
+                crate::game::leadership::credit(&mut self.world, oe, who);
                 Ok(())
             }
             AgentCmd::Press { prisoner } => {

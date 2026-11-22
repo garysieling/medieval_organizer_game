@@ -205,6 +205,9 @@ pub struct CampaignV {
     /// the agenda posted, the pledges on record - empty otherwise
     #[serde(default)]
     pub assembly: String,
+    /// Members grown into leaders - each one's brought another in
+    #[serde(default)]
+    pub leaders: usize,
 }
 
 /// The right-hand panel's player/org data

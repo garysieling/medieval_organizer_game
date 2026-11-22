@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conversation Review</title>
+<style>
+:root {
+  --bg: #f6f4ef; --panel: #fffdf8; --ink: #24211c; --muted: #7a7266; --line: #e3ddd1;
+  --accent: #8a4b14; --accent-soft: #f3e4d3; --good: #2f7a43; --good-soft: #dcefe1;
+  --bad: #a3322a; --bad-soft: #f6dcd8; --mark: #fff2b8; --chip: #efe9de;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1b1916; --panel: #24211d; --ink: #ece6da; --muted: #a39a8b; --line: #39342d;
+    --accent: #e0a060; --accent-soft: #3d2c1b; --good: #7cc890; --good-soft: #1f3526;
+    --bad: #ef8b80; --bad-soft: #3e2220; --mark: #4a4120; --chip: #2f2b25; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, sans-serif; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { background: var(--chip); border: 1px solid var(--line); border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+kbd { font: 11px var(--mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; color: var(--muted); background: var(--panel); }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 18px; }
+header h1 { font-size: 16px; margin: 0 8px 0 0; }
+header .grow { flex: 1; }
+.tabs button.on { background: var(--accent-soft); border-color: var(--accent); }
+main { max-width: 1200px; margin: 0 auto; padding: 16px 18px 80px; }
+.strip { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 14px; }
+.strip span { width: 13px; height: 13px; border-radius: 3px; background: var(--chip); border: 1px solid var(--line); cursor: pointer; }
+.strip span.done { background: var(--muted); border-color: var(--muted); }
+.strip span.issue { background: var(--bad); border-color: var(--bad); }
+.strip span.good { background: var(--good); border-color: var(--good); }
+.strip span.cur { outline: 2px solid var(--accent); outline-offset: 1px; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.meta { color: var(--muted); font-size: 13px; display: flex; gap: 6px 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.meta b { color: var(--ink); font-weight: 600; }
+.speakers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.speaker { background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.speaker .n { font-weight: 650; font-size: 14px; }
+.speaker .t { color: var(--muted); }
+.lines { display: flex; flex-direction: column; gap: 2px; }
+.ln { display: grid; grid-template-columns: 26px 110px minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.ln:hover { background: var(--bg); }
+.ln.sel { border-color: var(--accent); }
+.ln.marked { background: var(--mark); }
+.ln .i { color: var(--muted); font: 12px var(--mono); padding-top: 2px; }
+.ln .who { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.ln.narr .who, .ln.narr .tx { color: var(--muted); font-style: italic; }
+.ln .src { display: block; font: 11px var(--mono); color: var(--muted); margin-top: 1px; }
+.ln .tx.struck { text-decoration: line-through; color: var(--muted); }
+.ln .edit { color: var(--good); }
+.ln .why { color: var(--bad); font-size: 13px; }
+.ln.gist .tx { font-weight: 600; }
+.editor { grid-column: 2 / -1; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; cursor: default; }
+.editor textarea, .editor input, .side textarea { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.editor .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.side { position: sticky; top: 70px; display: flex; flex-direction: column; gap: 14px; }
+.side h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.stars { display: flex; gap: 4px; }
+.stars button { width: 44px; }
+.stars button.on { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tags button { font-size: 13px; padding: 3px 9px; border-radius: 99px; }
+.tags button.on { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.tags button.on.good { background: var(--good-soft); border-color: var(--good); color: var(--good); }
+.side textarea { min-height: 90px; resize: vertical; }
+.nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.saved { font-size: 12px; color: var(--muted); min-height: 1em; }
+.help { font-size: 12px; color: var(--muted); line-height: 1.9; }
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); padding: 18px 20px; width: min(420px, 92vw); }
+dialog::backdrop { background: rgb(0 0 0 / .35); }
+dialog label { display: block; margin: 8px 0 3px; font-size: 13px; color: var(--muted); }
+dialog select, dialog input { width: 100%; padding: 6px 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.draft { margin-bottom: 12px; }
+.draft .hd { display: flex; gap: 10px; align-items: center; }
+.draft .hd input[type=text] { flex: 1; font-weight: 600; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.draft textarea { width: 100%; min-height: 260px; font: 12.5px/1.45 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-top: 8px; }
+.draft details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 6px; }
+.made a { color: var(--accent); }
+.err { color: var(--bad); white-space: pre-wrap; font: 12px var(--mono); }
+.busy { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Conversation Review</h1>
+  <div class="tabs"><button id="tabReview" class="on">Review</button> <button id="tabTickets">Tickets</button></div>
+  <select id="batchSel" title="Batch"></select>
+  <button id="newBatch">New batch…</button>
+  <span class="grow"></span>
+  <span id="progress" class="busy"></span>
+</header>
+
+<main>
+  <section id="review">
+    <div class="strip" id="strip"></div>
+    <div id="reviewBody"></div>
+  </section>
+  <section id="tickets" hidden></section>
+</main>
+
+<dialog id="dlg">
+  <form method="dialog" id="dlgForm">
+    <strong>New batch</strong>
+    <label>Source</label>
+    <select name="source">
+      <option value="village">Village: real talk from a seeded run</option>
+      <option value="generated">Generated: synthetic characters, lines tagged by tree</option>
+    </select>
+    <label>How many conversations</label>
+    <input name="count" type="number" min="1" max="500" value="100">
+    <label>Seed</label>
+    <input name="seed" type="number" value="1">
+    <label class="vdays">Days to run the village</label>
+    <input class="vdays" name="days" type="number" min="1" max="200" value="20">
+    <div class="err" id="dlgErr"></div>
+    <div class="row"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="dlgGo" value="go">Generate</button></div>
+  </form>
+</dialog>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const api = async (path, opts = {}) => {
+  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+// tag -> shortcut key
+const TAG_KEYS = { "non-sequitur": "n", "out-of-character": "o", "wrong-address": "a", "repetitive": "r",
+  "wrong-tone": "t", "register": "e", "flat": "f", "ending": "d", "good": "g" };
+let TAGS = {}, batch = null, fb = {}, cur = 0, selLine = null, saveTimer = null, ghOk = false;
+
+const blank = () => ({ rating: 0, tags: [], note: "", lines: {}, skip: false });
+const F = id => (fb[id] ||= blank());
+const isReviewed = f => f && (f.rating || f.tags?.length || f.note || Object.keys(f.lines || {}).length || f.skip);
+const hasIssue = f => f && (f.tags?.some(t => t !== "good") || Object.keys(f.lines || {}).length || (f.rating && f.rating <= 2));
+const isGood = f => f && (f.tags?.includes("good") || f.rating >= 5);
+
+async function init() {
+  const m = await api("/api/meta");
+  TAGS = m.tags; ghOk = m.gh;
+  await loadBatches(store.get("batch", null));
+}
+
+async function loadBatches(want) {
+  const list = await api("/api/batches");
+  const sel = $("#batchSel");
+  sel.innerHTML = list.map(b => `<option value="${b.id}">${esc(b.source)} · seed ${b.seed}${b.days ? ` · ${b.days}d` : ""} · ${b.reviewed}/${b.count} · ${esc(b.created)}</option>`).join("");
+  if (!list.length) { batch = null; renderReview(); return; }
+  const id = list.some(b => b.id === want) ? want : list[0].id;
+  sel.value = id;
+  await openBatch(id);
+}
+
+async function openBatch(id) {
+  batch = await api("/api/batches/" + id);
+  fb = batch.feedback || {};
+  store.set("batch", id);
+  const pos = store.get("pos:" + id, null);
+  cur = pos != null && pos < batch.conversations.length ? pos : firstUnreviewed();
+  selLine = null;
+  renderReview();
+}
+
+function firstUnreviewed(from = 0) {
+  const cs = batch.conversations;
+  for (let k = 0; k < cs.length; k++) { const i = (from + k) % cs.length; if (!isReviewed(fb[cs[i].id])) return i; }
+  return Math.min(from, cs.length - 1);
+}
+
+function go(i) {
+  if (!batch) return;
+  cur = Math.max(0, Math.min(batch.conversations.length - 1, i));
+  selLine = null;
+  store.set("pos:" + batch.meta.id, cur);
+  renderReview();
+  window.scrollTo({ top: 0 });
+}
+
+function progress() {
+  if (!batch) { $("#progress").textContent = ""; return; }
+  const cs = batch.conversations, n = cs.filter(c => isReviewed(fb[c.id])).length;
+  $("#progress").textContent = `${cur + 1} of ${cs.length} · ${n} reviewed`;
+}
+
+function renderStrip() {
+  const el = $("#strip");
+  if (!batch) { el.innerHTML = ""; return; }
+  el.innerHTML = batch.conversations.map((c, i) => {
+    const f = fb[c.id];
+    const cls = [isGood(f) && !hasIssue(f) ? "good" : hasIssue(f) ? "issue" : isReviewed(f) ? "done" : "", i === cur ? "cur" : ""].join(" ");
+    return `<span class="${cls}" data-i="${i}" title="${i + 1}: ${esc(c.speakers.map(s => s.name).join(" & "))}"></span>`;
+  }).join("");
+}
+
+function renderReview() {
+  renderStrip(); progress();
+  const body = $("#reviewBody");
+  if (!batch) {
+    body.innerHTML = `<div class="empty"><p>No batches yet.</p><button class="primary" onclick="openDlg()">Generate 100 conversations</button></div>`;
+    return;
+  }
+  const c = batch.conversations[cur], f = F(c.id);
+  const meta = [
+    `<span><b>${esc(c.kind)}</b></span>`,
+    c.relation && `<span>relation <b>${esc(c.relation)}</b></span>`,
+    c.day != null && `<span>day <b>${c.day}</b></span>`,
+    c.ending && `<span>ending <b>${esc(c.ending)}</b></span>`,
+    c.trees?.length && `<span>trees <b>${esc(c.trees.join(" → "))}</b></span>`,
+    `<span style="font-family:var(--mono)">${esc(c.id)}</span>`,
+    f.ticketed?.length ? `<span>ticketed: ${f.ticketed.map(u => `<a href="${esc(u)}" target="_blank">#${esc(u.split("/").pop())}</a>`).join(" ")}</span>` : "",
+  ].filter(Boolean).join("");
+  const speakers = c.speakers.filter(s => s.backstory || s.traits).map(s => `
+    <div class="speaker"><div class="n">${esc(s.name)} <span class="t">${esc(s.ideology || "")}</span></div>
+      <div class="t">${esc([...(s.traits || []), ...(s.status || [])].join(", "))}</div>
+      <div>${esc(s.backstory || "")}</div></div>`).join("");
+  const lines = c.lines.map((l, i) => {
+    const lf = f.lines[i] || {};
+    const marked = lf.edit || lf.comment;
+    const editor = selLine === i ? `
+      <div class="editor" onclick="event.stopPropagation()">
+        <textarea id="edText" rows="2" placeholder="Rewrite the line (leave blank to keep it)">${esc(lf.edit ?? l.text)}</textarea>
+        <input id="edWhy" placeholder="What's wrong with it? (optional)" value="${esc(lf.comment || "")}">
+        <div class="row"><button class="primary" onclick="saveLine(${i})">Save <kbd>Ctrl+Enter</kbd></button>
+          <button onclick="clearLine(${i})">Clear</button><button onclick="closeLine()">Cancel <kbd>Esc</kbd></button></div>
+      </div>` : "";
+    return `<div class="ln ${l.narration ? "narr" : ""} ${l.gist ? "gist" : ""} ${marked ? "marked" : ""} ${selLine === i ? "sel" : ""}" data-line="${i}">
+      <span class="i">${i}</span>
+      <span class="who">${esc(l.speaker || "")}</span>
+      <span><span class="tx ${lf.edit ? "struck" : ""}">${esc(l.text)}</span>
+        ${lf.edit ? `<div class="edit">→ ${esc(lf.edit)}</div>` : ""}
+        ${lf.comment ? `<div class="why">⚑ ${esc(lf.comment)}</div>` : ""}
+        ${l.tree ? `<span class="src">${esc(l.act)} · ${esc(l.tree)}</span>` : ""}</span>
+      ${editor}</div>`;
+  }).join("");
+  const tags = Object.entries(TAGS).map(([t, d]) =>
+    `<button class="${f.tags.includes(t) ? "on" : ""} ${t === "good" ? "good" : ""}" data-tag="${t}" title="${esc(d)}">${esc(t)} <kbd>${TAG_KEYS[t] || ""}</kbd></button>`).join("");
+  body.innerHTML = `
+    <div class="layout">
+      <div class="card">
+        <div class="meta">${meta}</div>
+        ${speakers ? `<div class="speakers">${speakers}</div>` : ""}
+        <div class="lines" id="lines">${lines}</div>
+      </div>
+      <div class="side">
+        <div class="card">
+          <h3>Rating</h3>
+          <div class="stars">${[1, 2, 3, 4, 5].map(n => `<button data-rate="${n}" class="${f.rating === n ? "on" : ""}">${n}</button>`).join("")}</div>
+          <h3 style="margin-top:14px">Problems</h3>
+          <div class="tags">${tags}</div>
+          <h3 style="margin-top:14px">Notes <kbd>/</kbd></h3>
+          <textarea id="note" placeholder="Anything about this conversation…">${esc(f.note)}</textarea>
+          <div class="saved" id="saved"></div>
+        </div>
+        <div class="card">
+          <div class="nav">
+            <button onclick="go(cur-1)">← Prev</button>
+            <button class="primary" onclick="go(cur+1)">Next →</button>
+            <button onclick="go(firstUnreviewed(cur+1))" title="Next unreviewed">Unreviewed <kbd>u</kbd></button>
+            <button onclick="skip()" title="Fine as it is - mark reviewed">Fine <kbd>s</kbd></button>
+          </div>
+          <div class="help" style="margin-top:10px">
+            <kbd>←</kbd><kbd>→</kbd> or <kbd>k</kbd><kbd>j</kbd> flip · <kbd>1</kbd>–<kbd>5</kbd> rate · letter keys toggle problems<br>
+            Click a line (or <kbd>↑</kbd><kbd>↓</kbd> then <kbd>Enter</kbd>) to rewrite or flag it<br>
+            <kbd>s</kbd> marks it fine and moves on
+          </div>
+        </div>
+      </div>
+    </div>`;
+  if (selLine != null) { const t = $("#edText"); t?.focus(); t?.select(); }
+}
+
+function changed(msg = "Saved") {
+  const c = batch.conversations[cur];
+  clearTimeout(saveTimer);
+  $("#saved") && ($("#saved").textContent = "Saving…");
+  const f = F(c.id);
+  saveTimer = setTimeout(async () => {
+    try { await api("/api/feedback/" + encodeURIComponent(c.id), { method: "PUT", body: f });
+      $("#saved") && ($("#saved").textContent = msg); }
+    catch (e) { $("#saved") && ($("#saved").textContent = "Not saved: " + e.message); }
+    renderStrip(); progress();
+  }, 300);
+}
+
+function rate(n) { const f = F(batch.conversations[cur].id); f.rating = f.rating === n ? 0 : n; f.skip = false; renderReview(); changed(); }
+function toggleTag(t) { const f = F(batch.conversations[cur].id); f.tags = f.tags.includes(t) ? f.tags.filter(x => x !== t) : [...f.tags, t]; renderReview(); changed(); }
+function skip() { const f = F(batch.conversations[cur].id); f.skip = true; changed("Marked fine"); go(firstUnreviewed(cur + 1)); }
+function openLine(i) { selLine = selLine === i ? null : i; renderReview(); }
+function closeLine() { selLine = null; renderReview(); }
+function saveLine(i) {
+  const c = batch.conversations[cur], f = F(c.id);
+  const text = $("#edText").value.trim(), why = $("#edWhy").value.trim();
+  const edit = text && text !== c.lines[i].text ? text : "";
+  if (edit || why) f.lines[i] = { ...(edit && { edit }), ...(why && { comment: why }) }; else delete f.lines[i];
+  selLine = null; renderReview(); changed();
+}
+function clearLine(i) { delete F(batch.conversations[cur].id).lines[i]; selLine = null; renderReview(); changed(); }
+
+document.addEventListener("click", e => {
+  const s = e.target.closest(".strip span"); if (s) return go(+s.dataset.i);
+  const r = e.target.closest("[data-rate]"); if (r) return rate(+r.dataset.rate);
+  const t = e.target.closest("[data-tag]"); if (t) return toggleTag(t.dataset.tag);
+  const l = e.target.closest(".ln"); if (l && !e.target.closest(".editor")) return openLine(+l.dataset.line);
+});
+document.addEventListener("input", e => {
+  if (e.target.id === "note") { F(batch.conversations[cur].id).note = e.target.value; changed(); }
+});
+document.addEventListener("keydown", e => {
+  if (!$("#review").hidden && batch) {
+    const typing = e.target.matches("textarea, input, select");
+    if (selLine != null && typing) {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveLine(selLine); }
+      if (e.key === "Escape") { e.preventDefault(); closeLine(); }
+      return;
+    }
+    if (typing) { if (e.key === "Escape") e.target.blur(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey || $("#dlg").open) return;
+    const n = batch.conversations[cur].lines.length;
+    const k = e.key;
+    if (k === "ArrowRight" || k === "j") go(cur + 1);
+    else if (k === "ArrowLeft" || k === "k") go(cur - 1);
+    else if (k >= "1" && k <= "5") rate(+k);
+    else if (k === "u") go(firstUnreviewed(cur + 1));
+    else if (k === "s") skip();
+    else if (k === "/") { e.preventDefault(); $("#note").focus(); }
+    else if (k === "ArrowDown") { e.preventDefault(); selHover(Math.min(n - 1, (hover ?? -1) + 1)); }
+    else if (k === "ArrowUp") { e.preventDefault(); selHover(Math.max(0, (hover ?? n) - 1)); }
+    else if (k === "Enter" && hover != null) openLine(hover);
+    else { const t = Object.keys(TAG_KEYS).find(t => TAG_KEYS[t] === k); if (t) toggleTag(t); else return; }
+    e.preventDefault();
+  }
+});
+let hover = null;
+function selHover(i) { hover = i; document.querySelectorAll(".ln").forEach((el, j) => el.classList.toggle("sel", j === i)); document.querySelectorAll(".ln")[i]?.scrollIntoView({ block: "nearest" }); }
+
+// --- batches ---
+function openDlg() { $("#dlgErr").textContent = ""; $("#dlg").showModal(); syncDays(); }
+function syncDays() { const v = $("#dlgForm").source.value === "village"; document.querySelectorAll(".vdays").forEach(el => el.hidden = !v); }
+$("#newBatch").onclick = openDlg;
+$("#dlgForm").source.onchange = syncDays;
+$("#dlgForm").addEventListener("submit", async e => {
+  if (e.submitter?.value !== "go") return;
+  e.preventDefault();
+  const fd = new FormData(e.target), go_ = $("#dlgGo");
+  go_.disabled = true; go_.textContent = "Generating…"; $("#dlgErr").textContent = "";
+  try {
+    const b = await api("/api/batches", { method: "POST", body: Object.fromEntries(fd) });
+    $("#dlg").close();
+    if (b.count === 0) alertMsg("That run produced no conversations - try more days.");
+    await loadBatches(b.id);
+  } catch (err) { $("#dlgErr").textContent = err.message; }
+  finally { go_.disabled = false; go_.textContent = "Generate"; }
+});
+function alertMsg(m) { $("#progress").textContent = m; }
+$("#batchSel").onchange = e => openBatch(e.target.value);
+
+// --- tickets ---
+let draftState = [];
+async function renderTickets() {
+  const el = $("#tickets");
+  el.innerHTML = `<p class="busy">Grouping feedback…</p>`;
+  const d = await api("/api/drafts");
+  draftState = d.drafts.map(x => ({ ...x, on: true }));
+  const made = d.created.slice().reverse();
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:14px">
+      <strong>${draftState.length} draft ticket${draftState.length === 1 ? "" : "s"}</strong> from feedback not yet ticketed.
+      Problems are grouped by tag, rewrites by dialogue tree, and leftover notes on low-rated talks go into one ticket.
+      ${d.keepers ? `<br><span class="busy">${d.keepers} conversation(s) marked good are cited as examples to aim for, not ticketed.</span>` : ""}
+      <div style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <button class="primary" id="mk" ${draftState.length && ghOk ? "" : "disabled"}>Create selected on GitHub</button>
+        ${ghOk ? "" : `<span class="err">gh CLI not found - copy the drafts by hand</span>`}
+        <span id="mkMsg" class="busy"></span>
+      </div>
+      <div id="mkOut" class="made"></div>
+    </div>
+    ${draftState.map((x, i) => `
+      <div class="card draft">
+        <div class="hd"><input type="checkbox" data-on="${i}" checked><input type="text" data-title="${i}" value="${esc(x.title)}"></div>
+        <div class="busy" style="font-size:13px;margin-top:4px">labels: ${esc(x.labels.join(", "))} · ${x.conv_ids.length} conversation(s)</div>
+        <details><summary>Body</summary><textarea data-body="${i}">${esc(x.body)}</textarea></details>
+      </div>`).join("")}
+    ${made.length ? `<div class="card made"><h3 style="margin:0 0 8px;font-size:13px">Filed earlier</h3>${made.map(m => `<div>${esc(m.created)} · <a href="${esc(m.url)}" target="_blank">${esc(m.title)}</a></div>`).join("")}</div>` : ""}`;
+  el.querySelectorAll("[data-on]").forEach(c => c.onchange = () => draftState[+c.dataset.on].on = c.checked);
+  el.querySelectorAll("[data-title]").forEach(c => c.oninput = () => draftState[+c.dataset.title].title = c.value);
+  el.querySelectorAll("[data-body]").forEach(c => c.oninput = () => draftState[+c.dataset.body].body = c.value);
+  const mk = $("#mk");
+  if (mk) mk.onclick = async () => {
+    const chosen = draftState.filter(x => x.on);
+    if (!chosen.length) return;
+    if (mk.dataset.armed !== "1") { mk.dataset.armed = "1"; mk.textContent = `Click again to file ${chosen.length} issue(s)`; return; }
+    mk.disabled = true; $("#mkMsg").textContent = "Filing…";
+    try {
+      const r = await api("/api/tickets", { method: "POST", body: { drafts: chosen } });
+      $("#mkOut").innerHTML = r.made.map(m => m.url ? `<div>✓ <a href="${esc(m.url)}" target="_blank">${esc(m.title)}</a></div>` : `<div class="err">✗ ${esc(m.title)}: ${esc(m.error)}</div>`).join("");
+      $("#mkMsg").textContent = "";
+      setTimeout(renderTickets, 1500);
+    } catch (e) { $("#mkMsg").textContent = e.message; mk.disabled = false; }
+  };
+}
+function tab(which) {
+  history.replaceState(null, "", which === "tickets" ? "#tickets" : "#");
+  $("#review").hidden = which !== "review"; $("#tickets").hidden = which !== "tickets";
+  $("#tabReview").classList.toggle("on", which === "review"); $("#tabTickets").classList.toggle("on", which === "tickets");
+  if (which === "tickets") renderTickets(); else renderReview();
+}
+$("#tabReview").onclick = () => tab("review");
+$("#tabTickets").onclick = () => tab("tickets");
+
+init().then(() => { if (location.hash === "#tickets") tab("tickets"); }).catch(e => { $("#reviewBody").innerHTML = `<div class="empty err">${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>

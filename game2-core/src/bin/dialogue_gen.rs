@@ -4,6 +4,10 @@
 //!
 //! Usage:
 //!   cargo run --bin dialogue_gen [-- -n 10 -m 5 --seed 42 -o evidence/dialogue_sample.md]
+//!
+//! `--json` writes the conversations as one JSON array instead (no rubric),
+//! each turn carrying its act and tree - the conversation review tool
+//! (tools/convo-review) reads this.
 
 use std::env;
 use std::fs::File;
@@ -99,6 +103,7 @@ fn main() -> io::Result<()> {
     let mut num_conversations = 5;
     let mut seed = 42u64;
     let mut out_path = None;
+    let mut json = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -119,6 +124,10 @@ fn main() -> io::Result<()> {
                 out_path = Some(args[i + 1].clone());
                 i += 2;
             }
+            "--json" => {
+                json = true;
+                i += 1;
+            }
             _ => {
                 i += 1;
             }
@@ -132,6 +141,16 @@ fn main() -> io::Result<()> {
 
     let mut rng = Rng::new(seed);
     let library = village_library();
+
+    if json {
+        let convs = json_conversations(num_characters, num_conversations, seed, &mut rng, &library);
+        let text = serde_json::to_string(&convs).expect("conversations serialize");
+        match &out_path {
+            Some(p) => std::fs::write(p, text)?,
+            None => println!("{}", text),
+        }
+        return Ok(());
+    }
 
     let mut out: Box<dyn Write> = if let Some(path) = &out_path {
         Box::new(File::create(path)?)
@@ -199,4 +218,52 @@ fn main() -> io::Result<()> {
     }
 
     Ok(())
+}
+
+/// One speaker, as the review tool shows them
+fn speaker_json(s: &Speaker) -> serde_json::Value {
+    serde_json::json!({
+        "name": s.name,
+        "ideology": s.ideology,
+        "traits": s.traits.iter().map(|t| format!("{:?}", t)).collect::<Vec<_>>(),
+        "status": s.status,
+        "backstory": backstory(s),
+    })
+}
+
+/// The same roster and pairings as the Markdown report, as JSON records
+fn json_conversations(
+    num_characters: usize,
+    num_conversations: usize,
+    seed: u64,
+    rng: &mut Rng,
+    library: &[game2_core::game::conversation::DialogueTree],
+) -> Vec<serde_json::Value> {
+    let roster = generate_roster(num_characters, rng);
+    let mut out = vec![];
+    for (char_idx, char_a) in roster.iter().enumerate() {
+        for conv_idx in 0..num_conversations {
+            let other_offset = 1 + rng.below(num_characters - 1);
+            let char_b = &roster[(char_idx + other_offset) % num_characters];
+            let relation = RELATIONS[rng.below(RELATIONS.len())];
+            let t = converse(char_a, char_b, relation, library, rng);
+            out.push(serde_json::json!({
+                // the roster and pairings depend on the batch's shape too
+                "id": format!("gen-s{}-n{}m{}-{}-{}", seed, num_characters, num_conversations, char_idx, conv_idx),
+                "source": "generated",
+                "kind": "Chat",
+                "relation": format!("{:?}", relation),
+                "speakers": [speaker_json(char_a), speaker_json(char_b)],
+                "trees": t.trees_walked,
+                "ending": format!("{:?}", t.ending.unwrap_or(game2_core::game::conversation::Ending::Exhausted)),
+                "lines": t.turns.iter().map(|turn| serde_json::json!({
+                    "speaker": t.speakers[turn.speaker],
+                    "act": format!("{:?}", turn.act),
+                    "tree": turn.tree,
+                    "text": turn.text,
+                })).collect::<Vec<_>>(),
+            }));
+        }
+    }
+    out
 }

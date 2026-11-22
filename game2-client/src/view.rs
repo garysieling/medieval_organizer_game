@@ -1343,9 +1343,7 @@ impl View {
         if let Some(c) = &m.panel.campaign {
             // the pull behind the seats: the member whose ties run the
             // room's empty chairs
-            let pull = c.shadow.as_ref().map(|s| format!(" - {} pulls", s)).unwrap_or_default();
-            draw_text(&mut buf, UI_X as i32 + 18, 488,
-                &format!("FIGHT {}{}", c.issue, pull), 255, 180, 120);
+            draw_text(&mut buf, UI_X as i32 + 18, 488, &fight_line(c), 255, 180, 120);
             let due = if c.due { "meet due" } else { "meet to come" };
             // the cause's posture rides the cadence: won through, the
             // room's split, the cause's weary
@@ -1989,4 +1987,12 @@ pub fn render_picker(art: &Art, cards: &[roster::RosterCard], sel: usize) -> Buf
     draw_centered(&mut buf, y0 + ((cards.len() + 1) / 2) as i32 * ch + 30,
         "up/down choose    ENTER take them    ESC keep the wanderer", 1, (150, 150, 170));
     buf
+}
+
+/// The campaign's headline: the fight, the member whose ties pull the
+/// room, and the leaders the cause has grown - members who've made members
+pub fn fight_line(c: &CampaignV) -> String {
+    let pull = c.shadow.as_ref().map(|s| format!(" - {} pulls", s)).unwrap_or_default();
+    let grown = match c.leaders { 0 => String::new(), 1 => " - 1 leader grown".into(), n => format!(" - {} leaders grown", n) };
+    format!("FIGHT {}{}{}", c.issue, pull, grown)
 }

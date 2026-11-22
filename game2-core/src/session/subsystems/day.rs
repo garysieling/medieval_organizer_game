@@ -151,6 +151,19 @@ impl Game {
                 );
             }
         }
+        // leaders sent out hold their one-on-ones without you (#1268)
+        for v in self.villagers.clone() {
+            use crate::game::leadership::{run_reach, ReachOutcome};
+            let Some((t, out)) = run_reach(&mut self.world, v, tick) else { continue };
+            let (n, tn) = (self.name_of(v), self.name_of(t));
+            let (val, text) = match out {
+                ReachOutcome::Joined => (Valence::Positive,
+                    format!("t{}: {} sat down with {} on their own - and brought them into the cause.", tick, n, tn)),
+                ReachOutcome::Heard => (Valence::Neutral,
+                    format!("t{}: {} sat down with {} on their own; {} isn't ready to sign on.", tick, n, tn, tn)),
+            };
+            self.log_entity_ev(EvTag::new(Thread::Org, val, Sev::Minor), v, text);
+        }
         // the felt worths slide a little back toward ordinary each day
         goods::drift(&mut self.world);
         // market day, once a month: the org's members sell their work and

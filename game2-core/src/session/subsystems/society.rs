@@ -4043,6 +4043,8 @@ impl Game {
                     if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
                         o.members.push(v);
                     }
+                    let oe = self.org;
+                    crate::game::leadership::credit(&mut self.world, oe, v);
                     self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor), format!("t{}: an intermediary comes over - the broker reads the ground for the cause.", tick));
                     self.world.remove_component::<crate::game::vocation::Broker>(v);
                     continue;

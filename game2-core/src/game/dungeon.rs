@@ -94,9 +94,9 @@ pub fn join(world: &mut World, campaign_e: Entity, person: Entity) -> bool {
     if !sympathetic && !own_stake { return false; }
     if let Some(o) = world.get_component_mut::<Organization>(org) {
         o.members.push(person);
-        return true;
-    }
-    false
+    } else { return false; }
+    crate::game::leadership::credit(world, org, person);
+    true
 }
 
 /// Every letter, every vigil, every petition - small actions that never

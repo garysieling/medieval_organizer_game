@@ -37,6 +37,7 @@ pub mod laws;
 pub mod community_law;
 pub mod relic;
 pub mod campaign;
+pub mod leadership;
 pub mod campaign_dialogue;
 pub mod campaign_beats;
 pub mod campaign_meeting_beats;

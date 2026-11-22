@@ -29,3 +29,13 @@ fn test_the_hair_tint_gives_four_looks() {
     // and a look past the four wraps to one of them - deterministic
     assert_eq!(hair_tint(5), hair_tint(1), "the tint's not keyed on the look");
 }
+
+#[test]
+fn test_the_fight_line_counts_the_leaders_grown() {
+    let c = |leaders| CampaignV { issue: "the taxes".into(), framing: String::new(), dissenters: 0,
+        seats: vec![], shadow: None, state: String::new(), resolves: 0, due: false,
+        cadence_days: 7, assembly: String::new(), leaders };
+    assert_eq!(fight_line(&c(0)), "FIGHT the taxes");
+    assert_eq!(fight_line(&c(1)), "FIGHT the taxes - 1 leader grown");
+    assert_eq!(fight_line(&c(3)), "FIGHT the taxes - 3 leaders grown");
+}

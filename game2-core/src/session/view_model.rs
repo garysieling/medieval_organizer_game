@@ -538,6 +538,7 @@ impl Game {
                 due: mtg.map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false),
                 cadence_days: mtg.map(|m| m.cadence_days).unwrap_or(0),
                 assembly,
+                leaders: crate::game::leadership::leaders_grown(world, self.seats[seat].org),
             }
         });
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2)];
@@ -1226,6 +1227,14 @@ impl Game {
             (None, None) => "no home".into(),
         };
         card_prop(&mut lines, &mut y, "Home", &roost, (190, 190, 210));
+        // the ladder a follower climbs, and the ones they've brought up it
+        {
+            use crate::game::leadership::{brought, ladder_line, rung, Rung};
+            let r = rung(world, oe, v);
+            let n = brought(world, oe, v);
+            let tail = if r == Rung::Leader { format!(" (brought in {})", n) } else { String::new() };
+            card_prop(&mut lines, &mut y, "Ladder", &format!("{}{}", ladder_line(r), tail), (190, 200, 170));
+        }
         let faith = world.get_component::<crate::sim::religion::Faith>(v)
             .map(|f| if f.devotion > 0.6 { "devout" }
                 else if f.devotion < 0.25 { "lapsed" } else { "" }).unwrap_or("");

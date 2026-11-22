@@ -384,6 +384,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // Delegate and Strike act on the picked member - they live on the
         // bottom edge of their inspector card
         CtxAct::Delegate => Button { label: "Seat".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (80, 80, 140) },
+        CtxAct::Reach => Button { label: "Send out".into(), key: ' ', x: UI_X as i32 + 212, y: 422, w: 62, h: 16, color: (90, 130, 110) },
         CtxAct::Strike => Button { label: "Strike".into(), key: ' ', x: UI_X as i32 + 212, y: 438, w: 62, h: 16, color: (150, 60, 60) },
         // demands to the collector share the card's bottom row; the
         // prisoner's petition sits where the seat button would

@@ -38,11 +38,12 @@ pub struct Table {
 }
 
 impl Game {
-    /// Everyone living under the host's roof, alive
+    /// Everyone living under the host's roof, alive and not held at the keep
     fn household(&self, home: Entity) -> Vec<Entity> {
         self.world.get_component::<Building>(home)
             .map(|b| b.occupants.iter().copied()
-                .filter(|&o| !villager::is_dead(&self.world, o)).collect())
+                .filter(|&o| !villager::is_dead(&self.world, o)
+                    && !crate::game::dungeon::unavailable(&self.world, o)).collect())
             .unwrap_or_default()
     }
 

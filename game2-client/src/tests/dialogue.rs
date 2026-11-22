@@ -248,6 +248,25 @@ fn test_the_conversation_box_pins_its_lines() {
         assert_eq!(a.y, b.y, "a shown line moved for a line it can't see");
     }
 
+    // choices take room: when they go, what's scrolled off stays off -
+    // the window doesn't reopen behind them (the old newest-fit pass
+    // resurrected lines and jumped every y)
+    let mut p = ConvoPanelV {
+        title: "talk".into(),
+        rows: (0..60).map(row).collect(),
+        options: vec!["a much longer option label that wraps to several rows inside the box".into(); 4],
+        decides: false, leave: true,
+    };
+    let mut pin = ConvoPin::default();
+    let (boxes, _) = convo_layout(&p, &mut pin);
+    let lines1 = boxes.iter().filter(|b| !b.choice).count();
+    p.options.clear();
+    p.leave = false;
+    let (boxes2, _) = convo_layout(&p, &mut pin);
+    assert_eq!(boxes2.len(), lines1, "dropped lines came back");
+    assert_eq!(boxes2[0].rows[0].1, boxes[0].rows[0].1,
+        "the fold reopened behind the choices");
+
     // a different panel starts the pin over at the top
     let q = ConvoPanelV {
         title: "another call".into(),

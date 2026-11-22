@@ -111,6 +111,8 @@ pub enum CtxAct {
     /// Pick a cap off the patch you're standing by - the wood feeds,
     /// and teaches its lessons the hard way
     PickCaps,
+    /// Sit down at the table of the villager who's asked you in (#1241)
+    Dine,
     /// Tell the picked villager what the gossip added up to - the
     /// mystery's asker, once it's whole
     ShareFindings,
@@ -241,11 +243,18 @@ pub struct Seat {
     /// bundle was written under - the UiModel carries the flag for
     /// exactly that frame so the client saves the shot once (#1085)
     pub survey_capture: Option<(u32, String)>,
+    /// Who's asked this seat to their table, and the last day it stands (#1241)
+    pub table_invite: Option<(Entity, u64)>,
+    /// The meal this seat's sat down to, course by course
+    pub table: Option<crate::session::subsystems::table::Table>,
+    /// (home, day) of the tables eaten at lately - each household's cooldown
+    pub tables_laid: Vec<(Entity, u64)>,
 }
 
 impl Default for Seat {
     fn default() -> Seat {
-        Seat { player: 0, org: 0, picked: false, approach: None, buy_walk: None, selected_target: 0,
+        Seat { table_invite: None, table: None, tables_laid: vec![],
+               player: 0, org: 0, picked: false, approach: None, buy_walk: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
                pending_founding: None, meet_offer: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
@@ -266,7 +275,7 @@ impl Game {
         match cmd {
             Command::Act(i) => self.act_at(seat, i),
             Command::CtxAct(i) => self.ctx_act_at(seat, i),
-            Command::Walk(dx, dy) => { self.seats[seat].approach = None; self.seats[seat].buy_walk = None; self.seats[seat].picked = false; self.seats[seat].pick_near = false; self.walk_at(seat, dx, dy); }
+            Command::Walk(dx, dy) => { self.rise_from_table(seat); self.seats[seat].approach = None; self.seats[seat].buy_walk = None; self.seats[seat].picked = false; self.seats[seat].pick_near = false; self.walk_at(seat, dx, dy); }
             Command::Select(i) => {
                 // an index off the list is refused, not stored - a client
                 // that sends one can't crash the next scene

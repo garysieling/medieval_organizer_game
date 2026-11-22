@@ -1267,6 +1267,8 @@ impl Game {
     pub fn marks_tick(&mut self, tick: u64) {
         // the young take a little of whoever's raising them (#1239)
         self.mentorship_tick(tick);
+        // a warm bond asks the organizer in to eat (#1241)
+        self.table_tick(tick);
         for v in self.villagers.clone() {
             // an argument they've turned over long enough takes (#1234)
             crate::game::persuasion::mature(&mut self.world, v, tick);

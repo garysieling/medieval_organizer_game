@@ -92,6 +92,8 @@ pub enum TalkKind {
     Talk,
     /// A house meeting
     Meeting,
+    /// A meal at a household's table (#1241)
+    Meal,
 }
 
 /// One line on the record. `who` None is narration ("You take your leave.")
@@ -358,7 +360,7 @@ impl Game {
         id
     }
 
-    fn talk_record_mut(&mut self, id: u64) -> Option<&mut TalkRecord> {
+    pub(in crate::session) fn talk_record_mut(&mut self, id: u64) -> Option<&mut TalkRecord> {
         self.talk_log.iter_mut().rev().find(|r| r.id == id)
     }
 

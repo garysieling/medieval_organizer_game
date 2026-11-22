@@ -44,48 +44,74 @@ fn pick(g: &mut Game, label: &str) {
 }
 
 fn weight(g: &Game, v: Entity, l: Line) -> f32 {
-    g.world.get_component::<RhetoricMemory>(v).map(|m| m.weight[l as usize]).unwrap_or(0.0)
+    g.world.get_component::<RhetoricMemory>(v)
+        .and_then(|m| m.by_org.get(&g.org))
+        .map(|r| r.weight[l as usize]).unwrap_or(0.0)
 }
 
 fn harden(g: &mut Game, v: Entity, l: Line) {
-    for _ in 0..HARDEN as usize { rhetoric::witness(&mut g.world, v, l, g.tick); }
+    let org = g.org;
+    for _ in 0..HARDEN as usize { rhetoric::witness(&mut g.world, v, org, l, g.tick); }
 }
 
 #[test]
 fn test_a_line_hardens_after_enough_witnessing() {
     let mut g = Game::new();
+    let org = g.org;
     let v = g.villagers[adults(&g)[0]];
-    rhetoric::witness(&mut g.world, v, Line::Firebrand, 5);
-    rhetoric::witness(&mut g.world, v, Line::Firebrand, 6);
-    assert!(rhetoric::hardened(&g.world, v).is_empty(), "two words aren't a line yet");
-    rhetoric::witness(&mut g.world, v, Line::Firebrand, 7);
-    assert_eq!(rhetoric::hardened(&g.world, v), vec![Line::Firebrand]);
+    rhetoric::witness(&mut g.world, v, org, Line::Firebrand, 5);
+    rhetoric::witness(&mut g.world, v, org, Line::Firebrand, 6);
+    assert!(rhetoric::hardened(&g.world, v, org).is_empty(), "two words aren't a line yet");
+    rhetoric::witness(&mut g.world, v, org, Line::Firebrand, 7);
+    assert_eq!(rhetoric::hardened(&g.world, v, org), vec![Line::Firebrand]);
     // and it's theirs alone: nobody else heard it
     let other = g.villagers[adults(&g)[1]];
-    assert!(rhetoric::hardened(&g.world, other).is_empty());
+    assert!(rhetoric::hardened(&g.world, other, org).is_empty());
 }
 
 #[test]
 fn test_going_back_on_a_line_costs_it_and_is_named_once() {
     let mut g = Game::new();
+    let org = g.org;
     let v = g.villagers[adults(&g)[0]];
     harden(&mut g, v, Line::Patient);
     let before = weight(&g, v, Line::Patient);
-    rhetoric::witness(&mut g.world, v, Line::Firebrand, 200);
+    rhetoric::witness(&mut g.world, v, org, Line::Firebrand, 200);
     assert!(weight(&g, v, Line::Patient) < before * 0.6, "the opposite pick halves the line");
-    assert!(!rhetoric::hardened(&g.world, v).contains(&Line::Patient), "and it no longer holds");
-    let q = rhetoric::take_turn(&mut g.world, v).expect("the turn is named");
+    assert!(!rhetoric::hardened(&g.world, v, org).contains(&Line::Patient), "and it no longer holds");
+    let q = rhetoric::take_turn(&mut g.world, v, org).expect("the turn is named");
     assert!(q.contains("preached patience in spring"), "{q}");
-    assert!(rhetoric::take_turn(&mut g.world, v).is_none(), "named once");
+    assert!(rhetoric::take_turn(&mut g.world, v, org).is_none(), "named once");
 }
 
 #[test]
 fn test_an_unrepeated_line_fades() {
     let mut g = Game::new();
+    let org = g.org;
     let v = g.villagers[adults(&g)[0]];
-    harden(&mut g, v, Line::Exacting);
+    harden(&mut g, v, Line::Patient);
     for _ in 0..40 { rhetoric::fade(&mut g.world, v); }
-    assert!(rhetoric::hardened(&g.world, v).is_empty(), "a turned page can turn back");
+    assert!(rhetoric::hardened(&g.world, v, org).is_empty(), "a turned page can turn back");
+}
+
+#[test]
+fn test_exacting_hardens_across_the_dilemma_s_real_spacing() {
+    // Exacting's only production evidence is the burdened man's dilemma
+    // (`EventId::Dilemma`, gap 300 + a 150-day jitter): a villager who
+    // sees the hard branch chosen roundly, visit after visit 300-450
+    // days apart, should eventually read the organizer as exacting -
+    // the old uniform daily fade decayed that evidence to nothing
+    // between visits and it could never harden.
+    let mut g = Game::new();
+    let org = g.org;
+    let v = g.villagers[adults(&g)[0]];
+    for visit in 0..6 {
+        rhetoric::witness(&mut g.world, v, org, Line::Exacting, visit * 375);
+        if rhetoric::hardened(&g.world, v, org).contains(&Line::Exacting) { break; }
+        for _ in 0..375 { rhetoric::fade(&mut g.world, v); }
+    }
+    assert!(rhetoric::hardened(&g.world, v, org).contains(&Line::Exacting),
+        "repeated hard choices, spaced like the dilemma actually recurs, should harden");
 }
 
 #[test]
@@ -100,7 +126,8 @@ fn test_the_talk_opens_on_their_read_and_names_the_turn() {
     assert!(t.notes.iter().any(|n| n.contains("the firebrand")), "{:?}", t.notes);
     g.close_player_talk(0, None);
     // now they hear you counsel patience - and next time they say so
-    for k in 0..2 { rhetoric::witness(&mut g.world, v, Line::Patient, g.tick + k); }
+    let org = g.org;
+    for k in 0..2 { rhetoric::witness(&mut g.world, v, org, Line::Patient, g.tick + k); }
     g.tick += 1;
     talk_beside(&mut g, i);
     let t = g.seats[0].talk.as_ref().expect("talking").clone();
@@ -116,8 +143,9 @@ fn test_their_read_moves_the_asks_a_rung() {
     let kind = known(&mut g, a[1], vec![Trait::Kind]);
     harden(&mut g, hot, Line::Firebrand);
     harden(&mut g, kind, Line::Firebrand);
-    assert_eq!(rhetoric::ask_shift(&g.world, hot), 1, "hotheads find the firebrand");
-    assert_eq!(rhetoric::ask_shift(&g.world, kind), -1, "the gentle shy off");
+    let org = g.org;
+    assert_eq!(rhetoric::ask_shift(&g.world, hot, org), 1, "hotheads find the firebrand");
+    assert_eq!(rhetoric::ask_shift(&g.world, kind, org), -1, "the gentle shy off");
     talk_beside(&mut g, a[0]);
     let asks = g.seats[0].talk.as_ref().unwrap().asks.clone();
     assert_eq!(asks, crate::game::organizing::ask_offers(&g.world, g.org, hot, 1), "the open talk takes the shift");
@@ -125,7 +153,8 @@ fn test_their_read_moves_the_asks_a_rung() {
     let pa = adults(&p);
     let hot = known(&mut p, pa[0], vec![Trait::Hotheaded]);
     harden(&mut p, hot, Line::Patient);
-    assert_eq!(rhetoric::ask_shift(&p.world, hot), -1, "the hothead shrugs at the patient one");
+    let porg = p.org;
+    assert_eq!(rhetoric::ask_shift(&p.world, hot, porg), -1, "the hothead shrugs at the patient one");
 }
 
 #[test]
@@ -202,4 +231,33 @@ fn test_a_panel_pick_reaches_only_members_at_hand() {
         ] });
     g.decide_at(0, 1);
     assert_eq!(weight(&g, near, Line::Merciful), 1.0, "the softest branch is mercy");
+}
+
+#[test]
+fn test_two_organizers_keep_separate_reads() {
+    // Alice (seat 0) and Bob (a second seat) address the same villager.
+    // One organizer's rhetoric is theirs alone (#1236): Bob shouldn't
+    // inherit Alice's hardened firebrand reputation, her ask bonus, or
+    // her pending turn, and Alice's read shouldn't move when Bob talks
+    // patience to the same villager.
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    let org_a = g.org;
+    let seat_b = g.add_seat();
+    let org_b = g.seats[seat_b].org;
+    assert_ne!(org_a, org_b);
+
+    for _ in 0..HARDEN as usize { rhetoric::witness(&mut g.world, v, org_a, Line::Firebrand, g.tick); }
+    assert!(rhetoric::hardened(&g.world, v, org_a).contains(&Line::Firebrand), "Alice's line hardened");
+    assert!(rhetoric::hardened(&g.world, v, org_b).is_empty(), "Bob inherits none of Alice's reputation");
+    assert_eq!(rhetoric::ask_shift(&g.world, v, org_b), 0, "Bob gets none of Alice's ask bonus");
+
+    // Bob counsels patience on his own first talk with this villager
+    rhetoric::witness(&mut g.world, v, org_b, Line::Patient, g.tick);
+    assert!(rhetoric::hardened(&g.world, v, org_a).contains(&Line::Firebrand),
+        "Alice's reputation is untouched by Bob's talk");
+    assert!(rhetoric::take_turn(&mut g.world, v, org_a).is_none(),
+        "Alice never went back on her own line - nothing of hers to name");
+    assert!(rhetoric::take_turn(&mut g.world, v, org_b).is_none(),
+        "Bob hasn't hardened a line of his own to turn on");
 }

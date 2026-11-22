@@ -2834,7 +2834,7 @@ impl Game {
                     else if b.debt < hi { Some(crate::game::rhetoric::Line::Merciful) } else { None };
                 if let Some(l) = line {
                     let who = self.rhetoric_witnesses(seat);
-                    crate::game::rhetoric::witness_all(&mut self.world, &who, l, self.tick);
+                    crate::game::rhetoric::witness_all(&mut self.world, &who, oe, l, self.tick);
                 }
                 self.dilemma_debts
                     .push(crate::session::events::DilemmaDebt {
@@ -2864,7 +2864,7 @@ impl Game {
             // at hand hear you choose it (#1236)
             if probe {
                 let who = self.rhetoric_witnesses(seat);
-                crate::game::rhetoric::witness_all(&mut self.world, &who, crate::game::rhetoric::Line::Patient, self.tick);
+                crate::game::rhetoric::witness_all(&mut self.world, &who, oe, crate::game::rhetoric::Line::Patient, self.tick);
             }
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
                 p.probe = probe;

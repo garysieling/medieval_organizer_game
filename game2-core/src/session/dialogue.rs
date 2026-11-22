@@ -700,7 +700,7 @@ impl Game {
         }
         // the line they read you by moves what they'll hear a rung (#1236)
         let mut asks = crate::game::organizing::ask_offers(&self.world, self.seats[seat].org, v,
-            crate::game::rhetoric::ask_shift(&self.world, v));
+            crate::game::rhetoric::ask_shift(&self.world, v, self.seats[seat].org));
         // pressing is the act (#1226): the tally counts this talk the
         // moment it opens, whoever's seat asked - and it lifts at dawn
         let tired = {
@@ -721,10 +721,11 @@ impl Game {
         // their read of your rhetoric rides on your Speaker (#1236), so
         // a tree can key `other:status:firebrand`
         let mut player = Speaker::new(&pname);
-        player.status.extend(crate::game::rhetoric::hardened(&self.world, v).iter().map(|l| l.status()));
-        let mut opening: Vec<String> = crate::game::rhetoric::register_note(&self.world, v, &villager.name)
+        let org = self.seats[seat].org;
+        player.status.extend(crate::game::rhetoric::hardened(&self.world, v, org).iter().map(|l| l.status()));
+        let mut opening: Vec<String> = crate::game::rhetoric::register_note(&self.world, v, org, &villager.name)
             .into_iter().collect();
-        if let Some(q) = crate::game::rhetoric::take_turn(&mut self.world, v) {
+        if let Some(q) = crate::game::rhetoric::take_turn(&mut self.world, v, org) {
             opening.push(format!("{} names the turn: {q}", villager.name));
         }
         let seed = self.tick.wrapping_mul(0x2545_F491) ^ ((v as u64) << 24) ^ self.talk_next_id;
@@ -772,7 +773,7 @@ impl Game {
             // they offer slow - anything already put stays spent
             let mut asks = crate::game::organizing::ask_offers(
                 &self.world, self.seats[seat].org, t.who,
-                if safe { 1 } else { -1 } + crate::game::rhetoric::ask_shift(&self.world, t.who));
+                if safe { 1 } else { -1 } + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org));
             asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 cur.vibe = Some(v);
@@ -1091,9 +1092,10 @@ impl Game {
         // day's first pick with them, like the bond (#1236)
         if bond_moving && !spent {
             use crate::game::rhetoric::{witness, Line};
+            let org = self.seats[seat].org;
             match act {
-                Act::PushBack => witness(&mut self.world, who, Line::Firebrand, self.tick),
-                Act::Agree => witness(&mut self.world, who, Line::Patient, self.tick),
+                Act::PushBack => witness(&mut self.world, who, org, Line::Firebrand, self.tick),
+                Act::Agree => witness(&mut self.world, who, org, Line::Patient, self.tick),
                 _ => {}
             }
         }
@@ -1219,7 +1221,7 @@ impl Game {
                         persuasion::ArgueMove::HearOut => Line::Patient,
                         persuasion::ArgueMove::Appeal => Line::Merciful,
                     };
-                    crate::game::rhetoric::witness(&mut self.world, who, line, self.tick);
+                    crate::game::rhetoric::witness(&mut self.world, who, oe, line, self.tick);
                 }
                 // a case the cause doesn't hold leaves its mark - no word
                 // of it, just a cooler bond

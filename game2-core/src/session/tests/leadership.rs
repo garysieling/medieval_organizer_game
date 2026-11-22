@@ -174,3 +174,95 @@ fn test_a_reach_never_takes_a_first_developers_credit() {
     assert_eq!(g.world.get_component::<Developed>(t).map(|d| d.by), Some(first));
     assert_eq!(leadership::brought(&g.world, g.org, first), 0, "another org's credit isn't this one's");
 }
+
+/// The meeting's work leaves its marks (#1345): a kept part greens the
+/// keeper and yellows everyone who watched it done
+#[test]
+fn test_a_kept_part_marks_the_holder_and_the_room() {
+    use crate::game::leadership::{job_score, Job, JobMarks};
+    let mut g = Game::new();
+    let (holder, watcher, host) = (g.villagers[0], g.villagers[1], g.villagers[2]);
+    let mut m = Meeting {
+        label: "Bram's house".into(), venue: (10, 10), born: g.tick,
+        invited: vec![holder, watcher, host],
+        spots: vec![(10, 10); 3], paths: vec![None; 3],
+        frames: 0, talk_from: None,
+        lines: vec![(host, "Friends - you came.".into())],
+        talk_id: 0, seat: 0,
+        roles: (false, false, true, false, false),
+        role_people: [None, None, Some(holder), None, None],
+        bought: vec![], probe: false, testimony: None,
+    };
+    g.meeting_beats(&mut m);
+    let hm = g.world.get_component::<JobMarks>(holder).expect("the keeper's marked");
+    assert_eq!(hm.done[Job::Opener.ix()], 1, "they held the opener");
+    let wm = g.world.get_component::<JobMarks>(watcher).expect("a witness is marked");
+    assert_eq!((wm.seen[Job::Opener.ix()], wm.done[Job::Opener.ix()]), (1, 0),
+        "they watched it done");
+    assert!(job_score(&g.world, holder) > job_score(&g.world, watcher),
+        "holding outweighs watching");
+}
+
+/// The marks steady a leader's own ask (#1345): on the same cold tie,
+/// the member who's held the work brings the sit-down in where the
+/// unmarked one is only heard
+#[test]
+fn test_the_marks_steady_a_leaders_own_ask() {
+    let outcome = |marked: bool| {
+        let mut g = Game::new();
+        let (a, r) = (g.villagers[0], g.villagers[2]);
+        members(&mut g, &[a]);
+        tie(&mut g, a, r, 0.7);
+        assert!(join(&mut g, r));
+        let t = free_adult(&g, &[a, r, g.player]);
+        // under the ask: the sit-down's own warmth doesn't reach it alone
+        tie(&mut g, a, t, 0.3);
+        if marked {
+            for _ in 0..5 {
+                leadership::mark_performed(&mut g.world, a, leadership::Job::Chair);
+            }
+        }
+        let org = g.org;
+        g.world.add_component(a, Reach { org, target: t, due: g.tick });
+        let tick = g.tick;
+        leadership::run_reach(&mut g.world, a, tick).map(|x| x.1)
+    };
+    assert_eq!(outcome(false), Some(leadership::ReachOutcome::Heard));
+    assert_eq!(outcome(true), Some(leadership::ReachOutcome::Joined));
+}
+
+/// A member marked enough stops waiting to be sent (#1345): the daily
+/// tick hands them their own sit-down, and the unmarked keep waiting
+#[test]
+fn test_a_marked_member_starts_their_own_reach() {
+    let mut g = Game::new();
+    let (a, first) = (g.villagers[0], g.villagers[2]);
+    members(&mut g, &[first]);
+    assert!(join(&mut g, a), "a joins the cause - developed by the member who knew them");
+    assert!(g.world.get_component::<Developed>(a).is_some());
+    for _ in 0..5 {
+        leadership::mark_performed(&mut g.world, a, leadership::Job::Turnout);
+    }
+    let tick = g.tick;
+    g.livelihood_tick(tick);
+    let reach = g.world.get_component::<Reach>(a).expect("marked enough, they pick their own");
+    assert!(!g.world.get_component::<crate::sim::community::Organization>(g.org)
+        .unwrap().members.contains(&reach.target), "they aim past the fold");
+    assert!(g.world.get_component::<Reach>(first).is_none(), "the unmarked still wait to be sent");
+}
+
+/// The card carries the marks (#1345): watched jobs yellow, held green
+#[test]
+fn test_the_card_rows_show_seen_and_held() {
+    let mut g = Game::new();
+    let a = g.villagers[0];
+    leadership::mark_observed(&mut g.world, a, leadership::Job::Song);
+    leadership::mark_performed(&mut g.world, a, leadership::Job::Chair);
+    g.seats[0].selected_target = 0;
+    g.seats[0].picked = true;
+    let card = g.villager_inspector_at(0);
+    let seen = card.lines.iter().find(|l| l.text == "the song").expect("a seen row");
+    let held = card.lines.iter().find(|l| l.text == "the chair").expect("a held row");
+    assert_eq!(seen.rgb, (215, 190, 90), "yellow for seen it");
+    assert_eq!(held.rgb, (110, 185, 90), "green for done it");
+}

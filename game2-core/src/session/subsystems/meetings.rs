@@ -32,6 +32,15 @@ impl Game {
                     crate::game::org_skills::practice(&mut self.world, s.holder,
                         crate::game::org_skills::role_skill(s.role),
                         crate::game::org_skills::SEAT_PRACTICE);
+                    // and the seat's work leaves its mark: green on the
+                    // holder, yellow on everyone who watched (#1345)
+                    let job = crate::game::org_skills::role_job(s.role);
+                    crate::game::leadership::mark_performed(&mut self.world, s.holder, job);
+                    for &a in invited {
+                        if a != s.holder {
+                            crate::game::leadership::mark_observed(&mut self.world, a, job);
+                        }
+                    }
                 }
             }
         }
@@ -725,8 +734,21 @@ impl Game {
     /// closer sends them off. A part only happens if the one who
     /// promised it made it there - the caller already kept `roles`
     /// honest about that (#1076)
-    fn meeting_beats(&mut self, m: &mut Meeting) {
+    pub(in crate::session) fn meeting_beats(&mut self, m: &mut Meeting) {
         let [snacks, notes, opener, song, closer] = m.role_people;
+        // the meeting's work teaches those who watch it (#1345): a kept
+        // part turns the holder's mark green and lays a yellow on every
+        // witness - the marks are the ladder's explainers
+        use crate::game::leadership::{mark_observed, mark_performed, Job};
+        let kept = [m.roles.0, m.roles.1, m.roles.2, m.roles.3, m.roles.4];
+        for (i, job) in [Job::Snacks, Job::Notes, Job::Opener, Job::Song, Job::Closer].iter().enumerate() {
+            if let (true, Some(holder)) = (kept[i], m.role_people[i]) {
+                mark_performed(&mut self.world, holder, *job);
+                for &a in &m.invited {
+                    if a != holder { mark_observed(&mut self.world, a, *job); }
+                }
+            }
+        }
         // the send-off is the last word of the night - kept promises land
         // just ahead of it, never after the benediction (#1185)
         if let (true, Some(n)) = (m.roles.1, notes) {

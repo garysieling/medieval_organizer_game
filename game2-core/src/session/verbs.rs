@@ -3307,6 +3307,8 @@ impl Game {
                 && self.dilemma.is_none(),
             // a warm post is always worth staging - the vote's the point
             Motion::ParallelEvent(_) => true,
+            // the pledges that put it on the slate carry it through
+            Motion::GroupBuy(..) => true,
         }).collect()
     }
 
@@ -3445,6 +3447,22 @@ impl Game {
             Motion::SendOrganizer => self.dispatch_organizer(seat, c),
             Motion::ParallelEvent(site) => self.parallel_event_at(seat, site),
             Motion::Survey => self.survey_motion(seat, c),
+            Motion::GroupBuy(gi, _) => self.group_buy_at(seat, c, gi),
+        }
+    }
+
+    /// The pooled buy carried (#1343): the pledges collect, the shop
+    /// bends its price on the order, shares go home member-first, and
+    /// the surplus walks out the door below street for the cause
+    fn group_buy_at(&mut self, _seat: usize, c: Entity, gi: usize) -> String {
+        let good = crate::game::campaign::BUY_GOODS[gi];
+        match crate::game::campaign::group_buy(&mut self.world, c, gi) {
+            Some(out) => {
+                self.penetration = (self.penetration + 0.03).min(1.0);
+                format!("The room goes in on the {} - {} shares home, {} more out the door below street for the cause.",
+                    good, out.shares.len(), out.surplus)
+            }
+            None => format!("The pledges wouldn't reach - the {} stays on the shelf.", good),
         }
     }
 

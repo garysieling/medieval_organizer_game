@@ -923,6 +923,9 @@ pub enum Motion {
     /// The doors get asked about an issue - the count comes back
     /// fuzzed, and the asking itself reads the cause's reach (#1270)
     Survey,
+    /// The room pools its coin and buys together at a discount
+    /// (#1343): index into `BUY_GOODS`, and the gold promised behind it
+    GroupBuy(usize, u32),
 }
 
 /// The rhetorical line a motion takes (#1310): the street verbs are the
@@ -933,6 +936,7 @@ pub fn motion_line(m: Motion) -> Option<crate::game::rhetoric::Line> {
     match m {
         Motion::March | Motion::Strike | Motion::Townhall | Motion::TwoFronts => Some(Line::Firebrand),
         Motion::Flyers | Motion::Survey => Some(Line::Patient),
+        Motion::GroupBuy(..) => Some(Line::Patient),
         Motion::SendOrganizer | Motion::ParallelEvent(_) => None,
     }
 }
@@ -969,6 +973,8 @@ pub fn motion_label(m: Motion) -> String {
         Motion::SendOrganizer => "Send an organizer to raise a town for the cause".into(),
         Motion::ParallelEvent(_) => "The posted town rises - stage the event there".into(),
         Motion::Survey => "Run a survey - the doors get asked, the count comes back".into(),
+        Motion::GroupBuy(gi, pledged) =>
+            format!("Go in together on the {} - {} gold promised", BUY_GOODS[gi], pledged),
     }
 }
 
@@ -1010,6 +1016,185 @@ pub fn living_members(world: &World, campaign: Entity) -> usize {
                 // a motion's headcount (#1342)
                 && dues.get(&m).copied().unwrap_or(0) == 0
         }).count()).unwrap_or(0)
+}
+
+/// The goods a pooled buy can be for (#1343): the wants the village's
+/// own shops keep on the shelf
+pub const BUY_GOODS: [&str; 5] = ["bread", "garments", "lute", "tools", "ale"];
+/// A member pledges up to half their purse toward their want, and
+/// never more than two shares' worth (#1343)
+const PLEDGE_SHARE: f32 = 0.5;
+const PLEDGE_UNITS: f32 = 2.0;
+/// The cause's coin behind a good before it carries to the floor:
+/// two pledging members and three shares' worth promised (#1343)
+const PLEDGE_BAR_UNITS: f32 = 3.0;
+/// The discount's knobs (#1343): a point a share for the bulk, a point
+/// of warmth for the keeper's best tie in the room, the cause's weight
+/// - and the blend capped so no shop gives the stock away
+const BULK_PCT: f32 = 0.01;
+const BULK_CAP: f32 = 0.15;
+const TIE_PCT: f32 = 0.10;
+const WEIGHT_PCT: f32 = 0.10;
+const DISCOUNT_CAP: f32 = 0.30;
+/// The surplus goes out below street - a public benefit that still
+/// leaves the cause its margin (#1343)
+const SELL_AT: f32 = 0.8;
+
+/// The want the cause can shop for together, as a `BUY_GOODS` index
+fn want_good(w: Want) -> Option<usize> {
+    match w {
+        Want::GoodFood => Some(0),   // bread
+        Want::Finery => Some(1),     // garments
+        Want::Instrument => Some(2), // lute
+        Want::BetterTools => Some(3),// tools
+        Want::Drink => Some(4),      // ale
+        _ => None,
+    }
+}
+
+/// What the room's carrying to the meeting (#1343): a member with a
+/// want the shops sell pledges half their purse toward it, two shares
+/// at most. (good index, [(member, gold pledged)]) - goods ordered by
+/// the gold behind them, members in roll order
+pub fn group_pledges(world: &World, campaign: Entity) -> Vec<(usize, Vec<(Entity, f32)>)> {
+    let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else { return vec![] };
+    let Some(members) = world.get_component::<Organization>(org).map(|o| o.members.clone()) else { return vec![] };
+    let mut by_good: Vec<(usize, Vec<(Entity, f32)>)> = vec![];
+    for m in members {
+        if is_dead(world, m) || world.get_component::<crate::game::vocation::Kid>(m).is_some()
+            || crate::game::dungeon::unavailable(world, m) { continue; }
+        let Some(il) = world.get_component::<desires::InnerLife>(m) else { continue };
+        let Some(gi) = il.wants.iter().find_map(|w| want_good(*w)) else { continue };
+        let purse = world.get_component::<crate::game::livelihood::Purse>(m)
+            .map(|p| p.gold).unwrap_or(0.0);
+        let pledge = (purse * PLEDGE_SHARE)
+            .min(crate::game::goods::worth_at(world, BUY_GOODS[gi]) * PLEDGE_UNITS);
+        if pledge < 1.0 { continue; }
+        match by_good.iter_mut().find(|(g, _)| *g == gi) {
+            Some((_, ps)) => ps.push((m, pledge)),
+            None => by_good.push((gi, vec![(m, pledge)])),
+        }
+    }
+    by_good.sort_by(|a, b| {
+        let ta: f32 = a.1.iter().map(|(_, p)| p).sum();
+        let tb: f32 = b.1.iter().map(|(_, p)| p).sum();
+        tb.partial_cmp(&ta).unwrap_or(std::cmp::Ordering::Equal).then(a.0.cmp(&b.0))
+    });
+    by_good
+}
+
+/// What the pooled buy settled (#1343): shares that went home with
+/// members, the surplus that sold out below street, and what the
+/// room's coin came to
+#[derive(Debug, Default)]
+pub struct GroupBuyOut {
+    /// (member, units) - the shares that went home
+    pub shares: Vec<(Entity, u32)>,
+    /// Units sold on below street for the cause
+    pub surplus: u32,
+    /// Gold the sell-off brought into the treasury
+    pub sold_for: f32,
+    /// What the room's pooled coin actually paid
+    pub paid: f32,
+    /// The discount the bulk, the tie and the cause's weight bought
+    pub discount: f32,
+}
+
+/// The pooled buy carried (#1343): the shop that stocks the good and
+/// warms the cause's custom best takes the order; pledges collect
+/// against what the purses still hold, the price bends on bulk, tie
+/// and the cause's weight, shares go home one to a pledging member
+/// while units last, and the rest sells out the door below street
+pub fn group_buy(world: &mut World, campaign: Entity, gi: usize) -> Option<GroupBuyOut> {
+    let good = BUY_GOODS[gi];
+    let pledges = group_pledges(world, campaign).into_iter()
+        .find(|(g, _)| *g == gi).map(|(_, p)| p).unwrap_or_default();
+    if pledges.len() < 2 { return None; }
+    let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else { return None };
+    // collect the pool against what the purses still hold
+    let mut paid_in: Vec<(Entity, f32)> = vec![];
+    for (m, pledge) in &pledges {
+        let paid = world.get_component_mut::<crate::game::livelihood::Purse>(*m)
+            .map(|p| { let take = pledge.min(p.gold); p.gold -= take; take })
+            .unwrap_or(0.0);
+        if paid > 0.0 { paid_in.push((*m, paid)); }
+    }
+    if paid_in.is_empty() { return None; }
+    let pool: f32 = paid_in.iter().map(|(_, p)| p).sum();
+    // the shop that stocks it and knows the room best takes the order
+    let members: Vec<Entity> = paid_in.iter().map(|(m, _)| *m).collect();
+    use crate::game::household::{Building, BuildingKind};
+    let mut best: Option<(Entity, Entity, f32)> = None; // (shop, worker, tie)
+    for b in world.query::<Building>() {
+        let Some(bb) = world.get_component::<Building>(b) else { continue };
+        if !matches!(bb.kind, BuildingKind::Shop(_)) { continue; }
+        let Some(worker) = bb.worker else { continue };
+        if bb.stock.get(good).copied().unwrap_or(0) == 0 { continue; }
+        let tie = members.iter().map(|&m| {
+            crate::game::relationships::find_relationship(world, m, worker)
+                .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
+                .map(|r| r.strength).unwrap_or(0.0)
+        }).fold(0.0f32, f32::max);
+        if best.map(|(_, _, t)| tie > t).unwrap_or(true) { best = Some((b, worker, tie)); }
+    }
+    let (shop, worker, tie) = best?;
+    // the blend: a point a share for the bulk, warmth for the tie,
+    // weight for the cause's name - capped so no shop gives it away
+    let street = crate::game::goods::worth_at(world, good);
+    let bulk = ((pool / street) * BULK_PCT).min(BULK_CAP);
+    let weight = world.get_component::<crate::sim::organized_power::OrganizedPower>(org)
+        .map(|p| p.capacity / crate::sim::organized_power::CAPACITY_CAP).unwrap_or(0.0) * WEIGHT_PCT;
+    let discount = (bulk + tie * TIE_PCT + weight).min(DISCOUNT_CAP);
+    let unit = street * (1.0 - discount);
+    let stock = world.get_component::<Building>(shop).map(|b| b.stock.get(good).copied().unwrap_or(0)).unwrap_or(0);
+    let qty = ((pool / unit).floor() as u32).min(stock);
+    if qty == 0 { return None; }
+    {
+        let b = world.get_component_mut::<Building>(shop)?;
+        crate::game::household::take_stock(b, good, qty);
+    }
+    let price = qty as f32 * unit;
+    // the keeper's purse fills, the overseer's skim off the top
+    let overseer = world.get_component::<Building>(shop).map(|b| b.overseer).unwrap_or(None);
+    let cut = if overseer.is_some() { price * crate::game::livelihood::OVERSEER_CUT } else { 0.0 };
+    if let Some(p) = world.get_component_mut::<crate::game::livelihood::Purse>(worker) { p.gold += price - cut; }
+    if let Some(o) = overseer {
+        if let Some(p) = world.get_component_mut::<crate::game::livelihood::Purse>(o) { p.gold += cut; }
+    }
+    // the pooled order's a warm word at the door: every pledging
+    // member knows the keeper a little better for it
+    for &(m, _) in &paid_in {
+        crate::game::relationships::record_interaction(world, m,
+            crate::game::relationships::Interaction {
+                kind: crate::game::relationships::InteractionKind::Conversation,
+                intensity: 0.3, other: worker });
+    }
+    // shares home first, members' order by pledge then the roll
+    let mut order = paid_in.clone();
+    order.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then(a.0.cmp(&b.0)));
+    let mut left = qty;
+    let mut out = GroupBuyOut { paid: price, discount, ..Default::default() };
+    for (m, _) in &order {
+        if left == 0 { break; }
+        let Some(s) = world.get_component_mut::<crate::game::livelihood::Satchel>(*m) else { continue };
+        *s.goods.entry(good.to_string()).or_insert(0) += 1;
+        left -= 1;
+        match out.shares.iter_mut().find(|(e, _)| e == m) {
+            Some((_, n)) => *n += 1,
+            None => out.shares.push((*m, 1)),
+        }
+    }
+    // the surplus out the door below street - the cause's cheap stall
+    // is a public benefit, and the margin's the treasury's
+    if left > 0 {
+        let sold_for = left as f32 * street * SELL_AT;
+        if let Some(o) = world.get_component_mut::<Organization>(org) { o.resources += sold_for; }
+        out.surplus = left;
+        out.sold_for = sold_for;
+        crate::sim::organized_power::record_action(world, org,
+            crate::sim::organized_power::ActionQuality::Transactional);
+    }
+    Some(out)
 }
 
 /// The flat share every member owes each meeting the cause holds
@@ -1245,6 +1430,16 @@ pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
     if n >= 8 { ms.push(Motion::SendOrganizer); }
     // any cause big enough to act can first go asking
     if n >= 2 { ms.push(Motion::Survey); }
+    // the room's own coin: when the pledges gather behind a good, the
+    // floor can carry the pooled buy - quiet work, no legwork asked
+    if let Some((gi, pledgers)) = group_pledges(world, campaign).into_iter()
+        .find(|(gi, ps)| ps.len() >= 2
+            && ps.iter().map(|(_, p)| p).sum::<f32>()
+                >= crate::game::goods::worth_at(world, BUY_GOODS[*gi]) * PLEDGE_BAR_UNITS)
+    {
+        let promised = pledgers.iter().map(|(_, p)| p).sum::<f32>().round() as u32;
+        ms.push(Motion::GroupBuy(gi, promised));
+    }
     // a posted town that runs warm enough can stage the cause's day
     if asked {
         if let Some(o) = world.get_component::<Outreach>(campaign) {
@@ -1753,5 +1948,78 @@ mod tests {
         assert_eq!(joined, vec![listener]);
         assert!(w.get_component::<Organization>(o).unwrap().members.contains(&listener));
         assert!(!w.get_component::<Organization>(o).unwrap().members.contains(&kid));
+    }
+
+    #[test]
+    fn test_the_rooms_coin_pools_behind_the_wanted_good() {
+        use crate::game::desires::Want;
+        use crate::game::livelihood::{Purse, Satchel};
+        let mut w = World::new();
+        let ms: Vec<Entity> = (0..4).map(|_| member(&mut w)).collect();
+        for &m in &ms {
+            w.get_component_mut::<desires::InnerLife>(m).unwrap().wants.push(Want::GoodFood);
+            w.add_component(m, Purse { gold: 20.0 });
+            w.add_component(m, Satchel::default());
+        }
+        let (_o, c) = campaign_with(&mut w, &ms);
+        // four purses behind the bread put the pooled buy on the slate
+        let slate = motions_open(&w, c);
+        assert!(slate.iter().any(|m| matches!(*m, Motion::GroupBuy(0, p) if p == 40)),
+            "the pledges gather under the bread: {slate:?}");
+        // and the room goes in together: the order bends the price,
+        // shares come home, the surplus sells below street for the cause
+        let worker = w.create_entity();
+        w.add_component(worker, Purse { gold: 0.0 });
+        let b = crate::game::household::spawn_building(&mut w,
+            crate::game::household::BuildingKind::Shop(crate::game::vocation::Vocation::Baker),
+            "the bakery", 0.0, 0.0, 20);
+        {
+            let bb = w.get_component_mut::<crate::game::household::Building>(b).unwrap();
+            bb.worker = Some(worker);
+            bb.stock.insert("bread".into(), 20);
+        }
+        let out = group_buy(&mut w, c, 0).expect("the order lands");
+        // pool 40 on a street price of 5: the bulk alone bends it a
+        // point a share - 8 units, 4 home and 4 out the door
+        assert_eq!(out.shares.len(), 4);
+        assert_eq!(out.shares.iter().map(|(_, n)| n).sum::<u32>(), 4);
+        assert_eq!(out.surplus, 4);
+        assert!((out.discount - 0.08).abs() < 0.01, "bulk bends the price: {}", out.discount);
+        for &m in &ms {
+            assert_eq!(*w.get_component::<Satchel>(m).unwrap().goods.get("bread").unwrap_or(&0), 1);
+            assert_eq!(w.get_component::<Purse>(m).unwrap().gold, 10.0);
+        }
+        // the keeper's paid the discounted price, the treasury keeps
+        // the sell-off's margin
+        assert!((w.get_component::<Purse>(worker).unwrap().gold - out.paid).abs() < 0.01);
+        assert_eq!(w.get_component::<Organization>(_o).unwrap().resources, out.sold_for);
+        assert!((out.sold_for - 16.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_the_pledges_dont_reach_without_the_coin_or_the_hands() {
+        use crate::game::desires::Want;
+        use crate::game::livelihood::{Purse, Satchel};
+        let mut w = World::new();
+        // one pledger isn't a group, however deep their purse
+        let m1 = member(&mut w);
+        w.get_component_mut::<desires::InnerLife>(m1).unwrap().wants.push(Want::GoodFood);
+        w.add_component(m1, Purse { gold: 30.0 });
+        w.add_component(m1, Satchel::default());
+        let (_o, c) = campaign_with(&mut w, &[m1]);
+        let slate = motions_open(&w, c);
+        assert!(!slate.iter().any(|m| matches!(m, Motion::GroupBuy(..))),
+            "one purse isn't a pool: {slate:?}");
+        // two thin purses want the bread but can't promise a bulk's worth
+        let ms: Vec<Entity> = (0..3).map(|_| member(&mut w)).collect();
+        for &m in &ms {
+            w.get_component_mut::<desires::InnerLife>(m).unwrap().wants.push(Want::GoodFood);
+            w.add_component(m, Purse { gold: 2.0 });
+            w.add_component(m, Satchel::default());
+        }
+        let (_o2, c2) = campaign_with(&mut w, &ms);
+        let slate = motions_open(&w, c2);
+        assert!(!slate.iter().any(|m| matches!(m, Motion::GroupBuy(..))),
+            "thin purses don't promise a bulk: {slate:?}");
     }
 }

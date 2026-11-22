@@ -24,7 +24,7 @@ use crate::game::lifecycle::{Age, LifeStage};
 use crate::game::relationships::{self, Interaction, InteractionKind, RelKind};
 use crate::game::traits::Personality;
 use crate::game::villager::{self, Hunger};
-use crate::game::vocation::{Craft, Kid, TownRole, Vocation};
+use crate::game::vocation::{trade_word, Craft, Kid, TownRole, Vocation};
 use crate::sim::psychology::{AttachmentHistory, EpisodeKind};
 use super::model::{ConvoPanelV, TalkPanelV, TalkRowV};
 use super::Game;
@@ -239,37 +239,6 @@ fn trade_status(v: Vocation) -> Option<&'static str> {
         Vocation::Cooper => "carpenter",
         _ => return None,
     })
-}
-
-/// The trade word a vocation speaks with in a meeting (#1238)
-fn trade_word(v: Vocation) -> &'static str {
-    match v {
-        Vocation::Farmer => "farmer",
-        Vocation::Baker => "baker",
-        Vocation::Toolmaker => "smith",
-        Vocation::Knight => "knight",
-        Vocation::Tailor => "tailor",
-        Vocation::Glazier => "glazier",
-        Vocation::Printmaker => "printer",
-        Vocation::Mason => "mason",
-        Vocation::Priest => "priest",
-        Vocation::Luthier => "luthier",
-        Vocation::Shepherd => "shepherd",
-        Vocation::Beekeeper => "beekeeper",
-        Vocation::Weaver => "weaver",
-        Vocation::Perfumer => "perfumer",
-        Vocation::Painter => "painter",
-        Vocation::Shoemaker => "shoemaker",
-        Vocation::Bookbinder => "bookbinder",
-        Vocation::Miner => "miner",
-        Vocation::Fisher => "fisher",
-        Vocation::Alewife => "alewife",
-        Vocation::Brewer => "brewer",
-        Vocation::Vintner => "vintner",
-        Vocation::Distiller => "distiller",
-        Vocation::Cooper => "cooper",
-        Vocation::Taverner => "taverner",
-    }
 }
 
 /// `who` as a conversation speaker, read off the world at `tick`

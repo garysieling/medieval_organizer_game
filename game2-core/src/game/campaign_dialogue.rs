@@ -228,6 +228,27 @@ pub const ORG_STRONG: f32 = 1.0;
 /// Most beats a house meeting gets through before the light goes
 pub const MEETING_MAX_BEATS: usize = 5;
 
+/// An attendee's counsel weight on the campaign's issue (#1308): the
+/// trade the matter belongs to speaks with weight, another trade's
+/// word weighs less, and where no craft owns it the village's memory -
+/// an elder or one the driver holds near - carries the room instead
+pub fn issue_counsel(owners: &[&str], trade: Option<&str>, elder: bool, near: bool) -> f32 {
+    use crate::game::conversation::{TRADE_FIT, TRADE_MISFIT, ELDER_FIT};
+    if owners.is_empty() {
+        if elder || near { ELDER_FIT } else { 1.0 }
+    } else {
+        match trade {
+            Some(t) if owners.contains(&t) => TRADE_FIT,
+            Some(_) => TRADE_MISFIT,
+            None => 1.0,
+        }
+    }
+}
+
+/// The chance a decision carried on the wrong trade's counsel leaves a
+/// doubter slipping back among the dissenters (#1308)
+pub const MISFIT_DOUBT: f32 = 0.4;
+
 /// One beat as it played: the situation put, and the move taken
 pub struct Step {
     pub beat: &'static Beat,
@@ -518,6 +539,23 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
     let room: HashSet<String> = personal.iter().flat_map(|(_, fs)| fs.iter().cloned()).collect();
     let holds_all = |a: Entity, needs: &[&str]| personal.iter()
         .find(|(e, _)| *e == a).map(|(_, fs)| needs.iter().all(|n| fs.contains(*n))).unwrap_or(false);
+    // and whose counsel the matter belongs to (#1308): the trade a
+    // scoped issue names takes its own floor; on the unowned commons an
+    // elder or one the driver holds near carries the weight instead
+    let owners = crate::game::conversation::issue_trades(&issue);
+    let fits: Vec<(Entity, f32)> = out.attendees.iter().map(|&a| {
+        let trade = world.get_component::<crate::game::vocation::Craft>(a)
+            .map(|c| crate::game::vocation::trade_word(c.vocation));
+        let elder = world.get_component::<crate::game::lifecycle::Age>(a)
+            .map(|x| x.stage == crate::game::lifecycle::LifeStage::Elder).unwrap_or(false);
+        let near = crate::game::relationships::find_relationship(world, a, driver)
+            .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
+            .map(|r| matches!(r.kind, crate::game::relationships::RelKind::Family
+                | crate::game::relationships::RelKind::Lover
+                | crate::game::relationships::RelKind::Friend)).unwrap_or(false);
+        (a, issue_counsel(&owners, trade, elder, near))
+    }).collect();
+    let fit_of = |a: Entity| fits.iter().find(|(e, _)| *e == a).map(|(_, f)| *f).unwrap_or(1.0);
     // A member's line: the one the beat is about speaks it (`holders`);
     // whoever answers them is someone else when anyone else is there
     let member = |needs: &[&str], not: Option<Entity>, rng: &mut Rng| -> Entity {
@@ -527,7 +565,9 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
         // in a two-person room the driver answers before anyone answers themself
         let anyone = pool(out.attendees.clone());
         let cands = [holders, fallback, anyone].into_iter().find(|c| !c.is_empty()).unwrap_or_else(|| others.clone());
-        cands.get(rng.below(cands.len())).copied().unwrap_or(driver)
+        // the trade the matter belongs to takes its own floor (#1308)
+        let weights: Vec<f32> = cands.iter().map(|&a| fit_of(a)).collect();
+        cands.get(rng.weighted(&weights)).copied().unwrap_or(driver)
     };
     let voice_of = |v: Voice, needs: &[&str], not: Option<Entity>, rng: &mut Rng| -> Option<Entity> {
         match v {
@@ -541,6 +581,7 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
     };
     let recent = crate::game::campaign_arc::recent_beats(world, campaign);
     let mut heard: Vec<&'static str> = vec![];
+    let mut decided_by: Option<Entity> = None;
     let mut d = Deliberation { said: vec![], applied: vec![], decided: false, consent: false };
     let mut w = Walker::new(Phase::Agenda);
     for _ in 0..MEETING_MAX_BEATS {
@@ -560,6 +601,31 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
         if apply_hook(world, campaign, s.mv.hook, answerer) { d.applied.push(s.mv.hook); }
         if s.beat.phase == Phase::Decision && s.mv.next == Next::Phase(Phase::FollowThrough) {
             d.decided = true;
+            decided_by = answerer;
+        }
+    }
+    // persuasion (#1308): the room is moved by the mouth the matter
+    // belongs to. The right trade's deciding counsel talks a grumbler
+    // back round; the matter heard from the wrong trade leaves it
+    // half-persuaded - a doubter slips back among the dissenters, and
+    // the consent doesn't bank
+    if d.decided {
+        let fit = decided_by.map(&fit_of).unwrap_or(1.0);
+        if fit >= crate::game::conversation::TRADE_FIT {
+            if let Some(c) = world.get_component_mut::<Campaign>(campaign) {
+                if let Some(i) = c.dissenters.iter().position(|&x| Some(x) != decided_by) {
+                    c.dissenters.remove(i);
+                }
+            }
+        } else if fit <= crate::game::conversation::TRADE_MISFIT && rng.next_f32() < MISFIT_DOUBT {
+            let doubter = out.healed.iter().copied().find(|&h| Some(h) != decided_by && h != driver)
+                .or_else(|| out.attendees.iter().copied()
+                    .find(|&a| Some(a) != decided_by && a != driver));
+            if let Some(who) = doubter {
+                if apply_hook(world, campaign, Hook::Dissent, Some(who)) {
+                    d.applied.push(Hook::Dissent);
+                }
+            }
         }
     }
     if out.noted && !d.decided {
@@ -1326,5 +1392,72 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_issue_counsel_weights_the_trades_word() {
+        use crate::game::conversation::{TRADE_FIT, TRADE_MISFIT, ELDER_FIT};
+        // the craft the matter belongs to speaks with weight (#1308)
+        assert_eq!(issue_counsel(&["baker"], Some("baker"), false, false), TRADE_FIT);
+        assert_eq!(issue_counsel(&["baker"], Some("mason"), false, false), TRADE_MISFIT);
+        assert_eq!(issue_counsel(&["baker"], None, false, false), 1.0);
+        // where no craft owns it, memory and nearness carry the room
+        assert_eq!(issue_counsel(&[], Some("baker"), true, false), ELDER_FIT);
+        assert_eq!(issue_counsel(&[], None, false, true), ELDER_FIT);
+        assert_eq!(issue_counsel(&[], None, false, false), 1.0);
+    }
+
+    #[test]
+    fn test_the_trades_own_member_takes_the_floor_and_the_room() {
+        use crate::game::vocation::{Craft, Vocation};
+        let build = |issue: &str| {
+            let (mut w, c, ms) = meeting_world(DecisionRule::Majority);
+            w.add_component(ms[3], Craft { vocation: Vocation::Baker, skill: 0.5, workplace: None,
+                master: None, exposure: 0.0, tasked_by: None, pending: 0.0, apprentice_years: 0, stage: 0 });
+            w.get_component_mut::<Campaign>(c).unwrap().issue = issue.to_string();
+            (w, c, ms)
+        };
+        // over many days: on the bakers' matter the baker takes the
+        // floor more than on the masons', their deciding counsel talks a
+        // grumbler back round - and on the wrong matter the same mouth
+        // loses the room
+        let (mut own_floor, mut other_floor) = (0usize, 0usize);
+        let (mut counsel_heals, mut counsel_decided) = (0usize, 0usize);
+        let mut doubts = 0usize;
+        for day in 8..208 {
+            // the bakers' own matter
+            let (mut w, c, ms) = build("materials (baker)");
+            let out = hold_campaign_meeting(&mut w, c, day).unwrap();
+            // the healed dissenter grumbles on - someone for good counsel
+            // to talk back round
+            w.get_component_mut::<Campaign>(c).unwrap().dissenters.push(ms[2]);
+            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            own_floor += d.said.iter().filter(|s| s.speaker == Some(ms[3])).count();
+            if d.decided {
+                let decider = d.decisive().last().and_then(|s| s.speaker);
+                if decider == Some(ms[3]) {
+                    counsel_decided += 1;
+                    if !w.get_component::<Campaign>(c).unwrap().dissenters.contains(&ms[2]) {
+                        counsel_heals += 1;
+                    }
+                }
+            }
+
+            // the same room, the masons' matter - the baker is a misfit
+            let (mut w, c, ms) = build("materials (mason)");
+            let out = hold_campaign_meeting(&mut w, c, day).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            other_floor += d.said.iter().filter(|s| s.speaker == Some(ms[3])).count();
+            if d.decided && d.applied.last() == Some(&Hook::Dissent)
+                && d.decisive().last().and_then(|s| s.speaker) == Some(ms[3])
+                && w.get_component::<Campaign>(c).unwrap().dissenters.contains(&ms[2]) {
+                doubts += 1; // the wrong counsel pushed the healed doubter back
+            }
+        }
+        assert!(own_floor > other_floor,
+            "the baker takes the bakers' floor: {} lines vs {} on the masons'", own_floor, other_floor);
+        assert!(counsel_decided > 0 && counsel_heals > 0,
+            "the right counsel never talked a grumbler round: {} decided, {} healed", counsel_decided, counsel_heals);
+        assert!(doubts > 0, "the wrong counsel never cost the room a doubter");
     }
 }

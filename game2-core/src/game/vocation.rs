@@ -406,6 +406,53 @@ pub fn level_name(l: Level) -> &'static str {
     }
 }
 
+/// The trade word a vocation speaks with in a meeting (#1238) - the
+/// word `trades_owning` owns matters in, not the display name
+pub fn trade_word(v: Vocation) -> &'static str {
+    match v {
+        Vocation::Farmer => "farmer",
+        Vocation::Baker => "baker",
+        Vocation::Toolmaker => "smith",
+        Vocation::Knight => "knight",
+        Vocation::Tailor => "tailor",
+        Vocation::Glazier => "glazier",
+        Vocation::Printmaker => "printer",
+        Vocation::Mason => "mason",
+        Vocation::Priest => "priest",
+        Vocation::Luthier => "luthier",
+        Vocation::Shepherd => "shepherd",
+        Vocation::Beekeeper => "beekeeper",
+        Vocation::Weaver => "weaver",
+        Vocation::Perfumer => "perfumer",
+        Vocation::Painter => "painter",
+        Vocation::Shoemaker => "shoemaker",
+        Vocation::Bookbinder => "bookbinder",
+        Vocation::Miner => "miner",
+        Vocation::Fisher => "fisher",
+        Vocation::Alewife => "alewife",
+        Vocation::Brewer => "brewer",
+        Vocation::Vintner => "vintner",
+        Vocation::Distiller => "distiller",
+        Vocation::Cooper => "cooper",
+        Vocation::Taverner => "taverner",
+    }
+}
+
+/// A vocation by its lowercase display name - the suffix a trade-scoped
+/// `IssueTag` carries ("materials (baker)", "the drowned pit (miner)")
+pub fn vocation_named(lower: &str) -> Option<Vocation> {
+    const ALL: &[Vocation] = &[
+        Vocation::Farmer, Vocation::Baker, Vocation::Toolmaker, Vocation::Knight,
+        Vocation::Tailor, Vocation::Glazier, Vocation::Printmaker, Vocation::Mason,
+        Vocation::Priest, Vocation::Luthier, Vocation::Shepherd, Vocation::Beekeeper,
+        Vocation::Weaver, Vocation::Perfumer, Vocation::Painter, Vocation::Shoemaker,
+        Vocation::Bookbinder, Vocation::Miner, Vocation::Fisher, Vocation::Alewife,
+        Vocation::Brewer, Vocation::Vintner, Vocation::Distiller, Vocation::Cooper,
+        Vocation::Taverner,
+    ];
+    ALL.iter().copied().find(|v| vocation_name(*v).eq_ignore_ascii_case(lower))
+}
+
 /// "a" or "an" for the word that follows - "an Apprentice", "a Master"
 pub fn article(word: &str) -> &'static str {
     match word.chars().next().map(|c| c.to_ascii_lowercase()) {

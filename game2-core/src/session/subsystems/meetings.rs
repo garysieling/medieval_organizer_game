@@ -441,8 +441,16 @@ impl Game {
             let pool_refs: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
             let refs: Vec<&Speaker> = speakers.iter().collect();
             let host = self.world.get_component::<PlayerCharacter>(host_e).map(|p| p.name.clone()).unwrap_or_default();
+            // how each stands to the organizer - kin and the near speak
+            // with the house's weight where no craft owns the matter (#1308)
+            let ties: Vec<crate::game::conversation::Relation> = came.iter().map(|&v| {
+                let kind = relationships::find_relationship(&self.world, v, host_e)
+                    .and_then(|r| self.world.get_component::<relationships::Relationship>(r))
+                    .map(|r| r.kind);
+                dialogue::relation_with_wanderer(kind)
+            }).collect();
             let seed = self.tick.wrapping_mul(0x51_7CC1) ^ came.iter().fold(0u64, |h, &v| h.rotate_left(7) ^ v as u64);
-            let record = run_meeting(&Speaker::new(&host), &refs, prompt, &pool_refs, &MEET_RITES, &mut TalkRng::new(seed));
+            let record = run_meeting(&Speaker::new(&host), &refs, &ties, prompt, &pool_refs, &MEET_RITES, &mut TalkRng::new(seed));
             // the record frames the floor: statement 0 is the rite, the
             // last is the send-off - they air first and last, whoever gave
             // them (the host stands in when the organizer did)

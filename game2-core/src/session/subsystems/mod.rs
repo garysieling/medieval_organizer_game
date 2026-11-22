@@ -29,6 +29,7 @@ pub(in crate::session) mod post;
 pub(in crate::session) mod prison;
 pub(in crate::session) mod society;
 pub mod table;
+pub(in crate::session) mod hooks;
 mod community_law;
 mod factions;
 mod travel;

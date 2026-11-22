@@ -295,6 +295,8 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
             s.status.push(w);
         }
     }
+    // an old wound colors their talk long before they'll name it (#1243)
+    s.status.extend(crate::game::hooks::statuses(world, who));
     s
 }
 
@@ -750,6 +752,13 @@ impl Game {
             };
             crate::game::mentorship::tell(&mut self.world, v);
             opening.push(format!("{}: \"{}\"", villager.name, crate::game::mentorship::saying(mk, &who)));
+        }
+        // a hook laid to rest, remembered the once (#1243)
+        if let Some((id, by)) = crate::game::hooks::untold(&self.world, v) {
+            let friend = self.name_of(by);
+            crate::game::hooks::tell(&mut self.world, v, id);
+            let by_you = by == self.seats[seat].player;
+            opening.push(format!("{}: \"{}\"", villager.name, crate::game::hooks::remembered(id, by_you, &friend)));
         }
         let seed = self.tick.wrapping_mul(0x2545_F491) ^ ((v as u64) << 24) ^ self.talk_next_id;
         self.close_player_talk(seat, None);

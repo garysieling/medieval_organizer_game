@@ -1756,7 +1756,7 @@ impl View {
                 let set = if inland { faces } else { set };
                 let in_cave = m.cave_zone.map(|((ax, ay), (bx, by))|
                     tx as f32 >= ax && tx as f32 <= bx && ty as f32 >= ay && ty as f32 <= by).unwrap_or(false);
-                match set.block(&m.map, tx, ty) {
+                match set.block(&m.map, tx, ty, m.tick) {
                     Some(block) => {
                         let (w, h, x, y) = block_rect(block, sx, sy, zoom);
                         // the cave's own dark: the block desaturated into

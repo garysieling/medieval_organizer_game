@@ -186,8 +186,8 @@ pub fn resolve(world: &World, organizer: Entity, person: Entity, m: ArgueMove, r
     if roll < chance + 0.2 { Outcome::Stalemate } else { Outcome::Lost }
 }
 
-/// One argument's pull on them: deeper bonds move further, the proud
-/// and the stingy barely shift, the undecided (no stake, no mark) move
+/// One argument's pull on them: deeper bonds move further, the proud,
+/// the stingy and the wary barely shift, the undecided (no stake, no mark) move
 /// most, and a move that suits them carries more
 pub fn magnitude(world: &World, organizer: Entity, person: Entity, issue: &IssueTag, m: ArgueMove, tick: u64) -> f32 {
     let traits = traits_of(world, person);
@@ -200,6 +200,8 @@ pub fn magnitude(world: &World, organizer: Entity, person: Entity, issue: &Issue
     let resist: f32 = traits.iter().map(|t| match t {
         Trait::Proud => 0.5,
         Trait::Stingy => 0.7,
+        Trait::Wary => 0.7,
+        Trait::Stolid => 0.8,
         _ => 1.0,
     }).product();
     let staked = crate::game::campaign::stake_for(world, person, issue, tick).is_some()

@@ -367,6 +367,8 @@ impl Game {
         if has_trait(&self.world, v, Trait::Lazy) { work = work * 6 / 10; rest *= 2; }
         if has_trait(&self.world, v, Trait::Ambitious) { work = work * 13 / 10; }
         if has_trait(&self.world, v, Trait::Gregarious) { wander = wander * 16 / 10; }
+        if has_trait(&self.world, v, Trait::Steady) { work = work * 115 / 100; }
+        if has_trait(&self.world, v, Trait::Stolid) { wander = wander * 6 / 10; }
         if is_sick(&self.world, v) { rest *= 4; work /= 2; }
         let roll = rng.below(work + wander + rest);
         if roll < work {

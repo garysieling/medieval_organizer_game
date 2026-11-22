@@ -66,6 +66,17 @@ fn test_the_counter_is_named_only_once_they_have_signed_on() {
 }
 
 #[test]
+fn test_a_meeting_promise_is_a_commitment_too() {
+    let mut g = Game::new();
+    let v = g.villagers[adult(&g)];
+    let (pe, oe, tick) = (g.player, g.org, g.tick);
+    assert!(!inoc::committed(&g.world, oe, v));
+    let _ = crate::game::organizing::propose(&mut g.world, pe, oe, v,
+        crate::game::organizing::PropKind::ComeAlong, "Bram", 0.0, tick);
+    assert!(inoc::committed(&g.world, oe, v), "they've promised to come");
+}
+
+#[test]
 fn test_naming_the_threat_rehearses_it_and_readies_them_for_that_alone() {
     let mut g = Game::new();
     let i = adult(&g);

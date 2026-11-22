@@ -55,7 +55,7 @@ pub fn answer(c: Counter) -> &'static str {
 pub fn committed(world: &World, org: Entity, who: Entity) -> bool {
     let Some(o) = world.get_component::<crate::sim::community::Organization>(org) else { return false };
     o.members.contains(&who)
-        || world.get_component::<crate::game::organizing::MeetingPlan>(o.leader)
+        || world.get_component::<crate::game::organizing::MeetingPlan>(org)
             .map(|p| p.holders().contains(&who)).unwrap_or(false)
 }
 

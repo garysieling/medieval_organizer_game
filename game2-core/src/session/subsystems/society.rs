@@ -1217,6 +1217,8 @@ impl Game {
         for v in self.villagers.clone() {
             // an argument they've turned over long enough takes (#1234)
             crate::game::persuasion::mature(&mut self.world, v, tick);
+            // an unrepeated line fades from their read of you (#1236)
+            crate::game::rhetoric::fade(&mut self.world, v);
             crate::game::reactions::cool_off(&mut self.world, v, tick);
             crate::game::actions::lifts_with_time(&mut self.world, v, tick);
             // and a name fades the same way: esteem cools without upkeep,

@@ -2354,6 +2354,20 @@ impl Game {
         );
     }
 
+    /// Who sees a seat's panel pick (#1236): the cause's own members
+    /// within earshot of them - a pick nobody's near to see only feeds
+    /// the org's record
+    pub(in crate::session) fn rhetoric_witnesses(&self, seat: usize) -> Vec<Entity> {
+        const REACH: f32 = 10.0;
+        let pe = self.seats[seat].player;
+        let Some(at) = self.world.get_component::<villager::Pos>(pe).copied() else { return vec![] };
+        self.world.get_component::<crate::sim::community::Organization>(self.seats[seat].org)
+            .map(|o| o.members.iter().copied().filter(|&m| m != pe && !villager::is_dead(&self.world, m)
+                && self.world.get_component::<villager::Pos>(m)
+                    .map(|p| (p.x - at.x).hypot(p.y - at.y) <= REACH).unwrap_or(false)).collect())
+            .unwrap_or_default()
+    }
+
     /// The organizer's answer to the founding call on the conversation
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
@@ -2854,6 +2868,15 @@ impl Game {
         // and the debt comes home when its day does
         if let Some(knot) = self.dilemma.take() {
             if let Some(b) = knot.branches.get(pick) {
+                // the members at hand see which way you cut it (#1236): the
+                // wounding branch is the hard line, the softest the mercy
+                let (lo, hi) = knot.branches.iter().fold((f32::MAX, f32::MIN), |(lo, hi), x| (lo.min(x.debt), hi.max(x.debt)));
+                let line = if b.debt > lo { Some(crate::game::rhetoric::Line::Exacting) }
+                    else if b.debt < hi { Some(crate::game::rhetoric::Line::Merciful) } else { None };
+                if let Some(l) = line {
+                    let who = self.rhetoric_witnesses(seat);
+                    crate::game::rhetoric::witness_all(&mut self.world, &who, oe, l, self.tick);
+                }
                 self.dilemma_debts
                     .push(crate::session::events::DilemmaDebt {
                         branch: pick,
@@ -2895,6 +2918,12 @@ impl Game {
                 return;
             }
             let probe = pick == 1;
+            // asking before telling is the patient line, and the members
+            // at hand hear you choose it (#1236)
+            if probe {
+                let who = self.rhetoric_witnesses(seat);
+                crate::game::rhetoric::witness_all(&mut self.world, &who, oe, crate::game::rhetoric::Line::Patient, self.tick);
+            }
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
                 p.probe = probe;
             }

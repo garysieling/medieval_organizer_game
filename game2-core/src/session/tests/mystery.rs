@@ -212,7 +212,7 @@ fn solved(g: &mut Game, def: usize, asker: Entity) {
 
 /// The telling's pick on the open talk, if it's on offer
 fn tell_pick(g: &Game) -> Option<usize> {
-    g.seats[0].talk.as_ref()?.choice_labels().iter()
+    g.seats[0].talk.as_ref()?.choice_labels(&g.world).iter()
         .position(|l| l.starts_with("Tell them what you pieced together"))
 }
 
@@ -222,14 +222,14 @@ fn test_a_solved_mystery_is_told_in_the_talk() {
     let asker = askers(&g)[0];
     solved(&mut g, 1, asker);
     talk_to(&mut g, asker);
-    let labels = g.seats[0].talk.as_ref().expect("the talk opens").choice_labels();
+    let labels = g.seats[0].talk.as_ref().expect("the talk opens").choice_labels(&g.world);
     let p = tell_pick(&g).unwrap_or_else(|| panic!("the asker's talk offers the telling: {:?}", labels));
     assert_eq!(p, labels.len() - 1, "it rides last, so the other picks keep their numbers");
     assert!(labels[p].contains(MYSTERIES[1].title), "{}", labels[p]);
     g.talk_pick_at(0, Some(p));
     assert!(g.seats[0].mystery.is_none(), "told, the mystery's done");
     let t = g.seats[0].talk.as_ref().expect("the talk goes on after").clone();
-    assert!(tell_pick(&g).is_none(), "told once: {:?}", t.choice_labels());
+    assert!(tell_pick(&g).is_none(), "told once: {:?}", t.choice_labels(&g.world));
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
     let said: Vec<&str> = rec.lines.iter().map(|l| l.text.as_str()).collect();
     assert!(rec.lines.iter().any(|l| l.who == Some(asker) && l.text == MYSTERIES[1].wonders),

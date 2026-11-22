@@ -37,7 +37,7 @@ fn talk_beside(g: &mut Game, i: usize) {
 }
 
 fn pick(g: &mut Game, label: &str) {
-    let labels = g.seats[0].talk.as_ref().expect("still talking").choice_labels();
+    let labels = g.seats[0].talk.as_ref().expect("still talking").choice_labels(&g.world);
     let i = labels.iter().position(|l| l.starts_with(label))
         .unwrap_or_else(|| panic!("{label:?} among {labels:?}"));
     g.talk_pick_at(0, Some(i));

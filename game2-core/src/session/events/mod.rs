@@ -64,6 +64,9 @@ pub enum EventId {
     // the state's own answer to the pox: a traveling officer reads the
     // vaccination act on the square - once a save, the answer stands
     VaccinationAct,
+    // the road's humbler company (#1281): the pedlar's cheap pack and
+    // the beggar's open palm - the visitor-pack cells gave them faces
+    Pedlar, Beggar,
 }
 
 /// The vaccination act's officer waiting on the square: the answer's
@@ -346,6 +349,8 @@ pub const EVENTS: &[EventSpec] = &[
     // late additions keep the tail: `initial_due` rolls off one stream
     // in array order, so an insert here shifts nobody's first date
     EventSpec { id: FalseTraveller, name: "a pedlar's pack", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 200, stay: 3, cry: "Odds and ends! Pins and pots!" },
+    EventSpec { id: Pedlar, name: "the pedlar", kind: Visitor, fig: Fig::Traveller, gap: 220, span: 140, stay: 3, cry: "Trifles and trinkets! A poor man's pack at a poor man's price!" },
+    EventSpec { id: Beggar, name: "a beggar", kind: Visitor, fig: Fig::Traveller, gap: 240, span: 160, stay: 3, cry: "Alms, for the love of God - a crust for a man the road's worn through." },
 ];
 
 /// The spec for `id`
@@ -368,6 +373,8 @@ pub const VISIT_SLUGS: &[&str] = &[
     "eggler", "cheese-monger", "fortune-teller", "astrologer", "alchemist",
     "quack", "midwife", "sowgelder", "farrier", "corn-factor", "messenger",
     "prodigal", "false-traveller",
+    // the humbler company (#1281): pedlar and beggar from the pack cells
+    "pedlar", "beggar",
 ];
 
 /// Which visitor sprite a `Fig::Traveller` figure draws with - the
@@ -522,7 +529,7 @@ pub enum Group { Road, Sky, Beasts, IllLuck, Findings }
 pub fn group(id: EventId) -> Group {
     match id {
         Dilemma | VaccinationAct => Group::Road,
-        Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger | FalseTraveller => Group::Road,
+        Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger | FalseTraveller | Pedlar | Beggar => Group::Road,
         Hailstorm | HeatWave | Drought | Flood | LightningStrike | LateFrost | IndianSummer | FirstSnow | Thaw | Aurora | MeteorShower | BloodMoon | DarkNoon | WindStorm | Mirage | SeaMonster => Group::Sky,
         WolfAtFold | FoxInYard | HawkStoops | StrayDog | StrayCat | RatPlague | Locusts | CaterpillarYear | Starlings | BeeTree | DeerInFields | WildBoar | OwlInTower | CrowsMob | FishRun => Group::Beasts,
         ChimneyFire | FouledWell | GranaryLeak | CartOverturns | DrownedInPond | LostChild | Foundling | Quarrel | AlehouseBrawl | OldOakFalls | Assize | CellarThief | SheepInCradle | NoahRow => Group::IllLuck,
@@ -1011,7 +1018,7 @@ pub fn visitor_archetype(id: EventId) -> &'static str {
     match id {
         Tinker | RagAndBone | SaltSeller | WoolMerchant | WineMerchant
         | SpiceMerchant | Bookseller | CornFactor | CheeseMonger
-        | FishHawker | Eggler | HorseCop | FalseTraveller => "arch-trader",
+        | FishHawker | Eggler | HorseCop | FalseTraveller | Pedlar => "arch-trader",
         KnifeGrinder | ChimneySweep | RatCatcher | Dowser | Scribe
         | ToothDrawer | BarberSurgeon | Glazier | Thatcher | WellDigger
         | CharcoalBurner | LimeBurner | Farrier | Midwife | Sowgelder
@@ -1019,7 +1026,7 @@ pub fn visitor_archetype(id: EventId) -> &'static str {
         Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier
         | Messenger => "arch-performer",
         PilgrimBand | RelicSeller | Pardoner | Friar => "arch-religious",
-        RefugeeFamily | LeperBand => "arch-needy",
+        RefugeeFamily | LeperBand | Beggar => "arch-needy",
         Recruiter | Deserter => "arch-soldier",
         FortuneTeller | Astrologer | Alchemist | Quack => "arch-mystic",
         _ => "arch-caller",
@@ -1105,6 +1112,8 @@ pub fn visitor_offer(id: EventId) -> VisitorOffer {
             stay_extra: 0, note: "The King's shilling weighs heavy in your palm." },
         Deserter => VisitorOffer { good: None, gold_out: 0.0, gold_in: 0.0,
             stay_extra: 2400, note: "You say nothing of him - he can breathe a while longer." },
+        Pedlar => ware("trinket", 0.5, "You pick a bauble out of the pedlar's pack - cheap and cheerful."),
+        Beggar => service(1.0, "You press a crust and a coin into the beggar's palm - God keep you, he says."),
         _ => NO_OFFER,
     }
 }
@@ -1113,7 +1122,7 @@ pub fn visitor_offer(id: EventId) -> VisitorOffer {
 /// village can plausibly drive off with hard words (#1168)
 pub fn visitor_dismissible(id: EventId) -> bool {
     matches!(id, EventId::Deserter | EventId::Heretic
-        | EventId::LeperBand | EventId::RefugeeFamily)
+        | EventId::LeperBand | EventId::RefugeeFamily | EventId::Beggar)
 }
 
 /// A one-line read on a road visitor for the TALK panel - the speaker's

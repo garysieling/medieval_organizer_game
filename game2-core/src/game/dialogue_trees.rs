@@ -3637,6 +3637,9 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: "visitor_fortune_teller",
             criteria: &[Has("self:status:visitor"), Has("self:status:fortune-teller")],
             root: &VIS_FORTUNE_GREET, rejoin: None },
+        DialogueTree { name: "visitor_beggar",
+            criteria: &[Has("self:status:visitor"), Has("self:status:beggar")],
+            root: &VIS_BEGGAR_GREET, rejoin: None },
         // the archetypes every traveller kind falls into
         DialogueTree { name: "visitor_trader",
             criteria: &[Has("self:status:visitor"), Has("self:status:arch-trader")],
@@ -4444,6 +4447,29 @@ const VIS_REFUGEE_GREET: Exchange = Exchange {
         Reply { criteria: &[], weight: 1.0, bias: &[(Stingy, 2.0)],
             act: Act::PushBack, concepts: &["rebuff"],
             lines: &["The village can't carry more mouths - move on."],
+            voice: &[],
+            then: None, end: Some(WalksOff) },
+    ],
+};
+
+const VIS_BEGGAR_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "want"],
+    calls: &[
+        "Spare a crust, {other} - the road's taken everything but my hunger.",
+        "Alms, friend - I've not eaten since the last village but one.",
+        "A man the wars forgot, {other} - a coin's a day's bread to me.",
+    ],
+    voice: &[],
+    replies: &[
+        Reply { criteria: &[], weight: 4.0, bias: &[(Kind, 3.0), (Stingy, 0.3)],
+            act: Act::Agree, concepts: &["deal", "charity"],
+            lines: &["Here - a crust and a coin, and God keep you.", "Take this - no man should beg for bread."],
+            voice: &[],
+            then: Some(VIS_DEAL_DONE), end: None },
+        Reply { criteria: &[], weight: 1.0, bias: &[(Stingy, 2.0), (Hotheaded, 1.5)],
+            act: Act::PushBack, concepts: &["rebuff"],
+            lines: &["Begone - this village feeds its own poor.", "Down the road with you - I've nothing spare."],
             voice: &[],
             then: None, end: Some(WalksOff) },
     ],

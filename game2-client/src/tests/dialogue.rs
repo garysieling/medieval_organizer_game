@@ -36,7 +36,7 @@ fn test_long_lines_wrap_inside_the_talk_box_and_replies_click() {
         in_talk: true,
     };
     let (rows, rects) = talk_layout(&p);
-    for (y, text, _, name) in &rows {
+    for (y, text, _, name, _) in &rows {
         let n = name.as_ref().map(|n| n.0.len()).unwrap_or(0);
         assert!(n + text.len() <= TALK_CHARS, "row overflows: {:?}", text);
         assert!(*y >= TALK_Y + 14 && *y + 7 <= TALK_Y + TALK_H, "row at {} outside the box", y);
@@ -241,7 +241,7 @@ fn test_the_conversation_box_pins_its_lines() {
         gist: true, you: false, rule: false, who: None, mood: 0,
     });
     let (boxes3, _) = convo_layout(&p, &mut pin, 30);
-    assert!(boxes3.iter().all(|b| b.rows.iter().all(|(_, t, _, _)| !t.contains("whisper"))),
+    assert!(boxes3.iter().all(|b| b.rows.iter().all(|(_, t, _, _, _)| !t.contains("whisper"))),
         "a line inserted above the fold showed");
     assert_eq!(boxes3[0].rows[0].1, boxes2[0].rows[0].1,
         "the insert moved the fold off the line it was showing");
@@ -275,6 +275,7 @@ fn test_the_conversation_box_pins_its_lines() {
         options: vec![], decides: false, leave: false,
     };
     let (boxes4, _) = convo_layout(&q, &mut pin, 30);
+    // a named opener caps its lead ("PEAKER0: ") - the words stay whole
     assert_eq!(boxes4[0].rows[0].1, "line 0", "a new panel didn't open on its first line");
 }
 
@@ -349,6 +350,8 @@ fn test_a_speaker_line_carries_their_portrait() {
     let p = ConvoPanelV {
         title: "talk".into(),
         rows: vec![
+            TalkRowV { name: None, text: "the town talks the matter over".into(),
+                gist: false, you: false, rule: false, who: None, mood: 0 },
             TalkRowV { name: Some("Eliza".into()),
                 text: "the miller took an extra scoop of flour, they saw it plain".into(),
                 gist: false, you: false, rule: false, who: Some(3), mood: 0 },
@@ -478,4 +481,108 @@ fn test_the_speakers_mood_mark_badges_their_icon() {
     assert_eq!(at(&plain, bx, by), [220, 0, 0], "a badge drew on a neutral read");
     // and the pip's dark frame hangs it off the head
     assert_eq!(at(&draw(&panel(1)), said.x + 7, said.y + 6), [15, 15, 22]);
+}
+
+/// The opener's first letter draws as a decorated drop cap beside its
+/// first rows; a day rule isn't the opener, your own words take no cap,
+/// and the box stands taller for the cap's span (#1321)
+#[test]
+fn test_the_opener_carries_a_drop_cap() {
+    let p = ConvoPanelV {
+        title: "talk".into(),
+        rows: vec![
+            TalkRowV { name: None, text: "day 12".into(), gist: false, you: false, rule: true, who: None, mood: 0 },
+            TalkRowV { name: Some("Rowena".into()),
+                text: "Peace be upon thy journey, traveler. Who art thou?".into(),
+                gist: false, you: false, rule: false, who: Some(4), mood: 0 },
+            TalkRowV { name: Some("You".into()), text: "Well met.".into(),
+                gist: false, you: true, rule: false, who: None, mood: 0 },
+        ],
+        options: vec![], decides: false, leave: false,
+    };
+    let (boxes, _) = convo_layout(&p, &mut ConvoPin::default(), 30);
+    let opener = boxes.iter().find(|b| b.cap.is_some()).expect("the opener caps");
+    assert_eq!(opener.cap, Some('R'), "the day rule's no opener - the first spoken line is");
+    // a named opener caps its lead word: "OWENA:" beside the cap, the
+    // greeting kept whole after it
+    assert_eq!(opener.rows[0].3.as_ref().unwrap().0, "OWENA: ");
+    assert_eq!(opener.rows[0].1.trim_start().chars().take(5).collect::<String>(), "Peace");
+    // the box stands taller than one row for the cap's span
+    assert!(opener.h >= CONVO_CAP + 8, "the cap's span didn't raise the box: {}", opener.h);
+    // and it wraps narrower beside it
+    assert!(opener.rows[0].1.len() <= CONVO_CHARS - CONVO_PORT_CHARS - CAP_CHARS,
+        "the opener didn't narrow for the cap: {:?}", opener.rows[0].1);
+    // an unowned opener caps its first word instead
+    let q = ConvoPanelV { title: "talk".into(),
+        rows: vec![TalkRowV { name: None, text: "folk gather on the square".into(),
+            gist: false, you: false, rule: false, who: None, mood: 0 }],
+        options: vec![], decides: false, leave: false };
+    let (boxes, _) = convo_layout(&q, &mut ConvoPin::default(), 30);
+    assert_eq!(boxes[0].cap, Some('f'));
+    assert_eq!(boxes[0].rows[0].1, "olk gather on the square");
+    // your own words take no cap even as the first line
+    let q = ConvoPanelV { title: "talk".into(),
+        rows: vec![TalkRowV { name: Some("You".into()), text: "Aye, mine own words.".into(),
+            gist: false, you: true, rule: false, who: None, mood: 0 }],
+        options: vec![], decides: false, leave: false };
+    assert!(convo_layout(&q, &mut ConvoPin::default(), 30).0.iter().all(|b| b.cap.is_none()),
+        "your words capped");
+    // draw-level: the decorated box's gold edge lands where the cap is
+    let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    let px_at = |x: i32, y: i32| { let i = (y as usize * buf.width + x as usize) * 4;
+        [buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]] };
+    let wx = CONVO_X + 10 + CONVO_PORT;   // the opener's a speaker: words after the head slot
+    assert_eq!(px_at(wx + 10, opener.y + 1), [172, 136, 68], "no gold edge on the cap");
+}
+
+/// The tiers read at their own weights (#1321): the title doubled, a
+/// day rule tracked capitals, a name lead capital - body rows stay 1x
+#[test]
+fn test_the_convo_box_tiers_its_text() {
+    let p = ConvoPanelV {
+        title: "TALK - ROWENA".into(),
+        rows: vec![
+            TalkRowV { name: None, text: "day 12".into(), gist: false, you: false, rule: true, who: None, mood: 0 },
+            TalkRowV { name: Some("Eliza".into()), text: "the miller took an extra scoop".into(),
+                gist: false, you: false, rule: false, who: Some(3), mood: 0 },
+        ],
+        options: vec![], decides: false, leave: false,
+    };
+    // the name lead goes up capital; the rule row marks itself rubric
+    let (boxes, _) = convo_layout(&p, &mut ConvoPin::default(), 30);
+    let rule = boxes.iter().find(|b| b.rows.iter().any(|r| r.4)).expect("no rubric row");
+    assert_eq!(rule.rows[0].1, "day 12");
+    let said = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(_)))).unwrap();
+    // the opener caps her E: the lead shows its capital rest
+    assert_eq!(said.rows[0].3.as_ref().unwrap().0, "LIZA: ", "the lead isn't capital");
+    // a doubled title inks the second glyph row - plain 1x can't reach it
+    let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    let mut ink = 0;
+    for y in CONVO_Y + 10..CONVO_Y + 16 {
+        for x in CONVO_X + 6..CONVO_X + 100 {
+            let i = (y as usize * buf.width + x as usize) * 4;
+            if buf.pixels[i] == 150 { ink += 1; }
+        }
+    }
+    assert!(ink > 5, "the title didn't draw doubled");
+    // the rubric row draws tracked capitals: wider than its plain length
+    let (rows, _) = talk_layout(&TalkPanelV { title: "t".into(), rows: vec![
+        TalkRowV { name: None, text: "day 12".into(), gist: false, you: false, rule: true, who: None, mood: 0 }],
+        options: vec![], in_talk: false });
+    let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+    let y0 = rows[0].0;
+    draw_talk_panel(&mut buf, &TalkPanelV { title: "t".into(), rows: vec![
+        TalkRowV { name: None, text: "day 12".into(), gist: false, you: false, rule: true, who: None, mood: 0 }],
+        options: vec![], in_talk: false }, (-1, -1));
+    let mut right = 0;
+    for x in TALK_X + 6..TALK_X + 80 {
+        for yy in y0..y0 + ROW_H {
+            let i = (yy as usize * buf.width + x as usize) * 4;
+            if buf.pixels[i] == 110 { right = x; }
+        }
+    }
+    // plain "day 12" ends ~31px in; the tracked capitals reach past 38
+    assert!(right - TALK_X - 6 >= 38, "the rubric didn't draw tracked: {}", right);
 }

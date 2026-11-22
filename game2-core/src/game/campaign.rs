@@ -320,6 +320,8 @@ pub fn found_campaign(world: &mut World, org: Entity, vote: &IssueVote, framing:
         dossier: None, directive: None, phase: CampaignPhase::Listening,
         decision_rule: rule, seats: vec![], target: None,
     });
+    // the founding vote sets the flat rate the roll owes each meeting
+    world.add_component(org, Dues { rate: DUES_RATE, missed: Default::default() });
     c
 }
 
@@ -998,12 +1000,123 @@ pub const FIELD_DAILY: f32 = 1.0;
 /// Living grown members free to act: the size the slate's read off
 pub fn living_members(world: &World, campaign: Entity) -> usize {
     let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else { return 0 };
+    let dues = world.get_component::<Dues>(org).map(|d| d.missed.clone()).unwrap_or_default();
     world.get_component::<Organization>(org)
         .map(|o| o.members.iter().filter(|&&m| {
             !is_dead(world, m)
                 && world.get_component::<crate::game::vocation::Kid>(m).is_none()
                 && !crate::game::dungeon::unavailable(world, m)
+                // a lapsed name stays on the rolls but doesn't carry
+                // a motion's headcount (#1342)
+                && dues.get(&m).copied().unwrap_or(0) == 0
         }).count()).unwrap_or(0)
+}
+
+/// The flat share every member owes each meeting the cause holds
+/// (#1342) - set at the founding vote, one rate for the whole roll
+pub const DUES_RATE: f32 = 1.0;
+/// Missed rounds before the roll quietly drops a name (#1342)
+pub const LAPSE_OUT: u8 = 3;
+
+/// The cause's dues book (#1342): the rate the founding vote set, and
+/// whose standing's slipped - a name appears on a missed round and
+/// clears when their dues land
+#[derive(Debug, Clone)]
+pub struct Dues {
+    /// Flat for every member, per cadence
+    pub rate: f32,
+    /// Rounds each member's missed; absent from the map is good standing
+    pub missed: crate::engine::det::HashMap<Entity, u8>,
+}
+
+/// What the hat's round left (#1342): who paid, whose share the purse
+/// carried, whose standing slipped, and whose name the roll dropped
+#[derive(Debug, Default)]
+pub struct DuesBeat {
+    /// Members whose own purse paid the round
+    pub paid: usize,
+    /// Broke members the treasury carried - solidarity's literal price
+    pub carried: Vec<Entity>,
+    /// Members whose standing slipped a round
+    pub slipped: Vec<Entity>,
+    /// Members the roll dropped for good
+    pub gone: Vec<Entity>,
+}
+
+/// The dues round at a held meeting (#1342): each living grown member
+/// owes the flat rate - their own purse pays it into the cause's, the
+/// treasury covers a broke member while it can, and a name missed too
+/// long quietly leaves the rolls, freeing any seat it held
+pub fn dues_beat(world: &mut World, campaign: Entity) -> DuesBeat {
+    let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else {
+        return DuesBeat::default();
+    };
+    let Some(members) = world.get_component::<Organization>(org).map(|o| o.members.clone()) else {
+        return DuesBeat::default();
+    };
+    let rate = world.get_component::<Dues>(org).map(|d| d.rate).unwrap_or(DUES_RATE);
+    let mut beat = DuesBeat::default();
+    for m in members {
+        if is_dead(world, m) || world.get_component::<crate::game::vocation::Kid>(m).is_some()
+            || crate::game::dungeon::unavailable(world, m) { continue; }
+        // their own purse pays if it's got the share
+        let paid = world.get_component_mut::<crate::game::livelihood::Purse>(m)
+            .map(|p| if p.gold >= rate { p.gold -= rate; true } else { false })
+            .unwrap_or(false);
+        if paid {
+            if let Some(o) = world.get_component_mut::<Organization>(org) { o.resources += rate; }
+            if let Some(d) = world.get_component_mut::<Dues>(org) { d.missed.remove(&m); }
+            beat.paid += 1;
+            continue;
+        }
+        // a broke member's share comes out of the treasury while it
+        // can - the org spends what their purse can't (#1342)
+        if world.get_component::<Organization>(org).map(|o| o.resources >= rate).unwrap_or(false) {
+            if let Some(o) = world.get_component_mut::<Organization>(org) { o.resources -= rate; }
+            if let Some(d) = world.get_component_mut::<Dues>(org) { d.missed.remove(&m); }
+            beat.carried.push(m);
+            continue;
+        }
+        let missed = world.get_component_mut::<Dues>(org)
+            .map(|d| { let n = d.missed.entry(m).or_insert(0); *n += 1; *n })
+            .unwrap_or(0);
+        if missed == 1 { beat.slipped.push(m); }
+        if missed >= LAPSE_OUT { beat.gone.push(m); }
+    }
+    if !beat.gone.is_empty() {
+        if let Some(o) = world.get_component_mut::<Organization>(org) {
+            o.members.retain(|m| !beat.gone.contains(m));
+            o.successors.retain(|m| !beat.gone.contains(m));
+        }
+        if let Some(c) = world.get_component_mut::<Campaign>(campaign) {
+            c.seats.retain(|s| !beat.gone.contains(&s.holder));
+            c.dissenters.retain(|m| !beat.gone.contains(m));
+        }
+        if let Some(d) = world.get_component_mut::<Dues>(org) {
+            for m in &beat.gone { d.missed.remove(m); }
+        }
+    }
+    beat
+}
+
+/// The founding vote binds the room (#1342): everyone who came and can
+/// still swear joins the org as a body - the enrollment the ask rides
+/// on, re-run wherever the room's called together again
+pub fn enroll_room(world: &mut World, org: Entity, came: &[Entity]) -> Vec<Entity> {
+    let mut joined: Vec<Entity> = came.iter().copied()
+        .filter(|&v| !is_dead(world, v)
+            && world.get_component::<crate::game::vocation::Kid>(v).is_none()
+            && !crate::game::dungeon::unavailable(world, v)
+            && !world.get_component::<Organization>(org)
+                .map(|o| o.members.contains(&v)).unwrap_or(false))
+        .collect();
+    joined.sort_unstable();
+    if !joined.is_empty() {
+        if let Some(o) = world.get_component_mut::<Organization>(org) {
+            o.members.extend(joined.iter().copied());
+        }
+    }
+    joined
 }
 
 /// The asking the cause has already done on each issue (#1335): a
@@ -1571,5 +1684,74 @@ mod tests {
         assert!(slate.contains(&Motion::Strike) && slate.contains(&Motion::March)
             && slate.contains(&Motion::Townhall) && slate.contains(&Motion::TwoFronts),
             "the asking's done: {slate:?}");
+    }
+
+    #[test]
+    fn test_the_hat_passes_and_the_treasury_carries_a_broke_name() {
+        use crate::game::livelihood::Purse;
+        let mut w = World::new();
+        let ms: Vec<Entity> = (0..4).map(|_| member(&mut w)).collect();
+        // the broke one sits first in the roll: the hat hasn't filled
+        // when his turn comes, and a thin treasury can't carry him
+        w.add_component(ms[0], Purse { gold: 0.0 });
+        for &m in &ms[1..] { w.add_component(m, Purse { gold: 2.0 }); }
+        let (_o, c) = campaign_with(&mut w, &ms);
+        // three purses pay their coin into the cause's; his slips
+        let beat = dues_beat(&mut w, c);
+        assert_eq!(beat.paid, 3);
+        assert_eq!(beat.slipped, vec![ms[0]]);
+        assert!(beat.carried.is_empty() && beat.gone.is_empty());
+        let res = w.get_component::<Organization>(_o).unwrap().resources;
+        assert_eq!(res, 3.0);
+        // and a lapsed name doesn't carry the slate's headcount while
+        // it's still on the rolls
+        assert_eq!(living_members(&w, c), 3);
+        // next round the purse the dues filled carries him - the
+        // treasury spends his share, and his standing holds
+        let beat = dues_beat(&mut w, c);
+        assert_eq!(beat.paid, 3);
+        assert_eq!(beat.carried, vec![ms[0]]);
+        assert!(beat.slipped.is_empty() && beat.gone.is_empty());
+        let res = w.get_component::<Organization>(_o).unwrap().resources;
+        assert_eq!(res, 5.0, "three more dues less his carried share");
+        assert_eq!(living_members(&w, c), 4);
+    }
+
+    #[test]
+    fn test_a_name_missed_too_long_leaves_the_rolls() {
+        use crate::game::livelihood::Purse;
+        let mut w = World::new();
+        let ms: Vec<Entity> = (0..2).map(|_| member(&mut w)).collect();
+        for &m in &ms { w.add_component(m, Purse { gold: 0.0 }); }
+        let (o, c) = campaign_with(&mut w, &ms);
+        delegate_role(&mut w, c, Role::Chair, ms[1]);
+        // an empty treasury can't carry anyone: slips pile up, and the
+        // third missed round drops the name, seat and all
+        for _ in 0..(LAPSE_OUT - 1) {
+            let beat = dues_beat(&mut w, c);
+            assert!(beat.gone.is_empty());
+        }
+        let beat = dues_beat(&mut w, c);
+        assert_eq!(beat.gone.len(), 2);
+        assert!(w.get_component::<Organization>(o).unwrap().members.is_empty());
+        assert!(w.get_component::<Campaign>(c).unwrap().seats.is_empty());
+        assert_eq!(living_members(&w, c), 0);
+    }
+
+    #[test]
+    fn test_the_founding_vote_enrolls_the_room_as_a_body() {
+        let mut w = World::new();
+        let sworn: Vec<Entity> = (0..2).map(|_| member(&mut w)).collect();
+        let (o, _c) = campaign_with(&mut w, &sworn);
+        // folk who came to listen but never swore join with the vote -
+        // kids and the taken don't
+        let listener = member(&mut w);
+        let kid = member(&mut w);
+        w.add_component(kid, crate::game::vocation::Kid);
+        let came = vec![sworn[0], listener, kid];
+        let joined = enroll_room(&mut w, o, &came);
+        assert_eq!(joined, vec![listener]);
+        assert!(w.get_component::<Organization>(o).unwrap().members.contains(&listener));
+        assert!(!w.get_component::<Organization>(o).unwrap().members.contains(&kid));
     }
 }

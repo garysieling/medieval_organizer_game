@@ -816,3 +816,33 @@ fn test_the_debriefs_settled_word_is_heard_as_the_line() {
         assert!(got >= 1.0, "{m:?} never heard the settled word: {got}");
     }
 }
+
+#[test]
+fn test_the_founding_call_enrolls_everyone_who_came() {
+    let mut g = Game::new();
+    // three sworn members hold the issue; a fourth came to listen but
+    // never swore - the vote that founds binds the room as a body
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    let came = g.villagers[..4].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    assert!(g.seats[0].pending_founding.is_some(), "the founding call's on the table");
+    let listener = g.villagers[3];
+    let was = g.world.get_component::<Organization>(g.org).unwrap()
+        .members.contains(&listener);
+    g.decide_at(0, 0); // a shared grievance carries
+    assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_some());
+    let members = &g.world.get_component::<Organization>(g.org).unwrap().members;
+    assert!(members.contains(&listener),
+        "the room joins as a body (was sworn by the meeting: {was}): {members:?}");
+    // and the dues book opens with the cause - the flat rate the vote set
+    let dues = g.world.get_component::<crate::game::campaign::Dues>(g.org)
+        .expect("the founding opened the roll");
+    assert_eq!(dues.rate, crate::game::campaign::DUES_RATE);
+}

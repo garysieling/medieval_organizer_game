@@ -258,9 +258,17 @@ pub(crate) fn terrain_colour(h: f32) -> (u8, u8, u8) {
     else { (220, 220, 220) }
 }
 
-/// A pixel under rain: dimmed and cooled, like light through rain cloud
-pub(crate) fn rain_wash(c: (u8, u8, u8)) -> (u8, u8, u8) {
-    blend(c, (40, 55, 80), 0.25)
+/// The frame's wash for a rain or fog kind, one 256-entry table per
+/// channel, mixing toward the kind's palette (#1274)
+pub(crate) fn weather_lut(k: PrecipKind) -> [[u8; 256]; 3] {
+    let p = weather_fx::palette(k);
+    let t = if k.is_fog() { 1.0 } else { 0.4 + 0.6 * k.intensity() };
+    let a = p.strength * t;
+    let wash = [p.wash.0, p.wash.1, p.wash.2];
+    std::array::from_fn(|ch| std::array::from_fn(|v| {
+        let (x, _, _) = blend((v as u8, 0, 0), (wash[ch], 0, 0), a);
+        x
+    }))
 }
 
 /// Mix colour `a` toward `b` by `t` (0 = all a, 1 = all b)
@@ -405,7 +413,8 @@ pub(crate) fn draw_mark(buf: &mut Buffer, icon: Option<&Sprite>, mark: &str, rgb
 pub(crate) fn precip_icon(k: game2_core::sim::precipitation::PrecipKind) -> &'static str {
     use game2_core::sim::precipitation::PrecipKind::*;
     match k {
-        Drizzle => "icon-drizzle",
+        // no fog art yet: the haar borrows drizzle's
+        Drizzle | Haar => "icon-drizzle",
         LightRain | Showers | Rain => "icon-rain",
         HeavyRain => "icon-heavy-rain",
         Flurries | Snow => "icon-snow",
@@ -759,17 +768,12 @@ pub(crate) fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u6
             if k.is_snow() {
                 weather_fx::overcast(buf, UI_X, k);
             } else {
-                // rain: an even, cool dimming, deeper the harder it falls.
+                // rain and haar: an even wash toward the mode's palette,
+                // deeper the harder it falls - the haar at full strength.
                 // Each channel maps on its own and the mapping is fixed for the
                 // frame, so it's three 256-entry tables (the per-pixel float
                 // blends with round() cost ~30ms a frame)
-                let t = 0.4 + 0.6 * k.intensity();
-                let lut: [[u8; 256]; 3] = std::array::from_fn(|ch| std::array::from_fn(|v| {
-                    let v = v as u8;
-                    let c = [(v, 0, 0), (0, v, 0), (0, 0, v)][ch];
-                    let (r, g, b) = blend(c, rain_wash(c), t);
-                    [r, g, b][ch]
-                }));
+                let lut = weather_lut(k);
                 for y in 0..H {
                     let row = &mut buf.pixels[y * W * 4..(y * W + UI_X) * 4];
                     for px in row.chunks_exact_mut(4) {

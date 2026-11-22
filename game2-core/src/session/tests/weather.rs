@@ -42,3 +42,19 @@ fn test_a_heat_wave_wears_on_the_village() {
     assert_eq!(g.world.get_component::<CurrentWeather>(g.weather).unwrap().kind,
         Weather::Clear);
 }
+
+#[test]
+fn test_the_haar_lifts_without_a_rainbow() {
+    use crate::sim::precipitation::PrecipKind;
+    let mut g = Game::new();
+    g.precip = Some(PrecipKind::Haar);
+    g.rainbow_from = None;
+    let c = g.world.get_component_mut::<crate::sim::climate::Climate>(g.climate).unwrap();
+    c.season = crate::sim::climate::Season::Summer;
+    c.rainfall_drift = 0.0;
+    g.advance_frame();
+    assert_eq!(g.precip, None);
+    assert!(g.log.iter().any(|l| l.contains("the haar lifts")), "no word of the haar lifting");
+    assert!(!g.log.iter().any(|l| l.contains("rainbow")), "fog leaves no rainbow");
+    assert_eq!(g.rainbow_from, None);
+}

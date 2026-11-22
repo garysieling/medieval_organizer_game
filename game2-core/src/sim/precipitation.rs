@@ -15,9 +15,13 @@ pub enum PrecipKind {
     Flurries,
     Snow,
     HeavySnow,
+    /// Sea fog: nothing falls, the land goes pale and close (#1274)
+    Haar,
 }
 
 impl PrecipKind {
+    pub fn is_fog(self) -> bool { self == PrecipKind::Haar }
+
     pub fn is_snow(self) -> bool {
         matches!(self, PrecipKind::Flurries | PrecipKind::Snow | PrecipKind::HeavySnow)
     }
@@ -27,6 +31,7 @@ impl PrecipKind {
         match self {
             PrecipKind::Drizzle => 0.2,
             PrecipKind::Flurries => 0.25,
+            PrecipKind::Haar => 0.3,
             PrecipKind::LightRain => 0.4,
             PrecipKind::Showers => 0.55,
             PrecipKind::Snow => 0.6,
@@ -46,6 +51,7 @@ impl PrecipKind {
             PrecipKind::Flurries => "snow flurries",
             PrecipKind::Snow => "snow",
             PrecipKind::HeavySnow => "heavy snow",
+            PrecipKind::Haar => "haar",
         }
     }
 }
@@ -53,6 +59,9 @@ impl PrecipKind {
 /// Winter wetness above which it snows (winter runs drier than the rain
 /// threshold, so snow starts lower or it would hardly ever snow)
 pub const SNOW_THRESHOLD: f32 = 0.35;
+
+/// How far under the rain threshold a spring or autumn day still brings the haar
+pub const HAAR_BAND: f32 = 0.03;
 
 /// What is falling today, if anything
 pub fn precip_kind(c: &Climate) -> Option<PrecipKind> {
@@ -65,7 +74,11 @@ pub fn precip_kind(c: &Climate) -> Option<PrecipKind> {
     } else {
         // how far past the rain threshold today is
         let over = w - RAIN_THRESHOLD;
-        if over <= 0.0 { None }
+        // the haar: a damp spring or autumn day just short of rain rolls
+        // in off the water as fog instead
+        if over <= 0.0 {
+            if over > -HAAR_BAND && matches!(c.season, Season::Spring | Season::Autumn) { Some(PrecipKind::Haar) } else { None }
+        }
         else if over < 0.03 { Some(PrecipKind::Drizzle) }
         else if over < 0.06 { Some(PrecipKind::LightRain) }
         // summer's wet days come as showers rather than steady rain
@@ -89,7 +102,7 @@ mod tests {
         for season in [Season::Spring, Season::Summer, Season::Autumn] {
             for i in 0..=100 {
                 let c = climate(season, i as f32 / 100.0);
-                assert_eq!(precip_kind(&c).is_some(), is_raining(&c), "{:?} wetness {}", season, c.rainfall_drift);
+                assert_eq!(precip_kind(&c).filter(|k| !k.is_fog()).is_some(), is_raining(&c), "{:?} wetness {}", season, c.rainfall_drift);
             }
         }
     }
@@ -131,5 +144,19 @@ mod tests {
         for k in [PrecipKind::Drizzle, PrecipKind::LightRain, PrecipKind::Showers, PrecipKind::Rain, PrecipKind::Flurries, PrecipKind::Snow] {
             assert!(seen.contains(&k), "{:?} never happens: saw {:?}", k, seen);
         }
+    }
+
+    #[test]
+    fn test_the_haar_rolls_in_short_of_rain_in_spring_and_autumn() {
+        let just_dry = RAIN_THRESHOLD - HAAR_BAND / 2.0;
+        for season in [Season::Spring, Season::Autumn] {
+            let c = climate(season, just_dry);
+            assert_eq!(precip_kind(&c), Some(PrecipKind::Haar), "{:?}", season);
+            assert!(!is_raining(&c), "the haar isn't rain");
+        }
+        assert_eq!(precip_kind(&climate(Season::Summer, just_dry)), None);
+        assert_ne!(precip_kind(&climate(Season::Winter, just_dry)), Some(PrecipKind::Haar));
+        assert_eq!(precip_kind(&climate(Season::Spring, RAIN_THRESHOLD - HAAR_BAND * 2.0)), None, "a dry day is clear");
+        assert!(!PrecipKind::Haar.is_snow() && PrecipKind::Haar.is_fog());
     }
 }

@@ -2125,6 +2125,10 @@ impl Game {
                     EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor),
                     format!("t{}: {} begins", tick, k.label()),
                 ),
+                (Some(k), None) if k.is_fog() => log.push_ev(
+                    EvTag::new(Thread::Weather, Valence::Neutral, Sev::Minor),
+                    format!("t{}: the haar lifts", tick),
+                ),
                 (Some(k), None) if !k.is_snow() => {
                     log.push_ev(
                         EvTag::new(Thread::Weather, Valence::Positive, Sev::Minor),

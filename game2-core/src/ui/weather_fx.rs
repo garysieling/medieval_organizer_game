@@ -68,8 +68,44 @@ pub fn overcast(buf: &mut Buffer, map_w: usize, kind: PrecipKind) {
     }
 }
 
+/// A weather mode's look, anchored on the generated mood pieces in
+/// `assets/rd/weather/` (#1274): the colour the land washes toward, how
+/// hard, and the colour of what falls
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WeatherPalette {
+    /// The reference piece the colours were sampled from
+    pub name: &'static str,
+    pub wash: (u8, u8, u8),
+    /// The wash's full strength: scaled by the kind's intensity
+    pub strength: f32,
+    pub drop: (u8, u8, u8),
+}
+
+/// The look of each kind of weather. Snow keeps the grey overcast - no
+/// piece covers it.
+pub fn palette(kind: PrecipKind) -> WeatherPalette {
+    let p = |name, wash, strength, drop| WeatherPalette { name, wash, strength, drop };
+    match kind {
+        // smirr: fine mist, a pale grey-green veil
+        PrecipKind::Drizzle => p("smirr", (150, 160, 150), 0.24, (183, 185, 173)),
+        // dreich: flat, olive-grey, the light gone out of it
+        PrecipKind::LightRain => p("dreich", (100, 100, 90), 0.28, (142, 155, 157)),
+        PrecipKind::Rain => p("dreich", (66, 70, 70), 0.32, (130, 145, 150)),
+        // four seasons: showers with the sun through them, warm between
+        PrecipKind::Showers => p("four-seasons", (170, 160, 110), 0.18, (207, 207, 188)),
+        // stinging shower: a driving squall, cold blue-black
+        PrecipKind::HeavyRain => p("stinging-shower", (30, 42, 48), 0.40, (150, 180, 200)),
+        // haar: the sea fog, pale and close - contrast drowned
+        PrecipKind::Haar => p("haar", (152, 174, 190), 0.55, (163, 185, 201)),
+        PrecipKind::Flurries | PrecipKind::Snow | PrecipKind::HeavySnow =>
+            p("overcast", (110, 115, 135), 0.32, (240, 245, 255)),
+    }
+}
+
 /// Falling precipitation for this frame (~12 fps animation clock)
 pub fn draw_precip(buf: &mut Buffer, map_w: usize, mask: &[bool], kind: PrecipKind, frame: u64) {
+    // fog doesn't fall: the wash is all of it
+    if kind.is_fog() { return; }
     let h = buf.height as i32;
     let mut l = Layer { buf, mask, map_w: map_w as i32 };
     if kind.is_snow() { draw_snow(&mut l, h, kind, frame) } else { draw_rain(&mut l, h, kind, frame) }
@@ -77,13 +113,14 @@ pub fn draw_precip(buf: &mut Buffer, map_w: usize, mask: &[bool], kind: PrecipKi
 
 fn draw_rain(l: &mut Layer, h: i32, kind: PrecipKind, frame: u64) {
     // (count, streak length, speed px/frame, slant dx per dy, color, alpha map, alpha outside)
-    let (count, len, speed, slant, c, a_map, a_out) = match kind {
-        PrecipKind::Drizzle   => (280, 3, 7, 0.08, (195, 205, 220), 0.32, 0.60),
-        PrecipKind::LightRain => (110, 5, 20, 0.12, (160, 180, 215), 0.34, 0.65),
-        PrecipKind::Showers   => (240, 7, 26, 0.25, (160, 185, 225), 0.38, 0.70),
-        PrecipKind::Rain      => (200, 9, 30, 0.20, (155, 175, 215), 0.40, 0.75),
-        _                     => (380, 14, 38, 0.38, (180, 200, 235), 0.45, 0.90),
+    let (count, len, speed, slant, a_map, a_out) = match kind {
+        PrecipKind::Drizzle   => (280, 3, 7, 0.08, 0.32, 0.60),
+        PrecipKind::LightRain => (110, 5, 20, 0.12, 0.34, 0.65),
+        PrecipKind::Showers   => (240, 7, 26, 0.25, 0.38, 0.70),
+        PrecipKind::Rain      => (200, 9, 30, 0.20, 0.40, 0.75),
+        _                     => (380, 14, 38, 0.38, 0.45, 0.90),
     };
+    let c = palette(kind).drop;
     // showers come in bursts: density swells and fades every few seconds
     let density = if kind == PrecipKind::Showers {
         let t = frame as f32 / 20.0;
@@ -240,5 +277,25 @@ mod tests {
             d as f32
         };
         assert!(changed(0, 50) > changed(50, 100), "background should carry heavier marks");
+    }
+}
+
+#[cfg(test)]
+mod palette_tests {
+    use super::*;
+
+    #[test]
+    fn test_every_rain_kind_and_the_haar_has_its_own_look() {
+        use PrecipKind::*;
+        let kinds = [Drizzle, LightRain, Showers, Rain, HeavyRain, Haar];
+        for (i, a) in kinds.iter().enumerate() {
+            for b in &kinds[i + 1..] {
+                assert_ne!(palette(*a), palette(*b), "{:?} and {:?} look alike", a, b);
+            }
+        }
+        // the haar is the palest, the squall the darkest
+        let lum = |c: (u8, u8, u8)| c.0 as u32 + c.1 as u32 + c.2 as u32;
+        assert!(kinds.iter().all(|&k| lum(palette(Haar).wash) >= lum(palette(k).wash)));
+        assert!(kinds.iter().all(|&k| lum(palette(HeavyRain).wash) <= lum(palette(k).wash)));
     }
 }

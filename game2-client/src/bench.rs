@@ -18,7 +18,8 @@ pub(crate) type Prof = game2_core::infra::perf::Marks;
 /// build the model, render it. Prints the stage means and p95/max, the
 /// render passes, and the slowest sections across sim, ECS and render.
 /// GAME2_BENCH_JSON=path also writes the whole run as JSON for tooling.
-pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
+/// `hold_weather` keeps a `--weather` sky over every frame, so its cost shows.
+pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool) {
     use game2_core::infra::perf;
     // GAME2_BENCH_PAN=1: the camera slides every frame, as while panning
     // (the ground can't use its cache then)
@@ -26,6 +27,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
     // GAME2_BENCH_ZOOM=1: the zoom drifts every frame, as while scrolling
     let zooming = std::env::var("GAME2_BENCH_ZOOM").is_ok_and(|v| !v.is_empty());
     let start_tick = game.tick;
+    let held = (game.precip, game.rainbow_from);
     // this run's sections only, and off again after (see the end)
     perf::start();
     use std::time::Instant;
@@ -35,6 +37,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
         if zooming { view.zoom = (view.zoom * 1.003).min(2.0); }
         let t0 = Instant::now();
         game.update();
+        if hold_weather { (game.precip, game.rainbow_from) = held; }
         let t1 = Instant::now();
         let m = game.ui_model();
         let t2 = Instant::now();
@@ -280,6 +283,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
             "showers" => Some(PrecipKind::Showers), "rain" => Some(PrecipKind::Rain),
             "heavy" => Some(PrecipKind::HeavyRain), "flurries" => Some(PrecipKind::Flurries),
             "snow" => Some(PrecipKind::Snow), "blizzard" => Some(PrecipKind::HeavySnow),
+            "haar" => Some(PrecipKind::Haar),
             _ => None,
         };
         game.rainbow_from = (w == "rainbow").then(|| game.frame_n.saturating_sub(100));
@@ -310,7 +314,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     }
     // GAME2_BENCH=N: time N more frames (sim, model, render) and report
     if let Some(n) = std::env::var("GAME2_BENCH").ok().and_then(|v| v.parse::<u32>().ok()) {
-        bench_frames(&mut game, &mut view, n);
+        bench_frames(&mut game, &mut view, n, weather.is_some());
     }
     let buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
     let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));

@@ -28,6 +28,7 @@ pub mod livestock;
 pub mod apiary;
 pub mod vocation;
 pub mod desires;
+pub mod rumor;
 pub mod virtue;
 pub mod household;
 pub mod livelihood;

@@ -734,7 +734,7 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Dine);
             }
             // a deep bond can be asked after the wound they carry (#1243)
-            if in_earshot && crate::game::hooks::open(&self.world, v).is_some()
+            if in_earshot && !villager::is_dead(&self.world, v) && crate::game::hooks::open(&self.world, v).is_some()
                 && crate::game::organizing::stage_of(&self.world, self.seats[seat].player, v) >= crate::game::organizing::RelStage::Follower {
                 self.seats[seat].ctx_actions.push(CtxAct::AskAfter);
             }

@@ -166,3 +166,17 @@ fn test_a_cool_acquaintance_lays_nothing_to_rest() {
     for s in 1..60 { g.tick = s * SEASON; let t = g.tick; g.hooks_tick(t); }
     assert_eq!(hooks::open(&g.world, v), Some(2));
 }
+
+#[test]
+fn test_the_dead_are_not_asked_after_anything() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    carry(&mut g, v, 2);
+    bond(&mut g, v, FOLLOWER_TIE + 0.05);
+    g.world.add_component(v, villager::Dead);
+    beside(&mut g, i);
+    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::AskAfter), "a corpse offered to speak");
+    g.ask_after_at(0);
+    assert_eq!(hooks::open(&g.world, v), Some(2), "the dead laid a hook to rest");
+}

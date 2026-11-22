@@ -28,6 +28,7 @@ impl Game {
     pub fn ask_after_at(&mut self, seat: usize) -> String {
         let v = self.villagers[self.seats[seat].selected_target];
         let pe = self.seats[seat].player;
+        if villager::is_dead(&self.world, v) { return "They're past speaking of anything now.".into(); }
         if crate::game::organizing::stage_of(&self.world, pe, v) < crate::game::organizing::RelStage::Follower {
             return "They'd not speak of that to you - not yet.".into();
         }

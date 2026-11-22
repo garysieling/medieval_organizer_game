@@ -1774,12 +1774,16 @@ impl Game {
     /// old warmth); the bond fills in where there's no live read
     fn row_mood(&self, seat: usize, record: u64, speaker: Entity) -> u8 {
         let s = &self.seats[seat];
-        match s.talk.as_ref().filter(|t| t.id == record && t.who == speaker).map(|t| t.mood) {
+        let live = s.talk.as_ref().filter(|t| t.id == record && t.who == speaker);
+        match live.map(|t| t.mood) {
             Some(TalkMood::Slighted) => return 3,
             Some(TalkMood::Warmed) => return 1,
             Some(TalkMood::Guarded) => return 2,
             _ => {}
         }
+        // a Cool talk that opened on a remembered slight keeps the
+        // angry read until the amends land and flip it to Guarded
+        if live.map(|t| t.amends).unwrap_or(false) { return 3; }
         let Some(r) = crate::game::relationships::find_relationship(&self.world, s.player, speaker)
             .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
         else { return 0 };

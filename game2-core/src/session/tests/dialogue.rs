@@ -413,12 +413,20 @@ fn test_a_talked_back_answer_is_remembered_next_time() {
     assert_eq!(g.talk_mood_of(v), Some(TalkMood::Slighted));
     // they've told you a secret before: asks would be on offer...
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    // ...and the bond still reads warm - the slight should outrank it
+    bond_to(&mut g, v, 0.6);
     let i = g.villagers.iter().position(|&x| x == v).unwrap();
     talk_beside(&mut g, i);
     let t = g.seats[0].talk.as_ref().unwrap();
     // ...but what's on their mind now is you, and no proposition lands
     assert!(cold_lines().contains(&t.gist.as_str()), "the gist is the cold shoulder: {:?}", t.gist);
     assert!(t.asks.is_empty(), "a cold ending closes the asks: {:?}", t.asks);
+    // the icon's mark holds the slight while the amends are on offer -
+    // a warm bond doesn't paper it over (#1320, review find)
+    assert!(g.seats[0].talk.as_ref().unwrap().amends, "the apology's on offer");
+    let rows = g.convo_panel_at(0).unwrap().rows;
+    assert_eq!(rows.iter().find(|r| r.who == Some(i)).map(|r| r.mood), Some(3),
+        "a fresh slight marks them angry, not warm");
 }
 
 #[test]

@@ -352,7 +352,10 @@ impl Game {
         }
         let orth = self.world.get_component::<Congregation>(self.congregation)
             .map(|c| c.orthodoxy).unwrap_or(0.0);
-        if orth >= 0.7 { self.apply_sanction(v, Sanction::Gossip, tick); }
+        // a member readied for the denouncement shrugs off the shame (#1246)
+        if orth >= 0.7 && !crate::game::inoculation::take(&mut self.world, v, crate::game::inoculation::Counter::Denounce) {
+            self.apply_sanction(v, Sanction::Gossip, tick);
+        }
     }
 
     /// Hearts drift to the green word: each eligible parish soul rolls
@@ -3412,10 +3415,14 @@ impl Game {
                     ),
                 );
             }
-            1 => { // the harvest: the grace/amnesty takes the weak
-                if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
-                    let n = o.members.len() / 10;
-                    for _ in 0..n { o.members.pop(); }
+            1 => { // the harvest: the grace/amnesty takes the weak - but
+                // not one readied for the soft plea (#1246)
+                let n = members.len() / 10;
+                for &m in members.iter().rev().take(n) {
+                    if crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Plea) { continue; }
+                    if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
+                        o.members.retain(|&x| x != m);
+                    }
                 }
             }
             2 => { // the informers: the eyes inside grow
@@ -3668,7 +3675,10 @@ impl Game {
             if villager::is_dead(&self.world, m) { continue; }
             if self.penetration < 0.1 { break; }
             let caught = self.rng.next() % 1000 < (self.penetration * 120.0) as u64;
-            if caught { self.apply_penalty(0, m, "combining", tick); }
+            // readied for the denouncement, it doesn't take (#1246)
+            if caught && !crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Denounce) {
+                self.apply_penalty(0, m, "combining", tick);
+            }
         }
     }
 
@@ -3744,8 +3754,10 @@ impl Game {
         self.oath_intensity = self.oath_intensity.saturating_sub(1);
         let damage = if self.front { 0.02 } else { 0.05 };
         for m in members {
+            // a member readied for the threat feels it at half (#1246)
+            let hit = if crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Threat) { damage / 2.0 } else { damage };
             if let Some(b) = self.world.get_component_mut::<crate::sim::psychology::Bond>(m) {
-                b.security = (b.security - damage).max(0.0);
+                b.security = (b.security - hit).max(0.0);
             }
         }
         self.log.push_ev(

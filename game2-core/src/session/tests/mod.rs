@@ -257,3 +257,4 @@ mod rhetoric;
 mod mentorship;
 mod table;
 mod hooks;
+mod inoculation;

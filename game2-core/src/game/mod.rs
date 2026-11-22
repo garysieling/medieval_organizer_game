@@ -50,6 +50,7 @@ pub mod persuasion;
 pub mod rhetoric;
 pub mod mentorship;
 pub mod hooks;
+pub mod inoculation;
 pub mod dungeon;
 pub mod conversation;
 pub mod dialogue_trees;

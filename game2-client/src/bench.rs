@@ -210,6 +210,22 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     if let Some(n) = std::env::var("GAME2_DUMP_SELECT").ok().and_then(|v| v.parse::<usize>().ok()) {
         game.seats[0].selected_target = n;
     }
+    // GAME2_DUMP_TALK=N: a Talk open with villager N - GAME2_DUMP_SAYS=k
+    // answers turns in first, so the box's pinned lines show grown (#1317)
+    if let Some(n) = std::env::var("GAME2_DUMP_TALK").ok().and_then(|v| v.parse::<usize>().ok()) {
+        use game2_core::game::villager::Pos as VPos;
+        let v = game.villagers[n];
+        let p = *game.world.get_component::<VPos>(v).unwrap();
+        *game.world.get_component_mut::<VPos>(game.player).unwrap() = VPos { x: p.x + 0.5, y: p.y };
+        game.seats[0].selected_target = n;
+        game.seats[0].picked = true;
+        game.command_at(0, Command::Act(0));
+        let says: usize = std::env::var("GAME2_DUMP_SAYS").ok().and_then(|v| v.parse().ok()).unwrap_or(4);
+        for _ in 0..says { game.command_at(0, Command::TalkPick(Some(0))); }
+        println!("talk {}: open={} convo={} rows={}", n, game.seats[0].talk.is_some(),
+            game.ui_model().convo.is_some(),
+            game.ui_model().convo.map(|c| c.rows.len()).unwrap_or(0));
+    }
     // GAME2_DUMP_BOARD=N: stand reading the market board with N long
     // postings up - the panel's wrap, cap and dismiss hint show (#1349)
     if let Some(n) = std::env::var("GAME2_DUMP_BOARD").ok().and_then(|v| v.parse::<usize>().ok()) {

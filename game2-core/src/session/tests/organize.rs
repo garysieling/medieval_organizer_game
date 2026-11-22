@@ -1120,6 +1120,55 @@ fn test_testimony_to_a_cold_room_lands_weaker_but_never_hurts() {
     assert!(g.log.last().unwrap().contains("cold room"));
 }
 
+/// Testimony opens the room (#1333): the same seeded meeting hears more
+/// secrets once a story's told - the rolls are the same, the chance isn't
+#[test]
+fn test_a_told_testimony_lets_more_of_the_room_speak() {
+    let secrets = |testify: bool| -> usize {
+        let mut g = Game::new();
+        let ev = hard_news(&mut g);
+        let came: Vec<Entity> = g.villagers[1..25].to_vec();
+        g.meeting_lines(&came, 0, (false, false, false, false, false), false,
+            if testify { Some(&ev) } else { None });
+        g.voiced.len()
+    };
+    let (with, without) = (secrets(true), secrets(false));
+    assert!(with > without, "testimony should open the room: {with} vs {without} shared");
+}
+
+/// And the hearing marks them: a villager who carried the story home
+/// answers the probe as deep as what presses them - a problem, not just
+/// a want - and their next talk opens a rung warmer (#1333)
+#[test]
+fn test_a_hearer_answers_deeper_and_opens_warm() {
+    use crate::game::desires::{add_grievance, InnerLife, Known, Problem, Reveal};
+    use crate::sim::psychology::heard_testimony;
+    use crate::session::dialogue::TalkMood;
+    let mut g = Game::new();
+    let (host, i) = (g.player, 4);
+    let v = g.villagers[i];
+    // an acquaintance only: the follower tier isn't theirs, and their
+    // one unrevealed thing is a grievance, not a want
+    tie(&mut g, v, host, 0.0);
+    g.world.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
+    add_grievance(&mut g.world, v, Problem::Taxed, g.tick + 30);
+    assert!(!heard_testimony(&g.world, v, host), "no telling yet");
+    let ev = hard_news(&mut g);
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, Some(&ev));
+    assert!(heard_testimony(&g.world, v, host), "the telling rides their journal");
+    assert!(g.world.get_component::<Known>(v).map(|k|
+            k.revealed.iter().any(|r| matches!(r, Reveal::Problem(_))))
+        .unwrap_or(false), "a hearer's probe answer gives up what presses");
+    // and the next Talk with them opens a rung warmer
+    let p = *g.world.get_component::<Pos>(v).unwrap();
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+    g.seats[0].selected_target = i;
+    g.seats[0].picked = true;
+    g.act_at(0, 0);
+    assert_eq!(g.seats[0].talk.as_ref().map(|t| t.mood), Some(TalkMood::Warmed),
+        "they heard the story - the talk opens warm");
+}
+
 /// The ask in their own words (#1247): when an ask suits a trouble
 /// they've let out, its label quotes it back - and the same ask stays
 /// plain on someone who's told you nothing that fits

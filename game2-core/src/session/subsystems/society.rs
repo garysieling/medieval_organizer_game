@@ -2188,7 +2188,8 @@ impl Game {
             // Warmth beat is a bond moment, not a witnessed thing - letting
             // retellings seed new bits would run the loop away
             for e in h.episodes.iter().rev().take(40) {
-                if matches!(e.kind, crate::sim::psychology::EpisodeKind::Warmth) { continue; }
+                if matches!(e.kind, crate::sim::psychology::EpisodeKind::Warmth
+                    | crate::sim::psychology::EpisodeKind::Testimony) { continue; }
                 by_memory.entry((e.with, e.kind)).or_default().push(v);
             }
         }

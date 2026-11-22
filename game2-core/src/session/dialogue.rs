@@ -639,7 +639,7 @@ impl Game {
             let pb = tr.turns.iter().filter(|t| t.speaker == 1 && t.act == Act::PushBack).count();
             if pa >= pb { a } else { b }
         };
-        let lines: Vec<TalkLine> = tr.turns.iter()
+        let mut lines: Vec<TalkLine> = tr.turns.iter()
             // kids keep to the children's tree: the rest is grown-up talk
             .take_while(|t| !kids.0 || t.tree == KID_TREE)
             .take(CHAT_MAX_LINES)
@@ -648,6 +648,10 @@ impl Game {
                 TalkLine { who: Some(who), name, text: t.text.clone(), gist: false }
             }).collect();
         if lines.is_empty() { return false; }
+        // inside news travels (#1287): a member of the cause hands a
+        // piece on - whole to a fellow member, a little bent past that,
+        // and marked where it lands on a wrong ear
+        if !kids.0 { self.rumor_pass(a, b, &mut lines, seed); }
         self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, temp <= super::SPAT_TEMP);
         self.chat_lands(a, b, temp, spat_by);
         true
@@ -718,6 +722,75 @@ impl Game {
             EvTag::new(Thread::Other, Valence::Negative, Sev::Notable),
             format!("t{}: Bad blood between {} and {} - the quarrels have come to a feud", self.tick, na, nb),
             at, who);
+    }
+
+    /// Inside news travels (#1287): a member of the cause hands a piece
+    /// on - whole to a fellow member, a little bent past that, and
+    /// marked where it lands on a wrong ear. One piece a chat is plenty,
+    /// and a pair doesn't re-tell inside the week
+    pub(in crate::session) fn rumor_pass(&mut self, a: Entity, b: Entity, lines: &mut Vec<TalkLine>, seed: u64) {
+        use crate::game::rumor as rum;
+        use crate::sim::community::Organization;
+        const RUMOR_COOLDOWN: u64 = 7;
+        let key = (a.min(b), a.max(b));
+        let fresh = self.rumor_marks.get(&key).map(|t| self.tick >= t + RUMOR_COOLDOWN).unwrap_or(true);
+        if !fresh { return; }
+        let orgs = |w: &World, v: Entity| -> Vec<Entity> {
+            w.query::<Organization>().iter().copied()
+                .filter(|&o| w.get_component::<Organization>(o)
+                    .map(|g| g.members.contains(&v)).unwrap_or(false)).collect()
+        };
+        for (teller, hearer) in [(a, b), (b, a)] {
+            for org in orgs(&self.world, teller) {
+                let table = rum::news_of(&self.world, org, self.tick, &|e| self.name_of(e));
+                if table.is_empty() { continue; }
+                let hm = orgs(&self.world, hearer).contains(&org);
+                // what's still news to them: a member's read the table
+                // already - the lines are flavor; a non-member checks
+                // their store for a piece on this topic
+                let fresh_news: Vec<rum::News> = if hm { table } else {
+                    table.into_iter().filter(|n|
+                        self.world.get_component::<rum::Rumor>(hearer)
+                            .map(|r| !r.heard(n.topic())).unwrap_or(true)).collect()
+                };
+                if fresh_news.is_empty() { continue; }
+                // who may hear it: a fellow member shares freely, a
+                // friendly ear leans in, a wrong ear - rival to the
+                // leader or the teller - overhears and gets marked
+                let wrong_ear = !hm && (self.rel_kind(hearer, teller) == Some(RelKind::Rival)
+                    || self.world.get_component::<Organization>(org)
+                        .map(|o| self.rel_kind(hearer, o.leader) == Some(RelKind::Rival)).unwrap_or(false));
+                let friendly = !hm && !wrong_ear && matches!(self.rel_kind(hearer, teller),
+                    Some(RelKind::Friend) | Some(RelKind::Family) | Some(RelKind::Lover)
+                        | Some(RelKind::Acquaintance));
+                let chance = if hm { 40 } else if wrong_ear { 20 } else if friendly { 20 } else { 0 };
+                let mut mr = TalkRng::new(seed ^ ((teller as u64) << 8) ^ (hearer as u64));
+                if chance == 0 || mr.below(100) >= chance { continue; }
+                let news = fresh_news[mr.below(fresh_news.len())].clone();
+                // the drift: a member tells the table's truth, bent on
+                // the line now and then; a non-member keeps what's said
+                let spoken = if mr.below(100) < 30 {
+                    rum::bend(&self.world, org, &news, mr.below(u32::MAX as usize) as u64, &|e| self.name_of(e))
+                } else { news };
+                if !hm {
+                    if self.world.get_component::<rum::Rumor>(hearer).is_none() {
+                        self.world.add_component(hearer, rum::Rumor::default());
+                    }
+                    self.world.get_component_mut::<rum::Rumor>(hearer).unwrap()
+                        .hear(rum::RumorFact { news: spoken.clone(), wrong_ear });
+                }
+                self.rumor_marks.insert(key, self.tick);
+                let tn = self.name_of(teller);
+                let hn = self.name_of(hearer);
+                lines.push(TalkLine { who: Some(teller), name: tn,
+                    text: rum::line_of(&spoken), gist: false });
+                lines.push(TalkLine { who: Some(hearer), name: hn,
+                    text: if hm { "Aye - keep it quiet, mind.".into() }
+                        else { "They don't miss much, do they.".into() },
+                    gist: false });
+                return;
+            }
+        }
     }
 
     /// The player has just talked with `v` (Talk's own effects are done):

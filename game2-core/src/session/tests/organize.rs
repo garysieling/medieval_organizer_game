@@ -1188,3 +1188,98 @@ fn test_the_scout_ask_names_who_the_room_follows() {
     assert!(!labels.iter().any(|l| l.starts_with("Ask who folk turn to")),
         "spent for the talk: {labels:?}");
 }
+
+/// A plan on the organizer with a set day and promises: the inside
+/// news the cause's members carry (#1287)
+fn plan_news(g: &mut Game) {
+    let (host, home) = (g.villagers[0], g.world.create_entity());
+    g.world.add_component(g.player, MeetingPlan {
+        venue: Some((host, home)), notes: Some(g.villagers[1]),
+        for_day: Some(g.tick + 4), ..Default::default() });
+}
+
+#[test]
+fn test_inside_news_passes_member_to_member() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    plan_news(&mut g);
+    let (a, b) = (g.villagers[0], g.villagers[1]);
+    let mut hit = false;
+    for seed in 0..20u64 {
+        let mut lines = vec![];
+        g.rumor_pass(a, b, &mut lines, seed);
+        if !lines.is_empty() {
+            hit = true;
+            assert!(lines.iter().any(|l| l.text.contains("there's a meet at")
+                || l.text.contains("promised")), "inside news, told: {:?}", lines);
+            break;
+        }
+    }
+    assert!(hit, "a member hands the cause's news to a member");
+}
+
+#[test]
+fn test_a_friendly_ear_carries_the_news() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    plan_news(&mut g);
+    let (a, b) = (g.villagers[0], g.villagers[9]);
+    crate::game::relationships::record_interaction(&mut g.world, a,
+        crate::game::relationships::Interaction { other: b,
+            kind: crate::game::relationships::InteractionKind::Conversation, intensity: 0.8 });
+    let rel = crate::game::relationships::find_relationship(&g.world, a, b).unwrap();
+    g.world.get_component_mut::<crate::game::relationships::Relationship>(rel).unwrap().kind = RelKind::Friend;
+    let mut hit = false;
+    for seed in 0..40u64 {
+        let mut lines = vec![];
+        g.rumor_pass(a, b, &mut lines, seed);
+        if !lines.is_empty() { hit = true; break; }
+    }
+    assert!(hit, "a friendly ear leans in");
+    let r = g.world.get_component::<crate::game::rumor::Rumor>(b)
+        .expect("the news they heard is carried");
+    assert!(!r.facts.is_empty() && !r.facts[0].wrong_ear,
+        "a friendly ear's news isn't marked: {:?}", r.facts);
+}
+
+#[test]
+fn test_a_wrong_ear_gets_the_news_marked() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    plan_news(&mut g);
+    let (a, b) = (g.villagers[0], g.villagers[9]);
+    // no warmth for the teller - and a quarrel with the cause's head:
+    // the ears that shouldn't have it
+    let pe = g.player;
+    crate::game::relationships::record_interaction(&mut g.world, b,
+        crate::game::relationships::Interaction { other: pe,
+            kind: crate::game::relationships::InteractionKind::Conflict, intensity: 0.8 });
+    let rel = crate::game::relationships::find_relationship(&g.world, b, pe).unwrap();
+    g.world.get_component_mut::<crate::game::relationships::Relationship>(rel).unwrap().kind = RelKind::Rival;
+    let mut hit = false;
+    for seed in 0..40u64 {
+        let mut lines = vec![];
+        g.rumor_pass(a, b, &mut lines, seed);
+        if !lines.is_empty() { hit = true; break; }
+    }
+    assert!(hit, "a wrong ear overhears anyway - the leak's a cost");
+    let r = g.world.get_component::<crate::game::rumor::Rumor>(b)
+        .expect("even the wrong ear carries what it heard");
+    assert!(r.facts.iter().any(|f| f.wrong_ear),
+        "the mark the counter-intel seam reads: {:?}", r.facts);
+}
+
+#[test]
+fn test_a_stranger_hears_no_inside_news() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    plan_news(&mut g);
+    let (a, b) = (g.villagers[0], g.villagers[9]);
+    // no bond at all: a stranger doesn't stop for the cause's news
+    for seed in 0..40u64 {
+        let mut lines = vec![];
+        g.rumor_pass(a, b, &mut lines, seed);
+        assert!(lines.is_empty(), "a stranger hears nothing: {:?}", lines);
+    }
+    assert!(g.world.get_component::<crate::game::rumor::Rumor>(b).is_none());
+}

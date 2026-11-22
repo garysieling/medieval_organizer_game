@@ -1021,6 +1021,7 @@ impl Game {
             last_chat: vec![],
             spats: Default::default(),
             scene_marks: Default::default(),
+            rumor_marks: Default::default(),
             talk_log: vec![],
             talk_next_id: 0,
             was_sick: vec![None; NAMES.len()],

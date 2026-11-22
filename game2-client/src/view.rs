@@ -1419,7 +1419,20 @@ impl View {
 
         // the conversation box, top-right of the map: a Talk under way or
         // a house meeting's lines as they're said - and the call one leaves
-        if let Some(c) = &m.convo { talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut(), m.frame); }
+        if let Some(c) = &m.convo {
+            // a speaker's head still: their trade's people still where
+            // they wear one (the map's sexed-token lookup), else the
+            // look's own (#1319)
+            let portrait = |who: usize| m.people.iter().find(|pv| pv.kind == PKind::Villager(who))
+                .and_then(|pv| {
+                    let look = self.art.figure_look(pv.kid, who);
+                    pv.person.as_deref()
+                        .and_then(|t| self.art.person_head(&format!("{}-{}", t, self.art.look_sex(look)))
+                            .or_else(|| self.art.person_head(t)))
+                        .or_else(|| self.art.look_head(look))
+                });
+            talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut(), m.frame, &portrait);
+        }
 
         // what the marks over villagers' heads mean, under the log
         let mut mx = UI_X as i32 + 14;

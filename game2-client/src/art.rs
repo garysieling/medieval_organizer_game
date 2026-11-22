@@ -144,6 +144,9 @@ pub struct Art {
     /// The sex each villager_sprites entry presents ("m"/"f"), same
     /// order - a placeholder until the sim carries Sex (#681)
     pub villager_sexes: Vec<&'static str>,
+    /// `villager_sprites` cropped to each still's head, same order - the
+    /// conversation box's speaker icons (#1319)
+    pub villager_heads: Vec<Sprite>,
     /// The rivals' figures: the same pack's outlined look, so they read foreign
     pub rival_sprites: Vec<Sprite>,
     /// The cottages a home can be: colour, timber or plaster, and the door
@@ -215,6 +218,9 @@ pub struct Art {
     /// postings and trades the pack has no figure for. Drawn standing at
     /// 1x by draw_animal; a missing name leaves the pack figure in use
     pub people: Vec<(String, Sprite)>,
+    /// `people` cropped to each still's head, same order - the
+    /// conversation box's speaker icons (#1319)
+    pub people_heads: Vec<(String, Sprite)>,
     /// The activity-pose stills (assets/rd/people/poses): a villager
     /// mid-routine draws the cell for what they're doing - 0 keeps the
     /// usual still or walk cycle (#1280)
@@ -848,6 +854,29 @@ pub(crate) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
     }
 }
 
+/// A standing still's head for the conversation box's speaker icon
+/// (#1319): the top ~40% of the figure's own span - pack cells stand
+/// their figure in the lower rows of a 32px frame while the generated
+/// stills fill theirs - trimmed to the opaque pixels' bounds across
+/// those rows
+fn head_of(s: &Sprite) -> Sprite {
+    let opaque = |x: usize, y: usize| s.pixels[(y * s.width + x) * 4 + 3] > 128;
+    let mut y_top = s.height;
+    'top: for y in 0..s.height { for x in 0..s.width { if opaque(x, y) { y_top = y; break 'top; } } }
+    let mut y_bot = 0usize;
+    'bot: for y in (0..s.height).rev() { for x in 0..s.width { if opaque(x, y) { y_bot = y + 1; break 'bot; } } }
+    if y_top >= y_bot { return s.crop(0, 0, 1, 1); }
+    let h = ((y_bot - y_top) as f32 * 0.4).round().max(1.0) as usize;
+    let (mut x0, mut x1) = (usize::MAX, 0usize);
+    for y in y_top..(y_top + h).min(y_bot) {
+        for x in 0..s.width {
+            if opaque(x, y) { x0 = x0.min(x); x1 = x1.max(x + 1); }
+        }
+    }
+    if x0 >= x1 { return s.crop(0, y_top, s.width, h); }
+    s.crop(x0, y_top, x1 - x0, h)
+}
+
 /// The sprite for `houses[i]`, or none where nothing loaded
 pub(crate) static NO_SPRITE: Option<Sprite> = None;
 
@@ -857,6 +886,18 @@ impl Art {
     /// the sexed trades. None: the caller draws the pack figure.
     pub fn person(&self, name: &str) -> Option<&Sprite> {
         self.people.iter().find(|(n, _)| n == name).map(|(_, s)| s)
+    }
+
+    /// `person`'s still cropped to the head - the conversation box's
+    /// speaker icon for a covered trade (#1319)
+    pub fn person_head(&self, name: &str) -> Option<&Sprite> {
+        self.people_heads.iter().find(|(n, _)| n == name).map(|(_, s)| s)
+    }
+
+    /// A villager look cropped to the head - the speaker icon for
+    /// everyone the people stills don't cover
+    pub fn look_head(&self, look: usize) -> Option<&Sprite> {
+        self.villager_heads.get(look)
     }
 
     /// The pose still for a `pose::NAMES` cell ("hammering",
@@ -1151,11 +1192,23 @@ impl Art {
         // the village's small things (assets/rd/bits), numbered from 1
         let bits = |name: &str| -> Vec<Sprite> { (1..=6).filter_map(|i| at(&format!("rd/bits/{}{}.png", name, i))).collect() };
 
+        let villager_heads = villager_sprites.iter().map(head_of).collect();
+        // the postings' and trades' own figures (assets/rd/people):
+        // 48px stills resampled to villager height at export.
+        // The false traveller (#1258) has no still of his own - he
+        // wears a disguise, so the tinker's figure stands in.
+        let people: Vec<(String, Sprite)> = PEOPLE_SPRITES.iter().copied().chain(events::VISIT_SLUGS.iter().copied())
+            .filter_map(|n| at(&format!("rd/people/{}.png", n))
+                .or_else(|| if n == "false-traveller" { at("rd/people/tinker.png") } else { None })
+                .map(|s| (n.to_string(), s)))
+            .collect();
+        let people_heads = people.iter().map(|(n, s)| (n.clone(), head_of(s))).collect();
         Art {
             villager_sprites,
             kid_looks,
             pack_looks,
             villager_sexes,
+            villager_heads,
             rival_sprites,
             houses,
             houses_winter,
@@ -1214,15 +1267,8 @@ impl Art {
             priest_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniMage.png")),
             priest_walk: walk("rd/villagers/priest.png"),
             guard_walks: ["spear", "sword", "shield", "halberd"].iter().map(|g| walk(&format!("rd/guards/{}.png", g))).collect(),
-            // the postings' and trades' own figures (assets/rd/people):
-            // 48px stills resampled to villager height at export.
-            // The false traveller (#1258) has no still of his own - he
-            // wears a disguise, so the tinker's figure stands in.
-            people: PEOPLE_SPRITES.iter().copied().chain(events::VISIT_SLUGS.iter().copied())
-                .filter_map(|n| at(&format!("rd/people/{}.png", n))
-                    .or_else(|| if n == "false-traveller" { at("rd/people/tinker.png") } else { None })
-                    .map(|s| (n.to_string(), s)))
-                .collect(),
+            people,
+            people_heads,
             // the activity poses (assets/rd/people/poses): one still per
             // cell the sheet carried, keyed by PersonV.pose (#1280)
             poses: game2_core::session::model::pose::NAMES.iter()

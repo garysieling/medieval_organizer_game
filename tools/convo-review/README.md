@@ -14,9 +14,12 @@ Windows `cargo.exe`), and files issues with the `gh` CLI.
 
 ## Sources
 
-- **Village** (`talk_dump`): a seeded village run forward N days. You get the chats villagers
-  actually had (meetings and meals too, when they happen). Lines don't carry their dialogue
-  tree, so tickets find each line in the source instead.
+- **Village** (`talk_dump`, in the client crate for the art): a seeded village run forward N
+  days. You get the chats villagers actually had (meetings and meals too, when they happen).
+  Each speaker comes with the figure the map draws them as and their full sheet: trade, age,
+  traits, temper, faith, kin, feuds, the wants and troubles they've told and the ones they
+  still keep secret, and the ideology/status tags the talk engine reads. Lines don't carry
+  their dialogue tree, so tickets find each line in the source instead.
 - **Generated** (`dialogue_gen --json`): synthetic characters (ideology, traits, status,
   backstory) paired up under random relations. Every line is tagged with its act and tree.
 
@@ -32,8 +35,15 @@ conversation id and carries across batches.
 | `n` `o` `a` `r` `t` `e` `f` `d` `g` | toggle a problem tag (hover a tag for its meaning) |
 | click a line, or `↑` `↓` + `Enter` | rewrite it and/or say what's wrong (`Ctrl+Enter` saves) |
 | `/` | notes |
+| `c` | show / hide the character cards |
 | `s` | fine as it is: mark reviewed, go to the next unreviewed |
 | `u` | next unreviewed |
+| `[` `]` | previous / next batch |
+| `b` | new batch (in the dialog: `1`-`4` picks 10/25/50/100, `Enter` generates, `Esc` cancels) |
+| `v` / `i` | Review / Tickets tab |
+| `Ctrl+Enter` | on the Tickets tab: Create (press twice) |
+
+Every button shows its key.
 
 Everything saves as you go to `data/` (git-ignored; `--data DIR` puts it elsewhere).
 

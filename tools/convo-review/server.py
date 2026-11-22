@@ -137,13 +137,27 @@ def find_cargo():
     raise RuntimeError("cargo not found - set CARGO=/path/to/cargo")
 
 
+# which crate builds each generator: the village dump lives in the client
+# crate, for the art it draws speakers' portraits with
+BIN_CRATE = {"dialogue_gen": "game2-core", "talk_dump": "game2-client"}
+
+
+def host_path(p):
+    """A path cargo reported, as this process can open it: the Windows
+    toolchain run from WSL reports C:\\..., which lives under /mnt/c here."""
+    m = re.match(r"^([A-Za-z]):[\\/](.*)$", p)
+    if m and os.name != "nt":
+        return "/mnt/" + m.group(1).lower() + "/" + m.group(2).replace("\\", "/")
+    return p
+
+
 def run_bin(name, args):
     cargo = find_cargo()
     # --message-format=json tells us exactly where cargo put the binary,
     # which is the only way to find it when CARGO_TARGET_DIR points
     # somewhere other than target/debug.
     build = subprocess.run(
-        [cargo, "build", "-q", "-p", "game2-core", "--bin", name, "--message-format=json"],
+        [cargo, "build", "-q", "-p", BIN_CRATE[name], "--bin", name, "--message-format=json"],
         cwd=ROOT, capture_output=True, text=True)
     if build.returncode != 0:
         raise RuntimeError("build failed:\n" + build.stderr[-4000:])
@@ -162,6 +176,7 @@ def run_bin(name, args):
             exe = msg["executable"]
     if not exe:
         raise RuntimeError(f"{name}: cargo's build output didn't name an executable")
+    exe = host_path(exe)
     r = subprocess.run([exe] + args, cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0:
         raise RuntimeError(f"{name} failed:\n" + r.stderr[-4000:])

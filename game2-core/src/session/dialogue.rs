@@ -174,6 +174,10 @@ pub struct PlayerTalk {
     /// The inoculation under way (#1246): while it is, the choices are
     /// the counters to name
     pub inoculating: bool,
+    /// The solved mystery's telling, while this is the one who asked and
+    /// it's still untold: rides past the cap, last, so it's never crowded
+    /// off and the picks before it keep their numbers
+    pub tell: Option<String>,
 }
 
 /// The one-on-one argument as it stands (#1234): which issue, then
@@ -232,7 +236,8 @@ impl PlayerTalk {
         }
         self.options.iter().map(|o| o.1.clone())
             .chain(self.asks.iter().take(self.asks_shown()).map(crate::game::organizing::ask_label))
-            .chain(self.inoculation_beyond().as_ref().map(crate::game::organizing::ask_label)).collect()
+            .chain(self.inoculation_beyond().as_ref().map(crate::game::organizing::ask_label))
+            .chain(self.tell.clone()).collect()
     }
 }
 
@@ -776,6 +781,11 @@ impl Game {
             let by_you = by == self.seats[seat].player;
             opening.push(format!("{}: \"{}\"", villager.name, crate::game::hooks::remembered(id, by_you, &friend)));
         }
+        // a whole mystery they've been asking after: the telling's on offer
+        let tell = (rare.is_none() && self.mystery_due(seat, v)).then(|| {
+            let m = self.seats[seat].mystery.as_ref().map(|m| m.def).unwrap_or(0);
+            format!("Tell them what you pieced together about {}", crate::game::mysteries::MYSTERIES[m].title)
+        });
         let seed = self.tick.wrapping_mul(0x2545_F491) ^ ((v as u64) << 24) ^ self.talk_next_id;
         self.close_player_talk(seat, None);
         // they stop where they are for the talk: a walk under way would
@@ -794,7 +804,7 @@ impl Game {
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
             asks_taken: vec![], asked_seen: 0, mood: TalkMood::Cool, vibe: None,
-            tired, argue: None, argued: vec![], inoculating: false,
+            tired, argue: None, argued: vec![], inoculating: false, tell,
         });
         self.refresh_player_talk(seat);
     }
@@ -897,7 +907,7 @@ impl Game {
         // ask to hang on (#1179): they take their leave as much as you do,
         // so close on a mutual parting rather than an exit menu
         if let Some(opts) = &offered {
-            if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating
+            if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating && t.tell.is_none()
                 && opts.iter().all(|(a, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");
                 // a spent talk parts kindly - unless the last word chosen
@@ -1056,10 +1066,16 @@ impl Game {
         if let (true, Some(i)) = (t.inoculating, pick) { self.inoculate_pick_at(seat, i); return; }
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let extra = t.inoculation_beyond();
-        let Some(i) = pick.filter(|&i| i < n + asks + extra.is_some() as usize) else {
+        let tell_at = n + asks + extra.is_some() as usize;
+        let Some(i) = pick.filter(|&i| i < tell_at + t.tell.is_some() as usize) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
         };
+        // the last pick, when it's there: tell them the mystery's answer
+        if t.tell.is_some() && i == tell_at {
+            self.talk_tell_mystery(seat);
+            return;
+        }
         // a pick past the replies is a proposition: the ask lands or it
         // doesn't, and the word of it goes on the record
         if i >= n {
@@ -1216,6 +1232,22 @@ impl Game {
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }
         self.refresh_player_talk(seat);
+    }
+
+    /// "I've pieced it together": the mystery told across the talk - your
+    /// word, their wonder and thanks, and what it came to - and the talk
+    /// goes on from there
+    fn talk_tell_mystery(&mut self, seat: usize) {
+        let Some(t) = self.seats[seat].talk.as_mut() else { return };
+        t.tell = None;
+        let who = t.who;
+        let pe = self.seats[seat].player;
+        let Some(told) = self.mystery_tell(seat, who) else { self.refresh_player_talk(seat); return };
+        self.argue_line(seat, Some(pe), "I've heard all of it now - here's what the gossip adds up to.".into());
+        self.argue_line(seat, Some(who), told.wonders.into());
+        self.argue_line(seat, Some(who), told.thanks.into());
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.mood = TalkMood::Warmed; }
+        self.narrate_talk(seat, &told.payoff);
     }
 
     /// Put a line from the argument on the talk's record, after what's

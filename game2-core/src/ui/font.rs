@@ -168,6 +168,32 @@ pub fn draw_text_scaled(buf: &mut Buffer, x: i32, y: i32, text: &str, scale: usi
     cx - x
 }
 
+/// Draw text tracked out: a pixel of air between glyphs, the way a
+/// rubric reads in a manuscript (#1321). Returns width drawn.
+pub fn draw_text_tracked(buf: &mut Buffer, x: i32, y: i32, text: &str, r: u8, g: u8, b: u8) -> i32 {
+    let mut cx = x;
+    for c in text.chars() {
+        cx += draw_char(buf, cx, y, c, r, g, b) + 1;
+    }
+    cx - x
+}
+
+/// The conversation box's text tiers (#1321): roles, not pixels, so a
+/// face swap slots underneath - H1 the panel title, H2 the day rules,
+/// H3 a speaker's name lead
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextTier { H1, H2, H3 }
+
+/// Draw text at a tier's weight: the title doubled, a rubric tracked
+/// and capital, a name capital. Returns width drawn.
+pub fn draw_tier(buf: &mut Buffer, x: i32, y: i32, text: &str, tier: TextTier, r: u8, g: u8, b: u8) -> i32 {
+    match tier {
+        TextTier::H1 => draw_text_scaled(buf, x, y, text, 2, r, g, b),
+        TextTier::H2 => draw_text_tracked(buf, x, y, &text.to_uppercase(), r, g, b),
+        TextTier::H3 => draw_text(buf, x, y, &text.to_uppercase(), r, g, b),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,5 +236,19 @@ mod tests {
         }}
         assert!(coloured > 0, "glyph should be drawn in the text colour");
         assert!(outlined > coloured, "glyph should be ringed by a dark outline");
+    }
+
+    #[test]
+    fn the_tiers_draw_at_their_weights() {
+        // H1 doubles the advance; H2 tracks a pixel of air a glyph; H3
+        // capitalizes at plain width
+        let mut buf = Buffer::new(80, 20);
+        let w1 = draw_tier(&mut buf, 0, 0, "AB", TextTier::H1, 255, 255, 255);
+        let w3 = draw_tier(&mut buf, 0, 0, "ab", TextTier::H3, 255, 255, 255);
+        assert_eq!(w1, w3 * 2, "H1 doubles the advance");
+        let mut buf = Buffer::new(80, 20);
+        let plain = draw_text(&mut buf, 0, 0, "ab", 255, 255, 255);
+        let tracked = draw_tier(&mut buf, 40, 0, "ab", TextTier::H2, 255, 255, 255);
+        assert_eq!(tracked, plain + 2, "a tracked row takes a px a glyph");
     }
 }

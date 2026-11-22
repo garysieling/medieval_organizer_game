@@ -22,8 +22,9 @@ pub(crate) const OPTION_ROWS: usize = 2;
 
 /// Where each clickable reply sits: (x, y, w, h, the pick - None is Leave)
 pub type OptionRect = (i32, i32, i32, i32, Option<usize>);
-/// A drawn row: (y, text, colour, the speaker's name leading it in its colour)
-pub type TalkRow = (i32, String, (u8, u8, u8), Option<(String, (u8, u8, u8))>);
+/// A drawn row: (y, text, colour, the speaker's name leading it in its
+/// colour, rubric - day rules draw tracked capitals, the H2 tier #1321)
+pub type TalkRow = (i32, String, (u8, u8, u8), Option<(String, (u8, u8, u8))>, bool);
 
 /// Word-wrap a reply as "1) text", at most OPTION_ROWS rows
 pub(crate) fn option_rows(n: usize, text: &str) -> Vec<String> {
@@ -47,25 +48,25 @@ pub fn talk_layout(p: &TalkPanelV) -> (Vec<TalkRow>, Vec<OptionRect>) {
     if p.in_talk { opt_rows.push(("x) Take your leave".into(), None)); }
     let room = TALK_ROWS.saturating_sub(opt_rows.len());
     // each line wrapped; the speaker's name leads the first row in its colour
-    let mut lines: Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>)> = vec![];
+    let mut lines: Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>, bool)> = vec![];
     // which rows start a line: the view never opens on a line's tail
     let mut starts: Vec<bool> = vec![];
     for r in &p.rows {
         let before = lines.len();
-        if r.rule { lines.push((r.text.clone(), (110, 110, 135), None)); starts.push(true); continue; }
+        if r.rule { lines.push((r.text.clone(), (110, 110, 135), None, true)); starts.push(true); continue; }
         let body = if r.gist { (255, 215, 120) } else if r.name.is_none() { (150, 150, 170) } else { (215, 215, 200) };
         let ncol = if r.you { (255, 255, 120) } else { (150, 200, 255) };
         match &r.name {
             Some(n) => {
-                let lead = format!("{}: ", n);
+                let lead = format!("{}: ", n.to_uppercase());
                 for (k, w) in super::wrap_text(&format!("{}{}", lead, r.text), TALK_CHARS).into_iter().enumerate() {
                     match w.strip_prefix(lead.trim_end()) {
-                        Some(rest) if k == 0 => lines.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)))),
-                        _ => lines.push((w, body, None)),
+                        Some(rest) if k == 0 => lines.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)), false)),
+                        _ => lines.push((w, body, None, false)),
                     }
                 }
             }
-            None => for w in super::wrap_text(&r.text, TALK_CHARS) { lines.push((w, body, None)); },
+            None => for w in super::wrap_text(&r.text, TALK_CHARS) { lines.push((w, body, None, false)); },
         }
         starts.extend((before..lines.len()).map(|k| k == before));
     }
@@ -76,15 +77,15 @@ pub fn talk_layout(p: &TalkPanelV) -> (Vec<TalkRow>, Vec<OptionRect>) {
     if skip == lines.len() && room > 0 { skip = lines.len() - room.min(lines.len()); }
     let top = TALK_Y + 16;
     let mut out: Vec<TalkRow> = vec![];
-    for (k, (text, rgb, name)) in lines.into_iter().skip(skip).enumerate() {
-        out.push((top + k as i32 * ROW_H, text, rgb, name));
+    for (k, (text, rgb, name, rubric)) in lines.into_iter().skip(skip).enumerate() {
+        out.push((top + k as i32 * ROW_H, text, rgb, name, rubric));
     }
     // the replies sit right under the last line said
     let opt_top = top + out.len() as i32 * ROW_H + 2;
     let mut rects: Vec<OptionRect> = vec![];
     for (k, (text, pick)) in opt_rows.into_iter().enumerate() {
         let y = opt_top + k as i32 * ROW_H;
-        out.push((y, text, if pick.is_some() { (140, 230, 140) } else { (200, 150, 130) }, None));
+        out.push((y, text, if pick.is_some() { (140, 230, 140) } else { (200, 150, 130) }, None, false));
         // a reply's rows click as one
         match rects.last_mut() {
             Some(r) if r.4 == pick && pick.is_some() => r.3 += ROW_H,
@@ -104,10 +105,11 @@ pub fn draw_talk_panel(buf: &mut Buffer, p: &TalkPanelV, mouse: (i32, i32)) {
             buf.rect(x, y, w, h, 45, 60, 50);
         }
     }
-    for (y, text, (r, g, b), name) in rows {
+    for (y, text, (r, g, b), name, rubric) in rows {
         let mut x = TALK_X + 6;
         if let Some((n, (nr, ng, nb))) = name { x += draw_text(buf, x, y, &n, nr, ng, nb); } // draw_text returns the width
-        draw_text(buf, x, y, &text, r, g, b);
+        if rubric { draw_tier(buf, x, y, &text, TextTier::H2, r, g, b); }
+        else { draw_text(buf, x, y, &text, r, g, b); }
     }
 }
 
@@ -139,6 +141,12 @@ pub(crate) const CONVO_FADE: u32 = 10;
 pub(crate) const CONVO_PORT: i32 = 12;
 /// `CONVO_PORT` in glyphs, off a speaker row's wrap width
 pub(crate) const CONVO_PORT_CHARS: usize = (CONVO_PORT as usize) / GLYPH_W as usize;
+/// The drop cap's decorated box, opening a talk or meeting (#1321)
+pub(crate) const CONVO_CAP: i32 = 22;
+/// Rows that sit beside the cap before the text takes the full width
+pub(crate) const CONVO_CAP_ROWS: usize = 3;
+/// `CONVO_CAP` plus its gap, in glyphs off the opener's wrap width
+pub(crate) const CAP_CHARS: usize = (CONVO_CAP as usize + 4) / GLYPH_W as usize;
 
 /// The conversation box's scroll pin (#1317): which panel the anchor
 /// belongs to and the first line still shown, so a line keeps the y it
@@ -207,6 +215,9 @@ pub struct ConvoBox {
     /// The speaker's mood mark (#1320): 0 neutral, 1 warm, 2 cold,
     /// 3 angry - a badge pip on the head slot, 0 draws none
     pub mood: u8,
+    /// The opener's drop cap (#1321): its letter drawn decorated on the
+    /// first line's left, the first rows sitting beside it
+    pub cap: Option<char>,
 }
 
 /// Wrap each conversation line and choice into its own button: the box
@@ -229,39 +240,50 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
     if p.leave {
         opts.push(vec!["x) Take your leave".into()]);
     }
+    // the opener's drop cap: the first real line's first letter,
+    // decorated - a day rule isn't the opener, your own words aren't
+    // either (#1321)
+    let cap_at = p.rows.iter().position(|r| !r.you && !r.rule);
+    let cap = cap_at
+        .and_then(|i| p.rows[i].text.chars().next()).filter(|c| c.is_alphanumeric());
     // wrap every line, then keep the newest that fit beside the choices
-    let wrap_line = |r: &TalkRowV| -> Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>)> {
+    let wrap_line = |r: &TalkRowV, cap: Option<char>| -> Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>, bool)> {
         let body = if r.gist { (255, 215, 120) } else if r.name.is_none() { (150, 150, 170) } else { (215, 215, 200) };
         let ncol = if r.you { (255, 255, 120) } else { (150, 200, 255) };
-        // a speaker's words leave room for their head beside the lead
-        let width = CONVO_CHARS - r.who.is_some() as usize * CONVO_PORT_CHARS;
+        // a speaker's words leave room for their head beside the lead;
+        // the opener leaves the cap's width beside it too
+        let width = CONVO_CHARS - r.who.is_some() as usize * CONVO_PORT_CHARS
+            - cap.is_some() as usize * CAP_CHARS;
+        // the cap letter leaves the line - the decorated box says it
+        let text = cap.and_then(|c| r.text.strip_prefix(c)).unwrap_or(&r.text).trim_start();
         let mut ws = vec![];
         match &r.name {
             Some(n) => {
-                let lead = format!("{}: ", n);
-                for (k, w) in super::wrap_text(&format!("{}{}", lead, r.text), width).into_iter().enumerate() {
+                let lead = format!("{}: ", n.to_uppercase());
+                for (k, w) in super::wrap_text(&format!("{}{}", lead, text), width).into_iter().enumerate() {
                     match w.strip_prefix(lead.trim_end()) {
-                        Some(rest) if k == 0 => ws.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)))),
-                        _ => ws.push((w, body, None)),
+                        Some(rest) if k == 0 => ws.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)), false)),
+                        _ => ws.push((w, body, None, false)),
                     }
                 }
             }
-            None => for w in super::wrap_text(&r.text, width) { ws.push((w, body, None)) },
+            None => for w in super::wrap_text(text, width) { ws.push((w, body, None, r.rule)) },
         }
         ws
     };
-    let lines: Vec<Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>)>> =
-        p.rows.iter().map(|r| wrap_line(r)).collect();
-    // room for lines = the box less the title and the choice buttons
+    let lines: Vec<Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>, bool)>> =
+        p.rows.iter().enumerate().map(|(i, r)| wrap_line(r, cap.filter(|_| Some(i) == cap_at))).collect();
+    // room for lines = the box less the tiered title and the choice buttons
     let opt_h = opts.iter().map(|ws| ws.len() as i32 * CONVO_ROW_H + 6).sum::<i32>() + 3 * opt_count as i32;
-    let room = CONVO_MAX_H - 18 - opt_h;
+    let room = CONVO_MAX_H - 24 - opt_h;
     // the newest that fit beside the choices: how far back the tail
     // reaches this call - the pin can only shorten it, never lengthen
     let mut fit = 0usize;
     {
         let mut room = room;
         for (i, ws) in lines.iter().enumerate().rev() {
-            let h = ws.len() as i32 * CONVO_ROW_H + 9;
+            let h = (ws.len() as i32 * CONVO_ROW_H + 9)
+                .max(if cap.is_some() && Some(i) == cap_at { CONVO_CAP + 11 } else { 0 });
             if h > room && i != lines.len() - 1 { break; }
             room -= h;
             fit = i;
@@ -281,18 +303,20 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
     // the record let the map go - dead rows can't come back anyway
     for &s in &sigs[anchor.min(sigs.len())..] { pin.borns.entry(s).or_insert(frame); }
     pin.borns.retain(|&s, _| sigs.contains(&s));
-    // lay the buttons out top to bottom
+    // lay the buttons out top to bottom, the title's tier above them
     let mut boxes: Vec<ConvoBox> = vec![];
-    let mut y = CONVO_Y + 16;
+    let mut y = CONVO_Y + 20;
     for (i, ws) in lines.iter().enumerate().skip(anchor) {
-        let h = ws.len() as i32 * CONVO_ROW_H + 6;
+        let h = (ws.len() as i32 * CONVO_ROW_H + 6)
+            .max(if cap.is_some() && Some(i) == cap_at { CONVO_CAP + 8 } else { 0 });
         let age = frame.saturating_sub(pin.borns.get(&sigs[i]).copied().unwrap_or(frame));
         let rows = ws.iter().enumerate()
-            .map(|(k, (t, c, n))| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), fade_rgb(*c, age),
-                n.clone().map(|(s, col)| (s, fade_rgb(col, age)))))
+            .map(|(k, (t, c, n, rub))| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), fade_rgb(*c, age),
+                n.clone().map(|(s, col)| (s, fade_rgb(col, age))), *rub))
             .collect();
         let click = p.rows[i].who.map(ConvoClick::Speaker);
-        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click, choice: false, mood: p.rows[i].mood });
+        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click, choice: false,
+            mood: p.rows[i].mood, cap: cap.filter(|_| Some(i) == cap_at) });
         y += h + 3;
     }
     for (i, ws) in opts.into_iter().enumerate() {
@@ -302,9 +326,9 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
             else { ConvoClick::Reply(None) };
         let colour = if matches!(pick, ConvoClick::Reply(None)) { (200, 150, 130) } else { (140, 230, 140) };
         let rows = ws.iter().enumerate()
-            .map(|(k, t)| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), colour, None))
+            .map(|(k, t)| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), colour, None, false))
             .collect();
-        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click: Some(pick), choice: true, mood: 0 });
+        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click: Some(pick), choice: true, mood: 0, cap: None });
         y += h + 3;
     }
     (boxes, y - CONVO_Y + 4)
@@ -319,7 +343,7 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
     let (boxes, h) = convo_layout(p, pin, frame);
     buf.rect(CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2, 20, 20, 32);
     buf.rect(CONVO_X, CONVO_Y, CONVO_W, h, 25, 25, 40);
-    draw_text(buf, CONVO_X + 6, CONVO_Y + 4, &p.title, 150, 150, 180);
+    draw_tier(buf, CONVO_X + 6, CONVO_Y + 3, &p.title, TextTier::H1, 150, 150, 180);
     for b in &boxes {
         let hover = b.click.is_some()
             && mouse.0 >= b.x && mouse.0 < b.x + b.w && mouse.1 >= b.y && mouse.1 < b.y + b.h;
@@ -353,10 +377,23 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
         }
         let words_x = CONVO_X + 10
             + if matches!(b.click, Some(ConvoClick::Speaker(_))) { CONVO_PORT } else { 0 };
-        for (y, text, (r, g, b), name) in &b.rows {
-            let mut x = words_x;
+        // the opener's decorated initial: a bordered box with corner
+        // flecks, the letter at 3x inside - the first rows sit beside it
+        if let Some(c) = b.cap {
+            buf.rect(words_x - 1, b.y + 1, CONVO_CAP, CONVO_CAP + 1, 172, 136, 68);
+            buf.rect(words_x, b.y + 2, CONVO_CAP - 2, CONVO_CAP - 1, 30, 24, 36);
+            for &(fx, fy) in &[(words_x - 2, b.y), (words_x + CONVO_CAP - 1, b.y),
+                    (words_x - 2, b.y + CONVO_CAP + 1), (words_x + CONVO_CAP - 1, b.y + CONVO_CAP + 1)] {
+                buf.rect(fx, fy, 2, 2, 210, 172, 96);
+            }
+            draw_text_scaled(buf, words_x + 3, b.y + 4, &c.to_uppercase().to_string(), 3, 226, 186, 104);
+        }
+        let cap_x = if b.cap.is_some() { CONVO_CAP + 4 } else { 0 };
+        for (k, (y, text, (r, g, b), name, rubric)) in b.rows.iter().enumerate() {
+            let mut x = words_x + if k < CONVO_CAP_ROWS { cap_x } else { 0 };
             if let Some((n, (nr, ng, nb))) = name { x += draw_text(buf, x, *y, n, *nr, *ng, *nb); }
-            draw_text(buf, x, *y, text, *r, *g, *b);
+            if *rubric { draw_tier(buf, x, *y, text, TextTier::H2, *r, *g, *b); }
+            else { draw_text(buf, x, *y, text, *r, *g, *b); }
         }
     }
 }

@@ -12,7 +12,7 @@ pub const REACH_DAYS: u64 = 3;
 
 /// Who developed this member toward the cause
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Developed { pub by: Entity }
+pub struct Developed { pub org: Entity, pub by: Entity }
 
 /// A leader sent out to hold a one-on-one without the organizer
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -41,14 +41,14 @@ pub fn credit(world: &mut World, org: Entity, recruit: Entity) {
         let t = tie(world, m, recruit);
         if t >= best { best = t; by = m; }
     }
-    if by != recruit { world.add_component(recruit, Developed { by }); }
+    if by != recruit { world.add_component(recruit, Developed { org, by }); }
 }
 
 /// The living members `who` brought into `org`
 pub fn brought(world: &World, org: Entity, who: Entity) -> usize {
     world.get_component::<Organization>(org).map(|o| o.members.iter()
         .filter(|&&m| m != who && !crate::game::villager::is_dead(world, m)
-            && world.get_component::<Developed>(m).map(|d| d.by == who).unwrap_or(false))
+            && world.get_component::<Developed>(m).map(|d| d.org == org && d.by == who).unwrap_or(false))
         .count()).unwrap_or(0)
 }
 
@@ -103,8 +103,10 @@ pub fn run_reach(world: &mut World, leader: Entity, day: u64) -> Option<(Entity,
     if crate::game::villager::is_dead(world, leader) || crate::game::villager::is_dead(world, r.target) { return None; }
     crate::game::organizing::one_on_one(world, leader, r.target, day);
     let t = tie(world, leader, r.target);
+    // a first developer, in any org, keeps the credit
+    let credited = world.get_component::<Developed>(r.target).is_some();
     if crate::sim::community::recruit(world, r.org, r.target, t) {
-        world.add_component(r.target, Developed { by: leader });
+        if !credited { world.add_component(r.target, Developed { org: r.org, by: leader }); }
         Some((r.target, ReachOutcome::Joined))
     } else { Some((r.target, ReachOutcome::Heard)) }
 }

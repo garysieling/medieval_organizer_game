@@ -413,12 +413,20 @@ fn test_a_talked_back_answer_is_remembered_next_time() {
     assert_eq!(g.talk_mood_of(v), Some(TalkMood::Slighted));
     // they've told you a secret before: asks would be on offer...
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    // ...and the bond still reads warm - the slight should outrank it
+    bond_to(&mut g, v, 0.6);
     let i = g.villagers.iter().position(|&x| x == v).unwrap();
     talk_beside(&mut g, i);
     let t = g.seats[0].talk.as_ref().unwrap();
     // ...but what's on their mind now is you, and no proposition lands
     assert!(cold_lines().contains(&t.gist.as_str()), "the gist is the cold shoulder: {:?}", t.gist);
     assert!(t.asks.is_empty(), "a cold ending closes the asks: {:?}", t.asks);
+    // the icon's mark holds the slight while the amends are on offer -
+    // a warm bond doesn't paper it over (#1320, review find)
+    assert!(g.seats[0].talk.as_ref().unwrap().amends, "the apology's on offer");
+    let rows = g.convo_panel_at(0).unwrap().rows;
+    assert_eq!(rows.iter().find(|r| r.who == Some(i)).map(|r| r.mood), Some(3),
+        "a fresh slight marks them angry, not warm");
 }
 
 #[test]
@@ -1478,3 +1486,38 @@ fn test_the_probe_leaves_the_offer_when_theres_nothing_to_plant() {
         "nothing left to plant, no probe on offer");
 }
 
+
+/// The convo box's mood mark (#1320): the seat's read of the bond plus
+/// how the talk's going - a stranger mid-greeting reads neutral, the
+/// live TalkMood outranks the bond, and only villager speaker rows
+/// carry the mark
+#[test]
+fn test_the_convo_box_marks_the_speakers_mood() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = talk_beside(&mut g, i);
+    let mood_of = |g: &Game| g.convo_panel_at(0).unwrap().rows
+        .into_iter().find(|r| r.who == Some(i)).map(|r| r.mood);
+    // a stranger mid-greeting: nothing to read
+    assert_eq!(mood_of(&g), Some(0));
+    // the live talk's read wins: a kind word warms, a push-back slights
+    g.seats[0].talk.as_mut().unwrap().mood = TalkMood::Warmed;
+    assert_eq!(mood_of(&g), Some(1), "a warmed talk marks them warm");
+    g.seats[0].talk.as_mut().unwrap().mood = TalkMood::Slighted;
+    assert_eq!(mood_of(&g), Some(3), "a slighted talk marks them angry");
+    // back to baseline: the bond alone carries it
+    g.seats[0].talk.as_mut().unwrap().mood = TalkMood::Cool;
+    bond_to(&mut g, v, 0.5);
+    assert_eq!(mood_of(&g), Some(1), "a warm bond marks them warm");
+    // a rival reads angry, bad blood reads cold
+    let pe = g.player;
+    let r = crate::game::relationships::find_relationship(&g.world, pe, v).unwrap();
+    g.world.get_component_mut::<crate::game::relationships::Relationship>(r).unwrap().kind = RelKind::Rival;
+    assert_eq!(mood_of(&g), Some(3), "a rival marks them angry");
+    let rel = g.world.get_component_mut::<crate::game::relationships::Relationship>(r).unwrap();
+    rel.kind = RelKind::Stranger; rel.strength = -0.4;
+    assert_eq!(mood_of(&g), Some(2), "bad blood marks them cold");
+    // your own lines and narration carry no mark
+    assert!(g.convo_panel_at(0).unwrap().rows.iter().all(|r| r.who.is_some() || r.mood == 0),
+        "only a villager speaker can carry the mark");
+}

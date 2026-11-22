@@ -295,6 +295,12 @@ pub struct TalkRowV {
     /// the line selects them (None: narration, the player, an outsider)
     #[serde(default)]
     pub who: Option<usize>,
+    /// The seat's read of how the speaker feels about them (#1320): the
+    /// bond plus how the talk's going, carried as a coarse mark on the
+    /// convo box's speaker icon - 0 neutral, 1 warm, 2 cold, 3 angry
+    /// (older servers omit it; read 0)
+    #[serde(default)]
+    pub mood: u8,
 }
 
 /// The TALK panel: conversations, kept apart from the event log

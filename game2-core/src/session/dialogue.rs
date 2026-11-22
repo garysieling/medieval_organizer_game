@@ -1816,13 +1816,17 @@ impl Game {
         // newest conversations last, as many as could ever fit
         for r in self.talk_log.iter().rev().filter(|r| r.with.contains(&focus) && !r.lines.is_empty()).take(4) {
             shown.push(r.id);
-            let mut block: Vec<TalkRowV> = vec![TalkRowV { name: None, text: format!("day {}", r.tick), gist: false, you: false, rule: true, who: None }];
-            block.extend(r.lines.iter().map(|l| TalkRowV {
-                // your own lines read "You"; another seat's keep their name
-                name: if l.who == Some(s.player) { Some("You".into()) } else { (!l.name.is_empty()).then(|| l.name.clone()) },
-                text: l.text.clone(), gist: l.gist,
-                you: l.who.map(|w| w == s.player).unwrap_or(false), rule: false,
-                who: l.who.and_then(|e| self.villagers.iter().position(|v| *v == e)),
+            let mut block: Vec<TalkRowV> = vec![TalkRowV { name: None, text: format!("day {}", r.tick), gist: false, you: false, rule: true, who: None, mood: 0 }];
+            block.extend(r.lines.iter().map(|l| {
+                let who = l.who.and_then(|e| self.villagers.iter().position(|v| *v == e));
+                TalkRowV {
+                    // your own lines read "You"; another seat's keep their name
+                    name: if l.who == Some(s.player) { Some("You".into()) } else { (!l.name.is_empty()).then(|| l.name.clone()) },
+                    text: l.text.clone(), gist: l.gist,
+                    you: l.who.map(|w| w == s.player).unwrap_or(false), rule: false,
+                    who,
+                    mood: who.map(|_| self.row_mood(seat, r.id, l.who.unwrap_or(s.player))).unwrap_or(0),
+                }
             }));
             block.extend(rows);
             rows = block;
@@ -1833,8 +1837,34 @@ impl Game {
             _ => vec![],
         };
         let empty = if picked.is_some() { "Nothing heard from them yet." } else { "Talk to someone (T) and it shows here." };
-        if rows.is_empty() { rows.push(TalkRowV { name: None, text: empty.into(), gist: false, you: false, rule: false, who: None }); }
+        if rows.is_empty() { rows.push(TalkRowV { name: None, text: empty.into(), gist: false, you: false, rule: false, who: None, mood: 0 }); }
         TalkPanelV { title, rows, options, in_talk }
+    }
+
+    /// The convo box's mood mark for a speaker (#1320): the seat's read
+    /// of their bond plus how this talk's going - 0 neutral, 1 warm,
+    /// 2 cold, 3 angry. The live Talk's mood wins (a slight outranks an
+    /// old warmth); the bond fills in where there's no live read
+    fn row_mood(&self, seat: usize, record: u64, speaker: Entity) -> u8 {
+        let s = &self.seats[seat];
+        let live = s.talk.as_ref().filter(|t| t.id == record && t.who == speaker);
+        match live.map(|t| t.mood) {
+            Some(TalkMood::Slighted) => return 3,
+            Some(TalkMood::Warmed) => return 1,
+            Some(TalkMood::Guarded) => return 2,
+            _ => {}
+        }
+        // a Cool talk that opened on a remembered slight keeps the
+        // angry read until the amends land and flip it to Guarded
+        if live.map(|t| t.amends).unwrap_or(false) { return 3; }
+        let Some(r) = crate::game::relationships::find_relationship(&self.world, s.player, speaker)
+            .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+        else { return 0 };
+        if r.kind == RelKind::Rival { 3 }
+        else if r.strength < 0.0 { 2 }
+        else if matches!(r.kind, RelKind::Friend | RelKind::Lover | RelKind::Family)
+            || crate::game::relationships::hearts_of(r.strength) >= 1.5 { 1 }
+        else { 0 }
     }
 
     /// A talk record's lines as conversation-box rows: "You" leads the
@@ -1843,11 +1873,15 @@ impl Game {
     fn record_rows(&self, seat: usize, id: u64) -> Vec<TalkRowV> {
         let Some(r) = self.talk_log.iter().find(|r| r.id == id) else { return vec![] };
         let pe = self.seats[seat].player;
-        r.lines.iter().map(|l| TalkRowV {
-            name: if l.who == Some(pe) { Some("You".into()) } else { (!l.name.is_empty()).then(|| l.name.clone()) },
-            text: l.text.clone(), gist: l.gist,
-            you: l.who == Some(pe), rule: false,
-            who: l.who.and_then(|e| self.villagers.iter().position(|v| *v == e)),
+        r.lines.iter().map(|l| {
+            let who = l.who.and_then(|e| self.villagers.iter().position(|v| *v == e));
+            TalkRowV {
+                name: if l.who == Some(pe) { Some("You".into()) } else { (!l.name.is_empty()).then(|| l.name.clone()) },
+                text: l.text.clone(), gist: l.gist,
+                you: l.who == Some(pe), rule: false,
+                who,
+                mood: who.map(|_| self.row_mood(seat, id, l.who.unwrap_or(pe))).unwrap_or(0),
+            }
         }).collect()
     }
 
@@ -1860,9 +1894,9 @@ impl Game {
             return Some(ConvoPanelV {
                 title: "THE VACCINATION ACT".into(),
                 rows: vec![
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "The Act's officer reads the order on the square: every infant takes the lancet's scratch, and the refusers pay the fine.".into() },
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "A third way's whispered in the crowd - the Leicester method: the word cried, the sick kept apart, contacts held, houses cleansed. Your call.".into() },
                 ],
                 options: vec![
@@ -1878,7 +1912,7 @@ impl Game {
             && self.emergency.is_none() && self.dilemma.is_none() {
             return Some(ConvoPanelV {
                 title: "THE TIGHTENED FOLD".into(),
-                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "The fold's own cage tightens - a soul or two want out.".into() }],
                 options: vec![
                     "Shelter the one who wants out".into(),
@@ -1896,15 +1930,15 @@ impl Game {
             }
             return Some(ConvoPanelV {
                 title: "THE ORG'S OWN EYES".into(),
-                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "The cause's own eyes read the lord's - counter the watching.".into() }],
                 options, decides: true, leave: false });
         }
         if self.emergency.is_some() {
             let rows = vec![
-                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "The lord's man calls it the cause's own brawl - the square's banned while the tale stands.".into() },
-                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "Gather the witnesses before the tale's just how things are.".into() },
             ];
             return Some(ConvoPanelV {
@@ -1919,9 +1953,9 @@ impl Game {
                 "Throw them out - suspicion enough".into(),
             ];
             let rows = vec![
-                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "One of them's for the torch - burn the lord's stores, they say, now.".into() },
-                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "Answer it and the cause reads as honest or as the lord's own tale. Your call.".into() },
             ];
             return Some(ConvoPanelV {
@@ -1936,9 +1970,9 @@ impl Game {
                 "Ask what it really carries".into(),
             ];
             let rows = vec![
-                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: format!("{}'s man brings an offer: a seat on the board.", lord) },
-                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "Take it and the cause sits at their table - or at their mercy. Your call.".into() },
             ];
             return Some(ConvoPanelV {
@@ -1949,9 +1983,9 @@ impl Game {
             return Some(ConvoPanelV {
                 title: "THE CALL - WHEN DO THEY GATHER".into(),
                 rows: vec![
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "The plan's made - the word just wants a day.".into() },
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "Till then the asks still count - roles and yeses fill until the door.".into() },
                 ],
                 options: vec![
@@ -1965,7 +1999,7 @@ impl Game {
             return Some(ConvoPanelV {
                 title: "THE CALL - WHAT WILL YOU TELL".into(),
                 rows: vec![
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "Tell them why you're here: a thing you lived through, then what this room shares, then what tonight asks.".into() },
                 ],
                 options: events.clone(),
@@ -1980,9 +2014,9 @@ impl Game {
             return Some(ConvoPanelV {
                 title: "THE CALL - WHAT WILL YOU ASK".into(),
                 rows: vec![
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "The word's out. When they're in the room, what's the question?".into() },
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "Put the matter and they'll talk the village's troubles. Ask what they want and you'll hear them - and it stays with them after.".into() },
                 ],
                 options,
@@ -2008,7 +2042,7 @@ impl Game {
                     ("They'd gather again - or take it further. Your call.".to_string(), opts)
                 }
             };
-            rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None, text: lean });
+            rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0, text: lean });
             return Some(ConvoPanelV {
                 title: format!("{} - YOUR CALL", d.org_name.to_uppercase()),
                 rows, options, decides: true, leave: false });
@@ -2026,7 +2060,7 @@ impl Game {
             options.push("Just meet - the resolves, no action".into());
             return Some(ConvoPanelV {
                 title: format!("{} - THE FLOOR'S YOURS", oname.to_uppercase()),
-                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: format!("{} stand with the cause - what do they take up?", n) }],
                 options, decides: true, leave: false });
         }
@@ -2034,7 +2068,7 @@ impl Game {
             if m.seat == seat {
                 let mut rows = self.record_rows(seat, m.talk_id);
                 if m.talk_from.is_none() {
-                    rows.push(TalkRowV { name: None, gist: false, you: false, rule: false, who: None,
+                    rows.push(TalkRowV { name: None, gist: false, you: false, rule: false, who: None, mood: 0,
                         text: "folk are on their way".into() });
                 }
                 return Some(ConvoPanelV {

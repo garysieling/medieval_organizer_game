@@ -221,7 +221,8 @@ fn test_a_panel_pick_reaches_only_members_at_hand() {
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
         ] });
     g.decide_at(0, 0);
-    assert_eq!(weight(&g, near, Line::Exacting), 1.0, "the wounding branch is the hard line");
+    assert_eq!(weight(&g, near, Line::Exacting), 1.5,
+        "the wounding branch is the hard line - and a sworn member leans in");
     assert_eq!(weight(&g, far, Line::Exacting), 0.0, "out of earshot, unwitnessed");
     g.dilemma = Some(crate::session::events::MoralKnot {
         text: "again?".into(),
@@ -230,7 +231,10 @@ fn test_a_panel_pick_reaches_only_members_at_hand() {
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
         ] });
     g.decide_at(0, 1);
-    assert_eq!(weight(&g, near, Line::Merciful), 1.0, "the softest branch is mercy");
+    // the member's read already leaned Exacting: the mercy pick drifts
+    // them further into the hard line rather than counting as mercy (#1310)
+    assert_eq!(weight(&g, near, Line::Merciful), 0.0, "the softest branch never landed");
+    assert_eq!(weight(&g, near, Line::Exacting), 2.1, "it fed the lean they already had");
 }
 
 #[test]

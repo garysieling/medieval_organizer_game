@@ -923,6 +923,39 @@ pub enum Motion {
     Survey,
 }
 
+/// The rhetorical line a motion takes (#1310): the street verbs are the
+/// firebrand's work, the asking and the print the patient one's. None
+/// when the pick carries no line - the road machinery is just work
+pub fn motion_line(m: Motion) -> Option<crate::game::rhetoric::Line> {
+    use crate::game::rhetoric::Line;
+    match m {
+        Motion::March | Motion::Strike | Motion::Townhall | Motion::TwoFronts => Some(Line::Firebrand),
+        Motion::Flyers | Motion::Survey => Some(Line::Patient),
+        Motion::SendOrganizer | Motion::ParallelEvent(_) => None,
+    }
+}
+
+/// What the room reads the organizer by (#1310): the living members'
+/// reads of the cause's org, summed per line - the dominant one, when
+/// it holds a hardened room's worth of weight, gates the slate. None
+/// for a room that's read nothing yet
+pub fn room_lean(world: &World, campaign: Entity) -> Option<crate::game::rhetoric::Line> {
+    use crate::game::rhetoric::{LINES, RhetoricMemory, HARDEN};
+    let org = world.get_component::<Campaign>(campaign)?.org;
+    let o = world.get_component::<Organization>(org)?;
+    let mut sum = [0.0f32; 4];
+    for &m in &o.members {
+        if is_dead(world, m) { continue; }
+        if let Some(r) = world.get_component::<RhetoricMemory>(m)
+            .and_then(|mm| mm.by_org.get(&org)) {
+            for l in LINES { sum[l as usize] += r.weight[l as usize]; }
+        }
+    }
+    let best = LINES.iter().copied()
+        .max_by(|a, b| sum[*a as usize].partial_cmp(&sum[*b as usize]).unwrap_or(std::cmp::Ordering::Equal))?;
+    if sum[best as usize] >= HARDEN { Some(best) } else { None }
+}
+
 /// The slate line the floor hears a motion under
 pub fn motion_label(m: Motion) -> String {
     match m {
@@ -1074,6 +1107,13 @@ pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
         for &(site, _, support) in &o.posts {
             if support >= FIELD_WARM { ms.push(Motion::ParallelEvent(site)); }
         }
+    }
+    // the room's read gates the slate (#1310): a cause set on mercy
+    // isn't offered the street, a cause set on the street isn't offered
+    // the quiet work - the pick the organizer keeps taking narrows what
+    // the floor will hear next
+    if let Some(lean) = room_lean(world, campaign) {
+        ms.retain(|m| motion_line(*m) != Some(lean.opposite()));
     }
     ms
 }
@@ -1435,5 +1475,42 @@ mod tests {
         let vote = hold_issue_vote(&w, o, &candidates, Framing::SharedGrievance, 10).unwrap();
         assert_eq!(vote.winner, "hard times under the lord's hand",
             "two clustered stakes beat one thin one even recommended second");
+    }
+
+    /// The room's read narrows the slate (#1310): a cause set on mercy
+    /// isn't offered the street, a cause set on the street isn't
+    /// offered the quiet work, and an unread room sees it all
+    #[test]
+    fn test_the_room_lean_gates_the_slate() {
+        use crate::game::rhetoric::{OrgRead, RhetoricMemory};
+        let mut w = World::new();
+        let ms: Vec<Entity> = (0..6).map(|_| member(&mut w)).collect();
+        let (o, c) = campaign_with(&mut w, &ms);
+        let lean = |w: &mut World, p: f32, f: f32| {
+            for &m in &ms {
+                let mut mem = RhetoricMemory::default();
+                mem.by_org.insert(o, OrgRead {
+                    weight: [p, f, 0.0, 0.0], ..Default::default() });
+                w.add_component(m, mem);
+            }
+        };
+        // an unread room gets the whole slate
+        let slate = motions_open(&w, c);
+        assert!(slate.contains(&Motion::March) && slate.contains(&Motion::Survey),
+            "unread room: {slate:?}");
+        // a patient room drops the street picks
+        lean(&mut w, 1.0, 0.0);
+        let slate = motions_open(&w, c);
+        assert!(!slate.contains(&Motion::March) && !slate.contains(&Motion::Strike)
+            && !slate.contains(&Motion::Townhall) && !slate.contains(&Motion::TwoFronts),
+            "a patient room asks no fire: {slate:?}");
+        assert!(slate.contains(&Motion::Survey) && slate.contains(&Motion::Flyers),
+            "the quiet work stays: {slate:?}");
+        // a firebrand room drops the quiet work
+        lean(&mut w, 0.0, 1.0);
+        let slate = motions_open(&w, c);
+        assert!(!slate.contains(&Motion::Survey) && !slate.contains(&Motion::Flyers),
+            "a firebrand room asks no patience: {slate:?}");
+        assert!(slate.contains(&Motion::March), "the street stays: {slate:?}");
     }
 }

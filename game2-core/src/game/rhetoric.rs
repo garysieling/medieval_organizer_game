@@ -25,6 +25,14 @@ const SOFTENS: f32 = HARDEN * 0.5;
 const FADE: [f32; 4] = [0.98, 0.98, 0.98, 0.9995];
 /// What a contradicted hardened line keeps
 const TURN_KEEPS: f32 = 0.5;
+/// A member leaning with the line gets this much more of each witness -
+/// the faithful harden faster (#1310)
+const WITH_BONUS: f32 = 0.5;
+/// A member not leaning with the line drifts toward its opposite this
+/// much instead - the room splits around the organizer over time. At
+/// this rate a fresh read hardens against after five opposed witnesses,
+/// and the sixth is their last straw (#1310)
+const AWAY_DRIFT: f32 = 0.6;
 
 /// A rhetorical line; each has its opposite
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,9 +99,39 @@ pub fn witness(world: &mut World, v: Entity, org: Entity, line: Line, tick: u64)
         if r.turn.is_none() { r.turn = Some((line.opposite(), since)); }
     }
     let i = line.idx();
-    r.weight[i] += 1.0;
-    if r.weight[i] >= HARDEN && r.hardened[i].is_none() { r.hardened[i] = Some(tick); }
+    // a member's read is their lean (#1310): sworn folk polarize - the
+    // already-won harden faster, the rest drift to the other line, so
+    // the room splits around the line the organizer keeps taking
+    if member_of(world, v, org) {
+        if r.weight[i] >= r.weight[opp] {
+            r.weight[i] += 1.0 + WITH_BONUS;
+        } else {
+            r.weight[opp] += AWAY_DRIFT;
+        }
+    } else {
+        r.weight[i] += 1.0;
+    }
+    for j in 0..LINES.len() {
+        if r.weight[j] >= HARDEN && r.hardened[j].is_none() { r.hardened[j] = Some(tick); }
+    }
     world.add_component(v, m);
+}
+
+/// Whether `v` is sworn to `org` - their read of the organizer is also
+/// their lean inside the cause, and it can walk them out the door
+fn member_of(world: &World, v: Entity, org: Entity) -> bool {
+    world.get_component::<crate::sim::community::Organization>(org)
+        .map(|o| o.members.contains(&v)).unwrap_or(false)
+}
+
+/// The line `v` is sworn-set against `org` on: their hardened read sits
+/// on `line`'s opposite - the defection trigger when `line` gets taken
+/// again in their hearing (#1310)
+pub fn set_against(world: &World, v: Entity, org: Entity, line: Line) -> bool {
+    world.get_component::<RhetoricMemory>(v)
+        .and_then(|m| m.by_org.get(&org))
+        .map(|r| r.hardened[line.opposite().idx()].is_some())
+        .unwrap_or_default()
 }
 
 pub fn witness_all(world: &mut World, who: &[Entity], org: Entity, line: Line, tick: u64) {
@@ -175,4 +213,54 @@ pub fn register_note(world: &World, v: Entity, org: Entity, name: &str) -> Optio
         Line::Merciful => format!("{name} eases - word is you spare folk."),
         Line::Exacting => format!("{name} straightens - word is you hold folk to account."),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sim::community::Organization;
+
+    fn org(w: &mut World, members: &[Entity]) -> Entity {
+        let o = w.create_entity();
+        w.add_component(o, Organization {
+            name: "The League".into(), members: members.to_vec(), leader: members[0],
+            influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
+        o
+    }
+
+    #[test]
+    fn test_the_sworn_harden_faster_than_the_street() {
+        let mut w = World::new();
+        let m = w.create_entity();
+        let stranger = w.create_entity();
+        let o = org(&mut w, &[m]);
+        witness(&mut w, m, o, Line::Firebrand, 10);
+        witness(&mut w, m, o, Line::Firebrand, 11);
+        witness(&mut w, stranger, o, Line::Firebrand, 10);
+        witness(&mut w, stranger, o, Line::Firebrand, 11);
+        // two tellings set the member's read; the unsworn need a third
+        assert!(hardened(&w, m, o).contains(&Line::Firebrand));
+        assert!(!hardened(&w, stranger, o).contains(&Line::Firebrand));
+    }
+
+    #[test]
+    fn test_the_member_set_against_drifts_further_out() {
+        let mut w = World::new();
+        let m = w.create_entity();
+        let o = org(&mut w, &[m]);
+        // their read leans patient: each firebrand pick they hear only
+        // feeds the opposite, the firebrand itself never lands
+        witness(&mut w, m, o, Line::Patient, 10);
+        witness(&mut w, m, o, Line::Firebrand, 11);
+        let r = &w.get_component::<RhetoricMemory>(m).unwrap().by_org[&o];
+        assert_eq!(r.weight[Line::Firebrand as usize], 0.0,
+            "the opposed line should never accrue on a set member");
+        assert!(r.weight[Line::Patient as usize] > 1.0,
+            "the drift should feed their lean: {:?}", r.weight);
+        // and set_against names the member whose drift fully hardens
+        assert!(!set_against(&w, m, o, Line::Firebrand));
+        for i in 0..2 { witness(&mut w, m, o, Line::Firebrand, 12 + i); }
+        assert!(set_against(&w, m, o, Line::Firebrand),
+            "three opposed tellings on a leaning read set them against it");
+    }
 }

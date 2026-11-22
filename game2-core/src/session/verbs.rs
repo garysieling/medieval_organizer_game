@@ -1378,7 +1378,25 @@ impl Game {
                         tick, winner, mandate
                     ),
                 );
-                format!("The room settles on {}{}.", winner, mandate)
+                // the settled word is the cause's line, heard by every
+                // member standing there (#1310) - the paper asks are the
+                // patient work, the streets the firebrand's
+                let line = match winner {
+                    "the petition" => Some(crate::game::rhetoric::Line::Patient),
+                    "the march" | "the strike" | "a town hall" => Some(crate::game::rhetoric::Line::Firebrand),
+                    _ => None,
+                };
+                let mut walked = String::new();
+                if let Some(l) = line {
+                    let oe = self.seats[seat].org;
+                    let walked_in_against: Vec<Entity> = present.iter().copied()
+                        .filter(|&a| crate::game::rhetoric::set_against(&self.world, a, oe, l))
+                        .collect();
+                    crate::game::rhetoric::witness_all(&mut self.world, &present, oe, l, tick);
+                    let out = self.line_defections(seat, oe, l, &present, &walked_in_against);
+                    if !out.is_empty() { walked = format!(" {} storms out over it.", out.join(", ")); }
+                }
+                format!("The room settles on {}{}.{}", winner, mandate, walked)
             }
             CtxAct::Attend => {
                 // the player's presence counts for what the day means:
@@ -3343,16 +3361,63 @@ impl Game {
             return "There's no cause to meet on.".into();
         };
         match self.hold_and_note_campaign_meeting(Some(self.seats[seat].player), c, tick) {
-            Some(mut msg) => {
+            Some((mut msg, attendees)) => {
                 // the pick IS the vote: the agenda the floor was handed
                 // carries, whatever the room settled for itself
                 if let Some(m) = motion {
+                    // the line the floor was handed is witnessed by the
+                    // room (#1310) - and a member who walked in set
+                    // against it, or sets against it as it lands, walks
+                    if let Some(line) = crate::game::campaign::motion_line(m) {
+                        let oe = self.seats[seat].org;
+                        let walked_in_against: Vec<Entity> = attendees.iter().copied()
+                            .filter(|&a| crate::game::rhetoric::set_against(&self.world, a, oe, line))
+                            .collect();
+                        crate::game::rhetoric::witness_all(&mut self.world, &attendees, oe, line, tick);
+                        let out = self.line_defections(seat, oe, line, &attendees, &walked_in_against);
+                        if !out.is_empty() { msg += &format!(" - {} storms out", out.join(", ")); }
+                    }
                     msg += " - "; msg += &self.run_motion(seat, c, m);
                 }
                 msg
             }
             None => "The campaign isn't due to meet yet.".into(),
         }
+    }
+
+    /// Who `line` cost the cause: the attendees sworn in and set against
+    /// it walk when it gets taken again under their nose (#1310) - those
+    /// already hardened against it going in (`walked_in`, since the
+    /// witness itself would soften the mark away), and those whose drift
+    /// crystallizes as the pick lands. Their seats pass with them; the
+    /// cause keeps the line and loses the voice
+    fn line_defections(&mut self, seat: usize, oe: Entity,
+                       line: crate::game::rhetoric::Line, attendees: &[Entity],
+                       walked_in: &[Entity]) -> Vec<String> {
+        use crate::game::rhetoric;
+        let pe = self.seats[seat].player;
+        let mut names = vec![];
+        for &m in attendees {
+            if m == pe || villager::is_dead(&self.world, m) { continue; }
+            let Some(org) = self.world.get_component::<Organization>(oe) else { break };
+            if m == org.leader || !org.members.contains(&m) { continue; }
+            if !walked_in.contains(&m) && !rhetoric::set_against(&self.world, m, oe, line) { continue; }
+            if let Some(o) = self.world.get_component_mut::<Organization>(oe) {
+                o.members.retain(|&x| x != m);
+            }
+            if let Some(c) = crate::game::campaign::campaign_of(&self.world, oe) {
+                if let Some(cc) = self.world.get_component_mut::<crate::game::campaign::Campaign>(c) {
+                    cc.seats.retain(|s| s.holder != m);
+                }
+            }
+            names.push(self.name_of(m));
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Negative, Sev::Notable),
+                format!("t{}: {} storms out - the {} line once too often.",
+                    self.tick, self.name_of(m), line.status()),
+            );
+        }
+        names
     }
 
     /// What a carried motion does: the street verbs, voted first (#1157)

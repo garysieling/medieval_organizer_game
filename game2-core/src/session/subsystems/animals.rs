@@ -261,7 +261,7 @@ impl Game {
     pub fn sfx_tick(&mut self, tick: u64) {
         // the ambient bed: rain when it falls, the smithy's rhythm on a
         // workday - quiet state cues the audio layer keeps under it all
-        if self.precip.is_some() && tick % 20 == 0 {
+        if self.precip.map(|k| !k.is_fog()).unwrap_or(false) && tick % 20 == 0 {
             self.emit_sfx("rain", self.village.0 as f32 + 4.0, self.village.1 as f32 - 1.0, 0.4);
         }
         if tick % 40 == 10 {

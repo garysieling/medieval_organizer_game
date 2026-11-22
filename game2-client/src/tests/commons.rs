@@ -156,6 +156,7 @@ fn test_a_feast_day_dresses_the_ring_and_hangs_its_card() {
     m.feast_name = Some("Midsummer".into());
     let art = Art::load_fs("../assets", 0);
     assert_eq!(art.feast_decor.len(), 7, "the ring's seven dressings sliced");
+    assert!(art.feast_banner.is_some(), "the banner's strung on its poles (#1275)");
     assert!(art.feast_card("Midsummer").is_some(), "the summer card loaded");
     let mut view = View::new(art);
     (view.cam_x, view.cam_y) = cam_centred_on(m.market.unwrap().0, m.market.unwrap().1);

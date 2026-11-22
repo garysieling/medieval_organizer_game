@@ -53,7 +53,8 @@ pub struct PersonV {
     pub act_mark: u8,
     /// The figure's stance for the pose sheet when one fits what
     /// they're doing (a [`pose`] index; 0 keeps the usual still or
-    /// walk cycle) - absent on older servers (#1280)
+    /// walk cycle; a [`PKind::Guard`] reads a [`guard_pose`] instead)
+    /// - absent on older servers (#1280)
     #[serde(default)]
     pub pose: u8,
     /// A pet bonded strongly to its owner (the <3 label)
@@ -685,4 +686,17 @@ pub mod pose {
     /// The cell's file name under rd/people/poses, by index - 1
     pub const NAMES: [&str; 8] = ["hammering", "hoeing", "sitting", "walking",
         "sleeping", "carrying", "kneeling", "waving"];
+}
+
+/// `PersonV.pose` values for `PKind::Guard` (#1279): the
+/// `rd/guards/poses` cells - the watch stands ready while there's
+/// danger in town and salutes a lord or the player passing under
+/// the gate. Marching's sliced but dormant until the watch patrols.
+pub mod guard_pose {
+    pub const STANDING: u8 = 1;
+    pub const MARCHING: u8 = 2;
+    pub const READY: u8 = 3;
+    pub const SALUTING: u8 = 4;
+    /// The cell's file name under rd/guards/poses, by index - 1
+    pub const NAMES: [&str; 4] = ["standing", "marching", "ready", "saluting"];
 }

@@ -856,10 +856,33 @@ pub fn trades_owning(concept: &str) -> &'static [&'static str] {
     }
 }
 
+/// The trades an `IssueTag` belongs to (#1308): a trade-scoped tag names
+/// its trade ("materials (baker)" -> baker); the unscoped commons map to
+/// the concern table where a craft clearly owns the matter (the bread,
+/// the workshops, the fold). Taxes, writs, grief and the fevers belong
+/// to no craft - the room hears those on seniority instead
+pub fn issue_trades(issue: &str) -> Vec<&'static str> {
+    if let Some((_, voc)) = issue.strip_suffix(')').and_then(|s| s.split_once(" (")) {
+        return crate::game::vocation::vocation_named(voc)
+            .map(|v| vec![crate::game::vocation::trade_word(v)]).unwrap_or_default();
+    }
+    match issue {
+        "hunger" | "the empty pot" | "the sour gut" | "the bad bread" => trades_owning("concern:food").to_vec(),
+        "tools" | "workplaces" | "materials" | "empty shops" | "apprenticeship" | "mastery" | "honest work's stink" => trades_owning("concern:wages").to_vec(),
+        "the drowned pit" => vec!["miner"],
+        "the wolves" | "the shrinking wood" => vec!["shepherd", "farmer"],
+        "the true faith" => trades_owning("concern:faith").to_vec(),
+        "housing" => trades_owning("concern:bridge").to_vec(),
+        _ => vec![],
+    }
+}
+
 /// How much `sp`'s word on a line about `concepts` weighs, by trade -
 /// judged only on the concepts it shares with what it answers, `matter`
-/// (a generic "aye" carries every concern, but speaks to one)
-pub fn counsel_weight(sp: &Speaker, concepts: &[&str], matter: &[&str]) -> f32 {
+/// (a generic "aye" carries every concern, but speaks to one). Where no
+/// trade owns the matter the village's memory carries it: an elder, or
+/// one the organizer holds near (`tie` - kin or friend of the house)
+pub fn counsel_weight(sp: &Speaker, tie: Relation, concepts: &[&str], matter: &[&str]) -> f32 {
     let on = |c: &&&str| matter.contains(*c);
     let mut owned = false;
     for c in concepts.iter().filter(on) {
@@ -870,7 +893,8 @@ pub fn counsel_weight(sp: &Speaker, concepts: &[&str], matter: &[&str]) -> f32 {
     }
     if owned {
         if sp.trade.is_some() { TRADE_MISFIT } else { 1.0 }
-    } else if concepts.iter().filter(on).any(|c| c.starts_with("concern:")) && sp.status.contains(&"elder") {
+    } else if concepts.iter().filter(on).any(|c| c.starts_with("concern:"))
+        && (sp.status.contains(&"elder") || matches!(tie, Relation::Kin | Relation::Friend)) {
         ELDER_FIT
     } else { 1.0 }
 }
@@ -890,6 +914,7 @@ const DRIFT_LIMIT: usize = 3;
 pub fn run_meeting<'a>(
     organizer: &Speaker,
     attendees: &[&Speaker],
+    ties: &[Relation],
     prompt: &MeetingPrompt,
     pools: &'a [&'a [MeetingLine]],
     rites: &MeetingRites,
@@ -948,6 +973,19 @@ pub fn run_meeting<'a>(
         let last_speaker = record[last_idx].speaker;
         let question_open = answers < QUESTION_PULL;
 
+        // the counsel a statement's speaker carried on the matter - the
+        // persuasion channel (#1308): a word from the trade the matter
+        // belongs to pulls follow-ups (the room builds on it); a word
+        // the matter doesn't belong to is let die. The organizer's own
+        // calls pull at full strength, whoever made them
+        let authority = |si: usize| -> f32 {
+            let st = &record[si];
+            if st.speaker == usize::MAX { return 1.0; }
+            counsel_weight(attendees[st.speaker],
+                ties.get(st.speaker).copied().unwrap_or(Relation::Stranger),
+                &st.concepts, &prompt.concepts)
+        };
+
         // Bid: (speaker, target statement, line, kind, score)
         let mut bids: Vec<(usize, usize, &'a MeetingLine, ReplyKind, f32)> = vec![];
         for (i, sp) in attendees.iter().enumerate() {
@@ -966,8 +1004,8 @@ pub fn run_meeting<'a>(
                 let ask = s.act == Act::Question && s.speaker == usize::MAX;
                 let open_q = (si == Q && question_open) || (ask && si == last_idx);
                 let pull = if open_q { QUESTION_SCORE }
-                    else if si == last_idx { LAST_PULL }
-                    else { OLD_PULL };
+                    else if si == last_idx { LAST_PULL * authority(si) }
+                    else { OLD_PULL * authority(si) };
                 for l in pool {
                     // Agreement or pushback can only reply to a fellow attendee's statement, not to an ask
                     if open_q && (l.act == Act::Agree || l.act == Act::PushBack) {
@@ -992,7 +1030,8 @@ pub fn run_meeting<'a>(
                     let kind = if open_q {
                         if overlap { ReplyKind::Answer } else { ReplyKind::NewTopic }
                     } else if l.act == Act::PushBack { ReplyKind::Object } else { ReplyKind::BuildOn };
-                    let mut s = score * pull * fit * counsel_weight(sp, l.concepts, &s.concepts);
+                    let mut s = score * pull * fit * counsel_weight(sp,
+                        ties.get(i).copied().unwrap_or(Relation::Stranger), l.concepts, &s.concepts);
                     for (t, m) in l.bias {
                         if sp.traits.contains(t) { s *= m; }
                     }
@@ -1334,7 +1373,7 @@ mod tests {
         let mut said = vec![];
         for seed in 0..seeds {
             let mut rng = Rng::new(seed);
-            let rec = run_meeting(&Speaker::new("Reeve"), attendees, prompt, &refs, &MEET_RITES, &mut rng);
+            let rec = run_meeting(&Speaker::new("Reeve"), attendees, &[], prompt, &refs, &MEET_RITES, &mut rng);
             for st in rec.iter().filter(|s| s.speaker < attendees.len() && s.replying_to.is_some()) {
                 if st.concepts.iter().any(|c| prompt.concepts.contains(c)) {
                     counts[st.speaker] += 1;
@@ -1353,17 +1392,17 @@ mod tests {
         baker.trade = Some("baker");
         let laborer = Speaker::new("Wat");
         let harvest = ["concern:harvest"];
-        assert_eq!(counsel_weight(&farmer, &harvest, &harvest), TRADE_FIT);
-        assert_eq!(counsel_weight(&baker, &harvest, &harvest), TRADE_MISFIT, "the baker on the fields is heard as a baker");
-        assert_eq!(counsel_weight(&laborer, &harvest, &harvest), 1.0);
-        assert_eq!(counsel_weight(&baker, &["concern:food"], &["concern:food"]), TRADE_FIT);
+        assert_eq!(counsel_weight(&farmer, Relation::Stranger, &harvest, &harvest), TRADE_FIT);
+        assert_eq!(counsel_weight(&baker, Relation::Stranger, &harvest, &harvest), TRADE_MISFIT, "the baker on the fields is heard as a baker");
+        assert_eq!(counsel_weight(&laborer, Relation::Stranger, &harvest, &harvest), 1.0);
+        assert_eq!(counsel_weight(&baker, Relation::Stranger, &["concern:food"], &["concern:food"]), TRADE_FIT);
         // off the matters entirely, nobody's trade counts
-        assert_eq!(counsel_weight(&farmer, &["smalltalk"], &["smalltalk"]), 1.0);
+        assert_eq!(counsel_weight(&farmer, Relation::Stranger, &["smalltalk"], &["smalltalk"]), 1.0);
         // a generic "aye" carries every concern, but on the harvest it's
         // still the baker talking fields
         let aye = meeting_pool(&laborer).into_iter().find(|l| l.concepts.len() > 3).expect("a catch-all line").concepts;
-        assert_eq!(counsel_weight(&baker, aye, &harvest), TRADE_MISFIT);
-        assert_eq!(counsel_weight(&farmer, aye, &harvest), TRADE_FIT);
+        assert_eq!(counsel_weight(&baker, Relation::Stranger, aye, &harvest), TRADE_MISFIT);
+        assert_eq!(counsel_weight(&farmer, Relation::Stranger, aye, &harvest), TRADE_FIT);
 
         let prompt = MeetingPrompt { text: "The harvest - what do we do?", concepts: &["concern:harvest"] };
         let (counts, said) = floor_by(&[&farmer, &baker, &laborer], &prompt, 60);
@@ -1381,15 +1420,87 @@ mod tests {
         elder.status.extend(["elder", "grieving"]);
         let mut young = Speaker::new("Jack");
         young.status.push("grieving");
-        assert_eq!(counsel_weight(&elder, &["concern:grief"], &["concern:grief"]), ELDER_FIT);
-        assert_eq!(counsel_weight(&young, &["concern:grief"], &["concern:grief"]), 1.0);
+        assert_eq!(counsel_weight(&elder, Relation::Stranger, &["concern:grief"], &["concern:grief"]), ELDER_FIT);
+        assert_eq!(counsel_weight(&young, Relation::Stranger, &["concern:grief"], &["concern:grief"]), 1.0);
         // where a trade owns it, age alone doesn't
-        assert_eq!(counsel_weight(&elder, &["concern:harvest"], &["concern:harvest"]), 1.0);
+        assert_eq!(counsel_weight(&elder, Relation::Stranger, &["concern:harvest"], &["concern:harvest"]), 1.0);
         let mut young2 = Speaker::new("Ivo");
         young2.status.push("grieving");
         let prompt = MeetingPrompt { text: "We've lost so many.", concepts: &["concern:grief"] };
         let (counts, _) = floor_by(&[&elder, &young, &young2], &prompt, 60);
         assert!(counts[0] > counts[1] && counts[0] > counts[2], "the village's memory speaks where no craft does: {:?}", counts);
+    }
+
+    #[test]
+    fn test_issue_trades_map_the_campaigns_cause_to_a_craft() {
+        // a trade-scoped tag names its trade through the vocation's
+        // display name - the toolmaker speaks as a smith (#1308)
+        assert_eq!(issue_trades("materials (baker)"), vec!["baker"]);
+        assert_eq!(issue_trades("the overseers' cut (toolmaker)"), vec!["smith"]);
+        assert_eq!(issue_trades("workplaces (cobbler)"), vec!["shoemaker"]);
+        // the commons map to the crafts that own them
+        assert!(issue_trades("hunger").contains(&"baker") && issue_trades("hunger").contains(&"farmer"));
+        assert_eq!(issue_trades("the drowned pit"), vec!["miner"]);
+        assert_eq!(issue_trades("the true faith"), vec!["priest"]);
+        // and some causes belong to no craft - seniority speaks for those
+        assert!(issue_trades("the taxes").is_empty());
+        assert!(issue_trades("the grief").is_empty());
+        assert!(issue_trades("the lord's letter").is_empty());
+    }
+
+    #[test]
+    fn test_the_organizers_own_carry_the_unowned_matter() {
+        // seniority's other half (#1308): where no craft owns the matter,
+        // kin and the near speak with the elder's weight too
+        let mut kin = Speaker::new("Cis");
+        kin.status.push("grieving");
+        let mut far = Speaker::new("Tom");
+        far.status.push("grieving");
+        let grief = ["concern:grief"];
+        assert_eq!(counsel_weight(&kin, Relation::Kin, &grief, &grief), ELDER_FIT);
+        assert_eq!(counsel_weight(&kin, Relation::Friend, &grief, &grief), ELDER_FIT);
+        assert_eq!(counsel_weight(&far, Relation::Stranger, &grief, &grief), 1.0);
+        assert_eq!(counsel_weight(&far, Relation::Rival, &grief, &grief), 1.0);
+        // a craft matter doesn't care who your kin are
+        let mut baker = Speaker::new("Alys");
+        baker.trade = Some("baker");
+        assert_eq!(counsel_weight(&baker, Relation::Kin, &["concern:harvest"], &["concern:harvest"]), TRADE_MISFIT);
+    }
+
+    /// #1308: how many follow-ups each speaker's statements drew, over
+    /// seeds - a statement that moved the room is the one the room
+    /// builds on, not the one it let die
+    fn replies_drawn(attendees: &[&Speaker], prompt: &MeetingPrompt, seeds: u64) -> (Vec<usize>, Vec<usize>) {
+        let pools: Vec<Vec<MeetingLine>> = attendees.iter().map(|s| meeting_pool(s)).collect();
+        let refs: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
+        let (mut drawn, mut made) = (vec![0; attendees.len()], vec![0; attendees.len()]);
+        for seed in 0..seeds {
+            let mut rng = Rng::new(seed);
+            let rec = run_meeting(&Speaker::new("Reeve"), attendees, &[], prompt, &refs, &MEET_RITES, &mut rng);
+            for (si, st) in rec.iter().enumerate() {
+                if st.speaker < attendees.len() && st.act != Act::Greet {
+                    made[st.speaker] += 1;
+                    drawn[st.speaker] += rec.iter().filter(|r| r.replying_to == Some(si)).count();
+                }
+            }
+        }
+        (drawn, made)
+    }
+
+    #[test]
+    fn test_the_room_builds_on_the_trade_the_matter_belongs_to() {
+        let mut farmer = Speaker::new("Hugh");
+        farmer.trade = Some("farmer");
+        let mut baker = Speaker::new("Alys");
+        baker.trade = Some("baker");
+        let laborer = Speaker::new("Wat");
+        let prompt = MeetingPrompt { text: "The harvest - what do we do?", concepts: &["concern:harvest"] };
+        let (drawn, made) = replies_drawn(&[&farmer, &baker, &laborer], &prompt, 60);
+        // per word said, the farmer's counsel pulls the room after it;
+        // the baker's on the fields is let die
+        let per_word = |i: usize| drawn[i] as f32 / made[i].max(1) as f32;
+        assert!(per_word(0) > per_word(1),
+            "drawn per word - farmer {:.2}, baker {:.2} of {:?}", per_word(0), per_word(1), made);
     }
 
     #[test]
@@ -1408,7 +1519,7 @@ mod tests {
         let attendees = [&a, &b, &c];
 
         let mut rng = Rng::new(77);
-        let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
+        let statements = run_meeting(&organizer, &attendees, &[], &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
 
         assert!(statements.len() >= 5, "Meeting should produce multiple statements");
         assert_eq!(statements[0].act, Act::Greet); // the rite that opens it
@@ -1440,7 +1551,7 @@ mod tests {
 
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
-            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
+            let statements = run_meeting(&organizer, &attendees, &[], &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
             // Any statement answering the open question (statement 1,
             // after the rite) must NOT be Agree or PushBack
             for stmt in &statements {
@@ -1510,7 +1621,7 @@ mod tests {
         let pools = [meeting_pool(&a), meeting_pool(&b), meeting_pool(&c)];
         let pools: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
         let attendees = [&a, &b, &c];
-        seeds.map(|seed| run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(seed)))
+        seeds.map(|seed| run_meeting(&organizer, &attendees, &[], &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(seed)))
             .collect()
     }
 
@@ -1766,7 +1877,7 @@ mod tests {
         let mut saw_grief_after_q = false;
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
-            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
+            let statements = run_meeting(&organizer, &attendees, &[], &MEET_PROMPT, &pools, &MEET_RITES, &mut rng);
             // Check if any statement with index >= 4 (after initial answers) contains concern:grief
             for stmt in statements.iter().skip(4) {
                 if stmt.concepts.contains(&"concern:grief") {
@@ -1802,7 +1913,7 @@ mod tests {
         let run = |attendees: &[&Speaker]| -> Vec<Statement> {
             let pools: Vec<Vec<MeetingLine>> = attendees.iter().map(|s| meeting_pool(s)).collect();
             let pools: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
-            run_meeting(&organizer, attendees, &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(7))
+            run_meeting(&organizer, attendees, &[], &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(7))
         };
         let mut pious = Speaker::new("Anselm");
         pious.traits.push(Trait::Pious);

@@ -918,6 +918,9 @@ pub enum Motion {
     /// A posted organizer stages the cause's day in their town
     /// (index into Game.sites)
     ParallelEvent(usize),
+    /// The doors get asked about an issue - the count comes back
+    /// fuzzed, and the asking itself reads the cause's reach (#1270)
+    Survey,
 }
 
 /// The slate line the floor hears a motion under
@@ -930,6 +933,7 @@ pub fn motion_label(m: Motion) -> String {
         Motion::TwoFronts => "Two fronts at once - march and ballot together".into(),
         Motion::SendOrganizer => "Send an organizer to raise a town for the cause".into(),
         Motion::ParallelEvent(_) => "The posted town rises - stage the event there".into(),
+        Motion::Survey => "Run a survey - the doors get asked, the count comes back".into(),
     }
 }
 
@@ -969,6 +973,88 @@ pub fn living_members(world: &World, campaign: Entity) -> usize {
         }).count()).unwrap_or(0)
 }
 
+/// A survey under way (#1270): which campaign's asking, the issue the
+/// floor picked, who's carrying it door to door, and the days left
+#[derive(Debug, Clone)]
+pub struct OrgSurvey {
+    /// The campaign whose motion carried it
+    pub campaign: Entity,
+    /// The issue the doors get asked about
+    pub issue: IssueTag,
+    /// The members doing the asking - a member-day each is the cost
+    pub canvassers: Vec<Entity>,
+    /// Days of asking left before the count lands
+    pub days_left: u8,
+    /// Doors already knocked - the same soul isn't asked twice
+    pub knocked: crate::engine::det::HashSet<Entity>,
+}
+
+/// The bond that makes a door answerable: folk you don't know don't
+/// tell you what ails them (#1270)
+pub const SURVEY_TIE: f32 = 0.15;
+/// Days a survey's out asking before the tally lands
+pub const SURVEY_DAYS: u8 = 3;
+/// The most hands a canvass fields - a round's a day's walk each
+pub const SURVEY_MAX_HANDS: usize = 6;
+
+/// Whether the issue sits in `v`'s own house: a live problem or an
+/// unsatisfied want that stands for it (#1270)
+pub fn has_issue(world: &World, v: Entity, issue: &IssueTag, tick: u64) -> bool {
+    let stands = |r: Reveal| desires::tag_stands(issue, &desires::issue_tag(world, v, &r));
+    if desires::problems_of(world, v, tick).iter().any(|&p| stands(Reveal::Problem(p))) {
+        return true;
+    }
+    world.get_component::<desires::InnerLife>(v)
+        .map(|life| life.wants.iter()
+            .any(|&w| !desires::is_satisfied(world, v, w, tick) && stands(Reveal::Want(w))))
+        .unwrap_or(false)
+}
+
+/// Who the canvass can reach: every soul holding a real bond to a
+/// canvasser - the asking's audience is the cause's ties made legible.
+/// Members and kids don't count: you're asking the village, not
+/// yourselves (#1270)
+pub fn survey_respondents(world: &World, org: Entity, canvassers: &[Entity],
+    villagers: &[Entity]) -> Vec<Entity> {
+    let members: crate::engine::det::HashSet<Entity> = world.get_component::<Organization>(org)
+        .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
+    villagers.iter().copied().filter(|&v| {
+        if members.contains(&v) || is_dead(world, v)
+            || world.get_component::<crate::game::vocation::Kid>(v).is_some()
+            || crate::game::dungeon::unavailable(world, v) {
+            return false;
+        }
+        canvassers.iter().any(|&m| m != v
+            && crate::game::relationships::find_relationship(world, v, m)
+                .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
+                .map(|r| r.strength >= SURVEY_TIE).unwrap_or(false))
+    }).collect()
+}
+
+/// The ring a respondent answers from (#1270): 3 their own house, 2 a
+/// family's, 1 a friend's, 0 nothing to say. The tally counts the
+/// closest ring they stand in
+pub fn survey_ring(world: &World, v: Entity, issue: &IssueTag, tick: u64) -> u8 {
+    if has_issue(world, v, issue, tick) { return 3; }
+    // the family's roof: any housemate carrying it answers for them
+    if let Some(h) = crate::game::household::home_of(world, v) {
+        if let Some(b) = world.get_component::<crate::game::household::Building>(h) {
+            if b.occupants.iter().any(|&o| o != v && has_issue(world, o, issue, tick)) {
+                return 2;
+            }
+        }
+    }
+    // a friend carrying it: any tie strong enough to be told
+    let known = world.query::<crate::game::relationships::Relationship>().iter().any(|&r| {
+        let rel = world.get_component::<crate::game::relationships::Relationship>(r);
+        let Some(rel) = rel else { return false };
+        if rel.strength < SURVEY_TIE { return false; }
+        let other = if rel.from == v { rel.other } else if rel.other == v { rel.from } else { return false };
+        has_issue(world, other, issue, tick)
+    });
+    if known { 1 } else { 0 }
+}
+
 /// The motions a cause this size can carry tonight: more people means
 /// more and different doors - two fronts want hands for both at once,
 /// a post wants someone to spare, and a warm town wants staging (#1157)
@@ -981,6 +1067,8 @@ pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
     if n >= 2 { ms.push(Motion::Flyers); }
     if n >= 6 { ms.push(Motion::TwoFronts); }
     if n >= 8 { ms.push(Motion::SendOrganizer); }
+    // doors enough to canvass wants hands - four carry a real round
+    if n >= 4 { ms.push(Motion::Survey); }
     // a posted town that runs warm enough can stage the cause's day
     if let Some(o) = world.get_component::<Outreach>(campaign) {
         for &(site, _, support) in &o.posts {

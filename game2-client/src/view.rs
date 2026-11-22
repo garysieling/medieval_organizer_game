@@ -407,6 +407,13 @@ impl View {
                     let a = i as f32 * std::f32::consts::FRAC_PI_4;
                     standing.push((mx + a.cos() * 3.5, my + a.sin() * 3.5, Piece::Stand(s)));
                 }
+                // and the banners strung on their poles (#1275): runs
+                // along the square's edges, the hall pieces hung as
+                // bunting for the day
+                if let Some(b) = art.feast_banner.as_ref() {
+                    standing.push((mx - 3.5, my - 2.0, Piece::Stand(b)));
+                    standing.push((mx + 3.5, my + 2.0, Piece::Stand(b)));
+                }
             }
         }
         // an event's mark still standing where it fell: the creature
@@ -904,10 +911,15 @@ impl View {
                         labels.push(("<3".into(), dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false, false, false, 0.0, false)); // placed with the names
                     }
                 },
-                // the watch: soldiers from the humans pack at the gates
+                // the watch: soldiers from the humans pack at the gates -
+                // a posed still for his state when the sheet's there
+                // (#1279), else the pack frame standing at attention
                 Who::P(pv) if let PKind::Guard(i) = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(Some(ws)) = art.guard_walks.get(i % art.guard_walks.len().max(1)) {
+                    if let Some(s) = guard_pose::NAMES.get(pv.pose.wrapping_sub(1) as usize)
+                            .and_then(|n| art.guard_pose(n)) {
+                        draw_animal(&mut buf, s, sx, sy, zoom);
+                    } else if let Some(Some(ws)) = art.guard_walks.get(i % art.guard_walks.len().max(1)) {
                         ws.draw(&mut buf, 2, false, 0, sx, sy, zoom);
                     } else if let Some(s) = pv.person.as_deref().and_then(|t| art.person(t)) {
                         draw_animal(&mut buf, s, sx, sy, zoom);

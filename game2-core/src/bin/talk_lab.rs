@@ -390,7 +390,7 @@ fn run_meeting_mode(a: &Args, out: &mut Out) {
     out.emit(&format!("=== House meeting: {} convenes {} (seed {}) ===",
         organizer.name, attendees.iter().map(|s| s.name.as_str()).collect::<Vec<_>>().join(", "), a.seed));
     for s in &attendees { out.emit(&format!("  - {} [{}]: {}", s.name, s.ideology, backstory(s))); }
-    let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pool_refs, &MEET_RITES, &mut rng);
+    let statements = run_meeting(&organizer, &attendees, &[], &MEET_PROMPT, &pool_refs, &MEET_RITES, &mut rng);
     for (i, st) in statements.iter().enumerate() {
         let who = if st.speaker == usize::MAX { organizer.name.as_str() } else { attendees[st.speaker].name.as_str() };
         let replying = st.replying_to.map(|t| format!(" (re #{t})")).unwrap_or_default();

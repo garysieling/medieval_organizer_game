@@ -278,13 +278,35 @@ impl Game {
             dead: false, kid: avatar.map(|a| a.kid).unwrap_or(false),
             selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, pose: 0, bond: false,
             look: avatar.map(|a| a.look as u8).unwrap_or(0), person: None });
+        // the watch's stance (#1279): ready while there's danger in
+        // town - a levy on, a column out, or a disguised threat off the
+        // road (posted knights mean a crackdown; they never stand easy)
+        // - else standing, with a salute for a knight or the player
+        // passing under them
+        let on_edge = self.imperial_project.is_some()
+            || self.formation.as_ref().map(|f| matches!(f.kind, formation::FormationKind::March)).unwrap_or(false)
+            || self.false_traveller.map(|f| f.motive != events::FalseMotive::Runaway).unwrap_or(false);
+        let knights: Vec<(f32, f32)> = self.villagers.iter()
+            .filter(|&&v| world.get_component::<crate::game::vocation::Craft>(v)
+                .map(|c| c.vocation == crate::game::vocation::Vocation::Knight).unwrap_or(false))
+            .filter_map(|&v| world.get_component::<Pos>(v).map(|p| (p.x, p.y)))
+            .collect();
+        let gates = self.guards.len();
+        const SALUTE_D2: f32 = 4.5 * 4.5;
+        let salutes = |g: (f32, f32)| {
+            ((px - g.0).powi(2) + (py - g.1).powi(2) < SALUTE_D2)
+                || knights.iter().any(|&k| (k.0 - g.0).powi(2) + (k.1 - g.1).powi(2) < SALUTE_D2)
+        };
         for (i, (x, y)) in self.guards.iter().copied()
             .chain(self.posted.iter().map(|p| (p.1, p.2))).enumerate() {
             // the watch's own figures: spear, sword, shield and halberd
             // in the pack's order (art.guards)
             const GUARD_PEOPLE: [&str; 4] = ["guard-spear", "guard-sword", "guard-shield", "guard-halberd"];
+            use model::guard_pose as gp;
+            let pose = if on_edge || i >= gates { gp::READY }
+                else if salutes((x, y)) { gp::SALUTING } else { gp::STANDING };
             people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: 0, kind: PKind::Guard(i), pos: (x, y),
-                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, pose: 0, bond: false, look: 0, person: Some(GUARD_PEOPLE[i % 4].into()), find: String::new() });
+                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, pose, bond: false, look: 0, person: Some(GUARD_PEOPLE[i % 4].into()), find: String::new() });
         }
         people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, stale: 0.0, e: 0, kind: PKind::Priest, pos: self.priest,
             label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, pose: 0, bond: false, look: 0, person: None, find: String::new() });

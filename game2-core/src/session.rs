@@ -941,7 +941,7 @@ impl Rng {
 
 /// The buildable tile with water lapping it nearest `to`: where a fishing
 /// hut goes. None when there's no shore within reach.
-fn shore_site(map: &TileMap, to: (i32, i32)) -> Option<(i32, i32)> {
+pub(in crate::session) fn shore_site(map: &TileMap, to: (i32, i32)) -> Option<(i32, i32)> {
     let mut best: Option<((i32, i32), i32)> = None;
     for y in 1..map.height as i32 - 1 {
         for x in 1..map.width as i32 - 1 {
@@ -1178,6 +1178,12 @@ pub struct Game {
     /// say - the motive under the disguise, which card stage his
     /// fork's on, and whether a play's landed
     pub false_traveller: Option<crate::session::events::FalseTraveller>,
+    /// The org's survey (#1270): which campaign's asking, the issue,
+    /// the hands on the doors, the days left before the count
+    pub org_survey: Option<crate::game::campaign::OrgSurvey>,
+    /// The survey's issue card (#1270): the campaign asking and the
+    /// candidate issues in branch order, while the floor's pick waits
+    pub survey_pick: Option<(Entity, Vec<crate::game::desires::IssueTag>)>,
     /// The plea at sentencing (#1256): the sentence waits on the card -
     /// speak for mercy, or let it stand
     pub plea: Option<crate::game::sanctions::Plea>,

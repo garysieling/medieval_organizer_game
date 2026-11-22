@@ -219,6 +219,10 @@ pub struct Art {
     /// mid-routine draws the cell for what they're doing - 0 keeps the
     /// usual still or walk cycle (#1280)
     pub poses: Vec<(String, Sprite)>,
+    /// The watch's pose stills (assets/rd/guards/poses): a guard's
+    /// `PersonV.pose` picks the cell for his state - ready while
+    /// there's danger, saluting a lord or the player (#1279)
+    pub guard_poses: Vec<(String, Sprite)>,
     /// Generated UI icons (assets/rd/icons), by file name: icon-<slug>
     /// for the HUD marks, action buttons and meters, event-<slug> for
     /// the log's named events, good-<slug> for satchel goods. A missing
@@ -289,6 +293,11 @@ pub struct Art {
     /// stood round the market on feast days only (the maypole's own
     /// swap already takes the centre)
     pub feast_decor: Vec<Sprite>,
+    /// The feast banner strung on its poles (#1275): two thin posts
+    /// with the hall pieces hung on a swagged line between them,
+    /// composed once at load - the runs stand along the square's
+    /// edge on feast days
+    pub feast_banner: Option<Sprite>,
     /// The five weather paintings (assets/rd/weather): static looks
     /// registered for a title/menu surface that isn't built yet (#695)
     pub weather_art: Vec<Sprite>,
@@ -772,6 +781,58 @@ pub(crate) const FEAST_DECOR: [&str; 7] = [
     "harvest-display", "lantern-post", "yule-log",
 ];
 
+/// The hall pieces hung off the feast banner (assets/rd/decor/<name>.png):
+/// the painted panels that would dress a hall inside go up outside as
+/// bunting between two poles instead (#1275)
+pub(crate) const BANNER_ART: [&str; 5] = [
+    "painted-hall", "memento-mori", "marginalia-hybrid",
+    "sign-engraved", "wonder-eggshell",
+];
+
+/// Compose the feast banner at load (#1275): a thin post at each end,
+/// a rope sagging between them, each piece scaled to pennant size and
+/// hung just under the line. Transparent PNGs paste straight in
+pub(crate) fn compose_banner(pieces: &[Sprite]) -> Sprite {
+    const POST_W: usize = 3;
+    const LINE_Y: usize = 5;
+    const SAG: usize = 5;
+    const HANG: usize = 14;
+    const GAP: usize = 6;
+    let parts: Vec<Sprite> = pieces.iter()
+        .map(|p| { let h = HANG.min(p.height); p.scaled(p.width * h / p.height.max(1), h) })
+        .collect();
+    let inner: usize = parts.iter().map(|p| p.width).sum::<usize>()
+        + GAP * parts.len().saturating_sub(1);
+    let w = inner + POST_W * 2 + 6;
+    let h = LINE_Y + SAG + HANG + 4;
+    let mut px = vec![0u8; w * h * 4];
+    let post = [52, 34, 20, 255];
+    let rope = [86, 62, 36, 255];
+    for y in 0..h {
+        for dx in 0..POST_W {
+            px[(y * w + 1 + dx) * 4..][..4].copy_from_slice(&post);
+            px[(y * w + w - 2 - dx) * 4..][..4].copy_from_slice(&post);
+        }
+    }
+    let (x0, x1) = (POST_W + 3, w - POST_W - 3);
+    let swag = |x: usize| LINE_Y
+        + (SAG as f32 * ((x - x0) as f32 / (x1 - x0).max(1) as f32 * std::f32::consts::PI).sin()) as usize;
+    for x in x0..x1.min(w) { px[(swag(x) * w + x) * 4..][..4].copy_from_slice(&rope); }
+    let mut cx = x0;
+    for p in &parts {
+        let y = swag(cx + p.width / 2) + 1;
+        for dy in 0..p.height {
+            for dx in 0..p.width {
+                let src = (dy * p.width + dx) * 4;
+                if p.pixels[src + 3] == 0 || y + dy >= h { continue; }
+                px[((y + dy) * w + cx + dx) * 4..][..4].copy_from_slice(&p.pixels[src..src + 4]);
+            }
+        }
+        cx += p.width + GAP;
+    }
+    Sprite { width: w, height: h, pixels: px }
+}
+
 /// The weather paintings (assets/rd/weather/<name>.png)
 pub(crate) const WEATHER_ART: [&str; 5] = [
     "weather-dreich", "weather-four-seasons", "weather-haar",
@@ -802,6 +863,12 @@ impl Art {
     /// "sleeping"). None: the caller keeps the usual figure.
     pub fn pose(&self, name: &str) -> Option<&Sprite> {
         self.poses.iter().find(|(n, _)| n == name).map(|(_, s)| s)
+    }
+
+    /// The guard's pose still for a `guard_pose::NAMES` cell
+    /// ("standing", "ready"). None: the caller keeps the usual figure.
+    pub fn guard_pose(&self, name: &str) -> Option<&Sprite> {
+        self.guard_poses.iter().find(|(n, _)| n == name).map(|(_, s)| s)
     }
 
     /// The generated icon for a token ("icon-sick", "event-flood",
@@ -1148,14 +1215,24 @@ impl Art {
             priest_walk: walk("rd/villagers/priest.png"),
             guard_walks: ["spear", "sword", "shield", "halberd"].iter().map(|g| walk(&format!("rd/guards/{}.png", g))).collect(),
             // the postings' and trades' own figures (assets/rd/people):
-            // 48px stills resampled to villager height at export
+            // 48px stills resampled to villager height at export.
+            // The false traveller (#1258) has no still of his own - he
+            // wears a disguise, so the tinker's figure stands in.
             people: PEOPLE_SPRITES.iter().copied().chain(events::VISIT_SLUGS.iter().copied())
-                .filter_map(|n| at(&format!("rd/people/{}.png", n)).map(|s| (n.to_string(), s)))
+                .filter_map(|n| at(&format!("rd/people/{}.png", n))
+                    .or_else(|| if n == "false-traveller" { at("rd/people/tinker.png") } else { None })
+                    .map(|s| (n.to_string(), s)))
                 .collect(),
             // the activity poses (assets/rd/people/poses): one still per
             // cell the sheet carried, keyed by PersonV.pose (#1280)
             poses: game2_core::session::model::pose::NAMES.iter()
                 .filter_map(|n| at(&format!("rd/people/poses/{}.png", n)).map(|s| (n.to_string(), s)))
+                .collect(),
+            // the watch's pose stills (assets/rd/guards/poses): standing,
+            // ready and saluting live; marching's sliced for a patrol
+            // state that doesn't exist yet (#1279)
+            guard_poses: game2_core::session::model::guard_pose::NAMES.iter()
+                .filter_map(|n| at(&format!("rd/guards/poses/{}.png", n)).map(|s| (n.to_string(), s)))
                 .collect(),
             // the HUD's icon set (assets/rd/icons): a name that didn't
             // come back leaves its text glyph standing
@@ -1223,6 +1300,11 @@ impl Art {
             feast_cards: FEAST_CARDS.map(|n| at(&format!("rd/festivals/{}.png", n))),
             feast_decor: FEAST_DECOR.iter()
                 .filter_map(|&n| at(&format!("rd/decor/{}.png", n))).collect(),
+            feast_banner: {
+                let parts: Vec<Sprite> = BANNER_ART.iter()
+                    .filter_map(|&n| at(&format!("rd/decor/{}.png", n))).collect();
+                if parts.is_empty() { None } else { Some(compose_banner(&parts)) }
+            },
             weather_art: WEATHER_ART.iter()
                 .filter_map(|&n| at(&format!("rd/weather/{}.png", n))).collect(),
             smoke: bits("smoke"),

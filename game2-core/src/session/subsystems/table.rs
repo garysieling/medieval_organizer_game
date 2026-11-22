@@ -35,6 +35,8 @@ pub struct Table {
     /// What the household let slip, heard by the organizer once the
     /// meal's eaten through
     pub reveals: Vec<(Entity, desires::Reveal)>,
+    /// Where the organizer sat down: straying past earshot of it ends the meal
+    pub at: (f32, f32),
 }
 
 impl Game {
@@ -104,7 +106,8 @@ impl Game {
         let talk_id = self.push_talk(TalkKind::Meal, with, vec![opening]);
         self.seats[seat].tables_laid.retain(|&(_, t)| tick < t + TABLE_GAP_DAYS);
         self.seats[seat].tables_laid.push((home, tick));
-        self.seats[seat].table = Some(Table { host, home, courses, frames: 0, talk_id, reveals });
+        let at = self.world.get_component::<villager::Pos>(pe).map(|p| (p.x, p.y)).unwrap_or_default();
+        self.seats[seat].table = Some(Table { host, home, courses, frames: 0, talk_id, reveals, at });
         format!("You sit down to eat with {}.", self.name_of(host))
     }
 
@@ -180,10 +183,9 @@ impl Game {
                 continue;
             }
             let pe = self.seats[seat].player;
-            let gone = match (self.world.get_component::<villager::Pos>(pe), self.world.get_component::<villager::Pos>(t.host)) {
-                (Some(a), Some(b)) => (a.x - b.x).hypot(a.y - b.y) > crate::session::dialogue::PLAYER_TALK_RANGE,
-                _ => true,
-            };
+            let gone = self.world.get_component::<villager::Pos>(pe)
+                .map(|p| (p.x - t.at.0).hypot(p.y - t.at.1) > crate::session::dialogue::PLAYER_TALK_RANGE)
+                .unwrap_or(true);
             if gone {
                 self.seats[seat].table = Some(t);
                 self.rise_from_table(seat);

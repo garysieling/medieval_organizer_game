@@ -172,3 +172,15 @@ fn test_any_walk_off_from_the_table_forfeits_the_rest() {
     assert!(!lines.iter().any(|(t, _)| t.contains("last cup")), "the meal went on without you: {lines:?}");
     assert!(strength(&g, v) <= before, "warmth earned from across the village");
 }
+
+#[test]
+fn test_the_host_stepping_out_doesnt_end_your_meal() {
+    let mut g = Game::new();
+    let hs = householders(&g);
+    let v = known(&mut g, hs[0], 0.6);
+    sit(&mut g, hs[0]);
+    g.world.get_component_mut::<Pos>(v).unwrap().x += 12.0;
+    for _ in 0..COURSE_FRAMES * 4 { g.advance_tables(); }
+    let lines = meal_lines(&g);
+    assert!(lines.iter().any(|(t, _)| t.contains("cleared")), "the meal ended when the host stepped out: {lines:?}");
+}

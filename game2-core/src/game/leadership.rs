@@ -22,6 +22,76 @@ pub struct Reach { pub org: Entity, pub target: Entity, pub due: u64 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Rung { Helpless, Member, Leader }
 
+/// The work of a meeting somebody can watch or hold (#1345): the five
+/// promised parts of a house meeting, then the three campaign seats
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Job { Snacks, Notes, Opener, Song, Closer, Turnout, Minutes, Chair }
+
+impl Job {
+    pub const ALL: [Job; 8] = [Job::Snacks, Job::Notes, Job::Opener, Job::Song,
+        Job::Closer, Job::Turnout, Job::Minutes, Job::Chair];
+    pub fn ix(self) -> usize { self as usize }
+    /// The job's name as the card reads it
+    pub fn name(self) -> &'static str {
+        ["the table", "the word", "the opener", "the song", "the send-off",
+            "the turnout", "the minutes", "the chair"][self.ix()]
+    }
+}
+
+/// The meeting jobs a member has watched (seen) and held (done) (#1345):
+/// the row of yellows turning green on their card - done implies seen
+#[derive(Debug, Default)]
+pub struct JobMarks {
+    pub seen: [u16; 8],
+    pub done: [u16; 8],
+}
+
+/// `who` was in the room while `job` was worked
+pub fn mark_observed(world: &mut World, who: Entity, job: Job) {
+    if world.get_component::<JobMarks>(who).is_none() {
+        world.add_component(who, JobMarks::default());
+    }
+    if let Some(m) = world.get_component_mut::<JobMarks>(who) {
+        m.seen[job.ix()] = m.seen[job.ix()].saturating_add(1);
+    }
+}
+
+/// `who` held `job` themselves - holding it implies having seen it
+pub fn mark_performed(world: &mut World, who: Entity, job: Job) {
+    mark_observed(world, who, job);
+    if let Some(m) = world.get_component_mut::<JobMarks>(who) {
+        m.done[job.ix()] = m.done[job.ix()].saturating_add(1);
+    }
+}
+
+/// How much of a leader the marks make them (#1345): a job held weighs
+/// double a job only watched. The points explain the ladder, they don't
+/// climb it - `Rung` still needs somebody brought in
+pub fn job_score(world: &World, who: Entity) -> f32 {
+    world.get_component::<JobMarks>(who)
+        .map(|m| m.seen.iter().zip(&m.done)
+            .map(|(&s, &d)| (s + 2 * d) as f32).sum())
+        .unwrap_or(0.0)
+}
+
+/// How much the marks steady a leader's own sit-down ask (#1345),
+/// per point of job score up to this cap
+pub const MARK_REACH_BONUS: f32 = 0.02;
+pub const MARK_BONUS_CAP: f32 = 0.2;
+/// What the marks add to the tie a reach already rests on
+pub fn reach_bonus(world: &World, leader: Entity) -> f32 {
+    (job_score(world, leader) * MARK_REACH_BONUS).min(MARK_BONUS_CAP)
+}
+
+/// The score at which a member starts holding their own one-on-ones
+/// without being sent (#1345)
+pub const SELF_START_SCORE: f32 = 8.0;
+/// Days a self-starter rests between their own reaches
+pub const SELF_START_GAP: u64 = 20;
+/// When a self-starter may take their next own reach (#1345)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OwnReach { pub next: u64 }
+
 pub fn tie(world: &World, from: Entity, to: Entity) -> f32 {
     crate::game::relationships::find_relationship(world, from, to)
         .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
@@ -102,7 +172,9 @@ pub fn run_reach(world: &mut World, leader: Entity, day: u64) -> Option<(Entity,
     // dead, jailed or held at the castle: the sit-down never happens
     if crate::game::dungeon::unavailable(world, leader) || crate::game::dungeon::unavailable(world, r.target) { return None; }
     crate::game::organizing::one_on_one(world, leader, r.target, day);
-    let t = tie(world, leader, r.target);
+    // the marks steady the ask: a leader who's held the work convinces
+    // a little surer than one who's only been sent (#1345)
+    let t = tie(world, leader, r.target) + reach_bonus(world, leader);
     // a first developer, in any org, keeps the credit
     let credited = world.get_component::<Developed>(r.target).is_some();
     if crate::sim::community::recruit(world, r.org, r.target, t) {

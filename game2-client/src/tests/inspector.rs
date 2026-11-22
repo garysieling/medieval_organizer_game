@@ -92,6 +92,34 @@ fn inspector_page_frame() {
         from: game.player, other: game.villagers[3],
         kind: game2_core::game::relationships::RelKind::Friend,
         strength: 0.95, interactions: 5 });
+    use game2_core::game::leadership::{mark_observed, mark_performed, Job};
+    mark_observed(&mut game.world, game.villagers[3], Job::Song);
+    mark_observed(&mut game.world, game.villagers[3], Job::Snacks);
+    mark_performed(&mut game.world, game.villagers[3], Job::Chair);
     let view = View::new(Art::load_fs("../assets", 0));
     view.render(&game.ui_model(), (-1, -1)).save_bmp(&path).unwrap();
+}
+
+/// A member's card carries the meeting-job marks (#1345): the job they
+/// watched in yellow, the one they held in green
+#[test]
+fn test_the_card_marks_seen_yellow_and_held_green() {
+    use game2_core::game::leadership::{mark_observed, mark_performed, Job};
+    let mut game = Game::new_seeded(MAP_SEED);
+    let v = game.villagers[3];
+    mark_observed(&mut game.world, v, Job::Song);
+    mark_performed(&mut game.world, v, Job::Chair);
+    game.selected_target = 3;
+    let view = View::new(Art::load_fs("../assets", 0));
+    let buf = view.render(&game.ui_model(), (-1, -1));
+    let count = |rgb: (u8, u8, u8)| -> usize {
+        let mut n = 0;
+        for y in 300..940usize { for x in 80..370usize {
+            let i = (y * W + x) * 4;
+            if (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == rgb { n += 1; }
+        }}
+        n
+    };
+    assert!(count((215, 190, 90)) > 20, "a watched job should yellow the card");
+    assert!(count((110, 185, 90)) > 20, "a held job should green the card");
 }

@@ -124,6 +124,15 @@ pub fn role_skill(role: Role) -> OrgSkill {
     }
 }
 
+/// The meeting job a seat counts as, for the marks ledger (#1345)
+pub fn role_job(role: Role) -> crate::game::leadership::Job {
+    match role {
+        Role::TurnoutCoordinator => crate::game::leadership::Job::Turnout,
+        Role::NoteTaker => crate::game::leadership::Job::Minutes,
+        Role::Chair => crate::game::leadership::Job::Chair,
+    }
+}
+
 /// A little practice for turning up
 pub const MEETING_PRACTICE: f32 = 0.02;
 /// More for carrying a seat through the meeting
@@ -140,6 +149,18 @@ pub fn learn_from_meeting(world: &mut World, campaign: Entity, attendees: &[Enti
         for s in &seats {
             if s.holder == a {
                 practice(world, a, role_skill(s.role), SEAT_PRACTICE);
+            }
+        }
+    }
+    // and the held seats leave their marks: green on the holder, yellow
+    // on everyone who watched the work (#1345)
+    for s in &seats {
+        if attendees.contains(&s.holder) {
+            crate::game::leadership::mark_performed(world, s.holder, role_job(s.role));
+            for &a in attendees {
+                if a != s.holder {
+                    crate::game::leadership::mark_observed(world, a, role_job(s.role));
+                }
             }
         }
     }

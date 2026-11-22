@@ -1235,6 +1235,18 @@ impl Game {
             let n = brought(world, oe, v);
             let tail = if r == Rung::Leader { format!(" (brought in {})", n) } else { String::new() };
             card_prop(&mut lines, &mut y, "Ladder", &format!("{}{}", ladder_line(r), tail), (190, 200, 170));
+            // and the meeting jobs behind it (#1345): a watched job
+            // yellow, a held one green
+            if let Some(m) = world.get_component::<crate::game::leadership::JobMarks>(v) {
+                use crate::game::leadership::Job;
+                let seen: Vec<&str> = Job::ALL.iter()
+                    .filter(|j| m.seen[j.ix()] > 0 && m.done[j.ix()] == 0)
+                    .map(|j| j.name()).collect();
+                let done: Vec<&str> = Job::ALL.iter()
+                    .filter(|j| m.done[j.ix()] > 0).map(|j| j.name()).collect();
+                card_prop(&mut lines, &mut y, "Seen", &seen.join(", "), (215, 190, 90));
+                card_prop(&mut lines, &mut y, "Held", &done.join(", "), (110, 185, 90));
+            }
         }
         let faith = world.get_component::<crate::sim::religion::Faith>(v)
             .map(|f| if f.devotion > 0.6 { "devout" }

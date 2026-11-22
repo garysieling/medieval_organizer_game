@@ -129,7 +129,10 @@ impl Game {
         if bread.len() == 1 { bread.push((Some(host), "Nothing new under this roof, God be thanked.".into(), false)); }
         // the pottage: who they're feared for, in the house or the family
         let mut pottage: Vec<Served> = vec![(None, "The pottage comes out.".into(), false)];
-        let mut kin: Vec<Entity> = house.to_vec();
+        // the whole roof, the ones held at the keep too
+        let mut kin: Vec<Entity> = household::home_of(&self.world, host).and_then(|h| self.world.get_component::<Building>(h))
+            .map(|b| b.occupants.iter().copied().filter(|&o| !villager::is_dead(&self.world, o)).collect())
+            .unwrap_or_else(|| house.to_vec());
         for e in self.world.query::<Relationship>() {
             let Some(r) = self.world.get_component::<Relationship>(e) else { continue };
             if r.kind != RelKind::Family { continue; }

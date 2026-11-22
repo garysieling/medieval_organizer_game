@@ -58,3 +58,4 @@ pub mod scenes;
 pub mod mysteries;
 pub mod prophetic;
 pub mod pass;
+pub mod amends;

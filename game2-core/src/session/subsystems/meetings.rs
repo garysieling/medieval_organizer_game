@@ -224,7 +224,7 @@ impl Game {
     /// records under the room alone. None when the meeting isn't due or
     /// nobody living can pull it - an empty chair holds no meeting.
     pub(in crate::session) fn hold_and_note_campaign_meeting(&mut self, player: Option<Entity>,
-                      c: Entity, tick: u64) -> Option<String> {
+                      c: Entity, tick: u64) -> Option<(String, Vec<Entity>)> {
         let out = crate::game::campaign::hold_campaign_meeting(&mut self.world, c, tick)?;
         let who: Vec<String> = out.attendees.iter()
             .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
@@ -252,7 +252,7 @@ impl Game {
             with.extend(out.attendees.iter().copied());
             self.record_campaign_talk(with, &d);
         }
-        Some(msg)
+        Some((msg, out.attendees))
     }
 
     /// The day's campaign meetings: a cause that comes due on its
@@ -270,7 +270,7 @@ impl Game {
             // the vote with a meeting of its own (#1157)
             if seat.map(|s| s.pending_agenda.is_some()).unwrap_or(false) { continue; }
             let player = seat.map(|s| s.player);
-            if let Some(msg) = self.hold_and_note_campaign_meeting(player, c, tick) {
+            if let Some((msg, _)) = self.hold_and_note_campaign_meeting(player, c, tick) {
                 self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
                     format!("t{}: {}", tick, msg));
             }

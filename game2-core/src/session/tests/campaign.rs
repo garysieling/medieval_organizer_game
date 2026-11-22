@@ -619,3 +619,140 @@ fn test_the_count_comes_back_fuzzed_and_the_asking_feeds_the_eyes() {
     assert!(g.log.iter().any(|l| l.contains("three days' asking")),
         "the going-out was noted");
 }
+
+/// The motion the floor's handed is the line the room hears (#1310):
+/// the march witnesses the firebrand on every member standing there
+#[test]
+fn test_the_picked_motion_witnesses_its_line_on_the_room() {
+    use crate::game::campaign::Motion;
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    use crate::game::rhetoric::{self, Line};
+    let mut g = Game::new();
+    let grown: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .take(4).collect();
+    for &v in &grown {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown.clone();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 0;
+    // ties to the driver pull them into the room; the fourth stays home
+    let pe = g.player;
+    for &m in &grown[..3] {
+        for _ in 0..2 {
+            record_interaction(&mut g.world, m,
+                Interaction { other: pe, kind: InteractionKind::Aid, intensity: 1.0 });
+        }
+    }
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
+    let pick = slate.iter().position(|&m| m == Motion::March).expect("four hands march");
+    g.decide_at(0, pick);
+    // the sworn lean in on the line they heard - the stay-home heard nothing
+    for &m in &grown[..3] {
+        let w = rhetoric::hardened(&g.world, m, g.org);
+        let mem = g.world.get_component::<rhetoric::RhetoricMemory>(m).unwrap();
+        let got = mem.by_org[&g.org].weight[Line::Firebrand as usize];
+        assert!(got >= 1.0 || w.is_empty(), "{m:?} heard the march: {got}");
+        assert!(got >= 1.0, "attendee {m:?} read the firebrand line");
+    }
+    assert_eq!(
+        g.world.get_component::<rhetoric::RhetoricMemory>(grown[3])
+            .map(|mm| mm.by_org[&g.org].weight[Line::Firebrand as usize]).unwrap_or(0.0),
+        0.0, "the stay-home heard nothing");
+}
+
+/// A member set fully against the line walks when it's taken again
+/// under their nose (#1310): the march costs the patient one, seat
+/// and all
+#[test]
+fn test_a_member_set_against_the_motion_storms_out() {
+    use crate::game::campaign::{delegate_role, Motion, Role};
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    use crate::game::rhetoric::{OrgRead, RhetoricMemory};
+    let mut g = Game::new();
+    let grown: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .take(4).collect();
+    for &v in &grown {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown.clone();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 0;
+    let pe = g.player;
+    for &m in &grown {
+        for _ in 0..2 {
+            record_interaction(&mut g.world, m,
+                Interaction { other: pe, kind: InteractionKind::Aid, intensity: 1.0 });
+        }
+    }
+    // the note taker leans patient to the edge: one more street pick
+    // sets them fully against it
+    let waver = grown[0];
+    delegate_role(&mut g.world, c, Role::NoteTaker, waver);
+    let mut mem = RhetoricMemory::default();
+    mem.by_org.insert(g.org, OrgRead { weight: [2.5, 0.0, 0.0, 0.0], ..Default::default() });
+    g.world.add_component(waver, mem);
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|&m| m == Motion::March).unwrap();
+    g.decide_at(0, pick);
+    assert!(!g.world.get_component::<Organization>(g.org).unwrap().members.contains(&waver),
+        "the street pick walked the patient one out");
+    assert!(g.log.iter().any(|l| l.contains("storms out")), "the walk-out's in the log");
+    assert!(g.world.get_component::<crate::game::campaign::Campaign>(c).unwrap()
+        .seats.iter().all(|s| s.holder != waver), "their seat passed with them");
+    assert_eq!(crate::game::campaign::seat_holder(&g.world, c, Role::NoteTaker), None);
+}
+
+/// The room's settled word is heard as the cause's line (#1310): the
+/// debrief's tally witnesses its direction on every member standing there
+#[test]
+fn test_the_debriefs_settled_word_is_heard_as_the_line() {
+    use crate::game::rhetoric::{self, Line};
+    let mut g = Game::new();
+    let grown: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .take(4).collect();
+    for &v in &grown {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown.clone();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .map(|m| m.held = 2);
+    // stand them all in earshot so the whole room witnesses
+    let pp = g.world.get_component::<Pos>(g.player).copied().unwrap();
+    for &m in &grown {
+        if let Some(mp) = g.world.get_component_mut::<Pos>(m) { mp.x = pp.x + 1.0; mp.y = pp.y; }
+    }
+    g.seats[0].ctx_actions.push(CtxAct::Debrief);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let d = g.world.get_component::<crate::game::campaign::Campaign>(c)
+        .and_then(|cc| cc.directive.clone()).expect("the room settled nothing");
+    let line = match d.as_str() {
+        "the petition" => Line::Patient,
+        "the march" | "the strike" | "a town hall" => Line::Firebrand,
+        other => panic!("an unlined directive: {other}"),
+    };
+    for &m in &grown {
+        let got = g.world.get_component::<rhetoric::RhetoricMemory>(m)
+            .map(|mm| mm.by_org[&g.org].weight[line as usize]).unwrap_or(0.0);
+        assert!(got >= 1.0, "{m:?} never heard the settled word: {got}");
+    }
+}

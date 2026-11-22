@@ -10,6 +10,9 @@ use crate::game::organizing::TESTIMONY_COOLDOWN_DAYS;
 const TESTIMONY_CHOICES: usize = 3;
 /// The mean tie to the organizer a room needs for testimony to land full
 const TESTIMONY_WARM_TIE: f32 = 0.3;
+/// A told testimony opens the room: each attendee's share roll carries
+/// this much more (#1333)
+const TESTIMONY_OPEN: f32 = 0.10;
 
 impl Game {
     /// The end of a house meeting, once those who came have talked it over.
@@ -520,6 +523,9 @@ impl Game {
                 // that came off warms the room to share a little more
                 if roles.2 { chance += 0.05; }
                 if roles.3 { chance += 0.05; }
+                // and a told testimony opens the room (#1333): the story
+                // they just carried home makes the next voice likelier
+                if testimony.is_some() { chance += TESTIMONY_OPEN; }
                 // the fold's smell hangs on a shepherd: a touch slower to share
                 if desires::problems_of(&self.world, v, self.tick).contains(&desires::Problem::Smelly) { chance *= 0.9; }
                 let roll = (self.rng.next() % 1000) as f32 / 1000.0;
@@ -655,7 +661,9 @@ impl Game {
         let warm = warmth >= TESTIMONY_WARM_TIE;
         for &v in &room {
             for _ in 0..if warm { 2 } else { 1 } {
-                record_episode(&mut self.world, v, Episode { with: host, kind: EpisodeKind::Warmth });
+                // the telling rides the journal as its own kind: warmth,
+                // but a hearer is marked by it for good (#1333)
+                record_episode(&mut self.world, v, Episode { with: host, kind: EpisodeKind::Testimony });
             }
         }
         self.seats[seat].last_testimony = Some(self.tick);
@@ -701,10 +709,22 @@ impl Game {
                 return Some(said);
             }
         }
-        let wants: Vec<desires::Want> = desires::unrevealed(&self.world, v, self.tick).into_iter()
-            .filter_map(|r| match r { desires::Reveal::Want(w) => Some(w), _ => None }).collect();
-        if wants.is_empty() { return None; }
-        let r = desires::Reveal::Want(wants[(self.rng.next() % wants.len() as u64) as usize]);
+        // one who's heard the organizer's testimony answers deeper:
+        // the whole of what's pressing, not a want and no more (#1333)
+        let heard = crate::sim::psychology::heard_testimony(&self.world, v, asker);
+        let pool: Vec<desires::Reveal> = if heard {
+            desires::unrevealed(&self.world, v, self.tick)
+        } else {
+            desires::unrevealed(&self.world, v, self.tick).into_iter()
+                .filter(|r| matches!(r, desires::Reveal::Want(_))).collect()
+        };
+        if pool.is_empty() { return None; }
+        let at = (self.rng.next() % pool.len() as u64) as usize;
+        // a hearer's deeper answer goes to what presses first
+        let r = if heard {
+            pool.iter().find(|r| matches!(r, desires::Reveal::Problem(_)))
+                .copied().unwrap_or(pool[at])
+        } else { pool[at] };
         let (_, said) = desires::reveal_speech(&name, &r);
         self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
         if let Some(issue) = desires::hear(&mut self.world, asker, v, r, self.tick) {

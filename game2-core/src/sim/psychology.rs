@@ -41,6 +41,9 @@ pub enum EpisodeKind {
     Rejection, // bid for comfort rebuffed
     Loss,      // attachment figure absent/removed
     Remembrance, // the dead brought to mind - a cairn does it, a keepsake
+    /// A testimony heard and carried home (#1333): warmth like any
+    /// other, but the journal keeps where it came from
+    Testimony,
 }
 
 /// A story two folk carry between them: they were both there, and the
@@ -118,7 +121,7 @@ pub fn infer_style(hist: &AttachmentHistory) -> AttachmentStyle {
 /// agent's bond with whoever the episode was with.
 pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
     let bond_update = match episode.kind {
-        EpisodeKind::Warmth => 0.15,
+        EpisodeKind::Warmth | EpisodeKind::Testimony => 0.15,
         EpisodeKind::Anxiety => -0.1,
         EpisodeKind::Rejection => -0.2,
         EpisodeKind::Loss => -0.3,
@@ -137,7 +140,7 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
     let is_loss = matches!(episode.kind, EpisodeKind::Loss);
     if let Some(hist) = world.get_component_mut::<AttachmentHistory>(agent) {
         match episode.kind {
-            EpisodeKind::Warmth => hist.warmth_episodes += 1,
+            EpisodeKind::Warmth | EpisodeKind::Testimony => hist.warmth_episodes += 1,
             _ => hist.anxiety_episodes += 1,
         }
         hist.episodes.push(episode);
@@ -159,7 +162,8 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
                 // bond was growing, or a switched bond lands wrong
                 let weight = |k: &EpisodeKind| {
                     let w = match k {
-                        EpisodeKind::Warmth => 0.15, EpisodeKind::Anxiety => -0.1,
+                        EpisodeKind::Warmth | EpisodeKind::Testimony => 0.15,
+                        EpisodeKind::Anxiety => -0.1,
                         EpisodeKind::Rejection => -0.2, EpisodeKind::Loss => -0.3,
                         EpisodeKind::Remembrance => -0.2 };
                     match style {
@@ -185,6 +189,15 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
             world.add_component(agent, Bond { target, security: (0.5 + bond_update).clamp(0.0, 1.0) });
         }
     }
+}
+
+/// Whether `hearer` ever took a testimony from `speaker` home with
+/// them: the episode journal keeps the telling (#1333)
+pub fn heard_testimony(world: &World, hearer: Entity, speaker: Entity) -> bool {
+    world.get_component::<AttachmentHistory>(hearer)
+        .map(|h| h.episodes.iter()
+            .any(|e| e.with == speaker && e.kind == EpisodeKind::Testimony))
+        .unwrap_or(false)
 }
 
 /// Marks someone whose death has already been grieved

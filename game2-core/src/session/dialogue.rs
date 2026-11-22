@@ -971,7 +971,12 @@ impl Game {
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
-            asks_taken: vec![], asked_seen: 0, mood: TalkMood::Cool, vibe: None,
+            asks_taken: vec![], asked_seen: 0,
+            // a villager who once heard this seat's testimony opens a
+            // rung warmer - they heard the story, they know the teller (#1333)
+            mood: if crate::sim::psychology::heard_testimony(&self.world, v, pe) {
+                TalkMood::Warmed } else { TalkMood::Cool },
+            vibe: None,
             tired, argue: None, argued: vec![], inoculating: false, tell,
             // a talk opened on a slight carries the repair move (#1251)
             amends: self.talk_mood_of(v) == Some(TalkMood::Slighted),

@@ -178,6 +178,16 @@ impl Game {
                 self.note_talk(t.talk_id, None, "The meal breaks up.");
                 continue;
             }
+            let pe = self.seats[seat].player;
+            let gone = match (self.world.get_component::<villager::Pos>(pe), self.world.get_component::<villager::Pos>(t.host)) {
+                (Some(a), Some(b)) => (a.x - b.x).hypot(a.y - b.y) > crate::session::dialogue::PLAYER_TALK_RANGE,
+                _ => true,
+            };
+            if gone {
+                self.seats[seat].table = Some(t);
+                self.rise_from_table(seat);
+                continue;
+            }
             t.frames += 1;
             if t.frames % COURSE_FRAMES == 1 {
                 if t.courses.is_empty() {

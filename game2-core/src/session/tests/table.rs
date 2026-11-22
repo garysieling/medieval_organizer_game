@@ -156,3 +156,19 @@ fn test_a_household_waits_out_its_gap_but_another_may_ask() {
     assert!(later.contains(&v), "the gap never ran out");
     assert!(hosts.contains(&w) || later.contains(&w), "another household never asked");
 }
+
+#[test]
+fn test_any_walk_off_from_the_table_forfeits_the_rest() {
+    let mut g = Game::new();
+    let hs = householders(&g);
+    let v = known(&mut g, hs[0], 0.6);
+    let before = strength(&g, v);
+    sit(&mut g, hs[0]);
+    for _ in 0..2 { g.advance_tables(); }
+    let pe = g.player;
+    g.world.get_component_mut::<Pos>(pe).unwrap().x += 12.0;
+    for _ in 0..COURSE_FRAMES * 4 { g.advance_tables(); }
+    let lines = meal_lines(&g);
+    assert!(!lines.iter().any(|(t, _)| t.contains("last cup")), "the meal went on without you: {lines:?}");
+    assert!(strength(&g, v) <= before, "warmth earned from across the village");
+}

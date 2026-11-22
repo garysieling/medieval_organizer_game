@@ -1011,12 +1011,83 @@ pub struct AskOffer {
 }
 
 /// How the offer reads on the talk's choice list - the coin's price is
-/// in the label ("for 15g"), the nerve's the push it is
-pub fn ask_label(o: &AskOffer) -> String {
-    match o.key {
+/// in the label ("for 15g"), the nerve's the push it is. An ask that
+/// suits something they've let out names the trouble back at them
+/// (#1247) - they remember what they said, not what you pitched.
+pub fn ask_label(world: &World, person: Entity, o: &AskOffer) -> String {
+    let label = match o.key {
         AskKey::Earned => prop_label(o.kind).to_string(),
         AskKey::Coin => format!("{} - for {}g", prop_label(o.kind), o.price as u32),
         AskKey::Nerve => format!("{} - press them on it", prop_label(o.kind)),
+    };
+    match suited_trouble(world, person, o.kind) {
+        Some(t) => format!("{} - \"{}, you said\"", label, t),
+        None => label,
+    }
+}
+
+/// The trouble a suited ask quotes back (#1247): the first piece of
+/// their self-interest you've heard that this ask speaks to. It's the
+/// same check `yes_chance` reads for its +0.2, so the quote and the
+/// bonus land together or not at all
+fn suited_trouble(world: &World, person: Entity, p: PropKind) -> Option<String> {
+    world.get_component::<crate::game::desires::Known>(person)?
+        .revealed.iter().find(|r| ask_suits(p, r)).map(their_trouble)
+}
+
+/// Their trouble named the way an ask can quote it (#1247): one phrase
+/// per reveal kind - the issue itself ('the tolls', 'your mourning',
+/// 'the wolves'), not a replay of the line they told it in
+fn their_trouble(r: &crate::game::desires::Reveal) -> String {
+    use crate::game::desires::{Problem, Reveal, Want};
+    match r {
+        Reveal::Want(w) => match w {
+            Want::GoodFood => "bread on the table",
+            Want::Finery => "the fine cloth",
+            Want::Faith => "your faith",
+            Want::Shelter => "a roof of your own",
+            Want::Security => "feeling safe",
+            Want::Mastery => "rising in the trade",
+            Want::Music => "the music",
+            Want::Instrument => "the lute you're after",
+            Want::BetterTools => "the better tools",
+            Want::DifferentTrade => "the trade that's gone stale",
+            Want::Love => "the company you're missing",
+            Want::Joy => "the play",
+            Want::Drink => "the cup at the alehouse",
+        }.to_string(),
+        Reveal::Problem(p) => match p {
+            Problem::NoHome => "the missing roof".into(),
+            Problem::NoWorkplace => "the empty bench".into(),
+            Problem::NoMaster => "no master to learn from".into(),
+            Problem::NoInput(g) => format!("the short {}", g),
+            Problem::DerelictNearby => "the empty shop".into(),
+            Problem::OverseerCut => "the overseer's cut".into(),
+            Problem::Taxed => "the tolls".into(),
+            Problem::Broke => "the thin purse".into(),
+            Problem::Smelly => "the smell of the work".into(),
+            Problem::Loss => "the wolves".into(),
+            Problem::Blamed => "the blame they laid on you".into(),
+            Problem::SourGut => "the sour gut".into(),
+            Problem::ChildLabor => "the child's hands in the rows".into(),
+            Problem::Rowdy => "the strangers' fists".into(),
+            Problem::DeathDuty => "the lord's fifth".into(),
+            Problem::Bereaved => "your mourning".into(),
+            Problem::ThinWood => "the thin wood".into(),
+            Problem::DryPit => "the drowned pit".into(),
+            Problem::StinkingReach => "the stinking reach".into(),
+            Problem::ShortChanged => "the short count".into(),
+            Problem::Tempted => "the road's call".into(),
+            Problem::WritBorne => "the writ".into(),
+            Problem::LongWinter => "the long winter".into(),
+            Problem::ColdHearth => "the cold hearth".into(),
+            Problem::TheDark => "the dark".into(),
+            Problem::Grief => "what you saw".into(),
+            Problem::Robbed => "the night they were robbed".into(),
+            Problem::Hungry => "the empty pot".into(),
+            Problem::Sick => "the sickness".into(),
+            Problem::Doctrine => "the plainer word".into(),
+        },
     }
 }
 

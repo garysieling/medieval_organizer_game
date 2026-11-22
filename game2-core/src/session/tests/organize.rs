@@ -784,7 +784,7 @@ fn test_coin_buys_an_ask_the_bond_cant_reach() {
     let offers = ask_offers(&g.world, g.org, v, 0);
     assert!(offers.iter().all(|o| o.key == AskKey::Coin), "{:?}", offers);
     let o = offers.iter().find(|o| o.kind == PropKind::ComeAlong).expect("come is priced");
-    assert!(ask_label(o).contains("for "), "{}", ask_label(o));
+    assert!(ask_label(&g.world, v, o).contains("for "), "{}", ask_label(&g.world, v, o));
     let (oe, tick) = (g.org, g.tick);
     let (msg, _) = propose_keyed(&mut g.world, pe, oe, v, o.kind, "Bram", 0.0, tick, o.key, o.price);
     assert!(msg.contains("coin"), "{}", msg);
@@ -1118,4 +1118,29 @@ fn test_testimony_to_a_cold_room_lands_weaker_but_never_hurts() {
     g.meeting_lines(&[a], 0, (false, false, false, false, false), false, Some(&ev));
     assert_eq!(episodes(&g, a), before + 1);
     assert!(g.log.last().unwrap().contains("cold room"));
+}
+
+/// The ask in their own words (#1247): when an ask suits a trouble
+/// they've let out, its label quotes it back - and the same ask stays
+/// plain on someone who's told you nothing that fits
+#[test]
+fn test_the_ask_quotes_their_trouble_back() {
+    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::organizing::{ask_label, AskKey, AskOffer, PropKind};
+    let mut g = Game::new();
+    let (v_taxed, v_plain) = (g.villagers[1], g.villagers[2]);
+    g.world.add_component(v_taxed, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let come = AskOffer { kind: PropKind::ComeAlong, key: AskKey::Earned, price: 0.0 };
+    assert!(ask_label(&g.world, v_taxed, &come).contains("the tolls"),
+        "{}", ask_label(&g.world, v_taxed, &come));
+    assert_eq!(ask_label(&g.world, v_plain, &come), "Ask them to come to a meeting");
+    // a non-suiting ask stays plain on the same villager
+    let song = AskOffer { kind: PropKind::GiveSong, key: AskKey::Earned, price: 0.0 };
+    assert_eq!(ask_label(&g.world, v_taxed, &song), "Ask them for a song");
+    // and the quote answers the ask that suits it, not just any problem
+    g.world.get_component_mut::<Known>(v_taxed).unwrap()
+        .revealed.push(Reveal::Want(Want::Love));
+    let friends = AskOffer { kind: PropKind::InviteFriends, key: AskKey::Earned, price: 0.0 };
+    assert!(ask_label(&g.world, v_taxed, &friends).contains("company"),
+        "{}", ask_label(&g.world, v_taxed, &friends));
 }

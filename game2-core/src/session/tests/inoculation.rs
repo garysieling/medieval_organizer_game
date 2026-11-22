@@ -27,7 +27,7 @@ fn talk_beside(g: &mut Game, i: usize) {
 }
 
 fn labels(g: &Game) -> Vec<String> {
-    g.seats[0].talk.as_ref().map(|t| t.choice_labels()).unwrap_or_default()
+    g.seats[0].talk.as_ref().map(|t| t.choice_labels(&g.world)).unwrap_or_default()
 }
 
 fn pick(g: &mut Game, label: &str) {
@@ -108,7 +108,7 @@ fn test_the_naming_is_never_crowded_off_the_talk() {
     if let Some(p) = g.world.get_component_mut::<crate::game::livelihood::Purse>(pe) { p.gold = 1000.0; }
     talk_beside(&mut g, i);
     let t = g.seats[0].talk.as_ref().unwrap();
-    assert!(t.options.len() + t.asks.len() > crate::session::dialogue::TALK_MAX_CHOICES, "crowded: {:?}", t.choice_labels());
+    assert!(t.options.len() + t.asks.len() > crate::session::dialogue::TALK_MAX_CHOICES, "crowded: {:?}", t.choice_labels(&g.world));
     pick(&mut g, "Ask how they think the lord will answer");
     assert!(g.seats[0].talk.as_ref().unwrap().inoculating, "the naming opens all the same");
 }

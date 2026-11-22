@@ -56,7 +56,7 @@ fn talk_beside(g: &mut Game, i: usize) {
 /// Pick a shown choice by its label
 fn pick(g: &mut Game, label: &str) {
     let t = g.seats[0].talk.as_ref().expect("still talking");
-    let labels = t.choice_labels();
+    let labels = t.choice_labels(&g.world);
     let i = labels.iter().position(|l| l.starts_with(label))
         .unwrap_or_else(|| panic!("{label:?} among {labels:?}"));
     g.talk_pick_at(0, Some(i));
@@ -187,7 +187,7 @@ fn test_an_argument_plays_out_in_the_talk() {
     pick(&mut g, "Hear them out");
     let t = g.seats[0].talk.as_ref().unwrap().clone();
     assert!(t.argue.is_none(), "resolved");
-    assert!(t.choice_labels().iter().all(|l| !l.starts_with("Argue a point")), "spent for this talk");
+    assert!(t.choice_labels(&g.world).iter().all(|l| !l.starts_with("Argue a point")), "spent for this talk");
     let lines = record_texts(&g);
     assert!(lines.iter().any(|l| l.contains("think on it") || l.contains("Neither of you") || l.contains("other way")),
         "the outcome is narrated: {lines:?}");

@@ -228,15 +228,17 @@ impl PlayerTalk {
 
     /// The choice list as shown: an argument's own steps while one's
     /// under way, else the replies then the asks that fit
-    pub fn choice_labels(&self) -> Vec<String> {
+    pub fn choice_labels(&self, world: &World) -> Vec<String> {
         if let Some(a) = &self.argue { return a.labels(); }
         if self.inoculating {
             return crate::game::inoculation::COUNTERS.iter().map(|&c| crate::game::inoculation::label(c).to_string())
                 .chain(std::iter::once("Let it drop".to_string())).collect();
         }
         self.options.iter().map(|o| o.1.clone())
-            .chain(self.asks.iter().take(self.asks_shown()).map(crate::game::organizing::ask_label))
-            .chain(self.inoculation_beyond().as_ref().map(crate::game::organizing::ask_label))
+            .chain(self.asks.iter().take(self.asks_shown())
+                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
+            .chain(self.inoculation_beyond().as_ref()
+                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
             .chain(self.tell.clone()).collect()
     }
 }
@@ -1474,7 +1476,7 @@ impl Game {
         }
         let in_talk = matches!(&s.talk, Some(t) if shown.contains(&t.id));
         let options = match &s.talk {
-            Some(t) if in_talk => t.choice_labels(),
+            Some(t) if in_talk => t.choice_labels(&self.world),
             _ => vec![],
         };
         let empty = if picked.is_some() { "Nothing heard from them yet." } else { "Talk to someone (T) and it shows here." };
@@ -1691,7 +1693,7 @@ impl Game {
             return Some(ConvoPanelV {
                 title: format!("TALK - {}", t.villager.name.to_uppercase()),
                 rows: self.record_rows(seat, t.id),
-                options: t.choice_labels(),
+                options: t.choice_labels(&self.world),
                 decides: false, leave: true });
         }
         // the traveller's ask (#1085): last on the box - a live talk, a

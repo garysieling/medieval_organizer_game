@@ -98,7 +98,7 @@ impl Game {
     }
 
     /// Somebody to send a note to: another villager of the village
-    fn note_target(&self, giver: Entity, rng: &mut Rng) -> Option<Entity> {
+    pub(in crate::session) fn note_target(&self, giver: Entity, rng: &mut Rng) -> Option<Entity> {
         let folk: Vec<Entity> = self.villagers.iter().copied()
             .filter(|&v| v != giver && self.quest_eligible(v)).collect();
         if folk.is_empty() { return None; }
@@ -418,7 +418,7 @@ impl Game {
     /// A job done for someone opens them up: the deed's recorded on the
     /// bond (which alone reads as knowing them), and they tell you a
     /// thing about why they asked. Returns whether they read as known.
-    fn quest_bond(&mut self, seat: usize, giver: Entity) -> bool {
+    pub(in crate::session) fn quest_bond(&mut self, seat: usize, giver: Entity) -> bool {
         crate::timed!("sim.quest_bond", self.quest_bond_inner(seat, giver))
     }
 

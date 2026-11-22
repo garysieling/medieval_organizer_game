@@ -5,7 +5,7 @@
 //! they remember it.
 
 use crate::engine::ecs::Entity;
-use crate::game::mysteries::{FACTS, MYSTERIES};
+use crate::game::mysteries::{Payoff, FACTS, MYSTERIES};
 use crate::session::*;
 
 /// A mystery the seat is piecing together: which one, which facts are
@@ -28,6 +28,20 @@ impl SeatMystery {
     }
 }
 
+/// What a telling came to, for whoever's showing it
+#[derive(Debug, Clone, Default)]
+pub struct MysteryTold {
+    pub who: String,
+    pub wonders: &'static str,
+    pub thanks: &'static str,
+    /// The payoff, in a line ("Ada asks you to their table.")
+    pub payoff: String,
+}
+
+/// Days a mystery's follow-up job waits for you to take it
+const LEAD_DAYS: u64 = 6;
+/// How far the word going round warms the rest of the village
+const WORD_RAPPORT: f32 = 0.1;
 /// Days before another mystery can start once one's been told
 const MYSTERY_WAIT: u64 = 12;
 /// The daily chance a seat with nothing on gets a mystery going
@@ -172,9 +186,9 @@ impl Game {
     }
 
     /// The picked villager is the one who's been asking, and the
-    /// mystery's whole: tell them what the gossip added up to
+    /// mystery's whole: tell them what the gossip added up to (the
+    /// context button's way - the talk panel's is `mystery_tell`)
     pub fn mystery_deliver_at(&mut self, seat: usize) -> String {
-        let tick = self.tick;
         let Some(m) = self.seats[seat].mystery.clone() else {
             return "You've no mystery to tell.".into();
         };
@@ -190,9 +204,26 @@ impl Game {
             .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= TALK_DIST)
             .unwrap_or(false);
         if !near { return "They're too far off to hear you - walk over first.".into(); }
+        let told = self.mystery_tell(seat, v).unwrap_or_default();
+        format!("{}: \"{}\" {}", told.who, told.wonders, told.payoff)
+    }
+
+    /// Whether the seat has a whole mystery `v` is waiting to hear - the
+    /// talk panel offers the telling while it does
+    pub fn mystery_due(&self, seat: usize, v: Entity) -> bool {
+        self.seats[seat].mystery.as_ref().map(|m| m.solved() && m.asker == v).unwrap_or(false)
+            && !crate::game::dungeon::unavailable(&self.world, v)
+    }
+
+    /// Tell `v` the solved mystery: they take it in, you're friends, they
+    /// open up as for a job seen to, and the mystery pays off its own
+    /// way (`Payoff`). None if there's nothing due them
+    pub(in crate::session) fn mystery_tell(&mut self, seat: usize, v: Entity) -> Option<MysteryTold> {
+        if !self.mystery_due(seat, v) { return None; }
+        let tick = self.tick;
+        let m = self.seats[seat].mystery.clone()?;
         let def = &MYSTERIES[m.def];
         let who = self.name_of(v);
-        self.say(v, def.wonders, TALK_BUBBLE_SECS * 2);
         // the truth's a debt paid in full: they remember it, and you're
         // friends now - a bond deep enough to read Friend and stay there
         let pe = self.seats[seat].player;
@@ -206,18 +237,82 @@ impl Game {
                 .unwrap_or(false);
             if friend { break; }
         }
+        // a question answered is a deed done them: they read as known,
+        // and tell you a thing of their own the way a job's giver does
+        self.quest_bond(seat, v);
         self.seats[seat].mystery = None;
         self.seats[seat].mystery_wait = tick + MYSTERY_WAIT;
+        let payoff = self.mystery_payoff(seat, v, def.payoff);
         self.log_entity_ev(
-            EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+            EvTag::new(Thread::Player, Valence::Positive, Sev::Notable),
             v,
             format!(
-                "t{}: you tell {} what you pieced together about {}. {}",
-                tick, who, def.title, def.thanks
+                "t{}: you tell {} what you pieced together about {}. {} {}",
+                tick, who, def.title, def.thanks, payoff
             ),
         );
+        self.toasts.push_at((format!("Mystery told: {}", payoff), tick + 80),
+            toast_spot(&self.world, v));
         self.say(v, def.thanks, TALK_BUBBLE_SECS * 3);
-        format!("{}: \"{}\"", who, def.wonders)
+        Some(MysteryTold { who, wonders: def.wonders, thanks: def.thanks, payoff })
+    }
+
+    /// What the telling's worth, landed: the coin, the invitation, the
+    /// job, or the word going round. Returns the line that says so
+    fn mystery_payoff(&mut self, seat: usize, v: Entity, payoff: Payoff) -> String {
+        let tick = self.tick;
+        let who = self.name_of(v);
+        let pe = self.seats[seat].player;
+        // no roof to ask you under: the asker talks it about instead
+        let payoff = match payoff {
+            Payoff::Table if self.seats[seat].table.is_some()
+                || crate::game::household::home_of(&self.world, v).is_none() => Payoff::Word,
+            p => p,
+        };
+        match payoff {
+            Payoff::Gift(gold) => {
+                // both purses, as a job's pay: the panel reads one, trade the other
+                if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(pe) { p.resources += gold; }
+                if let Some(p) = self.world.get_component_mut::<crate::game::livelihood::Purse>(pe) { p.gold += gold; }
+                format!("{} presses {:.0}g on you for the trouble.", who, gold)
+            }
+            Payoff::Table => {
+                self.seats[seat].table_invite =
+                    Some((v, tick + crate::session::subsystems::table::INVITE_DAYS));
+                format!("{} asks you to their table.", who)
+            }
+            Payoff::Lead => {
+                let mut rng = Rng(self.rng.next());
+                let Some(t) = self.note_target(v, &mut rng) else {
+                    return self.mystery_payoff(seat, v, Payoff::Word);
+                };
+                self.pending_quests.retain(|q| q.giver != v);
+                self.pending_quests.push(crate::session::quests::PendingQuest {
+                    giver: v, kind: crate::session::quests::QuestKind::Note,
+                    target: crate::session::quests::QuestTarget::Villager(t),
+                    pickup: None, expires: tick + LEAD_DAYS,
+                });
+                let to = self.name_of(t);
+                if self.seats[seat].quest.is_none() {
+                    let i = self.pending_quests.len() - 1;
+                    self.take_pending_quest(seat, i);
+                    format!("{} has a note for {} on the back of it - the job's yours.", who, to)
+                } else {
+                    format!("{} has a note for {} on the back of it, when your hands are free.", who, to)
+                }
+            }
+            Payoff::Word => {
+                let folk: Vec<Entity> = self.mystery_folk().into_iter().filter(|&f| f != v).collect();
+                for f in &folk {
+                    let mut rap = self.world.get_component::<crate::game::player::Rapport>(*f)
+                        .cloned().unwrap_or_default();
+                    let e = rap.by_player.entry(pe).or_insert(0.0);
+                    *e = (*e + WORD_RAPPORT).min(1.0);
+                    self.world.add_component(*f, rap);
+                }
+                format!("{} tells it all over the village - folk think the better of you.", who)
+            }
+        }
     }
 
     /// The panel's line for the mystery under way: the question and how

@@ -194,3 +194,132 @@ fn test_it_wont_be_told_to_the_wrong_person() {
     assert!(g.seats[0].mystery.is_some(), "the mystery's still under way");
 }
 
+
+/// Stand beside villager `v` and Talk to them: the conversation opens on
+/// the TALK panel
+fn talk_to(g: &mut Game, v: Entity) {
+    let i = g.villagers.iter().position(|&x| x == v).unwrap();
+    let p = *g.world.get_component::<Pos>(v).unwrap();
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+    g.seats[0].selected_target = i;
+    g.seats[0].picked = true;
+    g.act_at(0, 0);
+}
+
+fn solved(g: &mut Game, def: usize, asker: Entity) {
+    g.seats[0].mystery = Some(SeatMystery { def, known: (1 << FACTS) - 1, asker });
+}
+
+/// The telling's pick on the open talk, if it's on offer
+fn tell_pick(g: &Game) -> Option<usize> {
+    g.seats[0].talk.as_ref()?.choice_labels().iter()
+        .position(|l| l.starts_with("Tell them what you pieced together"))
+}
+
+#[test]
+fn test_a_solved_mystery_is_told_in_the_talk() {
+    let mut g = Game::new();
+    let asker = askers(&g)[0];
+    solved(&mut g, 1, asker);
+    talk_to(&mut g, asker);
+    let labels = g.seats[0].talk.as_ref().expect("the talk opens").choice_labels();
+    let p = tell_pick(&g).unwrap_or_else(|| panic!("the asker's talk offers the telling: {:?}", labels));
+    assert_eq!(p, labels.len() - 1, "it rides last, so the other picks keep their numbers");
+    assert!(labels[p].contains(MYSTERIES[1].title), "{}", labels[p]);
+    g.talk_pick_at(0, Some(p));
+    assert!(g.seats[0].mystery.is_none(), "told, the mystery's done");
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on after").clone();
+    assert!(tell_pick(&g).is_none(), "told once: {:?}", t.choice_labels());
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    let said: Vec<&str> = rec.lines.iter().map(|l| l.text.as_str()).collect();
+    assert!(rec.lines.iter().any(|l| l.who == Some(asker) && l.text == MYSTERIES[1].wonders),
+        "they take the truth in, on the record: {:?}", said);
+    assert!(rec.lines.iter().any(|l| l.who == Some(asker) && l.text == MYSTERIES[1].thanks),
+        "and thank you for it: {:?}", said);
+    let kind = find_relationship(&g.world, g.player, asker)
+        .and_then(|r| g.world.get_component::<Relationship>(r)).map(|r| r.kind);
+    assert_eq!(kind, Some(RelKind::Friend), "and you're friends");
+    assert!(g.toasts.iter().any(|(t, ..)| t.starts_with("Mystery told")), "{:?}", g.toasts);
+}
+
+#[test]
+fn test_only_the_asker_is_offered_the_telling() {
+    let mut g = Game::new();
+    let folk = askers(&g);
+    solved(&mut g, 0, folk[0]);
+    talk_to(&mut g, folk[1]);
+    assert!(tell_pick(&g).is_none(), "somebody else hasn't been asking");
+    // and half a mystery isn't a telling
+    g.close_player_talk(0, None);
+    g.seats[0].mystery = Some(SeatMystery { def: 0, known: 0b111, asker: folk[0] });
+    talk_to(&mut g, folk[0]);
+    assert!(tell_pick(&g).is_none(), "not all heard yet");
+}
+
+#[test]
+fn test_the_tithe_cart_pays_a_finders_fee() {
+    let mut g = Game::new();
+    let asker = askers(&g)[0];
+    let def = MYSTERIES.iter().position(|m| matches!(m.payoff, mysteries::Payoff::Gift(_))).unwrap();
+    let gold = |g: &Game| g.world.get_component::<crate::game::livelihood::Purse>(g.player).map(|p| p.gold).unwrap_or(0.0);
+    let before = gold(&g);
+    solved(&mut g, def, asker);
+    talk_to(&mut g, asker);
+    g.talk_pick_at(0, tell_pick(&g));
+    assert!(gold(&g) > before, "coin for the trouble: {} -> {}", before, gold(&g));
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.notes.iter().any(|n| n.contains("presses")), "the talk says so: {:?}", t.notes);
+}
+
+#[test]
+fn test_the_chapel_bell_lays_a_place_at_their_table() {
+    let mut g = Game::new();
+    let def = MYSTERIES.iter().position(|m| m.payoff == mysteries::Payoff::Table).unwrap();
+    let asker = askers(&g).into_iter()
+        .find(|&v| crate::game::household::home_of(&g.world, v).is_some()).expect("someone with a roof");
+    solved(&mut g, def, asker);
+    talk_to(&mut g, asker);
+    g.talk_pick_at(0, tell_pick(&g));
+    assert!(g.table_offered(0, asker), "they ask you in: {:?}", g.seats[0].table_invite);
+}
+
+#[test]
+fn test_the_mill_wheel_leads_on_to_a_job() {
+    let mut g = Game::new();
+    let def = MYSTERIES.iter().position(|m| m.payoff == mysteries::Payoff::Lead).unwrap();
+    let asker = askers(&g)[0];
+    g.seats[0].quest = None;
+    solved(&mut g, def, asker);
+    talk_to(&mut g, asker);
+    g.talk_pick_at(0, tell_pick(&g));
+    let q = g.seats[0].quest.as_ref().expect("the next thing to run down is yours");
+    assert_eq!(q.giver, asker);
+    assert_eq!(q.kind, crate::session::quests::QuestKind::Note);
+    // with a job already on, the lead waits on the board for you instead
+    let mut g = Game::new();
+    let asker = askers(&g)[0];
+    if g.seats[0].quest.is_none() {
+        g.seats[0].quest = Some(crate::session::quests::PlayerQuest {
+            giver: askers(&g)[1], kind: crate::session::quests::QuestKind::Egg,
+            target: crate::session::quests::QuestTarget::Villager(askers(&g)[1]),
+            stage: crate::session::quests::QuestStage::ToFetch, pickup: Some((1.0, 1.0)), expires: 100 });
+    }
+    solved(&mut g, def, asker);
+    talk_to(&mut g, asker);
+    g.talk_pick_at(0, tell_pick(&g));
+    assert!(g.quest_offer_at(asker).is_some(), "the lead's going begging till you're free");
+}
+
+#[test]
+fn test_word_of_the_doorstep_gifts_goes_round() {
+    let mut g = Game::new();
+    let def = MYSTERIES.iter().position(|m| m.payoff == mysteries::Payoff::Word).unwrap();
+    let folk = askers(&g);
+    let (asker, other) = (folk[0], folk[1]);
+    let before = crate::game::player::rapport(&g.world, g.player, other);
+    solved(&mut g, def, asker);
+    talk_to(&mut g, asker);
+    g.talk_pick_at(0, tell_pick(&g));
+    let after = crate::game::player::rapport(&g.world, g.player, other);
+    assert!(after > before, "folk who never asked think the better of you: {} -> {}", before, after);
+}

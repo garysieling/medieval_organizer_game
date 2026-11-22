@@ -22,6 +22,22 @@ pub struct Mystery {
     pub wonders: &'static str,
     /// And their thanks, once it's delivered
     pub thanks: &'static str,
+    /// What the telling's worth to the seat, beyond the friendship
+    pub payoff: Payoff,
+}
+
+/// What a told mystery gives back: every telling makes a friend of the
+/// asker and opens them up; this is the rest of it, the asker's own
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Payoff {
+    /// They press coin on you for the trouble
+    Gift(f32),
+    /// They ask you to their table
+    Table,
+    /// They've a job that follows from it - the next thing to run down
+    Lead,
+    /// They tell it about: every grown soul of the village warms to you
+    Word,
 }
 
 /// The mysteries pre-written for the village. A seat meets one at a
@@ -39,6 +55,7 @@ pub const MYSTERIES: &[Mystery] = &[
         asker: None,
         wonders: "So it was someone kind, all along. I'd half convinced myself the village had gone hard.",
         thanks: "Bless you - truly. You've given me back my faith in the place, and I'm not one for saying so lightly.",
+        payoff: Payoff::Word,
     },
     Mystery {
         title: "why the mill wheel sticks on market days",
@@ -52,6 +69,7 @@ pub const MYSTERIES: &[Mystery] = &[
         asker: None,
         wonders: "Then it's sabotage, and somebody's playing me for a fool. I'll know who to watch now.",
         thanks: "You saw what I couldn't. That's a rare eye - the village owes you one.",
+        payoff: Payoff::Lead,
     },
     Mystery {
         title: "who rang the chapel bell at midnight",
@@ -65,6 +83,7 @@ pub const MYSTERIES: &[Mystery] = &[
         asker: Some(Vocation::Priest),
         wonders: "From the graveyard, you say. Then it wasn't a prank - somebody wanted to be seen coming.",
         thanks: "The truth of it's a weight lifted. Come - my door's open to you now, more than most.",
+        payoff: Payoff::Table,
     },
     Mystery {
         title: "where the reeve's tithe-cart went",
@@ -78,6 +97,7 @@ pub const MYSTERIES: &[Mystery] = &[
         asker: None,
         wonders: "So it was moved in daylight, by folk who knew the roads. That narrows it to half the village.",
         thanks: "Careful work, that - asking after instead of grabbing. You've a friend in me, and the reeve will hear of it.",
+        payoff: Payoff::Gift(15.0),
     },
     Mystery {
         title: "the face in the elder tree",
@@ -91,6 +111,7 @@ pub const MYSTERIES: &[Mystery] = &[
         asker: None,
         wonders: "It remembers, does it? Then it's right - the village needs something that does.",
         thanks: "You've an eye for what's hidden. Walk with us a while - the village talks different when you're near.",
+        payoff: Payoff::Word,
     },
     Mystery {
         title: "why the alewife's ale has turned sour",
@@ -104,5 +125,6 @@ pub const MYSTERIES: &[Mystery] = &[
         asker: None,
         wonders: "A new hand and a bad cask - that's a beginning. She's been patient with it longer than I knew.",
         thanks: "Sharp eyes. Most folk'd have drunk it and complained later - you've a friend's welcome at my bench.",
+        payoff: Payoff::Table,
     },
 ];

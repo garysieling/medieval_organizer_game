@@ -18,6 +18,10 @@ fn sign_on(g: &mut Game, v: Entity) {
 }
 
 fn talk_beside(g: &mut Game, i: usize) {
+    // an empty purse keeps the coin's asks off the list, so the naming
+    // of the counter fits on it
+    let pe = g.player;
+    if let Some(p) = g.world.get_component_mut::<crate::game::livelihood::Purse>(pe) { p.gold = 0.0; }
     let v = g.villagers[i];
     let p = *g.world.get_component::<Pos>(v).unwrap();
     *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: p.x + 0.5, y: p.y };

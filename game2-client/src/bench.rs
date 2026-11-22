@@ -210,6 +210,16 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     if let Some(n) = std::env::var("GAME2_DUMP_SELECT").ok().and_then(|v| v.parse::<usize>().ok()) {
         game.seats[0].selected_target = n;
     }
+    // GAME2_DUMP_BOARD=N: stand reading the market board with N long
+    // postings up - the panel's wrap, cap and dismiss hint show (#1349)
+    if let Some(n) = std::env::var("GAME2_DUMP_BOARD").ok().and_then(|v| v.parse::<usize>().ok()) {
+        game.seats[0].notice_panel = true;
+        for i in 0..n {
+            game.notices.push(("writ".into(),
+                format!("a fee of {} gold for every barrel the river brought, set by the steward on market day", i + 2),
+                game.tick + 3));
+        }
+    }
     // GAME2_DUMP_WALK=dx,dy: walk the player that way for the last few
     // frames, so a dump shows the walk cycle mid-stride
     if let Some((dx, dy)) = std::env::var("GAME2_DUMP_WALK").ok().as_deref()

@@ -93,6 +93,35 @@ pub(crate) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8
     if let Some(f) = footer { draw_centered_at(buf, cx, y + h - 22, f, 1, (150, 150, 170)); }
 }
 
+/// A posting wraps inside the 480px board box (~72 glyphs leave the frame)
+pub(crate) const NOTICE_CHARS: usize = 72;
+
+/// As many wrapped rows as the box holds before a "+n more" tail: 24
+/// rows at NOTICE_ROW is a ~420px box, well inside the map view (#1349)
+pub(crate) const NOTICE_MAX: usize = 24;
+
+/// The postings' row pitch - a wrapped list, not a menu (it was 120: the
+/// whole screen's worth a handful of notices in)
+pub(crate) const NOTICE_ROW: i32 = 14;
+
+/// The board's postings as display rows: each `[kind] text` wrapped to
+/// the box with its continuation indented, the list capped at NOTICE_MAX
+/// rows with a "+n more" tail so the panel can never outgrow the screen
+pub(crate) fn notice_lines(notices: &[(String, String)]) -> Vec<String> {
+    let mut lines: Vec<String> = vec![];
+    for (k, t) in notices {
+        for (i, w) in wrap_text(&format!("[{}] {}", k, t), NOTICE_CHARS).into_iter().enumerate() {
+            lines.push(if i == 0 { w } else { format!("   {}", w) });
+        }
+    }
+    if lines.len() > NOTICE_MAX {
+        let more = lines.len() - NOTICE_MAX + 1;
+        lines.truncate(NOTICE_MAX - 1);
+        lines.push(format!("+{} more", more));
+    }
+    lines
+}
+
 /// The panel's status line: your organization by name, your gold, and the
 /// rival merchants' guild by size (it was "Org 5 | Guilds 1 | ... | lead at
 /// 2.0" - a count of guild objects, and the goal the bar already shows)

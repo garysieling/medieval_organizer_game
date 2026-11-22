@@ -455,6 +455,10 @@ fn main() {
         // standing over the talk
         leave_offered = cur_model.as_ref().map(|m|
             m.convo.as_ref().map(|p| p.leave).unwrap_or(false) || m.talk.in_talk).unwrap_or(false);
+        // the board's postings are up: an Esc closes them ahead of the
+        // pause menu (#1349)
+        let board_open = cur_model.as_ref()
+            .map(|m| m.notice_panel && !m.notices.is_empty()).unwrap_or(false);
 
         // the sim asked the camera somewhere - an introduction's name:
         // centre on them and lean in, once per ask
@@ -554,9 +558,11 @@ fn main() {
         }
 
         // a bare Escape opens the pause menu: the find box's release,
-        // the picker's decline, the intro's dismiss and the talk's
-        // leave all took theirs ahead of it
-        if !pause_menu && !search_esc && !leave_offered
+        // the picker's decline, the intro's dismiss, the talk's leave
+        // and the board's postings all took theirs ahead of it
+        let board_esc = !pause_menu && !search_esc && !leave_offered && board_open
+            && window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No);
+        if !pause_menu && !search_esc && !leave_offered && !board_esc
             && window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) {
             pause_menu = true;
         }
@@ -621,6 +627,9 @@ fn main() {
         // input -> commands -> local game or the wire
         let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus, &mut talk_armed,
             cur_model.as_ref().and_then(|m| m.convo.as_ref()), leave_offered);
+        // the board's Esc: a set, not a toggle - the seat's panel state
+        // can't desync from what the frame showed
+        if board_esc { cmds.push(Command::Board(false)); }
         // a hidden button (Recruit, before there's a campaign) can't be pressed
         if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
         if clicked && !on_minimap && !swallow_click {

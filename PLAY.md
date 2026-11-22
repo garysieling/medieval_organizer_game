@@ -44,7 +44,7 @@ cargo run --bin game           # text-mode version
 | **+/-** | Zoom map |
 | **Enter** | Start (title screen) |
 | **F12** | Save BMP screenshot to evidence/ |
-| **Esc** | Quit |
+| **Esc** | Back out a layer: leave a talk, close the board's postings, else the pause menu (Q quits there) |
 
 ## The Game
 

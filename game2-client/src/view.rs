@@ -1840,15 +1840,15 @@ const EVENT_MARGIN: f32 = 80.0;
 /// pan wins briefly, then the event has it back
 pub const EVENT_HOLD: u32 = 240;
 
-/// The zoom that frames an event `extent` tiles across the map view:
-/// a march only ever zooms out - a small stretch of the column keeps
+/// The zoom that frames a moving event `extent` tiles across the map
+/// view: it only ever zooms out - a small stretch of the column keeps
 /// the player's zoom, a street-wide one pulls back toward MIN_ZOOM.
-/// A gathering (`lean_in`) leans the other way: a tight house-meeting
-/// circle draws the camera close enough that the faces read
-pub fn event_zoom(extent: f32, current: f32, lean_in: bool) -> f32 {
+/// (Gatherings - meetings, rites - don't fit; a new one lands at
+/// MAX_ZOOM so the faces read, see `EventCam::step`.)
+pub fn event_zoom(extent: f32, current: f32) -> f32 {
     let fit = ((MAP_W as f32 - 2.0 * EVENT_MARGIN) / (extent.max(1.0) * 4.0 * TILE_W as f32))
         .clamp(MIN_ZOOM, MAX_ZOOM);
-    if lean_in { fit } else { current.min(fit) }
+    current.min(fit)
 }
 
 /// The event camera's state between frames: which event it's on, how
@@ -1876,12 +1876,15 @@ impl EventCam {
             return (cam, zoom);
         };
         if self.seen != Some(ev.epoch) {
-            // a new event has the camera: jump to it, framed to fit
+            // a new event has the camera: jump to it, framed to fit.
+            // A gathering - a meeting, a rite - goes straight to the
+            // faces at max zoom (#1334); a moving event fits its extent
             self.seen = Some(ev.epoch);
             self.hold = 0;
             let (cx, cy) = camera_on(ev.pos.0, ev.pos.1);
             self.ease = Some((cx as f32, cy as f32));
-            return ((cx, cy), event_zoom(ev.extent, zoom, ev.kind != 0));
+            let z = if ev.kind != 0 { MAX_ZOOM } else { event_zoom(ev.extent, zoom) };
+            return ((cx, cy), z);
         }
         if self.hold > 0 {
             self.hold -= 1;

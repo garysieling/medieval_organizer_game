@@ -19,9 +19,25 @@ use std::env;
 
 use game2_client::Art;
 use game2_core::engine::sprite::Sprite;
-use game2_core::session::dialogue::TalkKind;
+use game2_core::session::dialogue::{TalkKind, TalkLine};
 use game2_core::session::stage::run_days;
 use game2_core::session::Game;
+
+/// A stable fingerprint of a record's actual lines, so a reviewer's
+/// feedback for one transcript isn't silently inherited by a different
+/// one that lands at the same seed and log sequence number. Must match
+/// the fingerprint the old `game2-core` exporter used, so existing
+/// village feedback rejoins unchanged transcripts.
+fn record_fingerprint(lines: &[TalkLine]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    for l in lines {
+        l.who.is_some().hash(&mut hasher);
+        l.name.hash(&mut hasher);
+        l.text.hash(&mut hasher);
+        l.gist.hash(&mut hasher);
+    }
+    hasher.finish()
+}
 
 fn main() -> std::io::Result<()> {
     game2_core::infra::crash::install();
@@ -87,11 +103,7 @@ fn main() -> std::io::Result<()> {
                 // plus a fingerprint of what was said: a later build's
                 // talk under the same log id is a different conversation,
                 // and mustn't inherit feedback filed against this one
-                "id": format!("village-s{}-{}-{:x}", seed, r.id, {
-                    let mut h = DefaultHasher::new();
-                    for l in &r.lines { l.name.hash(&mut h); l.text.hash(&mut h); }
-                    h.finish()
-                }),
+                "id": format!("village-s{}-{}-{:x}", seed, r.id, record_fingerprint(&r.lines)),
                 "source": "village",
                 "kind": format!("{:?}", r.kind),
                 "day": r.tick,

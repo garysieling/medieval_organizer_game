@@ -379,7 +379,7 @@ document.addEventListener("keydown", e => {
   if ($("#dlg").open) {
     // 1-4 pick how many; Enter generates (the form's default button), Esc cancels
     const i = "1234".indexOf(e.key);
-    if (i >= 0 && !typing) { e.preventDefault(); $("#dlgForm").count[i].checked = true; }
+    if (i >= 0 && !e.target.matches('input[type="number"]') && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); $("#dlgForm").count[i].checked = true; }
     // from any field: the form's implicit submit would press Cancel, its first button
     else if (e.key === "Enter" && e.target.tagName !== "BUTTON") { e.preventDefault(); $("#dlgGo").click(); }
     return;
@@ -392,7 +392,7 @@ document.addEventListener("keydown", e => {
   if (!$("#review").hidden && batch) {
     if (selLine != null && typing) {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveLine(selLine); }
-      if (e.key === "Delete" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); clearLine(selLine); }
+      if (e.key === "Delete" && (e.ctrlKey || e.metaKey) && e.target.closest(".editor")) { e.preventDefault(); clearLine(selLine); }
       if (e.key === "Escape") { e.preventDefault(); closeLine(); }
       return;
     }
@@ -493,7 +493,7 @@ async function renderTickets() {
 // Ctrl+Enter on the tickets tab is the Create button (twice, like the clicks)
 document.addEventListener("keydown", e => {
   if ($("#tickets").hidden || $("#dlg").open) return;
-  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { const mk = $("#mk"); if (mk && !mk.disabled) { e.preventDefault(); mk.click(); } }
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { const mk = $("#mk"); if (mk && !mk.disabled) { e.preventDefault(); if (!e.repeat) mk.click(); } }
 });
 function tab(which) {
   history.replaceState(null, "", which === "tickets" ? "#tickets" : "#");

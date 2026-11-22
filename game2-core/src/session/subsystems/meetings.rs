@@ -32,15 +32,6 @@ impl Game {
                     crate::game::org_skills::practice(&mut self.world, s.holder,
                         crate::game::org_skills::role_skill(s.role),
                         crate::game::org_skills::SEAT_PRACTICE);
-                    // and the seat's work leaves its mark: green on the
-                    // holder, yellow on everyone who watched (#1345)
-                    let job = crate::game::org_skills::role_job(s.role);
-                    crate::game::leadership::mark_performed(&mut self.world, s.holder, job);
-                    for &a in invited {
-                        if a != s.holder {
-                            crate::game::leadership::mark_observed(&mut self.world, a, job);
-                        }
-                    }
                 }
             }
         }

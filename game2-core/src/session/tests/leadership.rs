@@ -236,19 +236,38 @@ fn test_the_marks_steady_a_leaders_own_ask() {
 #[test]
 fn test_a_marked_member_starts_their_own_reach() {
     let mut g = Game::new();
-    let (a, first) = (g.villagers[0], g.villagers[2]);
+    let (a, first, gone) = (g.villagers[0], g.villagers[2], g.villagers[3]);
     members(&mut g, &[first]);
     assert!(join(&mut g, a), "a joins the cause - developed by the member who knew them");
     assert!(g.world.get_component::<Developed>(a).is_some());
     for _ in 0..5 {
         leadership::mark_performed(&mut g.world, a, leadership::Job::Turnout);
+        leadership::mark_performed(&mut g.world, gone, leadership::Job::Turnout);
     }
+    // a member who dropped off the roll doesn't get sent out either
     let tick = g.tick;
     g.livelihood_tick(tick);
     let reach = g.world.get_component::<Reach>(a).expect("marked enough, they pick their own");
     assert!(!g.world.get_component::<crate::sim::community::Organization>(g.org)
         .unwrap().members.contains(&reach.target), "they aim past the fold");
     assert!(g.world.get_component::<Reach>(first).is_none(), "the unmarked still wait to be sent");
+    assert!(g.world.get_component::<Reach>(gone).is_none(), "off the roll, no reach");
+}
+
+/// A founding-vote member never got a `Developed` (#1345): the marks
+/// still find their org by the roll they're on
+#[test]
+fn test_a_founding_member_starts_their_own_reach() {
+    let mut g = Game::new();
+    let first = g.villagers[2];
+    members(&mut g, &[first]);
+    assert!(g.world.get_component::<Developed>(first).is_none(), "enrolled, not developed");
+    for _ in 0..5 {
+        leadership::mark_performed(&mut g.world, first, leadership::Job::Chair);
+    }
+    let tick = g.tick;
+    g.livelihood_tick(tick);
+    assert!(g.world.get_component::<Reach>(first).is_some(), "the roll is the proof");
 }
 
 /// The card carries the marks (#1345): watched jobs yellow, held green

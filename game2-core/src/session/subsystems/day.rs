@@ -171,11 +171,18 @@ impl Game {
                 SELF_START_GAP, SELF_START_SCORE, job_score};
             if self.world.get_component::<Reach>(v).is_some()
                 || crate::game::dungeon::unavailable(&self.world, v) { continue; }
-            let Some(d) = self.world.get_component::<crate::game::leadership::Developed>(v).copied() else { continue };
+            // still on the roll - a member who left (or never got a
+            // developer, like a founding vote's) finds their org by
+            // membership, not by who brought them
+            let org = self.world.query::<crate::sim::community::Organization>().iter()
+                .copied()
+                .find(|&o| self.world.get_component::<crate::sim::community::Organization>(o)
+                    .map(|oo| oo.members.contains(&v)).unwrap_or(false));
+            let Some(org) = org else { continue; };
             let next = self.world.get_component::<OwnReach>(v).map(|o| o.next).unwrap_or(0);
             if next > tick || job_score(&self.world, v) < SELF_START_SCORE { continue; }
-            if let Some(t) = reach_target(&self.world, d.org, v, &self.villagers) {
-                self.world.add_component(v, Reach { org: d.org, target: t, due: tick + crate::game::leadership::REACH_DAYS });
+            if let Some(t) = reach_target(&self.world, org, v, &self.villagers) {
+                self.world.add_component(v, Reach { org, target: t, due: tick + crate::game::leadership::REACH_DAYS });
                 self.world.add_component(v, OwnReach { next: tick + SELF_START_GAP });
                 let (n, tn) = (self.name_of(v), self.name_of(t));
                 self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor), v,

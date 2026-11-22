@@ -18,7 +18,8 @@ pub(crate) type Prof = game2_core::infra::perf::Marks;
 /// build the model, render it. Prints the stage means and p95/max, the
 /// render passes, and the slowest sections across sim, ECS and render.
 /// GAME2_BENCH_JSON=path also writes the whole run as JSON for tooling.
-/// `hold_weather` keeps a `--weather` sky over every frame, so its cost shows.
+/// `hold_weather` draws a `--weather` sky on every frame, so its cost shows
+/// (the model's sky only: the sim's weather and its log run on untouched).
 pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool) {
     use game2_core::infra::perf;
     // GAME2_BENCH_PAN=1: the camera slides every frame, as while panning
@@ -37,9 +38,9 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
         if zooming { view.zoom = (view.zoom * 1.003).min(2.0); }
         let t0 = Instant::now();
         game.update();
-        if hold_weather { (game.precip, game.rainbow_from) = held; }
         let t1 = Instant::now();
-        let m = game.ui_model();
+        let mut m = game.ui_model();
+        if hold_weather { (m.precip, m.rainbow_from) = held; }
         let t2 = Instant::now();
         let buf = view.render(&m, (-1, -1));
         let t3 = Instant::now();
@@ -56,7 +57,8 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
         .map(|s| format!("{} {:.1}", &s.name["render.".len()..], s.mean_per_frame)).collect();
     println!("render sections (ms/frame): {}", line.join(", "));
     let (su, sm, sr) = (perf::stats("update", &tu, frames), perf::stats("model", &tm, frames), perf::stats("render", &tr, frames));
-    println!("bench weather: precip {:?}, rainbow {:?}, season {:?}", game.precip, game.rainbow_from.map(|f| game.frame_n.saturating_sub(f)), game.ui_model().season);
+    let (precip, rainbow) = if hold_weather { held } else { (game.precip, game.rainbow_from) };
+    println!("bench weather: precip {:?}, rainbow {:?}, season {:?}", precip, rainbow.map(|f| game.frame_n.saturating_sub(f)), game.ui_model().season);
     println!("bench {} frames: update {:.2}ms (max {:.1}), model {:.2}ms (max {:.1}), render {:.2}ms (max {:.1}), total {:.2}ms/frame",
         n, su.mean_per_frame, su.max, sm.mean_per_frame, sm.max, sr.mean_per_frame, sr.max,
         su.mean_per_frame + sm.mean_per_frame + sr.mean_per_frame);

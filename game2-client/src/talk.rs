@@ -204,6 +204,9 @@ pub struct ConvoBox {
     pub click: Option<ConvoClick>,
     /// A choice button, drawn raised, vs a line of what was said
     pub choice: bool,
+    /// The speaker's mood mark (#1320): 0 neutral, 1 warm, 2 cold,
+    /// 3 angry - a badge pip on the head slot, 0 draws none
+    pub mood: u8,
 }
 
 /// Wrap each conversation line and choice into its own button: the box
@@ -289,7 +292,7 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
                 n.clone().map(|(s, col)| (s, fade_rgb(col, age)))))
             .collect();
         let click = p.rows[i].who.map(ConvoClick::Speaker);
-        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click, choice: false });
+        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click, choice: false, mood: p.rows[i].mood });
         y += h + 3;
     }
     for (i, ws) in opts.into_iter().enumerate() {
@@ -301,7 +304,7 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
         let rows = ws.iter().enumerate()
             .map(|(k, t)| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), colour, None))
             .collect();
-        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click: Some(pick), choice: true });
+        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click: Some(pick), choice: true, mood: 0 });
         y += h + 3;
     }
     (boxes, y - CONVO_Y + 4)
@@ -336,6 +339,17 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
         // start after it whether the still resolved or not (#1319)
         if let Some(ConvoClick::Speaker(i)) = b.click {
             crate::draw::draw_icon(buf, portrait(i), b.x + 3, b.y + 2, CONVO_PORT - 4);
+            // the mood mark: a badge pip on the slot's bottom corner -
+            // gold warm, steel-blue cold, red angry (#1320)
+            if b.mood != 0 {
+                let (mr, mg, mb) = match b.mood {
+                    1 => (236, 178, 88),
+                    3 => (222, 82, 62),
+                    _ => (142, 176, 220),
+                };
+                buf.rect(b.x + 7, b.y + 6, 5, 5, 15, 15, 22);
+                buf.rect(b.x + 8, b.y + 7, 3, 3, mr, mg, mb);
+            }
         }
         let words_x = CONVO_X + 10
             + if matches!(b.click, Some(ConvoClick::Speaker(_))) { CONVO_PORT } else { 0 };

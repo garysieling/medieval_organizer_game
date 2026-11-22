@@ -31,7 +31,7 @@ fn test_long_lines_wrap_inside_the_talk_box_and_replies_click() {
     let long = "word ".repeat(40);
     let p = TalkPanelV {
         title: "TALK".into(),
-        rows: (0..6).map(|k| TalkRowV { name: Some(format!("Speaker{}", k)), text: long.clone(), gist: k == 2, you: k % 2 == 1, rule: false, who: None }).collect(),
+        rows: (0..6).map(|k| TalkRowV { name: Some(format!("Speaker{}", k)), text: long.clone(), gist: k == 2, you: k % 2 == 1, rule: false, who: None, mood: 0 }).collect(),
         options: vec![long.clone(), "Short one.".into()],
         in_talk: true,
     };
@@ -156,8 +156,8 @@ fn test_the_conversation_box_draws_its_buttons() {
     let p = ConvoPanelV {
         title: "THE HARVESTERS - YOUR CALL".into(),
         rows: vec![
-            TalkRowV { name: Some("Eliza".into()), text: "word ".repeat(30), gist: false, you: false, rule: false, who: Some(2) },
-            TalkRowV { name: None, text: "The room leans to the taxes - your call.".into(), gist: true, you: false, rule: false, who: None },
+            TalkRowV { name: Some("Eliza".into()), text: "word ".repeat(30), gist: false, you: false, rule: false, who: Some(2), mood: 0 },
+            TalkRowV { name: None, text: "The room leans to the taxes - your call.".into(), gist: true, you: false, rule: false, who: None, mood: 0 },
         ],
         options: vec!["Take it on - a burden shared".into(), "Let it rest".into()],
         decides: true, leave: false,
@@ -198,7 +198,7 @@ fn test_the_conversation_box_pins_its_lines() {
     let row = |i: usize| TalkRowV {
         name: Some(format!("Speaker{}", i)),
         text: format!("line {}", i),
-        gist: false, you: false, rule: false, who: Some(i),
+        gist: false, you: false, rule: false, who: Some(i), mood: 0,
     };
     // under capacity: an appended line lands below, nothing moves
     let mut p = ConvoPanelV {
@@ -238,7 +238,7 @@ fn test_the_conversation_box_pins_its_lines() {
     // set comes out identical, nothing scrolls for it
     p.rows.insert(1, TalkRowV {
         name: None, text: "a whisper over the talk".into(),
-        gist: true, you: false, rule: false, who: None,
+        gist: true, you: false, rule: false, who: None, mood: 0,
     });
     let (boxes3, _) = convo_layout(&p, &mut pin, 30);
     assert!(boxes3.iter().all(|b| b.rows.iter().all(|(_, t, _, _)| !t.contains("whisper"))),
@@ -285,7 +285,7 @@ fn test_new_lines_fade_in_as_theyre_said() {
     let row = |i: usize| TalkRowV {
         name: Some(format!("Speaker{}", i)),
         text: format!("line {}", i),
-        gist: false, you: false, rule: false, who: Some(i),
+        gist: false, you: false, rule: false, who: Some(i), mood: 0,
     };
     let mut p = ConvoPanelV {
         title: "talk".into(),
@@ -351,9 +351,9 @@ fn test_a_speaker_line_carries_their_portrait() {
         rows: vec![
             TalkRowV { name: Some("Eliza".into()),
                 text: "the miller took an extra scoop of flour, they saw it plain".into(),
-                gist: false, you: false, rule: false, who: Some(3) },
+                gist: false, you: false, rule: false, who: Some(3), mood: 0 },
             TalkRowV { name: None, text: "a line nobody owns keeps its plain lead".into(),
-                gist: false, you: false, rule: false, who: None },
+                gist: false, you: false, rule: false, who: None, mood: 0 },
         ],
         options: vec!["say so".into()], decides: false, leave: false,
     };
@@ -439,4 +439,43 @@ fn test_the_conversation_box_draws_the_speakers_portrait() {
     for (k, h) in art.villager_heads.iter().enumerate() {
         assert!(h.pixels.chunks(4).any(|p| p[3] > 128), "villager head {} is blank", k);
     }
+}
+
+/// The mood mark: a badge pip on the head slot's bottom corner - gold
+/// warm, steel-blue cold, red angry; a neutral read draws none (#1320)
+#[test]
+fn test_the_speakers_mood_mark_badges_their_icon() {
+    // an opaque head stands in for the art's stills
+    let mut px = vec![0u8; 10 * 10 * 4];
+    for i in 0..10 * 10 { px[i * 4] = 220; px[i * 4 + 3] = 255; }
+    let head = Sprite { width: 10, height: 10, pixels: px };
+    let panel = |mood: u8| ConvoPanelV {
+        title: "talk".into(),
+        rows: vec![TalkRowV { name: Some("Eliza".into()),
+            text: "the miller took an extra scoop of flour".into(),
+            gist: false, you: false, rule: false, who: Some(3), mood }],
+        options: vec![], decides: false, leave: false,
+    };
+    let draw = |p: &ConvoPanelV| {
+        let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+        draw_convo_panel(&mut buf, p, (-1, -1), &mut ConvoPin::default(), 30, &|_| Some(&head));
+        buf
+    };
+    // the mark rides the box off the row
+    let p = panel(1);
+    let (boxes, _) = convo_layout(&p, &mut ConvoPin::default(), 30);
+    assert_eq!(boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(_)))).unwrap().mood, 1);
+    let at = |b: &Buffer, x: i32, y: i32| {
+        let i = (y as usize * b.width + x as usize) * 4; [b.pixels[i], b.pixels[i + 1], b.pixels[i + 2]]
+    };
+    let said = boxes.iter().find(|b| b.click.is_some()).unwrap();
+    let (bx, by) = (said.x + 9, said.y + 8);
+    assert_eq!(at(&draw(&panel(1)), bx, by), [236, 178, 88], "warm isn't gold");
+    assert_eq!(at(&draw(&panel(2)), bx, by), [142, 176, 220], "cold isn't steel blue");
+    assert_eq!(at(&draw(&panel(3)), bx, by), [222, 82, 62], "angry isn't red");
+    // a neutral read draws nothing: the head's own pixels show through
+    let plain = draw(&panel(0));
+    assert_eq!(at(&plain, bx, by), [220, 0, 0], "a badge drew on a neutral read");
+    // and the pip's dark frame hangs it off the head
+    assert_eq!(at(&draw(&panel(1)), said.x + 7, said.y + 6), [15, 15, 22]);
 }

@@ -121,9 +121,9 @@ impl Game {
     pub(in crate::session) fn survey_rows(&self, seat: usize) -> Vec<TalkRowV> {
         let Some(o) = &self.seats[seat].survey else { return vec![] };
         vec![
-            TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+            TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                 text: o.beat.line().to_string() },
-            TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+            TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                 text: "\"I carry word up and down the road. What do I tell them?\"".into() },
         ]
     }

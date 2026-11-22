@@ -225,6 +225,14 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         println!("talk {}: open={} convo={} rows={}", n, game.seats[0].talk.is_some(),
             game.ui_model().convo.is_some(),
             game.ui_model().convo.map(|c| c.rows.len()).unwrap_or(0));
+        // GAME2_DUMP_MOOD=1|2|3: force the open Talk's read, so the
+        // icon's badge shows a state (#1320)
+        if let Some(m) = std::env::var("GAME2_DUMP_MOOD").ok().and_then(|v| v.parse::<u8>().ok()) {
+            use game2_core::session::dialogue::TalkMood;
+            let mood = match m { 1 => Some(TalkMood::Warmed), 2 => Some(TalkMood::Guarded),
+                3 => Some(TalkMood::Slighted), _ => None };
+            if let (Some(mood), Some(t)) = (mood, &mut game.seats[0].talk) { t.mood = mood; }
+        }
     }
     // GAME2_DUMP_BOARD=N: stand reading the market board with N long
     // postings up - the panel's wrap, cap and dismiss hint show (#1349)

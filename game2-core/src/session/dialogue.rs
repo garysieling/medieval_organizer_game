@@ -740,6 +740,15 @@ impl Game {
         if let Some(q) = crate::game::rhetoric::take_turn(&mut self.world, v, org) {
             opening.push(format!("{} names the turn: {q}", villager.name));
         }
+        // who taught them, named the once (#1239)
+        if let Some(mk) = crate::game::mentorship::untold(&self.world, v) {
+            let who = match mk.by {
+                crate::game::mentorship::Teacher::Person(t) => self.name_of(t),
+                crate::game::mentorship::Teacher::Cause(_) => "the cause's meetings".into(),
+            };
+            crate::game::mentorship::tell(&mut self.world, v);
+            opening.push(format!("{}: \"{}\"", villager.name, crate::game::mentorship::saying(mk, &who)));
+        }
         let seed = self.tick.wrapping_mul(0x2545_F491) ^ ((v as u64) << 24) ^ self.talk_next_id;
         self.close_player_talk(seat, None);
         // they stop where they are for the talk: a walk under way would

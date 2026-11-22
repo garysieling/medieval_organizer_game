@@ -13,6 +13,42 @@ pub enum Trait {
     Hotheaded,   // quick to feud
     Gregarious,  // seeks social interaction
     Proud,       // resistant to recruitment (high bar)
+    Steady,      // slow to anger, keeps at the work (#1239)
+    Wary,        // watches who's asking before they answer
+    Stolid,      // keeps to themselves, unmoved by talk
+    Cruel,       // hard hand, quick to wound
+}
+
+/// Every trait, in a fixed order (ties over "most common" settle on it)
+pub const TRAITS: [Trait; 12] = [Trait::Lazy, Trait::Ambitious, Trait::Kind, Trait::Stingy,
+    Trait::Pious, Trait::Hotheaded, Trait::Gregarious, Trait::Proud,
+    Trait::Steady, Trait::Wary, Trait::Stolid, Trait::Cruel];
+
+impl Trait {
+    /// The trait that can't sit beside this one: a taught trait drives
+    /// its opposite out
+    pub fn opposite(self) -> Option<Trait> {
+        match self {
+            Trait::Steady => Some(Trait::Hotheaded),
+            Trait::Hotheaded => Some(Trait::Steady),
+            Trait::Kind => Some(Trait::Cruel),
+            Trait::Cruel => Some(Trait::Kind),
+            Trait::Lazy => Some(Trait::Ambitious),
+            Trait::Ambitious => Some(Trait::Lazy),
+            Trait::Gregarious => Some(Trait::Stolid),
+            Trait::Stolid => Some(Trait::Gregarious),
+            _ => None,
+        }
+    }
+    /// What a pupil takes from a teacher with this trait - mostly a copy,
+    /// but a stolid master's pupil grows steady, and a cruel one's wary
+    pub fn taught(self) -> Trait {
+        match self {
+            Trait::Stolid => Trait::Steady,
+            Trait::Cruel => Trait::Wary,
+            t => t,
+        }
+    }
 }
 
 /// A villager's personality - a set of traits
@@ -37,6 +73,15 @@ pub fn modifies(p: &Personality, behavior: &str) -> f32 {
             (Trait::Hotheaded, "feud") => 1.8,
             (Trait::Gregarious, "social") => 1.5,
             (Trait::Proud, "recruit") => 0.5,
+            (Trait::Steady, "work") => 1.15,
+            (Trait::Steady, "feud") => 0.6,
+            (Trait::Wary, "recruit") => 0.7,
+            (Trait::Wary, "trade") => 0.8,
+            (Trait::Stolid, "social") => 0.6,
+            (Trait::Stolid, "talk") => 0.8,
+            (Trait::Cruel, "feud") => 1.5,
+            (Trait::Cruel, "share") => 0.5,
+            (Trait::Cruel, "talk") => 0.7,
             _ => 1.0,
         };
     }
@@ -47,5 +92,17 @@ pub fn modifies(p: &Personality, behavior: &str) -> f32 {
 pub fn personality_from_seed(seed: u64) -> Personality {
     let all = [Trait::Lazy, Trait::Ambitious, Trait::Kind, Trait::Stingy, Trait::Pious, Trait::Hotheaded, Trait::Gregarious, Trait::Proud];
     let n = ((seed % 3) + 1) as usize; // 1-3 traits
-    Personality { traits: all.iter().cycle().skip((seed % 8) as usize).take(n).copied().collect() }
+    let mut traits: Vec<Trait> = all.iter().cycle().skip((seed % 8) as usize).take(n).copied().collect();
+    // the later temperaments roll apart, so the first eight stay as they were
+    let extra = match seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 59 {
+        0 | 1 => Some(Trait::Steady),
+        2 | 3 => Some(Trait::Wary),
+        4 => Some(Trait::Stolid),
+        5 => Some(Trait::Cruel),
+        _ => None,
+    };
+    if let Some(t) = extra.filter(|t| t.opposite().map(|o| !traits.contains(&o)).unwrap_or(true)) {
+        traits.push(t);
+    }
+    Personality { traits }
 }

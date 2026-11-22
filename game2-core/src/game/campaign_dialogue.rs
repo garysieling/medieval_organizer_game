@@ -430,6 +430,7 @@ fn trait_fact(t: crate::game::traits::Trait) -> &'static str {
     match t {
         Lazy => "lazy", Ambitious => "ambitious", Kind => "kind", Stingy => "stingy",
         Pious => "pious", Hotheaded => "hotheaded", Gregarious => "gregarious", Proud => "proud",
+        Steady => "steady", Wary => "wary", Stolid => "stolid", Cruel => "cruel",
     }
 }
 

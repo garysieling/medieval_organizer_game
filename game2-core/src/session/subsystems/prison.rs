@@ -69,6 +69,7 @@ impl Game {
                         Grant::Full
                     } else if p.contains(&crate::game::traits::Trait::Hotheaded)
                         || p.contains(&crate::game::traits::Trait::Stingy)
+                        || p.contains(&crate::game::traits::Trait::Cruel)
                     {
                         Grant::Refused
                     } else {

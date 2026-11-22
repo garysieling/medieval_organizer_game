@@ -96,7 +96,7 @@ impl Speaker {
     }
 }
 
-fn trait_name(t: Trait) -> &'static str {
+pub fn trait_name(t: Trait) -> &'static str {
     match t {
         Trait::Lazy => "lazy",
         Trait::Ambitious => "ambitious",
@@ -106,6 +106,10 @@ fn trait_name(t: Trait) -> &'static str {
         Trait::Hotheaded => "hotheaded",
         Trait::Gregarious => "gregarious",
         Trait::Proud => "proud",
+        Trait::Steady => "steady",
+        Trait::Wary => "wary",
+        Trait::Stolid => "stolid",
+        Trait::Cruel => "cruel",
     }
 }
 

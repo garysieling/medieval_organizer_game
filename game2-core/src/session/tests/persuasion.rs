@@ -153,6 +153,10 @@ fn test_deeper_bonds_move_further_and_the_proud_barely_shift() {
     g.world.add_component(v, Personality { traits: vec![Trait::Proud] });
     let proud = persuasion::magnitude(&g.world, g.player, v, &issue, ArgueMove::Appeal, g.tick);
     assert!(proud < at_follower * 0.6, "{proud} vs {at_follower}");
+    // a pupil taught wariness (#1239) is slower to shift too
+    g.world.add_component(v, Personality { traits: vec![Trait::Wary] });
+    let wary = m(&g);
+    assert!(wary < at_follower, "{wary} vs {at_follower}");
 }
 
 #[test]

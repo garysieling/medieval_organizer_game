@@ -53,6 +53,10 @@ fn test_the_card_tells_the_biography_you_know() {
             crate::game::traits::Trait::Hotheaded => "hot-headed",
             crate::game::traits::Trait::Gregarious => "gregarious",
             crate::game::traits::Trait::Proud => "proud",
+            crate::game::traits::Trait::Steady => "steady",
+            crate::game::traits::Trait::Wary => "wary",
+            crate::game::traits::Trait::Stolid => "stolid",
+            crate::game::traits::Trait::Cruel => "cruel",
         };
         bio.contains(w)
     });
@@ -68,6 +72,10 @@ fn test_the_card_tells_the_biography_you_know() {
             crate::game::traits::Trait::Hotheaded => "quick to anger",
             crate::game::traits::Trait::Gregarious => "strolls the village",
             crate::game::traits::Trait::Proud => "a proud bearing",
+            crate::game::traits::Trait::Steady => "slow to anger",
+            crate::game::traits::Trait::Wary => "slow to trust",
+            crate::game::traits::Trait::Stolid => "keeps to themselves",
+            crate::game::traits::Trait::Cruel => "a heavy hand",
         };
         bio.contains(h)
     });

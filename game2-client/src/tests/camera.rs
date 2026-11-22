@@ -72,6 +72,11 @@ fn event(epoch: u64, x: f32, y: f32, extent: f32, moving: bool) -> EventFocusV {
     EventFocusV { epoch, kind: 0, pos: (x, y), extent, moving }
 }
 
+/// kind 1: a house meeting (kind 2's a rite - a seated gathering too)
+fn meeting(epoch: u64, x: f32, y: f32) -> EventFocusV {
+    EventFocusV { epoch, kind: 1, pos: (x, y), extent: 6.0, moving: false }
+}
+
 /// The event camera: a new event jumps and frames itself, a live one
 /// tracks its centre, and a manual look holds it off for a spell
 #[test]
@@ -113,27 +118,29 @@ fn test_the_event_camera_jumps_frames_and_yields() {
 /// player's zoom, a street-wide march pulls toward the floor
 #[test]
 fn test_event_zoom_only_ever_pulls_back() {
-    assert_eq!(event_zoom(1.0, 1.0, false), 1.0, "a doorstep keeps the zoom");
-    assert_eq!(event_zoom(1.0, 2.0, false), 2.0, "and never zooms in");
-    let wide = event_zoom(40.0, 1.0, false);
+    assert_eq!(event_zoom(1.0, 1.0), 1.0, "a doorstep keeps the zoom");
+    assert_eq!(event_zoom(1.0, 2.0), 2.0, "and never zooms in");
+    let wide = event_zoom(40.0, 1.0);
     assert!(wide < 0.5 + f32::EPSILON || (wide - MIN_ZOOM).abs() < 0.01,
         "a street-wide event hits the floor: {wide}");
-    let mid = event_zoom(12.0, 1.0, false);
+    let mid = event_zoom(12.0, 1.0);
     assert!(mid < 1.0 && mid > MIN_ZOOM, "a column pulls back but not to the floor: {mid}");
 }
 
-/// a house meeting leans in: a tight circle draws the camera close
-/// enough that the attendees' faces read, where a march would keep
-/// the player's own zoom
+/// a house meeting's first frame goes to max zoom on it - the
+/// attendees' faces read - where a march would fit or keep the
+/// player's own zoom (#1334)
 #[test]
-fn test_event_zoom_leans_in_on_a_gathering() {
-    let lean = event_zoom(6.0, 1.0, true);
-    assert!(lean > 1.0 && lean <= MAX_ZOOM,
-        "a six-tile circle leans past the player's zoom: {lean}");
-    assert_eq!(event_zoom(6.0, 1.0, false), 1.0,
-        "the same stretch of march would have kept it");
-    let wide = event_zoom(40.0, 2.0, true);
-    assert!(wide < 1.0, "a gathering spilling streets-wide still pulls back: {wide}");
-    assert!(event_zoom(2.0, 1.0, true) <= MAX_ZOOM,
-        "and the lean never overshoots the cap");
+fn test_a_meeting_event_lands_at_max_zoom() {
+    let mut cam = EventCam::default();
+    let (_, z) = cam.step(Some(&meeting(1, 20.0, 20.0)), (100, 100), 1.0);
+    assert_eq!(z, MAX_ZOOM, "a meeting opens at max zoom, not its circle's fit: {z}");
+    // a rite's a seated gathering too; a march still fits its extent
+    let mut cam = EventCam::default();
+    let mut rite = meeting(2, 30.0, 30.0);
+    rite.kind = 2;
+    assert_eq!(cam.step(Some(&rite), (0, 0), 0.8).1, MAX_ZOOM);
+    let mut cam = EventCam::default();
+    let (_, z) = cam.step(Some(&event(3, 20.0, 20.0, 40.0, true)), (0, 0), 1.0);
+    assert!(z < 1.0, "a march still pulls back to frame it: {z}");
 }

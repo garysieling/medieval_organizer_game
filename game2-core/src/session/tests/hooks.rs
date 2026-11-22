@@ -58,7 +58,7 @@ fn test_setup_draws_up_to_two_hooks_the_same_each_time() {
 #[test]
 fn test_an_open_hook_colors_their_small_talk() {
     for h in HOOKS {
-        let want = format!("self:{}", h.status);
+        let want = format!("self:status:{}", h.status);
         assert!(crate::game::dialogue_trees::SMALL_CHAT.voice.iter()
             .any(|v| v.criteria.iter().any(|c| matches!(c, Criterion::Has(s) if *s == want))),
             "no small talk hints at {}", h.status);

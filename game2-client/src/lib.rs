@@ -17,6 +17,16 @@ use game2_core::sim::precipitation::PrecipKind;
 use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use game2_core::ui::weather_fx;
 
+/// A `println!` that doesn't panic when stdout's closed (#1370): the
+/// headless dumps and benches write progress to pipes the reader can
+/// drop mid-run - os error 232 shouldn't take the run down with it
+macro_rules! sayln {
+    ($($arg:tt)*) => {{
+        use std::io::Write;
+        let _ = writeln!(std::io::stdout(), $($arg)*);
+    }};
+}
+
 mod art;
 mod bench;
 mod draw;

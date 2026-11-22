@@ -670,7 +670,7 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
             sink.push(if (opts.scale - 1.0).abs() < f32::EPSILON { buf } else { buf.scaled(opts.scale) })?;
             captured += 1;
             if captured % 25 == 0 {
-                println!("{}/{} frames ({}% of play time)", captured, n_frames, f * 100 / total_frames.max(1));
+                sayln!("{}/{} frames ({}% of play time)", captured, n_frames, f * 100 / total_frames.max(1));
             }
         }
     }
@@ -685,10 +685,10 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
     });
     sink.finish(pcm.as_deref())?;
     if opts.format == Format::Frames {
-        println!("{} video frames over {} play-seconds -> {}", captured, opts.play_secs, opts.out);
+        sayln!("{} video frames over {} play-seconds -> {}", captured, opts.play_secs, opts.out);
     } else {
         let size = std::fs::metadata(&opts.out).map(|m| m.len()).unwrap_or(0);
-        println!("{} video frames over {} play-seconds -> {} ({} bytes)", captured, opts.play_secs, opts.out, size);
+        sayln!("{} video frames over {} play-seconds -> {} ({} bytes)", captured, opts.play_secs, opts.out, size);
     }
     Ok(opts.out)
 }

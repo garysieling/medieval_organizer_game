@@ -242,10 +242,13 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
     }
     // the opener's drop cap: the first real line's first letter,
     // decorated - a day rule isn't the opener, your own words aren't
-    // either (#1321)
+    // either. A named line caps its lead word (the name), so the words
+    // themselves stay whole (#1321)
     let cap_at = p.rows.iter().position(|r| !r.you && !r.rule);
-    let cap = cap_at
-        .and_then(|i| p.rows[i].text.chars().next()).filter(|c| c.is_alphanumeric());
+    let cap = cap_at.and_then(|i| {
+        let r = &p.rows[i];
+        r.name.as_deref().unwrap_or(&r.text).chars().next()
+    }).filter(|c| c.is_alphanumeric());
     // wrap every line, then keep the newest that fit beside the choices
     let wrap_line = |r: &TalkRowV, cap: Option<char>| -> Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>, bool)> {
         let body = if r.gist { (255, 215, 120) } else if r.name.is_none() { (150, 150, 170) } else { (215, 215, 200) };
@@ -254,12 +257,15 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
         // the opener leaves the cap's width beside it too
         let width = CONVO_CHARS - r.who.is_some() as usize * CONVO_PORT_CHARS
             - cap.is_some() as usize * CAP_CHARS;
-        // the cap letter leaves the line - the decorated box says it
-        let text = cap.and_then(|c| r.text.strip_prefix(c)).unwrap_or(&r.text).trim_start();
+        // a named line's cap comes off its lead ("ELIZA: Good morrow"
+        // reads whole); an unowned line's comes off its first word
+        let text = cap.filter(|_| r.name.is_none())
+            .and_then(|c| r.text.strip_prefix(c)).unwrap_or(&r.text).trim_start();
         let mut ws = vec![];
         match &r.name {
             Some(n) => {
-                let lead = format!("{}: ", n.to_uppercase());
+                let capped: String = if cap.is_some() { n.chars().skip(1).collect() } else { n.clone() };
+                let lead = format!("{}: ", capped.to_uppercase());
                 for (k, w) in super::wrap_text(&format!("{}{}", lead, text), width).into_iter().enumerate() {
                     match w.strip_prefix(lead.trim_end()) {
                         Some(rest) if k == 0 => ws.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)), false)),
@@ -343,7 +349,13 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
     let (boxes, h) = convo_layout(p, pin, frame);
     buf.rect(CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2, 20, 20, 32);
     buf.rect(CONVO_X, CONVO_Y, CONVO_W, h, 25, 25, 40);
-    draw_tier(buf, CONVO_X + 6, CONVO_Y + 3, &p.title, TextTier::H1, 150, 150, 180);
+    // the doubled title; a long call's name falls back to 1x rather
+    // than spilling into the sidebar
+    if p.title.len() as i32 * 12 <= CONVO_W - 12 {
+        draw_tier(buf, CONVO_X + 6, CONVO_Y + 3, &p.title, TextTier::H1, 150, 150, 180);
+    } else {
+        draw_text(buf, CONVO_X + 6, CONVO_Y + 8, &p.title, 150, 150, 180);
+    }
     for b in &boxes {
         let hover = b.click.is_some()
             && mouse.0 >= b.x && mouse.0 < b.x + b.w && mouse.1 >= b.y && mouse.1 < b.y + b.h;

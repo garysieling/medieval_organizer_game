@@ -275,8 +275,8 @@ fn test_the_conversation_box_pins_its_lines() {
         options: vec![], decides: false, leave: false,
     };
     let (boxes4, _) = convo_layout(&q, &mut pin, 30);
-    // "ine 0": the first line's first letter is the drop cap (#1321)
-    assert_eq!(boxes4[0].rows[0].1, "ine 0", "a new panel didn't open on its first line");
+    // a named opener caps its lead ("PEAKER0: ") - the words stay whole
+    assert_eq!(boxes4[0].rows[0].1, "line 0", "a new panel didn't open on its first line");
 }
 
 /// New lines fade up over CONVO_FADE frames while their elders hold
@@ -502,14 +502,24 @@ fn test_the_opener_carries_a_drop_cap() {
     };
     let (boxes, _) = convo_layout(&p, &mut ConvoPin::default(), 30);
     let opener = boxes.iter().find(|b| b.cap.is_some()).expect("the opener caps");
-    assert_eq!(opener.cap, Some('P'), "the day rule's no opener - the first spoken line is");
-    // the capped letter leaves the line: the name lead's rest carries on
-    assert_eq!(opener.rows[0].1.trim_start().chars().take(4).collect::<String>(), "eace");
+    assert_eq!(opener.cap, Some('R'), "the day rule's no opener - the first spoken line is");
+    // a named opener caps its lead word: "OWENA:" beside the cap, the
+    // greeting kept whole after it
+    assert_eq!(opener.rows[0].3.as_ref().unwrap().0, "OWENA: ");
+    assert_eq!(opener.rows[0].1.trim_start().chars().take(5).collect::<String>(), "Peace");
     // the box stands taller than one row for the cap's span
     assert!(opener.h >= CONVO_CAP + 8, "the cap's span didn't raise the box: {}", opener.h);
     // and it wraps narrower beside it
     assert!(opener.rows[0].1.len() <= CONVO_CHARS - CONVO_PORT_CHARS - CAP_CHARS,
         "the opener didn't narrow for the cap: {:?}", opener.rows[0].1);
+    // an unowned opener caps its first word instead
+    let q = ConvoPanelV { title: "talk".into(),
+        rows: vec![TalkRowV { name: None, text: "folk gather on the square".into(),
+            gist: false, you: false, rule: false, who: None, mood: 0 }],
+        options: vec![], decides: false, leave: false };
+    let (boxes, _) = convo_layout(&q, &mut ConvoPin::default(), 30);
+    assert_eq!(boxes[0].cap, Some('f'));
+    assert_eq!(boxes[0].rows[0].1, "olk gather on the square");
     // your own words take no cap even as the first line
     let q = ConvoPanelV { title: "talk".into(),
         rows: vec![TalkRowV { name: Some("You".into()), text: "Aye, mine own words.".into(),
@@ -544,7 +554,8 @@ fn test_the_convo_box_tiers_its_text() {
     let rule = boxes.iter().find(|b| b.rows.iter().any(|r| r.4)).expect("no rubric row");
     assert_eq!(rule.rows[0].1, "day 12");
     let said = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(_)))).unwrap();
-    assert_eq!(said.rows[0].3.as_ref().unwrap().0, "ELIZA: ", "the lead isn't capital");
+    // the opener caps her E: the lead shows its capital rest
+    assert_eq!(said.rows[0].3.as_ref().unwrap().0, "LIZA: ", "the lead isn't capital");
     // a doubled title inks the second glyph row - plain 1x can't reach it
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
     draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);

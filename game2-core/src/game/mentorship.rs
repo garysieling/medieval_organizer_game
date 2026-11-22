@@ -68,6 +68,7 @@ fn traits_of(world: &World, v: Entity) -> Vec<Trait> {
 
 /// Still being shaped: a child, an adolescent, or a young adult
 pub fn is_young(world: &World, v: Entity) -> bool {
+    if crate::game::villager::is_dead(world, v) { return false; }
     match age_of(world, v) {
         Some((_, LifeStage::Child | LifeStage::Adolescent)) => true,
         Some((y, LifeStage::Adult)) => y < YOUNG_YEARS,
@@ -87,7 +88,8 @@ pub fn teachers(world: &World, pupil: Entity) -> Vec<(Entity, bool)> {
         let r = world.get_component::<Relationship>(b)?;
         let t = if r.from == pupil { r.other } else { r.from };
         let (ty, stage) = age_of(world, t)?;
-        if t == pupil || stage == LifeStage::Dead || ty < py + AGE_GAP { return None; }
+        if t == pupil || stage == LifeStage::Dead || crate::game::villager::is_dead(world, t)
+            || ty < py + AGE_GAP { return None; }
         let formal = matches!(r.kind, RelKind::Mentor | RelKind::Apprentice);
         let holds = if formal { r.strength >= FORMAL_TIE }
             else { r.strength >= BOND_TIE && r.interactions >= BOND_TALKS };

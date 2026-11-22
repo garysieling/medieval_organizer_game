@@ -185,3 +185,17 @@ fn test_new_temperaments_roll_beside_the_old_ones() {
     let p = Personality { traits: vec![Trait::Steady, Trait::Cruel] };
     assert!(traits::modifies(&p, "feud") < 1.0 && traits::modifies(&p, "share") < 1.0);
 }
+
+#[test]
+fn test_the_dead_neither_teach_nor_learn() {
+    let mut g = Game::new();
+    let (t, p) = apprenticed(&mut g, vec![Trait::Kind], vec![]);
+    g.world.add_component(t, crate::game::villager::Dead);
+    seasons(&mut g, 24);
+    assert!(taught(&g, p).is_empty(), "a dead master's lessons are done");
+    let mut g = Game::new();
+    let (_, p) = apprenticed(&mut g, vec![Trait::Pious], vec![]);
+    g.world.add_component(p, crate::game::villager::Dead);
+    seasons(&mut g, 24);
+    assert!(taught(&g, p).is_empty(), "nor does a dead pupil grow");
+}

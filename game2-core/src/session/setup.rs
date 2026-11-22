@@ -1109,6 +1109,7 @@ impl Game {
             match_tried: vec![],
             courtships: vec![],
             mush_patches,
+            work_parties: vec![],
             shroom_breaks: vec![],
             shroom_lore: vec![],
             ailments: vec![],

@@ -136,3 +136,41 @@ fn test_the_daily_loop_runs_a_due_reach_and_logs_it() {
     assert!(g.world.get_component::<Reach>(a).is_none());
     assert!(g.log.iter().any(|l| l.contains("on their own")), "the log hears of it");
 }
+
+#[test]
+fn test_a_jailed_target_cancels_the_reach() {
+    let mut g = Game::new();
+    let (a, r) = (g.villagers[0], g.villagers[2]);
+    members(&mut g, &[a]);
+    tie(&mut g, a, r, 0.7);
+    assert!(join(&mut g, r));
+    let t = free_adult(&g, &[a, r, g.player]);
+    tie(&mut g, a, t, 0.9);
+    let (org, tick) = (g.org, g.tick);
+    g.world.add_component(a, Reach { org, target: t, due: tick });
+    g.world.add_component(t, crate::game::dungeon::Imprisoned { since: tick, charge: "sedition".into() });
+    assert!(leadership::run_reach(&mut g.world, a, tick).is_none());
+    assert!(g.world.get_component::<Reach>(a).is_none(), "the errand's off");
+    assert!(!g.world.get_component::<Organization>(g.org).unwrap().members.contains(&t));
+    assert_ne!(leadership::reach_target(&g.world, g.org, a, &g.villagers.clone()), Some(t), "a prisoner isn't asked");
+}
+
+#[test]
+fn test_a_reach_never_takes_a_first_developers_credit() {
+    let mut g = Game::new();
+    let (a, r) = (g.villagers[0], g.villagers[2]);
+    members(&mut g, &[a]);
+    tie(&mut g, a, r, 0.7);
+    assert!(join(&mut g, r));
+    let t = free_adult(&g, &[a, r, g.player]);
+    tie(&mut g, a, t, 0.9);
+    // credited once already, by someone in another org
+    let other = g.world.create_entity();
+    let first = g.villagers[3];
+    g.world.add_component(t, Developed { org: other, by: first });
+    let (org, tick) = (g.org, g.tick);
+    g.world.add_component(a, Reach { org, target: t, due: tick });
+    assert_eq!(leadership::run_reach(&mut g.world, a, tick).map(|x| x.1), Some(leadership::ReachOutcome::Joined));
+    assert_eq!(g.world.get_component::<Developed>(t).map(|d| d.by), Some(first));
+    assert_eq!(leadership::brought(&g.world, g.org, first), 0, "another org's credit isn't this one's");
+}

@@ -721,6 +721,10 @@ impl Game {
             if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() && in_earshot {
                 self.seats[seat].ctx_actions.push(CtxAct::TakeJob);
             }
+            // they've asked you in: the place at their table (#1241)
+            if in_earshot && self.table_offered(seat, v) {
+                self.seats[seat].ctx_actions.push(CtxAct::Dine);
+            }
             // a solved mystery wants delivering to whoever's been asking
             if let Some(m) = &self.seats[seat].mystery {
                 if m.solved() && v == m.asker {
@@ -1549,6 +1553,7 @@ impl Game {
             }
             CtxAct::TakeJob => self.accept_quest_at(seat),
             CtxAct::ShareFindings => self.mystery_deliver_at(seat),
+            CtxAct::Dine => self.sit_at_table(seat),
             CtxAct::MarkBook => {
                 // the liberation ask: their book's marked free - out
                 // from under the master, and paperless with it (#1261)

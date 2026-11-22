@@ -254,3 +254,4 @@ mod pass;
 mod persuasion;
 mod rhetoric;
 mod mentorship;
+mod table;

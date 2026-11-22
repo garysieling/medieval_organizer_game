@@ -399,6 +399,10 @@ pub struct TileSet {
     pub shallow: Option<Sprite>,
     pub deep: Option<Sprite>,
     pub wheat: Vec<Sprite>,
+    /// The wheat growth arc (#1277): sown, shoots, half-grown, ripe -
+    /// empty where the sheet didn't load, and always empty in winter
+    /// (the fields lie under the snow)
+    pub wheat_growth: Vec<Sprite>,
     pub corn: Vec<Sprite>,
     pub roads: Vec<Sprite>,
     pub rivers: Vec<Sprite>,
@@ -586,6 +590,13 @@ impl TileSet {
             trees: if rd_trees.is_empty() { pack_trees } else { rd_trees },
             trees_k: if rd_trees_k { 1.0 } else { PACK_PROP_K },
             wheat: if winter { snow().into_iter().collect() } else { crop("wheat") },
+            // the field's year, sown to ripe (#1277): all four cells or
+            // the old two-stage variety pick stands in
+            wheat_growth: if winter { vec![] } else {
+                let v: Vec<Sprite> = ["seeded", "shoots", "tall", "ripe"].iter()
+                    .filter_map(|n| at(&format!("rd/crops/{}.png", n))).map(&gold).collect();
+                if v.len() == 4 { v } else { vec![] }
+            },
             corn: if winter { snow().into_iter().collect() } else { crop("corn") },
             roads: if winter {
                 // the winter set numbers its two straight roads the other way round
@@ -616,6 +627,7 @@ impl TileSet {
             shallow: self.shallow.as_ref().map(&f),
             deep: self.deep.as_ref().map(&f),
             wheat: self.wheat.iter().map(&f).collect(),
+            wheat_growth: self.wheat_growth.iter().map(&f).collect(),
             corn: self.corn.iter().map(&f).collect(),
             roads: self.roads.iter().map(&f).collect(),
             rivers: self.rivers.iter().map(&f).collect(),
@@ -625,8 +637,8 @@ impl TileSet {
         }
     }
 
-    /// The block for map tile (x, y), joined up with its neighbours
-    pub(crate) fn block(&self, map: &TileMap, x: i32, y: i32) -> Option<&Sprite> {
+    /// The block for map tile (x, y) on `day`, joined up with its neighbours
+    pub(crate) fn block(&self, map: &TileMap, x: i32, y: i32, day: u64) -> Option<&Sprite> {
         let sea = |dx: i32, dy: i32| map.get(x + dx, y + dy) == Some(Tile::Water);
         let by_sea = || NEIGHBOURS.iter().any(|&(dx, dy)| sea(dx, dy));
         let by_land = || NEIGHBOURS.iter().any(|&(dx, dy)| !sea(dx, dy) && map.get(x + dx, y + dy) != Some(Tile::River));
@@ -640,6 +652,9 @@ impl TileSet {
             Tile::Water if by_land() => self.shallow.as_ref().or(self.water.as_ref()),
             Tile::Water if noise(x, y, 9) < 0.35 => self.deep.as_ref().or(self.water.as_ref()),
             Tile::Water => self.water.as_ref(),
+            // a field draws its growth stage once the sheet's loaded:
+            // the whole patch ripens together (#1277)
+            Tile::Wheat if self.wheat_growth.len() == 4 => self.wheat_growth.get(map.crop_stage(x, y, day)),
             Tile::Wheat => pick(&self.wheat, x, y, 5),
             Tile::Corn => pick(&self.corn, x, y, 6),
             Tile::Road => self.roads.get(map.piece(x, y)? as usize - 1),

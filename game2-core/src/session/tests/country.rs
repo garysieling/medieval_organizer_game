@@ -260,3 +260,26 @@ fn test_the_manor_stands_and_holds_its_lord() {
             "the lord doesn't bed in his own manor");
     }
 }
+
+#[test]
+fn test_a_field_ripens_as_a_patch() {
+    let g = Game::new();
+    // a contiguous wheat patch sows together and ripens together (#1277)
+    let wheat: Vec<(i32, i32)> = (0..g.map.height as i32).flat_map(|y|
+        (0..g.map.width as i32).map(move |x| (x, y)))
+        .filter(|&(x, y)| g.map.get(x, y) == Some(Tile::Wheat)).collect();
+    assert!(wheat.len() > 5, "the map sows wheat somewhere");
+    let (x, y) = wheat[0];
+    let mate = wheat.iter().copied().find(|&(mx, my)|
+        (mx - x).abs() + (my - y).abs() == 1).expect("fields run in strips");
+    for d in [30u64, 90, 140, 200] {
+        assert_eq!(g.map.crop_stage(x, y, d), g.map.crop_stage(mate.0, mate.1, d),
+            "patch-mates ripen together on day {d}");
+    }
+    // the year's arc: sown in spring, ripe by autumn, sown again next year
+    assert_eq!(g.map.crop_stage(x, y, 5), 0, "not yet sown");
+    assert_eq!(g.map.crop_stage(x, y, 80), 1, "shoots");
+    assert_eq!(g.map.crop_stage(x, y, 130), 2, "half-grown");
+    assert_eq!(g.map.crop_stage(x, y, 170), 3, "ripe");
+    assert_eq!(g.map.crop_stage(x, y, 365 + 5), 0, "the year wraps to the furrow again");
+}

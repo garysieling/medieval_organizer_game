@@ -348,6 +348,31 @@ impl TileMap {
         }
     }
 
+    /// The growth stage a wheat tile's field is at today (#1277), 0
+    /// sown - 1 shoots - 2 half-grown - 3 ripe. A whole contiguous
+    /// field sows together: the patch's north-west anchor seeds its
+    /// day, so the look is seeded-stable and wants no bookkeeping -
+    /// any wheat tile's stage reads off the map it stands on. Sown
+    /// early spring, ripe by autumn, back to the furrow each year.
+    pub fn crop_stage(&self, x: i32, y: i32, day: u64) -> usize {
+        let mut seen = crate::engine::det::HashSet::default();
+        let mut stack = vec![(x, y)];
+        let mut anchor = (x, y);
+        while let Some((cx, cy)) = stack.pop() {
+            if !seen.insert((cx, cy)) || self.get(cx, cy) != Some(Tile::Wheat) { continue; }
+            if (cy, cx) < (anchor.1, anchor.0) { anchor = (cx, cy); }
+            for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                if self.get(cx + dx, cy + dy) == Some(Tile::Wheat) { stack.push((cx + dx, cy + dy)); }
+            }
+        }
+        // sowing runs a fortnight or so into the year, each patch on
+        // its own day; the arc: shoots at ~6 weeks out, half-grown at
+        // ~10, ripe toward autumn - the year wraps and it's sown again
+        let sown = 10 + (noise(anchor.0, anchor.1, 61) * 15.0) as u64;
+        let d = day % 360;
+        if d < sown { 0 } else { ((d - sown) / 45).min(3) as usize }
+    }
+
     pub fn is_occupied(&self, x: i32, y: i32) -> bool {
         self.get(x, y).is_some() && self.occupied[y as usize * self.width + x as usize]
     }

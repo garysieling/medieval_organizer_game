@@ -92,3 +92,32 @@ fn test_expanded_map_ground_cache_is_viewport_sized_at_zoom_two() {
     view.render(&model, (-1, -1));
     assert_eq!(view.ground.borrow().as_ref().unwrap().camera, (view.cam_x, view.cam_y));
 }
+
+#[test]
+fn test_wheat_draws_its_growth_stage() {
+    // a wheat tile draws the sown-shoots-half-ripe arc once the sheet's
+    // loaded (#1277); the block changes with the day, and a whole patch
+    // shows one stage together
+    use game2_core::game::tilemap::Tile;
+    let g = Game::new_seeded(MAP_SEED);
+    let m = g.ui_model();
+    let art = Art::load_fs("../assets", 0);
+    let set = &art.tiles[0];
+    assert_eq!(set.wheat_growth.len(), 4, "the growth sheet didn't slice in whole");
+    let (x, y) = (0..m.map.height as i32).flat_map(|y|
+        (0..m.map.width as i32).map(move |x| (x, y)))
+        .find(|&(x, y)| m.map.get(x, y) == Some(Tile::Wheat)).expect("the map sows wheat");
+    let block_at = |d: u64| set.block(&m.map, x, y, d).expect("a wheat tile has a block");
+    let days = [10u64, 80, 130, 170];
+    for i in 0..3 {
+        assert!(!std::ptr::eq(block_at(days[i]), block_at(days[i + 1])),
+            "days {} and {} drew the same stage", days[i], days[i + 1]);
+    }
+    let mate = [(1, 0), (-1, 0), (0, 1), (0, -1)].iter()
+        .map(|(dx, dy)| (x + dx, y + dy))
+        .find(|&(mx, my)| m.map.get(mx, my) == Some(Tile::Wheat));
+    if let Some((mx, my)) = mate {
+        assert!(std::ptr::eq(set.block(&m.map, mx, my, 170).unwrap(), block_at(170)),
+            "patch-mates show one stage together");
+    }
+}

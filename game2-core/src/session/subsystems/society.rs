@@ -1209,11 +1209,64 @@ impl Game {
         }
     }
 
+    /// A season's teaching (#1239): each young villager may take a
+    /// trait from an older soul they're bound to, or failing that from
+    /// the cause that's raising them - a young follower the organizer
+    /// counsels, or a member's child brought up around the meetings
+    pub fn mentorship_tick(&mut self, tick: u64) {
+        use crate::game::mentorship::{self as m, Teacher};
+        use crate::game::traits::Personality;
+        if tick == 0 || tick % m::SEASON != 0 { return; }
+        let traits = |w: &crate::engine::ecs::World, e: Entity| w.get_component::<Personality>(e)
+            .map(|p| p.traits.clone()).unwrap_or_default();
+        for v in self.villagers.clone() {
+            if !m::is_young(&self.world, v) || m::marks(&self.world, v) >= m::MAX_MARKS { continue; }
+            let mut taken = None;
+            for (t, formal) in m::teachers(&self.world, v) {
+                if !m::roll(tick, v, t as u64, if formal { m::FORMAL_IN } else { m::BOND_IN }) { continue; }
+                let Some(tr) = m::lesson(&traits(&self.world, t), &traits(&self.world, v)) else { continue };
+                if m::mark(&mut self.world, v, Teacher::Person(t), tr, tick) {
+                    taken = Some((tr, self.name_of(t)));
+                    break;
+                }
+            }
+            if taken.is_none() {
+                let child = self.world.get_component::<crate::game::lifecycle::Age>(v)
+                    .map(|a| matches!(a.stage, crate::game::lifecycle::LifeStage::Child
+                        | crate::game::lifecycle::LifeStage::Adolescent)).unwrap_or(false);
+                for seat in 0..self.seats.len() {
+                    let (pe, org) = (self.seats[seat].player, self.seats[seat].org);
+                    let counselled = matches!(crate::game::organizing::stage_of(&self.world, pe, v),
+                        crate::game::organizing::RelStage::Follower | crate::game::organizing::RelStage::CoLeader);
+                    let raised = child && self.world.get_component::<Organization>(org)
+                        .map(|o| o.members.iter().any(|&mm| mm != v
+                            && self.rel_kind(mm, v) == Some(crate::game::relationships::RelKind::Family)))
+                        .unwrap_or(false);
+                    if !(counselled || raised) || !m::roll(tick, v, org as u64 ^ 0xCA05E, m::CAUSE_IN) { continue; }
+                    let Some(tr) = m::cause_shape(&self.world, org).map(|t| t.taught()) else { continue };
+                    if m::mark(&mut self.world, v, Teacher::Cause(org), tr, tick) {
+                        taken = Some((tr, "the cause".into()));
+                        break;
+                    }
+                }
+            }
+            if let Some((tr, by)) = taken {
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {} has grown {} under {}'s hand.", tick, self.name_of(v),
+                        crate::game::conversation::trait_name(tr), by),
+                );
+            }
+        }
+    }
+
     /// What a cause leaves on people fades on its own clock: a season
     /// cools a moral shock (reactions::cool_off), a month dulls a
     /// blow-off (actions::lifts_with_time). Coaching is still the fast
     /// way back - this is just the floor under "stuck forever".
     pub fn marks_tick(&mut self, tick: u64) {
+        // the young take a little of whoever's raising them (#1239)
+        self.mentorship_tick(tick);
         for v in self.villagers.clone() {
             // an argument they've turned over long enough takes (#1234)
             crate::game::persuasion::mature(&mut self.world, v, tick);

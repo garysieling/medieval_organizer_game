@@ -3741,6 +3741,10 @@ pub fn backstory(s: &Speaker) -> String {
             Trait::Hotheaded => "Their temper's shorter than a winter's day.".into(),
             Trait::Gregarious => "They know every soul and every soul's business.".into(),
             Trait::Proud => "They bow to no one.".into(),
+            Trait::Steady => "They'll finish the furrow before they curse the stone.".into(),
+            Trait::Wary => "They weigh a stranger twice before a word.".into(),
+            Trait::Stolid => "They keep their own counsel, and keep it well.".into(),
+            Trait::Cruel => "Their hand is heavy and their tongue heavier.".into(),
         });
     }
     for st in &s.status {

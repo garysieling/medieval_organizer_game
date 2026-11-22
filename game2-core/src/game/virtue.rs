@@ -45,6 +45,10 @@ impl Virtues {
                 Trait::Gregarious => (Virtue::Hope, 0.05),
                 Trait::Ambitious => (Virtue::Prudence, 0.08),
                 Trait::Lazy => (Virtue::Temperance, -0.05),
+                Trait::Steady => (Virtue::Temperance, 0.08),
+                Trait::Wary => (Virtue::Prudence, 0.05),
+                Trait::Stolid => (Virtue::Courage, 0.03),
+                Trait::Cruel => (Virtue::Charity, -0.12),
             };
             v.nudge(k, by);
         }

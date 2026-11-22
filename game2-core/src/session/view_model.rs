@@ -1696,6 +1696,7 @@ fn trait_word(t: crate::game::traits::Trait) -> &'static str {
     match t {
         Lazy => "lazy", Ambitious => "ambitious", Kind => "kind", Stingy => "stingy",
         Pious => "pious", Hotheaded => "hot-headed", Gregarious => "gregarious", Proud => "proud",
+        Steady => "steady", Wary => "wary", Stolid => "stolid", Cruel => "cruel",
     }
 }
 
@@ -1708,6 +1709,8 @@ fn trait_hint(t: crate::game::traits::Trait) -> &'static str {
         Kind => "a warm word", Stingy => "tight-fisted",
         Pious => "keeps the faith", Hotheaded => "quick to anger",
         Gregarious => "strolls the village", Proud => "a proud bearing",
+        Steady => "slow to anger", Wary => "slow to trust",
+        Stolid => "keeps to themselves", Cruel => "a heavy hand",
     }
 }
 

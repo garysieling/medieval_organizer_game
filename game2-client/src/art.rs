@@ -865,7 +865,7 @@ pub(crate) const WEATHER_ART: [&str; 5] = [
 pub(crate) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
     match at(rel) {
         Some(s) => s.crop(0, 0, 32, 32),
-        None => { println!("sprite load {}", rel); Sprite { width: 1, height: 1, pixels: vec![255, 0, 255, 255] } }
+        None => { sayln!("sprite load {}", rel); Sprite { width: 1, height: 1, pixels: vec![255, 0, 255, 255] } }
     }
 }
 

@@ -55,17 +55,17 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
     let frames = n.max(1);
     let line: Vec<String> = summary.layer("render.")
         .map(|s| format!("{} {:.1}", &s.name["render.".len()..], s.mean_per_frame)).collect();
-    println!("render sections (ms/frame): {}", line.join(", "));
+    sayln!("render sections (ms/frame): {}", line.join(", "));
     let (su, sm, sr) = (perf::stats("update", &tu, frames), perf::stats("model", &tm, frames), perf::stats("render", &tr, frames));
     let (precip, rainbow) = if hold_weather { held } else { (game.precip, game.rainbow_from) };
-    println!("bench weather: precip {:?}, rainbow {:?}, season {:?}", precip, rainbow.map(|f| game.frame_n.saturating_sub(f)), game.ui_model().season);
-    println!("bench {} frames: update {:.2}ms (max {:.1}), model {:.2}ms (max {:.1}), render {:.2}ms (max {:.1}), total {:.2}ms/frame",
+    sayln!("bench weather: precip {:?}, rainbow {:?}, season {:?}", precip, rainbow.map(|f| game.frame_n.saturating_sub(f)), game.ui_model().season);
+    sayln!("bench {} frames: update {:.2}ms (max {:.1}), model {:.2}ms (max {:.1}), render {:.2}ms (max {:.1}), total {:.2}ms/frame",
         n, su.mean_per_frame, su.max, sm.mean_per_frame, sm.max, sr.mean_per_frame, sr.max,
         su.mean_per_frame + sm.mean_per_frame + sr.mean_per_frame);
-    println!("bench p50/p95: update {:.2}/{:.2}, model {:.2}/{:.2}, render {:.2}/{:.2} ms (ticks {}..{})",
+    sayln!("bench p50/p95: update {:.2}/{:.2}, model {:.2}/{:.2}, render {:.2}/{:.2} ms (ticks {}..{})",
         su.p50, su.p95, sm.p50, sm.p95, sr.p50, sr.p95, start_tick, game.tick);
     // total.* hold their sim.*/ecs.* children, so they don't add up with them
-    print!("{}", summary.table(25));
+    sayln!("{}", summary.table(25));
     if let Some(path) = std::env::var("GAME2_BENCH_JSON").ok().filter(|p| !p.is_empty()) {
         let json = serde_json::json!({
             "frames": frames, "ticks": [start_tick, game.tick], "zoom": view.zoom, "pan": pan, "zooming": zooming,
@@ -77,7 +77,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
             }).collect::<Vec<_>>(),
         });
         match std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap_or_default()) {
-            Ok(()) => println!("bench json written to {}", path),
+            Ok(()) => sayln!("bench json written to {}", path),
             Err(e) => eprintln!("bench json: can't write {}: {}", path, e),
         }
     }
@@ -135,7 +135,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     // walks the figure in, --focus <slug> centres the camera on it
     if let Some(name) = std::env::var("GAME2_DUMP_EVENT").ok().filter(|v| !v.is_empty()) {
         match game2_core::session::events::event_id(&name) {
-            Some(id) => { game.force_event(id); println!("event {} fired", name); }
+            Some(id) => { game.force_event(id); sayln!("event {} fired", name); }
             None => eprintln!("GAME2_DUMP_EVENT: no such event {}", name),
         }
     }
@@ -156,7 +156,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
                 });
                 let c = game.sites[i].centre;
                 let cam = cam_centred_on(c.0 as f32, c.1 as f32);
-                println!("quest: parcel to {} at {},{},--cam {},{}", game.sites[i].name, c.0, c.1, cam.0, cam.1);
+                sayln!("quest: parcel to {} at {},{},--cam {},{}", game.sites[i].name, c.0, c.1, cam.0, cam.1);
             }
             None => eprintln!("GAME2_DUMP_QUEST: no site named {} (sites: {})", name,
                 game.sites.iter().map(|s| s.name).collect::<Vec<_>>().join(", ")),
@@ -167,9 +167,9 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         eprintln!("art.tombstones={} art.graves={}", view.art.tombstones.len(), view.art.graves.len());
         let mm = game.ui_model();
         for p in mm.people.iter().filter(|p| p.dead) {
-            println!("dead {:?} pos {:.1},{:.1} buried={} epitaph={:?}", p.kind, p.pos.0, p.pos.1, p.buried, p.epitaph);
+            sayln!("dead {:?} pos {:.1},{:.1} buried={} epitaph={:?}", p.kind, p.pos.0, p.pos.1, p.buried, p.epitaph);
         }
-        println!("graveyard slots: {:?}", &mm.graveyard[..mm.graveyard.len().min(8)]);
+        sayln!("graveyard slots: {:?}", &mm.graveyard[..mm.graveyard.len().min(8)]);
     }
     // GAME2_DUMP_MARCH=castle|town|monastery: found a cause if need be
     // and send the column up the road to the nearest site of the kind -
@@ -196,7 +196,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
             .map(|(i, _)| i);
         match si {
             Some(si) => { let name = game.sites[si].name;
-                println!("road march on {}: {}", name, game.force_road_march(0, si)); }
+                sayln!("road march on {}: {}", name, game.force_road_march(0, si)); }
             None => eprintln!("GAME2_DUMP_MARCH: no {:?} in this seed's country", want),
         }
     }
@@ -204,7 +204,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     // folk where the day's plan took them (stalls up, a congregation seated)
     let more: u32 = std::env::var("GAME2_DUMP_FRAMES").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     for _ in 0..more { game.update(); }
-    if more > 0 { let m = game.ui_model(); println!("day {} + {} frames: {} stalls, feast {}", m.tick, more, m.stalls.len(), m.feast); }
+    if more > 0 { let m = game.ui_model(); sayln!("day {} + {} frames: {} stalls, feast {}", m.tick, more, m.stalls.len(), m.feast); }
     // GAME2_DUMP_SELECT=N: open the inspector's page on villager N, as a
     // click on them would - screenshot checks for the card land on it
     if let Some(n) = std::env::var("GAME2_DUMP_SELECT").ok().and_then(|v| v.parse::<usize>().ok()) {
@@ -222,7 +222,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         game.command_at(0, Command::Act(0));
         let says: usize = std::env::var("GAME2_DUMP_SAYS").ok().and_then(|v| v.parse().ok()).unwrap_or(4);
         for _ in 0..says { game.command_at(0, Command::TalkPick(Some(0))); }
-        println!("talk {}: open={} convo={} rows={}", n, game.seats[0].talk.is_some(),
+        sayln!("talk {}: open={} convo={} rows={}", n, game.seats[0].talk.is_some(),
             game.ui_model().convo.is_some(),
             game.ui_model().convo.map(|c| c.rows.len()).unwrap_or(0));
         // GAME2_DUMP_MOOD=1|2|3: force the open Talk's read, so the
@@ -249,7 +249,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     if let Some((dx, dy)) = std::env::var("GAME2_DUMP_WALK").ok().as_deref()
         .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse::<f32>().ok()?, y.parse::<f32>().ok()?))) {
         for _ in 0..8 { game.command(Command::Walk(dx, dy)); game.update(); }
-        println!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
+        sayln!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
     }
     // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill|town|castle|market|bridge`,
     // or a workplace's look: tavern|bakery|workshop|fold|apiary|cheese|granary|watch), for props
@@ -263,7 +263,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
             .and_then(|&h| game.world.get_component::<game2_core::game::villager::Pos>(h).map(|p| (p.x, p.y))) {
             Some((x, y)) => {
                 (view.cam_x, view.cam_y) = cam_centred_on(x, y);
-                println!("focus march: tile ({:.1}, {:.1}) cam {},{}", x, y, view.cam_x, view.cam_y);
+                sayln!("focus march: tile ({:.1}, {:.1}) cam {},{}", x, y, view.cam_x, view.cam_y);
             }
             None => eprintln!("focus march: no column out at tick {}", target_tick),
         }
@@ -273,7 +273,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         match m.trains.first() {
             Some(&(tx, ty)) => {
                 (view.cam_x, view.cam_y) = cam_centred_on(tx, ty);
-                println!("focus train: tile ({:.1}, {:.1}) cam {},{}", tx, ty, view.cam_x, view.cam_y);
+                sayln!("focus train: tile ({:.1}, {:.1}) cam {},{}", tx, ty, view.cam_x, view.cam_y);
             }
             None => eprintln!("focus train: no freight on the road at tick {}", target_tick),
         }
@@ -302,12 +302,12 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     };
     if let Some((x, y)) = feature {
         (view.cam_x, view.cam_y) = cam_centred_on(x, y);
-        println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", focus.unwrap_or(""), x, y, view.cam_x, view.cam_y);
+        sayln!("focus {}: tile ({:.1}, {:.1}) cam {},{}", focus.unwrap_or(""), x, y, view.cam_x, view.cam_y);
     } else if let Some(name) = focus.filter(|f| *f != "march" && *f != "train") {
         match game.ui_model().people.iter().find(|p| focus_matches(p, name)) {
             Some(p) => {
                 (view.cam_x, view.cam_y) = cam_centred_on(p.pos.0, p.pos.1);
-                println!("focus {}: tile ({:.1}, {:.1}) cam {},{} person={:?}", name, p.pos.0, p.pos.1, view.cam_x, view.cam_y, p.person);
+                sayln!("focus {}: tile ({:.1}, {:.1}) cam {},{} person={:?}", name, p.pos.0, p.pos.1, view.cam_x, view.cam_y, p.person);
             }
             None => eprintln!("focus {}: nothing of that kind on the map at tick {}", name, target_tick),
         }
@@ -344,7 +344,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         let m = game.ui_model();
         if let Some(p) = m.people.iter().find(|p| p.kind == PKind::Player) {
             let (sx, sy) = iso_to_screen_cam(p.pos.0, p.pos.1, view.cam_x, view.cam_y, view.zoom);
-            println!("follow: player tile ({:.1}, {:.1}) screen {sx},{sy} cam {},{}",
+            sayln!("follow: player tile ({:.1}, {:.1}) screen {sx},{sy} cam {},{}",
                 p.pos.0, p.pos.1, view.cam_x, view.cam_y);
         }
     }
@@ -355,5 +355,5 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     let buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
     let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
     buf.save_bmp(&path).unwrap();
-    println!("frame {} saved to {}", target_tick, path);
+    sayln!("frame {} saved to {}", target_tick, path);
 }

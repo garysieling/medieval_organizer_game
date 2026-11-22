@@ -412,6 +412,10 @@ pub struct TileSet {
     /// How big the trees draw at zoom 1: the pack's are drawn on its block
     /// scale (PACK_PROP_K), the generated ones (assets/rd/trees) at 1x
     pub trees_k: f32,
+    /// A wood's life in four cells (rd/trees/growth): sapling, young,
+    /// mature, ancient (#1278) - empty where the sheet didn't load, and
+    /// empty in winter (the bare set stands instead)
+    pub tree_growth: Vec<Sprite>,
 }
 
 /// Which TileSet a season draws with
@@ -534,6 +538,21 @@ pub(crate) fn pick(v: &[Sprite], x: i32, y: i32, salt: u32) -> Option<&Sprite> {
     if v.is_empty() { None } else { v.get((noise(x, y, salt) * v.len() as f32) as usize % v.len()) }
 }
 
+/// The start of a tree's clock: the wood's a mix of ages from the off,
+/// spread over this many years per tile
+const TREE_SEED_YEARS: u64 = 28;
+/// Year marks where a tree moves up a stage: young at 2, mature at 8,
+/// ancient at 25
+const TREE_STAGE_YEARS: [u64; 3] = [2, 8, 25];
+
+/// A tree's stage on a per-tile clock (#1278): its seeded start age plus
+/// the game years run (a year is 360 ticks) - deterministic, and it only
+/// steps on a birthday. 0 sapling .. 3 ancient.
+pub(crate) fn tree_stage(x: i32, y: i32, tick: u64) -> usize {
+    let years = (noise(x, y, 7) * TREE_SEED_YEARS as f32) as u64 + tick / 360;
+    TREE_STAGE_YEARS.iter().take_while(|&&mark| years >= mark).count()
+}
+
 impl TileSet {
     /// Load the blocks for the green seasons (0), autumn (1: the green set
     /// gone gold) or winter (2)
@@ -598,6 +617,13 @@ impl TileSet {
                 if v.len() == 4 { v } else { vec![] }
             },
             corn: if winter { snow().into_iter().collect() } else { crop("corn") },
+            // the oak's life in four cells; winter's wood stays the bare
+            // set (#1278)
+            tree_growth: if winter { vec![] } else {
+                let v: Vec<Sprite> = ["sapling", "young", "mature", "ancient"].iter()
+                    .filter_map(|n| at(&format!("rd/trees/growth/{}.png", n))).map(&gold).collect();
+                if v.len() == 4 { v } else { vec![] }
+            },
             roads: if winter {
                 // the winter set numbers its two straight roads the other way round
                 let mut r = rd_pieces("winter/road_winter", 15).unwrap_or_else(|| pieces("Roads/Winter", "road_winter", 15));
@@ -634,6 +660,7 @@ impl TileSet {
             rivers_ice: self.rivers_ice.iter().map(&f).collect(),
             trees: self.trees.clone(),
             trees_k: self.trees_k,
+            tree_growth: self.tree_growth.clone(),
         }
     }
 

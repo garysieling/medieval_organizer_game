@@ -106,7 +106,8 @@ fn test_talk_opens_a_conversation_on_the_talk_panel_with_replies() {
     let t = g.seats[0].talk.as_ref().expect("a talk under way").clone();
     assert!(!t.options.is_empty() && t.options.len() <= 2);
     let panel = g.talk_panel_at(0);
-    assert!(panel.in_talk && panel.options.len() == t.options.len() + t.asks_shown());
+    assert!(panel.in_talk && panel.options.len() == t.options.len() + t.asks_shown()
+        + t.inoculation_beyond().is_some() as usize + t.probe_beyond().is_some() as usize);
     // pick the first reply: it's said, as previewed
     g.talk_pick_at(0, Some(0));
     let rec = g.talk_log.iter().find(|r| r.id == rec.id).unwrap();
@@ -132,15 +133,17 @@ fn test_the_choice_list_stops_at_three() {
     talk_beside(&mut g, i);
     let t = g.seats[0].talk.as_ref().unwrap().clone();
     assert!(t.asks.len() > 1, "asks on offer: {:?}", t.asks);
-    // replies plus asks, but never more than three on offer at once
+    // replies plus asks, never more than three on offer at once - the
+    // asks that open a flow of their own may ride one past the cap
     let convo = g.convo_panel_at(0).unwrap();
-    assert_eq!(convo.options.len(), t.options.len() + t.asks_shown());
-    assert!(convo.options.len() <= TALK_MAX_CHOICES, "{:?}", convo.options);
+    let beyond = t.inoculation_beyond().is_some() as usize + t.probe_beyond().is_some() as usize;
+    assert_eq!(convo.options.len(), t.options.len() + t.asks_shown() + beyond);
+    assert!(t.options.len() + t.asks_shown() <= TALK_MAX_CHOICES, "{:?}", convo.options);
     let panel = g.talk_panel_at(0);
     assert_eq!(panel.options.len(), convo.options.len());
-    // a pick past the shown three does nothing; the first ask still lands
-    g.talk_pick_at(0, Some(t.options.len() + t.asks_shown()));
-    assert!(g.seats[0].talk.is_some(), "an unseen ask can't be picked");
+    // a pick past the whole list does nothing; the first ask still lands
+    g.talk_pick_at(0, Some(99));
+    assert!(g.seats[0].talk.is_some(), "a pick past the end does nothing");
     let ask = t.asks[0];
     g.talk_pick_at(0, Some(t.options.len()));
     assert!(!g.seats[0].talk.as_ref().unwrap().asks.contains(&ask), "the ask was spent");
@@ -571,7 +574,7 @@ fn test_a_mismatch_keeps_the_asks_shallow_not_barred() {
     assert_eq!(t.vibe, Some(Vibe::Mismatch));
     let earned: Vec<PropKind> = t.asks.iter()
         .filter(|o| o.key == AskKey::Earned).map(|o| o.kind).collect();
-    assert_eq!(earned, vec![PropKind::Scout, PropKind::Introduce],
+    assert_eq!(earned, vec![PropKind::Scout, PropKind::Probe, PropKind::Introduce],
         "a mismatch stays slow - the light asks still on the table: {:?}", t.asks);
 }
 
@@ -1410,3 +1413,68 @@ fn test_a_hog_speaks_of_themselves_not_the_village() {
     // and what they hold forth on is them: a hog's gist is never a rumor
     assert!(!t.gist.contains("they say") , "no village business out of a hog's mouth");
 }
+
+#[test]
+fn test_the_thaw_rung_reads_on_the_speaker() {
+    use crate::game::desires::{rung_of, thaw_status, ThawRung, Thawed, Planted};
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    let s = speaker_of(&g.world, v, "Eliza", g.tick);
+    assert_eq!(rung_of(&g.world, v), ThawRung::Helpless);
+    assert!(s.status.contains(&thaw_status(ThawRung::Helpless)),
+        "an un-activated villager reads cold: {:?}", s.status);
+    // a planted want, ripening, warms them a rung
+    g.world.add_component(v, Planted { wants: vec![(crate::game::desires::Want::Security, 999, g.player)] });
+    assert!(speaker_of(&g.world, v, "Eliza", g.tick).status.contains(&"thaw_thawing"));
+    // and the ripened mark does the same
+    g.world.remove_component::<Planted>(v);
+    g.world.add_component(v, Thawed { asker: g.player, tick: 0 });
+    assert!(speaker_of(&g.world, v, "Eliza", g.tick).status.contains(&"thaw_thawing"));
+    // signed on: joined - and falling back out re-chills
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org).unwrap().members.push(v);
+    assert_eq!(rung_of(&g.world, v), ThawRung::Joined);
+    assert!(speaker_of(&g.world, v, "Eliza", g.tick).status.contains(&"thaw_joined"));
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org).unwrap().members.retain(|&m| m != v);
+    assert_eq!(rung_of(&g.world, v), ThawRung::Thawing, "the mark's warmth outlasts the membership");
+}
+
+#[test]
+fn test_the_probing_question_thaws_them_through_the_talk() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    bond_to(&mut g, v, 0.2);
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    let labels = t.choice_labels(&g.world);
+    let pick = labels.iter().position(|l| l == "Ask what they actually want")
+        .unwrap_or_else(|| panic!("the probing question should be on offer: {:?}", labels));
+    assert!(g.world.get_component::<crate::game::desires::Planted>(v).is_none());
+    g.talk_pick_at(0, Some(pick));
+    // the want's planted, ripening in its own time - and the rung reads it
+    assert!(g.world.get_component::<crate::game::desires::Planted>(v)
+        .map(|p| !p.wants.is_empty()).unwrap_or(false),
+        "the question plants a want they didn't carry");
+    assert_eq!(crate::game::desires::rung_of(&g.world, v), crate::game::desires::ThawRung::Thawing);
+    // and the ask's spent - asked once, it doesn't come again
+    let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
+    assert!(!labels.iter().any(|l| l == "Ask what they actually want"),
+        "the probing question is asked once: {:?}", labels);
+}
+
+#[test]
+fn test_the_probe_leaves_the_offer_when_theres_nothing_to_plant() {
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    bond_to(&mut g, v, 0.2);
+    // every probeable want carried already: the question's spent
+    g.world.get_component_mut::<crate::game::desires::InnerLife>(v).unwrap().wants =
+        vec![crate::game::desires::Want::Security, crate::game::desires::Want::Mastery,
+            crate::game::desires::Want::Love, crate::game::desires::Want::Finery,
+            crate::game::desires::Want::BetterTools];
+    assert!(!crate::game::desires::probe_open(&g.world, v));
+    let offers = crate::game::organizing::ask_offers(&g.world, g.org, v, 0);
+    assert!(!offers.iter().any(|o| o.kind == crate::game::organizing::PropKind::Probe),
+        "nothing left to plant, no probe on offer");
+}
+

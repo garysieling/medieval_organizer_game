@@ -444,6 +444,25 @@ pub fn want_label(w: Want) -> &'static str {
     }
 }
 
+/// The want as a first-person object - "I'd like <this>" (#1269)
+pub fn want_phrase(w: Want) -> &'static str {
+    match w {
+        Want::GoodFood => "good bread",
+        Want::Finery => "fine clothes",
+        Want::Faith => "the faith",
+        Want::Shelter => "a home of my own",
+        Want::Security => "to feel safe",
+        Want::Mastery => "to rise in the trade",
+        Want::Music => "music",
+        Want::Instrument => "an instrument",
+        Want::BetterTools => "better tools",
+        Want::DifferentTrade => "a different trade",
+        Want::Love => "love",
+        Want::Joy => "a bit of play",
+        Want::Drink => "a drink",
+    }
+}
+
 /// How a problem reads on a character card once revealed
 pub fn problem_label(p: &Problem) -> String {
     match p {
@@ -854,6 +873,58 @@ mod tests {
         w.add_component(e, craft(vocation::Vocation::Baker, 0.9));
         assert_eq!(class_of(&w, e), SocialClass::Working, "a master with no shop is still working class");
     }
+
+    #[test]
+    fn test_the_thaw_gradient_runs_both_ways() {
+        let mut w = World::new();
+        let (v, asker) = (person(&mut w, &[]), person(&mut w, &[]));
+        // cold: the issue's weather to them
+        assert_eq!(rung_of(&w, v), ThawRung::Helpless);
+        // the probe plants: warming while the want ripens
+        plant_want(&mut w, v, asker, 0, 3);
+        assert_eq!(rung_of(&w, v), ThawRung::Thawing);
+        // ripened: the mark keeps them warm
+        assert!(!ripen_planted(&mut w, v, PLANT_RIPEN_DAYS).is_empty());
+        assert!(w.get_component::<Thawed>(v).is_some());
+        assert_eq!(rung_of(&w, v), ThawRung::Thawing);
+        // signed on: joined
+        let org = w.create_entity();
+        w.add_component(org, crate::sim::community::Organization {
+            name: "the rooted".into(), members: vec![v], leader: asker,
+            influence_pool: 1.0, resources: 0.0, charter: "".into(), successors: vec![] });
+        assert_eq!(rung_of(&w, v), ThawRung::Joined);
+        // holding the meeting's work: acting
+        w.add_component(asker, crate::game::organizing::MeetingPlan {
+            opener: Some(v), ..Default::default() });
+        assert_eq!(rung_of(&w, v), ThawRung::Acting);
+        // let the work go: back to joined
+        w.remove_component::<crate::game::organizing::MeetingPlan>(asker);
+        assert_eq!(rung_of(&w, v), ThawRung::Joined);
+        // and falling back out re-chills - to the thaw the probe left
+        w.get_component_mut::<crate::sim::community::Organization>(org).unwrap().members.clear();
+        assert_eq!(rung_of(&w, v), ThawRung::Thawing);
+    }
+
+    #[test]
+    fn test_the_probe_stays_open_only_while_theres_a_want_to_plant() {
+        let mut w = World::new();
+        let (v, asker) = (person(&mut w, &[]), person(&mut w, &[]));
+        assert!(probe_open(&w, v));
+        // carry every probeable want and the question's spent
+        w.get_component_mut::<InnerLife>(v).unwrap().wants = PROBE_WANTS.to_vec();
+        assert!(!probe_open(&w, v));
+        // a kid never takes a planted want
+        let kid = w.create_entity();
+        w.add_component(kid, Pos { x: 0.0, y: 0.0 });
+        w.add_component(kid, Kid);
+        assert!(!probe_open(&w, kid));
+        // a want already ripening still counts as covered
+        w.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
+        plant_want(&mut w, v, asker, 0, 1);
+        assert!(probe_open(&w, v), "other wants remain open");
+        w.get_component_mut::<InnerLife>(v).unwrap().wants = PROBE_WANTS.to_vec();
+        assert!(!probe_open(&w, v));
+    }
 }
 
 /// Lift a grievance: the load is answered, not just waited out - a
@@ -880,6 +951,17 @@ pub struct Planted {
     pub wants: Vec<(Want, u64, Entity)>,
 }
 
+/// Whether the probing question could still plant something new
+/// (#1269): a want they neither carry nor already have ripening - the
+/// ask's only worth offering while this holds
+pub fn probe_open(world: &World, e: Entity) -> bool {
+    if is_kid(world, e) { return false; }
+    let carried = world.get_component::<InnerLife>(e).map(|l| l.wants.clone()).unwrap_or_default();
+    let planted: Vec<Want> = world.get_component::<Planted>(e)
+        .map(|p| p.wants.iter().map(|(w, _, _)| *w).collect()).unwrap_or_default();
+    PROBE_WANTS.iter().any(|w| !carried.contains(w) && !planted.contains(w))
+}
+
 /// Plant a want the hearer doesn't already carry, ripening in
 /// PLANT_RIPEN_DAYS. `seed` picks which; None when there's nothing new
 /// to plant (or a child heard it)
@@ -903,10 +985,68 @@ pub fn ripen_planted(world: &mut World, e: Entity, tick: u64) -> Vec<(Want, Enti
     let Some(p) = world.get_component_mut::<Planted>(e) else { return vec![] };
     let (ripe, rest): (Vec<_>, Vec<_>) = p.wants.drain(..).partition(|(_, day, _)| tick >= *day);
     p.wants = rest;
+    if ripe.is_empty() { return vec![]; }
     if let Some(life) = world.get_component_mut::<InnerLife>(e) {
         for (w, _, _) in &ripe {
             if !life.wants.contains(w) { life.wants.push(*w); }
         }
     }
+    let asker = ripe[0].2;
+    world.add_component(e, Thawed { asker, tick });
     ripe.into_iter().map(|(w, _, a)| (w, a)).collect()
+}
+
+/// The probe got through (#1269): the want they carry now is one the
+/// question put there - their interest is connected to what they love
+#[derive(Debug, Clone, Copy)]
+pub struct Thawed {
+    pub asker: Entity,
+    pub tick: u64,
+}
+
+/// How far along the road out of helplessness they stand (#1269): the
+/// gradient the talk reads - the same want lands as resignation until
+/// it's connected to something they love
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ThawRung {
+    /// Un-activated: the issue's weather to them, not a thing to move
+    Helpless,
+    /// The question's taken root - a planted want ripening or ripened
+    Thawing,
+    /// Signed on: the interest's a cause now
+    Joined,
+    /// Acting: holds work in the cause - a seat of their own
+    Acting,
+}
+
+/// Where a villager stands on the thaw gradient (#1269): derived live -
+/// a member who falls back out re-chills rung by rung
+pub fn rung_of(world: &World, e: Entity) -> ThawRung {
+    let member = world.query::<crate::sim::community::Organization>().iter().any(|&o|
+        world.get_component::<crate::sim::community::Organization>(o)
+            .map(|org| org.members.contains(&e)).unwrap_or(false));
+    if member {
+        // acting's doing: a delegated seat, or work promised on the
+        // meeting plan - the same "taken on work" read `stage_of` makes
+        let holds = world.query::<crate::game::campaign::Campaign>().iter().any(|&c|
+            world.get_component::<crate::game::campaign::Campaign>(c)
+                .map(|cc| cc.seats.iter().any(|s| s.holder == e)).unwrap_or(false))
+            || world.query::<crate::game::organizing::MeetingPlan>().iter().any(|&p|
+                world.get_component::<crate::game::organizing::MeetingPlan>(p)
+                    .map(|pp| pp.holders().contains(&e)).unwrap_or(false));
+        return if holds { ThawRung::Acting } else { ThawRung::Joined };
+    }
+    let thawing = world.get_component::<Planted>(e).map(|p| !p.wants.is_empty()).unwrap_or(false)
+        || world.get_component::<Thawed>(e).is_some();
+    if thawing { ThawRung::Thawing } else { ThawRung::Helpless }
+}
+
+/// The status word the talk reads the rung by (#1269)
+pub fn thaw_status(rung: ThawRung) -> &'static str {
+    match rung {
+        ThawRung::Helpless => "thaw_helpless",
+        ThawRung::Thawing => "thaw_thawing",
+        ThawRung::Joined => "thaw_joined",
+        ThawRung::Acting => "thaw_acting",
+    }
 }

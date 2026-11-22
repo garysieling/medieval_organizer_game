@@ -901,6 +901,10 @@ pub enum PropKind {
     /// their picture of who the room follows, yielded in the talk
     /// rather than landed by `propose`
     Scout,
+    /// "What do you actually want?" - the probing question (#1269):
+    /// plants a want that ripens in its own time, the talk-side share
+    /// of the thaw move meetings carry
+    Probe,
 }
 
 /// The ask as the player sees it in the talk options
@@ -919,6 +923,7 @@ pub fn prop_label(p: PropKind) -> &'static str {
         PropKind::Argue => "Argue a point with them",
         PropKind::Inoculate => "Ask how they think the lord will answer",
         PropKind::Scout => "Ask who folk turn to around here",
+        PropKind::Probe => "Ask what they actually want",
     }
 }
 
@@ -1111,7 +1116,7 @@ pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
         PropKind::InviteFriends => 12.0,
         PropKind::Introduce => 6.0,
         PropKind::SignPetition => 8.0,
-        PropKind::Argue | PropKind::Inoculate | PropKind::Scout => 0.0,
+        PropKind::Argue | PropKind::Inoculate | PropKind::Scout | PropKind::Probe => 0.0,
     };
     let at = LADDER.iter().position(|r| *r == stage).unwrap_or(0) as i8;
     let need = LADDER.iter().position(|r| *r == ask_tier(p)).unwrap_or(0) as i8;
@@ -1146,6 +1151,11 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
     if reached >= RelStage::Acquaintance {
         out.push(AskOffer { kind: PropKind::Scout, key: AskKey::Earned, price: 0.0 });
     }
+    // the probing question (#1269): the thaw move the talk shares with
+    // the meeting - only while there's a want left to plant
+    if reached >= RelStage::Acquaintance && crate::game::desires::probe_open(world, person) {
+        out.push(AskOffer { kind: PropKind::Probe, key: AskKey::Earned, price: 0.0 });
+    }
     for p in ask_candidates(world, org, person) {
         if heard && ask_tier(p) <= reached {
             out.push(AskOffer { kind: p, key: AskKey::Earned, price: 0.0 });
@@ -1177,7 +1187,7 @@ fn ask_suits(p: PropKind, r: &crate::game::desires::Reveal) -> bool {
         PropKind::BringSnacks => matches!(r, Reveal::Want(Want::GoodFood) | Reveal::Problem(Problem::LongWinter)),
         PropKind::LendVenue => matches!(r, Reveal::Want(Want::Shelter) | Reveal::Problem(Problem::NoHome)),
         PropKind::ComeAlong => matches!(r, Reveal::Problem(_) | Reveal::Want(Want::Love)),
-        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate | PropKind::Scout => false,
+        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate | PropKind::Scout | PropKind::Probe => false,
     }
 }
 
@@ -1362,6 +1372,7 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
         PropKind::Argue => unreachable!("an argument plays out in the talk, not through propose"),
         PropKind::Inoculate => unreachable!("the inoculation plays out in the talk, not through propose"),
         PropKind::Scout => unreachable!("the scouting read plays out in the talk, not through propose"),
+        PropKind::Probe => unreachable!("the probing question plants in the talk, not through propose"),
     }
 }
 

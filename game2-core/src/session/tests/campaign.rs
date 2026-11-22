@@ -846,3 +846,41 @@ fn test_the_founding_call_enrolls_everyone_who_came() {
         .expect("the founding opened the roll");
     assert_eq!(dues.rate, crate::game::campaign::DUES_RATE);
 }
+
+#[test]
+fn test_the_floor_carries_the_pooled_buy() {
+    let mut g = Game::new();
+    use crate::game::campaign::Motion;
+    let c = tax_cause(&mut g, 4);
+    // the roll wants bread and carries coin
+    let members = g.world.get_component::<Organization>(g.org).unwrap().members.clone();
+    for &m in &members {
+        g.world.get_component_mut::<desires::InnerLife>(m).unwrap()
+            .wants = vec![desires::Want::GoodFood];
+        g.world.get_component_mut::<crate::game::livelihood::Purse>(m)
+            .map(|p| p.gold = 20.0);
+    }
+    // a shop keeps it on the shelf
+    let b = crate::game::household::spawn_building(&mut g.world,
+        crate::game::household::BuildingKind::Shop(crate::game::vocation::Vocation::Baker),
+        "the bakery", 0.0, 0.0, 20);
+    {
+        let bb = g.world.get_component_mut::<crate::game::household::Building>(b).unwrap();
+        bb.worker = Some(g.villagers[10]);
+        bb.stock.insert("bread".into(), 20);
+    }
+    // the floor reads whose coin's behind it
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|m| matches!(m, Motion::GroupBuy(0, _)))
+        .expect("the pledges put the pooled buy on the floor: {slate:?}");
+    g.decide_at(0, pick);
+    // shares came home, the rest went out the door below street
+    assert!(members.iter().all(|&m| g.world.get_component::<crate::game::livelihood::Satchel>(m)
+        .map(|s| s.goods.get("bread").copied().unwrap_or(0) >= 1).unwrap_or(false)),
+        "every pledging member takes a share home");
+    assert!(g.world.get_component::<Organization>(g.org).unwrap().resources > 0.0,
+        "the surplus' coin is the cause's");
+    let _ = c;
+}

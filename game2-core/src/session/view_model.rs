@@ -19,6 +19,7 @@ pub(in crate::session) const LOG_WEATHER_SHOWN: usize = 1;
 /// Is this log entry a routine weather change ("drizzle begins", "the rain stops")?
 pub(in crate::session) fn is_weather_note(entry: &str) -> bool {
     entry.ends_with(" begins") || entry.contains("the rain stops") || entry.contains("the snow stops")
+        || entry.contains("the haar lifts")
 }
 
 /// Town business shown in the log at once: promotions, the minstrel, the

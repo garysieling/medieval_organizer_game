@@ -54,7 +54,8 @@ fn test_the_haar_lifts_without_a_rainbow() {
     c.rainfall_drift = 0.0;
     g.advance_frame();
     assert_eq!(g.precip, None);
-    assert!(g.log.iter().any(|l| l.contains("the haar lifts")), "no word of the haar lifting");
+    let lifted = g.log.iter().find(|l| l.contains("the haar lifts")).expect("no word of the haar lifting");
+    assert!(crate::session::view_model::is_weather_note(lifted), "the lifting is weather, kept to the log's weather line");
     assert!(!g.log.iter().any(|l| l.contains("rainbow")), "fog leaves no rainbow");
     assert_eq!(g.rainbow_from, None);
 }

@@ -131,19 +131,31 @@ pub(crate) const CONVO_ROW_H: i32 = 10;
 /// The tallest the box gets before the oldest lines drop off the top:
 /// most of the window's height (#1317)
 pub(crate) const CONVO_MAX_H: i32 = 660;
+/// Frames a new line takes to fade up to full colour (#1318)
+pub(crate) const CONVO_FADE: u32 = 10;
 
 /// The conversation box's scroll pin (#1317): which panel the anchor
 /// belongs to and the first line still shown, so a line keeps the y it
 /// drew at until it drops off the top - and what's dropped doesn't come
 /// back. It realigns by each row's signature, not its index: the talk's
 /// record slides gist lines in under the top, which would drift a bare
-/// index
+/// index. `borns` remembers the frame each shown signature first drew
+/// at, for the new lines' fade-in
 #[derive(Default)]
 pub struct ConvoPin {
     /// hash of the panel's title + first row - a different panel starts over
     id: u64,
     /// (signature, last index) of the first row still shown
     top: Option<(u64, usize)>,
+    /// frame each shown row's signature first drew at
+    borns: game2_core::engine::det::HashMap<u64, u32>,
+}
+
+/// A drawn colour faded toward the dark of a line just landed: dim at
+/// first sight, full after CONVO_FADE frames
+fn fade_rgb((r, g, b): (u8, u8, u8), age: u32) -> (u8, u8, u8) {
+    let s = 0.2 + 0.8 * (age.min(CONVO_FADE) as f32 / CONVO_FADE as f32);
+    ((r as f32 * s) as u8, (g as f32 * s) as u8, (b as f32 * s) as u8)
 }
 
 /// A row's signature: what was said, by whom, in which voice - enough to
@@ -191,10 +203,11 @@ pub struct ConvoBox {
 /// Wrap each conversation line and choice into its own button: the box
 /// grows down as lines arrive, pinning what it already drew (the `pin`
 /// holds the first shown row across calls); past CONVO_MAX_H the oldest
-/// lines drop off the top and the survivors scroll up as one block. The
-/// choices sit under the lines. Returns the boxes and how tall the panel
-/// needs to be
-pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin) -> (Vec<ConvoBox>, i32) {
+/// lines drop off the top and the survivors scroll up as one block. New
+/// lines fade up over CONVO_FADE model frames (`frame` is the model's
+/// own counter, so a recording ages like the window). The choices sit
+/// under the lines. Returns the boxes and how tall the panel needs to be
+pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<ConvoBox>, i32) {
     // the choices' space is held first - lines give way to them
     let mut opts: Vec<Vec<String>> = vec![];
     let opt_count = p.options.len() + p.leave as usize;
@@ -247,18 +260,25 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin) -> (Vec<ConvoBox>, i32)
     // row, realigned by signature since the record inserts under the top.
     // Overflow advances the anchor - a dropped row doesn't come back
     let id = panel_id(p);
-    if pin.id != id { pin.id = id; pin.top = None; }
+    if pin.id != id { pin.id = id; pin.top = None; pin.borns.clear(); }
+    let sigs: Vec<u64> = p.rows.iter().map(row_sig).collect();
     let pinned = pin.top.and_then(|(s, idx)|
-        (0..p.rows.len()).filter(|&i| row_sig(&p.rows[i]) == s).min_by_key(|&i| i.abs_diff(idx)));
+        (0..sigs.len()).filter(|&i| sigs[i] == s).min_by_key(|&i| i.abs_diff(idx)));
     let anchor = fit.max(pinned.unwrap_or(fit));
     pin.top = p.rows.get(anchor).map(|r| (row_sig(r), anchor));
+    // new signatures get this frame as their first sight; sigs gone from
+    // the record let the map go - dead rows can't come back anyway
+    for &s in &sigs[anchor.min(sigs.len())..] { pin.borns.entry(s).or_insert(frame); }
+    pin.borns.retain(|&s, _| sigs.contains(&s));
     // lay the buttons out top to bottom
     let mut boxes: Vec<ConvoBox> = vec![];
     let mut y = CONVO_Y + 16;
     for (i, ws) in lines.iter().enumerate().skip(anchor) {
         let h = ws.len() as i32 * CONVO_ROW_H + 6;
+        let age = frame.saturating_sub(pin.borns.get(&sigs[i]).copied().unwrap_or(frame));
         let rows = ws.iter().enumerate()
-            .map(|(k, (t, c, n))| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), *c, n.clone()))
+            .map(|(k, (t, c, n))| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), fade_rgb(*c, age),
+                n.clone().map(|(s, col)| (s, fade_rgb(col, age)))))
             .collect();
         let click = p.rows[i].who.map(ConvoClick::Speaker);
         boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click, choice: false });
@@ -280,8 +300,8 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin) -> (Vec<ConvoBox>, i32)
 }
 
 /// Draw the conversation box; a button under the mouse lights up
-pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32), pin: &mut ConvoPin) {
-    let (boxes, h) = convo_layout(p, pin);
+pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32), pin: &mut ConvoPin, frame: u32) {
+    let (boxes, h) = convo_layout(p, pin, frame);
     buf.rect(CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2, 20, 20, 32);
     buf.rect(CONVO_X, CONVO_Y, CONVO_W, h, 25, 25, 40);
     draw_text(buf, CONVO_X + 6, CONVO_Y + 4, &p.title, 150, 150, 180);
@@ -309,8 +329,8 @@ pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32), pi
 }
 
 /// What a click at (mx, my) on the conversation box means, if anything
-pub fn convo_click(p: &ConvoPanelV, mx: i32, my: i32, pin: &mut ConvoPin) -> Option<ConvoClick> {
-    convo_layout(p, pin).0.into_iter()
+pub fn convo_click(p: &ConvoPanelV, mx: i32, my: i32, pin: &mut ConvoPin, frame: u32) -> Option<ConvoClick> {
+    convo_layout(p, pin, frame).0.into_iter()
         .find(|b| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
         .and_then(|b| b.click)
 }

@@ -210,6 +210,14 @@ impl PlayerTalk {
     /// list is the replies first, then asks, capped at TALK_MAX_CHOICES.
     /// `asks` itself keeps the whole list - an ask that doesn't fit this
     /// turn can still come up on a later one.
+    /// The naming of the counter when the other asks crowd it off
+    /// (#1246): it rides one past the cap, last, so the pick numbers of
+    /// everything before it don't move
+    pub(crate) fn inoculation_beyond(&self) -> Option<crate::game::organizing::AskOffer> {
+        self.asks.iter().skip(self.asks_shown())
+            .find(|a| a.kind == crate::game::organizing::PropKind::Inoculate).copied()
+    }
+
     pub(crate) fn asks_shown(&self) -> usize {
         TALK_MAX_CHOICES.saturating_sub(self.options.len()).min(self.asks.len())
     }
@@ -223,7 +231,8 @@ impl PlayerTalk {
                 .chain(std::iter::once("Let it drop".to_string())).collect();
         }
         self.options.iter().map(|o| o.1.clone())
-            .chain(self.asks.iter().take(self.asks_shown()).map(crate::game::organizing::ask_label)).collect()
+            .chain(self.asks.iter().take(self.asks_shown()).map(crate::game::organizing::ask_label))
+            .chain(self.inoculation_beyond().as_ref().map(crate::game::organizing::ask_label)).collect()
     }
 }
 
@@ -1046,14 +1055,15 @@ impl Game {
         if let (Some(_), Some(i)) = (&t.argue, pick) { self.argue_pick_at(seat, i); return; }
         if let (true, Some(i)) = (t.inoculating, pick) { self.inoculate_pick_at(seat, i); return; }
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
-        let Some(i) = pick.filter(|&i| i < n + asks) else {
+        let extra = t.inoculation_beyond();
+        let Some(i) = pick.filter(|&i| i < n + asks + extra.is_some() as usize) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
         };
         // a pick past the replies is a proposition: the ask lands or it
         // doesn't, and the word of it goes on the record
         if i >= n {
-            let o = t.asks[i - n];
+            let o = match extra { Some(x) if i - n == asks => x, _ => t.asks[i - n] };
             if o.kind == crate::game::organizing::PropKind::Argue {
                 self.open_argument(seat, o);
                 return;

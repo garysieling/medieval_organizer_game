@@ -18,10 +18,6 @@ fn sign_on(g: &mut Game, v: Entity) {
 }
 
 fn talk_beside(g: &mut Game, i: usize) {
-    // an empty purse keeps the coin's asks off the list, so the naming
-    // of the counter fits on it
-    let pe = g.player;
-    if let Some(p) = g.world.get_component_mut::<crate::game::livelihood::Purse>(pe) { p.gold = 0.0; }
     let v = g.villagers[i];
     let p = *g.world.get_component::<Pos>(v).unwrap();
     *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: p.x + 0.5, y: p.y };
@@ -99,6 +95,22 @@ fn test_naming_the_threat_rehearses_it_and_readies_them_for_that_alone() {
     assert!(!inoc::shielded(&g.world, v, Counter::Plea) && !inoc::shielded(&g.world, v, Counter::Denounce),
         "only the named counter");
     assert!(!g.seats[0].talk.as_ref().unwrap().inoculating, "the rehearsal's done");
+}
+
+#[test]
+fn test_the_naming_is_never_crowded_off_the_talk() {
+    let mut g = Game::new();
+    let i = adult(&g);
+    let v = g.villagers[i];
+    sign_on(&mut g, v);
+    // a full purse puts every coin ask on offer
+    let pe = g.player;
+    if let Some(p) = g.world.get_component_mut::<crate::game::livelihood::Purse>(pe) { p.gold = 1000.0; }
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.options.len() + t.asks.len() > crate::session::dialogue::TALK_MAX_CHOICES, "crowded: {:?}", t.choice_labels());
+    pick(&mut g, "Ask how they think the lord will answer");
+    assert!(g.seats[0].talk.as_ref().unwrap().inoculating, "the naming opens all the same");
 }
 
 #[test]

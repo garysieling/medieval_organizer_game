@@ -338,6 +338,9 @@ fn test_the_panel_only_offers_what_can_fire() {
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
+    // the asking's already done on this trouble - the loud work opens
+    let go = g.org;
+    crate::game::campaign::mark_legwork(&mut g.world, go, "the taxes".into());
     g.update_ctx_actions_at(0);
     {
         let ctx = &g.seats[0].ctx_actions;
@@ -422,6 +425,9 @@ fn test_the_slate_grows_with_the_cause_and_sends_an_organizer() {
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
+    // the asking's already done on this trouble - the loud work opens
+    let go = g.org;
+    crate::game::campaign::mark_legwork(&mut g.world, go, "the taxes".into());
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
@@ -539,6 +545,54 @@ fn test_the_survey_motion_sends_the_doors_asking() {
 }
 
 #[test]
+fn test_the_street_waits_until_the_asking_comes_back() {
+    let mut g = Game::new();
+    use crate::game::campaign::Motion;
+    // a fresh cause, no asking done on its trouble yet
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 400);
+    }
+    let grown: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .take(4).collect();
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown.clone();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 0;
+    // the floor's first slate is the quiet work - the street's loud
+    // picks wait until the cause has asked around (#1335)
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    assert!(!slate.contains(&Motion::March) && !slate.contains(&Motion::Strike)
+        && !slate.contains(&Motion::Townhall),
+        "a fresh cause can't jump to action: {slate:?}");
+    let pick = slate.iter().position(|&m| m == Motion::Survey)
+        .expect("the asking's always on the floor: {slate:?}");
+    g.decide_at(0, pick);
+    // three days of knocking and the count lands - the legwork's done
+    let t = g.tick;
+    for _ in 0..3 { g.survey_tick(t); }
+    assert!(g.org_survey.is_none(), "the count's back");
+    assert!(crate::game::campaign::legwork_done(&g.world, c));
+    // the vote to ask left the room reading patient, and a patient room
+    // turns down the street by its own lights (#1310) - clear the reads
+    // so it's the legwork gate alone on show here
+    for &m in &grown {
+        g.world.remove_component::<crate::game::rhetoric::RhetoricMemory>(m);
+    }
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    assert!(slate.contains(&Motion::March) && slate.contains(&Motion::Strike)
+        && slate.contains(&Motion::Townhall),
+        "the asking done, the street opens: {slate:?}");
+}
+
+#[test]
 fn test_the_floor_picks_the_surveys_question() {
     let mut g = Game::new();
     let c = tax_cause(&mut g, 4);
@@ -638,6 +692,9 @@ fn test_the_picked_motion_witnesses_its_line_on_the_room() {
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
+    // the asking's already done on this trouble - the loud work opens
+    let go = g.org;
+    crate::game::campaign::mark_legwork(&mut g.world, go, "the taxes".into());
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
@@ -687,6 +744,9 @@ fn test_a_member_set_against_the_motion_storms_out() {
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
+    // the asking's already done on this trouble - the loud work opens
+    let go = g.org;
+    crate::game::campaign::mark_legwork(&mut g.world, go, "the taxes".into());
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;

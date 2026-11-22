@@ -432,4 +432,11 @@ fn test_the_conversation_box_draws_the_speakers_portrait() {
         }
     }
     assert!(lit > 10, "no portrait drew in the speaker's slot");
+    // and every look's head carries pixels - pack cells stand their
+    // figure low in the frame, so a top-of-sprite crop there reads
+    // blank (#1319, review find)
+    let art = crate::Art::load_fs("../assets", 0);
+    for (k, h) in art.villager_heads.iter().enumerate() {
+        assert!(h.pixels.chunks(4).any(|p| p[3] > 128), "villager head {} is blank", k);
+    }
 }

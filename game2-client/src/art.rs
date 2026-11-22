@@ -855,20 +855,26 @@ pub(crate) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
 }
 
 /// A standing still's head for the conversation box's speaker icon
-/// (#1319): the top ~40%, trimmed to the opaque pixels' bounds across
+/// (#1319): the top ~40% of the figure's own span - pack cells stand
+/// their figure in the lower rows of a 32px frame while the generated
+/// stills fill theirs - trimmed to the opaque pixels' bounds across
 /// those rows
 fn head_of(s: &Sprite) -> Sprite {
-    let h = ((s.height as f32 * 0.4).round() as usize).max(1).min(s.height);
+    let opaque = |x: usize, y: usize| s.pixels[(y * s.width + x) * 4 + 3] > 128;
+    let mut y_top = s.height;
+    'top: for y in 0..s.height { for x in 0..s.width { if opaque(x, y) { y_top = y; break 'top; } } }
+    let mut y_bot = 0usize;
+    'bot: for y in (0..s.height).rev() { for x in 0..s.width { if opaque(x, y) { y_bot = y + 1; break 'bot; } } }
+    if y_top >= y_bot { return s.crop(0, 0, 1, 1); }
+    let h = ((y_bot - y_top) as f32 * 0.4).round().max(1.0) as usize;
     let (mut x0, mut x1) = (usize::MAX, 0usize);
-    for y in 0..h {
+    for y in y_top..(y_top + h).min(y_bot) {
         for x in 0..s.width {
-            if s.pixels[(y * s.width + x) * 4 + 3] > 128 {
-                x0 = x0.min(x); x1 = x1.max(x + 1);
-            }
+            if opaque(x, y) { x0 = x0.min(x); x1 = x1.max(x + 1); }
         }
     }
-    if x0 >= x1 { return s.crop(0, 0, s.width, h); }
-    s.crop(x0, 0, x1 - x0, h)
+    if x0 >= x1 { return s.crop(0, y_top, s.width, h); }
+    s.crop(x0, y_top, x1 - x0, h)
 }
 
 /// The sprite for `houses[i]`, or none where nothing loaded

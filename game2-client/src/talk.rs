@@ -133,6 +133,12 @@ pub(crate) const CONVO_ROW_H: i32 = 10;
 pub(crate) const CONVO_MAX_H: i32 = 660;
 /// Frames a new line takes to fade up to full colour (#1318)
 pub(crate) const CONVO_FADE: u32 = 10;
+/// The speaker icon's slot left of a name lead: ~10px for the head,
+/// the rest a gap before the words (#1319); the mood mark #1320 hangs
+/// on this slot
+pub(crate) const CONVO_PORT: i32 = 12;
+/// `CONVO_PORT` in glyphs, off a speaker row's wrap width
+pub(crate) const CONVO_PORT_CHARS: usize = (CONVO_PORT as usize) / GLYPH_W as usize;
 
 /// The conversation box's scroll pin (#1317): which panel the anchor
 /// belongs to and the first line still shown, so a line keeps the y it
@@ -224,18 +230,20 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
     let wrap_line = |r: &TalkRowV| -> Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>)> {
         let body = if r.gist { (255, 215, 120) } else if r.name.is_none() { (150, 150, 170) } else { (215, 215, 200) };
         let ncol = if r.you { (255, 255, 120) } else { (150, 200, 255) };
+        // a speaker's words leave room for their head beside the lead
+        let width = CONVO_CHARS - r.who.is_some() as usize * CONVO_PORT_CHARS;
         let mut ws = vec![];
         match &r.name {
             Some(n) => {
                 let lead = format!("{}: ", n);
-                for (k, w) in super::wrap_text(&format!("{}{}", lead, r.text), CONVO_CHARS).into_iter().enumerate() {
+                for (k, w) in super::wrap_text(&format!("{}{}", lead, r.text), width).into_iter().enumerate() {
                     match w.strip_prefix(lead.trim_end()) {
                         Some(rest) if k == 0 => ws.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)))),
                         _ => ws.push((w, body, None)),
                     }
                 }
             }
-            None => for w in super::wrap_text(&r.text, CONVO_CHARS) { ws.push((w, body, None)) },
+            None => for w in super::wrap_text(&r.text, width) { ws.push((w, body, None)) },
         }
         ws
     };
@@ -299,8 +307,12 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
     (boxes, y - CONVO_Y + 4)
 }
 
-/// Draw the conversation box; a button under the mouse lights up
-pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32), pin: &mut ConvoPin, frame: u32) {
+/// Draw the conversation box; a button under the mouse lights up.
+/// `portrait` resolves a speaker's villager index to their head still -
+/// where it answers None the slot stays empty and the name lead carries
+/// the line alone (#1319)
+pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32), pin: &mut ConvoPin, frame: u32,
+        portrait: &'a dyn Fn(usize) -> Option<&'a Sprite>) {
     let (boxes, h) = convo_layout(p, pin, frame);
     buf.rect(CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2, 20, 20, 32);
     buf.rect(CONVO_X, CONVO_Y, CONVO_W, h, 25, 25, 40);
@@ -320,8 +332,15 @@ pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32), pi
         } else {
             buf.rect(b.x, b.y, 2, b.h, 90, 110, 140);
         }
+        // a speaker's head in the slot beside their lead; the words
+        // start after it whether the still resolved or not (#1319)
+        if let Some(ConvoClick::Speaker(i)) = b.click {
+            crate::draw::draw_icon(buf, portrait(i), b.x + 3, b.y + 2, CONVO_PORT - 4);
+        }
+        let words_x = CONVO_X + 10
+            + if matches!(b.click, Some(ConvoClick::Speaker(_))) { CONVO_PORT } else { 0 };
         for (y, text, (r, g, b), name) in &b.rows {
-            let mut x = CONVO_X + 10;
+            let mut x = words_x;
             if let Some((n, (nr, ng, nb))) = name { x += draw_text(buf, x, *y, n, *nr, *ng, *nb); }
             draw_text(buf, x, *y, text, *r, *g, *b);
         }

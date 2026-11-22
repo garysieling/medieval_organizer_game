@@ -2,6 +2,7 @@
 use game2_core::session::*;
 use game2_core::engine::ecs::Entity;
 use game2_core::engine::render::Buffer;
+use game2_core::engine::sprite::Sprite;
 use game2_core::game::villager;
 use game2_core::game::vocation::Kid;
 use game2_core::session::model::{ConvoPanelV, TalkPanelV, TalkRowV};
@@ -162,7 +163,7 @@ fn test_the_conversation_box_draws_its_buttons() {
         decides: true, leave: false,
     };
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30);
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
     let (boxes, h) = convo_layout(&p, &mut ConvoPin::default(), 30);
     for b in &boxes {
         assert!(b.y >= CONVO_Y && b.y + b.h <= CONVO_Y + h, "a button sits inside the box");
@@ -182,7 +183,7 @@ fn test_the_calls_question_rows_decide_the_probe() {
         other => panic!("a digit on the question picked: {:?}", other),
     }
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30);
+    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
     let (boxes, _) = convo_layout(&c, &mut ConvoPin::default(), 30);
     assert!(boxes.len() >= c.options.len(), "both questions are buttons");
     g.command(Command::Decide(1));
@@ -299,7 +300,7 @@ fn test_new_lines_fade_in_as_theyre_said() {
     // and nowhere outside the said lines' rows
     let draw = |pin: &mut ConvoPin, frame: u32| {
         let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-        draw_convo_panel(&mut buf, &p, (-1, -1), pin, frame);
+        draw_convo_panel(&mut buf, &p, (-1, -1), pin, frame, &|_| None);
         buf
     };
     let mut pin2 = ConvoPin::default();
@@ -336,6 +337,60 @@ fn test_new_lines_fade_in_as_theyre_said() {
     assert_eq!(boxes[0].rows[0].2, f, "an elder line dimmed with it");
 }
 
+/// A named speaker's line carries their head in the slot beside the
+/// name lead and wraps a touch narrower for it; a line nobody owns
+/// keeps the plain lead (#1319)
+#[test]
+fn test_a_speaker_line_carries_their_portrait() {
+    // an opaque head stands in for the art's stills
+    let mut px = vec![0u8; 10 * 10 * 4];
+    for i in 0..10 * 10 { px[i * 4] = 220; px[i * 4 + 3] = 255; }
+    let head = Sprite { width: 10, height: 10, pixels: px };
+    let p = ConvoPanelV {
+        title: "talk".into(),
+        rows: vec![
+            TalkRowV { name: Some("Eliza".into()),
+                text: "the miller took an extra scoop of flour, they saw it plain".into(),
+                gist: false, you: false, rule: false, who: Some(3) },
+            TalkRowV { name: None, text: "a line nobody owns keeps its plain lead".into(),
+                gist: false, you: false, rule: false, who: None },
+        ],
+        options: vec!["say so".into()], decides: false, leave: false,
+    };
+    let mut with = Buffer::new(game2_core::session::W, game2_core::session::H);
+    draw_convo_panel(&mut with, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| Some(&head));
+    let mut without = Buffer::new(game2_core::session::W, game2_core::session::H);
+    draw_convo_panel(&mut without, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    let (boxes, _) = convo_layout(&p, &mut ConvoPin::default(), 30);
+    let said = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(_)))).expect("a speaker's line");
+    let px_at = |b: &Buffer, x: i32, y: i32| { let i = (y as usize * b.width + x as usize) * 4; b.pixels[i..i + 3].to_vec() };
+    // the head lands in the slot beside the lead
+    let mut head_px = 0;
+    for y in said.y + 2..said.y + 2 + CONVO_PORT {
+        for x in said.x + 3..said.x + 3 + CONVO_PORT - 4 {
+            if px_at(&with, x, y) != px_at(&without, x, y) { head_px += 1; }
+        }
+    }
+    assert!(head_px > 10, "no head drew in the speaker slot");
+    // and the words hang off it: the gap between icon and lead stays
+    // box-dark in the icon frame, words in the plain one
+    let bg = px_at(&with, said.x + 30, said.y + 2);
+    for x in said.x + CONVO_PORT..said.x + CONVO_PORT + 4 {
+        assert_eq!(px_at(&with, x, said.y + 5), bg, "words started inside the slot");
+    }
+    // the speaker's row wraps a touch narrower for the slot: the lead's
+    // rest can't outrun the shrunken width
+    assert!(said.rows[0].1.len() <= CONVO_CHARS - CONVO_PORT_CHARS - "Eliza: ".len(),
+        "the speaker's lead didn't narrow for the head: {:?}", said.rows[0].1);
+    // a line nobody owns keeps the plain lead: identical pixels
+    let plain = boxes.iter().find(|b| b.click.is_none() && !b.choice).expect("an unowned line");
+    for y in plain.y..plain.y + plain.h {
+        for x in plain.x..plain.x + plain.w {
+            assert_eq!(px_at(&with, x, y), px_at(&without, x, y), "an unowned line shifted for the icon");
+        }
+    }
+}
+
 #[test]
 fn test_the_testimony_rows_decide_the_story() {
     let mut g = Game::new_seeded(MAP_SEED);
@@ -343,7 +398,7 @@ fn test_the_testimony_rows_decide_the_story() {
     let c = g.convo_panel_at(0).expect("which story to tell");
     assert_eq!(c.title, "THE CALL - WHAT WILL YOU TELL");
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30);
+    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
     assert!(convo_layout(&c, &mut ConvoPin::default(), 30).0.len() >= 2, "both stories are buttons");
     match digit_cmd(Some(&c), 1) {
         Some(Command::Decide(1)) => {}
@@ -351,4 +406,30 @@ fn test_the_testimony_rows_decide_the_story() {
     }
     g.command(Command::Decide(1));
     assert!(g.seats[0].testimony_offer.is_none(), "the pick answers it");
+}
+
+/// The box draws the speaker's own head still beside their lead - the
+/// still their figure wears on the map, resolved the same sexed-token
+/// way (#1319)
+#[test]
+fn test_the_conversation_box_draws_the_speakers_portrait() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    let m = g.ui_model();
+    let view = crate::View::new(crate::Art::load_fs("../assets", 0));
+    let buf = view.render(&m, (-1, -1));
+    let c = m.convo.as_ref().expect("the talk on the conversation box");
+    let (boxes, _) = convo_layout(c, &mut ConvoPin::default(), m.frame);
+    let said = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(v)) if v == i))
+        .expect("the speaker's line");
+    // the slot holds head pixels, not the box's dark ground
+    let mut lit = 0;
+    for y in said.y + 2..said.y + 2 + CONVO_PORT - 4 {
+        for x in said.x + 3..said.x + 3 + CONVO_PORT - 4 {
+            let p = (y as usize * buf.width + x as usize) * 4;
+            if buf.pixels[p..p + 3] != [31, 31, 47] { lit += 1; }
+        }
+    }
+    assert!(lit > 10, "no portrait drew in the speaker's slot");
 }

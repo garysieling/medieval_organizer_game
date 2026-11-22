@@ -894,6 +894,9 @@ pub enum PropKind {
     /// "Hear me out on something" - the one-on-one argument (#1234),
     /// played out in the talk rather than landed by `propose`
     Argue,
+    /// "How d'you think the lord will answer?" - the inoculation
+    /// (#1246), rehearsed in the talk rather than landed by `propose`
+    Inoculate,
 }
 
 /// The ask as the player sees it in the talk options
@@ -910,6 +913,7 @@ pub fn prop_label(p: PropKind) -> &'static str {
         PropKind::Introduce => "Ask who you should talk to next",
         PropKind::SignPetition => "Ask them to put their name to the petition",
         PropKind::Argue => "Argue a point with them",
+        PropKind::Inoculate => "Ask how they think the lord will answer",
     }
 }
 
@@ -920,7 +924,7 @@ pub fn prop_label(p: PropKind) -> &'static str {
 fn ask_tier(p: PropKind) -> RelStage {
     match p {
         PropKind::Introduce => RelStage::Acquaintance,
-        PropKind::InviteFriends | PropKind::SignPetition | PropKind::Argue => RelStage::Known,
+        PropKind::InviteFriends | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate => RelStage::Known,
         _ => RelStage::Follower,
     }
 }
@@ -1031,7 +1035,7 @@ pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
         PropKind::InviteFriends => 12.0,
         PropKind::Introduce => 6.0,
         PropKind::SignPetition => 8.0,
-        PropKind::Argue => 0.0,
+        PropKind::Argue | PropKind::Inoculate => 0.0,
     };
     let at = LADDER.iter().position(|r| *r == stage).unwrap_or(0) as i8;
     let need = LADDER.iter().position(|r| *r == ask_tier(p)).unwrap_or(0) as i8;
@@ -1060,6 +1064,12 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
     if crate::game::persuasion::can_argue(stage) && crate::game::persuasion::can_argue(reached) {
         out.push(AskOffer { kind: PropKind::Argue, key: AskKey::Earned, price: 0.0 });
     }
+    // once they've signed on, the counter can be named before it lands
+    // (#1246) - offered while some counter's still unreadied
+    if crate::game::inoculation::committed(world, org, person)
+        && crate::game::inoculation::COUNTERS.iter().any(|&c| !crate::game::inoculation::shielded(world, person, c)) {
+        out.push(AskOffer { kind: PropKind::Inoculate, key: AskKey::Earned, price: 0.0 });
+    }
     for p in ask_candidates(world, org, person) {
         if heard && ask_tier(p) <= reached {
             out.push(AskOffer { kind: p, key: AskKey::Earned, price: 0.0 });
@@ -1084,7 +1094,7 @@ fn ask_suits(p: PropKind, r: &crate::game::desires::Reveal) -> bool {
         PropKind::BringSnacks => matches!(r, Reveal::Want(Want::GoodFood) | Reveal::Problem(Problem::LongWinter)),
         PropKind::LendVenue => matches!(r, Reveal::Want(Want::Shelter) | Reveal::Problem(Problem::NoHome)),
         PropKind::ComeAlong => matches!(r, Reveal::Problem(_) | Reveal::Want(Want::Love)),
-        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue => false,
+        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate => false,
     }
 }
 
@@ -1234,6 +1244,7 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
         }
         PropKind::Introduce => unreachable!("callers take Introduce before land_ask"),
         PropKind::Argue => unreachable!("an argument plays out in the talk, not through propose"),
+        PropKind::Inoculate => unreachable!("the inoculation plays out in the talk, not through propose"),
     }
 }
 

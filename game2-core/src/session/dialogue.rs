@@ -171,6 +171,9 @@ pub struct PlayerTalk {
     /// What the argument put on the record, each after the replay line
     /// it followed - the replay rewrites the record, these ride along
     pub argued: Vec<(usize, TalkLine)>,
+    /// The inoculation under way (#1246): while it is, the choices are
+    /// the counters to name
+    pub inoculating: bool,
 }
 
 /// The one-on-one argument as it stands (#1234): which issue, then
@@ -215,6 +218,10 @@ impl PlayerTalk {
     /// under way, else the replies then the asks that fit
     pub fn choice_labels(&self) -> Vec<String> {
         if let Some(a) = &self.argue { return a.labels(); }
+        if self.inoculating {
+            return crate::game::inoculation::COUNTERS.iter().map(|&c| crate::game::inoculation::label(c).to_string())
+                .chain(std::iter::once("Let it drop".to_string())).collect();
+        }
         self.options.iter().map(|o| o.1.clone())
             .chain(self.asks.iter().take(self.asks_shown()).map(crate::game::organizing::ask_label)).collect()
     }
@@ -778,7 +785,7 @@ impl Game {
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
             asks_taken: vec![], asked_seen: 0, mood: TalkMood::Cool, vibe: None,
-            tired, argue: None, argued: vec![],
+            tired, argue: None, argued: vec![], inoculating: false,
         });
         self.refresh_player_talk(seat);
     }
@@ -881,7 +888,7 @@ impl Game {
         // ask to hang on (#1179): they take their leave as much as you do,
         // so close on a mutual parting rather than an exit menu
         if let Some(opts) = &offered {
-            if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none()
+            if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating
                 && opts.iter().all(|(a, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");
                 // a spent talk parts kindly - unless the last word chosen
@@ -1037,6 +1044,7 @@ impl Game {
     pub fn talk_pick_at(&mut self, seat: usize, pick: Option<usize>) {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
         if let (Some(_), Some(i)) = (&t.argue, pick) { self.argue_pick_at(seat, i); return; }
+        if let (true, Some(i)) = (t.inoculating, pick) { self.inoculate_pick_at(seat, i); return; }
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let Some(i) = pick.filter(|&i| i < n + asks) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
@@ -1048,6 +1056,16 @@ impl Game {
             let o = t.asks[i - n];
             if o.kind == crate::game::organizing::PropKind::Argue {
                 self.open_argument(seat, o);
+                return;
+            }
+            if o.kind == crate::game::organizing::PropKind::Inoculate {
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.asks.retain(|a| *a != o);
+                    cur.asks_taken.push(o);
+                    cur.inoculating = true;
+                }
+                self.argue_line(seat, Some(self.seats[seat].player), "How d'you think the lord will answer, when he hears you've signed on?".into());
+                self.refresh_player_talk(seat);
                 return;
             }
             let (pe, oe, name) = (self.seats[seat].player, self.seats[seat].org, t.villager.name.clone());
@@ -1289,6 +1307,29 @@ impl Game {
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.argue = None; }
             }
         }
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.since = self.tick; }
+        self.refresh_player_talk(seat);
+    }
+
+    /// A pick inside the inoculation (#1246): name the counter, they
+    /// say their fear of it, you rehearse the answer - and it'll land
+    /// on someone ready for it
+    fn inoculate_pick_at(&mut self, seat: usize, i: usize) {
+        use crate::game::inoculation::{self as inoc, COUNTERS};
+        let Some(t) = self.seats[seat].talk.as_mut() else { return };
+        t.inoculating = false;
+        let who = t.who;
+        let pe = self.seats[seat].player;
+        let Some(&c) = COUNTERS.get(i) else {
+            self.argue_line(seat, None, "You let it drop.".into());
+            self.refresh_player_talk(seat);
+            return;
+        };
+        self.argue_line(seat, Some(who), inoc::fear(c).into());
+        self.argue_line(seat, Some(pe), inoc::answer(c).into());
+        inoc::shield(&mut self.world, who, c);
+        let vname = self.name_of(who);
+        self.argue_line(seat, None, format!("{vname} nods slowly - they'll know it when it comes."));
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.since = self.tick; }
         self.refresh_player_talk(seat);
     }

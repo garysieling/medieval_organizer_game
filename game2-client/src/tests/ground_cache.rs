@@ -121,3 +121,25 @@ fn test_wheat_draws_its_growth_stage() {
             "patch-mates show one stage together");
     }
 }
+
+#[test]
+fn test_a_wood_ages_on_its_own_clock() {
+    // the growth sheet rides a per-tile clock: a seeded start age plus
+    // the years run - the stage steps on a birthday, never back (#1278)
+    let art = Art::load_fs("../assets", 0);
+    assert_eq!(art.tiles[0].tree_growth.len(), 4, "the growth sheet didn't slice in whole");
+    assert_eq!(art.tiles[1].tree_growth.len(), 4, "autumn's wood ages too");
+    assert!(art.tiles[2].tree_growth.is_empty(), "winter keeps its bare set");
+    // the wood's a mix of ages from the off
+    let stages: Vec<usize> = (0..40).flat_map(|y|
+        (0..40).map(move |x| tree_stage(x, y, 0))).collect();
+    assert!(stages.iter().any(|&s| s == 0) && stages.iter().any(|&s| s >= 2),
+        "a wood should mix saplings and grown trees: {stages:?}");
+    // a sapling lives to be ancient
+    let (x, y) = (0..40).flat_map(|y| (0..40).map(move |x| (x, y)))
+        .find(|&(x, y)| tree_stage(x, y, 0) == 0).expect("some tree starts a sapling");
+    assert_eq!(tree_stage(x, y, 25 * 360), 3, "a sapling + 25 years should be ancient");
+    // a stage only steps on a year boundary
+    assert_eq!(tree_stage(x, y, 359), tree_stage(x, y, 0),
+        "part-way through a year nobody grows");
+}

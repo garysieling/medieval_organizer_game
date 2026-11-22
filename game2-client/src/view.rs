@@ -372,8 +372,17 @@ impl View {
         } else { (keep, kwk, kkh) };
         standing.extend(m.castle_keeps.iter().map(|&(x, y)|
             (x, y, Piece::Castle(keep, kwk, kkh))));
-        // a wood is a mix of the pack's trees, stable per tile
-        standing.extend(m.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4), art.tiles[season_tiles(season)].trees_k))));
+        // a wood ages on a per-tile clock (#1278): its stage's cell where
+        // the growth sheet's in, else the stable variety pick (winter's
+        // bare set always is)
+        standing.extend(m.map.trees.iter().map(|&(x, y)| {
+            let ts = &art.tiles[season_tiles(season)];
+            let (spr, k) = match ts.tree_growth.get(tree_stage(x, y, m.tick)) {
+                Some(s) => (Some(s), 1.0),
+                None => (pick(&ts.trees, x, y, 4), ts.trees_k),
+            };
+            (x as f32, y as f32, Piece::Prop(spr, k))
+        }));
         // boulders and flat rocks, a different one each time
         let rock_prop = |x: i32, y: i32| if noise(x, y, 14) < 0.5 {
             pick(&art.stones, x, y, 16) } else { pick(&art.stone_grounds, x, y, 16) };

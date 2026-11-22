@@ -248,6 +248,24 @@ impl Game {
                 .collect();
             msg += &format!(" - {} heard out", healed.join(", "));
         }
+        // the hat goes round while they're gathered: dues land, the
+        // treasury carries a broke member while it can, a name missed
+        // too long leaves the rolls (#1342)
+        let dues = crate::game::campaign::dues_beat(&mut self.world, c);
+        let names = |vs: &[Entity]| vs.iter()
+            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+            .collect::<Vec<_>>().join(", ");
+        if dues.paid > 0 || !dues.carried.is_empty() {
+            let mut round = format!(" - the hat passes: {} pay", dues.paid);
+            if !dues.carried.is_empty() { round += &format!(", the purse carries {}", names(&dues.carried)); }
+            msg += &round;
+        }
+        if !dues.slipped.is_empty() {
+            msg += &format!(" - {} let their dues slip", names(&dues.slipped));
+        }
+        if !dues.gone.is_empty() {
+            msg += &format!(" - {} off the rolls", names(&dues.gone));
+        }
         // the log keeps the outcome; what the room said goes on the
         // TALK panel, in the order it was said
         if let Some(d) = d {

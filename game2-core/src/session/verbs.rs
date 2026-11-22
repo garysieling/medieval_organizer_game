@@ -3086,7 +3086,18 @@ impl Game {
             for b in &mut vote.ballots {
                 b.grumbles = b.stake.as_ref().map(|s| !campaign::framing_suits(framing, s)).unwrap_or(false);
             }
-            let msg = self.found_and_note(seat, &vote, framing, DecisionRule::Majority);
+            let mut msg = self.found_and_note(seat, &vote, framing, DecisionRule::Majority);
+            // the vote that founds enrolls the room: everyone who came
+            // joins the cause as a body (#1342)
+            let joined = crate::game::campaign::enroll_room(
+                &mut self.world, self.seats[seat].org, &d.meet_again);
+            if !joined.is_empty() {
+                let names: Vec<String> = joined.iter()
+                    .filter_map(|e| self.villagers.iter().position(|v| v == e)
+                        .map(|i| vill_name(i).to_string()))
+                    .collect();
+                msg += &format!(" - {} join the rolls", names.join(", "));
+            }
             self.log.push_ev(
                 EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
                 format!("t{}: {}", self.tick, msg),

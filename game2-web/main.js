@@ -155,10 +155,11 @@ canvas.addEventListener('pointerup', e => {
   }
   drag = null; down_at = null;
 });
-let zoom = 1.0;
 canvas.addEventListener('wheel', e => {
-  zoom = Math.min(2, Math.max(0.5, zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
-  g.set_zoom(zoom);
+  // the live zoom's the base: the event camera may have set it (a
+  // meeting opens at max) since the last manual step
+  const zoom = JSON.parse(g.cam()).zoom;
+  g.set_zoom(Math.min(2, Math.max(0.5, zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1))));
   e.preventDefault();
 }, { passive: false });
 

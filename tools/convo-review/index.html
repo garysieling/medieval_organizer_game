@@ -130,8 +130,12 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// Only set when the server is bound to a network-reachable address
+// (server.py injects it); loopback-only runs need none.
+const REVIEW_TOKEN = $('meta[name="review-token"]')?.content || "";
 const api = async (path, opts = {}) => {
-  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts,
+  const r = await fetch(path, { headers: { "Content-Type": "application/json",
+      ...(REVIEW_TOKEN ? { "X-Review-Token": REVIEW_TOKEN } : {}) }, ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || r.statusText);
@@ -143,7 +147,7 @@ const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? 
 // tag -> shortcut key
 const TAG_KEYS = { "non-sequitur": "n", "out-of-character": "o", "wrong-address": "a", "repetitive": "r",
   "wrong-tone": "t", "register": "e", "flat": "f", "ending": "d", "good": "g" };
-let TAGS = {}, batch = null, fb = {}, cur = 0, selLine = null, saveTimer = null, ghOk = false;
+let TAGS = {}, batch = null, fb = {}, cur = 0, selLine = null, saveTimers = {}, ghOk = false;
 
 const blank = () => ({ rating: 0, tags: [], note: "", lines: {}, skip: false });
 const F = id => (fb[id] ||= blank());
@@ -287,13 +291,22 @@ function renderReview() {
 
 function changed(msg = "Saved") {
   const c = batch.conversations[cur];
-  clearTimeout(saveTimer);
+  const cid = c.id;
+  // Coalesce rapid edits to the same conversation, but never let a save
+  // for one conversation cancel a pending save for another - keyboard
+  // navigation can move on within the debounce window.
+  clearTimeout(saveTimers[cid]);
   $("#saved") && ($("#saved").textContent = "Saving…");
-  const f = F(c.id);
-  saveTimer = setTimeout(async () => {
-    try { await api("/api/feedback/" + encodeURIComponent(c.id), { method: "PUT", body: f });
-      $("#saved") && ($("#saved").textContent = msg); }
-    catch (e) { $("#saved") && ($("#saved").textContent = "Not saved: " + e.message); }
+  const f = F(cid);
+  saveTimers[cid] = setTimeout(async () => {
+    delete saveTimers[cid];
+    const isCur = () => batch && batch.conversations[cur]?.id === cid;
+    try {
+      await api("/api/feedback/" + encodeURIComponent(cid), { method: "PUT", body: f });
+      if (isCur()) $("#saved") && ($("#saved").textContent = msg);
+    } catch (e) {
+      if (isCur()) $("#saved") && ($("#saved").textContent = "Not saved: " + e.message);
+    }
     renderStrip(); progress();
   }, 300);
 }

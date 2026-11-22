@@ -9,11 +9,13 @@
 //! each turn carrying its act and tree - the conversation review tool
 //! (tools/convo-review) reads this.
 
+use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::{self, Write};
 
-use game2_core::game::conversation::{converse, Relation, Rng, Speaker};
+use game2_core::game::conversation::{converse, Relation, Rng, Speaker, Turn};
 use game2_core::game::dialogue_trees::{backstory, village_library};
 use game2_core::game::traits::Trait;
 use game2_core::session::NAMES;
@@ -231,6 +233,22 @@ fn speaker_json(s: &Speaker) -> serde_json::Value {
     })
 }
 
+/// A stable fingerprint of a conversation's actual lines, so a reviewer's
+/// feedback for one transcript never gets silently inherited by a
+/// different transcript that lands at the same roster position after the
+/// dialogue trees change.
+fn transcript_fingerprint(speakers: &[String; 2], turns: &[Turn]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    speakers.hash(&mut hasher);
+    for turn in turns {
+        turn.speaker.hash(&mut hasher);
+        turn.act.hash(&mut hasher);
+        turn.tree.hash(&mut hasher);
+        turn.text.hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
 /// The same roster and pairings as the Markdown report, as JSON records
 fn json_conversations(
     num_characters: usize,
@@ -247,9 +265,12 @@ fn json_conversations(
             let char_b = &roster[(char_idx + other_offset) % num_characters];
             let relation = RELATIONS[rng.below(RELATIONS.len())];
             let t = converse(char_a, char_b, relation, library, rng);
+            let fp = transcript_fingerprint(&t.speakers, &t.turns);
             out.push(serde_json::json!({
-                // the roster and pairings depend on the batch's shape too
-                "id": format!("gen-s{}-n{}m{}-{}-{}", seed, num_characters, num_conversations, char_idx, conv_idx),
+                // the roster and pairings depend on the batch's shape too,
+                // plus a content fingerprint so a changed dialogue tree
+                // doesn't inherit feedback filed against the old lines
+                "id": format!("gen-s{}-n{}m{}-{}-{}-{:x}", seed, num_characters, num_conversations, char_idx, conv_idx, fp),
                 "source": "generated",
                 "kind": "Chat",
                 "relation": format!("{:?}", relation),

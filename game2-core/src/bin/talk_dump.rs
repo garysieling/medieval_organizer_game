@@ -6,12 +6,28 @@
 //! Usage:
 //!   cargo run -p game2-core --bin talk_dump -- [--seed 7] [--days 20] [--max 100] [-o out.json]
 
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::env;
+use std::hash::{Hash, Hasher};
 
-use game2_core::session::dialogue::TalkKind;
+use game2_core::session::dialogue::{TalkKind, TalkLine};
 use game2_core::session::stage::run_days;
 use game2_core::session::Game;
+
+/// A stable fingerprint of a record's actual lines, so a reviewer's
+/// feedback for one transcript isn't silently inherited by a different
+/// one that lands at the same seed and log sequence number.
+fn record_fingerprint(lines: &[TalkLine]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    for l in lines {
+        l.who.is_some().hash(&mut hasher);
+        l.name.hash(&mut hasher);
+        l.text.hash(&mut hasher);
+        l.gist.hash(&mut hasher);
+    }
+    hasher.finish()
+}
 
 fn main() -> std::io::Result<()> {
     game2_core::infra::crash::install();
@@ -51,8 +67,9 @@ fn main() -> std::io::Result<()> {
             for l in &r.lines {
                 if l.who.is_some() && !speakers.contains(&l.name) { speakers.push(l.name.clone()); }
             }
+            let fp = record_fingerprint(&r.lines);
             out.push(serde_json::json!({
-                "id": format!("village-s{}-{}", seed, r.id),
+                "id": format!("village-s{}-{}-{:x}", seed, r.id, fp),
                 "source": "village",
                 "kind": format!("{:?}", r.kind),
                 "day": r.tick,

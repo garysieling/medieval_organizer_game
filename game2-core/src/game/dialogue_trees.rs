@@ -2974,6 +2974,23 @@ const MEET_COMMON: &[MeetingLine] = &[
     },
 ];
 
+/// The hog's own lines (#1252): whatever the matter, the answer is a
+/// story about them. Every concern concept so they can take any floor
+const MEET_SELF: &[MeetingLine] = &[
+    MeetingLine {
+        act: Act::Remark, concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons", "concern:grief"],
+        bias: &[(Trait::SelfAbsorbed, 2.0)],
+        lines: &["This puts me in mind of my own case, which is not so different - and I'll tell it, if the floor allows.",
+            "If I may - as one who has seen more of this than most, and borne more of it besides."],
+    },
+    MeetingLine {
+        act: Act::Remark, concepts: &["concern:food", "concern:wages", "concern:harvest", "concern:commons"],
+        bias: &[(Trait::SelfAbsorbed, 2.0)],
+        lines: &["My own table's felt it, I promise you - nobody here keeps a table like mine, for good or ill.",
+            "When I was younger I'd have settled this myself and thought nothing of it. Ask me how."],
+    },
+];
+
 /// The lines `speaker` brings to a house meeting: what they actually live with
 pub fn meeting_pool(speaker: &Speaker) -> Vec<MeetingLine> {
     let mut pool: Vec<MeetingLine> = vec![];
@@ -2993,6 +3010,8 @@ pub fn meeting_pool(speaker: &Speaker) -> Vec<MeetingLine> {
     pool.extend_from_slice(MEET_COMMONS);
     pool.extend_from_slice(MEET_BRIDGE);
     pool.extend_from_slice(MEET_COMMON);
+    // the hog's own material rides on top (#1252)
+    if speaker.traits.contains(&Trait::SelfAbsorbed) { pool.extend_from_slice(MEET_SELF); }
     pool
 }
 
@@ -3755,6 +3774,7 @@ pub fn backstory(s: &Speaker) -> String {
             Trait::Wary => "They weigh a stranger twice before a word.".into(),
             Trait::Stolid => "They keep their own counsel, and keep it well.".into(),
             Trait::Cruel => "Their hand is heavy and their tongue heavier.".into(),
+            Trait::SelfAbsorbed => "They'll talk your ear off and never once ask after yours.".into(),
         });
     }
     for st in &s.status {

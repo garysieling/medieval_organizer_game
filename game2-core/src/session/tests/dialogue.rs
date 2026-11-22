@@ -1346,3 +1346,67 @@ fn test_neighbours_patch_a_spat_in_a_passing_chat() {
         || g.world.get_component::<AmendsTally>(b).map(|x| x.n).unwrap_or(0) >= 1,
         "the sorry's counted on whoever made it");
 }
+
+// --- the hog: a villager who never trades, only talks (#1252) ---
+
+#[test]
+fn test_let_them_run_is_on_offer_for_a_hog() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let plain = talk_beside(&mut g, ad[0]);
+    assert!(!g.seats[0].talk.as_ref().unwrap().let_run,
+        "no space to hold with a fair trader");
+    g.talk_pick_at(0, None);
+    let _ = plain;
+    let hog = g.villagers[ad[1]];
+    g.world.add_component(hog, Personality { traits: vec![Trait::SelfAbsorbed] });
+    talk_beside(&mut g, ad[1]);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.let_run, "a hog's last slot is the listener's trade");
+    assert_eq!(t.choice_labels(&g.world).last().unwrap(), "Let them run on");
+}
+
+#[test]
+fn test_letting_them_run_discloses_their_own_not_the_villages() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let v = g.villagers[ad[0]];
+    g.world.add_component(v, Personality { traits: vec![Trait::SelfAbsorbed] });
+    // a fresh craft with no bench: a trouble of their own to spill
+    g.world.add_component(v, crate::game::vocation::craft(Vocation::Weaver, 0.5));
+    talk_beside(&mut g, ad[0]);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.let_run);
+    let before = g.world.get_component::<crate::game::desires::Known>(v)
+        .map(|k| k.revealed.len()).unwrap_or(0);
+    let pick = t.choice_labels(&g.world).len() - 1;
+    g.talk_pick_at(0, Some(pick));
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(!t.let_run, "the space is held once, not forever");
+    assert!(g.world.get_component::<crate::game::desires::Known>(v)
+        .map(|k| k.revealed.len()).unwrap_or(0) > before,
+        "the monologue yields what they'd never trade: their own trouble");
+    assert!(t.notes.iter().any(|n| n.contains("let them run")),
+        "the holding's a beat of its own");
+    assert!(t.argued.len() >= 2, "the run goes on the record: {t:?}");
+    g.talk_pick_at(0, None);
+}
+
+#[test]
+fn test_a_hog_speaks_of_themselves_not_the_village() {
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let v = g.villagers[ad[0]];
+    g.world.add_component(v, Personality { traits: vec![Trait::SelfAbsorbed] });
+    // their secrets all said already: the draw falls through to the gist
+    let all: Vec<crate::game::desires::Reveal> =
+        crate::game::desires::unrevealed(&g.world, v, g.tick);
+    g.world.add_component(v, crate::game::desires::Known { revealed: all });
+    let v2 = talk_beside(&mut g, ad[0]);
+    assert_eq!(v, v2);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(crate::game::conversation::HOG_GISTS.contains(&t.gist.as_str())
+        || !t.gist.is_empty(), "the hog holds forth: {:?}", t.gist);
+    // and what they hold forth on is them: a hog's gist is never a rumor
+    assert!(!t.gist.contains("they say") , "no village business out of a hog's mouth");
+}

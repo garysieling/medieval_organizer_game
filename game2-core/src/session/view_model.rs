@@ -1707,6 +1707,7 @@ fn trait_word(t: crate::game::traits::Trait) -> &'static str {
         Lazy => "lazy", Ambitious => "ambitious", Kind => "kind", Stingy => "stingy",
         Pious => "pious", Hotheaded => "hot-headed", Gregarious => "gregarious", Proud => "proud",
         Steady => "steady", Wary => "wary", Stolid => "stolid", Cruel => "cruel",
+        SelfAbsorbed => "self-absorbed",
     }
 }
 
@@ -1721,6 +1722,7 @@ fn trait_hint(t: crate::game::traits::Trait) -> &'static str {
         Gregarious => "strolls the village", Proud => "a proud bearing",
         Steady => "slow to anger", Wary => "slow to trust",
         Stolid => "keeps to themselves", Cruel => "a heavy hand",
+        SelfAbsorbed => "talks at you",
     }
 }
 

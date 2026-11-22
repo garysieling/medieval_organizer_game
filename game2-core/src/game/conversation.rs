@@ -114,6 +114,7 @@ pub fn trait_name(t: Trait) -> &'static str {
         Trait::Wary => "wary",
         Trait::Stolid => "stolid",
         Trait::Cruel => "cruel",
+        Trait::SelfAbsorbed => "self-absorbed",
     }
 }
 
@@ -429,8 +430,35 @@ fn draw_weight(r: &Reply, speaker: &Speaker) -> f32 {
     for (t, m) in r.bias {
         if speaker.traits.contains(t) { w *= m; }
     }
+    // the conversation hog (#1252): trading information is the one move
+    // they can't make - a question back is a turn not about them, so it
+    // near-never comes; whatever they'd answer turns to their own story
+    if speaker.traits.contains(&Trait::SelfAbsorbed) {
+        if r.act == Act::Question { w *= 0.05; }
+        else if matches!(r.act, Act::Remark | Act::Answer) { w *= 1.4; }
+    }
     w
 }
+
+/// What a hog's monologue opens on, when the talk's own draw gives
+/// nothing back (#1252): they don't pass on the village's business -
+/// they hold forth about their own
+pub const HOG_GISTS: &[&str] = &[
+    "You've caught me mid-story - I was just telling myself about the finest cart I ever built. Yours now, as it happens.",
+    "Ah, good - an ear. Did I ever tell you how I came to this village? It's a tale worth the walking.",
+    "I've been fair bursting to tell someone: my stew last night was the best this house has seen. Sit, sit.",
+];
+
+/// Let-them-run lines (#1252): when you hold the space open, what fills
+/// it is them - their past, their opinions of everyone. `{someone}`
+/// fills with a villager's name
+pub const HOG_RUN: &[&str] = &[
+    "Did I ever tell you of the winter I out-walked the snow? Three days, and my boots never once let in.",
+    "{someone}? Lovely sort. Doesn't half go on, though.",
+    "Folk bring me their troubles, you know - I've always a word for them. Usually mine.",
+    "I've the strongest back in this village, and the softest bed to prove it.",
+    "{someone} does the work well enough, I'll grant - though nothing to how my mother taught me.",
+];
 
 /// A template rendered for the pair: `{other}` is the listener's name,
 /// `{trade}`/`{other_trade}` the each side's work-noun (#1181)
@@ -831,6 +859,34 @@ fn old_ways(s: &Speaker) -> bool {
     s.status.contains(&"old_ways")
 }
 
+/// The floor a speaker's temper bids for (#1252): a meeting is a held
+/// audience, and holding an audience is the whole of a hog's art
+fn bid_traits(sp: &Speaker) -> f32 {
+    let mut m = 1.0f32;
+    for (t, x) in [(Trait::Gregarious, 1.5), (Trait::Proud, 0.8), (Trait::Ambitious, 1.2),
+        (Trait::SelfAbsorbed, 1.8)] {
+        if sp.traits.contains(&t) { m *= x; }
+    }
+    m
+}
+
+/// The lines a push-back speaks with: the room's answer to a hog on the
+/// floor is its own flavor - push back at them and it's the floor the
+/// room talks about, not the matter (#1252)
+fn floor_lines<'a>(l: &'a MeetingLine, target: &Speaker) -> &'a [&'static str] {
+    if l.act == Act::PushBack && target.traits.contains(&Trait::SelfAbsorbed) {
+        HOG_FLOOR
+    } else { l.lines }
+}
+
+/// The room pushing back on a hog (#1252): `{other}` is their name,
+/// `{other_trade}` their work-noun - "the miller holds the floor again"
+pub const HOG_FLOOR: &[&str] = &[
+    "{other} holds the floor again.",
+    "Aye, {other_trade}, we've heard this verse - twice now.",
+    "Give the floor a rest, {other}.",
+];
+
 /// How long the organizer's question stays the loudest thing in the room:
 /// after this many answers it stops pulling replies to itself
 const QUESTION_PULL: usize = 2;
@@ -1001,10 +1057,7 @@ pub fn run_meeting<'a>(
             let pool = pools[i];
             // the room's own read on who to hear (#1249): a voice that
             // already carries bids heavier for the floor
-            let mut score = sp.pull;
-            for (t, m) in [(Trait::Gregarious, 1.5), (Trait::Proud, 0.8), (Trait::Ambitious, 1.2)] {
-                if sp.traits.contains(&t) { score *= m; }
-            }
+            let score = sp.pull * bid_traits(sp);
             // What could they say, and what would it answer?
             for (si, s) in record.iter().enumerate() {
                 if si == Q && !question_open { continue; }
@@ -1062,7 +1115,7 @@ pub fn run_meeting<'a>(
         } else {
             attendees[record[target].speaker]
         };
-        let Some((t, text)) = fresh_line(line.lines, attendees[speaker], other_sp, &used, rng) else { continue };
+        let Some((t, text)) = fresh_line(floor_lines(line, other_sp), attendees[speaker], other_sp, &used, rng) else { continue };
         used.insert(t);
         if target == Q { answers += 1; }
         // A reply is about what it shares with its target: a stock "aye,
@@ -2379,6 +2432,69 @@ mod tests {
         assert!(menus[0].iter().any(|p| p == "Ask about their sickness"));
         assert!(menus[1..].iter().all(|m| !m.iter().any(|p| p == "Ask about their sickness")),
             "a spent topic stayed on: {:?}", menus[1]);
+    }
+
+    // --- the hog: a villager who never trades, only talks (#1252) ---
+
+    fn reply(act: Act) -> Reply {
+        Reply { criteria: &[], weight: 1.0, bias: &[], act, concepts: &[],
+            lines: &["x"], voice: &[], then: None, end: None }
+    }
+
+    #[test]
+    fn test_the_hog_never_asks_back() {
+        let mut hog = Speaker::new("Nog");
+        hog.traits.push(Trait::SelfAbsorbed);
+        let plain = Speaker::new("Pell");
+        // a question for you is a turn not about them - near never drawn
+        assert!(draw_weight(&reply(Act::Question), &hog)
+            < draw_weight(&reply(Act::Question), &plain) * 0.1,
+            "the hog's ask-back is all but gone");
+        // and whatever they'd answer turns to their own story
+        for act in [Act::Remark, Act::Answer] {
+            assert!(draw_weight(&reply(act), &hog) > draw_weight(&reply(act), &plain),
+                "the hog's own telling draws heavier: {act:?}");
+        }
+    }
+
+    #[test]
+    fn test_the_hog_bids_past_the_room() {
+        let mut hog = Speaker::new("Nog");
+        hog.traits.push(Trait::SelfAbsorbed);
+        assert!(bid_traits(&hog) > bid_traits(&Speaker::new("Pell")),
+            "a held audience is the whole of their art");
+    }
+
+    #[test]
+    fn test_the_room_pushes_back_on_the_floor_not_the_matter() {
+        use crate::game::dialogue_trees::meeting_pool;
+        let mut hog = Speaker::new("Nog");
+        hog.traits.push(Trait::SelfAbsorbed);
+        hog.traits.push(Trait::Gregarious);
+        let plain = Speaker::new("Pell");
+        // a push-back line from a plain pool, aimed at each
+        let push = meeting_pool(&Speaker::new("Pell")).iter()
+            .find(|l| l.act == Act::PushBack).copied().expect("a pool has a push-back");
+        assert_eq!(floor_lines(&push, &hog), HOG_FLOOR,
+            "pushing back on a hog talks about the floor");
+        assert_eq!(floor_lines(&push, &plain), push.lines,
+            "pushing back on anyone else talks about the matter");
+        assert!(HOG_FLOOR.iter().any(|l| l.contains("{other_trade}")),
+            "the flavor names their trade");
+    }
+
+    #[test]
+    fn test_a_hog_brings_their_own_material() {
+        use crate::game::dialogue_trees::meeting_pool;
+        let mut hog = Speaker::new("Nog");
+        hog.traits.push(Trait::SelfAbsorbed);
+        let pool = meeting_pool(&hog);
+        assert!(pool.iter().any(|l| l.bias.iter()
+            .any(|(t, _)| *t == Trait::SelfAbsorbed)),
+            "a hog carries lines only they would say");
+        assert!(!meeting_pool(&Speaker::new("Pell")).iter()
+            .any(|l| l.bias.iter().any(|(t, _)| *t == Trait::SelfAbsorbed)),
+            "nobody else does");
     }
 }
 

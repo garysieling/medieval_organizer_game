@@ -173,6 +173,7 @@ pub fn saying(m: Mark, who: &str) -> String {
         (Trait::Hotheaded, _) => "taught me never to swallow an insult",
         (Trait::Gregarious, _) => "taught me every soul's name",
         (Trait::Proud, _) => "taught me to bow to no one",
+        (Trait::SelfAbsorbed, _) => "taught me the floor's worth holding",
         (Trait::Stolid, _) => "taught me to keep my own counsel",
         (Trait::Cruel, _) => "taught me a hard hand gets things done",
     };

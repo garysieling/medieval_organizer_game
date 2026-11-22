@@ -240,6 +240,14 @@ impl PlayerTalk {
             .find(|a| a.kind == crate::game::organizing::PropKind::Inoculate).copied()
     }
 
+    /// The probing question (#1269) rides past the cap with the
+    /// inoculation, last of the beyond asks so the pick numbers of
+    /// everything before it don't move
+    pub(crate) fn probe_beyond(&self) -> Option<crate::game::organizing::AskOffer> {
+        self.asks.iter().skip(self.asks_shown())
+            .find(|a| a.kind == crate::game::organizing::PropKind::Probe).copied()
+    }
+
     pub(crate) fn asks_shown(&self) -> usize {
         TALK_MAX_CHOICES.saturating_sub(self.options.len()).min(self.asks.len())
     }
@@ -256,6 +264,8 @@ impl PlayerTalk {
             .chain(self.asks.iter().take(self.asks_shown())
                 .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
             .chain(self.inoculation_beyond().as_ref()
+                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
+            .chain(self.probe_beyond().as_ref()
                 .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
             .chain(self.tell.clone())
             .chain(self.amends.then(|| "Make amends for the other day".to_string()))
@@ -312,6 +322,9 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     let grieving = world.get_component::<AttachmentHistory>(who).map(|h| h.episodes.iter()
         .any(|e| matches!(e.kind, EpisodeKind::Loss) && villager::is_dead(world, e.with))).unwrap_or(false);
     if grieving { s.status.push("grieving"); }
+    // where they stand on the road out of helplessness - the same
+    // issue reads resigned till their interest's connected (#1269)
+    s.status.push(crate::game::desires::thaw_status(crate::game::desires::rung_of(world, who)));
     // and how far their faith has grown - a mystic's words carry
     // differently from a literalist's
     if let Some(t) = world.get_component::<crate::sim::religion::FaithStage>(who)
@@ -1154,7 +1167,8 @@ impl Game {
         if let (true, Some(i)) = (t.inoculating, pick) { self.inoculate_pick_at(seat, i); return; }
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let extra = t.inoculation_beyond();
-        let tell_at = n + asks + extra.is_some() as usize;
+        let probe_extra = t.probe_beyond();
+        let tell_at = n + asks + extra.is_some() as usize + probe_extra.is_some() as usize;
         let amends_at = tell_at + t.tell.is_some() as usize;
         let let_run_at = amends_at + t.amends as usize;
         let Some(i) = pick.filter(|&i| i < let_run_at + t.let_run as usize) else {
@@ -1179,7 +1193,10 @@ impl Game {
         // a pick past the replies is a proposition: the ask lands or it
         // doesn't, and the word of it goes on the record
         if i >= n {
-            let o = match extra { Some(x) if i - n == asks => x, _ => t.asks[i - n] };
+            let o = if i - n == asks && extra.is_some() { extra.unwrap() }
+                else if i - n == asks + extra.is_some() as usize && probe_extra.is_some() {
+                    probe_extra.unwrap() }
+                else { t.asks[i - n] };
             if o.kind == crate::game::organizing::PropKind::Argue {
                 self.open_argument(seat, o);
                 return;
@@ -1203,6 +1220,28 @@ impl Game {
                 self.argue_line(seat, Some(self.seats[seat].player),
                     "Who do folk turn to around here, when the roof leaks?".into());
                 for l in read { self.argue_line(seat, Some(who), l); }
+                self.refresh_player_talk(seat);
+                return;
+            }
+            // the probing question (#1269): the want it plants ripens
+            // in its own time - the talk's share of the thaw move the
+            // meeting carries
+            if o.kind == crate::game::organizing::PropKind::Probe {
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.asks.retain(|a| *a != o);
+                    cur.asks_taken.push(o);
+                }
+                self.argue_line(seat, Some(self.seats[seat].player),
+                    "What do you actually want, when all's said and done?".into());
+                let seed = self.rng.next();
+                let pe = self.seats[seat].player;
+                match crate::game::desires::plant_want(&mut self.world, who, pe, self.tick, seed) {
+                    Some(w) => self.argue_line(seat, Some(who), format!(
+                        "I ... I'd like {}, I'd warrant. I'd never thought to ask myself that.",
+                        crate::game::desires::want_phrase(w))),
+                    None => self.argue_line(seat, Some(who),
+                        "Want? I've wants enough, friend. Ask me another.".into()),
+                }
                 self.refresh_player_talk(seat);
                 return;
             }

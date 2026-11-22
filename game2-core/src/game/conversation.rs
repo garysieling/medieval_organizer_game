@@ -1353,6 +1353,64 @@ mod tests {
     }
 
     #[test]
+    fn test_helplessness_registers_the_same_issue_resigned() {
+        // a cold speaker's trouble lands as resignation, woven onto the
+        // ordinary beats - and a dedicated pool answers for them (#1269)
+        let library = village_library();
+        let mut cold_call = false;
+        let mut cold_reply = false;
+        for seed in 0..80 {
+            let mut rng = Rng::new(seed);
+            let mut cold = Speaker::new("Eliza");
+            cold.status.push("thaw_helpless");
+            cold.status.push("hungry");
+            let warm = Speaker::new("Aldric");
+            // calling out: the resigned register on their own trouble -
+            // a hungry speaker leads hunger_lean_times, so the weave
+            // lives where the issue lives
+            let tr = converse(&cold, &warm, Relation::Acquaintance, &library, &mut rng);
+            cold_call |= tr.turns.iter().any(|t| t.speaker == 0
+                && (t.text.contains("nothing for it")
+                    || t.text.contains("a thing to be")
+                    || t.text.contains("same as all the rest")
+                    || t.text.contains("had that before")
+                    || t.text.contains("never asked us")));
+            // answering: the dedicated pool's resignation
+            let mut rng = Rng::new(seed);
+            let tr = converse(&warm, &cold, Relation::Acquaintance, &library, &mut rng);
+            cold_reply |= tr.turns.iter().any(|t| t.speaker == 1
+                && (t.text.contains("What's to be done but bear it")
+                    || t.text.contains("nothing we say moves the sky")
+                    || t.text.contains("the pot's still bare")
+                    || t.text.contains("always is what it is")));
+        }
+        assert!(cold_call, "a cold speaker's hunger lands resigned, not as a bare status");
+        assert!(cold_reply, "the helpless pool answers smalltalk with resignation");
+    }
+
+    #[test]
+    fn test_the_warm_rungs_dont_speak_resigned() {
+        let library = village_library();
+        let mut joined_word = false;
+        for seed in 0..80 {
+            let mut rng = Rng::new(seed);
+            let mut warm = Speaker::new("Eliza");
+            warm.status.push("thaw_joined");
+            warm.status.push("hungry");
+            let tr = converse(&warm, &Speaker::new("Aldric"), Relation::Acquaintance, &library, &mut rng);
+            for t in &tr.turns {
+                assert!(!t.text.contains("nothing for it")
+                    && !t.text.contains("What's to be done but bear it"),
+                    "a member doesn't speak resignation: {}", t.text);
+                joined_word |= t.speaker == 0 && (t.text.contains("folk looking at it together")
+                    || t.text.contains("what the meeting's for")
+                    || t.text.contains("ask together"));
+            }
+        }
+        assert!(joined_word, "a joined member carries the cause's register");
+    }
+
+    #[test]
     fn test_quip_exclusivity_prevents_duplicate_lines() {
         let library = village_library();
         for seed in 0..30 {

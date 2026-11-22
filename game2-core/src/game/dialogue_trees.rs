@@ -218,6 +218,17 @@ pub const SMALL_CHAT: Exchange = Exchange {
     concepts: &["smalltalk", "weather"],
     calls: &["Looks like rain again, doesn't it?", "Cold wind off the moor this morning.", "Gray clouds gathering over the western hill.", "The morning dew was heavy on the clover.", "A gray dawn, but the day's work won't wait for it.", "The frost sat late on the furrows this morning."],
     voice: &[
+        // helplessness as a delivery mode (#1269): the same issue lands
+        // resigned while they're cold, and warms rung by rung - these
+        // lead so they out-read the plain status voices below
+        Voice { criteria: &[Has("self:status:thaw_helpless"), Has("self:status:hungry")], lines: &["The pot's been bare a week, {other}. Nothing for it but thinner.", "An empty belly's just the way of it, isn't it? What's to be done."] },
+        Voice { criteria: &[Has("self:status:thaw_helpless"), Has("self:status:sick")], lines: &["This cough'll see me out, I reckon - physic's for folk who can pay.", "Sick or well, the work's the same and the wage's the same."] },
+        Voice { criteria: &[Has("self:status:thaw_helpless"), Has("self:status:cold")], lines: &["The hearth's cold and it'll stay cold. That's the size of it."] },
+        Voice { criteria: &[Has("self:status:thaw_helpless"), Has("self:status:grieving")], lines: &["Grief's a tenant that pays no rent, {other}. It leaves when it leaves."] },
+        Voice { criteria: &[Has("self:status:thaw_helpless")], lines: &["Gray skies, gray days - it's the weather of us, {other}, and nothing moves it.", "What's the use of worry? The world's set how it's set.", "Rain or shine, it's all one to the likes of us."] },
+        Voice { criteria: &[Has("self:status:thaw_thawing")], lines: &["Cold wind - though I've a question still turning over in me, {other}.", "Gray clouds - somebody asked what I wanted, the other day. I'd never thought to ask."] },
+        Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["Cold wind - good thing we're not weathering it alone anymore."] },
+        Voice { criteria: &[Has("self:status:thaw_acting")], lines: &["Gray skies - the sort we've work afoot on, {other}."] },
         Voice { criteria: &[Has("self:status:hungry")], lines: &["A thin soup and a thinner week, {other}.", "The sky can do what it likes - it's the empty pot that weighs on me."] },
         Voice { criteria: &[Has("self:status:grieving")], lines: &["The mornings are long since the burying, {other}.", "Gray clouds, gray days - I scarce mark the weather now."] },
         // the old wounds they carry, hinted long before they're named (#1243);
@@ -240,11 +251,27 @@ pub const SMALL_CHAT: Exchange = Exchange {
         Voice { criteria: &[Has("pair:relation:rival")], lines: &["The sky's as sour as thy company, {other}.", "Cold wind - fitting weather for thee to be abroad in."] },
     ],
     replies: &[
+        // the dedicated pool (#1269): an un-activated speaker's answer
+        // to any smalltalk is resignation - it out-draws the ordinary
+        // agree for them, and never comes for the warm
+        Reply {
+            criteria: &[Has("self:status:thaw_helpless")], weight: 2.00, bias: &[],
+            act: Act::Agree, concepts: &["weather", "smalltalk"],
+            lines: &["Aye. What's to be done but bear it.", "It'll rain or it won't - nothing we say moves the sky.", "That it will. It always is what it is."],
+            voice: &[
+                Voice { criteria: &[Has("self:status:hungry")], lines: &["Aye, wet or dry, the pot's still bare."] },
+                Voice { criteria: &[Has("self:status:sick")], lines: &["Aye. Rain's the least of what ails me."] },
+            ],
+            then: Some(SMALL_VOLLEY), end: None,
+        },
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Agree, concepts: &["weather"],
             lines: &["It will be a wet week, mark me.", "The thatch won't thank it if it pours.", "Aye, and the mud will take thy boots right off.", "Good for the barley, but bad for the road."],
             voice: &[
+                Voice { criteria: &[Has("self:status:thaw_thawing")], lines: &["Aye - though maybe there's more to be done than talk of it."] },
+                Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["Aye - and we've more than weather-talk between us now."] },
+                Voice { criteria: &[Has("self:status:thaw_acting")], lines: &["Aye - the mud's where the work is, mind."] },
                 Voice { criteria: &[Has("pair:relation:friend")], lines: &["Aye - we'll weather it together, like always.", "Wet week or dry, good to stand a while with thee."] },
                 Voice { criteria: &[Has("pair:relation:kin")], lines: &["Aye - our roof's held worse, thanks to our father's hands.", "The mud'll take our boots, same as when we were little."] },
                 Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, rain - and I'll not lend thee my cloak for it.", "The thatch won't thank it, nor will I thank thee for saying so."] },
@@ -524,6 +551,11 @@ const SICK_GREET: Exchange = Exchange {
     concepts: &["greeting", "concern:sickness"],
     calls: &["*cough* Good morrow, {other}.", "Forgive my rough voice - this chest cold won't quit.", "Morrow, {other}. Don't stand too close in the breeze.", "A heavy morning, neighbor. My limbs are like lead."],
     voice: &[
+        // the rung it's coughed from (#1269): sickness is fate to the
+        // cold, a thing that could be looked to once they're warm
+        Voice { criteria: &[Has("self:status:thaw_helpless")], lines: &["*cough* Morrow. It'll run its course or it won't - nothing for it either way.", "Aye, the cough again. Sick's what poor folk are, {other}."] },
+        Voice { criteria: &[Has("self:status:thaw_thawing")], lines: &["*cough* Morrow, {other} - a foul chest, though folk have begun asking what I'd want done."] },
+        Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["*cough* Morrow, {other} - the physic dear, but we've people on it now."] },
         Voice { criteria: &[Has("pair:relation:friend")], lines: &["*cough* Ah, {other} - forgive the croak. Stand off, mind; I'd not share this with a friend.", "Morrow, {other}. A wretched cold - but warmer for seeing thee."] },
         Voice { criteria: &[Has("pair:relation:kin")], lines: &["*cough* Morrow, {other}. Tell our mother I still stand upright.", "{other} - aye, it's me, coughing like a broken bellows. Keep out of the draft."] },
         Voice { criteria: &[Has("pair:relation:stranger")], lines: &["*cough* Morrow, traveler. Best keep to the far side of the path.", "A sick man's greeting, stranger - from a distance."] },
@@ -695,6 +727,11 @@ const GRIEF_GREET: Exchange = Exchange {
     concepts: &["greeting", "concern:grief"],
     calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "A peaceful day to thee, {other}."],
     voice: &[
+        // grief's the one wound the rung reads differently (#1269):
+        // cold it's endured, warm it's carried
+        Voice { criteria: &[Has("self:status:thaw_helpless")], lines: &["Morrow. The house is still, and that's just how it is now - no help for it.", "{other}. The bell tolled, and we go on. There's nothing else to do."] },
+        Voice { criteria: &[Has("self:status:thaw_thawing")], lines: &["{other}. The house is still - but somebody asked me what I wanted, and I've been thinking on them since."] },
+        Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["{other}. The house is still - but the cause's folk have sat with me in it."] },
         Voice { criteria: &[Has("pair:relation:friend")], lines: &["{other}. Forgive me - the house is still since they passed, and thy face is a kindness.", "Well met, dear friend. The days feel longer now."] },
         Voice { criteria: &[Has("pair:relation:kin")], lines: &["{other}. Blood knows blood - the house is empty without them.", "Morrow, {other}. Our family's table has an empty bench."] },
         Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, stranger. Forgive a grieving house its silence.", "A heavy morning - we've buried one of ours."] },
@@ -1032,7 +1069,13 @@ const RIVAL_GREET: Exchange = Exchange {
 const HUNGER_HOPE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:food"],
-    calls: &["If the rye crop ripens before the frost, we'll see another spring.", "They say the monastery may open its tithe barn if hunger deepens.", "We have boiled nettles and wild leeks before, and survived.", "A shared loaf tastes twice as sweet in hard times."], voice: &[],
+    calls: &["If the rye crop ripens before the frost, we'll see another spring.", "They say the monastery may open its tithe barn if hunger deepens.", "We have boiled nettles and wild leeks before, and survived.", "A shared loaf tastes twice as sweet in hard times."],
+    voice: &[
+        // even the hope beat sours while they're cold (#1269)
+        Voice { criteria: &[Has("self:status:thaw_helpless")], lines: &["Hope, aye - we've had that before, and thinner soup after it.", "The rye'll ripen or it won't. It's never asked us which."] },
+        Voice { criteria: &[Has("self:status:thaw_thawing")], lines: &["If the rye ripens - and if folk stood together, maybe it needn't fall to luck."] },
+        Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["The tithe barn opens for those who ask together, I hear."] },
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1047,7 +1090,15 @@ const HUNGER_HOPE: Exchange = Exchange {
 const HUNGER_SHARE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:food", "aid"],
-    calls: &["We boiled a pot of turnip tops and barley chaff this noon.", "My store bin has nothing but dust and two dried apples.", "The children went to sleep crying with empty bellies last night.", "A shared loaf tastes twice as sweet in hard times."], voice: &[],
+    calls: &["We boiled a pot of turnip tops and barley chaff this noon.", "My store bin has nothing but dust and two dried apples.", "The children went to sleep crying with empty bellies last night.", "A shared loaf tastes twice as sweet in hard times."],
+    voice: &[
+        // the same trouble, told by where they stand (#1269): cold it's
+        // fate; warming it's a thing that might yet move
+        Voice { criteria: &[Has("self:status:thaw_helpless")], lines: &["The bin's dust, and there's nothing for it. There never is.", "Hungry's what we are, {other}. It's not a thing to fix - it's a thing to be."] },
+        Voice { criteria: &[Has("self:status:thaw_thawing")], lines: &["The bin's near bare - but somebody asked what I'd want, if I could want. Turns me over still.", "Thin pickings here - though I've started wondering if it must stay so."] },
+        Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["The bin's thin - but empty pots are what the meeting's for, {other}."] },
+        Voice { criteria: &[Has("self:status:thaw_acting")], lines: &["Thin here, aye - and it's my own task on the plan to see it thicker."] },
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.20, bias: &[(Kind, 2.0)],
@@ -1071,6 +1122,11 @@ const HUNGER_GREET: Exchange = Exchange {
     concepts: &["greeting", "concern:food"],
     calls: &["Good morrow, {other}. A hollow belly makes for a slow step.", "Well met, friend, though the times are thin and hard.", "Greetings, {other}. Hast thou found anything to put in the pot?", "A peaceful day to thee, {other}."],
     voice: &[
+        // the rung the greeting's spoken from (#1269): a cold greeting
+        // is flat, a warm one looks for what could move
+        Voice { criteria: &[Has("self:status:thaw_helpless")], lines: &["Morrow, {other}. Another hungry one - same as all the rest.", "Aye, morrow. Thin again, like every day these years."] },
+        Voice { criteria: &[Has("self:status:thaw_thawing")], lines: &["Morrow, {other} - the pot's thin, though I've a question still turning over in me."] },
+        Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["Morrow, {other} - lean times, but we've folk looking at it together now."] },
         Voice { criteria: &[Has("pair:relation:friend")], lines: &["Morrow, {other} - a hollow belly, but glad company.", "Well met, {other} - we've both known thinner tables. Barely."] },
         Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, {other} - is there bread at thy hearth? Ours runs thin.", "{other} - kin shouldn't have to ask, but hast thou grain?"] },
         Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, stranger. Thin pickings along this road.", "A hungry greeting, traveler - the fields gave little this year."] },
@@ -1143,7 +1199,14 @@ const COLD_GATHER: Exchange = Exchange {
 const COLD_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:fuel"],
-    calls: &["Brrr! Good morrow, {other}. The rime frost is inside the thatch.", "Well met, neighbor. My breath freezes right before my nose.", "Greetings, {other}. The wind blows straight through the cottage wattles.", "A peaceful day to thee, {other}."], voice: &[],
+    calls: &["Brrr! Good morrow, {other}. The rime frost is inside the thatch.", "Well met, neighbor. My breath freezes right before my nose.", "Greetings, {other}. The wind blows straight through the cottage wattles.", "A peaceful day to thee, {other}."],
+    voice: &[
+        // cold hands, colder prospects (#1269): the same frozen hearth
+        // is fate to the helpless and a shared errand to the warm
+        Voice { criteria: &[Has("self:status:thaw_helpless")], lines: &["Brrr - another frozen morning, {other}. The hearth stays out; it always does."] },
+        Voice { criteria: &[Has("self:status:thaw_thawing")], lines: &["Brrr! Morrow, {other} - cold, though a body's asked me what I'd do about it."] },
+        Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["Brrr! Morrow, {other} - the wood's shared out at the meeting now, mind."] },
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],

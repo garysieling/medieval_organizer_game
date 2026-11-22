@@ -59,6 +59,9 @@ impl Game {
             vs.dedup();
             if vs.len() >= 3 {
                 if let Some(issue) = desires::found_issue(&mut self.world, pe, tag.clone()) {
+                    // three voices at a meeting are the cause's asking
+                    // done on this trouble (#1335)
+                    crate::game::campaign::mark_legwork(&mut self.world, oe, tag.clone());
                     self.toasts.push((
                         format!("Organizer discovers issue {}", issue),
                         self.tick + 40,

@@ -1006,6 +1006,31 @@ pub fn living_members(world: &World, campaign: Entity) -> usize {
         }).count()).unwrap_or(0)
 }
 
+/// The asking the cause has already done on each issue (#1335): a
+/// completed survey tally, or a meeting where three voices surfaced it.
+/// Lives on the org so a founding meeting's legwork counts before the
+/// campaign entity exists - the loud motions check it per issue
+#[derive(Debug, Clone, Default)]
+pub struct Legwork(pub crate::engine::det::HashSet<IssueTag>);
+
+/// The org's people already asked about `tag`: a survey's count came
+/// back, or a meeting's voices surfaced it for the organizer
+pub fn mark_legwork(world: &mut World, org: Entity, tag: IssueTag) {
+    let mut l = world.get_component::<Legwork>(org).cloned().unwrap_or_default();
+    l.0.insert(tag);
+    world.add_component(org, l);
+}
+
+/// Whether the cause's own issue has legwork behind it (#1335): the
+/// doors asked or the voices heard - the check the loud public
+/// motions ride on
+pub fn legwork_done(world: &World, campaign: Entity) -> bool {
+    world.get_component::<Campaign>(campaign)
+        .and_then(|c| world.get_component::<Legwork>(c.org)
+            .map(|l| l.0.contains(&c.issue)))
+        .unwrap_or(false)
+}
+
 /// A survey under way (#1270): which campaign's asking, the issue the
 /// floor picked, who's carrying it door to door, and the days left
 #[derive(Debug, Clone)]
@@ -1094,18 +1119,25 @@ pub fn survey_ring(world: &World, v: Entity, issue: &IssueTag, tick: u64) -> u8 
 pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
     let n = living_members(world, campaign);
     let mut ms = vec![];
-    if n >= 2 { ms.push(Motion::Strike); }
-    if n >= 3 { ms.push(Motion::March); }
-    if n >= 4 { ms.push(Motion::Townhall); }
+    // the loud public work wants legwork behind the cause's own issue
+    // first (#1335): the doors asked or the voices heard. The quiet
+    // work - flyers, an organizer on the road, the asking itself -
+    // stays open to a fresh cause
+    let asked = legwork_done(world, campaign);
+    if asked && n >= 2 { ms.push(Motion::Strike); }
+    if asked && n >= 3 { ms.push(Motion::March); }
+    if asked && n >= 4 { ms.push(Motion::Townhall); }
     if n >= 2 { ms.push(Motion::Flyers); }
-    if n >= 6 { ms.push(Motion::TwoFronts); }
+    if asked && n >= 6 { ms.push(Motion::TwoFronts); }
     if n >= 8 { ms.push(Motion::SendOrganizer); }
-    // doors enough to canvass wants hands - four carry a real round
-    if n >= 4 { ms.push(Motion::Survey); }
+    // any cause big enough to act can first go asking
+    if n >= 2 { ms.push(Motion::Survey); }
     // a posted town that runs warm enough can stage the cause's day
-    if let Some(o) = world.get_component::<Outreach>(campaign) {
-        for &(site, _, support) in &o.posts {
-            if support >= FIELD_WARM { ms.push(Motion::ParallelEvent(site)); }
+    if asked {
+        if let Some(o) = world.get_component::<Outreach>(campaign) {
+            for &(site, _, support) in &o.posts {
+                if support >= FIELD_WARM { ms.push(Motion::ParallelEvent(site)); }
+            }
         }
     }
     // the room's read gates the slate (#1310): a cause set on mercy
@@ -1486,6 +1518,7 @@ mod tests {
         let mut w = World::new();
         let ms: Vec<Entity> = (0..6).map(|_| member(&mut w)).collect();
         let (o, c) = campaign_with(&mut w, &ms);
+        mark_legwork(&mut w, o, "the taxes".into());
         let lean = |w: &mut World, p: f32, f: f32| {
             for &m in &ms {
                 let mut mem = RhetoricMemory::default();
@@ -1512,5 +1545,31 @@ mod tests {
         assert!(!slate.contains(&Motion::Survey) && !slate.contains(&Motion::Flyers),
             "a firebrand room asks no patience: {slate:?}");
         assert!(slate.contains(&Motion::March), "the street stays: {slate:?}");
+    }
+
+    #[test]
+    fn test_the_loud_work_waits_for_the_asking() {
+        let mut w = World::new();
+        let ms: Vec<Entity> = (0..6).map(|_| member(&mut w)).collect();
+        let (o, c) = campaign_with(&mut w, &ms);
+        // a fresh cause can fly bills and go asking - but the street's
+        // loud work waits for the asking to come back on ITS trouble
+        let slate = motions_open(&w, c);
+        for m in [Motion::Strike, Motion::March, Motion::Townhall, Motion::TwoFronts] {
+            assert!(!slate.contains(&m), "no legwork yet: {slate:?}");
+        }
+        assert!(slate.contains(&Motion::Survey) && slate.contains(&Motion::Flyers),
+            "the legwork itself stays open: {slate:?}");
+        // asking after some other trouble doesn't count - legwork's
+        // about this grievance, not general experience
+        mark_legwork(&mut w, o, "the rents".into());
+        let slate = motions_open(&w, c);
+        assert!(!slate.contains(&Motion::March), "a different trouble asked: {slate:?}");
+        // once the cause's own count's back, the whole floor opens
+        mark_legwork(&mut w, o, "the taxes".into());
+        let slate = motions_open(&w, c);
+        assert!(slate.contains(&Motion::Strike) && slate.contains(&Motion::March)
+            && slate.contains(&Motion::Townhall) && slate.contains(&Motion::TwoFronts),
+            "the asking's done: {slate:?}");
     }
 }

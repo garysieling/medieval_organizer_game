@@ -3263,6 +3263,9 @@ impl Game {
         // hands learn from
         crate::sim::organized_power::record_action(
             &mut self.world, org, crate::sim::organized_power::ActionQuality::Transactional);
+        // the asking came back - the cause has legwork behind this
+        // issue, whatever the count says (#1335)
+        crate::game::campaign::mark_legwork(&mut self.world, org, issue.clone());
         let fuzz = |n: usize| match n {
             0 => "hardly a soul".to_string(),
             1..=2 => "a couple of doors".to_string(),

@@ -128,8 +128,42 @@ pub const CONVO_W: i32 = 336;
 /// Characters to a row inside a button: the box less its padding
 pub(crate) const CONVO_CHARS: usize = ((CONVO_W - 24) / GLYPH_W) as usize;
 pub(crate) const CONVO_ROW_H: i32 = 10;
-/// The tallest the box gets before the oldest lines drop off the top
-pub(crate) const CONVO_MAX_H: i32 = 300;
+/// The tallest the box gets before the oldest lines drop off the top:
+/// most of the window's height (#1317)
+pub(crate) const CONVO_MAX_H: i32 = 660;
+
+/// The conversation box's scroll pin (#1317): which panel the anchor
+/// belongs to and the first line still shown, so a line keeps the y it
+/// drew at until it drops off the top - and what's dropped doesn't come
+/// back. It realigns by each row's signature, not its index: the talk's
+/// record slides gist lines in under the top, which would drift a bare
+/// index
+#[derive(Default)]
+pub struct ConvoPin {
+    /// hash of the panel's title + first row - a different panel starts over
+    id: u64,
+    /// (signature, last index) of the first row still shown
+    top: Option<(u64, usize)>,
+}
+
+/// A row's signature: what was said, by whom, in which voice - enough to
+/// find it again after the talk's record inserts a line over it
+fn row_sig(r: &TalkRowV) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    let mut mix = |b: u8| { h ^= b as u64; h = h.wrapping_mul(0x0000_0100_0000_01b3); };
+    for &b in r.name.as_deref().unwrap_or("").as_bytes().iter().chain(r.text.as_bytes()) { mix(b); }
+    for b in [r.gist as u8, r.you as u8, r.rule as u8] { mix(b); }
+    for b in r.who.unwrap_or(usize::MAX).to_le_bytes() { mix(b); }
+    h
+}
+
+/// What panel this is: its title and first line. A new Talk, the
+/// meeting's call, a survey - each its own pin
+fn panel_id(p: &ConvoPanelV) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for &b in p.title.as_bytes() { h ^= b as u64; h = h.wrapping_mul(0x0000_0100_0000_01b3); }
+    h ^ p.rows.first().map(row_sig).unwrap_or(0).wrapping_mul(0x9e37_79b9_7f4a_7c15)
+}
 
 /// What a click on one of the box's buttons means
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -154,10 +188,13 @@ pub struct ConvoBox {
     pub choice: bool,
 }
 
-/// Wrap each conversation line and choice into its own button: the lines
-/// keep the tail that fits, the choices sit under them. Returns the
-/// boxes and how tall the panel needs to be
-pub fn convo_layout(p: &ConvoPanelV) -> (Vec<ConvoBox>, i32) {
+/// Wrap each conversation line and choice into its own button: the box
+/// grows down as lines arrive, pinning what it already drew (the `pin`
+/// holds the first shown row across calls); past CONVO_MAX_H the oldest
+/// lines drop off the top and the survivors scroll up as one block. The
+/// choices sit under the lines. Returns the boxes and how tall the panel
+/// needs to be
+pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin) -> (Vec<ConvoBox>, i32) {
     // the choices' space is held first - lines give way to them
     let mut opts: Vec<Vec<String>> = vec![];
     let opt_count = p.options.len() + p.leave as usize;
@@ -193,19 +230,32 @@ pub fn convo_layout(p: &ConvoPanelV) -> (Vec<ConvoBox>, i32) {
         p.rows.iter().map(|r| wrap_line(r)).collect();
     // room for lines = the box less the title and the choice buttons
     let opt_h = opts.iter().map(|ws| ws.len() as i32 * CONVO_ROW_H + 6).sum::<i32>() + 3 * opt_count as i32;
-    let mut kept: Vec<(usize, &Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>)>)> = vec![];
-    let mut room = CONVO_MAX_H - 18 - opt_h;
-    for (i, ws) in lines.iter().enumerate().rev() {
-        let h = ws.len() as i32 * CONVO_ROW_H + 9;
-        if h > room && !kept.is_empty() { break; }
-        room -= h;
-        kept.push((i, ws));
+    let room = CONVO_MAX_H - 18 - opt_h;
+    // the newest that fit beside the choices: how far back the tail
+    // reaches this call - the pin can only shorten it, never lengthen
+    let mut fit = 0usize;
+    {
+        let mut room = room;
+        for (i, ws) in lines.iter().enumerate().rev() {
+            let h = ws.len() as i32 * CONVO_ROW_H + 9;
+            if h > room && i != lines.len() - 1 { break; }
+            room -= h;
+            fit = i;
+        }
     }
-    kept.reverse();
+    // the pin: a new panel starts over; a standing one holds its first
+    // row, realigned by signature since the record inserts under the top.
+    // Overflow advances the anchor - a dropped row doesn't come back
+    let id = panel_id(p);
+    if pin.id != id { pin.id = id; pin.top = None; }
+    let pinned = pin.top.and_then(|(s, idx)|
+        (0..p.rows.len()).filter(|&i| row_sig(&p.rows[i]) == s).min_by_key(|&i| i.abs_diff(idx)));
+    let anchor = fit.max(pinned.unwrap_or(fit));
+    pin.top = p.rows.get(anchor).map(|r| (row_sig(r), anchor));
     // lay the buttons out top to bottom
     let mut boxes: Vec<ConvoBox> = vec![];
     let mut y = CONVO_Y + 16;
-    for (i, ws) in kept {
+    for (i, ws) in lines.iter().enumerate().skip(anchor) {
         let h = ws.len() as i32 * CONVO_ROW_H + 6;
         let rows = ws.iter().enumerate()
             .map(|(k, (t, c, n))| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), *c, n.clone()))
@@ -230,8 +280,8 @@ pub fn convo_layout(p: &ConvoPanelV) -> (Vec<ConvoBox>, i32) {
 }
 
 /// Draw the conversation box; a button under the mouse lights up
-pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)) {
-    let (boxes, h) = convo_layout(p);
+pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32), pin: &mut ConvoPin) {
+    let (boxes, h) = convo_layout(p, pin);
     buf.rect(CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2, 20, 20, 32);
     buf.rect(CONVO_X, CONVO_Y, CONVO_W, h, 25, 25, 40);
     draw_text(buf, CONVO_X + 6, CONVO_Y + 4, &p.title, 150, 150, 180);
@@ -259,8 +309,8 @@ pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)) {
 }
 
 /// What a click at (mx, my) on the conversation box means, if anything
-pub fn convo_click(p: &ConvoPanelV, mx: i32, my: i32) -> Option<ConvoClick> {
-    convo_layout(p).0.into_iter()
+pub fn convo_click(p: &ConvoPanelV, mx: i32, my: i32, pin: &mut ConvoPin) -> Option<ConvoClick> {
+    convo_layout(p, pin).0.into_iter()
         .find(|b| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
         .and_then(|b| b.click)
 }

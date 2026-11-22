@@ -63,6 +63,9 @@ pub struct View {
     /// The frame stamp of the last sim camera-ask answered, so the same
     /// ask isn't answered twice
     pub focus_seen: std::cell::Cell<Option<u32>>,
+    /// The conversation box's scroll pin: which line heads it, so a line
+    /// keeps the y it drew at (#1317). Interior mutability - render is &self
+    pub convo_pin: std::cell::RefCell<talk::ConvoPin>,
     /// The ground layer repainted only when stale
     pub(crate) ground: std::cell::RefCell<Option<GroundCache>>,
     /// Ground blocks at the current zoom, as opaque runs (draw_ground):
@@ -126,6 +129,7 @@ impl View {
             search_q: String::new(),
             search_focus: false,
             focus_seen: std::cell::Cell::new(None),
+            convo_pin: std::cell::RefCell::new(talk::ConvoPin::default()),
             ground: std::cell::RefCell::new(None),
             blocks: std::cell::RefCell::new(BlockCache::default()),
             spare: std::cell::RefCell::new(None),
@@ -1415,7 +1419,7 @@ impl View {
 
         // the conversation box, top-right of the map: a Talk under way or
         // a house meeting's lines as they're said - and the call one leaves
-        if let Some(c) = &m.convo { talk::draw_convo_panel(&mut buf, c, (mx, my)); }
+        if let Some(c) = &m.convo { talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut()); }
 
         // what the marks over villagers' heads mean, under the log
         let mut mx = UI_X as i32 + 14;

@@ -5,6 +5,7 @@
 pub mod engine;
 pub mod host;
 pub mod rng;
+pub mod settings;
 pub mod synth;
 pub mod wav;
 

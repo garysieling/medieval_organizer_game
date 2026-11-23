@@ -104,7 +104,9 @@ fn mystery_line(mz: &MysteryV) -> String {
 /// it's met, a `.` while it's still wanted, and nothing at all when the
 /// story never asks it
 fn mystery_marks(mz: &MysteryV) -> Option<String> {
-    if mz.title.is_empty() || mz.dims.is_empty() { return None; }
+    if mz.title.is_empty() { return None; }
+    // an old payload carries no directions - show the flat count (#1350)
+    if mz.dims.is_empty() { return Some(format!("{}/{}", mz.heard, mz.total)); }
     let marks: Vec<String> = mz.dims.iter().map(|(w, heard, want)| {
         if *want == 0 { w.clone() }
         else if heard >= want { format!("{}*", w) }

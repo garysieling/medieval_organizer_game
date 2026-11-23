@@ -76,8 +76,124 @@ impl<'a> Cx<'a> {
     /// through `refs`.
     pub fn plain(speaker: &'a Speaker, listener: &'a Speaker, refs: &'a [Referent]) -> Self {
         Cx { speaker, listener, tv: speaker.tv, rel: speaker.rel,
-            stance: Stance::default(), refs, archaism: speaker.archaism }
+            stance: stance_of(speaker, listener), refs, archaism: speaker.archaism }
     }
+}
+
+/// The stance a pair implies (E4-5): warmth off the bond's openness
+/// (E3-2's `Open`, patched per pair), guard off the speaker's traits,
+/// deference off the status gap, certainty off their pull. A guarded
+/// speaker's no runs long and soft; a proud, sure one's stays short.
+pub fn stance_of(speaker: &Speaker, listener: &Speaker) -> Stance {
+    let open = &speaker.open;
+    let warmth = ((open.benevolence + open.intimacy + open.mood) / 3.0 + 0.3)
+        .clamp(0.0, 1.0);
+    let mut guard = 0.4 - open.safety.clamp(0.0, 1.0) * 0.3;
+    for t in &speaker.traits {
+        guard += match t {
+            crate::game::traits::Trait::Wary => 0.35,
+            crate::game::traits::Trait::Stolid => 0.2,
+            crate::game::traits::Trait::SelfAbsorbed => 0.1,
+            crate::game::traits::Trait::Gregarious | crate::game::traits::Trait::Kind => -0.15,
+            crate::game::traits::Trait::Hotheaded => -0.25,
+            crate::game::traits::Trait::Proud => -0.3,
+            _ => 0.0,
+        };
+    }
+    let certainty = (speaker.pull.max(0.0) * 0.6
+        + if speaker.traits.contains(&crate::game::traits::Trait::Proud) { 0.3 } else { 0.0 }
+        + if speaker.traits.contains(&crate::game::traits::Trait::Steady) { 0.1 } else { 0.0 })
+        .clamp(0.0, 1.0);
+    Stance {
+        warmth,
+        guard: (guard - certainty * 0.2).clamp(0.0, 1.0),
+        deference: ((station(listener) - station(speaker)) as f32 / 3.0 + 0.5)
+            .clamp(0.0, 1.0),
+        certainty,
+    }
+}
+
+/// The shaping operators a dispreferred response draws (E4-5, Part 5):
+/// conversation analysis' delay, preface, hedge and account, applied
+/// as the stance asks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Op {
+    /// "Oh…", "Well…" - the beat before a hard thing
+    Delay,
+    /// "It isn't that I wouldn't." - softening ahead of the no
+    Preface,
+    /// "maybe", "I'd think" - the edge taken off the words
+    Hedge,
+    /// the refusal's reason said aloud, when one is known
+    Account,
+}
+
+/// The ops an act and stance call for. Dispreferred responses
+/// (push-backs; refusals passed as `PushBack`) pad as guard rises: a
+/// guarded no carries delay, preface, hedge and whatever `account` the
+/// caller knows, while a proud, certain no stays bare. An `Agree`
+/// from a guarded, cold speaker pads the same way - the insincere yes
+/// an attentive player shouldn't trust (heuristic, not event-driven).
+pub fn shape(act: crate::game::conversation::Act, stance: &Stance, account: Option<&str>) -> Vec<Op> {
+    use crate::game::conversation::Act;
+    let g = match act {
+        Act::PushBack => stance.guard,
+        Act::Agree => {
+            if stance.warmth >= 0.4 { return vec![]; }
+            stance.guard * (1.0 - stance.warmth)
+        }
+        _ => return vec![],
+    };
+    let mut ops = vec![];
+    if g >= 0.3 { ops.push(Op::Delay); }
+    if g >= 0.45 { ops.push(Op::Preface); }
+    if g >= 0.6 {
+        if account.is_some() { ops.push(Op::Account); }
+        ops.push(Op::Hedge);
+    }
+    ops
+}
+
+const DELAYS: [&str; 4] = ["Oh…", "Well…", "Hm…", "Ah…"];
+const PREFACES: [&str; 3] = [
+    "It isn't that I wouldn't.",
+    "I hear you.",
+    "There's that to think on.",
+];
+const PREFACES_DEFERENT: [&str; 2] = [
+    "I wouldn't presume to say.",
+    "If it please you to hear it.",
+];
+const HEDGES: [&str; 3] = ["maybe.", "I'd think.", "I suppose."];
+
+/// The line the ops build around `line`: delay and preface ahead of
+/// it, the account and hedge after. `account` is the reason the caller
+/// knows ("the reeve counts heads at the gate"); an `Op::Account`
+/// without one renders nothing. Draws come from the talk's rng so a
+/// replayed talk re-says the same words.
+pub fn shaped(ops: &[Op], line: &str, account: Option<&str>, stance: &Stance, rng: &mut Rng) -> String {
+    if ops.is_empty() { return line.to_string(); }
+    let mut out = String::new();
+    if ops.contains(&Op::Delay) {
+        out.push_str(DELAYS[rng.below(DELAYS.len())]);
+        out.push(' ');
+    }
+    if ops.contains(&Op::Preface) {
+        let prefaces = if stance.deference > 0.6 { &PREFACES_DEFERENT[..] } else { &PREFACES[..] };
+        out.push_str(prefaces[rng.below(prefaces.len())]);
+        out.push(' ');
+    }
+    out.push_str(line);
+    if ops.contains(&Op::Account) {
+        if let Some(reason) = account {
+            out.push_str(&format!(" Only {reason}."));
+        }
+    }
+    if ops.contains(&Op::Hedge) {
+        out.push(' ');
+        out.push_str(HEDGES[rng.below(HEDGES.len())]);
+    }
+    out
 }
 
 /// Render a template for the pair. One pass over the text: each `{slot}`
@@ -982,5 +1098,53 @@ mod tests {
             "{n:ghost} and {he:ghost} went by.");
         assert_eq!(realize("{list:folk} and {is:ghost} done.", &cx, &mut rng),
             "{list:folk} and {is:ghost} done.");
+    }
+
+    #[test]
+    fn a_guarded_no_runs_longer_than_a_proud_one() {
+        use crate::game::traits::Trait;
+        let (alys, _) = pair();
+        let mut wary = Speaker::new("Wat");
+        wary.traits = vec![Trait::Wary, Trait::Stolid];
+        let mut proud = Speaker::new("Hob");
+        proud.traits = vec![Trait::Proud];
+        proud.pull = 0.9;
+        let sg = stance_of(&wary, &alys);
+        let sp = stance_of(&proud, &alys);
+        assert!(sg.guard > sp.guard, "guarded {sg:?} should out-guard proud {sp:?}");
+        let reason = Some("the reeve counts heads at the gate");
+        let ops_g = shape(crate::game::conversation::Act::PushBack, &sg, reason);
+        let ops_p = shape(crate::game::conversation::Act::PushBack, &sp, reason);
+        assert!(ops_g.len() > ops_p.len(), "{ops_g:?} vs {ops_p:?}");
+        let mut rng = Rng::new(7);
+        let long_no = shaped(&ops_g, "Not this week.", reason, &sg, &mut rng);
+        let mut rng = Rng::new(7);
+        let short_no = shaped(&ops_p, "Not this week.", reason, &sp, &mut rng);
+        assert!(long_no.len() > short_no.len(), "{long_no} vs {short_no}");
+        assert!(short_no == "Not this week.", "a proud no stays bare: {short_no}");
+    }
+
+    #[test]
+    fn a_cold_guarded_yes_reads_like_a_no() {
+        use crate::game::traits::Trait;
+        let (alys, _) = pair();
+        let mut guarded = Speaker::new("Maud");
+        guarded.traits = vec![Trait::Wary];
+        // a cold bond: nothing reached, nothing trusted
+        guarded.open = crate::game::conversation::Open::default();
+        let cold = stance_of(&guarded, &alys);
+        let ops = shape(crate::game::conversation::Act::Agree, &cold, None);
+        assert!(!ops.is_empty(), "a guarded, cold yes should be padded");
+        let mut rng = Rng::new(3);
+        let padded = shaped(&ops, "Aye.", None, &cold, &mut rng);
+        assert!(padded != "Aye.", "padded: {padded}");
+        // a warm, open yes stays plain
+        let mut warm = Speaker::new("Maud");
+        warm.open.benevolence = 0.9;
+        warm.open.intimacy = 0.9;
+        warm.open.mood = 0.5;
+        warm.open.safety = 0.9;
+        let sg = stance_of(&warm, &alys);
+        assert!(shape(crate::game::conversation::Act::Agree, &sg, None).is_empty());
     }
 }

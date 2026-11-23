@@ -7,21 +7,9 @@
 //! each cast slot; #1420 grounds the households and #1421 grows the
 //! ghosts.
 
-use crate::game::persona::{draw, EventId};
-
-/// The nine record-sources the thirty years are written in
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EventKind {
-    Fire,
-    Levy,
-    DeathDuty,
-    Fever,
-    MillerDebt,
-    BrokenBetrothal,
-    OldFaith,
-    Eviction,
-    HarvestFeast,
-}
+use crate::game::persona::{draw, EventId, Mark};
+// the kinds live in `game::persona`: the ghost pass keys on them (E2-3)
+pub use crate::game::persona::EventKind;
 
 /// All of them, in a fixed order so a shared year sorts stable
 pub const KINDS: [EventKind; 9] = [
@@ -100,6 +88,20 @@ impl Prehistory {
             .collect()
     }
 
+    /// The events' own records for a cast slot - what `Past.marks`
+    /// carries into the ghost pass (E2-3, #1421): the kind, the part
+    /// they played and how hard it hit
+    pub fn marks_of(&self, slot: usize) -> Vec<Mark> {
+        self.events.iter().enumerate()
+            .flat_map(|(i, e)| e.touched.iter()
+                .filter(move |t| t.who == Who::Cast(slot))
+                .map(move |t| Mark {
+                    id: EventId(i as u32), kind: e.kind, part: t.part,
+                    severity: severity_of(t.part),
+                }))
+            .collect()
+    }
+
     /// Pass 2 (#1420): each slot's kin, seeded off the world seed. All
     /// of a household's children share the same elders - that's what
     /// makes them siblings - and elders get the rest of the roof as
@@ -157,6 +159,23 @@ fn mean_gap(kind: EventKind) -> u8 {
         EventKind::BrokenBetrothal => 15,
         EventKind::Fever => 18,
         EventKind::OldFaith => 25,
+    }
+}
+
+/// How hard a part in an event hits (E2-3, #1421) - the mark roll's
+/// severity leg: the burned-out and the bereft carry it deeper than
+/// the ones who only watched
+fn severity_of(part: &str) -> f32 {
+    match part {
+        "burned out" | "taken" | "buried their own"
+        | "was made to spit on them" | "put out for arrears" => 0.9,
+        "remembers one the levy took" | "broke the troth"
+        | "was promised" => 0.8,
+        "blamed" | "paid the death duty" | "still keeps the stones" => 0.7,
+        "served and came home" | "owes the miller" => 0.6,
+        "took the strip" => 0.4,
+        "watched it burn" | "took a side" | "feasted" => 0.3,
+        _ => 0.5,
     }
 }
 

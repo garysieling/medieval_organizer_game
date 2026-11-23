@@ -142,6 +142,49 @@ fn a_seeded_cast_remembers_its_prehistory() {
     }
 }
 
+/// E2-3 (#1421): a seeded cast's ghosts come off the prehistory they
+/// were in - every ghost cites an event in the story, and a ghost that
+/// a HOOKS row carries shows up in the villager's `Hooks` carrying its
+/// lie, fear and need
+#[test]
+fn a_seeded_casts_ghosts_cite_their_events() {
+    let g = Game::new_seeded_cast(77);
+    let mut with_ghosts = 0;
+    let mut with_hooks = 0;
+    // the founding cast: the country folk appended after them carry
+    // no prehistory to ghost from
+    for (i, &v) in g.villagers.iter().take(31).enumerate() {
+        let p = g.world.get_component::<crate::game::persona::Persona>(v).unwrap();
+        let hooks = g.world.get_component::<crate::game::hooks::Hooks>(v)
+            .expect("a seeded villager carries Hooks");
+        assert!(p.ghosts.len() <= 2, "slot {i} carries more than two ghosts");
+        for ghost in &p.ghosts {
+            assert!(p.story.contains(&ghost.event),
+                "slot {i}'s ghost cites {:?}, which isn't in their story", ghost.event);
+            match ghost.hook {
+                Some(id) => {
+                    let c = hooks.carried.iter().find(|c| c.id == id)
+                        .unwrap_or_else(|| panic!("slot {i}'s ghost hook {id} isn't carried"));
+                    assert_eq!(c.ghost.as_ref(), Some(ghost), "slot {i}'s hook {id} lost its ghost");
+                }
+                None => assert!(!hooks.carried.iter().any(|c| c.ghost.as_ref() == Some(ghost)),
+                    "slot {i}'s record-only ghost took a status"),
+            }
+        }
+        with_ghosts += (!p.ghosts.is_empty()) as usize;
+        with_hooks += (!hooks.carried.is_empty()) as usize;
+    }
+    assert!(with_ghosts > 5, "thirty years of record left only {with_ghosts} marked");
+    assert!(with_hooks > 0, "nobody's ghost found a HOOKS row to ride");
+    // and the whole rite replays: same seed, same ghosts
+    let g2 = Game::new_seeded_cast(77);
+    for (i, &v) in g2.villagers.iter().take(31).enumerate() {
+        let p2 = g2.world.get_component::<crate::game::persona::Persona>(v).unwrap();
+        let p1 = g.world.get_component::<crate::game::persona::Persona>(g.villagers[i]).unwrap();
+        assert_eq!(p2.ghosts, p1.ghosts, "slot {i}'s ghosts moved between runs");
+    }
+}
+
 /// E1-3 (#1417): a spawned villager's body is drawn, not the entity
 /// id's parity - consecutive ids can share a sex now
 #[test]

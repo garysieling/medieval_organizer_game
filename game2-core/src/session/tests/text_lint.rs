@@ -57,7 +57,7 @@ fn test_every_realized_line_agrees() {
 #[test]
 fn test_a_lord_gets_thee_only_when_flagged() {
     let thee = ["thee", "thou", "thy", "thine", "thyself", "art", "hast", "dost",
-        "canst", "wilt", "shalt", "mayst", "sayest", "shouldst"];
+        "canst", "wilt", "shalt", "mayst", "sayest", "shouldst", "ye"];
     let mut rng = Rng::new(13);
     let mut hob = Speaker::new("Hob");
     hob.archaism = 2;
@@ -65,7 +65,7 @@ fn test_a_lord_gets_thee_only_when_flagged() {
     edmund.ideology = "lord";
     // every slotted line rendered onto the lord
     let slotted: Vec<&'static str> = authored_lines().into_iter()
-        .filter(|t| t.contains("{2:") || t.contains("{addr}")).collect();
+        .filter(|t| t.contains("{2:") || t.contains("{2p:") || t.contains("{addr}")).collect();
     assert!(slotted.len() > 15, "the migration should cover the lord lines");
     for t in slotted {
         // unflagged: a stranger's courtesy is you and a title
@@ -74,6 +74,7 @@ fn test_a_lord_gets_thee_only_when_flagged() {
         let got = realize(t, &cx, &mut rng).to_lowercase();
         for w in thee {
             assert!(!got.split(|c: char| !(c.is_alphabetic() || c == '\''))
+                .map(|tok| tok.trim_matches('\''))
                 .any(|tok| tok == w), "unflagged lord got '{w}': {got} <- {t}");
         }
         if t.contains("{addr}") {
@@ -88,7 +89,8 @@ fn test_a_lord_gets_thee_only_when_flagged() {
             assert!(got.contains("edmund"), "flagged lord kept the title: {got} <- {t}");
         }
         if t.contains("{2:") {
-            let toks: Vec<&str> = got.split(|c: char| !(c.is_alphabetic() || c == '\'')).filter(|w| !w.is_empty()).collect();
+            let toks: Vec<&str> = got.split(|c: char| !(c.is_alphabetic() || c == '\''))
+                .map(|w| w.trim_matches('\'')).filter(|w| !w.is_empty()).collect();
             assert!(thee.iter().any(|w| toks.contains(w)), "flagged lord got no thou-form: {got} <- {t}");
         }
     }
@@ -114,6 +116,11 @@ fn test_the_migration_leaves_no_typed_forms_in_the_trees() {
         "typed forms left in the trees: {:?}", samples.get("trees"));
     assert_eq!(counts.get("asks").copied().unwrap_or(0), 0,
         "typed forms left in the asks: {:?}", samples.get("asks"));
-    // the rest are PR2's to clear - report them so the count is visible
+    // PR2's pass: the beats, scenes and hog strings are migrated too -
+    // every source counts down to zero (E4-4's done-when)
+    for src in ["meeting", "arc", "scenes", "hog"] {
+        assert_eq!(counts.get(src).copied().unwrap_or(0), 0,
+            "typed forms left in {src}: {:?}", samples.get(src));
+    }
     eprintln!("typed second-person forms by source: {counts:?}");
 }

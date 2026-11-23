@@ -352,8 +352,16 @@ impl Game {
                 None => self.cause_gist(seat, v)
                     .or_else(|| hog.then(|| {
                         let gists = crate::game::conversation::HOG_GISTS;
+                        let g = gists[(self.rng.next() as usize) % gists.len()];
+                        // the monologue runs in the pair's register too
+                        // (E4-4): the hog holds forth at *you*, or thee
+                        let pe = self.seats[seat].player;
+                        let rel = dialogue::relation_with_wanderer(self.rel_kind(pe, v));
                         (format!("{} holds forth", self.cast_name(who)),
-                            gists[(self.rng.next() as usize) % gists.len()].to_string())
+                            dialogue::talk_said(
+                                &dialogue::speaker_of(&self.world, v,
+                                    &self.cast_name(who), self.tick),
+                                &self.player_speaker(pe), rel, g, false))
                     }))
                     .unwrap_or_else(|| talk_response(&self.world, v, self.cast_name(who), talks_before, self.tick)),
             },
@@ -366,6 +374,9 @@ impl Game {
             .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e))
             .map(|r| r.interactions).unwrap_or(0);
         act_talk(&mut self.world, pe, v, self.tick);
+        // their opening speaks in the pair's register (E4-4): the
+        // ambient strings carry {2:} slots now
+        let said = self.pair_said(v, pe, &said);
         self.say(v, &said, TALK_BUBBLE_SECS);
         // a blow-off leaves them hollow: a real talk coaches them back
         let coached = if self.world.get_component::<crate::game::actions::Demoralized>(v).is_some()
@@ -2249,7 +2260,8 @@ impl Game {
                 // (after any arrest, so the taken are counted)
                 let ev = crate::game::campaign_arc::ArcEvent::March(
                     r.unwrap_or(crate::game::reactions::Reaction::Ignored));
-                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                let speakers = self.org_speakers(c, tick);
+                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick, &speakers) {
                     let mut with = vec![pe];
                     with.extend(out.turnout.iter().copied());
                     self.record_campaign_talk(with, &d);
@@ -3671,7 +3683,8 @@ impl Game {
                     crate::game::org_skills::OrgSkill::Turnout,
                     crate::game::org_skills::SEAT_PRACTICE);
                 let ev = crate::game::campaign_arc::ArcEvent::Strike { called: out.called };
-                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                let speakers = self.org_speakers(c, tick);
+                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick, &speakers) {
                     self.record_campaign_talk(vec![self.seats[seat].player], &d);
                 }
                 format!("{} of {} say yes{}. {}", out.yes, out.yes + out.no,
@@ -3754,7 +3767,8 @@ impl Game {
             // the answer at the door is the arc's outcome (read
             // after any grant above has landed)
             let ev = crate::game::campaign_arc::ArcEvent::Townhall(out.response);
-            if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+            let speakers = self.org_speakers(c, tick);
+            if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick, &speakers) {
                 let mut with = vec![self.seats[seat].player, target];
                 with.extend(out.turnout.iter().copied());
                 self.record_campaign_talk(with, &d);

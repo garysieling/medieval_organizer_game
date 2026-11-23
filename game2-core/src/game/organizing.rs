@@ -284,8 +284,8 @@ pub fn meeting_remark(world: &World, person: Entity, name: &str, round: usize) -
 /// Small talk, for someone who has already told you what's on their mind
 const SMALL_TALK: [(&str, &str); 5] = [
     ("chatted about the weather", "Looks like rain again, doesn't it?"),
-    ("passed on some village gossip", "Did you hear who was seen down by the mill?"),
-    ("asked how you were keeping", "Good to see you again."),
+    ("passed on some village gossip", "{2:did} {2:subj} hear who was seen down by the mill?"),
+    ("asked how you were keeping", "Good to see {2:obj} again."),
     ("talked about their family", "The little ones keep me on my toes."),
     ("swapped stories by the well", "Remember the winter the river froze?"),
 ];
@@ -294,12 +294,12 @@ const SMALL_TALK: [(&str, &str); 5] = [
 /// flourished word that makes a passing remark a line worth hearing
 const REGISTERS: [&str; 8] = [
     "By Saint Crispin, the hedges are full of it.",
-    "Thee's a good neighbor - there's my hand on it.",
+    "{2:subj} {2:be} a good neighbor - there's my hand on it.",
     "A pox on this weather, and that's God's truth.",
     "I swear by the well it's the driest year in memory.",
     "As I live and breathe, the miller's a knave and no mistake.",
-    "Good morrow to thee - the Lord keep thy purse fat.",
-    "There's a tale for thee, if thy ears'll take it.",
+    "Good morrow to {2:obj} - the Lord keep {2:poss} purse fat.",
+    "There's a tale for {2:obj}, if {2:poss} ears'll take it.",
     "Marry, the market's dear and the purse is thin.",
 ];
 
@@ -346,14 +346,14 @@ pub fn passing_remark(n: usize) -> &'static str {
 /// What someone who knows you says as you pass: a hello in their own
 /// voice, `{name}` being who they greet - picked by `n`
 const GREETINGS: [&str; 8] = [
-    "Well met, {name} - good to see thee.",
+    "Well met, {name} - good to see {2:obj}.",
     "{name}! Small world, isn't it?",
     "Ah, {name} - out and about?",
     "{name}, there's a fine day for walking.",
     "There's {name} - I was saying only this morning...",
     "Hello, {name} - the village feels warmer for it.",
     "{name}! We haven't crossed paths in an age.",
-    "God save thee, {name} - and thy purse.",
+    "God save {2:obj}, {name} - and {2:poss} purse.",
 ];
 
 /// The hello a friend gives in passing
@@ -366,10 +366,10 @@ pub fn passing_greeting(n: usize, name: &str) -> String {
 /// brush-off stays theirs.
 pub fn cold_gist(name: &str) -> (String, String) {
     const COLD: [(&str, &str); 4] = [
-        ("gives you a cold look", "You're back. What is it now?"),
-        ("barely nods", "Hmph. Say your piece and go."),
-        ("remembers the last words", "We left it badly last time. Say what you came for."),
-        ("folds their arms", "You've a nerve, coming back."),
+        ("gives you a cold look", "{2:subj} {2:be} back. What is it now?"),
+        ("barely nods", "Hmph. Say {2:poss} piece and go."),
+        ("remembers the last words", "We left it badly last time. Say what {2:subj} came for."),
+        ("folds their arms", "{2:subj} {2:have} a nerve, coming back."),
     ];
     let n = name.bytes().map(|b| b as usize).sum::<usize>();
     let (d, s) = COLD[n % COLD.len()];

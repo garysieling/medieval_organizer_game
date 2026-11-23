@@ -782,8 +782,8 @@ pub fn act_fit(call: Act, reply: Act) -> u8 {
 /// nothing back (#1252): they don't pass on the village's business -
 /// they hold forth about their own
 pub const HOG_GISTS: &[&str] = &[
-    "You've caught me mid-story - I was just telling myself about the finest cart I ever built. Yours now, as it happens.",
-    "Ah, good - an ear. Did I ever tell you how I came to this village? It's a tale worth the walking.",
+    "{2:subj} {2:have} caught me mid-story - I was just telling myself about the finest cart I ever built. {2:own} now, as it happens.",
+    "Ah, good - an ear. Did I ever tell {2:obj} how I came to this village? It's a tale worth the walking.",
     "I've been fair bursting to tell someone: my stew last night was the best this house has seen. Sit, sit.",
 ];
 
@@ -791,9 +791,9 @@ pub const HOG_GISTS: &[&str] = &[
 /// it is them - their past, their opinions of everyone. `{someone}`
 /// fills with a villager's name
 pub const HOG_RUN: &[&str] = &[
-    "Did I ever tell you of the winter I out-walked the snow? Three days, and my boots never once let in.",
+    "Did I ever tell {2:obj} of the winter I out-walked the snow? Three days, and my boots never once let in.",
     "{someone}? Lovely sort. Doesn't half go on, though.",
-    "Folk bring me their troubles, you know - I've always a word for them. Usually mine.",
+    "Folk bring me their troubles, {2:subj} {2:know} - I've always a word for them. Usually mine.",
     "I've the strongest back in this village, and the softest bed to prove it.",
     "{someone} does the work well enough, I'll grant - though nothing to how my mother taught me.",
 ];

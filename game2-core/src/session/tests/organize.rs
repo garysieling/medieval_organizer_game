@@ -1010,7 +1010,8 @@ fn test_a_probe_meeting_asks_what_they_want_and_who_for() {
     g.world.add_component(guarded, Known::default());
     let came = vec![deep, guarded];
     let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), true, None);
-    assert!(lines.iter().any(|(e, l)| *e == pe && l == crate::game::dialogue_trees::MEET_PROBE.text),
+    assert!(lines.iter().any(|(e, l)| *e == pe
+            && *l == g.pair_said(pe, g.player, crate::game::dialogue_trees::MEET_PROBE.text)),
         "the host asks the probe: {:?}", lines);
     let loved_name = g.name_of(loved);
     assert!(lines.iter().any(|(e, l)| *e == deep && l.contains(&loved_name)),

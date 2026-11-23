@@ -460,7 +460,7 @@ impl Game {
                     // a sentence never served is no rung at all
                     self.sanctioned.retain(|(e, s, _)| !(*e == v && *s == Sanction::Stocks));
                     self.log_entity_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Notable), v, format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
-                    self.say(v, "They wronged me, and you all saw it.", TALK_BUBBLE_SECS);
+                    self.say(v, &self.pair_said(v, self.player, "They wronged me, and {2p:subj} all saw it."), TALK_BUBBLE_SECS);
                 } else {
                     self.rep_apply(v, RepAction::Betrayal);
                     self.log_entity_ev(

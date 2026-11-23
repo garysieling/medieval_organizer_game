@@ -37,7 +37,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "So it was someone kind, all along. I'd half convinced myself the village had gone hard.",
-    thanks: "Bless you - truly. You've given me back my faith in the place, and I'm not one for saying so lightly.",
+    thanks: "Bless {2:obj} - truly. {2:subj} {2:have} given me back my faith in the place, and I'm not one for saying so lightly.",
     payoff: Payoff::Word,
 },
 
@@ -58,7 +58,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "It remembers, does it? Then it's right - the village needs something that does.",
-    thanks: "You've an eye for what's hidden. Walk with us a while - the village talks different when you're near.",
+    thanks: "{2:subj} {2:have} an eye for what's hidden. Walk with us a while - the village talks different when {2:subj} {2:be} near.",
     payoff: Payoff::Word,
 },
 
@@ -79,7 +79,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Alewife),
     wonders: "A new hand and a fouled well - that's a beginning. She's been patient with it longer than I knew.",
-    thanks: "Sharp eyes. Most folk'd have drunk it and complained later - you've a friend's welcome at my bench.",
+    thanks: "Sharp eyes. Most folk'd have drunk it and complained later - {2:subj} {2:have} a friend's welcome at my bench.",
     payoff: Payoff::Table,
 },
 
@@ -99,8 +99,8 @@ Mystery {
     ],
     need: 3, dims: EASY,
     asker: Some(Vocation::Priest),
-    wonders: "From the graveyard, you say. Then it wasn't a prank - somebody wanted to be seen coming.",
-    thanks: "The truth of it's a weight lifted. Come - my door's open to you now, more than most.",
+    wonders: "From the graveyard, {2:subj} {2:say}. Then it wasn't a prank - somebody wanted to be seen coming.",
+    thanks: "The truth of it's a weight lifted. Come - my door's open to {2:obj} now, more than most.",
     payoff: Payoff::Table,
 },
 
@@ -121,7 +121,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "So it's no ghost-hen after all - just a hungry bird and a gap in the wall.",
-    thanks: "Settles an argument that's run a month. Here's for your trouble, and thanks.",
+    thanks: "Settles an argument that's run a month. Here's for {2:poss} trouble, and thanks.",
     payoff: Payoff::Gift(5.0),
 },
 
@@ -142,7 +142,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "Bats, then - I was sure it was somebody drawing water in the dark.",
-    thanks: "You'll laugh, but I was half-convinced it was a ghost. You've set my mind easy.",
+    thanks: "{2:subj} {2:will} laugh, but I was half-convinced it was a ghost. {2:subj} {2:have} set my mind easy.",
     payoff: Payoff::Gift(5.0),
 },
 
@@ -163,7 +163,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Farmer),
     wonders: "Deliberate, then - not a stray flock. Somebody meant that rye to stand cheap.",
-    thanks: "That's an answer worth more than the field. Here - take it, you've earned it.",
+    thanks: "That's an answer worth more than the field. Here - take it, {2:subj} {2:have} earned it.",
     payoff: Payoff::Gift(8.0),
 },
 
@@ -184,7 +184,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Priest),
     wonders: "A tally of the sick, then - not a curse on the doors. Somebody's keeping count for a reason.",
-    thanks: "I'll ask after it kindly, not with the rod. Thank you - this wanted a soft hand.",
+    thanks: "I'll ask after it kindly, not with the rod. Thank {2:obj} - this wanted a soft hand.",
     payoff: Payoff::Table,
 },
 
@@ -205,7 +205,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "Watching the road, is he? Then the pack's for show - I'd wondered how ribbons weighed so.",
-    thanks: "I'll keep an eye on him, friend. You've a sharpness the village needs.",
+    thanks: "I'll keep an eye on him, friend. {2:subj} {2:have} a sharpness the village needs.",
     payoff: Payoff::Lead,
 },
 
@@ -226,7 +226,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Farmer),
     wonders: "Borrowed, not stolen - and the field shows it. I'd have blamed the travellers.",
-    thanks: "You've found it without a shouting match. Come share a loaf when the day's done.",
+    thanks: "{2:subj} {2:have} found it without a shouting match. Come share a loaf when the day's done.",
     payoff: Payoff::Table,
 },
 
@@ -247,7 +247,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "An old burning, then - a fear put to fire the old way. I'd have called it mischief.",
-    thanks: "That's a truth worth knowing before tongues run. Walk with my good word after you.",
+    thanks: "That's a truth worth knowing before tongues run. Walk with my good word after {2:obj}.",
     payoff: Payoff::Word,
 },
 
@@ -289,7 +289,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Baker),
     wonders: "A child's hand, in the cold, for four loaves. I'd have left the window cracked on purpose had I known.",
-    thanks: "Don't shame them by naming it - I'll put a fourth loaf out myself. But thank you - truly.",
+    thanks: "Don't shame them by naming it - I'll put a fourth loaf out myself. But thank {2:obj} - truly.",
     payoff: Payoff::Word,
 },
 
@@ -310,7 +310,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Luthier),
     wonders: "The hermit keeps company, then - and the old songs with them. I'd have sworn it was a ghost.",
-    thanks: "You've an ear for what's true. The music wanted hearing - thank you for hearing it right.",
+    thanks: "{2:subj} {2:have} an ear for what's true. The music wanted hearing - thank {2:obj} for hearing it right.",
     payoff: Payoff::Table,
 },
 
@@ -331,7 +331,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Shepherd),
     wonders: "On the lord's ground, with a foreign knot - that's a poacher, and a bold one.",
-    thanks: "You've saved somebody a hanging, or caught them fair - either way it's rightly done.",
+    thanks: "{2:subj} {2:have} saved somebody a hanging, or caught them fair - either way it's rightly done.",
     payoff: Payoff::Lead,
 },
 
@@ -352,7 +352,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "A handful a sack - that's a long winter's worth, taken quiet. Somebody's been patient about it.",
-    thanks: "The barn keeps honest now, thanks to you. Here - the first sack's savings.",
+    thanks: "The barn keeps honest now, thanks to {2:obj}. Here - the first sack's savings.",
     payoff: Payoff::Gift(10.0),
 },
 
@@ -373,7 +373,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "Burnt in the grate - so it's not missing, it's destroyed. Somebody's name was in those sums.",
-    thanks: "The reeve will hear of this from me, kindly. You've done the village a service.",
+    thanks: "The reeve will hear of this from me, kindly. {2:subj} {2:have} done the village a service.",
     payoff: Payoff::Lead,
 },
 
@@ -394,7 +394,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "So he worked the sabbath to save a pit. Desperate work, that - I'd not have him fined for it.",
-    thanks: "You've told it kindly. I'll see the burner paid his week's worth before the reeve hears.",
+    thanks: "{2:subj} {2:have} told it kindly. I'll see the burner paid his week's worth before the reeve hears.",
     payoff: Payoff::Word,
 },
 
@@ -415,7 +415,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Farmer),
     wonders: "So the ox was smuggled in to dodge the count - clever, if it'd worked.",
-    thanks: "The count's fair now, by your eyes. Here's for the straight telling of it.",
+    thanks: "The count's fair now, by {2:poss} eyes. Here's for the straight telling of it.",
     payoff: Payoff::Gift(8.0),
 },
 
@@ -457,7 +457,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Priest),
     wonders: "Hidden silver in the font - somebody feared the collector's eye more than the Lord's.",
-    thanks: "I'll see it back to its owner or its better use. You've a good head for the hidden things.",
+    thanks: "I'll see it back to its owner or its better use. {2:subj} {2:have} a good head for the hidden things.",
     payoff: Payoff::Table,
 },
 
@@ -478,7 +478,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Priest),
     wonders: "Burying something under the yew - that's a secret somebody wanted underground.",
-    thanks: "I'll have the ground opened gently, not accusingly. Thank you - this needed a witness.",
+    thanks: "I'll have the ground opened gently, not accusingly. Thank {2:obj} - this needed a witness.",
     payoff: Payoff::Lead,
 },
 
@@ -499,7 +499,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Shepherd),
     wonders: "Lured loose, not let - somebody laid that hay knowing the bull's fondness for clover.",
-    thanks: "The stockman's name is cleared, and the bull's safe penned. You've a wise eye.",
+    thanks: "The stockman's name is cleared, and the bull's safe penned. {2:subj} {2:have} a wise eye.",
     payoff: Payoff::Gift(7.0),
 },
 
@@ -520,7 +520,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "Three of the reeve's geese, plucked by the barn - that's an answer the reeve will want.",
-    thanks: "Careful work, putting it together from feathers. The table's yours when you want it.",
+    thanks: "Careful work, putting it together from feathers. The table's {2:own} when {2:subj} {2:want} it.",
     payoff: Payoff::Table,
 },
 
@@ -536,12 +536,12 @@ Mystery {
         Clue { dim: When, text: "She went loose in the night - the dew sat under her hull." },
         Clue { dim: When, text: "Between the last crossing and the first - the dark hours." },
         Clue { dim: Where, text: "She drifted a quarter-mile downstream to the reed beds." },
-        Clue { dim: Why, text: "Somebody needed the far bank unseen - the bridge shows you, the boat doesn't." },
+        Clue { dim: Why, text: "Somebody needed the far bank unseen - the bridge shows {2:obj}, the boat doesn't." },
     ],
     need: 3, dims: EASY,
     asker: Some(Vocation::Fisher),
     wonders: "A hidden crossing, then - somebody needed the far side with nobody watching.",
-    thanks: "The ford keeps honest eyes now. You've done the village a quiet service.",
+    thanks: "The ford keeps honest eyes now. {2:subj} {2:have} done the village a quiet service.",
     payoff: Payoff::Lead,
 },
 
@@ -562,7 +562,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Baker),
     wonders: "A signal, then - and the bread on the sill says it's paid for. Somebody's being fed.",
-    thanks: "I'll set the loaf out myself, and no knocks needed. You've a kind eye under the sharp one.",
+    thanks: "I'll set the loaf out myself, and no knocks needed. {2:subj} {2:have} a kind eye under the sharp one.",
     payoff: Payoff::Word,
 },
 
@@ -604,7 +604,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "A borrowed look and a borrowed trade - the daughter's not at her aunt's, then.",
-    thanks: "I'll ask it gently - a daughter's reasons are her own. Thank you for the straight seeing.",
+    thanks: "I'll ask it gently - a daughter's reasons are her own. Thank {2:obj} for the straight seeing.",
     payoff: Payoff::Table,
 },
 
@@ -646,7 +646,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Mason),
     wonders: "A buried bell under the barley - the field's older than the village, then.",
-    thanks: "You've found what the ploughs forgot. There's a tale in that worth a meal.",
+    thanks: "{2:subj} {2:have} found what the ploughs forgot. There's a tale in that worth a meal.",
     payoff: Payoff::Table,
 },
 
@@ -658,7 +658,7 @@ Mystery {
         Clue { dim: What, text: "Fish-scales were found on the cross's step, still wet." },
         Clue { dim: Who, text: "The fisher's boys swear it's none of them - their catch goes by boat." },
         Clue { dim: Who, text: "A voice like a woman's, some say - others a boy's." },
-        Clue { dim: Who, text: "The cry comes from the square, but the square's empty when you look." },
+        Clue { dim: Who, text: "The cry comes from the square, but the square's empty when {2:subj} {2:look}." },
         Clue { dim: When, text: "Always before first light - the hour honest fish aren't sold." },
         Clue { dim: When, text: "Only on days the fisher's boat's seen crossing early." },
         Clue { dim: Where, text: "The cry's loudest by the market cross - but it echoes off the church." },
@@ -667,7 +667,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Fisher),
     wonders: "So the cry's a lure, not a sale - somebody's drawing the market early for their own ends.",
-    thanks: "You'll get your fill of fish for that eye. The market's the better for the knowing.",
+    thanks: "{2:subj} {2:will} get {2:poss} fill of fish for that eye. The market's the better for the knowing.",
     payoff: Payoff::Lead,
 },
 
@@ -688,7 +688,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: Some(Vocation::Fisher),
     wonders: "A signal-passing at the ford - and my own boy in it. I'd have sworn he was home.",
-    thanks: "I'll ask him kindly, not with the strap. You've a sharper ear than the water's loud.",
+    thanks: "I'll ask him kindly, not with the strap. {2:subj} {2:have} a sharper ear than the water's loud.",
     payoff: Payoff::Lead,
 },
 
@@ -709,7 +709,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "Splinters in the gutter - so they weren't stolen to keep, but to destroy.",
-    thanks: "The year's count can be re-cut from the pairs - thanks to you it'll be honest.",
+    thanks: "The year's count can be re-cut from the pairs - thanks to {2:obj} it'll be honest.",
     payoff: Payoff::Gift(10.0),
 },
 
@@ -730,7 +730,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "Sheltering in the barn, and somebody feeding them - a secret kept in kindness.",
-    thanks: "I'll go gently. You've found it without frightening it - that's a rare care.",
+    thanks: "I'll go gently. {2:subj} {2:have} found it without frightening it - that's a rare care.",
     payoff: Payoff::Table,
 },
 
@@ -772,7 +772,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "A hidden grief, kept by week and by hand - somebody loved a nameless man.",
-    thanks: "I'll let it be - grief's owed its privacy. Thank you for the telling.",
+    thanks: "I'll let it be - grief's owed its privacy. Thank {2:obj} for the telling.",
     payoff: Payoff::Word,
 },
 
@@ -793,7 +793,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "A post-hole under the hay - somebody's building something where the count can't see.",
-    thanks: "The barn's ground is the village's - you've done it a service. Come share the table.",
+    thanks: "The barn's ground is the village's - {2:subj} {2:have} done it a service. Come share the table.",
     payoff: Payoff::Lead,
 },
 
@@ -814,7 +814,7 @@ Mystery {
     need: 3, dims: EASY,
     asker: None,
     wonders: "Boots left as a going-home story, and the feet gone the other way - a man with somewhere to be unseen.",
-    thanks: "I'll tell the reeve it's worth a look up the high road. You've a good eye for the odd things.",
+    thanks: "I'll tell the reeve it's worth a look up the high road. {2:subj} {2:have} a good eye for the odd things.",
     payoff: Payoff::Lead,
 },
 
@@ -838,7 +838,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Baker),
     wonders: "So it wasn't luck that stopped it. I'd suspected as much - but suspicion's not the same as knowing.",
-    thanks: "I'll have words with the woodyard about that beam. And a share of the toll you saved - take it.",
+    thanks: "I'll have words with the woodyard about that beam. And a share of the toll {2:obj} saved - take it.",
     payoff: Payoff::Gift(12.0),
 },
 
@@ -860,7 +860,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "Walled in the quarry cave - a cart's a big thing to hide. Somebody planned this well.",
-    thanks: "The count's recovered, and the reeve owes you. Here's for the finding.",
+    thanks: "The count's recovered, and the reeve owes {2:obj}. Here's for the finding.",
     payoff: Payoff::Lead,
 },
 
@@ -904,7 +904,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Weaver),
     wonders: "Iron in the woad before the fair - that's not accident, that's a rival's hand.",
-    thanks: "You've saved my name at the fair - I can show the filtrate as proof. Thank you.",
+    thanks: "{2:subj} {2:have} saved my name at the fair - I can show the filtrate as proof. Thank {2:obj}.",
     payoff: Payoff::Table,
 },
 
@@ -926,7 +926,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "Watered oil and a dark corner - somebody's working that lane, and paying to keep it dark.",
-    thanks: "The watch keeps its light now. The village sleeps better for your eyes.",
+    thanks: "The watch keeps its light now. The village sleeps better for {2:poss} eyes.",
     payoff: Payoff::Gift(8.0),
 },
 
@@ -948,7 +948,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "Three villages' worth of clipped coin - that's a trade in itself, not a man's need.",
-    thanks: "The toll-man's on him now. You've done honest traders a service.",
+    thanks: "The toll-man's on him now. {2:subj} {2:have} done honest traders a service.",
     payoff: Payoff::Gift(10.0),
 },
 
@@ -970,7 +970,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Baker),
     wonders: "A shaved dish and a hidden stick - my own clerk, under my own roof. I'd not have believed it.",
-    thanks: "The count's honest now, and the village's grain's the fairer for it. Thank you.",
+    thanks: "The count's honest now, and the village's grain's the fairer for it. Thank {2:obj}.",
     payoff: Payoff::Table,
 },
 
@@ -1014,7 +1014,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Priest),
     wonders: "A wax-thumb on the lid and a side-door path - somebody worked in the dark who knew the chapel well.",
-    thanks: "The alms are found, and the poor will have them. You've done the chapel a kindness.",
+    thanks: "The alms are found, and the poor will have them. {2:subj} {2:have} done the chapel a kindness.",
     payoff: Payoff::Table,
 },
 
@@ -1036,7 +1036,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "The fence walked while she was away - a theft of land, done by night and patience.",
-    thanks: "I'll see the posts put right and the survey checked. The widow's debt is yours.",
+    thanks: "I'll see the posts put right and the survey checked. The widow's debt is {2:own}.",
     payoff: Payoff::Lead,
 },
 
@@ -1058,7 +1058,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Shepherd),
     wonders: "Counting patrols from the field - that's a watcher for a bigger game than sheep.",
-    thanks: "The patrols change their route now, thanks to you. A service done without a shout.",
+    thanks: "The patrols change their route now, thanks to {2:obj}. A service done without a shout.",
     payoff: Payoff::Lead,
 },
 
@@ -1080,7 +1080,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Fisher),
     wonders: "A rival's knife before the eel-fair - that's a trade-war fought under water.",
-    thanks: "The fair's honest now, and the rival knows it. The river owes you a day's catch.",
+    thanks: "The fair's honest now, and the rival knows it. The river owes {2:obj} a day's catch.",
     payoff: Payoff::Gift(8.0),
 },
 
@@ -1102,7 +1102,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Toolmaker),
     wonders: "Selling my iron at midnight to a stranger - the boy's been bolder than I knew.",
-    thanks: "I'll have the key back and the truth out of him. You've done the forge a service.",
+    thanks: "I'll have the key back and the truth out of him. {2:subj} {2:have} done the forge a service.",
     payoff: Payoff::Lead,
 },
 
@@ -1124,7 +1124,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Shepherd),
     wonders: "A shallow notch and a butcher's gift - the count's been a lie for a courting.",
-    thanks: "The flock's honest now, and the helper's out. You've a shepherd's eye for the truth.",
+    thanks: "The flock's honest now, and the helper's out. {2:subj} {2:have} a shepherd's eye for the truth.",
     payoff: Payoff::Gift(7.0),
 },
 
@@ -1146,7 +1146,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "Living skeps carried off in the dark - that's a keeper's hand, not a thief's luck.",
-    thanks: "The bees are home, and the fair's honest. The first comb's yours.",
+    thanks: "The bees are home, and the fair's honest. The first comb's {2:own}.",
     payoff: Payoff::Gift(10.0),
 },
 
@@ -1190,7 +1190,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "A lapsed clerk's wording in a cousin's hand - a family trade in free crossings.",
-    thanks: "The ford's honest now. You've a head for the false papers.",
+    thanks: "The ford's honest now. {2:subj} {2:have} a head for the false papers.",
     payoff: Payoff::Gift(8.0),
 },
 
@@ -1234,7 +1234,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "The miller's own ox, grazing the common's corn - a quiet theft in plain sight.",
-    thanks: "The gate's fixed and the count's adjusted. You've done the common a service.",
+    thanks: "The gate's fixed and the count's adjusted. {2:subj} {2:have} done the common a service.",
     payoff: Payoff::Gift(6.0),
 },
 
@@ -1256,7 +1256,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "A trusted key and a torn page - craft-secrets walking out under a friendly arm.",
-    thanks: "I'll have the guild answer it. You've done honest craft a service.",
+    thanks: "I'll have the guild answer it. {2:subj} {2:have} done honest craft a service.",
     payoff: Payoff::Table,
 },
 
@@ -1322,7 +1322,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "A hedge for a land-grab - the path's worth more than the plants, to the right buyer.",
-    thanks: "The path's open again, and the right's on record. The village owes you a walk.",
+    thanks: "The path's open again, and the right's on record. The village owes {2:obj} a walk.",
     payoff: Payoff::Lead,
 },
 
@@ -1344,7 +1344,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Priest),
     wonders: "Watered oil on the fog nights - somebody's buying darkness cheap.",
-    thanks: "The parish burns bright again. You've kept the streets honest.",
+    thanks: "The parish burns bright again. {2:subj} {2:have} kept the streets honest.",
     payoff: Payoff::Gift(6.0),
 },
 
@@ -1388,7 +1388,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "The steward's nephew, selling the castle's own goods through the back door - bold work.",
-    thanks: "The lord's been told, and the gate's watched now. You've a sharp eye for the dark trades.",
+    thanks: "The lord's been told, and the gate's watched now. {2:subj} {2:have} a sharp eye for the dark trades.",
     payoff: Payoff::Lead,
 },
 
@@ -1410,7 +1410,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Priest),
     wonders: "My own sermons, written by another's hand for another's ends - while I lay ill.",
-    thanks: "The parish's ear is its own again. You've done the pulpit a service.",
+    thanks: "The parish's ear is its own again. {2:subj} {2:have} done the pulpit a service.",
     payoff: Payoff::Table,
 },
 
@@ -1432,7 +1432,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "Stretched doses for market-coin - a helper's trade in the sick's medicine.",
-    thanks: "The doses are true again, and the helper's out. You've done the sick a service.",
+    thanks: "The doses are true again, and the helper's out. {2:subj} {2:have} done the sick a service.",
     payoff: Payoff::Table,
 },
 
@@ -1454,7 +1454,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Fisher),
     wonders: "Cut cords and a seller's cheap stock - my own season's drying, sold under me.",
-    thanks: "The racks are watched now, and the seller's answered. The sea owes you.",
+    thanks: "The racks are watched now, and the seller's answered. The sea owes {2:obj}.",
     payoff: Payoff::Gift(10.0),
 },
 
@@ -1476,7 +1476,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "Backward shoes for a lying trail - a clever trick, and a dangerous one.",
-    thanks: "The trail's been read right now. You've a tracker-dog's nose for the false marks.",
+    thanks: "The trail's been read right now. {2:subj} {2:have} a tracker-dog's nose for the false marks.",
     payoff: Payoff::Lead,
 },
 
@@ -1498,7 +1498,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Baker),
     wonders: "A blocked vent and a buying rival - the spoil was the plan, not the accident.",
-    thanks: "The kiln's clear and the price's fair. You've a nose for the foul trades.",
+    thanks: "The kiln's clear and the price's fair. {2:subj} {2:have} a nose for the foul trades.",
     payoff: Payoff::Gift(8.0),
 },
 
@@ -1520,7 +1520,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "The seal sold from the clerk's box - the reeve's authority, stamped for profit.",
-    thanks: "The seal's under the reeve's own hand now. You've done the law a service.",
+    thanks: "The seal's under the reeve's own hand now. {2:subj} {2:have} done the law a service.",
     payoff: Payoff::Lead,
 },
 
@@ -1542,7 +1542,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Priest),
     wonders: "A bitter cup before the solo - the voice was taken, not lost.",
-    thanks: "The boy sings again, and the cup's examined. You've done the choir a service.",
+    thanks: "The boy sings again, and the cup's examined. {2:subj} {2:have} done the choir a service.",
     payoff: Payoff::Table,
 },
 
@@ -1564,7 +1564,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "A spy in the shell - the lord's cousin's been counting our stores.",
-    thanks: "The reeve's told, and the watch is sharper. You've a sharp eye for the false piety.",
+    thanks: "The reeve's told, and the watch is sharper. {2:subj} {2:have} a sharp eye for the false piety.",
     payoff: Payoff::Lead,
 },
 
@@ -1586,7 +1586,7 @@ Mystery {
     need: 5, dims: MID,
     asker: None,
     wonders: "A bucket under the eaves, positioned to drip - a buyer's slow sabotage.",
-    thanks: "The grain's dry now, and the price's fair. You've a wise eye for the slow thefts.",
+    thanks: "The grain's dry now, and the price's fair. {2:subj} {2:have} a wise eye for the slow thefts.",
     payoff: Payoff::Gift(8.0),
 },
 
@@ -1608,7 +1608,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Farmer),
     wonders: "A corn-trail and a drover's whistle - the geese were herded, not lost.",
-    thanks: "The flock's home, and the drover's answered. You've a sharp eye for the walking thefts.",
+    thanks: "The flock's home, and the drover's answered. {2:subj} {2:have} a sharp eye for the walking thefts.",
     payoff: Payoff::Gift(10.0),
 },
 
@@ -1630,7 +1630,7 @@ Mystery {
     need: 5, dims: MID,
     asker: Some(Vocation::Farmer),
     wonders: "A stone walked a yard in the dark - a slow theft of the wet corner.",
-    thanks: "The mark's right again, and the record's set. The land owes you a season.",
+    thanks: "The mark's right again, and the record's set. The land owes {2:obj} a season.",
     payoff: Payoff::Lead,
 },
 
@@ -1678,7 +1678,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: Some(Vocation::Priest),
     wonders: "A quarrel at the ford, a body moved to look like the flood's work - a killing hidden in weather.",
-    thanks: "The dead man's buried named now, and the reeve's heard the truth. You've done justice's work.",
+    thanks: "The dead man's buried named now, and the reeve's heard the truth. {2:subj} {2:have} done justice's work.",
     payoff: Payoff::Lead,
 },
 
@@ -1702,7 +1702,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "Burned to erase a short count - the fire was the audit's answer, not the weather's.",
-    thanks: "The truth survived the fire - the debt's on record now. The village owes you for this one.",
+    thanks: "The truth survived the fire - the debt's on record now. The village owes {2:obj} for this one.",
     payoff: Payoff::Lead,
 },
 
@@ -1726,7 +1726,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "Two counts, two sticks, and the miller's palm in it - the reeve's been robbing us all, slowly.",
-    thanks: "The lord's been shown both sets. The count's honest now, and your name's in the good book.",
+    thanks: "The lord's been shown both sets. The count's honest now, and {2:poss} name's in the good book.",
     payoff: Payoff::Lead,
 },
 
@@ -1765,7 +1765,7 @@ Mystery {
         Clue { dim: Who, text: "The second shepherd's hands were scratched - he says by thorns, not by struggle." },
         Clue { dim: When, text: "The fall was at noon - the other shepherd's dog was heard barking then." },
         Clue { dim: When, text: "The torn turf's fresh - the struggle was the day he fell." },
-        Clue { dim: Where, text: "He fell at the crag's narrowest point - where a push sends you over." },
+        Clue { dim: Where, text: "He fell at the crag's narrowest point - where a push sends {2:obj} over." },
         Clue { dim: Where, text: "The second shepherd's fleece-scraps were found at the cliff's edge - he was there." },
         Clue { dim: Where, text: "The dog ran from the crag to the second's door - the trail of a witness." },
         Clue { dim: Why, text: "The grazing rights were the quarrel - the crag's the boundary they fought over." },
@@ -1774,7 +1774,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: Some(Vocation::Shepherd),
     wonders: "A pushed fall over grazing rights - the dog's the only honest witness, and it's spoken.",
-    thanks: "The reeve's heard it, and the son has his rights now. You've done the dead man justice.",
+    thanks: "The reeve's heard it, and the son has his rights now. {2:subj} {2:have} done the dead man justice.",
     payoff: Payoff::Lead,
 },
 
@@ -1798,7 +1798,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "Turned stones, a false guide, and a paid ambush - a rival's war fought by proxy.",
-    thanks: "The guild's been told, and the road's marked true. You've done the trade a service.",
+    thanks: "The guild's been told, and the road's marked true. {2:subj} {2:have} done the trade a service.",
     payoff: Payoff::Lead,
 },
 
@@ -1846,7 +1846,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "Buried under an apple tree to save it from the seal - the clerk's loyalty's to the charter, not the reeve.",
-    thanks: "The charter's safe in the chest again - and the clause stands. The common owes you its grass.",
+    thanks: "The charter's safe in the chest again - and the clause stands. The common owes {2:obj} its grass.",
     payoff: Payoff::Word,
 },
 
@@ -1870,7 +1870,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "The dog, drinking at every well - a fever-carrier on four legs, with a silent master.",
-    thanks: "The dog's leashed and the wells are marked. You've saved more than one village's health.",
+    thanks: "The dog's leashed and the wells are marked. {2:subj} {2:have} saved more than one village's health.",
     payoff: Payoff::Table,
 },
 
@@ -1918,7 +1918,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: Some(Vocation::Fisher),
     wonders: "A cousin's boats, an inn's cellar, and a paid toll-man - a smuggler's chain, link by link.",
-    thanks: "The cove's watched now, and the trade's taxed. The sea's honest again, thanks to you.",
+    thanks: "The cove's watched now, and the trade's taxed. The sea's honest again, thanks to {2:obj}.",
     payoff: Payoff::Lead,
 },
 
@@ -1942,7 +1942,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "A crossed-out name in the waste-basket - the brother was written in after the fact.",
-    thanks: "The writ's been called back and the true debtor's named. The law's sharper for your eyes.",
+    thanks: "The writ's been called back and the true debtor's named. The law's sharper for {2:poss} eyes.",
     payoff: Payoff::Lead,
 },
 
@@ -1966,7 +1966,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "Buried under the family oak to save it from the match - a brother's loyalty's cruel arithmetic.",
-    thanks: "The dowry's found and the marriage's honestly made. You've done the couple a service.",
+    thanks: "The dowry's found and the marriage's honestly made. {2:subj} {2:have} done the couple a service.",
     payoff: Payoff::Word,
 },
 
@@ -1990,7 +1990,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "Buying our tools to re-forge as theirs - a quiet war fought in iron.",
-    thanks: "The reeve's warned and the tools are marked. You've seen the war in the scrap.",
+    thanks: "The reeve's warned and the tools are marked. {2:subj} {2:have} seen the war in the scrap.",
     payoff: Payoff::Lead,
 },
 
@@ -2038,7 +2038,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "A succession, then - the old faith choosing its elder in the dark, at the last keeper's hut.",
-    thanks: "I'll let it be - the old ways have their rights. You've told it gently, and I thank you.",
+    thanks: "I'll let it be - the old ways have their rights. {2:subj} {2:have} told it gently, and I thank {2:obj}.",
     payoff: Payoff::Word,
 },
 
@@ -2062,7 +2062,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "A son's hand at the nail - he tore the shame, not the sum.",
-    thanks: "The mark's re-posted, but the widow's been paid quietly. You've done her a kindness either way.",
+    thanks: "The mark's re-posted, but the widow's been paid quietly. {2:subj} {2:have} done her a kindness either way.",
     payoff: Payoff::Gift(5.0),
 },
 
@@ -2134,7 +2134,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "A shawl and a shed and a hidden feeding - the village's kind answer to a hard father.",
-    thanks: "The boy's home now - and his father's been talked to, gently and then not. Thank you.",
+    thanks: "The boy's home now - and his father's been talked to, gently and then not. Thank {2:obj}.",
     payoff: Payoff::Table,
 },
 
@@ -2158,7 +2158,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: Some(Vocation::Baker),
     wonders: "A miner's son and a plank-shored tunnel - my own flour's been sold back to me.",
-    thanks: "The tunnel's filled and the count's honest. You've found the hole in the world's bottom.",
+    thanks: "The tunnel's filled and the count's honest. {2:subj} {2:have} found the hole in the world's bottom.",
     payoff: Payoff::Lead,
 },
 
@@ -2182,7 +2182,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: Some(Vocation::Priest),
     wonders: "Sawed to silence a summons - the miller's hand reaches as high as the bell.",
-    thanks: "The bell rings true again, and the counsel's heard. You've kept the law's voice.",
+    thanks: "The bell rings true again, and the counsel's heard. {2:subj} {2:have} kept the law's voice.",
     payoff: Payoff::Lead,
 },
 
@@ -2206,7 +2206,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: Some(Vocation::Baker),
     wonders: "Pulled stones and a bought watch - our water's been sold upstream.",
-    thanks: "The dam's mended and the watch is honest. The wheel's yours, and the truth.",
+    thanks: "The dam's mended and the watch is honest. The wheel's {2:own}, and the truth.",
     payoff: Payoff::Lead,
 },
 
@@ -2230,7 +2230,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: Some(Vocation::Toolmaker),
     wonders: "The stones and the old faith - she'd rather sleep rough than wed a faith she doesn't hold.",
-    thanks: "I've spoken with her - and the betrothal's off, gently. You've done her a kindness.",
+    thanks: "I've spoken with her - and the betrothal's off, gently. {2:subj} {2:have} done her a kindness.",
     payoff: Payoff::Word,
 },
 
@@ -2254,7 +2254,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "A scraped line for a bushel of grain - a marriage erased for a payment.",
-    thanks: "The line's restored - by a witness's word, not the page. The law's truer for your eyes.",
+    thanks: "The line's restored - by a witness's word, not the page. The law's truer for {2:poss} eyes.",
     payoff: Payoff::Lead,
 },
 
@@ -2278,7 +2278,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: Some(Vocation::Shepherd),
     wonders: "A ransom-note on a fold-door - the debt's war's gone to the animals.",
-    thanks: "The ewe's home and the debt's re-set honest. You've done the fold a service.",
+    thanks: "The ewe's home and the debt's re-set honest. {2:subj} {2:have} done the fold a service.",
     payoff: Payoff::Gift(8.0),
 },
 
@@ -2374,7 +2374,7 @@ Mystery {
     need: 8, dims: HARD,
     asker: None,
     wonders: "A scraped mark for a courtship's clean name - the brothers' bond sold for a bride.",
-    thanks: "The ledger's right, and the younger's free. You've done the law a service.",
+    thanks: "The ledger's right, and the younger's free. {2:subj} {2:have} done the law a service.",
     payoff: Payoff::Lead,
 },
 

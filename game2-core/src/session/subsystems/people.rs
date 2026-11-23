@@ -356,11 +356,11 @@ impl Game {
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 8);
             if tick % 21 == 2 {
                 self.say(checker, match cond {
-                    "a lame leg" => "How's the leg treating you?",
-                    "failing sight" => "Let me read it out for you.",
-                    "no sight" => "I'll tell you what the board says.",
-                    "no hearing" => "No need to shout - you're not missing a thing.",
-                    _ => "The quiet does you good, I hope.",
+                    "a lame leg" => "How's the leg treating {2:obj}?",
+                    "failing sight" => "Let me read it out for {2:obj}.",
+                    "no sight" => "I'll tell {2:obj} what the board says.",
+                    "no hearing" => "No need to shout - {2:subj} {2:be} not missing a thing.",
+                    _ => "The quiet does {2:obj} good, I hope.",
                 }, CHAT_BUBBLE_SECS);
             }
         }
@@ -985,7 +985,7 @@ impl Game {
         // of perfume, though, is no smell at all
         let smelly = [a, b].iter().any(|&v|
             self.smells_of(v).map(|k| k != "roses").unwrap_or(false));
-        if smelly { self.say(a, "...you smell of the work, friend.", CHAT_BUBBLE_SECS); }
+        if smelly { self.say(a, &self.vv_said(a, b, "...{2:subj} smell of the work, friend."), CHAT_BUBBLE_SECS); }
         let spark = 0.5 + shared as f32 * 0.1 - if feuded { 0.15 } else { 0.0 }
             - if smelly { 0.15 } else { 0.0 };
         // a deterministic spark per pair and month - no rng spent, so the
@@ -1025,7 +1025,7 @@ impl Game {
             if let Some(pe) = broker {
                 if pe == self.player { self.record_power(crate::sim::organized_power::ActionQuality::Transactional); }
             }
-            self.say(a, "Come, I want you to meet someone.", TALK_BUBBLE_SECS);
+            self.say(a, &self.vv_said(a, b, "Come, I want {2:obj} to meet someone."), TALK_BUBBLE_SECS);
         } else {
             self.match_tried.push((a, b, tick + 30));
             self.say(a, "Perhaps another heart.", TALK_BUBBLE_SECS);

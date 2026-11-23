@@ -46,8 +46,8 @@ impl SeatMystery {
 #[derive(Debug, Clone, Default)]
 pub struct MysteryTold {
     pub who: String,
-    pub wonders: &'static str,
-    pub thanks: &'static str,
+    pub wonders: String,
+    pub thanks: String,
     /// The payoff, in a line ("Ada asks you to their table.")
     pub payoff: String,
 }
@@ -135,11 +135,9 @@ impl Game {
             self.seats[seat].mystery = Some(SeatMystery { def, known: 0, asker });
             let title = MYSTERIES[def].title;
             let who = self.name_of(asker);
-            self.say(
-                asker,
-                ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize],
-                TALK_BUBBLE_SECS * 2,
-            );
+            let al = self.pair_said(asker, self.seats[seat].player,
+                ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize]);
+            self.say(asker, &al, TALK_BUBBLE_SECS * 2);
             self.log_entity_ev(
                 EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
                 asker,
@@ -260,18 +258,20 @@ impl Game {
         self.seats[seat].mystery = None;
         self.seats[seat].mystery_wait = tick + MYSTERY_WAIT;
         let payoff = self.mystery_payoff(seat, v, def.payoff);
+        let wonders = self.pair_said(v, self.seats[seat].player, def.wonders);
+        let thanks = self.pair_said(v, self.seats[seat].player, def.thanks);
         self.log_entity_ev(
             EvTag::new(Thread::Player, Valence::Positive, Sev::Notable),
             v,
             format!(
                 "t{}: you tell {} what you pieced together about {}. {} {}",
-                tick, who, def.title, def.thanks, payoff
+                tick, who, def.title, thanks, payoff
             ),
         );
         self.toasts.push_at((format!("Mystery told: {}", payoff), tick + 80),
             toast_spot(&self.world, v));
-        self.say(v, def.thanks, TALK_BUBBLE_SECS * 3);
-        Some(MysteryTold { who, wonders: def.wonders, thanks: def.thanks, payoff })
+        self.say(v, &thanks, TALK_BUBBLE_SECS * 3);
+        Some(MysteryTold { who, wonders, thanks, payoff })
     }
 
     /// What the telling's worth, landed: the coin, the invitation, the
@@ -366,7 +366,7 @@ impl Game {
 
 /// What folk say when a mystery starts doing the rounds
 const ASK_LINES: [&str; 3] = [
-    "If anyone asks after it, I'll tell them you did.",
+    "If anyone asks after it, I'll give them {2:poss} name.",
     "It's been nagging at me something fierce.",
     "Word is it's gone quiet - too quiet.",
 ];

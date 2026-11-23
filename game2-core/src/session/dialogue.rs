@@ -36,9 +36,9 @@ pub const CHAT_MAX_LINES: usize = 6;
 
 /// The help-ask's lines (#1368): one neighbor asks another for a hand
 pub(crate) const HELP_ASKS: &[&str] = &[
-    "Couldst thou spare a hand at my fence come the morrow?",
-    "My cart's wheel wants a second pair of hands - couldst thou come by?",
-    "The roof wants patching before the rain - wouldst thou lend a hand?",
+    "{2:could} {2:subj} spare a hand at my fence come the morrow?",
+    "My cart's wheel wants a second pair of hands - {2:could} {2:subj} come by?",
+    "The roof wants patching before the rain - {2:would} {2:subj} lend a hand?",
     "The woodpile's behind and my back's not what it was - a hand, neighbor?",
 ];
 pub(crate) const HELP_YES: &[&str] = &[
@@ -56,25 +56,25 @@ pub(crate) const HELP_NO: &[&str] = &[
 /// walk's the same help-out follow-through; the goods themselves stay
 /// an economy matter, not a chat one
 pub(crate) const FAVOR_ASKS: &[(crate::game::vocation::Vocation, &str)] = &[
-    (crate::game::vocation::Vocation::Fisher, "Wouldst thou spare a fat trout for a penny? The pot's thin this week."),
-    (crate::game::vocation::Vocation::Beekeeper, "Couldst thou spare a pot of honey? My child's throat's raw with the cough."),
-    (crate::game::vocation::Vocation::Weaver, "Hast thou a length of cloth off the loom for a fair price?"),
-    (crate::game::vocation::Vocation::Baker, "Wouldst thou spare a loaf on tick till market day?"),
-    (crate::game::vocation::Vocation::Alewife, "Could I trouble thee for a jug of thy small ale?"),
-    (crate::game::vocation::Vocation::Brewer, "A firkin of thy beer for the haymaking - name the price."),
-    (crate::game::vocation::Vocation::Vintner, "Hast thou a bottle of the good wine for a feast day?"),
-    (crate::game::vocation::Vocation::Shepherd, "Wouldst thou spare a fleece or two? My spindle's idle."),
-    (crate::game::vocation::Vocation::Farmer, "Couldst thou spare a sack of grain till the harvest comes in?"),
-    (crate::game::vocation::Vocation::Shoemaker, "Couldst thou mend my boots? The sole's near through."),
-    (crate::game::vocation::Vocation::Taverner, "A bowl of thy pottage for a hungry evening - what's the price?"),
-    (crate::game::vocation::Vocation::Perfumer, "A vial of thy scent for the house - what dost thou ask?"),
+    (crate::game::vocation::Vocation::Fisher, "{2:would} {2:subj} spare a fat trout for a penny? The pot's thin this week."),
+    (crate::game::vocation::Vocation::Beekeeper, "{2:could} {2:subj} spare a pot of honey? My child's throat's raw with the cough."),
+    (crate::game::vocation::Vocation::Weaver, "{2:have} {2:subj} a length of cloth off the loom for a fair price?"),
+    (crate::game::vocation::Vocation::Baker, "{2:would} {2:subj} spare a loaf on tick till market day?"),
+    (crate::game::vocation::Vocation::Alewife, "Could I trouble {2:obj} for a jug of {2:poss} small ale?"),
+    (crate::game::vocation::Vocation::Brewer, "A firkin of {2:poss} beer for the haymaking - name the price."),
+    (crate::game::vocation::Vocation::Vintner, "{2:have} {2:subj} a bottle of the good wine for a feast day?"),
+    (crate::game::vocation::Vocation::Shepherd, "{2:would} {2:subj} spare a fleece or two? My spindle's idle."),
+    (crate::game::vocation::Vocation::Farmer, "{2:could} {2:subj} spare a sack of grain till the harvest comes in?"),
+    (crate::game::vocation::Vocation::Shoemaker, "{2:could} {2:subj} mend my boots? The sole's near through."),
+    (crate::game::vocation::Vocation::Taverner, "A bowl of {2:poss} pottage for a hungry evening - what's the price?"),
+    (crate::game::vocation::Vocation::Perfumer, "A vial of {2:poss} scent for the house - what {2:do} {2:subj} ask?"),
     (crate::game::vocation::Vocation::Distiller, "A dram of the water of life for a cold night?"),
 ];
 /// A favor granted reads like one brought round, not one fetched
 pub(crate) const FAVOR_YES: &[&str] = &[
     "Aye, I'll bring it by before dark.",
     "Come by my bench before dusk - I'll set it aside.",
-    "For thee? Aye - look for it at thy door.",
+    "For {2:obj}? Aye - look for it at {2:poss} door.",
 ];
 /// The children's tree: a pair of kids keeps to it
 pub const KID_TREE: &str = "children_at_play";
@@ -510,8 +510,8 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 /// The line `template` speaks as between this pair (E4-4): realized
 /// with the speakers patched the way `converse_with` patches them, so
 /// offered or recorded text can be matched against an authored const.
-fn talk_said(villager: &Speaker, player: &Speaker, rel: Relation,
-             template: &'static str, player_side: bool) -> String {
+pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: Relation,
+             template: &str, player_side: bool) -> String {
     use crate::game::text::{realize, tv_for, Cx};
     let (mut v, mut p) = (villager.clone(), player.clone());
     v.rel = rel;
@@ -675,6 +675,41 @@ impl Game {
         }
     }
 
+    /// The line `text` as `who` speaks it to `pe` (E4-4): the ambient
+    /// strings - greetings, remarks, the cold gist - speak in the
+    /// pair's own register too
+    pub(in crate::session) fn pair_said(&self, who: Entity, pe: Entity, text: &str) -> String {
+        let rel = relation_with_wanderer(self.rel_kind(pe, who));
+        talk_said(&speaker_of(&self.world, who, &self.name_of(who), self.tick),
+                  &self.player_speaker(pe), rel, text, false)
+    }
+
+    /// A line said villager-to-villager outside a Talk (E4-4)
+    pub(in crate::session) fn vv_said(&self, a: Entity, b: Entity, text: &str) -> String {
+        let rel = relation_with_wanderer(self.rel_kind(a, b));
+        talk_said(&speaker_of(&self.world, a, &self.name_of(a), self.tick),
+                  &speaker_of(&self.world, b, &self.name_of(b), self.tick),
+                  rel, text, false)
+    }
+
+    /// The player's own line aimed at the villager (E4-4)
+    pub(in crate::session) fn player_line(&self, seat: usize, who: Entity, text: &str) -> String {
+        let pe = self.seats[seat].player;
+        let rel = relation_with_wanderer(self.rel_kind(pe, who));
+        talk_said(&speaker_of(&self.world, who, &self.name_of(who), self.tick),
+                  &self.player_speaker(pe), rel, text, true)
+    }
+
+    /// The player's Speaker for realizing lines aimed at them (E4-4):
+    /// name only - a tree's own wiring layers on rhetoric status
+    pub(in crate::session) fn player_speaker(&self, pe: Entity) -> Speaker {
+        let pname = self.world.get_component::<crate::game::player::PlayerCharacter>(pe)
+            .map(|p| p.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "friend".into());
+        // spoken to, "The Wanderer" is "wanderer": "A peaceful day to thee, wanderer."
+        let pname = match pname.strip_prefix("The ") { Some(rest) => rest.to_lowercase(), None => pname };
+        Speaker::new(&pname)
+    }
+
     /// Two villagers meet: they hold a conversation, which goes on the
     /// record (not over the map). Children talk among themselves - a
     /// child and a grown-up just nod. Returns whether they talked.
@@ -729,11 +764,13 @@ impl Game {
                 let answer = amends::their_answer(ttraits, refused);
                 let prior = self.world.get_component::<AmendsTally>(maker)
                     .filter(|x| x.of == target).map(|x| x.n).unwrap_or(0);
+                let (maker_sp, target_sp) = if maker_first { (&sa, &sb) } else { (&sb, &sa) };
+                let srel = relation_of(self.rel_kind(a, b));
                 let lines = vec![
                     TalkLine { who: Some(maker), name: self.name_of(maker),
-                        text: amends::AMENDS_ASK.into(), gist: false },
+                        text: talk_said(maker_sp, target_sp, srel, amends::AMENDS_ASK, false), gist: false },
                     TalkLine { who: Some(target), name: self.name_of(target),
-                        text: amends::answer_line(answer).into(), gist: false },
+                        text: talk_said(target_sp, maker_sp, srel, amends::answer_line(answer), false), gist: false },
                 ];
                 self.world.add_component(maker,
                     AmendsTally { of: target, n: prior.saturating_add(1) });
@@ -762,10 +799,16 @@ impl Game {
             if fresh {
                 if let Some((_scene, variant, order)) =
                     crate::game::scenes::scene_for(&self.world, a, b, self.tick) {
+                    // the scene's lines speak through the pair's own tv
+                    // (E4-4): kin hear thee where strangers heard you
+                    let srel = relation_of(self.rel_kind(a, b));
+                    let s0 = if order.0 == a { &sa } else { &sb };
+                    let s1 = if order.1 == a { &sa } else { &sb };
                     let lines: Vec<TalkLine> = variant.lines.iter().take(CHAT_MAX_LINES).map(|&(i, text)| {
                         let (who, name) = if i == 0 { (order.0, self.name_of(order.0)) }
                             else { (order.1, self.name_of(order.1)) };
-                        TalkLine { who: Some(who), name, text: text.to_string(), gist: false }
+                        TalkLine { who: Some(who), name,
+                            text: talk_said(s0, s1, srel, text, i == 1), gist: false }
                     }).collect();
                     self.scene_marks.insert(key, self.tick);
                     // the take moves with the bond (#1230): a feuding
@@ -826,6 +869,7 @@ impl Game {
             };
             let asker_a = (bent(&sa.traits), -(a as i64)) >= (bent(&sb.traits), -(b as i64));
             let (asker, asked) = if asker_a { (a, b) } else { (b, a) };
+            let (asker_s, asked_s) = if asker_a { (&sa, &sb) } else { (&sb, &sa) };
             let (asker_name, asked_name) = if asker_a { (na.clone(), nb.clone()) } else { (nb.clone(), na.clone()) };
             let atraits = if asker_a { &sa.traits } else { &sb.traits };
             let ttraits = if asker_a { &sb.traits } else { &sa.traits };
@@ -839,7 +883,7 @@ impl Game {
                     .and_then(|c| FAVOR_ASKS.iter().find(|(v, _)| *v == c.vocation).map(|(_, t)| *t));
                 let favor = favor.filter(|_| hr.below(2) == 0);
                 lines.push(TalkLine { who: Some(asker), name: asker_name,
-                    text: favor.unwrap_or_else(|| HELP_ASKS[hr.below(HELP_ASKS.len())]).into(), gist: false });
+                    text: talk_said(asker_s, asked_s, rel, favor.unwrap_or_else(|| HELP_ASKS[hr.below(HELP_ASKS.len())]), false), gist: false });
                 let refuse = (hr.below(1000) as f32)
                     < (0.25 - 0.08 * bent(ttraits)).clamp(0.05, 0.9) * 1000.0;
                 let tile = self.world.get_component::<super::Pos>(asker)
@@ -854,7 +898,7 @@ impl Game {
                     else if favor.is_some() { FAVOR_YES }
                     else { HELP_YES };
                 lines.push(TalkLine { who: Some(asked), name: asked_name,
-                    text: pool[hr.below(pool.len())].into(), gist: false });
+                    text: talk_said(asked_s, asker_s, rel, pool[hr.below(pool.len())], false), gist: false });
                 if !sent {
                     relationships::record_interaction(&mut self.world, asker,
                         relationships::Interaction { other: asked,
@@ -1137,13 +1181,9 @@ impl Game {
         // still smarts - a cold ending closes what they'll offer (#1183);
         // a pressed villager keeps them to themselves just the same (#1226)
         if self.talk_mood_of(v) == Some(TalkMood::Slighted) || tired >= 2 { asks.clear(); }
-        let pname = self.world.get_component::<crate::game::player::PlayerCharacter>(pe)
-            .map(|p| p.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "friend".into());
-        // spoken to, "The Wanderer" is "wanderer": "A peaceful day to thee, wanderer."
-        let pname = match pname.strip_prefix("The ") { Some(rest) => rest.to_lowercase(), None => pname };
         // their read of your rhetoric rides on your Speaker (#1236), so
         // a tree can key `other:status:firebrand`
-        let mut player = Speaker::new(&pname);
+        let mut player = self.player_speaker(pe);
         let org = self.seats[seat].org;
         player.status.extend(crate::game::rhetoric::hardened(&self.world, v, org).iter().map(|l| l.status()));
         let mut opening: Vec<String> = crate::game::rhetoric::register_note(&self.world, v, org, &villager.name)
@@ -1642,7 +1682,8 @@ impl Game {
                     cur.asks_taken.push(o);
                     cur.inoculating = true;
                 }
-                self.argue_line(seat, Some(self.seats[seat].player), "How d'you think the lord will answer, when he hears you've signed on?".into());
+                let il = self.player_line(seat, who, "How {2:do} {2:subj} think the lord will answer, when he hears {2:subj} {2:have} signed on?");
+                self.argue_line(seat, Some(self.seats[seat].player), il);
                 self.refresh_player_talk(seat);
                 return;
             }
@@ -1666,8 +1707,8 @@ impl Game {
                     cur.asks.retain(|a| *a != o);
                     cur.asks_taken.push(o);
                 }
-                self.argue_line(seat, Some(self.seats[seat].player),
-                    "What do you actually want, when all's said and done?".into());
+                let pl = self.player_line(seat, who, "What {2:do} {2:subj} actually want, when all's said and done?");
+                self.argue_line(seat, Some(self.seats[seat].player), pl);
                 let seed = self.rng.next();
                 let pe = self.seats[seat].player;
                 match crate::game::desires::plant_want(&mut self.world, who, pe, self.tick, seed) {
@@ -1983,7 +2024,7 @@ impl Game {
             } else {
                 desires::catchup_speech(name.as_str(), &r)
             };
-            self.argue_line(seat, Some(who), said);
+            self.argue_line(seat, Some(who), self.pair_said(who, pe, &said));
             if let Some(issue) = desires::hear(&mut self.world, pe, who, r, self.tick) {
                 self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                 self.log_entity_ev(
@@ -2016,7 +2057,12 @@ impl Game {
             Some(t) => crate::game::text::realize(template,
                 &crate::game::text::Cx::plain(&t.villager, &t.player, &refs),
                 &mut TalkRng::new(t.seed ^ run_pick)),
-            None => template.replace("{someone}", &refs[0].text),
+            None => {
+                let rel = relation_with_wanderer(self.rel_kind(pe, who));
+                talk_said(&speaker_of(&self.world, who, &self.name_of(who), self.tick),
+                          &self.player_speaker(pe), rel, template, false)
+                    .replace("{someone}", &refs[0].text)
+            }
         };
         self.argue_line(seat, Some(who), line);
         self.narrate_talk(seat, "You let them run - they fill the space with themselves.");
@@ -2120,7 +2166,9 @@ impl Game {
                 let stance = if i == 0 { Stance::For } else { Stance::Against };
                 self.argue_line(seat, Some(pe), persuasion::case_line(stance, &issue));
                 let traits = self.world.get_component::<Personality>(who).map(|p| p.traits.clone()).unwrap_or_default();
-                self.argue_line(seat, Some(who), persuasion::counter_line(&traits, stance, &issue));
+                let cline = self.pair_said(who, self.seats[seat].player,
+                    &persuasion::counter_line(&traits, stance, &issue));
+                self.argue_line(seat, Some(who), cline);
                 if let Some(cur) = self.seats[seat].talk.as_mut() {
                     cur.argue = Some(Argument { stance: Some(stance), ..a });
                 }
@@ -2185,8 +2233,9 @@ impl Game {
             self.refresh_player_talk(seat);
             return;
         };
-        self.argue_line(seat, Some(who), inoc::fear(c).into());
-        self.argue_line(seat, Some(pe), inoc::answer(c).into());
+        let fl = self.pair_said(who, pe, inoc::fear(c));
+                    self.argue_line(seat, Some(who), fl);
+        self.argue_line(seat, Some(pe), self.player_line(seat, who, inoc::answer(c)));
         inoc::shield(&mut self.world, who, c);
         let vname = self.name_of(who);
         self.argue_line(seat, None, format!("{vname} nods slowly - they'll know it when it comes."));

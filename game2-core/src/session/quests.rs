@@ -184,7 +184,7 @@ impl Game {
             });
             self.say(
                 v,
-                ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize],
+                &self.pair_said(v, self.player, ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize]),
                 TALK_BUBBLE_SECS * 2,
             );
             self.log_entity_ev(
@@ -287,16 +287,17 @@ impl Game {
     /// What they ask for, in their own words - the bubble on accepting
     /// and the panel's reminder both read off this
     pub fn quest_ask_line(&self, q: &PlayerQuest) -> String {
-        match (q.kind, q.target) {
+        let line = match (q.kind, q.target) {
             (QuestKind::Note, QuestTarget::Villager(t)) =>
-                format!("Will you take this note to {}?", self.name_of(t)),
+                format!("{{2:will}} {{2:subj}} take this note to {}?", self.name_of(t)),
             (QuestKind::Parcel, QuestTarget::Site(i)) =>
-                format!("Would you carry this parcel out to {}?", self.sites.get(i).map(|s| s.name).unwrap_or("the village")),
-            (QuestKind::Egg, _) => "Could you fetch a fresh egg from the hen run?".into(),
-            (QuestKind::Stone, _) => "Would you bring me a stone from the old boulders?".into(),
-            (QuestKind::Talk, _) => "I carry a trouble only a listener can ease - will you hear me out?".into(),
-            _ => "Will you do me a small job?".into(),
-        }
+                format!("{{2:would}} {{2:subj}} carry this parcel out to {}?", self.sites.get(i).map(|s| s.name).unwrap_or("the village")),
+            (QuestKind::Egg, _) => "{2:could} {2:subj} fetch a fresh egg from the hen run?".into(),
+            (QuestKind::Stone, _) => "{2:would} {2:subj} bring me a stone from the old boulders?".into(),
+            (QuestKind::Talk, _) => "I carry a trouble only a listener can ease - {2:will} {2:subj} hear me out?".into(),
+            _ => "{2:will} {2:subj} do me a small job?".into(),
+        };
+        self.pair_said(q.giver, self.player, &line)
     }
 
     /// The begging job's ask in the giver's words - a Talk's opening
@@ -414,7 +415,8 @@ impl Game {
             QuestKind::Note => format!("The note reached {} - and {} remembers it.", self.name_of(v), giver),
             _ => format!("The {} reached {} - and {} remembers it.", thing, self.name_of(v), giver),
         };
-        self.say(v, THANKS_LINES[q.kind as usize % THANKS_LINES.len()], TALK_BUBBLE_SECS * 2);
+        let tl = self.pair_said(v, self.seats[seat].player, THANKS_LINES[q.kind as usize % THANKS_LINES.len()]);
+        self.say(v, &tl, TALK_BUBBLE_SECS * 2);
         let known = self.quest_bond(seat, q.giver);
         let mut line = format!("t{}: {} ({:.0}g)", self.tick, thanks, pay);
         if known {
@@ -494,15 +496,15 @@ impl Game {
 
 /// What folk say when they ask for the job
 const ASK_LINES: [&str; 4] = [
-    "Could you do me a small job?",
-    "You're a reliable sort - will you carry this for me?",
-    "A small thing, if you'd be so good.",
+    "{2:could} {2:subj} do me a small job?",
+    "{2:subj} {2:be} a reliable sort - {2:will} {2:subj} carry this for me?",
+    "A small thing, if {2:subj} {2:would} be so good.",
     "I need a pair of hands I can trust.",
 ];
 
 /// And when it's handed over
 const THANKS_LINES: [&str; 3] = [
-    "You're a good sort - it'll not be forgot.",
-    "Ta very much - you've a friend in me.",
-    "No trouble at all - folk like you make a village.",
+    "{2:subj} {2:be} a good sort - it'll not be forgot.",
+    "Ta very much - {2:subj} {2:have} a friend in me.",
+    "No trouble at all - folk like {2:obj} make a village.",
 ];

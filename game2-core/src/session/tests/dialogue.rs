@@ -457,8 +457,8 @@ fn test_a_talk_holds_them_where_they_stand() {
 
 /// The cold brush-offs a Slighted memory serves (#1183)
 fn cold_lines() -> [&'static str; 4] {
-    ["You're back. What is it now?", "Hmph. Say your piece and go.",
-     "We left it badly last time. Say what you came for.", "You've a nerve, coming back."]
+    ["You are back. What is it now?", "Hmph. Say your piece and go.",
+     "We left it badly last time. Say what you came for.", "You have a nerve, coming back."]
 }
 
 #[test]
@@ -1729,11 +1729,14 @@ fn test_a_neighbor_asked_for_a_hand_comes_by_or_stings() {
             let n = g.talk_log.len();
             if !g.villagers_chat(a, b) || g.talk_log.len() == n { continue; }
             let rec = g.talk_log.last().unwrap();
-            let Some(ai) = rec.lines.iter().position(|l| HELP_ASKS.contains(&l.text.as_str())) else { continue };
+            let is_ask = |t: &str| HELP_ASKS.iter()
+                .any(|h| *t == g.vv_said(a, b, h) || *t == g.vv_said(b, a, h));
+            let Some(ai) = rec.lines.iter().position(|l| is_ask(&l.text)) else { continue };
             let asker = rec.lines[ai].who.unwrap();
             let answer = &rec.lines[ai + 1];
             let asked = answer.who.unwrap();
-            if HELP_YES.contains(&answer.text.as_str()) {
+            if HELP_YES.contains(&answer.text.as_str())
+                || FAVOR_YES.iter().any(|h| answer.text == g.vv_said(asked, asker, h)) {
                 yes = Some((asker, asked));
             } else {
                 assert!(HELP_NO.contains(&answer.text.as_str()),

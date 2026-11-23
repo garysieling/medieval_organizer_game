@@ -24,7 +24,7 @@ pub struct BuyWalk {
 pub enum Command {
     /// One of the action buttons (Talk, Recruit)
     Act(usize),
-    /// A contextual action (Work, Pair up, Errand)
+    /// A contextual action (Pair up, Errand)
     CtxAct(usize),
     /// Held-direction walk, one frame's step
     Walk(f32, f32),
@@ -53,8 +53,6 @@ pub enum Command {
 /// do depends on where they stand and who's picked.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum CtxAct {
-    /// Work the player's own craft (at their bench if they have one)
-    Work,
     /// Pair the picked junior with a master of their trade
     PairUp,
     /// Send the picked child on a paid errand
@@ -212,6 +210,13 @@ pub struct Seat {
     pub mystery_wait: u64,
     /// The last mystery dealt, so the same one doesn't come round twice
     pub mystery_last: usize,
+    /// Days' worth of presence banked at the bench (#1338): the craft
+    /// happens by standing at it, not a button - a slow fill, then the
+    /// day's work lands
+    pub ambient_bench: f32,
+    /// The tick the idle-bench note last fired - a once-a-day word on
+    /// what's missing, not a per-frame nag
+    pub bench_nudged: u64,
     /// Mysteries this seat's pieced all the way together - the count
     /// sets which band of the pool the next one draws from (#1350): the
     /// first ask's easy, the deeper stories come round as solves rack up
@@ -268,7 +273,8 @@ impl Default for Seat {
                mystery_last: usize::MAX, mystery_solved: 0, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,
                player_passed: false, survey: None, survey_wait: 0, survey_seen: 0,
-               quests_done: 0, survey_capture: None }
+               quests_done: 0, survey_capture: None,
+               ambient_bench: 0.0, bench_nudged: u64::MAX }
     }
 }
 

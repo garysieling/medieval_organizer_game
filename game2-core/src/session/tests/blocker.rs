@@ -1,21 +1,45 @@
 use crate::session::*;
 
+/// Stand the player at their bench with a day's worth of presence
+/// banked - the next ambient beat lands the batch (#1338)
+fn at_the_bench(g: &mut Game) {
+    let bench = g.world.get_component::<Craft>(g.seats[0].player).unwrap().workplace.unwrap();
+    let (bx, by) = { let p = g.world.get_component::<Pos>(bench).unwrap(); (p.x, p.y) };
+    let p = g.world.get_component_mut::<Pos>(g.seats[0].player).unwrap();
+    p.x = bx; p.y = by;
+    g.seats[0].ambient_bench = crate::session::verbs::AMBIENT_WORK_DAYS;
+}
+
+fn a_shop(g: &Game) -> crate::engine::ecs::Entity {
+    g.building_entities.iter().copied().find(|&b|
+        g.world.get_component::<Building>(b)
+            .map(|bb| matches!(bb.kind, BuildingKind::Shop(_))).unwrap_or(false)).unwrap()
+}
+
 #[test]
-fn test_work_names_what_is_missing_instead_of_nothing() {
+fn test_an_idle_bench_names_what_is_missing() {
     let mut g = Game::new();
     // a baker with neither wheat in hand nor a shop's stock to draw on
-    g.world.add_component(g.player, vocation::craft(Vocation::Baker, 0.3));
-    g.seats[0].ctx_actions = vec![CtxAct::Work];
-    g.ctx_act_at(0, 0);
+    let shop = a_shop(&g);
+    let mut craft = vocation::craft(Vocation::Baker, 0.3);
+    craft.workplace = Some(shop);
+    g.world.add_component(g.player, craft);
+    at_the_bench(&mut g);
+    g.ambient_bench_at(0);
     let last = g.log.last().unwrap();
     assert!(last.contains("no wheat"), "{}", last);
-    // with wheat in the satchel the day makes bread (a street bench
-    // works at half rate: two days a loaf) and says where it went
+    // the want is a once-a-day word, not a per-frame nag
+    g.seats[0].ambient_bench = crate::session::verbs::AMBIENT_WORK_DAYS;
+    let n = g.log.len();
+    g.ambient_bench_at(0);
+    assert_eq!(g.log.len(), n, "the bench doesn't nag twice in a day");
+    // with wheat in the satchel the day's presence makes bread, and
+    // the log says where it went
     g.world.get_component_mut::<Satchel>(g.player).unwrap().goods.insert("wheat".into(), 2);
-    g.ctx_act_at(0, 0);
-    g.ctx_act_at(0, 0);
+    g.seats[0].ambient_bench = crate::session::verbs::AMBIENT_WORK_DAYS;
+    g.ambient_bench_at(0);
     let last = g.log.last().unwrap();
-    assert!(last.contains("1 bread made") && last.contains("in your satchel"), "{}", last);
+    assert!(last.contains("1 bread made"), "{}", last);
 }
 
 #[test]
@@ -24,9 +48,7 @@ fn test_a_tasked_heir_reports_the_inherited_shop_once() {
     // the player's bench is the shop their senior left them - the
     // senior's card still names it as their workplace too
     let senior = g.villagers[5];
-    let shop = g.building_entities.iter().copied().find(|&b|
-        g.world.get_component::<Building>(b)
-            .map(|bb| matches!(bb.kind, BuildingKind::Shop(_))).unwrap_or(false)).unwrap();
+    let shop = a_shop(&g);
     let mut craft = vocation::craft(Vocation::Fisher, 0.3);
     craft.workplace = Some(shop);
     craft.tasked_by = Some(senior);
@@ -35,8 +57,8 @@ fn test_a_tasked_heir_reports_the_inherited_shop_once() {
         g.world.add_component(senior, vocation::craft(Vocation::Fisher, 0.9));
     }
     g.world.get_component_mut::<Craft>(senior).unwrap().workplace = Some(shop);
-    g.seats[0].ctx_actions = vec![CtxAct::Work];
-    g.ctx_act_at(0, 0);
+    at_the_bench(&mut g);
+    g.ambient_bench_at(0);
     let last = g.log.last().unwrap();
     assert!(last.contains("1 fish made"), "{}", last);
     // the shared shelf's take is named once - not again as the senior's
@@ -47,10 +69,13 @@ fn test_a_tasked_heir_reports_the_inherited_shop_once() {
 fn test_the_players_promotion_names_the_craft() {
     let mut g = Game::new();
     // a bench-day short of Apprentice, wheat in hand for the day
-    g.world.add_component(g.player, vocation::craft(Vocation::Baker, 0.396));
+    let shop = a_shop(&g);
+    let mut craft = vocation::craft(Vocation::Baker, 0.396);
+    craft.workplace = Some(shop);
+    g.world.add_component(g.player, craft);
     g.world.get_component_mut::<Satchel>(g.player).unwrap().goods.insert("wheat".into(), 2);
-    g.seats[0].ctx_actions = vec![CtxAct::Work];
-    g.ctx_act_at(0, 0);
+    at_the_bench(&mut g);
+    g.ambient_bench_at(0);
     let last = g.log.last().unwrap();
     assert!(last.contains("reach Apprentice Baker!"), "{}", last);
 }

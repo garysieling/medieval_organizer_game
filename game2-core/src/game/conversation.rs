@@ -1743,6 +1743,29 @@ mod tests {
         assert!(bad.is_empty(), "lines filed under more than one act/ending:\n{}", bad.join("\n"));
     }
 
+    /// #1371: the village shopkeeper is no pedlar - merchant-keyed trees
+    /// carry stall and tally talk, never pack-train or foreign-port
+    /// material (the itinerant trader's lines live in visitor_trader)
+    #[test]
+    fn test_the_village_trader_speaks_of_the_stall_not_the_road() {
+        let pedlar = ["mule", "pack horse", "packs", "highway", "overseas",
+            "caravan", "exotic", "traveling", "Flanders", "sea port",
+            "the ridge", "king's road", "from the city"];
+        let mut bad: Vec<String> = vec![];
+        for (tree, ex) in all_exchanges(&village_library()) {
+            if tree != "merchant_trade" && tree != "the_merchants_ledger" { continue; }
+            for line in ex.calls.iter().chain(ex.replies.iter().flat_map(|r| r.lines.iter())) {
+                let low = line.to_lowercase();
+                if let Some(w) = pedlar.iter().find(|w| low.contains(**w)) {
+                    bad.push(format!("{tree}: {line:?} carries pedlar word {w:?}"));
+                }
+            }
+        }
+        assert!(bad.is_empty(), "{}", bad.join("
+"));
+    }
+
+
     #[test]
     fn test_endings_match_their_lines() {
         let library = village_library();

@@ -15,101 +15,10 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{self, Write};
 
-use game2_core::game::conversation::{act_fit, converse, Relation, Rng, Speaker, Turn};
+use game2_core::game::conversation::{act_fit, converse, Rng, Speaker, Turn};
 use game2_core::game::dialogue_trees::{backstory, village_library};
-use game2_core::game::relationships::RelKind;
-use game2_core::game::traits::Trait;
-use game2_core::session::NAMES;
-
-const IDEOLOGIES: [&str; 4] = ["laborer", "merchant", "clergy", "lord"];
-const STATUSES: [&str; 5] = ["well", "sick", "hungry", "grieving", "drunk"];
-const ALL_TRAITS: [Trait; 8] = [
-    Trait::Lazy,
-    Trait::Ambitious,
-    Trait::Kind,
-    Trait::Stingy,
-    Trait::Pious,
-    Trait::Hotheaded,
-    Trait::Gregarious,
-    Trait::Proud,
-];
-const RELATIONS: [Relation; 5] = [
-    Relation::Stranger,
-    Relation::Acquaintance,
-    Relation::Friend,
-    Relation::Kin,
-    Relation::Rival,
-];
-
-/// A plausible fine bond for the coarse relation the draw picked (#1372):
-/// kin reads family or lover, a friend may stand as a mentor, an
-/// acquaintance may be an apprentice - so the kind-keyed material shows
-fn kind_for(rng: &mut Rng, relation: Relation) -> Option<RelKind> {
-    Some(match relation {
-        Relation::Kin => if rng.below(2) == 0 { RelKind::Family } else { RelKind::Lover },
-        Relation::Friend => if rng.below(3) == 0 { RelKind::Mentor } else { RelKind::Friend },
-        Relation::Acquaintance => [RelKind::Acquaintance, RelKind::Mentor, RelKind::Apprentice][rng.below(3)],
-        Relation::Rival => RelKind::Rival,
-        Relation::Stranger => RelKind::Stranger,
-    })
-}
-
-fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
-    let mut roster = Vec::with_capacity(n);
-    // one sky for the batch, like a real day's (#1388): weather-gated
-    // lines show in the generated corpus, keyed on the wx-* statuses
-    // speaker_of pushes in-game
-    let wx = ["wx-rain", "wx-snow", "wx-fog", "wx-fair"][rng.below(4)];
-    for i in 0..n {
-        let name = NAMES[i % NAMES.len()];
-        let ideology = IDEOLOGIES[rng.below(IDEOLOGIES.len())];
-
-        // 1 to 3 distinct traits
-        let num_traits = 1 + rng.below(3);
-        let mut traits = Vec::new();
-        let mut trait_indices: Vec<usize> = (0..ALL_TRAITS.len()).collect();
-        for _ in 0..num_traits {
-            let pick = rng.below(trait_indices.len());
-            let idx = trait_indices.remove(pick);
-            traits.push(ALL_TRAITS[idx]);
-        }
-
-        // Status
-        let status_pick = STATUSES[rng.below(STATUSES.len())];
-        let mut status = Vec::new();
-        status.push(wx);
-        if status_pick != "well" {
-            status.push(status_pick);
-        }
-
-        roster.push(Speaker {
-            name: name.to_string(),
-            facts: game2_core::game::conversation::lite_facts(&traits, i as u64),
-            traits,
-            ideology,
-            status,
-            trade: None,
-            pull: 0.8,
-            sex: None,
-            // a spread of bonds so the corpus walks the openness tiers
-            // (E3-2): strangers to warm friends, a few within earshot
-            open: game2_core::game::conversation::Open {
-                intimacy: rng.below(900) as f32 / 1000.0,
-                benevolence: rng.below(900) as f32 / 1000.0,
-                integrity: rng.below(900) as f32 / 1000.0,
-                safety: rng.below(1000) as f32 / 1000.0,
-                mood: (rng.below(1000) as f32 / 500.0) - 1.0,
-                talks: rng.below(4) as u32,
-                earshot: rng.below(4) == 0,
-                shared: rng.below(3) as u8,
-            },
-            tv: game2_core::game::text::Tv::You,
-            archaism: 1,
-            rel: game2_core::game::conversation::Relation::Stranger,
-        });
-    }
-    roster
-}
+use game2_core::game::talk_gen::{generate_roster, gen_conversations, kind_for,
+    RELATIONS};
 
 fn write_rubric<W: Write>(w: &mut W) -> io::Result<()> {
     writeln!(w, "# Conversation System Benchmark & AI Scoring Rubric\n")?;
@@ -331,18 +240,17 @@ fn json_conversations(
     num_characters: usize,
     num_conversations: usize,
     seed: u64,
-    rng: &mut Rng,
-    library: &[game2_core::game::conversation::DialogueTree],
+    _rng: &mut Rng,
+    _library: &[game2_core::game::conversation::DialogueTree],
 ) -> Vec<serde_json::Value> {
-    let roster = generate_roster(num_characters, rng);
     let mut out = vec![];
-    for (char_idx, char_a) in roster.iter().enumerate() {
-        for conv_idx in 0..num_conversations {
-            let other_offset = 1 + rng.below(num_characters - 1);
-            let char_b = &roster[(char_idx + other_offset) % num_characters];
-            let relation = RELATIONS[rng.below(RELATIONS.len())];
-            let kind = kind_for(rng, relation);
-            let t = converse(char_a, char_b, relation, kind, library, None, rng);
+    let corpus = gen_conversations(num_characters, num_conversations, seed);
+    for (idx, gen) in corpus.talks.into_iter().enumerate() {
+        let char_idx = idx / num_conversations;
+        let conv_idx = idx % num_conversations;
+        let (relation, kind, t) = (gen.relation, gen.kind, gen.transcript);
+        let (char_a, char_b) = (&corpus.roster[gen.a], &corpus.roster[gen.b]);
+        {
             let fp = transcript_fingerprint(&t.speakers, &t.turns);
             out.push(serde_json::json!({
                 // the roster and pairings depend on the batch's shape too,

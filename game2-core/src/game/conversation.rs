@@ -1199,8 +1199,15 @@ pub fn converse_with(
         let reply = pool[pick];
         used.insert(line_t);
         let tag = reply.respond.unwrap_or_else(|| respond_of(reply.act));
+        // the reply's shape (E4-5): a dispreferred answer - or a
+        // guarded, cold agreement - draws the padding ops its stance
+        // calls for; a proud, certain no still lands bare
+        let st = crate::game::text::stance_of(&pair[responder], &pair[caller]);
+        let ops = crate::game::text::shape(reply.act, &st, None);
+        let text = crate::game::text::shaped(&ops,
+            &fill(line_t, &pair[responder], &pair[caller], rng), None, &st, rng);
         tr.turns.push(Turn { speaker: responder, act: reply.act, respond: Some(tag),
-            text: fill(line_t, &pair[responder], &pair[caller], rng),
+            text,
             concepts: reply.concepts.to_vec(), tree: node_tree, line: Some(line_t) });
         // telling of yourself (E3-3): a substantive answer is a
         // disclosure; each lands as deep as the pair's openness holds -

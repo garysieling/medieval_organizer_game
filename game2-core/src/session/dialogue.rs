@@ -766,11 +766,20 @@ impl Game {
                     .filter(|x| x.of == target).map(|x| x.n).unwrap_or(0);
                 let (maker_sp, target_sp) = if maker_first { (&sa, &sb) } else { (&sb, &sa) };
                 let srel = relation_of(self.rel_kind(a, b));
+                // the no's shape (E4-5): a guarded villager's refusal
+                // runs long and soft where a proud one's stays short
+                let said = talk_said(target_sp, maker_sp, srel, amends::answer_line(answer), false);
+                let spoken = if answer == Answer::Refused {
+                    let st = crate::game::text::stance_of(target_sp, maker_sp);
+                    let ops = crate::game::text::shape(Act::PushBack, &st, None);
+                    crate::game::text::shaped(&ops, &said, None, &st,
+                        &mut TalkRng::new(seed ^ 0xA115))
+                } else { said };
                 let lines = vec![
                     TalkLine { who: Some(maker), name: self.name_of(maker),
                         text: talk_said(maker_sp, target_sp, srel, amends::AMENDS_ASK, false), gist: false },
                     TalkLine { who: Some(target), name: self.name_of(target),
-                        text: talk_said(target_sp, maker_sp, srel, amends::answer_line(answer), false), gist: false },
+                        text: spoken, gist: false },
                 ];
                 self.world.add_component(maker,
                     AmendsTally { of: target, n: prior.saturating_add(1) });
@@ -897,8 +906,15 @@ impl Game {
                 let pool = if !sent { HELP_NO }
                     else if favor.is_some() { FAVOR_YES }
                     else { HELP_YES };
+                let said = talk_said(asked_s, asker_s, rel, pool[hr.below(pool.len())], false);
+                let text = if !sent {
+                    // the no's shape (E4-5): guarded runs long and soft
+                    let st = crate::game::text::stance_of(asked_s, asker_s);
+                    let ops = crate::game::text::shape(Act::PushBack, &st, None);
+                    crate::game::text::shaped(&ops, &said, None, &st, &mut hr)
+                } else { said };
                 lines.push(TalkLine { who: Some(asked), name: asked_name,
-                    text: talk_said(asked_s, asker_s, rel, pool[hr.below(pool.len())], false), gist: false });
+                    text, gist: false });
                 if !sent {
                     relationships::record_interaction(&mut self.world, asker,
                         relationships::Interaction { other: asked,
@@ -1975,8 +1991,19 @@ impl Game {
             .map(|p| p.traits.clone()).unwrap_or_default();
         let roll = (self.rng.next() % 1000) as f32 / 1000.0;
         let answer = amends::their_answer(&traits, roll < amends::refusal_chance(&traits));
+        let spoken = if answer == Answer::Refused {
+            let (vs, ps, tseed) = self.seats[seat].talk.as_ref()
+                .map(|t| (t.villager.clone(), t.player.clone(), t.seed))
+                .unwrap_or_else(|| (Speaker::new(""), Speaker::new(""), 0));
+            let st = crate::game::text::stance_of(&vs, &ps);
+            let ops = crate::game::text::shape(Act::PushBack, &st, None);
+            crate::game::text::shaped(&ops, amends::answer_line(answer),
+                None, &st, &mut TalkRng::new(tseed ^ 0xA116))
+        } else {
+            amends::answer_line(answer).into()
+        };
         self.argue_line(seat, Some(pe), amends::AMENDS_ASK.into());
-        self.argue_line(seat, Some(who), amends::answer_line(answer).into());
+        self.argue_line(seat, Some(who), spoken);
         self.world.add_component(who, AmendsTally { of: pe, n: prior.saturating_add(1) });
         if answer == Answer::Refused {
             // the chill stands - the memory's still the slight, so the

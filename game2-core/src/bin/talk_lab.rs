@@ -319,7 +319,7 @@ fn run_talk_synthetic(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &i
     loop {
         let mut need: Option<Vec<(Act, String)>> = None;
         let mut used_picks = 0usize;
-        let tr = converse_with(&them, &you, rel, &lib, 1, &mut |ch: &[Choice]| {
+        let tr = converse_with(&them, &you, rel, &lib, None, 1, &mut |ch: &[Choice]| {
             if used_picks < picks.len() {
                 let p = picks[used_picks];
                 used_picks += 1;
@@ -556,7 +556,7 @@ fn run_batch(a: &Args, out: &mut Out) {
         // auto-pick with the run's own rng, recording the picks
         let mut prng = Rng::new(cseed);
         let mut made: Vec<usize> = vec![];
-        let tr = converse_with(&roster[x], &roster[y], rel, &lib, 1, &mut |ch: &[Choice]| {
+        let tr = converse_with(&roster[x], &roster[y], rel, &lib, None, 1, &mut |ch: &[Choice]| {
             let p = prng.below(ch.len());
             made.push(p);
             Some(p)

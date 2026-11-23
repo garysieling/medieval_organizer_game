@@ -534,7 +534,7 @@ pub struct UiModel {
     pub sel: Selection,
     /// Villager indices within talk/meeting reach
     pub reach: Vec<usize>,
-    /// Whom Talk/Recruit would go to now (a villager index)
+    /// Whom Talk would go to now (a villager index)
     pub reach_target: usize,
     /// Whom Talk would land on now, if anyone (a villager index): the
     /// picked one while they're within a shout, else the best near.

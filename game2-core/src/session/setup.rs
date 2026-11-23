@@ -1023,6 +1023,7 @@ impl Game {
             scene_marks: Default::default(),
             rumor_marks: Default::default(),
             talk_log: vec![],
+            said_lines: crate::engine::det::HashMap::default(),
             talk_next_id: 0,
             was_sick: vec![None; NAMES.len()],
             died_on: vec![None; NAMES.len()],

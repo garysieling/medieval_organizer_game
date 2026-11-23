@@ -355,7 +355,7 @@ pub const ACTION_LABELS: [&str; 1] = ["Talk"];
 /// The action panel's buttons, laid out the same for every player
 pub fn action_buttons() -> [Button; 1] {
     [
-        Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
+        Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 116,  w: 130, h: 36, color: (60,60,120) },
     ]
 }
 /// The button a contextual action draws with
@@ -392,7 +392,6 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Fish => Button { label: "Fish".into(), key: ' ', x: UI_X as i32 + 150, y: 272, w: 62, h: 16, color: (80, 120, 100) },
         // Gather sits where Organize used to - the meeting is earned now
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
-        CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },
         CtxAct::Pact => Button { label: "Swear aid".into(), key: ' ', x: UI_X as i32 + 10, y: 470, w: 130, h: 16, color: (80, 120, 90) },
         CtxAct::PetCat => Button { label: "Pet her".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
         // shares the row's right half with Pet her - pushed last, it
@@ -427,7 +426,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
 /// Where the context buttons stack: a two-column band under the BONDS
 /// block, clear of the campaign text and the LOG. `ctx_buttons` is the
 /// only place their positions live - the draw and the click both read it
-pub const CTX_BAND_Y: i32 = 240;
+pub const CTX_BAND_Y: i32 = 304;
 const CTX_COLS: usize = 2;
 const CTX_W: i32 = 152;
 const CTX_H: i32 = 20;
@@ -1324,6 +1323,10 @@ pub struct Game {
     /// Every conversation heard - villagers in passing, the player's Talk,
     /// house meetings - for the TALK panel (session::dialogue)
     pub talk_log: Vec<dialogue::TalkRecord>,
+    /// The village's memory of what was said: tree line template -> the
+    /// day it was last spoken, so nobody repeats a thing still fresh in
+    /// ears (#1369)
+    pub said_lines: crate::engine::det::HashMap<&'static str, u64>,
     pub talk_next_id: u64,
     pub frame_n: u32,
 

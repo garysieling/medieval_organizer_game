@@ -58,6 +58,9 @@ pub const KID_TREE: &str = "children_at_play";
 pub const PLAYER_TALK_RANGE: f32 = 6.0;
 /// A reply not given inside this many days and they've gone back to work
 pub const PLAYER_TALK_DAYS: u64 = 8;
+/// A line spoken stays fresh in the village's ears this many days:
+/// tree lines said this recently are passed over for fresher words (#1369)
+pub const FRESH_LINE_DAYS: u64 = 3;
 /// What a reply does to the bond: agreeing warms, pushing back cools
 const AGREE_WARMTH: f32 = 0.3;
 const PUSHBACK_CHILL: f32 = 0.2;
@@ -214,6 +217,11 @@ pub struct PlayerTalk {
     /// The listener's trade (#1252): with a hog, the last slot is letting
     /// them run - the monologue yields their own story, never the village's
     pub let_run: bool,
+    /// A job going begging rides the front of the picks while it's
+    /// live (#1336): the offer's the reason you walked over, so it's the
+    /// first choice and their opening names it. Latched at open - a
+    /// mid-talk lapse refuses on the pick, never shifts the numbers
+    pub job: bool,
 }
 
 /// The one-on-one argument as it stands (#1234): which issue, then
@@ -246,8 +254,9 @@ impl Argument {
 pub const TALK_MAX_CHOICES: usize = 3;
 
 impl PlayerTalk {
-    /// How many asks fit beside the replies on offer now: the choice
-    /// list is the replies first, then asks, capped at TALK_MAX_CHOICES.
+    /// How many asks fit beside the picks on offer now: the choice
+    /// list is the job's take-it first, then the replies, then asks,
+    /// capped at TALK_MAX_CHOICES.
     /// `asks` itself keeps the whole list - an ask that doesn't fit this
     /// turn can still come up on a later one.
     /// The naming of the counter when the other asks crowd it off
@@ -267,7 +276,7 @@ impl PlayerTalk {
     }
 
     pub(crate) fn asks_shown(&self) -> usize {
-        TALK_MAX_CHOICES.saturating_sub(self.options.len()).min(self.asks.len())
+        TALK_MAX_CHOICES.saturating_sub(self.options.len() + self.job as usize).min(self.asks.len())
     }
 
     /// The choice list as shown: an argument's own steps while one's
@@ -278,7 +287,8 @@ impl PlayerTalk {
             return crate::game::inoculation::COUNTERS.iter().map(|&c| crate::game::inoculation::label(c).to_string())
                 .chain(std::iter::once("Let it drop".to_string())).collect();
         }
-        self.options.iter().map(|o| o.1.clone())
+        self.job.then(|| "About that job - I'll take it.".to_string()).into_iter()
+            .chain(self.options.iter().map(|o| o.1.clone()))
             .chain(self.asks.iter().take(self.asks_shown())
                 .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
             .chain(self.inoculation_beyond().as_ref()
@@ -403,10 +413,10 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 /// Replay a Talk: the lines so far (speaker 0 the villager, 1 the
 /// player), the replies on offer if it's the player's turn, and how it
 /// ended if it has
-fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, String)>> = None;
-    let tr = converse_with(&t.villager, &t.player, t.rel, library(), 1, &mut |ch: &[Choice]| {
+    let tr = converse_with(&t.villager, &t.player, t.rel, library(), recent, 1, &mut |ch: &[Choice]| {
         if n < t.picks.len() {
             n += 1;
             Some(t.picks[n - 1].min(ch.len().saturating_sub(1)))
@@ -415,12 +425,27 @@ fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, 
             None
         }
     }, &mut TalkRng::new(t.seed));
-    let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone())).collect();
+    let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone(), x.line)).collect();
     let ending = if offered.is_some() { None } else { tr.ending };
     (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked)
 }
 
 impl Game {
+    /// Tree lines the village has spoken lately - still fresh in ears (#1369)
+    fn fresh_lines(&self) -> crate::engine::det::HashSet<&'static str> {
+        self.said_lines.iter()
+            .filter(|(_, day)| *day + FRESH_LINE_DAYS >= self.tick)
+            .map(|(t, _)| *t).collect()
+    }
+
+    /// Mark the transcript's tree lines as spoken today, and let the
+    /// village's memory of what's said fall off past the window
+    fn note_said_lines(&mut self, lines: impl Iterator<Item = &'static str>) {
+        for t in lines { self.said_lines.insert(t, self.tick); }
+        let today = self.tick;
+        self.said_lines.retain(|_, day| *day + FRESH_LINE_DAYS >= today);
+    }
+
     pub(in crate::session) fn push_talk(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>) -> u64 {
         self.push_talk_cold(kind, with, lines, false)
     }
@@ -647,7 +672,9 @@ impl Game {
         // street mustn't shift every other roll in the sim
         let seed = self.tick.wrapping_mul(0x9E37_79B9)
             ^ ((a as u64) << 32) ^ (b as u64) ^ self.last_chat.len() as u64;
-        let tr = converse(&sa, &sb, rel, library(), &mut TalkRng::new(seed));
+        let recent = self.fresh_lines();
+        let tr = converse(&sa, &sb, rel, library(), Some(&recent), &mut TalkRng::new(seed));
+        self.note_said_lines(tr.turns.iter().filter_map(|t| t.line));
         // the exchange types what it does to the bond (#1230): the acts
         // and the close read warm or cold before the lines go on record
         let temp = crate::game::conversation::chat_temp(&tr);
@@ -1017,6 +1044,21 @@ impl Game {
             let m = self.seats[seat].mystery.as_ref().map(|m| m.def).unwrap_or(0);
             format!("Tell them what you pieced together about {}", crate::game::mysteries::MYSTERIES[m].title)
         });
+        // a job going begging opens the talk (#1336): the offer's the
+        // reason you walked over, so their opening names it and the
+        // take-it pick leads - latched now so the numbers hold. Same
+        // gate the card's button had: offer live, hands free, earshot
+        let (px, py) = self.player_pos_at(seat);
+        let near = self.world.get_component::<villager::Pos>(v)
+            .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= super::TALK_DIST)
+            .unwrap_or(false);
+        let job = rare.is_none() && near && self.seats[seat].quest.is_none()
+            && self.quest_offer_at(v).is_some();
+        if job {
+            if let Some(q) = self.quest_offer_at(v) {
+                opening.push(format!("{}: \"{}\"", villager.name, self.pending_ask_line(q)));
+            }
+        }
         let seed = self.tick.wrapping_mul(0x2545_F491) ^ ((v as u64) << 24) ^ self.talk_next_id;
         self.close_player_talk(seat, None);
         // they stop where they are for the talk: a walk under way would
@@ -1047,6 +1089,7 @@ impl Game {
             let_run: self.world.get_component::<crate::game::traits::Personality>(v)
                 .map(|p| p.traits.contains(&crate::game::traits::Trait::SelfAbsorbed))
                 .unwrap_or(false),
+            job,
         });
         self.refresh_player_talk(seat);
     }
@@ -1056,7 +1099,9 @@ impl Game {
     fn refresh_player_talk(&mut self, seat: usize) {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
-        let (said, offered, ending, tree, vibe, asked) = replay(&t);
+        let recent = self.fresh_lines();
+        let (said, offered, ending, tree, vibe, asked) = replay(&t, Some(&recent));
+        self.note_said_lines(said.iter().filter_map(|x| x.2));
         let vname = t.villager.name.clone();
         // the audition's read, the first time it's answered (#1187): a
         // good answer warms them and opens the deep material; a miss
@@ -1091,7 +1136,7 @@ impl Game {
             return;
         }
         let mut lines: Vec<TalkLine> = vec![];
-        for (k, (sp, text)) in said.iter().enumerate() {
+        for (k, (sp, text, _line)) in said.iter().enumerate() {
             let (who, name) = if *sp == 0 { (t.who, vname.clone()) } else { (pe, self.speaker_name(pe)) };
             lines.push(TalkLine { who: Some(who), name, text: text.clone(), gist: false });
             if k == 0 { lines.extend(Self::gist_lines(&t, &vname)); }
@@ -1309,13 +1354,19 @@ impl Game {
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let extra = t.inoculation_beyond();
         let probe_extra = t.probe_beyond();
+        // the job's the first pick while its offer's latched (#1336):
+        // the bound counts it, then everything numbers one down into
+        // the reply/ask space the rest of this reads
+        let job = t.job;
         let tell_at = n + asks + extra.is_some() as usize + probe_extra.is_some() as usize;
         let amends_at = tell_at + t.tell.is_some() as usize;
         let let_run_at = amends_at + t.amends as usize;
-        let Some(i) = pick.filter(|&i| i < let_run_at + t.let_run as usize) else {
+        let Some(i) = pick.filter(|&i| i < let_run_at + t.let_run as usize + job as usize) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
         };
+        if job && i == 0 { self.talk_take_job(seat); return; }
+        let i = i - job as usize;
         // the last pick, when it's there: tell them the mystery's answer
         if t.tell.is_some() && i == tell_at {
             self.talk_tell_mystery(seat);
@@ -1657,6 +1708,34 @@ impl Game {
         self.refresh_player_talk(seat);
     }
 
+    /// The job pick at the front of the list (#1336): the offer's still
+    /// live, the hands are free and they're in earshot - the ask comes
+    /// off the begging list onto the seat's card, and the exchange goes
+    /// on the record the way an argument's lines do
+    fn talk_take_job(&mut self, seat: usize) {
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let who = t.who;
+        let live = self.quest_offer_at(who).is_some();
+        let free = self.seats[seat].quest.is_none();
+        let (px, py) = self.player_pos_at(seat);
+        let near = self.world.get_component::<villager::Pos>(who)
+            .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= super::TALK_DIST)
+            .unwrap_or(false);
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.job = false; }
+        if !(live && free && near) {
+            self.narrate_talk(seat,
+                "The job's off the table - the offer's lapsed, or your hands are full.");
+            return;
+        }
+        let i = self.pending_quests.iter().position(|q| q.giver == who).unwrap();
+        let quest = self.take_pending_quest(seat, i);
+        let ask = self.quest_ask_line(&quest);
+        let pe = self.seats[seat].player;
+        self.argue_line(seat, Some(who), ask);
+        self.argue_line(seat, Some(pe), "About that job - I'll take it.".into());
+        self.refresh_player_talk(seat);
+    }
+
     /// "I've pieced it together": the mystery told across the talk - your
     /// word, their wonder and thanks, and what it came to - and the talk
     /// goes on from there
@@ -1677,7 +1756,8 @@ impl Game {
     /// been said so far (#1234)
     fn argue_line(&mut self, seat: usize, who: Option<Entity>, text: String) {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
-        let at = replay(t).0.len().max(1);
+        let recent = self.fresh_lines();
+        let at = replay(t, Some(&recent)).0.len().max(1);
         let name = match who { Some(w) if w == t.who => t.villager.name.clone(), Some(w) => self.speaker_name(w), None => String::new() };
         if let Some(cur) = self.seats[seat].talk.as_mut() {
             cur.argued.push((at, TalkLine { who, name, text, gist: false }));

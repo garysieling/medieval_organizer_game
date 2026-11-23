@@ -161,7 +161,7 @@ fn main() -> io::Result<()> {
             for _ in 0..num_conversations {
                 let char_b = &roster[(char_idx + 1 + rng.below(num_characters - 1)) % num_characters];
                 let relation = RELATIONS[rng.below(RELATIONS.len())];
-                let t = converse(char_a, char_b, relation, &library, &mut rng);
+                let t = converse(char_a, char_b, relation, &library, None, &mut rng);
                 // the responder's turn answers the caller's immediately
                 // before it; a fresh call after a reply is a new beat,
                 // not an adjacency
@@ -226,7 +226,7 @@ fn main() -> io::Result<()> {
 
             let relation = RELATIONS[rng.below(RELATIONS.len())];
 
-            let transcript = converse(char_a, char_b, relation, &library, &mut rng);
+            let transcript = converse(char_a, char_b, relation, &library, None, &mut rng);
 
             writeln!(out, "### Conversation #{:02}: {} and {}", conv_count, char_a.name, char_b.name)?;
             writeln!(out, "- **Speakers:** {} ({}) & {} ({})",
@@ -301,7 +301,7 @@ fn json_conversations(
             let other_offset = 1 + rng.below(num_characters - 1);
             let char_b = &roster[(char_idx + other_offset) % num_characters];
             let relation = RELATIONS[rng.below(RELATIONS.len())];
-            let t = converse(char_a, char_b, relation, library, rng);
+            let t = converse(char_a, char_b, relation, library, None, rng);
             let fp = transcript_fingerprint(&t.speakers, &t.turns);
             out.push(serde_json::json!({
                 // the roster and pairings depend on the batch's shape too,

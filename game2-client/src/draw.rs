@@ -129,7 +129,7 @@ pub(crate) fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoo
 pub(crate) fn draw_picket_sign(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, design: u8) {
     let z = |v: f32| (v * zoom).round() as i32;
     let bx = sx + z(11.0);
-    let by = sy - z(34.0);
+    let by = sy - z(22.0);
     let (bw, bh) = (z(11.0).max(4), z(9.0).max(3));
     // the stick in the fist, then the board: rim, face, a mark of writing
     buf.rect(bx + bw / 2 - 1, by + bh - 1, 2, z(13.0).max(4), 105, 70, 40);
@@ -520,8 +520,8 @@ pub(crate) fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: b
     draw_rect(buf, b.x, b.y, b.w, 1, 255, 255, 255);
     draw_rect(buf, b.x, b.y + b.h - 1, b.w, 1, 20, 20, 20);
     // label centered
-    let tw = b.label.len() as i32 * 6;
-    draw_text(buf, b.x + (b.w - tw) / 2, b.y + (b.h - 7) / 2, &b.label, 255, 255, 255);
+    let tw = b.label.len() as i32 * GLYPH_W;
+    draw_text(buf, b.x + (b.w - tw) / 2, b.y + (b.h - GLYPH_H) / 2, &b.label, 255, 255, 255);
     // key hint
     let key = format!("{}", b.key);
     draw_text(buf, b.x + b.w - 10, b.y + 2, &key, 180, 180, 200);

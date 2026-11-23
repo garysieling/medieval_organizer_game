@@ -43,7 +43,7 @@ fn main() {
     println!("Relation: Acquaintance\n");
 
     let mut rng = Rng::new(101);
-    let tr = converse(&eliza, &aldric, Relation::Acquaintance, &library, &mut rng);
+    let tr = converse(&eliza, &aldric, Relation::Acquaintance, &library, None, &mut rng);
     println!("Trees walked in cascade: {:?}", tr.trees_walked);
     println!("Outcome: {:?}\n", tr.ending.unwrap_or(Ending::Exhausted));
     for turn in &tr.turns {
@@ -65,7 +65,7 @@ fn main() {
     println!("Relation: Rival\n");
 
     let mut rng = Rng::new(202);
-    let tr_rival = converse(&wulfric, &corvin, Relation::Rival, &library, &mut rng);
+    let tr_rival = converse(&wulfric, &corvin, Relation::Rival, &library, None, &mut rng);
     println!("Trees walked: {:?}", tr_rival.trees_walked);
     println!("Outcome: {:?}\n", tr_rival.ending.unwrap_or(Ending::Exhausted));
     for turn in &tr_rival.turns {
@@ -90,7 +90,7 @@ fn main() {
     println!("Relation: Acquaintance\n");
 
     let mut rng = Rng::new(303);
-    let tr_cleric = converse(&anselm, &bram, Relation::Acquaintance, &library, &mut rng);
+    let tr_cleric = converse(&anselm, &bram, Relation::Acquaintance, &library, None, &mut rng);
     println!("Trees walked: {:?}", tr_cleric.trees_walked);
     println!("Outcome: {:?}\n", tr_cleric.ending.unwrap_or(Ending::Exhausted));
     for turn in &tr_cleric.turns {
@@ -111,6 +111,7 @@ fn main() {
         &player,
         Relation::Acquaintance,
         &library,
+        None,
         1, // player is speaker 1 (responder)
         &mut |choices: &[Choice]| {
             turn_count += 1;

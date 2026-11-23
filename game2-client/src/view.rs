@@ -34,8 +34,8 @@ const TOAST_PITCH: i32 = 30;
 /// The LOG panel's wrap width in glyphs ((box width - padding) / glyph
 /// width) and its row count - shared by the draw pass and log_hit's
 /// row math so a click lands on the line that's drawn there (#645)
-const LOG_CHARS: usize = 52;
-const LOG_ROWS: usize = 8;
+const LOG_CHARS: usize = 28;
+const LOG_ROWS: usize = 6;
 /// The LOG box's screen rect: x, y, w, h - hit-testing reads the same
 const LOG_BOX: (i32, i32, i32, i32) = (UI_X as i32 + 10, 512, 320, 110);
 
@@ -93,7 +93,7 @@ fn mystery_line(mz: &MysteryV) -> String {
     if mz.title.is_empty() {
         mz.asker_name.clone()
     } else {
-        format!("Mystery: {} - {}/{} whispers ({} wants to know)",
+        format!("{} {}/{} ({} wants to know)",
             mz.title, mz.heard, mz.total, mz.asker_name)
     }
 }
@@ -102,12 +102,12 @@ fn mystery_line(mz: &MysteryV) -> String {
 /// char col, one past the last). The name rides inside the "(name" word,
 /// which greedy wrapping places identically whether or not the suffix
 /// follows, so wrapping just up to the name finds its row and column
-fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
+pub(crate) fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
     if mz.title.is_empty() || mz.asker_name.is_empty() { return None; }
-    let prefix = format!("Mystery: {} - {}/{} whispers (", mz.title, mz.heard, mz.total);
-    let lines = wrap_text(&format!("{}{}", prefix, mz.asker_name), 30);
+    let prefix = format!("{} {}/{} (", mz.title, mz.heard, mz.total);
+    let lines = wrap_text(&format!("{}{}", prefix, mz.asker_name), 16);
     let (row, last) = lines.iter().enumerate().last()?;
-    if row >= 3 { return None; }
+    if row >= 4 { return None; }
     let byte = last.find(&format!("({}", mz.asker_name))?;
     let col = last[..byte].chars().count() + 1;
     Some((row, col, col + mz.asker_name.chars().count()))
@@ -181,7 +181,7 @@ impl View {
             }).collect();
         live.iter().enumerate().map(|(slot, &(i, age))| {
             let t = &toasts[i];
-            let tw = t.text.len() as i32 * 6 + 16;
+            let tw = t.text.len() as i32 * GLYPH_W + 16;
             let rise = age as f32 / TOAST_LIFE as f32 * TOAST_RISE;
             let fade = ((TOAST_LIFE - age) as f32 / TOAST_FADE as f32).min(1.0);
             (i, MAP_W as i32 / 2 - tw / 2, TOAST_TOP + slot as i32 * TOAST_PITCH - rise as i32, tw, fade)
@@ -211,8 +211,8 @@ impl View {
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
             for _ in wrap_text(&text, LOG_CHARS) {
                 if row == log_rows { return None; }
-                let y = 530 + row as i32 * 12;
-                if my >= y && my < y + 12 {
+                let y = 530 + row as i32 * LINE_H;
+                if my >= y && my < y + LINE_H {
                     return (entry.at.is_some() || entry.who.is_some()).then_some(i);
                 }
                 row += 1;
@@ -228,10 +228,10 @@ impl View {
         let mz = m.panel.mystery.as_ref()?;
         let asker = mz.asker?;
         let (row, c0, c1) = mystery_name_col(mz)?;
-        let y = 68 + row as i32 * 11;
+        let y = 90 + row as i32 * LINE_H;
         let x0 = UI_X as i32 + 150 + c0 as i32 * GLYPH_W;
         let x1 = UI_X as i32 + 150 + c1 as i32 * GLYPH_W;
-        (mx >= x0 && mx < x1 && my >= y && my < y + 11).then_some(asker)
+        (mx >= x0 && mx < x1 && my >= y && my < y + LINE_H).then_some(asker)
     }
 
     /// The sprite a building draws with
@@ -1187,10 +1187,11 @@ impl View {
         // status: members, season, tick
         let p = &m.panel;
         let guild = Some(m.panel.guilds).filter(|g| *g > 0);
-        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.leader.as_deref(), p.members.len(), p.gold, guild), 200, 200, 200);
+        draw_text(&mut buf, UI_X as i32 + 10, 36, &org_line(&p.org, p.leader.as_deref(), p.members.len()), 200, 200, 200);
+        draw_text(&mut buf, UI_X as i32 + 10, 52, &purse_line(p.gold, guild), 200, 200, 200);
         // the odd job under way, if the Wanderer's carrying one
         if let Some(q) = &m.panel.quest {
-            draw_text(&mut buf, UI_X as i32 + 10, 42, q, 240, 220, 140);
+            draw_text(&mut buf, UI_X as i32 + 10, 68, q, 240, 220, 140);
         }
         // the mystery doing the rounds, if the seat's piecing one
         // together - right of the action buttons, where nothing else sits;
@@ -1198,15 +1199,15 @@ impl View {
         if let Some(mz) = &m.panel.mystery {
             let line = mystery_line(mz);
             let name_col = mystery_name_col(mz);
-            for (n, l) in wrap_text(&line, 30).iter().take(3).enumerate() {
-                let y = 68 + n as i32 * 11;
+            for (n, l) in wrap_text(&line, 16).iter().take(4).enumerate() {
+                let y = 90 + n as i32 * LINE_H;
                 // the name's cells draw bright - and brighter still under
                 // the mouse, the way the log's clickable lines do
                 let span = name_col.and_then(|(row, c0, c1)| (row == n).then_some((c0, c1)));
                 let hovered = span.map(|(c0, c1)| {
                     mx >= UI_X as i32 + 150 + c0 as i32 * GLYPH_W
                         && mx < UI_X as i32 + 150 + c1 as i32 * GLYPH_W
-                        && my >= y && my < y + 11
+                        && my >= y && my < y + LINE_H
                 }).unwrap_or(false);
                 draw_text(&mut buf, UI_X as i32 + 150, y, l, 200, 180, 235);
                 if let Some((c0, c1)) = span {
@@ -1221,7 +1222,9 @@ impl View {
         // the powers' standing words on the org - one line, so a
         // stack of them can't run under the buttons
         if !m.panel.org_status.is_empty() {
-            draw_text(&mut buf, UI_X as i32 + 10, 54, &org_status_line(&m.panel.org_status), 200, 150, 150);
+            for (n, l) in wrap_text(&org_status_line(&m.panel.org_status), 29).iter().take(2).enumerate() {
+                draw_text(&mut buf, UI_X as i32 + 10, 84 + n as i32 * LINE_H, l, 200, 150, 150);
+            }
         }
 
 
@@ -1242,11 +1245,11 @@ impl View {
         // the house-meeting plan filling in: who's said yes, by name -
         // it sits right of the BONDS block, clear of the ctx band below
         if let Some(mp) = &m.panel.meeting {
-            draw_text(&mut buf, UI_X as i32 + 190, 190, "MEETING", 255, 215, 0);
+            draw_text(&mut buf, UI_X as i32 + 190, 240, "MEETING", 255, 215, 0);
             let lines: Vec<String> = meeting_lines(mp).iter()
-                .flat_map(|l| wrap_text(l, 23)).collect();
+                .flat_map(|l| wrap_text(l, 13)).collect();
             for (n, line) in lines.iter().take(3).enumerate() {
-                draw_text(&mut buf, UI_X as i32 + 190, 201 + n as i32 * 11, line, 220, 220, 180);
+                draw_text(&mut buf, UI_X as i32 + 190, 255 + n as i32 * LINE_H, line, 220, 220, 180);
             }
         }
 
@@ -1260,7 +1263,7 @@ impl View {
         const INSP_W: i32 = 364;
         if self.inspector_open && m.inspector.is_some() {
             let insp = m.inspector.as_ref().unwrap();
-            let deep = insp.lines.iter().map(|l| l.y).max().unwrap_or(460) + 14;
+            let deep = insp.lines.iter().map(|l| l.y).max().unwrap_or(460) + LINE_H;
             let card_h = (deep - 316).clamp(120, 560);
             let top = 948 - card_h;
             let lx = |k: i32| INSP_X + k - 10;
@@ -1325,17 +1328,19 @@ impl View {
         // between the Build button (ends 184) and the Gather ctx button
         // (starts 236), so the block can't outgrow three lines
         let s = &m.panel.social;
-        draw_text(&mut buf, UI_X as i32 + 18, 190, "BONDS", 255, 215, 0);
+        draw_text(&mut buf, UI_X as i32 + 18, 240, "BONDS", 255, 215, 0);
         for (n, line) in bond_lines(s).iter().enumerate() {
-            draw_text(&mut buf, UI_X as i32 + 18, 202 + n as i32 * 12, line, 215, 215, 195);
+            draw_text(&mut buf, UI_X as i32 + 18, 255 + n as i32 * LINE_H, line, 215, 215, 195);
         }
 
         // the org's own muscle - a word for its strength and whether it's
         // been used; the inspector card floats on the map now, so the row
         // always has the panel to itself. The org blocks only make sense
         // once the cause's founded - before it they're noise
+        let mut oy = 410;
         if let Some(pw) = &m.panel.power {
-            draw_text(&mut buf, UI_X as i32 + 18, 452, pw, 170, 200, 170);
+            draw_text(&mut buf, UI_X as i32 + 18, oy, pw, 170, 200, 170);
+            oy += LINE_H;
         }
 
         // organization: who has joined, by name - a cause's own roll,
@@ -1343,18 +1348,22 @@ impl View {
         // org's own sign)
         if org_started(m) {
             let member_names: Vec<&str> = m.panel.members.iter().map(|s| s.as_str()).collect();
-            draw_text(&mut buf, UI_X as i32 + 18, 464, MEMBERS_LABEL, 255, 215, 0);
-            draw_text(&mut buf, UI_X as i32 + 18 + (MEMBERS_LABEL.len() as i32 + 1) * GLYPH_W, 464, &members_line(&member_names), 220, 220, 180);
+            draw_text(&mut buf, UI_X as i32 + 18, oy, MEMBERS_LABEL, 255, 215, 0);
+            oy += LINE_H;
+            draw_text(&mut buf, UI_X as i32 + 18, oy, &members_line(&member_names), 220, 220, 180);
+            oy += LINE_H;
         }
 
         // the issues the organizer has pieced together - the organizer's
         // own ledger, drawn once a cause exists (the members' or the
         // issues' own non-empty's the sign)
         if org_started(m) || !m.panel.issues.is_empty() {
-            draw_text(&mut buf, UI_X as i32 + 18, 476, "ISSUES", 255, 215, 0);
+            draw_text(&mut buf, UI_X as i32 + 18, oy, "ISSUES", 255, 215, 0);
+            oy += LINE_H;
         let issue_line = if m.panel.issues.is_empty() { "none heard yet".to_string() } else { m.panel.issues.join("; ") };
-        for (n, line) in wrap_text(&issue_line, 42).iter().take(if m.panel.campaign.is_some() { 1 } else { 2 }).enumerate() {
-            draw_text(&mut buf, UI_X as i32 + 18 + (7 * GLYPH_W), 476 + n as i32 * 11, line, 220, 190, 140);
+        for line in wrap_text(&issue_line, 26).iter().take(if m.panel.campaign.is_some() { 1 } else { 2 }) {
+            draw_text(&mut buf, UI_X as i32 + 18, oy, line, 220, 190, 140);
+            oy += LINE_H;
         }
         }
         // the campaign the org fights for, once it's taken its vote - the
@@ -1362,7 +1371,8 @@ impl View {
         if let Some(c) = &m.panel.campaign {
             // the pull behind the seats: the member whose ties run the
             // room's empty chairs
-            draw_text(&mut buf, UI_X as i32 + 18, 488, &fight_line(c), 255, 180, 120);
+            draw_text(&mut buf, UI_X as i32 + 18, oy, &fight_line(c), 255, 180, 120);
+            oy += LINE_H;
             let due = if c.due { "meet due" } else { "meet to come" };
             // the cause's posture rides the cadence: won through, the
             // room's split, the cause's weary
@@ -1370,10 +1380,12 @@ impl View {
             // the assembly's standing rides the same line when it's
             // got something to say - the agenda posted, pledges counted
             let assembly = if c.assembly.is_empty() { String::new() } else { format!(" - {}", c.assembly) };
-            draw_text(&mut buf, UI_X as i32 + 18, 500,
+            draw_text(&mut buf, UI_X as i32 + 18, oy,
                 &format!("every {}d - {}{}{}{}", c.cadence_days, due, state, assembly,
                     if c.seats.join(" ").is_empty() { String::new() } else { format!(" - {}", c.seats.join(" ")) }),
                 120, 120, 140);
+        } else if oy > 410 {
+            draw_text(&mut buf, UI_X as i32 + 18, oy, PANEL_HINT, 120, 120, 140);
         } else {
             draw_text(&mut buf, UI_X as i32 + 18, 500, PANEL_HINT, 120, 120, 140);
         }
@@ -1399,8 +1411,8 @@ impl View {
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
             for (n, line) in wrap_text(&text, LOG_CHARS).iter().enumerate() {
                 if row == log_rows { break 'log; }
-                let y = 530 + row as i32 * 12;
-                let hovered = clickable && mx >= lx && mx < lx + lw && my >= y && my < y + 12;
+                let y = 530 + row as i32 * LINE_H;
+                let hovered = clickable && mx >= lx && mx < lx + lw && my >= y && my < y + LINE_H;
                 let (r, g, b) = if hovered {
                     let lift = |c: u8| (c as u16 + (255 - c as u16) / 2) as u8;
                     (lift(r), lift(g), lift(b))
@@ -1421,7 +1433,7 @@ impl View {
         }
         // the reserved row holds the count of what's already gone
         if m.log_dropped > 0 {
-            draw_text(&mut buf, UI_X as i32 + 14, 530 + row as i32 * 12,
+            draw_text(&mut buf, UI_X as i32 + 14, 530 + row as i32 * LINE_H,
                 &format!("· · · {} earlier lines", m.log_dropped), 100, 100, 125);
         }
 
@@ -1450,17 +1462,18 @@ impl View {
                 &art.ui_frame, m.season);
         }
 
-        // what the marks over villagers' heads mean, under the log
-        let mut mx = UI_X as i32 + 14;
+        // what the marks over villagers' heads mean, under the log -
+        // two rows of two at the manuscript face's metric
         for (i, (m, (r, g, b), word)) in MAP_MARKS.iter().enumerate() {
-            if draw_icon(&mut buf, art.icon(MARK_ICONS[i]), mx, LEGEND_Y - 3, 12) {
+            let ly = LEGEND_Y + (i / 2) as i32 * LINE_H;
+            let mut mx = UI_X as i32 + 14 + (i % 2) as i32 * 148;
+            if draw_icon(&mut buf, art.icon(MARK_ICONS[i]), mx, ly - 3, 12) {
                 mx += 16;
             } else {
-                draw_text(&mut buf, mx, LEGEND_Y, *m, *r, *g, *b);
+                draw_text(&mut buf, mx, ly, *m, *r, *g, *b);
                 mx += (m.len() as i32 + 1) * GLYPH_W;
             }
-            draw_text(&mut buf, mx, LEGEND_Y, *word, 150, 150, 170);
-            mx += (word.len() as i32 + 2) * GLYPH_W;
+            draw_text(&mut buf, mx, ly, *word, 150, 150, 170);
         }
 
         // season change: subtle banner notification instead of flash
@@ -1542,7 +1555,10 @@ impl View {
                     None => sv.name.clone(),
                 },
             };
-            draw_text(&mut buf, x as i32 + 4, y as i32 - 3, &label, r, g, b);
+            // the name rides the dot's right, pulled back left when it
+            // would run off the panel's edge
+            let lx = (x as i32 + 4).min(W as i32 - 4 - label.len() as i32 * GLYPH_W);
+            draw_text(&mut buf, lx, y as i32 - 3, &label, r, g, b);
         }
         // graves go down last: a crowd at the graveside mustn't hide one
         let (living, graves): (Vec<&PersonV>, Vec<&PersonV>) = m.people.iter()
@@ -1710,10 +1726,10 @@ impl View {
         // the ledger overlay: the public KPIs the model carried (F3)
         if self.ledger_open && !m.debug_lines.is_empty() {
             let rows = m.debug_lines.len();
-            draw_rect(&mut buf, 10, 60, 200, rows as i32 * 12 + 22, 20, 22, 34);
+            draw_rect(&mut buf, 10, 60, 200, rows as i32 * LINE_H + 22, 20, 22, 34);
             draw_text(&mut buf, 14, 64, "LEDGER", 150, 150, 180);
             for (i, line) in m.debug_lines.iter().take(14).enumerate() {
-                draw_text(&mut buf, 14, 76 + i as i32 * 12, line, 190, 190, 210);
+                draw_text(&mut buf, 14, 76 + i as i32 * LINE_H, line, 190, 190, 210);
             }
         }
 

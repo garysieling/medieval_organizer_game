@@ -416,8 +416,10 @@ fn test_the_table_keeps_its_register() {
     g.seats[0].selected_building = Some(tav_i);
     g.seats[0].picked = false;
     let ins = g.ui_model_at(0).inspector.expect("no card for the tavern");
-    assert!(ins.lines.iter().any(|l| l.text.contains("the table's company")
-        && l.text.contains(vill_name(4))),
+    // the register wraps over rows at the manuscript metric - the
+    // company and its names may land on separate lines
+    let joined = ins.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>().join(" ");
+    assert!(joined.contains("the table's company") && joined.contains(vill_name(4)),
         "the card doesn't name the company: {:?}",
         ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }

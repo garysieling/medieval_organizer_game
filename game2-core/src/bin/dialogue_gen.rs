@@ -56,6 +56,10 @@ fn kind_for(rng: &mut Rng, relation: Relation) -> Option<RelKind> {
 
 fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
     let mut roster = Vec::with_capacity(n);
+    // one sky for the batch, like a real day's (#1388): weather-gated
+    // lines show in the generated corpus, keyed on the wx-* statuses
+    // speaker_of pushes in-game
+    let wx = ["wx-rain", "wx-snow", "wx-fog", "wx-fair"][rng.below(4)];
     for i in 0..n {
         let name = NAMES[i % NAMES.len()];
         let ideology = IDEOLOGIES[rng.below(IDEOLOGIES.len())];
@@ -73,6 +77,7 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
         // Status
         let status_pick = STATUSES[rng.below(STATUSES.len())];
         let mut status = Vec::new();
+        status.push(wx);
         if status_pick != "well" {
             status.push(status_pick);
         }

@@ -51,6 +51,31 @@ pub(crate) const HELP_NO: &[&str] = &[
     "Can't - my own work's piled past the door.",
     "Not this week - ask me again when the rain's past.",
 ];
+/// The favor-ask (#1388): the talk turns on what the asked actually
+/// makes - a fish for coin, a pot of honey for the child's throat. The
+/// walk's the same help-out follow-through; the goods themselves stay
+/// an economy matter, not a chat one
+pub(crate) const FAVOR_ASKS: &[(crate::game::vocation::Vocation, &str)] = &[
+    (crate::game::vocation::Vocation::Fisher, "Wouldst thou spare a fat trout for a penny? The pot's thin this week."),
+    (crate::game::vocation::Vocation::Beekeeper, "Couldst thou spare a pot of honey? My child's throat's raw with the cough."),
+    (crate::game::vocation::Vocation::Weaver, "Hast thou a length of cloth off the loom for a fair price?"),
+    (crate::game::vocation::Vocation::Baker, "Wouldst thou spare a loaf on tick till market day?"),
+    (crate::game::vocation::Vocation::Alewife, "Could I trouble thee for a jug of thy small ale?"),
+    (crate::game::vocation::Vocation::Brewer, "A firkin of thy beer for the haymaking - name the price."),
+    (crate::game::vocation::Vocation::Vintner, "Hast thou a bottle of the good wine for a feast day?"),
+    (crate::game::vocation::Vocation::Shepherd, "Wouldst thou spare a fleece or two? My spindle's idle."),
+    (crate::game::vocation::Vocation::Farmer, "Couldst thou spare a sack of grain till the harvest comes in?"),
+    (crate::game::vocation::Vocation::Shoemaker, "Couldst thou mend my boots? The sole's near through."),
+    (crate::game::vocation::Vocation::Taverner, "A bowl of thy pottage for a hungry evening - what's the price?"),
+    (crate::game::vocation::Vocation::Perfumer, "A vial of thy scent for the house - what dost thou ask?"),
+    (crate::game::vocation::Vocation::Distiller, "A dram of the water of life for a cold night?"),
+];
+/// A favor granted reads like one brought round, not one fetched
+pub(crate) const FAVOR_YES: &[&str] = &[
+    "Aye, I'll bring it by before dark.",
+    "Come by my bench before dusk - I'll set it aside.",
+    "For thee? Aye - look for it at thy door.",
+];
 /// The children's tree: a pair of kids keeps to it
 pub const KID_TREE: &str = "children_at_play";
 /// Walk further than this (tiles) from whoever you're talking with and
@@ -362,6 +387,18 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
         // slugs mark only the areas it actually hides behind
         if !p.ghosts.is_empty() { s.status.push("keeps_wound"); }
     }
+    // the sky overhead (#1388): the day's weather rides as a status so
+    // weather talk gates on what the day is actually doing - rain lines
+    // only fall out of a wet sky
+    let wx = world.query::<crate::sim::climate::Climate>().first()
+        .and_then(|&e| world.get_component::<crate::sim::climate::Climate>(e))
+        .and_then(crate::sim::precipitation::precip_kind);
+    s.status.push(match wx {
+        Some(k) if k.is_snow() => "wx-snow",
+        Some(crate::sim::precipitation::PrecipKind::Haar) => "wx-fog",
+        Some(_) => "wx-rain",
+        None => "wx-fair",
+    });
     // the voice's own weight in the room (#1249): bonds, seniority,
     // standing, the moral pull of a dead loss - read live, not stored
     s.pull = crate::game::organizing::pull_of(world, who);
@@ -769,8 +806,13 @@ impl Game {
             let gone = |e: Entity| super::is_sick(&self.world, e)
                 || self.world.get_component::<super::Pos>(e).is_none();
             if (hr.below(1000) as f32) < rate * 1000.0 && !gone(asker) && !gone(asked) {
+                // what the asked makes is what they can be asked for
+                // (#1388): the fish for coin, the pot of honey
+                let favor = self.world.get_component::<super::Craft>(asked)
+                    .and_then(|c| FAVOR_ASKS.iter().find(|(v, _)| *v == c.vocation).map(|(_, t)| *t));
+                let favor = favor.filter(|_| hr.below(2) == 0);
                 lines.push(TalkLine { who: Some(asker), name: asker_name,
-                    text: HELP_ASKS[hr.below(HELP_ASKS.len())].into(), gist: false });
+                    text: favor.unwrap_or_else(|| HELP_ASKS[hr.below(HELP_ASKS.len())]).into(), gist: false });
                 let refuse = (hr.below(1000) as f32)
                     < (0.25 - 0.08 * bent(ttraits)).clamp(0.05, 0.9) * 1000.0;
                 let tile = self.world.get_component::<super::Pos>(asker)
@@ -781,7 +823,9 @@ impl Game {
                 let sent = !refuse && free && tile
                     .map(|t| self.send_far(asked, t, super::Goal::HelpOut(asker)))
                     .unwrap_or(false);
-                let pool = if sent { HELP_YES } else { HELP_NO };
+                let pool = if !sent { HELP_NO }
+                    else if favor.is_some() { FAVOR_YES }
+                    else { HELP_YES };
                 lines.push(TalkLine { who: Some(asked), name: asked_name,
                     text: pool[hr.below(pool.len())].into(), gist: false });
                 if !sent {

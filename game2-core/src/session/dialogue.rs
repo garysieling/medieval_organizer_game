@@ -176,6 +176,9 @@ pub struct PlayerTalk {
     pub villager: Speaker,
     pub player: Speaker,
     pub rel: Relation,
+    /// The finer bond, when the village knows it (#1372): lovers and
+    /// mentors reach different words than acquaintances
+    pub kind: Option<crate::game::relationships::RelKind>,
     pub seed: u64,
     pub picks: Vec<usize>,
     /// Who they are, read ahead of what's on their mind
@@ -453,7 +456,7 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, String)>> = None;
-    let tr = converse_with(&t.villager, &t.player, t.rel, library(), recent, 1, &mut |ch: &[Choice]| {
+    let tr = converse_with(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &mut |ch: &[Choice]| {
         if n < t.picks.len() {
             n += 1;
             Some(t.picks[n - 1].min(ch.len().saturating_sub(1)))
@@ -713,7 +716,7 @@ impl Game {
         let seed = self.tick.wrapping_mul(0x9E37_79B9)
             ^ ((a as u64) << 32) ^ (b as u64) ^ self.last_chat.len() as u64;
         let recent = self.fresh_lines();
-        let tr = converse(&sa, &sb, rel, library(), Some(&recent), &mut TalkRng::new(seed));
+        let tr = converse(&sa, &sb, rel, self.rel_kind(a, b), library(), Some(&recent), &mut TalkRng::new(seed));
         self.note_said_lines(tr.turns.iter().filter_map(|t| t.line));
         // the exchange types what it does to the bond (#1230): the acts
         // and the close read warm or cold before the lines go on record
@@ -1123,8 +1126,9 @@ impl Game {
         // backstory built off statuses it doesn't have (#1168)
         let profile = rare.map(|i| super::events::visitor_blurb(i).to_string())
             .unwrap_or_else(|| crate::game::dialogue_trees::backstory(&villager));
+        let kind = self.rel_kind(pe, v);
         self.seats[seat].talk = Some(PlayerTalk {
-            id, who: v, villager, player, rel, seed, picks: vec![],
+            id, who: v, villager, player, rel, kind, seed, picks: vec![],
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,

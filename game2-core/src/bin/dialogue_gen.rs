@@ -17,6 +17,7 @@ use std::io::{self, Write};
 
 use game2_core::game::conversation::{act_fit, converse, Relation, Rng, Speaker, Turn};
 use game2_core::game::dialogue_trees::{backstory, village_library};
+use game2_core::game::relationships::RelKind;
 use game2_core::game::traits::Trait;
 use game2_core::session::NAMES;
 
@@ -39,6 +40,19 @@ const RELATIONS: [Relation; 5] = [
     Relation::Kin,
     Relation::Rival,
 ];
+
+/// A plausible fine bond for the coarse relation the draw picked (#1372):
+/// kin reads family or lover, a friend may stand as a mentor, an
+/// acquaintance may be an apprentice - so the kind-keyed material shows
+fn kind_for(rng: &mut Rng, relation: Relation) -> Option<RelKind> {
+    Some(match relation {
+        Relation::Kin => if rng.below(2) == 0 { RelKind::Family } else { RelKind::Lover },
+        Relation::Friend => if rng.below(3) == 0 { RelKind::Mentor } else { RelKind::Friend },
+        Relation::Acquaintance => [RelKind::Acquaintance, RelKind::Mentor, RelKind::Apprentice][rng.below(3)],
+        Relation::Rival => RelKind::Rival,
+        Relation::Stranger => RelKind::Stranger,
+    })
+}
 
 fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
     let mut roster = Vec::with_capacity(n);
@@ -175,7 +189,7 @@ fn main() -> io::Result<()> {
             for _ in 0..num_conversations {
                 let char_b = &roster[(char_idx + 1 + rng.below(num_characters - 1)) % num_characters];
                 let relation = RELATIONS[rng.below(RELATIONS.len())];
-                let t = converse(char_a, char_b, relation, &library, None, &mut rng);
+                let t = converse(char_a, char_b, relation, kind_for(&mut rng, relation), &library, None, &mut rng);
                 // the responder's turn answers the caller's immediately
                 // before it; a fresh call after a reply is a new beat,
                 // not an adjacency
@@ -243,7 +257,7 @@ fn main() -> io::Result<()> {
 
             let relation = RELATIONS[rng.below(RELATIONS.len())];
 
-            let transcript = converse(char_a, char_b, relation, &library, None, &mut rng);
+            let transcript = converse(char_a, char_b, relation, kind_for(&mut rng, relation), &library, None, &mut rng);
 
             writeln!(out, "### Conversation #{:02}: {} and {}", conv_count, char_a.name, char_b.name)?;
             writeln!(out, "- **Speakers:** {} ({}) & {} ({})",
@@ -319,7 +333,8 @@ fn json_conversations(
             let other_offset = 1 + rng.below(num_characters - 1);
             let char_b = &roster[(char_idx + other_offset) % num_characters];
             let relation = RELATIONS[rng.below(RELATIONS.len())];
-            let t = converse(char_a, char_b, relation, library, None, rng);
+            let kind = kind_for(rng, relation);
+            let t = converse(char_a, char_b, relation, kind, library, None, rng);
             let fp = transcript_fingerprint(&t.speakers, &t.turns);
             out.push(serde_json::json!({
                 // the roster and pairings depend on the batch's shape too,
@@ -329,6 +344,7 @@ fn json_conversations(
                 "source": "generated",
                 "kind": "Chat",
                 "relation": format!("{:?}", relation),
+                "rel_kind": kind.map(|k| format!("{:?}", k)),
                 "speakers": [speaker_json(char_a), speaker_json(char_b)],
                 "trees": t.trees_walked,
                 "ending": format!("{:?}", t.ending.unwrap_or(game2_core::game::conversation::Ending::Exhausted)),

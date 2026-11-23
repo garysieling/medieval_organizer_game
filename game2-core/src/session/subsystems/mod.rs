@@ -5,6 +5,7 @@
 
 mod animals;
 mod assembly;
+pub(in crate::session) mod beats;
 mod cascade;
 mod day;
 mod economy;

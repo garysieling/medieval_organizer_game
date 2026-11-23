@@ -527,6 +527,8 @@ impl Game {
         crate::timed!("sim.language", self.language_tick(tick));
         crate::timed!("sim.event_pace", self.event_pace_tick(tick));
         crate::timed!("sim.storyteller", self.storyteller_tick(tick));
+        // and the person-scale telling layer: the day's beats, capped
+        crate::timed!("sim.beats", self.beat_tick(tick));
         crate::timed!("sim.authority", self.authority_tick(tick));
         crate::timed!("sim.laborers", self.laborer_tick(tick));
         crate::timed!("sim.doctor", self.doctor_tick(tick));

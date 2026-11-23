@@ -245,6 +245,52 @@ impl crate::engine::ecs::System for GriefSystem {
     }
 }
 
+/// The telling layer's major beats (#1445): the moments a life turns
+/// toward the player - scored, capped, and surfaced by the beat
+/// scheduler. The kinds not yet wired register their triggers as the
+/// upstream systems land
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BeatKind {
+    /// They lost someone - the grief said aloud
+    Loss,
+    /// A thing they'd only held privately, declared in the open
+    FirstDeclaration,
+    /// They were seen to change (belief-strength events, E8-2)
+    Change,
+    /// Something the player did or gave comes back to mind
+    Remembered,
+    /// A confidence told that wasn't theirs to keep
+    Confession,
+    /// The player's named and blamed for what they did
+    Reproach,
+    /// Someone the village buried or lost comes back
+    Return,
+    /// They argue for a thing the player knows they don't believe
+    ConvincingSurprise,
+}
+
+/// A villager's beat history: when the last major one landed, and
+/// which kinds they've had - the scheduler's cap and its novelty read
+#[derive(Debug, Clone)]
+pub struct BeatMemory {
+    /// The day their last major beat fired (u64::MAX = none yet)
+    pub last_major: u64,
+    /// (kind, the day it fired) - a repeated kind is less novel
+    pub of_kind: Vec<(BeatKind, u64)>,
+    /// The dead they've already mourned aloud - a loss doesn't beat twice
+    pub lost: Vec<Entity>,
+    /// The troubles they've already declared - a first declaration is,
+    /// by its name, once per trouble
+    pub declared: Vec<crate::game::desires::Problem>,
+}
+
+impl BeatMemory {
+    /// At most one major beat per villager per in-game week (#1445)
+    pub fn capped(&self, tick: u64) -> bool {
+        self.last_major != u64::MAX && tick < self.last_major + 7
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

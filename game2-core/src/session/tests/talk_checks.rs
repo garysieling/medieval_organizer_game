@@ -139,3 +139,17 @@ fn test_every_talk_ends_in_bounds() {
     }
     assert!(bad.is_empty(), "ending faults:\n{}", bad.join("\n"));
 }
+
+/// E5-1's done-when (#1430): the reveal acts are real content, not
+/// enum furniture - worry, bid, joke, errand, evade and slip each
+/// reach a transcript in the seeded corpus
+#[test]
+fn test_each_reveal_act_appears_in_the_corpus() {
+    let mut seen = crate::engine::det::HashSet::default();
+    for g in corpus().iter().flat_map(|c| &c.talks) {
+        for t in &g.transcript.turns { seen.insert(t.act); }
+    }
+    for a in [Act::Worry, Act::Bid, Act::Joke, Act::Errand, Act::Evade, Act::Slip] {
+        assert!(seen.contains(&a), "{:?} never appears in the corpus", a);
+    }
+}

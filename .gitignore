@@ -74,3 +74,7 @@ art-prompts/generated.json.lock
 game2-web/pkg/
 saves/
 scratch/
+
+# Sound assets' staging area (fetched but unprocessed, never committed)
+assets/sound/_incoming/*
+!assets/sound/_incoming/.gitkeep

@@ -4,6 +4,7 @@
 //! `rng::Rng`, seeded by the caller - no OS randomness, no clocks.
 pub mod engine;
 pub mod host;
+pub mod ledger;
 pub mod rng;
 pub mod settings;
 pub mod soundscape;

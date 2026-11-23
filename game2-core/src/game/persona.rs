@@ -504,39 +504,51 @@ fn vocation_pole(v: Vocation) -> Option<usize> {
 /// Generate a villager's persona from the world seed - deterministic:
 /// same seed, same slot, same past, same person. Passes 1-2 pass their
 /// work in through `past`; pass 5's ghosts wait on #1421
+/// `attempt` salts the draws of passes 3-6 (biome, temperament, values,
+/// life story, signature) so a cast that fails a check rerolls just
+/// those for the offending villager (E1-5, #1413): prehistory,
+/// household and body stay fixed. attempt 0 is the natural roll
 pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
+    generate_attempt(world_seed, slot, past, 0)
+}
+
+/// generate with the reroll salt for the cast validator (#1413)
+pub fn generate_attempt(world_seed: u64, slot: usize, past: &Past, attempt: u32) -> Persona {
     let seed = mix(world_seed ^ (slot as u64).wrapping_add(1)
         .wrapping_mul(0x9E37_79B9_7F4A_7C15));
     let d = |n: u64| draw(seed, n);
+    let rseed = seed.wrapping_add((attempt as u64).wrapping_mul(0xD1B5_4A32_D192_ED03));
+    let r = |n: u64| draw(rseed, n);
 
     // the biome first: passes 3 and 4 pull toward its region
-    let archetype = ARCHETYPES[(d(0) * ARCHETYPES.len() as f32) as usize
+    let archetype = ARCHETYPES[(r(0) * ARCHETYPES.len() as f32) as usize
         % ARCHETYPES.len()];
+
     let (pull, pole, trust_pull) = archetype.prior();
 
     // pass 3, temperament: seeded draws leaned toward the biome; a
     // child's starts at the parents' mean when the household ran
     let mut temperament = [0.0f32; 5];
     for i in 0..5 {
-        let mut t = (d(10 + i as u64) * 0.7 + (0.5 + pull[i]) * 0.3).clamp(0.0, 1.0);
+        let mut t = (r(10 + i as u64) * 0.7 + (0.5 + pull[i]) * 0.3).clamp(0.0, 1.0);
         // a child's starts at the parents' mean, plus noise (pass 2)
         if let Some(p) = past.parents {
-            t = (p[i] + (d(20 + i as u64) - 0.5) * 0.3).clamp(0.0, 1.0);
+            t = (p[i] + (r(20 + i as u64) - 0.5) * 0.3).clamp(0.0, 1.0);
         }
         temperament[i] = t;
     }
 
     // trust propensity: childhood events set it eventually; today a
     // seeded draw leaned by the biome
-    let trust_propensity = (d(30) * 0.7 + (0.5 + trust_pull) * 0.3).clamp(0.0, 1.0);
+    let trust_propensity = (r(30) * 0.7 + (0.5 + trust_pull) * 0.3).clamp(0.0, 1.0);
 
     // pass 4, values: a direction on the circle, each value falling off
     // with angle so opposites come out low; the trade tilts its pole
-    let dir = pole as f32 + (d(40) - 0.5) * 3.0;
+    let dir = pole as f32 + (r(40) - 0.5) * 3.0;
     let mut values = [0.0f32; 10];
     for i in 0..10 {
         let gap = (i as f32 - dir) / 10.0 * std::f32::consts::TAU;
-        values[i] = (0.35 + 0.45 * gap.cos() + (d(50 + i as u64) - 0.5) * 0.2)
+        values[i] = (0.35 + 0.45 * gap.cos() + (r(50 + i as u64) - 0.5) * 0.2)
             .clamp(0.0, 1.0);
     }
     if let Some(v) = past.vocation.and_then(vocation_pole) {
@@ -554,8 +566,12 @@ pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
         }
         t
     };
-    // Ambitious: Advancement or Standing among the top two values
-    let contradiction = if temperament[1] < 0.25
+    // Ambitious: Advancement or Standing among the top two values.
+    // "low" reads as the lower half here - the strict C < 0.25
+    // collision only fired ~2% of the time, far under the design's
+    // "~1 in 6" (#1413); the lazy streak against the ambitious pole
+    // lands at about one cast member in five
+    let contradiction = if temperament[1] < 0.5
         && [top.0, top.1].iter().any(|&i| i == 3 || i == 4) {
         Some(Contradiction::IdleStriver)
     } else {
@@ -564,9 +580,9 @@ pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
 
     // pass 6, signature: a visible landmark no neighbor shares (the
     // cast check in #1413 enforces it), and a hidden one
-    let signature = SIGNATURES[(d(70) * SIGNATURES.len() as f32) as usize
+    let signature = SIGNATURES[(r(70) * SIGNATURES.len() as f32) as usize
         % SIGNATURES.len()];
-    let hidden = HIDDENS[(d(80) * HIDDENS.len() as f32) as usize % HIDDENS.len()];
+    let hidden = HIDDENS[(r(80) * HIDDENS.len() as f32) as usize % HIDDENS.len()];
 
     // pass 5, life story (E2-3, #1421): the events they were in roll
     // their marks - weighted by severity and neuroticism, and the
@@ -576,7 +592,7 @@ pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
     let mut scored: Vec<(f32, &Mark)> = past.marks.iter()
         // a warm memory, not a ghost
         .filter(|m| m.kind != EventKind::HarvestFeast)
-        .map(|m| (m.severity * (0.35 + 0.65 * temperament[4]) * d(110 + m.id.0 as u64), m))
+        .map(|m| (m.severity * (0.35 + 0.65 * temperament[4]) * r(110 + m.id.0 as u64), m))
         .filter(|(s, _)| *s > 0.35)
         .collect();
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
@@ -943,11 +959,12 @@ mod tests {
     #[test]
     fn a_lazy_striver_is_tagged() {
         // Advancement OR Standing anywhere in the top two counts, not
-        // only first - and a Lazy streak must ride against it
+        // only first - and a lazy-ish streak must ride against it
+        // ("low" is the lower half; C < 0.25 fired too rarely, #1413)
         let mut found = false;
         for slot in 0..400 {
             let p = generate(3, slot, &Past::default());
-            let lazy = p.temperament[1] < 0.25;
+            let lazy = p.temperament[1] < 0.5;
             let (a, b) = p.top_values();
             let ambitious = a == 3 || a == 4 || b == 3 || b == 4;
             assert_eq!(p.contradiction == Some(Contradiction::IdleStriver),
@@ -1025,8 +1042,10 @@ mod tests {
         for slot in 0..400 {
             let p = generate(9, slot, &Past::default());
             let t = p.personalities().1.traits;
+            // a strict Lazy+Ambitious pair is always a crack (the
+            // crack's gate is wider, so the strict pair is inside it)
             let lazy_ambitious = t.contains(&Lazy) && t.contains(&Ambitious);
-            assert_eq!(lazy_ambitious, p.contradiction == Some(Contradiction::IdleStriver),
+            assert!(!lazy_ambitious || p.contradiction == Some(Contradiction::IdleStriver),
                 "slot {}", slot);
             // and opposites never share a body
             assert!(!(t.contains(&Kind) && t.contains(&Cruel)));

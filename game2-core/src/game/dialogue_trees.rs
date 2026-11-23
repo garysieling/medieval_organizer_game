@@ -3735,7 +3735,7 @@ pub const ASK_TOPICS: &[Topic] = &[
     Topic {
         label: "what weighs on them",
         area: crate::game::conversation::Area::Trouble,
-        tier: 2, needs: &["keeps_secret"], any: &[], not: &[],
+        tier: 2, needs: &[], any: &["keeps_secret", "keeps_wound"], not: &[],
         ask: &["Is aught weighing on thee? Thou'lt tell me, if there is.", "Something sits behind thy eyes - what is it?"],
         tell: &["Ah. Thou'rt sharp-eyed, then.", "I had hoped it didn't show.", "If anyone's to hear it, thou'rt as good as any."],
         concepts: &["trouble", "secret"], draws: Draw::Secret,
@@ -3762,7 +3762,7 @@ pub const ASK_TOPICS: &[Topic] = &[
     Topic {
         label: "the weight they carry",
         area: crate::game::conversation::Area::Heart,
-        tier: 2, needs: &["keeps_secret"], any: &[], not: &[],
+        tier: 2, needs: &[], any: &["keeps_secret", "keeps_wound"], not: &[],
         ask: &["Thou carriest something, friend - what is it weighs on thee?"],
         tell: &["It's a weight, is all - I carry it as I can.",
             "Some things a body just keeps carrying."],
@@ -3771,7 +3771,7 @@ pub const ASK_TOPICS: &[Topic] = &[
     Topic {
         label: "what they never told",
         area: crate::game::conversation::Area::Trouble,
-        tier: 3, needs: &["keeps_secret"], any: &[], not: &[],
+        tier: 3, needs: &[], any: &["keeps_secret", "keeps_wound"], not: &[],
         ask: &["There's something thou hast never told a soul - what is it?"],
         tell: &["Thou'rt the first to ask it plain. I don't know that I can.",
             "That's not a thing I've said aloud."],
@@ -3780,7 +3780,7 @@ pub const ASK_TOPICS: &[Topic] = &[
     Topic {
         label: "the thing nearest the bone",
         area: crate::game::conversation::Area::Heart,
-        tier: 3, needs: &["keeps_secret"], any: &[], not: &[],
+        tier: 3, needs: &[], any: &["keeps_secret", "keeps_wound"], not: &[],
         ask: &["What sits nearest the bone with thee, if thou'lt tell it?"],
         tell: &["The thing nearest the bone stays there, mostly.",
             "If I say it, it stops being only mine."],

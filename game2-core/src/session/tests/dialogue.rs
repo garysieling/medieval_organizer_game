@@ -58,7 +58,7 @@ fn test_a_speakers_persona_wears_the_tells() {
     let s = speaker_of(&g.world, v, "Eliza", g.tick);
     assert!(s.status.contains(&"shuns_the_gate") && s.status.contains(&"promises_nothing"),
         "the tells should ride the speaker: {:?}", s.status);
-    assert!(s.status.contains(&"keeps_secret"), "a carried ghost is a kept secret");
+    assert!(s.status.contains(&"keeps_wound"), "a carried ghost is a kept thing");
     // and the wear names the deep ask it hides behind
     assert!(s.tell_areas().contains(&crate::game::conversation::Area::Trouble)
         && s.tell_areas().contains(&crate::game::conversation::Area::Heart));

@@ -187,13 +187,15 @@ pub fn content_for_tell(tell: &str) -> Option<&'static FactContent> {
 
 /// What the carrier tells at `tier` in `area`, when the asked-about's
 /// facts carry a covered one: the fact's own line instead of the
-/// topic's generic telling. `facts` are the asked-about's `self:` set.
-pub fn telling(facts: &Facts, area: Area, tier: u8, roll: f32) -> Option<&'static str> {
+/// topic's generic telling. `facts` are the asked-about's `self:` set;
+/// lines already said this talk are spent and skipped (#1425).
+pub fn telling(facts: &Facts, area: Area, tier: u8, roll: f32,
+               used: &crate::engine::det::HashSet<&'static str>) -> Option<&'static str> {
     let mut found: Vec<&'static str> = vec![];
     for c in FACT_CONTENTS {
         if c.area != area || !facts.has(&format!("self:{}", c.fact)) { continue; }
         for &(t, line) in c.tiers {
-            if t == tier { found.push(line); }
+            if t == tier && !used.contains(line) { found.push(line); }
         }
     }
     if found.is_empty() { None } else { Some(found[(roll * found.len() as f32) as usize % found.len()]) }
@@ -253,13 +255,10 @@ pub fn tell_trees() -> &'static [crate::game::conversation::DialogueTree] {
             let slip: &'static Exchange = Box::leak(Box::new(Exchange {
                 act: Act::Remark, concepts: &["smalltalk"],
                 calls: std::slice::from_ref(&c.slip), voice: &[],
+                // the answer chair can be the player's: replies stay
+                // neutral acknowledgments - the wear's gossip naming
+                // lives on the `wear:` tree (ambient chats only)
                 replies: Box::leak(Box::new([
-                    Reply { criteria: Box::leak(Box::new([
-                            Has(leaked(format!("other:status:{}", c.tell)))])),
-                        weight: 1.0, bias: &[], act: Act::Remark, respond: None,
-                        concepts: &["smalltalk"],
-                        lines: std::slice::from_ref(&c.gossip),
-                        voice: &[], then: None, end: None },
                     Reply { criteria: &[], weight: 1.0, bias: &[],
                         act: Act::Agree, respond: None, concepts: &["smalltalk"],
                         lines: &["Aye.", "So they say.", "Mm - it may be."],
@@ -391,10 +390,16 @@ mod tests {
         s.facts.hidden = vec!["ghost:levy".into()];
         let facts = Facts::for_roles(&s, &Speaker::new("B"), Relation::Stranger);
         let c = content_for_fact("ghost:levy").unwrap();
-        assert_eq!(telling(&facts, Area::Trouble, 2, 0.0), Some(c.tiers[0].1));
-        assert_eq!(telling(&facts, Area::Trouble, 3, 0.0), Some(c.tiers[1].1));
-        assert_eq!(telling(&facts, Area::Heart, 2, 0.0), None, "the wrong area stays generic");
-        assert_eq!(telling(&Facts::default(), Area::Trouble, 2, 0.0), None, "a bare past stays generic");
+        let empty = crate::engine::det::HashSet::default();
+        assert_eq!(telling(&facts, Area::Trouble, 2, 0.0, &empty), Some(c.tiers[0].1));
+        assert_eq!(telling(&facts, Area::Trouble, 3, 0.0, &empty), Some(c.tiers[1].1));
+        assert_eq!(telling(&facts, Area::Heart, 2, 0.0, &empty), None, "the wrong area stays generic");
+        assert_eq!(telling(&Facts::default(), Area::Trouble, 2, 0.0, &empty), None, "a bare past stays generic");
+        // a line already said this talk is spent: the generic telling
+        // takes over rather than repeat it
+        let mut used = crate::engine::det::HashSet::default();
+        used.insert(c.tiers[0].1);
+        assert_eq!(telling(&facts, Area::Trouble, 2, 0.0, &used), None);
     }
 
     /// The pressure leg: a ghost's own reason answers the declined ask,

@@ -1115,15 +1115,24 @@ pub fn converse_with(
                                 }
                             }
                             tr.asked.push(tp.label);
-                            // a covered fact in the asked area tells in
-                            // its own words at that depth (E3-4, #1425);
-                            // the bare topic keeps its generic telling
-                            let (at, _) = crate::game::fact_content::telling(
-                                    &call_facts, tp.area, tp.tier, rng.next_f32())
-                                .map(|l| (l, String::new()))
-                                .or_else(|| fresh_line(tp.tell, &pair[caller],
-                                    &pair[responder], &used, recent, false, rng))
-                                .unwrap_or((tp.tell[0], String::new()));
+                            // a covered fact tells in its own words at
+                            // that depth, but only to the "what you keep"
+                            // asks (Draw::Secret): the named-status asks
+                            // keep their authored answers (E3-4, #1425)
+                            let (at, _) = if matches!(tp.draws,
+                                    crate::game::dialogue_trees::Draw::Secret) {
+                                crate::game::fact_content::telling(
+                                        &call_facts, tp.area, tp.tier,
+                                        rng.next_f32(), &used)
+                                    .map(|l| (l, String::new()))
+                                    .or_else(|| fresh_line(tp.tell, &pair[caller],
+                                        &pair[responder], &used, recent, false, rng))
+                                    .unwrap_or((tp.tell[0], String::new()))
+                            } else {
+                                fresh_line(tp.tell, &pair[caller],
+                                    &pair[responder], &used, recent, false, rng)
+                                    .unwrap_or((tp.tell[0], String::new()))
+                            };
                             used.insert(at);
                             tr.turns.push(Turn { speaker: caller, act: Act::Answer,
                                 respond: Some(Respond::Reflect),

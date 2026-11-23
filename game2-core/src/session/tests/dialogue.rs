@@ -1474,19 +1474,95 @@ fn test_the_probing_question_thaws_them_through_the_talk() {
 }
 
 #[test]
-fn test_the_probe_leaves_the_offer_when_theres_nothing_to_plant() {
+fn test_the_probe_leaves_the_offer_when_theres_nothing_left_to_hear() {
     let mut g = Game::new();
     let v = g.villagers[adults(&g)[0]];
     bond_to(&mut g, v, 0.2);
-    // every probeable want carried already: the question's spent
+    // every probeable want carried already, and everything they've got
+    // already heard: the question's spent (#1347)
     g.world.get_component_mut::<crate::game::desires::InnerLife>(v).unwrap().wants =
         vec![crate::game::desires::Want::Security, crate::game::desires::Want::Mastery,
             crate::game::desires::Want::Love, crate::game::desires::Want::Finery,
             crate::game::desires::Want::BetterTools];
-    assert!(!crate::game::desires::probe_open(&g.world, v));
-    let offers = crate::game::organizing::ask_offers(&g.world, g.org, v, 0);
+    let all = crate::game::desires::unrevealed(&g.world, v, g.tick);
+    g.world.add_component(v, crate::game::desires::Known { revealed: all });
+    assert!(!crate::game::desires::probe_open(&g.world, v, g.tick));
+    let offers = crate::game::organizing::ask_offers(&g.world, g.org, v, 0, g.tick);
     assert!(!offers.iter().any(|o| o.kind == crate::game::organizing::PropKind::Probe),
-        "nothing left to plant, no probe on offer");
+        "nothing left to plant or hear, no probe on offer");
+}
+
+/// The world moving re-opens the probing question (#1347): once every
+/// want's spoken for and all's heard, a fresh burden puts the ask back
+/// - and putting it draws the new thing out
+#[test]
+fn test_the_probe_reopens_when_their_life_moved_on() {
+    use crate::game::desires::{InnerLife, Known, Problem, Reveal, Want};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    bond_to(&mut g, v, 0.2);
+    g.world.get_component_mut::<InnerLife>(v).unwrap().wants =
+        vec![Want::Security, Want::Mastery, Want::Love, Want::Finery, Want::BetterTools];
+    let all = crate::game::desires::unrevealed(&g.world, v, g.tick);
+    g.world.add_component(v, Known { revealed: all });
+    assert!(!crate::game::desires::probe_open(&g.world, v, g.tick), "spent while all's heard");
+    // their life took on a load: the question's worth asking again
+    crate::game::desires::add_grievance(&mut g.world, v, Problem::Loss, g.tick + 60);
+    assert!(crate::game::desires::probe_open(&g.world, v, g.tick), "a new burden reopens it");
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    let pick = t.choice_labels(&g.world).iter().position(|l| l == "Ask what they actually want")
+        .expect("the probing question's back on the table");
+    g.talk_pick_at(0, Some(pick));
+    let known = g.world.get_component::<Known>(v).unwrap();
+    assert!(known.revealed.contains(&Reveal::Problem(Problem::Loss)),
+        "the re-asked question drew the new trouble: {:?}", known.revealed);
+}
+
+/// A trouble heard can still come back around (#1347): with every live
+/// fact already shared, asking after what they told draws the
+/// still-carrying line - catching up, not a fresh telling - and learns
+/// nothing new twice
+#[test]
+fn test_the_trouble_they_told_comes_back_around() {
+    use crate::game::desires::{InnerLife, Known, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    let all = crate::game::desires::unrevealed(&g.world, v, g.tick);
+    let heard_n = all.len();
+    g.world.add_component(v, Known { revealed: all });
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, l)| l == "Ask about the trouble they told")
+        .expect("a shared trouble stays an ask");
+    g.talk_pick_at(0, Some(p));
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.who == Some(v) && l.text.to_lowercase().contains("still")),
+        "the catch-up reads as still-carrying: {:?}",
+        rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    let known = g.world.get_component::<Known>(v).unwrap();
+    assert_eq!(known.revealed.len(), heard_n,
+        "catching up learns nothing twice: {:?}", known.revealed);
+    // and the telling survives the next pick: the replay rebuild would
+    // wash a straight rec.lines push out - the drawn lines ride the
+    // record like an argument's do
+    for _ in 0..30 {
+        let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+        match t.options.iter().position(|(a, _)| *a != crate::game::conversation::Act::Farewell) {
+            Some(i) => g.talk_pick_at(0, Some(i)),
+            None => break,
+        }
+    }
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.who == Some(v) && l.text.to_lowercase().contains("still")),
+        "the catch-up's still on the record after another pick: {:?}",
+        rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
 
 

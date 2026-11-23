@@ -418,6 +418,27 @@ pub enum Sex { Female, Male }
 /// the village can count who's new enough to be called a stranger
 pub struct Migrant { pub arrived: u64 }
 
+/// The folk a roof gave them (E2-2, #1420): whom the prehistory's
+/// household dealt them to, in entities. Empty lists are honest - an
+/// elder has no parents here, an only child no siblings
+#[derive(Debug, Clone, Default)]
+pub struct Kin {
+    /// The elders who raised them
+    pub parents: Vec<Entity>,
+    /// The household's other children - shared parents
+    pub siblings: Vec<Entity>,
+    /// The rest under the same roof, old and young
+    pub housemates: Vec<Entity>,
+}
+
+impl Kin {
+    /// Everyone the roof gives them, each once
+    pub fn all(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.parents.iter().chain(self.siblings.iter())
+            .chain(self.housemates.iter()).copied()
+    }
+}
+
 /// A country hand in for the season's work - drinks harder than the
 /// village's own, and the night takes it out of him
 pub struct Laborer { pub until: u64 }

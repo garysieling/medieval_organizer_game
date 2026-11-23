@@ -107,6 +107,7 @@ mod intro;
 mod intro_victim;
 mod journal;
 mod key;
+mod kin;
 mod kpi;
 mod layering;
 mod land;

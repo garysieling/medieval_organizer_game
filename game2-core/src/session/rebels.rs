@@ -128,7 +128,7 @@ impl Game {
         // and no place in the village's food rolls
         self.world.remove_component::<villager::Hunger>(v);
         let i = self.villagers.len();
-        let dealt = self.deal_cast(v, None);
+        let dealt = self.deal_cast(v, None, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
         if !self.seeded_cast {

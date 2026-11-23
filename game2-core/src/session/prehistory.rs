@@ -65,6 +65,19 @@ pub struct Prehistory {
     pub households: Vec<usize>,
 }
 
+/// Whom a cast slot's roof gave them (#1420): the elders who raised
+/// them, the children raised beside them, and the rest under it. In
+/// slots, not entities - `setup` grounds them when the bodies exist
+#[derive(Debug, Clone, Default)]
+pub struct KinPlan {
+    /// The household's elders - shared across its children
+    pub parents: Vec<usize>,
+    /// The household's other children - shared parents
+    pub siblings: Vec<usize>,
+    /// The rest under the same roof, old and young
+    pub housemates: Vec<usize>,
+}
+
 impl PrehistoryEvent {
     /// How many households this event reached - the done-when measure
     pub fn households_touched(&self, ph: &Prehistory) -> usize {
@@ -85,6 +98,45 @@ impl Prehistory {
             .filter(|(_, e)| e.touched.iter().any(|t| t.who == Who::Cast(slot)))
             .map(|(i, _)| EventId(i as u32))
             .collect()
+    }
+
+    /// Pass 2 (#1420): each slot's kin, seeded off the world seed. All
+    /// of a household's children share the same elders - that's what
+    /// makes them siblings - and elders get the rest of the roof as
+    /// housemates
+    pub fn kin_plan(&self, seed: u64, kids: &[usize]) -> Vec<KinPlan> {
+        let mut plan = vec![KinPlan::default(); self.households.len()];
+        let n = self.households.iter().max().map(|m| m + 1).unwrap_or(0);
+        for h in 0..n {
+            let mem = members(&self.households, h);
+            let elders: Vec<usize> = mem.iter().copied()
+                .filter(|s| !kids.contains(s)).collect();
+            let young: Vec<usize> = mem.iter().copied()
+                .filter(|s| kids.contains(s)).collect();
+            // the elders who raised this roof's children: two when the
+            // house holds them, seeded off the household not the kid,
+            // so brothers and sisters get the same pair
+            let mut parents: Vec<usize> = vec![];
+            for d in 0.. {
+                if parents.len() >= elders.len().min(2) || elders.is_empty() { break; }
+                let p = elders[(draw(seed ^ 0xA17E5, h as u64 * 61 + d)
+                    * elders.len() as f32) as usize % elders.len()];
+                if !parents.contains(&p) { parents.push(p); }
+                if d > 40 { break; }
+            }
+            for &s in &mem {
+                plan[s].parents = if young.contains(&s) { parents.clone() } else { vec![] };
+                plan[s].siblings = if young.contains(&s) {
+                    young.iter().copied().filter(|&o| o != s).collect()
+                } else { vec![] };
+                plan[s].housemates = mem.iter().copied()
+                    .filter(|&o| o != s
+                        && !plan[s].parents.contains(&o)
+                        && !plan[s].siblings.contains(&o))
+                    .collect();
+            }
+        }
+        plan
     }
 }
 
@@ -109,23 +161,55 @@ fn mean_gap(kind: EventKind) -> u8 {
 }
 
 /// Deal the cast into proto-households of one to four: a seeded
-/// shuffle cut into runs
-fn deal_households(seed: u64, cast: usize) -> Vec<usize> {
-    let mut order: Vec<usize> = (0..cast).collect();
-    for i in (1..cast).rev() {
+/// shuffle cut into runs of the grown folk, then the children placed
+/// so the little ones share a roof - the first pair into the smallest
+/// household that can hold them, the rest into seeded roofs with room
+fn deal_households(seed: u64, cast: usize, kids: &[usize]) -> Vec<usize> {
+    let grown: Vec<usize> = (0..cast).filter(|s| !kids.contains(s)).collect();
+    let mut order = grown.clone();
+    for i in (1..order.len()).rev() {
         let j = (draw(seed ^ 0x7105EED, i as u64) * (i + 1) as f32) as usize;
         order.swap(i, j.min(i));
     }
-    let mut households = vec![0usize; cast];
-    let (mut i, mut h) = (0usize, 0usize);
-    while i < cast {
+    let mut households = vec![usize::MAX; cast];
+    let mut sizes: Vec<usize> = vec![];
+    let mut i = 0usize;
+    while i < order.len() {
+        let h = sizes.len();
         let size = (1 + (draw(seed ^ 0x7105EED ^ 0x9E37, h as u64) * 4.0) as usize)
-            .min(cast - i);
+            .min(order.len() - i);
         for k in 0..size {
             households[order[i + k]] = h;
         }
+        sizes.push(size);
         i += size;
-        h += 1;
+    }
+    // a roof that takes the first pair of children and still has an
+    // elder standing: the smallest household with room for two
+    let mut placed = 0usize;
+    if kids.len() >= 2 {
+        if let Some(h) = (0..sizes.len())
+            .filter(|&h| sizes[h] + 2 <= 4 && sizes[h] >= 1)
+            .min_by_key(|&h| sizes[h] * 64 + (draw(seed ^ 0x5EED, h as u64) * 64.0) as usize)
+        {
+            households[kids[0]] = h;
+            households[kids[1]] = h;
+            sizes[h] += 2;
+            placed = 2;
+        }
+    }
+    for &k in &kids[placed..] {
+        // each further child: a seeded roof with room for them
+        let mut home = None;
+        for d in 0..60 {
+            let h = (draw(seed ^ 0x5EED ^ k as u64, d) * sizes.len() as f32) as usize
+                % sizes.len().max(1);
+            if !sizes.is_empty() && sizes[h] < 4 { home = Some(h); break; }
+        }
+        match home {
+            Some(h) => { households[k] = h; sizes[h] += 1; }
+            None => { households[k] = sizes.len(); sizes.push(1); }
+        }
     }
     households
 }
@@ -276,10 +360,11 @@ fn record(kind: EventKind, year: u8, seed: u64, salt: u64,
 /// Walk the thirty years once per world seed: each kind fires at its
 /// rate off its own stream, picks whom it touched, and the log is
 /// kept oldest-first. `cast` is the founding cast's size - later
-/// arrivals carry no story here
-pub fn run(world_seed: u64, cast: usize) -> Prehistory {
+/// arrivals carry no story here. `kids` names which slots are the
+/// children, so the deal can raise them under one roof
+pub fn run(world_seed: u64, cast: usize, kids: &[usize]) -> Prehistory {
     let seed = world_seed ^ 0x7E1A_9017;
-    let households = deal_households(seed, cast);
+    let households = deal_households(seed, cast, kids);
     let n_households = households.iter().max().map(|m| m + 1).unwrap_or(0);
     let mut events = vec![];
     for (ki, kind) in KINDS.into_iter().enumerate() {
@@ -302,11 +387,12 @@ pub fn run(world_seed: u64, cast: usize) -> Prehistory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    const KIDS: [usize; 3] = [26, 27, 28];
 
     #[test]
     fn the_same_seed_writes_the_same_years() {
-        let a = run(42, 31);
-        let b = run(42, 31);
+        let a = run(42, 31, &KIDS);
+        let b = run(42, 31, &KIDS);
         assert_eq!(a.events.len(), b.events.len());
         for (x, y) in a.events.iter().zip(b.events.iter()) {
             assert_eq!((x.kind, x.years_ago), (y.kind, y.years_ago));
@@ -317,8 +403,8 @@ mod tests {
 
     #[test]
     fn different_seeds_write_different_years() {
-        let a = run(42, 31);
-        let b = run(77, 31);
+        let a = run(42, 31, &KIDS);
+        let b = run(77, 31, &KIDS);
         assert_ne!(
             a.events.iter().map(|e| (e.kind, e.years_ago)).collect::<Vec<_>>(),
             b.events.iter().map(|e| (e.kind, e.years_ago)).collect::<Vec<_>>());
@@ -327,7 +413,7 @@ mod tests {
     #[test]
     fn the_record_stays_in_bounds() {
         for seed in [1, 42, 77, 1234, 99_999] {
-            let ph = run(seed, 31);
+            let ph = run(seed, 31, &KIDS);
             assert!(ph.households.iter().all(|&h| h < 31));
             for e in &ph.events {
                 assert!(e.years_ago >= 1 && e.years_ago <= YEARS);
@@ -343,7 +429,7 @@ mod tests {
         // the done-when: this is what turns nine identical soldier
         // brothers into one levy with three fates
         for seed in [1, 42, 77, 1234, 99_999] {
-            let ph = run(seed, 31);
+            let ph = run(seed, 31, &KIDS);
             let multi = ph.events.iter()
                 .filter(|e| e.households_touched(&ph) >= 2).count();
             assert!(multi * 2 >= ph.events.len(),
@@ -354,7 +440,7 @@ mod tests {
 
     #[test]
     fn a_story_only_cites_the_events_they_were_in() {
-        let ph = run(42, 31);
+        let ph = run(42, 31, &KIDS);
         for slot in 0..31 {
             for id in ph.story_of(slot) {
                 assert!(ph.events[id.0 as usize].touched.iter()
@@ -362,7 +448,7 @@ mod tests {
             }
         }
         // and every cast member was in something - the feast at least
-        let ph = run(7, 31);
+        let ph = run(7, 31, &KIDS);
         for slot in 0..31 {
             assert!(!ph.story_of(slot).is_empty(), "slot {slot} has no story");
         }
@@ -373,11 +459,61 @@ mod tests {
         // across a handful of seeds all nine records show up somewhere
         let mut seen = [false; 9];
         for seed in [1, 42, 77, 1234] {
-            for e in run(seed, 31).events {
+            for e in run(seed, 31, &KIDS).events {
                 seen[KINDS.iter().position(|&k| k == e.kind).unwrap()] = true;
             }
         }
         assert!(seen.iter().all(|&s| s));
+    }
+
+    #[test]
+    fn the_children_share_a_roof() {
+        // the deal raises the little ones together: at least two of
+        // them land under one roof so siblings exist
+        for seed in [1, 42, 77, 1234, 99_999] {
+            let ph = run(seed, 31, &KIDS);
+            let shared = KIDS.iter()
+                .filter(|&&a| KIDS.iter().any(|&b| a != b
+                    && ph.households[a] == ph.households[b]))
+                .count();
+            assert!(shared >= 2, "seed {seed}: no two children share a roof");
+        }
+    }
+
+    #[test]
+    fn a_households_children_share_its_elders() {
+        let ph = run(42, 31, &KIDS);
+        let plan = ph.kin_plan(42, &KIDS);
+        for (s, k) in plan.iter().enumerate() {
+            // parents and siblings stay inside the slot's own household
+            for &p in &k.parents { assert_eq!(ph.households[p], ph.households[s]); }
+            for &b in &k.siblings { assert_eq!(ph.households[b], ph.households[s]); }
+            // parents are never children, siblings are
+            for &p in &k.parents { assert!(!KIDS.contains(&p)); }
+            for &b in &k.siblings { assert!(KIDS.contains(&b)); }
+            // the lists don't overlap and no one is their own kin
+            assert!(!k.parents.contains(&s) && !k.siblings.contains(&s)
+                && !k.housemates.contains(&s));
+        }
+        // two children under one roof get the same parents: siblings
+        let (a, b) = (KIDS[0], KIDS[1]);
+        if ph.households[a] == ph.households[b] {
+            assert_eq!(plan[a].parents, plan[b].parents);
+            assert!(plan[a].siblings.contains(&b));
+        }
+    }
+
+    #[test]
+    fn a_child_without_elders_is_an_orphan() {
+        // a kid dealt their own household keeps no parents - the plan
+        // stays honest rather than inventing a family
+        let ph = run(3, 8, &[0, 1, 2]);
+        let plan = ph.kin_plan(3, &[0, 1, 2]);
+        for (s, k) in plan.iter().enumerate() {
+            let elders = members(&ph.households, ph.households[s]).iter()
+                .filter(|m| ![0, 1, 2].contains(m)).count();
+            if elders == 0 { assert!(k.parents.is_empty()); }
+        }
     }
 }
 

@@ -1542,12 +1542,27 @@ fn test_the_trouble_they_told_comes_back_around() {
     g.talk_pick_at(0, Some(p));
     let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
-    assert!(rec.lines.iter().any(|l| l.text.contains("still")),
+    assert!(rec.lines.iter().any(|l| l.who == Some(v) && l.text.to_lowercase().contains("still")),
         "the catch-up reads as still-carrying: {:?}",
         rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
     let known = g.world.get_component::<Known>(v).unwrap();
     assert_eq!(known.revealed.len(), heard_n,
         "catching up learns nothing twice: {:?}", known.revealed);
+    // and the telling survives the next pick: the replay rebuild would
+    // wash a straight rec.lines push out - the drawn lines ride the
+    // record like an argument's do
+    for _ in 0..30 {
+        let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+        match t.options.iter().position(|(a, _)| *a != crate::game::conversation::Act::Farewell) {
+            Some(i) => g.talk_pick_at(0, Some(i)),
+            None => break,
+        }
+    }
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.who == Some(v) && l.text.to_lowercase().contains("still")),
+        "the catch-up's still on the record after another pick: {:?}",
+        rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
 
 

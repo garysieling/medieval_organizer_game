@@ -1155,6 +1155,7 @@ impl Game {
         // the way a kept secret comes out - the same reveal a talk's
         // opening rolls for; and asking after the whisper pulls a piece
         // of the mystery, the way the gossip line does
+        let mut drawn: Vec<TalkLine> = vec![];
         for label in asked.iter().skip(t.asked_seen) {
             use crate::game::dialogue_trees::Draw;
             let draw = crate::game::dialogue_trees::ASK_TOPICS.iter()
@@ -1171,28 +1172,22 @@ impl Game {
                             self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
                                 pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                         }
-                        if let Some(rec) = self.talk_record_mut(t.id) {
-                            rec.lines.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
-                            rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
-                        }
+                        drawn.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
+                        drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
                         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
                     } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, t.who, self.tick, pick) {
                         // the well's not dry - it circles (#1347): an old
                         // truth they still carry comes back around,
                         // re-read as catching up, not a fresh telling
                         let (did, said_line) = crate::game::desires::catchup_speech(&vname, &r);
-                        if let Some(rec) = self.talk_record_mut(t.id) {
-                            rec.lines.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
-                            rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
-                        }
+                        drawn.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
+                        drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
                         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
                     }
                 }
                 Draw::Mystery => {
                     if let Some(fact) = self.mystery_fact_asked(seat) {
-                        if let Some(rec) = self.talk_record_mut(t.id) {
-                            rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: fact, gist: false });
-                        }
+                        drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: fact, gist: false });
                         if let Some(m) = &self.seats[seat].mystery {
                             let def = &crate::game::mysteries::MYSTERIES[m.def];
                             let note = format!("A piece of {} - {} of {} heard. Worth remembering.",
@@ -1202,6 +1197,16 @@ impl Game {
                     }
                 }
             }
+        }
+        // a draw's lines ride the talk's argued record (#1347): pushed
+        // straight to `rec.lines` they'd wash out of the next refresh's
+        // replay; carried on `argued` they re-emit where they fell
+        if !drawn.is_empty() {
+            let at = said.len().max(1);
+            if let Some(cur) = self.seats[seat].talk.as_mut() {
+                for l in drawn.iter() { cur.argued.push((at, l.clone())); }
+            }
+            if let Some(rec) = self.talk_record_mut(t.id) { rec.lines.extend(drawn); }
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asked_seen = asked.len(); }
         self.warm_exchange(t.id);

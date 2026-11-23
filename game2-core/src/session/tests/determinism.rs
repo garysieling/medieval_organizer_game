@@ -107,6 +107,27 @@ fn the_name_pools_cover_the_authored_rolls() {
     assert_eq!(all.len(), NAMES.len() + NEW_NAMES.len());
 }
 
+/// E1-4 (#1412): in a seeded cast both personality components are the
+/// persona - the Big Five is the axes verbatim and the discrete traits
+/// come off the threshold table, so the views can never disagree
+#[test]
+fn a_seeded_casts_personalities_are_the_persona() {
+    let g = Game::new_seeded_cast(77);
+    for (i, &v) in g.villagers.iter().enumerate() {
+        let p = g.world.get_component::<crate::game::persona::Persona>(v).unwrap();
+        let (_, want) = p.personalities();
+        let b5 = g.world.get_component::<crate::sim::psychology::Personality>(v)
+            .unwrap_or_else(|| panic!("slot {i} carries no Big Five"));
+        assert_eq!((b5.openness, b5.conscientiousness, b5.extraversion,
+            b5.agreeableness, b5.neuroticism),
+            (p.temperament[0], p.temperament[1], p.temperament[2],
+             p.temperament[3], p.temperament[4]), "slot {i} Big Five isn't the axes");
+        let t = g.world.get_component::<crate::game::traits::Personality>(v)
+            .unwrap_or_else(|| panic!("slot {i} carries no traits"));
+        assert_eq!(t.traits, want.traits, "slot {i} traits aren't the table's");
+    }
+}
+
 /// E1-3 (#1417): a spawned villager's body is drawn, not the entity
 /// id's parity - consecutive ids can share a sex now
 #[test]

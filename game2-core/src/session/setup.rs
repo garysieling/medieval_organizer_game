@@ -533,19 +533,25 @@ impl Game {
         for i in 0..NAMES.len() {
             let v = villager::spawn_villager(&mut world,
                 vx as f32 - 2.0 + (i % 6) as f32 * 0.8, vy as f32 - 2.0 + (i % 4) as f32 * 0.8);
-            if seeded_cast {
+            // E1-4 (#1412): a persona's two personality views come off
+            // it - the fixed cast keeps its independent rolls
+            let traits = if seeded_cast {
                 let past = crate::game::persona::Past {
                     vocation: adult_vocs.get(i).copied(), ..Default::default() };
                 let p = crate::game::persona::generate(seed, i, &past);
+                let (big5, t) = p.personalities();
+                world.add_component(v, big5);
                 world.add_component(v, p.sex);
                 deal_name(&p, &mut cast_names);
                 world.add_component(v, p);
-            }
+                t
+            } else {
+                world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
+                personality_from_seed(i as u64 * 7 + 3)
+            };
             world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
             world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
-            world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
             world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-            let traits = personality_from_seed(i as u64 * 7 + 3);
             // their soul starts bent by the traits they carry; the life
             // does the rest (#950)
             world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));

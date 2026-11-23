@@ -23,11 +23,11 @@ impl Game {
     pub(in crate::session) fn spawn_kid(&mut self, home: Entity, tick: u64) {
         let (x, y) = self.world.get_component::<Pos>(home).map(|p| (p.x, p.y)).unwrap_or((14.0, 14.0));
         let v = villager::spawn_villager(&mut self.world, x + 0.5, y + 0.5);
-        self.deal_cast(v, None);
+        let dealt = self.deal_cast(v, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
-        let traits = personality_from_seed(self.rng.next());
+        let traits = dealt.unwrap_or_else(|| personality_from_seed(self.rng.next()));
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
@@ -36,7 +36,9 @@ impl Game {
         self.world.add_component(v, KidGrowth { age_days: 0, errands: vec![] });
         self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
-        self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
+        if !self.seeded_cast {
+            self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
+        }
         self.world.add_component(v, crate::game::lifecycle::Age { years: 0.0, stage: crate::game::lifecycle::LifeStage::Infant, born_day: (v as u16) % 360 });
         self.world.add_component(v, crate::game::lifecycle::Vitality {
             health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
@@ -140,11 +142,11 @@ impl Game {
     pub(in crate::session) fn maybe_migrant(&mut self, tick: u64) {
         let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
         let v = villager::spawn_villager(&mut self.world, x, y);
-        self.deal_cast(v, None);
+        let dealt = self.deal_cast(v, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
-        let traits = personality_from_seed(self.rng.next());
+        let traits = dealt.unwrap_or_else(|| personality_from_seed(self.rng.next()));
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
@@ -161,7 +163,9 @@ impl Game {
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
-        self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
+        if !self.seeded_cast {
+            self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
+        }
         // a newcomer joins the parish
         self.join_parish(v);
         self.villagers.push(v);
@@ -876,16 +880,23 @@ impl Game {
             .map(|r| r.kind)
     }
 
-    /// A seeded cast's spawn rite (#1411): persona, body and a dealt
-    /// name for the villager about to join the roll. Every spawn site
-    /// calls it before `villagers.push` so `cast_name` stays positional
-    pub(in crate::session) fn deal_cast(&mut self, v: Entity, vocation: Option<Vocation>) {
-        if !self.seeded_cast { return; }
+    /// A seeded cast's spawn rite (#1411): persona, body, a dealt name
+    /// and the persona's two personality views (E1-4, #1412) for the
+    /// villager about to join the roll. Returns the derived traits so
+    /// the caller can feed `Virtues::seeded` and add the component -
+    /// None in a fixed cast, where the old rolls still stand
+    pub(in crate::session) fn deal_cast(&mut self, v: Entity, vocation: Option<Vocation>)
+        -> Option<crate::game::traits::Personality>
+    {
+        if !self.seeded_cast { return None; }
         let p = crate::game::persona::generate(self.seed, self.villagers.len(),
             &crate::game::persona::Past { vocation, ..Default::default() });
+        let (big5, traits) = p.personalities();
+        self.world.add_component(v, big5);
         self.world.add_component(v, p.sex);
         deal_name(&p, &mut self.names);
         self.world.add_component(v, p);
+        Some(traits)
     }
 
     /// The name this cast dealt to villager `i` - the dealt list in a

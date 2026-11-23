@@ -1541,8 +1541,11 @@ impl Game {
                         self.world.add_component(v, Health { condition: 0.7, immunity: 0.4 });
                         self.world.add_component(v, crate::sim::community::Citizen {
                             influence: 0.1, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-                        self.world.add_component(v, crate::game::traits::personality_from_seed(trng.next()));
-                        self.world.add_component(v, crate::sim::psychology::personality_from_seed(trng.next()));
+                        let traits_roll = if self.seeded_cast { None }
+                            else { Some(crate::game::traits::personality_from_seed(trng.next())) };
+                        if !self.seeded_cast {
+                            self.world.add_component(v, crate::sim::psychology::personality_from_seed(trng.next()));
+                        }
                         self.world.add_component(v, crate::game::livelihood::Satchel::default());
                         self.world.add_component(v, desires::Known::default());
                         let voc = crate::session::roll_vocation(&mut trng);
@@ -1554,7 +1557,8 @@ impl Game {
                             grievances: vec![], satisfied: vec![] });
                         self.world.add_component(v, crate::game::vocation::craft(voc, 0.2));
                         self.world.add_component(v, Purse { gold: 0.5 });
-                        self.deal_cast(v, Some(voc));
+                        let dealt = self.deal_cast(v, Some(voc));
+                        self.world.add_component(v, dealt.or(traits_roll).unwrap());
                         self.villagers.push(v);
                         // a roof where there's room (the camp's behind them)
                         if let Some(h) = home {

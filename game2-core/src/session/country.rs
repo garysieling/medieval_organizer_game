@@ -648,12 +648,14 @@ impl Game {
         let door = self.at_the_door(hp.0, hp.1).unwrap_or(hp);
         let v = villager::spawn_villager(&mut self.world, door.0 as f32 + k as f32 * 0.4, door.1 as f32 + 0.3);
         let i = self.villagers.len();
-        self.deal_cast(v, voc);
+        let dealt = self.deal_cast(v, voc);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
-        self.world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
+        if !self.seeded_cast {
+            self.world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
+        }
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-        let traits = personality_from_seed(i as u64 * 7 + 3);
+        let traits = dealt.unwrap_or_else(|| personality_from_seed(i as u64 * 7 + 3));
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());

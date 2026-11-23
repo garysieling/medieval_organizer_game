@@ -888,6 +888,43 @@ mod websink {
     }
 }
 
+/// The web side of A2's loader: `assets/sound/manifest.json` (written
+/// by `scripts/sound_process.py`) lists every committed asset; fetch
+/// each and insert the bytes. Native builds use `sampler::load_dir`
+/// instead, so this module is wasm-only.
+#[cfg(target_arch = "wasm32")]
+pub mod sound_loader {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen_futures::JsFuture;
+
+    async fn fetch_bytes(url: &str) -> Option<Vec<u8>> {
+        let resp: web_sys::Response = JsFuture::from(
+            web_sys::window()?.fetch_with_str(url)).await.ok()?.dyn_into().ok()?;
+        let buf = JsFuture::from(resp.array_buffer().ok()?).await.ok()?;
+        Some(js_sys::Uint8Array::new(&buf).to_vec())
+    }
+
+    /// Fetch the manifest then each asset, decoded into a bank ready
+    /// for `Engine::set_bank`. `base` is the page's root ("" works).
+    /// A missing or undecodable file is skipped - the ledger gate has
+    /// already vouched for what should be there.
+    pub async fn fetch_sound_bank(base: &str) -> game2_audio::sampler::SampleBank {
+        let mut bank = game2_audio::sampler::SampleBank::new();
+        let Some(mani) = fetch_bytes(&format!("{base}/assets/sound/manifest.json")).await
+            else { return bank };
+        let Ok(paths) = serde_json::from_slice::<Vec<String>>(&mani)
+            else { return bank };
+        for p in paths {
+            if let Some(bytes) = fetch_bytes(&format!("{base}/assets/sound/{p}")).await {
+                let stem = p.rsplit('/').next().unwrap_or(&p)
+                    .strip_suffix(".ogg").unwrap_or(&p);
+                let _ = bank.insert_bytes(stem, &bytes);
+            }
+        }
+        bank
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

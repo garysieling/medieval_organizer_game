@@ -25,6 +25,13 @@ pub enum Source {
     /// One of the game's cue voices - plays out its own envelope then
     /// retires itself
     Synth(crate::synth::SynthKind),
+    /// A pitched sample note: the patch's zone for `midi` picks the
+    /// buffer, root and sustain loop (A2). One-shots retire at the
+    /// sample's end; zones with loop points sustain until `stop`.
+    Sample { id: crate::sampler::PatchId, midi: u8 },
+    /// A looping ambience bed: the patch's first zone's buffer,
+    /// looped whole - the processing crossfade makes the wrap seamless.
+    Bed { id: crate::sampler::PatchId },
 }
 
 /// How a voice sounds: loudness, stereo place, speed, tone and how
@@ -64,6 +71,23 @@ struct Voice {
     /// 5 ms as the steal fade) - a voice entering mid-amplitude clicks
     /// exactly like one leaving.
     attack: u32,
+    /// Sample playback state for `Source::Sample`/`Bed`; `None` for
+    /// every other source and for an unresolved (missing) asset, which
+    /// plays silence.
+    samp: Option<Samp>,
+}
+
+/// Where a sample voice is: its buffer, the frame position within it,
+/// the per-frame step (rate conversion x semitone ratio; `params.pitch`
+/// is multiplied in at render) and the sustain loop - `[0, len)` for a
+/// bed, `[len, len)` for a one-shot so it ends.
+struct Samp {
+    idx: u32,
+    pos: f32,
+    step: f32,
+    loop_start: u32,
+    loop_end: u32,
+    done: bool,
 }
 
 /// A voice on its way out: the steal's 5 ms linear fade means the slot
@@ -154,6 +178,12 @@ pub struct Engine {
     night: bool,
     clock: u64,
     fade_samples: u32,
+    /// The decoded assets `Source::Sample`/`Bed` voices read; empty
+    /// until the host loads one.
+    bank: crate::sampler::SampleBank,
+    /// Patch ids already reported missing - each logs once, then
+    /// silence without re-logging or allocating.
+    missing: std::collections::HashSet<u32>,
 }
 
 impl Engine {
@@ -171,7 +201,20 @@ impl Engine {
             night: false,
             clock: 0,
             fade_samples: (sample_rate as f32 * 0.005) as u32,
+            bank: crate::sampler::SampleBank::new(),
+            missing: std::collections::HashSet::new(),
         }
+    }
+
+    /// Hand the engine its decoded assets. Voices started before a
+    /// bank exists keep playing silence (their id logs once as
+    /// missing).
+    pub fn set_bank(&mut self, bank: crate::sampler::SampleBank) { self.bank = bank; }
+    pub fn bank(&self) -> &crate::sampler::SampleBank { &self.bank }
+    /// Patch ids that have logged as missing - the test's window on
+    /// the dedupe.
+    pub fn missing_logged(&self, id: crate::sampler::PatchId) -> bool {
+        self.missing.contains(&id.0)
     }
 
     /// Start a source on a bus. When the pool is full the quietest voice
@@ -187,11 +230,48 @@ impl Engine {
         }
         let id = self.next_id;
         self.next_id = self.next_id.wrapping_add(1);
+        let samp = self.resolve(&src);
         self.voices.push(Voice {
             id, src, bus: bi(bus), params,
             phase: 0.0, lp: 0.0, born: self.clock, attack: self.fade_samples,
+            samp,
         });
         VoiceId(id)
+    }
+
+    /// A `Source::Sample`/`Bed` becomes a `Samp` once, at trigger - the
+    /// render loop then does a table lookup per frame, never a search.
+    /// An unknown patch (or a note no zone covers) logs the id once
+    /// and renders silence.
+    fn resolve(&mut self, src: &Source) -> Option<Samp> {
+        let (pid, midi, bed) = match *src {
+            Source::Sample { id, midi } => (id, Some(midi), false),
+            Source::Bed { id } => (id, None, true),
+            _ => return None,
+        };
+        let zone = self.bank.patch(pid).and_then(|p| match midi {
+            Some(m) => p.zone_for(m),
+            None => p.zones.first(),
+        });
+        let found = zone.and_then(|z| self.bank.sample(z.sample).map(|s| (z, s)));
+        let Some((z, s)) = found else {
+            if self.missing.insert(pid.0) {
+                eprintln!("game2-audio: missing asset for patch {}", pid.0);
+            }
+            return None;
+        };
+        let rate = s.sr as f32 / self.sr;
+        let step = match midi {
+            Some(m) => rate * 2f32.powf((m as f32 - z.root as f32) / 12.0),
+            None => rate,
+        };
+        let len = s.pcm.len() as u32;
+        let (loop_start, loop_end) = if bed {
+            (0, len)
+        } else {
+            (z.loop_start.unwrap_or(len), z.loop_end.unwrap_or(len))
+        };
+        Some(Samp { idx: z.sample.0, pos: 0.0, step, loop_start, loop_end, done: len == 0 })
     }
 
     /// Stop a voice. Like the steal it fades over 5 ms rather than
@@ -214,7 +294,8 @@ impl Engine {
     /// cap and the perf budget both read this.
     pub fn live_voices(&self) -> usize { self.voices.len() }
 
-    fn voice_sample(v: &mut Voice, sr: f32, rng: &mut Rng, age: u64) -> f32 {
+    fn voice_sample(v: &mut Voice, sr: f32, rng: &mut Rng, age: u64,
+                    bank: &crate::sampler::SampleBank) -> f32 {
         let s = match v.src {
             Source::Sine { hz } => {
                 let y = (v.phase * TAU).sin();
@@ -225,6 +306,25 @@ impl Engine {
             Source::Synth(kind) => {
                 let t = age as f32 / sr;
                 if t > kind.len() { 0.0 } else { kind.sample(t, rng.range(-1.0, 1.0)) }
+            }
+            Source::Sample { .. } | Source::Bed { .. } => {
+                let Some(sp) = v.samp.as_mut() else { return 0.0 };
+                let Some(smp) = bank.samples.get(sp.idx as usize) else { return 0.0 };
+                if sp.done || smp.pcm.is_empty() { 0.0 } else {
+                    // linear interpolation between adjacent frames
+                    let i = (sp.pos as usize).min(smp.pcm.len() - 1);
+                    let f = sp.pos - i as f32;
+                    let y = smp.pcm[i] + (smp.pcm.get(i + 1).copied().unwrap_or(smp.pcm[i]) - smp.pcm[i]) * f;
+                    sp.pos += sp.step * v.params.pitch;
+                    if sp.pos >= sp.loop_end as f32 {
+                        if sp.loop_end > sp.loop_start {
+                            // wrap into the sustain loop keeping the overshoot
+                            sp.pos = sp.loop_start as f32
+                                + (sp.pos - sp.loop_end as f32) % (sp.loop_end - sp.loop_start) as f32;
+                        } else { sp.done = true; }
+                    }
+                    y
+                }
             }
         };
         let a = 1.0 - (-TAU * v.params.lowpass_hz / sr).exp(); // 1 - e^(-2pi fc / sr)
@@ -249,7 +349,7 @@ impl Engine {
                     f
                 } else { 1.0 };
                 let age = self.clock + (i / 2) as u64 - v.born;
-                let s = Self::voice_sample(v, self.sr, &mut self.rng, age) * ramp;
+                let s = Self::voice_sample(v, self.sr, &mut self.rng, age, &self.bank) * ramp;
                 let th = (v.params.pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
                 let (l, r) = (s * th.cos(), s * th.sin());
                 if v.bus == bi(Bus::Master) { m[0] += l; m[1] += r; }
@@ -263,7 +363,7 @@ impl Engine {
             for d in self.dying.iter_mut() {
                 let fade = d.left as f32 / d.total as f32;
                 let age = self.clock + (i / 2) as u64 - d.v.born;
-                let s = Self::voice_sample(&mut d.v, self.sr, &mut self.rng, age) * fade;
+                let s = Self::voice_sample(&mut d.v, self.sr, &mut self.rng, age, &self.bank) * fade;
                 let th = (d.v.params.pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
                 let (l, r) = (s * th.cos(), s * th.sin());
                 if d.v.bus == bi(Bus::Master) { m[0] += l; m[1] += r; }
@@ -291,6 +391,11 @@ impl Engine {
         let clock = self.clock;
         self.voices.retain(|v| match v.src {
             Source::Synth(kind) => (clock - v.born) as f32 <= kind.len() * self.sr,
+            // one-shots free their slot at the sample's end; beds and
+            // sustain loops run until `stop`; a missing asset's voice
+            // resolves to nothing and frees at once
+            Source::Sample { .. } | Source::Bed { .. } =>
+                v.samp.as_ref().is_some_and(|s| !s.done),
             _ => true,
         });
     }

@@ -115,6 +115,11 @@ def main():
     with open(LEDGER, "w") as f:
         json.dump(ledger, f, indent=2)
         f.write("\n")
+    # the web loader fetches exactly these (A2): one path per asset
+    manifest = sorted(e["path"] for e in ledger)
+    with open(os.path.join(SOUND, "manifest.json"), "w") as f:
+        json.dump(manifest, f, indent=2)
+        f.write("\n")
     print(f"{rel} ({os.path.getsize(dst)} bytes) ledgered as {args.name}")
 
 

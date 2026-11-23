@@ -73,7 +73,8 @@ fn walk(dir: &Path, at: &Path, out: &mut Vec<String>) {
         let rel = p.strip_prefix(dir).unwrap_or(&p)
             .to_string_lossy().replace('\\', "/");
         // the ledger's own paperwork and the untracked staging area
-        if rel == "LEDGER.json" || rel == "README.md" || rel.starts_with("_incoming/") { continue; }
+        if rel == "LEDGER.json" || rel == "README.md" || rel == "manifest.json"
+            || rel.starts_with("_incoming/") { continue; }
         out.push(rel);
     }
 }

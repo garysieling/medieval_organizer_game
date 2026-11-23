@@ -64,6 +64,10 @@ pub struct View {
     /// the keys - widget state like the toggles above
     pub search_q: String,
     pub search_focus: bool,
+    /// The Sound overlay off the pause menu (#1506): open or not, and
+    /// which row the keyboard focus sits on
+    pub sound_menu: bool,
+    pub sound_row: usize,
     /// The frame stamp of the last sim camera-ask answered, so the same
     /// ask isn't answered twice
     pub focus_seen: std::cell::Cell<Option<u32>>,
@@ -151,6 +155,8 @@ impl View {
             note: None,
             search_q: String::new(),
             search_focus: false,
+            sound_menu: false,
+            sound_row: 0,
             focus_seen: std::cell::Cell::new(None),
             convo_pin: std::cell::RefCell::new(talk::ConvoPin::default()),
             ground: std::cell::RefCell::new(None),

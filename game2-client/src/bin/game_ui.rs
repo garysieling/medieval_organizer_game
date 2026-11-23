@@ -580,6 +580,10 @@ fn main() {
         if pause_menu {
             client::draw_pause_menu(&mut buf, (mx, my),
                 if remote.is_some() { "MENU" } else { "PAUSED" });
+            if view.sound_menu {
+                client::draw_sound_menu(&mut buf, (mx, my),
+                    &settings_store.settings, view.sound_row);
+            }
         }
         present(&mut window, &buf);
 
@@ -591,14 +595,68 @@ fn main() {
         // (#1324)
         let esc_now = window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No);
         if pause_menu {
-            if esc_now
-                || window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { pause_menu = false; }
-            if window.is_key_pressed(Key::Q, minifb::KeyRepeat::No) { quit = true; }
-            if clicked {
-                match client::pause_menu_click(mx, my) {
-                    Some(client::MenuPick::Resume) => pause_menu = false,
-                    Some(client::MenuPick::Quit) => quit = true,
-                    None => {}
+            // the Sound overlay rides the menu (#1506): while it's up it
+            // owns the keys, and Esc peels back to the menu rather than
+            // resuming the day. Every edit lands on the live settings,
+            // applies to the host, and marks the file dirty for the
+            // debounced write
+            if view.sound_menu {
+                use client::{SndKey, SoundAct};
+                let k = if esc_now { Some(SndKey::Esc) }
+                    else if window.is_key_pressed(Key::Up, minifb::KeyRepeat::No)
+                        || window.is_key_pressed(Key::W, minifb::KeyRepeat::No) { Some(SndKey::Up) }
+                    else if window.is_key_pressed(Key::Down, minifb::KeyRepeat::No)
+                        || window.is_key_pressed(Key::S, minifb::KeyRepeat::No) { Some(SndKey::Down) }
+                    else if window.is_key_pressed(Key::Left, minifb::KeyRepeat::No)
+                        || window.is_key_pressed(Key::A, minifb::KeyRepeat::No) { Some(SndKey::Left) }
+                    else if window.is_key_pressed(Key::Right, minifb::KeyRepeat::No)
+                        || window.is_key_pressed(Key::D, minifb::KeyRepeat::No) { Some(SndKey::Right) }
+                    else if window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { Some(SndKey::Enter) }
+                    else { None };
+                let act = k.map(|k| client::sound_menu_key(&mut settings_store.settings, view.sound_row, k))
+                    .or_else(|| if clicked {
+                        client::sound_menu_click(mx, my, &mut settings_store.settings)
+                    } else { None });
+                if let Some((row, act)) = act {
+                    view.sound_row = row;
+                    match act {
+                        SoundAct::Changed(key) => {
+                            audio_host.apply_settings(&settings_store.settings);
+                            settings_store.touch(std::time::Instant::now());
+                            // a moved Effects slider previews itself
+                            if key == "effects" {
+                                audio_host.push_frame(&game2_audio::host::AudioFrame {
+                                    cues: vec![game2_audio::host::CueKind::Bell { pan: 0.0, gain: 0.8 }],
+                                    seed: 0,
+                                });
+                            }
+                        }
+                        SoundAct::Reset => {
+                            audio_host.apply_settings(&settings_store.settings);
+                            settings_store.touch(std::time::Instant::now());
+                        }
+                        SoundAct::Close => view.sound_menu = false,
+                        SoundAct::Move => {}
+                    }
+                }
+            } else {
+                if esc_now
+                    || window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { pause_menu = false; }
+                if window.is_key_pressed(Key::Q, minifb::KeyRepeat::No) { quit = true; }
+                if window.is_key_pressed(Key::V, minifb::KeyRepeat::No) {
+                    view.sound_menu = true;
+                    view.sound_row = 0;
+                }
+                if clicked {
+                    match client::pause_menu_click(mx, my) {
+                        Some(client::MenuPick::Resume) => pause_menu = false,
+                        Some(client::MenuPick::Sound) => {
+                            view.sound_menu = true;
+                            view.sound_row = 0;
+                        }
+                        Some(client::MenuPick::Quit) => quit = true,
+                        None => {}
+                    }
                 }
             }
             view.recycle(buf);
@@ -722,6 +780,16 @@ fn main() {
         // the press says so on the toast feed (#1505)
         if !view.search_focus && (window.is_key_pressed(Key::M, minifb::KeyRepeat::No)) {
             view.toggle_mute(cur_model.as_ref().map(|m| m.frame).unwrap_or(0));
+        }
+        // V opens the Sound overlay off the pause menu (#1506) - only on
+        // a bare map, where Esc itself would open the menu, so a Talk or
+        // the board keeps its own keys. The menu comes up with it so
+        // Esc still backs out to it
+        if !view.search_focus && window.is_key_pressed(Key::V, minifb::KeyRepeat::No)
+            && cur_model.as_ref().map(client::esc_route) == Some(client::EscRoute::Pause) {
+            pause_menu = true;
+            view.sound_menu = true;
+            view.sound_row = 0;
         }
         if let Some((_, scroll_y)) = window.get_scroll_wheel() {
             // Scale multiplicatively so a wheel notch feels consistent at any zoom,

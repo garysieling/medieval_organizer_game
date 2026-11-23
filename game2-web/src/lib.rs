@@ -12,6 +12,7 @@
 //! and the canvas blits it - the desktop's draw code, not a JS rewrite.
 
 use game2_audio::host::AudioHost;
+use game2_audio::settings::AudioSettings;
 use game2_client::{
     camera_follow, render_intro, render_picker, talk::digit_cmd, Art, EventCam, View, MAX_ZOOM,
     MIN_ZOOM,
@@ -36,6 +37,29 @@ fn fresh_seed() -> u64 {
     1
 }
 
+/// What the Sound dialog's controls hand over as a `JsValue` (#1507):
+/// a number off a range, a string off the presence select, a bool off
+/// a checkbox. Anything else decodes as Null, which `apply_setting`
+/// refuses - the same wrong-type answer the desktop gives.
+#[cfg(target_arch = "wasm32")]
+fn js_to_json(v: &JsValue) -> serde_json::Value {
+    if let Some(b) = v.as_bool() {
+        serde_json::Value::Bool(b)
+    } else if let Some(n) = v.as_f64() {
+        // a range's number arrives integral; keep it a u64 so
+        // apply_setting's "a number 0..=100" reads it as one
+        if n.fract() == 0.0 && n >= 0.0 {
+            serde_json::Value::from(n as u64)
+        } else {
+            serde_json::Value::from(n)
+        }
+    } else if let Some(s) = v.as_string() {
+        serde_json::Value::String(s)
+    } else {
+        serde_json::Value::Null
+    }
+}
+
 /// Everything about drawing that a page needs and both hosts share:
 /// the fetched art bytes, the `View` once it's open, the last frame's
 /// pixels, the camera state, and the model the last render drew.
@@ -58,6 +82,10 @@ struct RenderHost {
     /// the frame's audio intent goes here every render; silent until a
     /// gesture opens the device, so early frames just drop
     audio: AudioHost,
+    /// the page's Sound dialog writes here (#1507): the same
+    /// `AudioSettings` the desktop persists, applied to the host the
+    /// moment it exists
+    settings: AudioSettings,
     /// the open device's stream - owns the heartbeat, so it must live
     /// as long as `audio` does (#1497)
     #[cfg(target_arch = "wasm32")]
@@ -78,6 +106,7 @@ impl RenderHost {
             cam_centered: false,
             focus_seeded: false,
             audio: AudioHost::silent(),
+            settings: AudioSettings::default(),
             #[cfg(target_arch = "wasm32")]
             audio_sink: None,
         }
@@ -99,8 +128,46 @@ impl RenderHost {
             }
             if let Some(sink) = self.audio_sink.as_mut() {
                 self.audio = AudioHost::start(&HostSettings::default(), sink);
+                // the dialog's settings outlive the silent host (#1507):
+                // a fresh device inherits them straight away
+                self.audio.apply_settings(&self.settings);
             }
         }
+    }
+
+    /// One settings row from the page's Sound dialog (#1507): the same
+    /// `AudioSettings::apply_setting` the desktop writes through. A bad
+    /// key or a wrong-typed value answers false; a good set re-mixes the
+    /// live host at once, so a slider's change is heard as it's dragged.
+    /// (Only the wasm export and the native tests reach it - JsValue
+    /// doesn't decode off wasm.)
+    #[cfg(any(target_arch = "wasm32", test))]
+    fn set_audio_setting_json(&mut self, key: &str, value: serde_json::Value) -> bool {
+        match self.settings.apply_setting(key, value) {
+            Ok(()) => {
+                self.audio.apply_settings(&self.settings);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// The settings as JSON: the dialog populates its rows from this,
+    /// and the page persists whatever string it reads back
+    fn audio_settings_json(&self) -> String {
+        serde_json::to_string(&self.settings).unwrap_or_else(|_| "{}".into())
+    }
+
+    /// The dialog's Reset (#1507): the design defaults land at once
+    fn reset_audio_settings(&mut self) {
+        self.settings = AudioSettings::default();
+        self.audio.apply_settings(&self.settings);
+    }
+
+    /// `document.hidden` lands here: with `mute_in_background` on, the
+    /// host fades the mix out over its 300 ms ramp (#1507)
+    fn audio_focused(&mut self, on: bool) {
+        self.audio.set_focused(on);
     }
 
     fn provide_asset(&mut self, rel: &str, bytes: &[u8]) {
@@ -382,6 +449,38 @@ impl WasmGame {
     /// Frames pushed before it just drop (#1497)
     pub fn audio_start(&mut self) {
         self.host.audio_start();
+    }
+
+    /// The Sound dialog's apply (#1507): one row's new value - a range's
+    /// number, the select's string, a checkbox's bool. False when the
+    /// key's unknown or the type's wrong, so the page can ignore it.
+    pub fn set_audio_setting(&mut self, key: &str, value: JsValue) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.host.set_audio_setting_json(key, js_to_json(&value))
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = (key, value);
+            false
+        }
+    }
+
+    /// The Sound dialog's rows, as JSON: it populates from this on
+    /// open, and the page persists the string on every change
+    pub fn audio_settings(&self) -> String {
+        self.host.audio_settings_json()
+    }
+
+    /// The dialog's Reset row (#1507): the design's defaults land and
+    /// the live mix hears them
+    pub fn reset_audio_settings(&mut self) {
+        self.host.reset_audio_settings();
+    }
+
+    /// `document.hidden` lands here, for the mix's mute-in-background
+    pub fn audio_focused(&mut self, on: bool) {
+        self.host.audio_focused(on);
     }
 
     /// One frame of the village
@@ -693,6 +792,38 @@ impl WasmClient {
     /// Frames pushed before it just drop (#1497)
     pub fn audio_start(&mut self) {
         self.host.audio_start();
+    }
+
+    /// The Sound dialog's apply (#1507): one row's new value - a range's
+    /// number, the select's string, a checkbox's bool. False when the
+    /// key's unknown or the type's wrong, so the page can ignore it.
+    pub fn set_audio_setting(&mut self, key: &str, value: JsValue) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.host.set_audio_setting_json(key, js_to_json(&value))
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = (key, value);
+            false
+        }
+    }
+
+    /// The Sound dialog's rows, as JSON: it populates from this on
+    /// open, and the page persists the string on every change
+    pub fn audio_settings(&self) -> String {
+        self.host.audio_settings_json()
+    }
+
+    /// The dialog's Reset row (#1507): the design's defaults land and
+    /// the live mix hears them
+    pub fn reset_audio_settings(&mut self) {
+        self.host.reset_audio_settings();
+    }
+
+    /// `document.hidden` lands here, for the mix's mute-in-background
+    pub fn audio_focused(&mut self, on: bool) {
+        self.host.audio_focused(on);
     }
 
     /// Which entity is me, from the Welcome - for finding my figure in
@@ -1014,5 +1145,37 @@ mod tests {
         }).collect();
         assert_eq!(kinds, ["rain", "anvil", "festival", "wonder", "bell",
                            "snowballs", "splash", "mood", "mood"]);
+    }
+
+    /// The dialog's populate string round-trips the same rows the
+    /// desktop persists (#1507): set a few, read the JSON, get them back
+    #[test]
+    fn web_settings_json_round_trip() {
+        let mut host = RenderHost::new();
+        assert!(host.set_audio_setting_json("master", serde_json::json!(45)));
+        assert!(host.set_audio_setting_json("presence", serde_json::json!("rich")));
+        assert!(host.set_audio_setting_json("mono", serde_json::json!(true)));
+        let s: game2_audio::settings::AudioSettings =
+            serde_json::from_str(&host.audio_settings_json()).unwrap();
+        assert_eq!(s.master, 45);
+        assert_eq!(s.presence, game2_audio::settings::Presence::Rich);
+        assert!(s.mono);
+        // Reset restores the design table
+        host.reset_audio_settings();
+        let s: game2_audio::settings::AudioSettings =
+            serde_json::from_str(&host.audio_settings_json()).unwrap();
+        assert_eq!(s, game2_audio::settings::AudioSettings::default());
+    }
+
+    /// The dialog's apply refuses what it can't place, the same errors
+    /// `apply_setting` gives the desktop (#1507)
+    #[test]
+    fn set_audio_setting_rejects_bad_key() {
+        let mut host = RenderHost::new();
+        assert!(!host.set_audio_setting_json("bogus", serde_json::json!(1)));
+        assert!(!host.set_audio_setting_json("master", serde_json::json!("loud")));
+        assert!(!host.set_audio_setting_json("presence", serde_json::json!("lots")));
+        // a good set still lands after the misses
+        assert!(host.set_audio_setting_json("music", serde_json::json!(60)));
     }
 }

@@ -111,15 +111,26 @@ pub struct Relationship {
 impl Relationship {
     /// `strength` is a summary, not a state: derived from the parts as
     /// their weighted sum (all weights 1 - the deltas each kind pushes
-    /// are sized to land the old strength delta exactly). Any warmth
-    /// the parts don't account for - a seeded bond, a hand-set
-    /// strength - parks under intimacy so the parts and the summary
-    /// tell one story
+    /// are sized to land the old strength delta exactly). Reconcile
+    /// what the parts don't know about: warmth arriving from outside -
+    /// a seeded bond, a hand-set strength - parks under intimacy;
+    /// warmth above the cap is saturation, not coldness, and shaves
+    /// every part alike rather than inventing a grievance
     fn reconcile(&mut self) {
         let derived = self.intimacy + self.trust.ability
             + self.trust.benevolence + self.trust.integrity;
-        if (derived - self.strength).abs() > 1e-6 {
-            self.intimacy += self.strength - derived;
+        let diff = self.strength - derived;
+        if diff.abs() <= 1e-6 {
+            return;
+        }
+        if diff > 0.0 || derived <= 1e-6 {
+            self.intimacy += diff;
+        } else {
+            let keep = self.strength / derived;
+            self.intimacy *= keep;
+            self.trust.ability *= keep;
+            self.trust.benevolence *= keep;
+            self.trust.integrity *= keep;
         }
     }
     /// the summary the readers know, off the parts
@@ -612,6 +623,31 @@ mod e6_1 {
         assert!((s + 0.20).abs() < 1e-6);
         assert!((r.intimacy + 0.10).abs() < 1e-6);
         assert!((r.trust.integrity + 0.10).abs() < 1e-6);
+    }
+
+    /// gifts past the cap saturate the trust parts; decay must shave
+    /// them alike, not invent coldness where none was given
+    #[test]
+    fn saturated_trust_does_not_drain_intimacy() {
+        let mut w = World::new();
+        let (a, b) = (w.create_entity(), w.create_entity());
+        for _ in 0..3 {
+            record_interaction(&mut w, a, Interaction {
+                other: b, kind: InteractionKind::Aid, intensity: 1.0,
+            });
+        }
+        let e = find_relationship(&w, a, b).unwrap();
+        let before = w.get_component::<Relationship>(e).unwrap();
+        assert!(before.trust.ability + before.trust.benevolence > 1.0);
+        assert_eq!(before.strength, 1.0, "the summary caps at one");
+
+        RelationshipSystem.run(&mut w);   // a day of decay
+
+        let r = w.get_component::<Relationship>(e).unwrap();
+        assert!(r.intimacy >= 0.0,
+            "saturated trust must not drain intimacy: {}", r.intimacy);
+        assert!(r.strength > 0.97 && r.strength < 1.0,
+            "decay shaved the parts, not invented a grievance: {}", r.strength);
     }
 
     /// a betrayal costs the bond its nerve, whatever it had reached

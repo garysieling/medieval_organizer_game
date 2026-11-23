@@ -90,8 +90,10 @@ fn test_a_luxury_s_offer_line_says_so() {
     }
     g.seats[0].selected_building = g.building_entities.iter().position(|&x| x == shop);
     let insp = g.building_inspector_at(0).unwrap();
-    let offer = insp.lines.iter().find(|l| l.text.starts_with("for offer"))
-        .map(|l| l.text.clone()).unwrap_or_default();
+    // the offer wraps over several card rows at the manuscript metric -
+    // join the lines so the tier's word can land on the next row
+    let offer = insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>().join(" ");
+    let offer = offer[offer.find("for offer").unwrap_or(0)..].to_string();
     assert!(offer.contains("a luxury"), "the tier never showed: {}", offer);
 }
 

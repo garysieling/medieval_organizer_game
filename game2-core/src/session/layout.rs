@@ -145,10 +145,15 @@ pub fn edge_scroll(mx: i32, my: i32) -> (f32, f32) {
     (push(mx, MAP_W as i32), push(my, H as i32))
 }
 
-/// Font glyph width and height (ui::font)
-pub const GLYPH_W: i32 = 6;
+/// Font glyph width and height (ui::font): the Jacquarda blackletter's
+/// 10x13 cell at an 11px advance (#1322)
+pub const GLYPH_W: i32 = 11;
 
-pub const GLYPH_H: i32 = 7;
+pub const GLYPH_H: i32 = 13;
+
+/// A text line's pitch - glyph height plus a 2px gap. Replaces the old
+/// hand-spelled 10/11/12px stacks so rows track the face
+pub const LINE_H: i32 = GLYPH_H + 2;
 
 /// Word-wrap `text` into lines of at most `max` characters, breaking at
 /// spaces (a word longer than a whole line is split)

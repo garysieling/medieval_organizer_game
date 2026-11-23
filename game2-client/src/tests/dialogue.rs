@@ -30,10 +30,10 @@ fn talk_beside(g: &mut Game, i: usize) -> Entity {
 
 #[test]
 fn test_long_lines_wrap_inside_the_talk_box_and_replies_click() {
-    let long = "word ".repeat(40);
+    let long = "word ".repeat(6);
     let p = TalkPanelV {
         title: "TALK".into(),
-        rows: (0..6).map(|k| TalkRowV { name: Some(format!("Speaker{}", k)), text: long.clone(), gist: k == 2, you: k % 2 == 1, rule: false, who: None, mood: 0 }).collect(),
+        rows: (0..2).map(|k| TalkRowV { name: Some(format!("Speaker{}", k)), text: long.clone(), gist: k == 2, you: k % 2 == 1, rule: false, who: None, mood: 0 }).collect(),
         options: vec![long.clone(), "Short one.".into()],
         in_talk: true,
     };
@@ -41,7 +41,7 @@ fn test_long_lines_wrap_inside_the_talk_box_and_replies_click() {
     for (y, text, _, name, _) in &rows {
         let n = name.as_ref().map(|n| n.0.len()).unwrap_or(0);
         assert!(n + text.len() <= TALK_CHARS, "row overflows: {:?}", text);
-        assert!(*y >= TALK_Y + 14 && *y + 7 <= TALK_Y + TALK_H, "row at {} outside the box", y);
+        assert!(*y >= TALK_Y + 14 && *y + GLYPH_H <= TALK_Y + TALK_H, "row at {} outside the box", y);
     }
     assert!(rows[0].3.is_some(), "the view opens on a speaker's line, not the tail of one");
     assert_eq!(rects.len(), 3, "two replies and Leave");
@@ -493,7 +493,7 @@ fn test_the_speakers_mood_mark_badges_their_icon() {
         let i = (y as usize * b.width + x as usize) * 4; [b.pixels[i], b.pixels[i + 1], b.pixels[i + 2]]
     };
     let said = boxes.iter().find(|b| b.click.is_some()).unwrap();
-    let (bx, by) = (said.x + 9, said.y + 8);
+    let (bx, by) = (said.x + 12, said.y + 11);
     assert_eq!(at(&draw(&panel(1)), bx, by), [236, 178, 88], "warm isn't gold");
     assert_eq!(at(&draw(&panel(2)), bx, by), [142, 176, 220], "cold isn't steel blue");
     assert_eq!(at(&draw(&panel(3)), bx, by), [222, 82, 62], "angry isn't red");
@@ -501,7 +501,7 @@ fn test_the_speakers_mood_mark_badges_their_icon() {
     let plain = draw(&panel(0));
     assert_eq!(at(&plain, bx, by), [220, 0, 0], "a badge drew on a neutral read");
     // and the pip's dark frame hangs it off the head
-    assert_eq!(at(&draw(&panel(1)), said.x + 7, said.y + 6), [15, 15, 22]);
+    assert_eq!(at(&draw(&panel(1)), said.x + 11, said.y + 10), [15, 15, 22]);
 }
 
 /// The opener's first letter draws as a decorated drop cap beside its

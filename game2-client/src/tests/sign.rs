@@ -30,7 +30,7 @@ fn test_a_villager_with_a_sign_carries_their_board() {
             if m.buildings.iter().any(|b| close(b.x, b.y, 3.0))
                 || m.map.trees.iter().any(|&(tx, ty)| close(tx as f32 + 0.5, ty as f32 + 0.5, 3.0))
                 || m.stones.iter().any(|&(tx, ty)| close(tx as f32 + 0.5, ty as f32 + 0.5, 2.5))
-                || m.people.iter().any(|p| close(p.pos.0, p.pos.1, 2.0)) {
+                || m.people.iter().any(|p| close(p.pos.0, p.pos.1, 5.0)) {
                 continue;
             }
             m.people[idx].pos = (x, y);
@@ -45,7 +45,7 @@ fn test_a_villager_with_a_sign_carries_their_board() {
     let (sx, sy) = iso_to_screen_cam(pos.0, pos.1, view.cam_x, view.cam_y, view.zoom);
     let z = view.zoom;
     // the placard: pale face, blue print, dark rim - right of the figure's chest
-    let (bx, by) = (sx + (11.0 * z).round() as i32, sy - (34.0 * z).round() as i32);
+    let (bx, by) = (sx + (11.0 * z).round() as i32, sy - (22.0 * z).round() as i32);
     let (bw, bh) = ((11.0 * z).round() as i32 + 3, (9.0 * z).round() as i32 + 3);
     assert!(count_rgb(&buf, bx - 1, by - 1, bw, bh, (228, 218, 196)) > 15,
         "no placard face at the sign spot");

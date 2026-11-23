@@ -12,7 +12,7 @@ pub const TALK_X: i32 = UI_X as i32 + 10;
 pub const TALK_Y: i32 = 848;
 pub const TALK_W: i32 = 320;
 pub const TALK_H: i32 = 108;
-pub(crate) const ROW_H: i32 = 10;
+pub(crate) const ROW_H: i32 = LINE_H;
 /// Characters to a row: the box less its padding
 pub const TALK_CHARS: usize = ((TALK_W - 12) / GLYPH_W) as usize;
 /// Rows the box holds under its title
@@ -129,7 +129,7 @@ pub const CONVO_Y: i32 = 46;
 pub const CONVO_W: i32 = 336;
 /// Characters to a row inside a button: the box less its padding
 pub(crate) const CONVO_CHARS: usize = ((CONVO_W - 24) / GLYPH_W) as usize;
-pub(crate) const CONVO_ROW_H: i32 = 10;
+pub(crate) const CONVO_ROW_H: i32 = LINE_H;
 /// The tallest the box gets before the oldest lines drop off the top:
 /// most of the window's height (#1317)
 pub(crate) const CONVO_MAX_H: i32 = 660;
@@ -138,13 +138,13 @@ pub(crate) const CONVO_FADE: u32 = 10;
 /// The speaker icon's slot left of a name lead: ~10px for the head,
 /// the rest a gap before the words (#1319); the mood mark #1320 hangs
 /// on this slot
-pub(crate) const CONVO_PORT: i32 = 12;
+pub(crate) const CONVO_PORT: i32 = 16;
 /// `CONVO_PORT` in glyphs, off a speaker row's wrap width
 pub(crate) const CONVO_PORT_CHARS: usize = (CONVO_PORT as usize) / GLYPH_W as usize;
 /// The drop cap's decorated box, opening a talk or meeting (#1321)
-pub(crate) const CONVO_CAP: i32 = 22;
+pub(crate) const CONVO_CAP: i32 = 28;
 /// Rows that sit beside the cap before the text takes the full width
-pub(crate) const CONVO_CAP_ROWS: usize = 3;
+pub(crate) const CONVO_CAP_ROWS: usize = 2;
 /// `CONVO_CAP` plus its gap, in glyphs off the opener's wrap width
 pub(crate) const CAP_CHARS: usize = (CONVO_CAP as usize + 4) / GLYPH_W as usize;
 
@@ -281,7 +281,7 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
         p.rows.iter().enumerate().map(|(i, r)| wrap_line(r, cap.filter(|_| Some(i) == cap_at))).collect();
     // room for lines = the box less the tiered title and the choice buttons
     let opt_h = opts.iter().map(|ws| ws.len() as i32 * CONVO_ROW_H + 6).sum::<i32>() + 3 * opt_count as i32;
-    let room = CONVO_MAX_H - 24 - opt_h;
+    let room = CONVO_MAX_H - 38 - opt_h;
     // the newest that fit beside the choices: how far back the tail
     // reaches this call - the pin can only shorten it, never lengthen
     let mut fit = 0usize;
@@ -311,7 +311,7 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
     pin.borns.retain(|&s, _| sigs.contains(&s));
     // lay the buttons out top to bottom, the title's tier above them
     let mut boxes: Vec<ConvoBox> = vec![];
-    let mut y = CONVO_Y + 20;
+    let mut y = CONVO_Y + 34;
     for (i, ws) in lines.iter().enumerate().skip(anchor) {
         let h = (ws.len() as i32 * CONVO_ROW_H + 6)
             .max(if cap.is_some() && Some(i) == cap_at { CONVO_CAP + 8 } else { 0 });
@@ -361,10 +361,10 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
     }
     // the doubled title; a long call's name falls back to 1x rather
     // than spilling into the sidebar
-    if p.title.len() as i32 * 12 <= CONVO_W - 12 {
+    if p.title.len() as i32 * (2 * GLYPH_W) <= CONVO_W - 12 {
         draw_tier(buf, CONVO_X + 6, CONVO_Y + 3, &p.title, TextTier::H1, 150, 150, 180);
     } else {
-        draw_text(buf, CONVO_X + 6, CONVO_Y + 8, &p.title, 150, 150, 180);
+        draw_text(buf, CONVO_X + 6, CONVO_Y + 10, &p.title, 150, 150, 180);
     }
     for b in &boxes {
         let hover = b.click.is_some()
@@ -393,8 +393,8 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
                     3 => (222, 82, 62),
                     _ => (142, 176, 220),
                 };
-                buf.rect(b.x + 7, b.y + 6, 5, 5, 15, 15, 22);
-                buf.rect(b.x + 8, b.y + 7, 3, 3, mr, mg, mb);
+                buf.rect(b.x + 11, b.y + 10, 5, 5, 15, 15, 22);
+                buf.rect(b.x + 12, b.y + 11, 3, 3, mr, mg, mb);
             }
         }
         let words_x = CONVO_X + 10
@@ -408,7 +408,7 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
                     (words_x - 2, b.y + CONVO_CAP + 1), (words_x + CONVO_CAP - 1, b.y + CONVO_CAP + 1)] {
                 buf.rect(fx, fy, 2, 2, 210, 172, 96);
             }
-            draw_text_scaled(buf, words_x + 3, b.y + 4, &c.to_uppercase().to_string(), 3, 226, 186, 104);
+            draw_text_scaled(buf, words_x + 4, b.y + 2, &c.to_uppercase().to_string(), 2, 226, 186, 104);
         }
         let cap_x = if b.cap.is_some() { CONVO_CAP + 4 } else { 0 };
         for (k, (y, text, (r, g, b), name, rubric)) in b.rows.iter().enumerate() {

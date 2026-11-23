@@ -138,6 +138,26 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
         "addr" => push(out, &address_form(cx)),
         // E4-2: second person - pronouns and verb agreement read `cx.tv`
         _ if slot.starts_with("2:") => push(out, &second_person(&slot[2..], cx.tv)),
+        // E4-3: the lexicon - third person, tense, number and lists,
+        // each tail a referent slot ("{he:someone}", "{n:fingers}")
+        _ if slot.starts_with("he:") => push(out, &third_person(&slot[3..], cx, Case::Subj)),
+        _ if slot.starts_with("him:") => push(out, &third_person(&slot[4..], cx, Case::Obj)),
+        _ if slot.starts_with("his:") => push(out, &third_person(&slot[4..], cx, Case::Poss)),
+        _ if slot.starts_with("is:") => push(out, &copula(&slot[3..], cx, false)),
+        _ if slot.starts_with("was:") => push(out, &copula(&slot[4..], cx, true)),
+        _ if slot.starts_with("n:") => match named_ref(&slot[2..], cx) {
+            Some(r) => push(out, &format!("{} {}", number_word(r.count), plural(&r.text))),
+            None => keep(out, slot),
+        },
+        _ if slot.starts_with("a:") => {
+            let noun = named_ref(&slot[2..], cx).map(|r| r.text.clone())
+                .unwrap_or_else(|| slot[2..].to_string());
+            push(out, &format!("{} {}", article(&noun), noun));
+        }
+        _ if slot.starts_with("list:") => match named_ref(&slot[5..], cx) {
+            Some(r) => push(out, &list_join(&r.text)),
+            None => keep(out, slot),
+        },
         _ => match cx.refs.iter().find(|r| r.slot == slot) {
             Some(r) => push(out, &r.text),
             None => {
@@ -243,6 +263,165 @@ fn you_form(verb: &str) -> String {
         "does" | "do" => "do",
         v => v,
     }.to_string()
+}
+
+/// A slot nobody owns goes back in the line untouched (E4-3: the lexicon
+/// slots share the rule with the rest)
+fn keep(out: &mut String, slot: &str) {
+    out.push('{');
+    out.push_str(slot);
+    out.push('}');
+}
+
+/// The referent a lexicon slot's tail names (E4-3): first the talk's
+/// refs, then the pair's own words - "other" is the listener,
+/// "self"/"speaker" the speaker - so `{he:other}` says "she" of the
+/// one faced. Unknown tails find no referent and stay literal.
+fn named_ref<'a>(tail: &str, cx: &'a Cx<'a>) -> Option<Referent> {
+    if let Some(r) = cx.refs.iter().find(|r| r.slot == tail) {
+        return Some(r.clone());
+    }
+    match tail {
+        "other" => Some(Referent { slot: "other", text: cx.listener.name.clone(),
+            sex: cx.listener.sex, alive: true, count: 1 }),
+        "self" | "speaker" => Some(Referent { slot: "self", text: cx.speaker.name.clone(),
+            sex: cx.speaker.sex, alive: true, count: 1 }),
+        _ => None,
+    }
+}
+
+/// Nominative / object / possessive, for the third-person slots
+enum Case { Subj, Obj, Poss }
+
+/// The third-person pronoun of the referent the tail names (E4-3): the
+/// ref's `sex` picks he/she; a group - or a body of unrecorded sex -
+/// takes they
+fn third_person(tail: &str, cx: &Cx, case: Case) -> String {
+    let Some(r) = named_ref(tail, cx) else { return format!("{{{}:{}}}",
+        match case { Case::Subj => "he", Case::Obj => "him", Case::Poss => "his" }, tail) };
+    let word = if r.count > 1 || r.sex.is_none() {
+        match case { Case::Subj => "they", Case::Obj => "them", Case::Poss => "their" }
+    } else if r.sex == Some("female") {
+        match case { Case::Subj => "she", Case::Obj => "her", Case::Poss => "her" }
+    } else {
+        match case { Case::Subj => "he", Case::Obj => "him", Case::Poss => "his" }
+    };
+    word.into()
+}
+
+/// The copula the referent's count and aliveness ask for (E4-3):
+/// `{is:x}` is present of the living, past of the dead ("is" of a dead
+/// man is the fault this prevents); `{was:x}` stays past either way
+fn copula(tail: &str, cx: &Cx, past: bool) -> String {
+    let Some(r) = named_ref(tail, cx) else { return format!("{{{}:{}}}",
+        if past { "was" } else { "is" }, tail) };
+    let past = past || !r.alive;
+    match (past, r.count > 1) {
+        (false, false) => "is",
+        (false, true) => "are",
+        (true, false) => "was",
+        (true, true) => "were",
+    }.into()
+}
+
+/// "a" or "an" for the word that follows (E4-3): vowel sounds take an,
+/// save the closed list - an honest man, an heir, but a unicorn and a
+/// one-eyed dog. Absorbs `vocation::article`.
+pub fn article(word: &str) -> &'static str {
+    let w = word.trim_start().to_lowercase();
+    const AN: &[&str] = &["honest", "honor", "honour", "heir", "herb", "hour"];
+    const A: &[&str] = &["unicorn", "unique", "use", "user", "eulogy", "ewe"];
+    // the short a-words need a word's end after them, or "one" would
+    // eat "onset"
+    const A_WORD: &[&str] = &["one", "once"];
+    let word_end = |x: &str| w.starts_with(x) && (w.len() == x.len()
+        || !w.as_bytes()[x.len()].is_ascii_alphabetic());
+    if A_WORD.iter().any(|x| w.len() >= x.len() && word_end(x)) { return "a"; }
+    if A.iter().any(|x| w.starts_with(x)) { return "a"; }
+    if AN.iter().any(|x| w.starts_with(x)) { return "an"; }
+    match w.chars().next() {
+        Some('a' | 'e' | 'i' | 'o' | 'u') => "an",
+        _ => "a",
+    }
+}
+
+/// The closed lexicon's irregular plurals (E4-3): bodies and folk,
+/// kith and house, beasts and field - what the four rules can't reach.
+/// Kept at module scope so the tests can exercise every entry.
+const IRREG: &[(&str, &str)] = &[
+    // bodies and folk
+    ("man", "men"), ("woman", "women"), ("child", "children"),
+    ("lad", "lads"), ("lass", "lasses"), ("foot", "feet"),
+    ("tooth", "teeth"), ("goose", "geese"), ("mouse", "mice"),
+    ("louse", "lice"), ("die", "dice"), ("penny", "pence"),
+    // kith and house
+    ("wife", "wives"), ("life", "lives"), ("knife", "knives"),
+    ("self", "selves"), ("calf", "calves"), ("half", "halves"),
+    ("loaf", "loaves"), ("leaf", "leaves"), ("sheaf", "sheaves"),
+    ("thief", "thieves"), ("wolf", "wolves"), ("shelf", "shelves"),
+    ("wreath", "wreaths"), ("brother", "brethren"),
+    // beasts and field
+    ("ox", "oxen"), ("sheep", "sheep"), ("swine", "swine"),
+    ("deer", "deer"), ("fish", "fish"), ("folk", "folk"),
+    ("cow", "kye"),
+    // -f words that keep the f: the -ves rule would spoil them
+    ("roof", "roofs"), ("cliff", "cliffs"), ("staff", "staffs"),
+    ("chief", "chiefs"), ("belief", "beliefs"), ("proof", "proofs"),
+];
+
+/// The plural of a village noun (E4-3): the closed lexicon's irregulars
+/// first, then the four suffix rules - sibilant -es, consonant+y -ies,
+/// f/fe -ves, plain -s
+pub fn plural(noun: &str) -> String {
+    let w = noun.trim_end().to_lowercase();
+    if let Some((_, p)) = IRREG.iter().find(|(s, _)| *s == w) {
+        return p.to_string();
+    }
+    let chars: Vec<char> = w.chars().collect();
+    let last = chars.last().copied().unwrap_or(' ');
+    let before = chars.get(chars.len().saturating_sub(2)).copied().unwrap_or(' ');
+    let vowel = |c: char| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u');
+    if matches!(last, 's' | 'x' | 'z') || w.ends_with("sh") || w.ends_with("ch") {
+        // the sibilants take -es: bench, ash, fox, mass
+        format!("{w}es")
+    } else if last == 'y' && !vowel(before) {
+        // consonant+y drops the y: berry, story, fly
+        format!("{}ies", &w[..w.len() - 1])
+    } else if w.ends_with("fe") {
+        // -fe lets the f go voiced: wife, knife, life (the table
+        // holds the ones a village says)
+        format!("{}ves", &w[..w.len() - 2])
+    } else if last == 'f' {
+        format!("{}ves", &w[..w.len() - 1])
+    } else {
+        format!("{w}s")
+    }
+}
+
+/// A small count as a word (E4-3): one to twenty written out, anything
+/// past that as digits - "three men", "23 sheaves"
+pub fn number_word(n: u32) -> String {
+    const WORDS: &[&str] = &["no", "one", "two", "three", "four", "five",
+        "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+        "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+        "eighteen", "nineteen", "twenty"];
+    match WORDS.get(n as usize) {
+        Some(w) => w.to_string(),
+        None => n.to_string(),
+    }
+}
+
+/// A roster rendered as a list (E4-3): the ref's comma-joined text
+/// comes back "Hob, Maud and Agnes" - two names pair with "and", one
+/// stands alone
+pub fn list_join(text: &str) -> String {
+    let items: Vec<&str> = text.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    match items.len() {
+        0 => String::new(),
+        1 => items[0].to_string(),
+        2 => format!("{} and {}", items[0], items[1]),
+        n => format!("{} and {}", items[..n - 1].join(", "), items[n - 1]),
+    }
 }
 
 /// A verb's thou-form (E4-2): the auxiliaries by table, the rest by the
@@ -603,5 +782,117 @@ mod tests {
                 assert!(agreement_faults(&got).is_empty(), "{tv:?}: {got}");
             }
         }
+    }
+
+    // --- E4-3: the lexicon ---
+
+    #[test]
+    fn every_irregular_plural_maps() {
+        // the done-when is exhaustive: the whole closed table, exercised
+        for (s, p) in IRREG {
+            assert_eq!(&plural(s), p, "plural of {s}");
+        }
+        assert!(IRREG.len() > 30, "the table should cover the lexicon");
+    }
+
+    #[test]
+    fn the_four_suffix_rules_cover_the_rest() {
+        // sibilant -es
+        assert_eq!(plural("bench"), "benches");
+        assert_eq!(plural("ash"), "ashes");
+        assert_eq!(plural("fox"), "foxes");
+        assert_eq!(plural("mass"), "masses");
+        // consonant+y drops the y
+        assert_eq!(plural("berry"), "berries");
+        assert_eq!(plural("story"), "stories");
+        // but a vowel+y keeps it
+        assert_eq!(plural("day"), "days");
+        assert_eq!(plural("boy"), "boys");
+        // f/fe voices to -ves
+        assert_eq!(plural("strife"), "strives");
+        assert_eq!(plural("scarf"), "scarves");
+        // plain -s for the rest
+        assert_eq!(plural("cart"), "carts");
+        assert_eq!(plural("barley"), "barleys");
+        assert_eq!(plural("field"), "fields");
+        assert_eq!(plural("granary"), "granaries");
+    }
+
+    #[test]
+    fn a_and_an_follow_the_sound() {
+        assert_eq!(article("smith"), "a");
+        assert_eq!(article("ox"), "an");
+        assert_eq!(article("ale"), "an");
+        assert_eq!(article("cart"), "a");
+        // the closed exceptions
+        assert_eq!(article("honest"), "an");
+        assert_eq!(article("heir"), "an");
+        assert_eq!(article("unicorn"), "a");
+        assert_eq!(article("one-eyed"), "a");
+        assert_eq!(article("ewe"), "a");
+        assert_eq!(article("onset"), "an");
+        assert_eq!(article("ewer"), "a");
+        // vocation::article defers to the lexicon
+        assert_eq!(crate::game::vocation::article("Apprentice"), "an");
+        assert_eq!(crate::game::vocation::article("Master"), "a");
+    }
+
+    #[test]
+    fn number_words_and_lists() {
+        assert_eq!(number_word(0), "no");
+        assert_eq!(number_word(1), "one");
+        assert_eq!(number_word(3), "three");
+        assert_eq!(number_word(12), "twelve");
+        assert_eq!(number_word(20), "twenty");
+        assert_eq!(number_word(23), "23");
+        assert_eq!(list_join("Hob"), "Hob");
+        assert_eq!(list_join("Hob, Maud"), "Hob and Maud");
+        assert_eq!(list_join("Hob, Maud, Agnes"), "Hob, Maud and Agnes");
+    }
+
+    #[test]
+    fn the_lexicon_slots_read_the_referent() {
+        let (alys, corvin) = pair();
+        let refs = [
+            Referent { slot: "someone", text: "Old Nan".into(), sex: Some("female"), alive: true, count: 1 },
+            Referent { slot: "lads", text: "lad".into(), sex: Some("male"), alive: true, count: 3 },
+            Referent { slot: "grandda", text: "Corvin".into(), sex: Some("male"), alive: false, count: 1 },
+        ];
+        let cx = Cx::plain(&alys, &corvin, &refs);
+        let mut rng = Rng::new(2);
+        // pronouns from sex; they for a group or an unrecorded body
+        assert_eq!(realize("{he:someone} keeps bees; I gave {him:someone} {his:someone} due.", &cx, &mut rng),
+            "She keeps bees; I gave her her due.");
+        assert_eq!(realize("{he:lads} run wild - {his:lads} manners.", &cx, &mut rng),
+            "They run wild - their manners.");
+        // tense and number read the body: the dead go past, groups go plural
+        assert_eq!(realize("{is:grandda} buried past the church.", &cx, &mut rng),
+            "Was buried past the church.");
+        assert_eq!(realize("{was:lads} three strong arms once.", &cx, &mut rng),
+            "Were three strong arms once.");
+        // number + plural, article, and the roster
+        assert_eq!(realize("{n:lads} came calling.", &cx, &mut rng), "Three lads came calling.");
+        assert_eq!(realize("He is {a:someone}.", &cx, &mut rng), "He is an Old Nan.");
+        assert_eq!(realize("He is {a:ox}.", &cx, &mut rng), "He is an ox.");
+        // {other} and {self} name the pair without a ref
+        let mut maud = Speaker::new("Maud");
+        maud.sex = Some("female");
+        let mut hob = Speaker::new("Hob");
+        hob.sex = Some("male");
+        let cx = Cx::plain(&hob, &maud, &[]);
+        assert_eq!(realize("{he:other} keeps the inn.", &cx, &mut rng), "She keeps the inn.");
+        assert_eq!(realize("And {he:self}? {he:self} keeps the forge.", &cx, &mut rng),
+            "And he? He keeps the forge.");
+    }
+
+    #[test]
+    fn unowned_lexicon_slots_stay_literal() {
+        let (alys, corvin) = pair();
+        let cx = Cx::plain(&alys, &corvin, &[]);
+        let mut rng = Rng::new(2);
+        assert_eq!(realize("{n:ghost} and {he:ghost} went by.", &cx, &mut rng),
+            "{n:ghost} and {he:ghost} went by.");
+        assert_eq!(realize("{list:folk} and {is:ghost} done.", &cx, &mut rng),
+            "{list:folk} and {is:ghost} done.");
     }
 }

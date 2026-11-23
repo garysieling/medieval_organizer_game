@@ -142,7 +142,10 @@ impl Game {
     pub(in crate::session) fn maybe_migrant(&mut self, tick: u64) {
         let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
         let v = villager::spawn_villager(&mut self.world, x, y);
-        let dealt = self.deal_cast(v, None);
+        // a seeded cast rolls the trade first so the persona grows up
+        // with it; the fixed cast keeps the roll where it always sat
+        let voc = if self.seeded_cast { Some(roll_vocation(&mut self.rng)) } else { None };
+        let dealt = self.deal_cast(v, voc);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
@@ -151,7 +154,7 @@ impl Game {
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
         self.world.add_component(v, Known::default());
-        self.world.add_component(v, vocation::craft(roll_vocation(&mut self.rng),
+        self.world.add_component(v, vocation::craft(voc.unwrap_or_else(|| roll_vocation(&mut self.rng)),
             0.1 + (self.rng.next() % 40) as f32 / 100.0));
         self.world.add_component(v, Purse { gold: 8.0 });
         let years = 19.0 + (self.rng.next() % 42) as f32;

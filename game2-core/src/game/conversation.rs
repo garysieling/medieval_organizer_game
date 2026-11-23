@@ -851,6 +851,10 @@ pub struct Choice {
     /// The index of the fork among the node's replies... but for the
     /// caller what matters is which offered option was picked
     pub act: Act,
+    /// How the line receives what was said (E6-3): the authored tag
+    /// where the reply carries one, else the act's default - it moves
+    /// the bond's parts when the pick lands
+    pub respond: Respond,
     /// The line they'd say - the player picks a *way of speaking*
     pub preview: String,
 }
@@ -971,7 +975,7 @@ pub fn converse_with(
                     for ((act, lines), vibe) in [(p.pass, true), (p.fail, false)] {
                         let (t, preview) = fresh_line(lines, &pair[responder], &pair[caller], &used, recent, matches!(act, Act::Greet | Act::Farewell), rng)
                             .unwrap_or((lines[0], fill(lines[0], &pair[responder], &pair[caller], rng)));
-                        choices.push(Choice { act, preview });
+                        choices.push(Choice { act, respond: respond_of(act), preview });
                         forks.push((t, vibe));
                     }
                     // no positional tell - which fork lands changes
@@ -1074,7 +1078,7 @@ pub fn converse_with(
                 let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
                     .map(|(t, s)| (t, s))
                     .unwrap_or((r.lines[0], fill(r.lines[0], &pair[responder], &pair[caller], rng)));
-                rolled.push((t, Choice { act: r.act, preview }));
+                rolled.push((t, Choice { act: r.act, respond: r.respond.unwrap_or_else(|| respond_of(r.act)), preview }));
             }
             // a farewell's the tail of a talk, not a per-turn option (#1179):
             // it only sits on the list once the talk's run dry - while
@@ -1110,9 +1114,10 @@ pub fn converse_with(
             let live = pairs.iter().any(|(_, (_, c))| c.act != Act::Farewell);
             if live && tr.turns.len() >= 2 && !(open_topics.is_empty() && tell_topics.is_empty()) && pairs.len() < 3 {
                 pairs.push((usize::MAX, ("", Choice {
-                    act: Act::Question, preview: "Put a question to them".into() })));
+                    act: Act::Question, respond: Respond::Validate,
+                    preview: "Put a question to them".into() })));
             }
-            let choices: Vec<Choice> = pairs.iter().map(|(_, (_, c))| Choice { act: c.act, preview: c.preview.clone() }).collect();
+            let choices: Vec<Choice> = pairs.iter().map(|(_, (_, c))| Choice { act: c.act, respond: c.respond, preview: c.preview.clone() }).collect();
             match choose(&choices).and_then(|i| pairs.get(i)) {
                 Some(&(usize::MAX, _)) => {
                     // the topics open as a pick of their own - one of
@@ -1120,10 +1125,11 @@ pub fn converse_with(
                     // A tell-named ask rides the same menu (E3-2)
                     let menu: Vec<usize> = open_topics.iter().chain(tell_topics.iter()).copied().collect();
                     let mut tch: Vec<Choice> = menu.iter().map(|&ti| Choice {
-                        act: Act::Question,
+                        act: Act::Question, respond: Respond::Validate,
                         preview: format!("Ask about {}",
                             crate::game::dialogue_trees::ASK_TOPICS[ti].label) }).collect();
-                    tch.push(Choice { act: Act::Remark, preview: "Say nothing of it".into() });
+                    tch.push(Choice { act: Act::Remark, respond: Respond::Validate,
+                        preview: "Say nothing of it".into() });
                     match choose(&tch) {
                         Some(i) if i < menu.len() => {
                             let tp = &crate::game::dialogue_trees::ASK_TOPICS[menu[i]];

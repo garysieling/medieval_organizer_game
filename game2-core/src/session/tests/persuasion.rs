@@ -68,6 +68,7 @@ fn argue(g: &mut Game) {
     {
         let t = g.seats[0].talk.as_mut().unwrap();
         t.options[0] = (crate::game::conversation::Act::PushBack,
+            crate::game::conversation::Respond::Deflect,
             crate::game::dialogue_trees::FT_ACCUSE.into());
     }
     g.talk_pick_at(0, Some(0));
@@ -106,6 +107,7 @@ fn test_the_words_themselves_open_the_argument() {
     {
         let t = g.seats[0].talk.as_mut().unwrap();
         t.options[0] = (crate::game::conversation::Act::PushBack,
+            crate::game::conversation::Respond::Deflect,
             crate::game::dialogue_trees::FT_ACCUSE.into());
     }
     let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
@@ -139,6 +141,7 @@ fn test_a_quarrel_a_stranger_cant_take_up() {
     {
         let t = g.seats[0].talk.as_mut().unwrap();
         t.options[0] = (crate::game::conversation::Act::PushBack,
+            crate::game::conversation::Respond::Deflect,
             "Nay, I see it differently, mark me.".into());
     }
     g.talk_pick_at(0, Some(0));

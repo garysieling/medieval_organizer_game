@@ -3404,6 +3404,11 @@ pub const PROBE_TESTS: &[Probe] = &[
 pub struct Topic {
     /// The menu words, as in "Ask about {label}"
     pub label: &'static str,
+    /// The subject area the openness gate reads (E3-2, #1424)
+    pub area: crate::game::conversation::Area,
+    /// How deep it goes: 0 public, 1 personal (two talks), 2 private
+    /// (openness .4 in the area), 3 core (.7, no ears) (E3-2, #1424)
+    pub tier: u8,
     /// Statuses the asked-about speaker must carry (all of them)
     pub needs: &'static [&'static str],
     /// Or any one of these statuses, when `needs` is empty
@@ -3438,14 +3443,18 @@ pub enum Draw {
 /// a live status, a fact already shared, a secret still kept.
 pub const ASK_TOPICS: &[Topic] = &[
     Topic {
-        label: "the village", needs: &[], any: &[], not: &["visitor"],
+        label: "the village",
+        area: crate::game::conversation::Area::Village,
+        tier: 0, needs: &[], any: &[], not: &["visitor"],
         ask: &["What word of the village these days?", "How do folk fare here, to thy eyes?"],
         tell: &["Folk fare as folk do - some well, some not so.", "The village keeps its own counsel, mostly.",
             "There's grumbling at the well, but when isn't there.", "Quieter than it was, and that's no bad thing."],
         concepts: &["village", "gossip"], draws: Draw::No,
     },
     Topic {
-        label: "the road", needs: &["visitor"], any: &[], not: &[],
+        label: "the road",
+        area: crate::game::conversation::Area::Road,
+        tier: 1, needs: &["visitor"], any: &[], not: &[],
         ask: &["What word from the road?", "What news do the roads carry?"],
         tell: &["The roads are what they are - long, and thin of comfort.", "Word travels: the country's unsettled of late.",
             "I've seen worse lanes and better company."],
@@ -3453,6 +3462,8 @@ pub const ASK_TOPICS: &[Topic] = &[
     },
     Topic {
         label: "their work",
+        area: crate::game::conversation::Area::Work,
+        tier: 0,
         needs: &[],
         any: &["smith", "mason", "shepherd", "beekeeper", "weaver", "fisher",
             "brewer", "baker", "taverner", "carpenter", "herb_wife"],
@@ -3464,6 +3475,8 @@ pub const ASK_TOPICS: &[Topic] = &[
     },
     Topic {
         label: "the day's work",
+        area: crate::game::conversation::Area::Work,
+        tier: 0,
         needs: &[],
         any: &[],
         not: &["visitor", "smith", "mason", "shepherd", "beekeeper", "weaver", "fisher",
@@ -3474,47 +3487,61 @@ pub const ASK_TOPICS: &[Topic] = &[
         concepts: &["work"], draws: Draw::No,
     },
     Topic {
-        label: "their sickness", needs: &["sick"], any: &[], not: &[],
+        label: "their sickness",
+        area: crate::game::conversation::Area::Body,
+        tier: 1, needs: &["sick"], any: &[], not: &[],
         ask: &["How does the sickness fare with thee?", "Thou lookest pale - is the illness past?"],
         tell: &["It lingers - worse some days than others.", "I mend, slowly. The herb-wife says patience.",
             "The cough keeps me nights, truth be told."],
         concepts: &["sickness", "health"], draws: Draw::No,
     },
     Topic {
-        label: "their hunger", needs: &["hungry"], any: &[], not: &[],
+        label: "their hunger",
+        area: crate::game::conversation::Area::Body,
+        tier: 1, needs: &["hungry"], any: &[], not: &[],
         ask: &["When did thou last eat a full meal?", "Is bread short at thy table?"],
         tell: &["A belly remembers bread better than days.", "We make do - there's always less to make do with.",
             "The store's thin. The winter's long."],
         concepts: &["hunger", "bread"], draws: Draw::No,
     },
     Topic {
-        label: "their grief", needs: &["grieving"], any: &[], not: &[],
+        label: "their grief",
+        area: crate::game::conversation::Area::Heart,
+        tier: 2, needs: &["grieving"], any: &[], not: &[],
         ask: &["Who was it thou lost?", "The house sits heavy - who is it thou missest?"],
         tell: &["Someone the house still feels the lack of.", "I don't say the name much - it keeps.",
             "The chair by the fire's empty now. That's the whole of it."],
         concepts: &["grief", "family"], draws: Draw::No,
     },
     Topic {
-        label: "the trouble they told", needs: &["shared"], any: &[], not: &[],
+        label: "the trouble they told",
+        area: crate::game::conversation::Area::Trouble,
+        tier: 1, needs: &["shared"], any: &[], not: &[],
         ask: &["That trouble thou spokest of - what weighs on thee?", "Thou saidst something of it once - how goes it now?"],
         tell: &["Aye, it sits with me still.", "The same as was - the asking's kind, though.",
             "It hasn't eased, if that's the truth of it."],
         concepts: &["trouble", "burden"], draws: Draw::Secret,
     },
     Topic {
-        label: "what weighs on them", needs: &["keeps_secret"], any: &[], not: &[],
+        label: "what weighs on them",
+        area: crate::game::conversation::Area::Trouble,
+        tier: 2, needs: &["keeps_secret"], any: &[], not: &[],
         ask: &["Is aught weighing on thee? Thou'lt tell me, if there is.", "Something sits behind thy eyes - what is it?"],
         tell: &["Ah. Thou'rt sharp-eyed, then.", "I had hoped it didn't show.", "If anyone's to hear it, thou'rt as good as any."],
         concepts: &["trouble", "secret"], draws: Draw::Secret,
     },
     Topic {
-        label: "the question folk whisper of", needs: &["mystery"], any: &[], not: &[],
+        label: "the question folk whisper of",
+        area: crate::game::conversation::Area::Village,
+        tier: 1, needs: &["mystery"], any: &[], not: &[],
         ask: &["Folk whisper of something - what is it they ask?", "There's a question going round the village - what do folk say?"],
         tell: &["Ah, you've heard the asking too.", "Aye, folk do talk - and some of it's true.", "I've a piece of it, if you want the hearing."],
         concepts: &["mystery", "gossip"], draws: Draw::Mystery,
     },
     Topic {
-        label: "themselves", needs: &[], any: &[], not: &[],
+        label: "themselves",
+        area: crate::game::conversation::Area::Heart,
+        tier: 1, needs: &[], any: &[], not: &[],
         ask: &["Tell me of thyself - how didst thou come here?", "What's thy tale, then?"],
         tell: &["Born under this roof, like most of us.", "I've no great tale - the years just keep.",
             "Same story as the next one's, only mine.", "I came for the work and stayed for the quiet."],

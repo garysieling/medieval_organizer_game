@@ -72,6 +72,17 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
             trade: None,
             pull: 0.8,
             sex: None,
+            // a spread of bonds so the corpus walks the openness tiers
+            // (E3-2): strangers to warm friends, a few within earshot
+            open: game2_core::game::conversation::Open {
+                intimacy: rng.below(900) as f32 / 1000.0,
+                benevolence: rng.below(900) as f32 / 1000.0,
+                integrity: rng.below(900) as f32 / 1000.0,
+                safety: rng.below(1000) as f32 / 1000.0,
+                mood: (rng.below(1000) as f32 / 500.0) - 1.0,
+                talks: rng.below(4) as u32,
+                earshot: rng.below(4) == 0,
+            },
         });
     }
     roster

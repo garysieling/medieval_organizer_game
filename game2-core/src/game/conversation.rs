@@ -133,11 +133,15 @@ pub struct Speaker {
     /// off the world; hand-made speakers can carry a lite profile
     /// (`lite_facts`) or none
     pub facts: FactTable,
+    /// How far they'll open to whoever they face (E3-2, #1424):
+    /// `speaker_of` is pair-blind, so the caller who knows the bond
+    /// patches it; a stranger's is the default - nothing reached
+    pub open: Open,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default() }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default() }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -146,6 +150,36 @@ impl Speaker {
         v.extend(self.status.iter().map(|s| format!("status:{}", s)));
         if let Some(sex) = self.sex { v.push(format!("sex:{}", sex)); }
         v.extend(self.facts.open.iter().cloned());
+        // where the pair stands in each area (E3-2): the gate a topic's
+        // tier reads - open facts carry no tell bonus; the ask side
+        // names a seen tell and earns it on the spot
+        let talkative = self.traits.contains(&Trait::Gregarious);
+        let guarded = self.traits.contains(&Trait::Wary);
+        for &a in AREAS {
+            for t in 1..=3u8 {
+                let reach = if self.open.reached(t, talkative, guarded, false)
+                    { "open" } else { "closed" };
+                v.push(format!("{}:{}:{}", reach, area_name(a), t));
+            }
+        }
+        v
+    }
+
+    /// The areas a speaker's visible wear tells on (E3-2): a grief
+    /// borne, a wound's quiet - the colored talk the asker already
+    /// saw. Naming one is the ask that attention earns
+    pub fn tell_areas(&self) -> Vec<Area> {
+        let mut v: Vec<Area> = vec![];
+        let mut mark = |a: Area| if !v.contains(&a) { v.push(a) };
+        for st in &self.status {
+            match *st {
+                "grieving" => mark(Area::Heart),
+                "sick" | "hungry" => mark(Area::Body),
+                "keeps_secret" => mark(Area::Trouble),
+                _ if st.starts_with("hook:") => { mark(Area::Trouble); mark(Area::Heart); }
+                _ => {}
+            }
+        }
         v
     }
 }
@@ -165,6 +199,90 @@ pub fn trait_name(t: Trait) -> &'static str {
         Trait::Stolid => "stolid",
         Trait::Cruel => "cruel",
         Trait::SelfAbsorbed => "self-absorbed",
+    }
+}
+
+/// A subject area the per-area openness gate knows (E3-2, #1424):
+/// one reach serves every area today - the same bond parts feed each -
+/// but the gate is per-area so later work can weigh one differently
+/// (the lord's name, a burned past)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Area {
+    Village,
+    Work,
+    Body,
+    Road,
+    Heart,
+    Trouble,
+}
+
+/// The areas in order, for fact emission
+pub const AREAS: &[Area] = &[
+    Area::Village, Area::Work, Area::Body, Area::Road, Area::Heart, Area::Trouble,
+];
+
+pub fn area_name(a: Area) -> &'static str {
+    match a {
+        Area::Village => "village",
+        Area::Work => "work",
+        Area::Body => "body",
+        Area::Road => "road",
+        Area::Heart => "heart",
+        Area::Trouble => "trouble",
+    }
+}
+
+/// What feeds a pair's openness to the speaker carrying it (E3-2,
+/// #1424): the bond's parts (E6-1), last talk's mood, the talks behind
+/// them, and whether ears are near. A `Speaker` carries it toward
+/// whoever they face; a stranger's `Open` is the default - nothing
+/// reached, nothing shared
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Open {
+    /// The bond's intimacy - breadth and depth reached together
+    pub intimacy: f32,
+    /// Mayer's benevolence - they mean you well
+    pub benevolence: f32,
+    /// Mayer's integrity - they keep their word
+    pub integrity: f32,
+    /// The safety rung as 0..1 (E6-1's Clark ladder)
+    pub safety: f32,
+    /// Last talk's mood, -1..1 (the `TalkMemory`)
+    pub mood: f32,
+    /// Talks had together - tier 1's "after two talks" gate
+    pub talks: u32,
+    /// Someone can hear: the exposure term, and tier 3's hard bar
+    pub earshot: bool,
+}
+
+impl Open {
+    /// Naming a tell you actually saw earns this much (E3-2):
+    /// attention, not persistence
+    pub const TELL_BONUS: f32 = 0.2;
+
+    /// The per-area openness (E3-2's formula): the same inputs serve
+    /// every area for now - areas differ when their content lands
+    pub fn reach(&self) -> f32 {
+        0.30 * self.intimacy + 0.25 * self.benevolence + 0.20 * self.integrity
+            + 0.15 * self.safety + 0.10 * self.mood
+            - if self.earshot { 0.20 } else { 0.0 }
+    }
+
+    /// Whether `tier` stands open for this pair: public always,
+    /// personal after two talks, private at openness .4, core at .7
+    /// unheard. Temperament scales it (the design's extraversion/
+    /// neuroticism): a talkative speaker lowers the personal bar to
+    /// one talk; a guarded one raises the core bar. `tell` names the
+    /// bonus a seen tell earns
+    pub fn reached(&self, tier: u8, talkative: bool, guarded: bool, tell: bool) -> bool {
+        match tier {
+            0 => true,
+            1 => self.talks >= if talkative { 1 } else { 2 } || tell,
+            2 => self.reach() + if tell { Self::TELL_BONUS } else { 0.0 } >= 0.4,
+            _ => !self.earshot
+                && self.reach() + if tell { Self::TELL_BONUS } else { 0.0 }
+                    >= if guarded { 0.8 } else { 0.7 },
+        }
     }
 }
 
@@ -366,6 +484,9 @@ pub struct Transcript {
     /// The labels of the topics the player asked after (#1189), in
     /// order - the session diffs them for what a question drew out
     pub asked: Vec<&'static str>,
+    /// How many questions went in above the pair's openness and came
+    /// back turned aside (E3-2): each costs the bond a rung of nerve
+    pub forward: u8,
 }
 
 /// What the trust-probe read off the answer (#1187)
@@ -435,6 +556,15 @@ pub const PROBE_TREE: &str = "the_audition";
 
 /// The tree name your own questions report as (#1189)
 pub const ASK_TREE: &str = "the_asking";
+
+/// A too-deep ask, turned aside (E3-2): the refusal is seen, the talk
+/// goes on - and a tell seen another day may yet open it
+const DEFLECTED: &[&str] = &[
+    "That's not for the telling, friend.",
+    "We don't know each other so well as that.",
+    "Ask me another.",
+    "Some things keep.",
+];
 
 /// Whether a topic's on the table for this asked-about speaker: every
 /// `needs` carried (or `any` one of the alternates when needs is
@@ -654,6 +784,7 @@ pub fn converse_with(
         ending: None,
         vibe: None,
         asked: vec![],
+        forward: 0,
     };
     let mut used: HashSet<&'static str> = HashSet::default();
     // topics already asked this talk - each one's a beat, once
@@ -823,11 +954,25 @@ pub fn converse_with(
             // hello's had its answer (#1189): the slot opens the topics
             // they can speak to, each a once-a-talk beat. A dry list is
             // farewells alone - there's no asking into a finished talk.
-            let open_topics: Vec<usize> = crate::game::dialogue_trees::ASK_TOPICS.iter().enumerate()
-                .filter(|(ti, t)| !asked.contains(ti) && topic_open(t, pair[caller]))
-                .map(|(ti, _)| ti).collect();
+            // the tier gate (E3-2): a topic opens on the asked-about's
+            // open facts; one closed but carrying a tell the asker saw
+            // still lists - naming the tell earns its bonus
+            let mut open_topics: Vec<usize> = vec![];
+            let mut tell_topics: Vec<usize> = vec![];
+            {
+                let tells = pair[caller].tell_areas();
+                for (ti, t) in crate::game::dialogue_trees::ASK_TOPICS.iter().enumerate() {
+                    if asked.contains(&ti) || !topic_open(t, pair[caller]) { continue; }
+                    if call_facts.has(&format!("self:open:{}:{}", area_name(t.area), t.tier)) {
+                        open_topics.push(ti);
+                    } else if tells.contains(&t.area) {
+                        // seen it, can't reach it - asking reads forward
+                        tell_topics.push(ti);
+                    }
+                }
+            }
             let live = pairs.iter().any(|(_, (_, c))| c.act != Act::Farewell);
-            if live && tr.turns.len() >= 2 && !open_topics.is_empty() && pairs.len() < 3 {
+            if live && tr.turns.len() >= 2 && !(open_topics.is_empty() && tell_topics.is_empty()) && pairs.len() < 3 {
                 pairs.push((usize::MAX, ("", Choice {
                     act: Act::Question, preview: "Put a question to them".into() })));
             }
@@ -835,17 +980,18 @@ pub fn converse_with(
             match choose(&choices).and_then(|i| pairs.get(i)) {
                 Some(&(usize::MAX, _)) => {
                     // the topics open as a pick of their own - one of
-                    // yours, their answer, then the talk picks back up
-                    let mut tch: Vec<Choice> = open_topics.iter().map(|&ti| Choice {
+                    // yours, their answer, then the talk picks back up.
+                    // A tell-named ask rides the same menu (E3-2)
+                    let menu: Vec<usize> = open_topics.iter().chain(tell_topics.iter()).copied().collect();
+                    let mut tch: Vec<Choice> = menu.iter().map(|&ti| Choice {
                         act: Act::Question,
                         preview: format!("Ask about {}",
                             crate::game::dialogue_trees::ASK_TOPICS[ti].label) }).collect();
                     tch.push(Choice { act: Act::Remark, preview: "Say nothing of it".into() });
                     match choose(&tch) {
-                        Some(i) if i < open_topics.len() => {
-                            let tp = &crate::game::dialogue_trees::ASK_TOPICS[open_topics[i]];
-                            asked.insert(open_topics[i]);
-                            tr.asked.push(tp.label);
+                        Some(i) if i < menu.len() => {
+                            let tp = &crate::game::dialogue_trees::ASK_TOPICS[menu[i]];
+                            asked.insert(menu[i]);
                             if !tr.trees_walked.contains(&ASK_TREE) { tr.trees_walked.push(ASK_TREE); }
                             let (qt, _) = fresh_line(tp.ask, pair[responder], pair[caller], &used, recent, false, rng)
                                 .unwrap_or((tp.ask[0], String::new()));
@@ -853,6 +999,25 @@ pub fn converse_with(
                             tr.turns.push(Turn { speaker: responder, act: Act::Question,
                                 text: fill(qt, pair[responder], pair[caller]),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(qt) });
+                            if tell_topics.contains(&menu[i]) {
+                                let talkative = pair[caller].traits.contains(&Trait::Gregarious);
+                                let guarded = pair[caller].traits.contains(&Trait::Wary);
+                                if !pair[caller].open.reached(tp.tier, talkative, guarded, true) {
+                                    // naming the tell wasn't enough
+                                    // (E3-2): the ask reads as forward -
+                                    // a visible turn-aside, talk goes on
+                                    tr.vibe = Some(Vibe::Mismatch);
+                                    tr.forward += 1;
+                                    let (dt, _) = fresh_line(DEFLECTED, pair[caller], pair[responder], &used, recent, false, rng)
+                                        .unwrap_or((DEFLECTED[0], String::new()));
+                                    used.insert(dt);
+                                    tr.turns.push(Turn { speaker: caller, act: Act::Answer,
+                                        text: fill(dt, pair[caller], pair[responder]),
+                                        concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(dt) });
+                                    continue;
+                                }
+                            }
+                            tr.asked.push(tp.label);
                             let (at, _) = fresh_line(tp.tell, pair[caller], pair[responder], &used, recent, false, rng)
                                 .unwrap_or((tp.tell[0], String::new()));
                             used.insert(at);
@@ -2525,11 +2690,19 @@ mod tests {
         assert_eq!(miss.vibe, Some(Vibe::Mismatch));
     }
 
+    /// An acquaintance who'll share the personal layer (E3-2): warm
+    /// enough for tier 2, three talks in, unheard
+    fn warm_open() -> Open {
+        Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4, safety: 0.5,
+            mood: 0.0, talks: 3, earshot: false }
+    }
+
     fn ask_talk(status: &'static str, want: &[&'static str]) -> Transcript {
         // a talk where your picks follow the wanted previews, falling
         // to the first option when none of them's showing
         let mut caller = Speaker::new("Hob");
         caller.status.push(status);
+        caller.open = warm_open();
         let you = Speaker::new("Wanderer");
         let mut queue: Vec<&'static str> = want.to_vec();
         converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
@@ -2594,6 +2767,7 @@ mod tests {
         ] {
             let mut caller = Speaker::new("Hob");
             caller.status.push(status);
+            caller.open = warm_open();
             let you = Speaker::new("Wanderer");
             // some status talks run dry before a second beat - try a
             // few seeds until one lives long enough to open the menu
@@ -2629,6 +2803,7 @@ mod tests {
         // the rest of the talk (#1189)
         let mut caller = Speaker::new("Hob");
         caller.status.push("sick");
+        caller.open = warm_open();
         let you = Speaker::new("Wanderer");
         let mut menus: Vec<Vec<String>> = vec![];
         let mut took_sick = false;
@@ -2967,5 +3142,138 @@ mod tests {
             Relation::Acquaintance, &[WORN_TREE], Some(&recent), &mut Rng::new(3));
         assert_eq!(tr.turns.len(), 2,
             "a dry pool still speaks what it has: {:?}", tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+}
+
+#[cfg(test)]
+mod e3_2 {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+
+    /// The spec formula itself, and the rung of it a pair reaches
+    #[test]
+    fn the_formula_reads_the_parts() {
+        let o = Open { intimacy: 0.6, benevolence: 0.4, integrity: 0.5,
+            safety: 0.5, mood: 0.5, talks: 0, earshot: false };
+        // .30*.6 + .25*.4 + .20*.5 + .15*.5 + .10*.5 = .505
+        assert!((o.reach() - 0.505).abs() < 1e-6, "{}", o.reach());
+        // ears near cost the exposure term
+        let x = Open { earshot: true, ..o };
+        assert!((x.reach() - 0.305).abs() < 1e-6);
+        // and the tiers stand where the spec puts them
+        assert!(o.reached(2, false, false, false));
+        assert!(!x.reached(2, false, false, false), "ears close the private layer");
+        assert!(!o.reached(3, false, false, false));
+        let deep = Open { intimacy: 1.0, benevolence: 1.0, integrity: 1.0,
+            safety: 1.0, mood: 1.0, talks: 9, earshot: false };
+        assert!(deep.reached(3, false, false, false));
+        assert!(!Open { earshot: true, ..deep }.reached(3, false, false, false),
+            "the core never opens with ears near");
+        // a guarded one asks more of the core; a talkative one meets sooner
+        let shy = Open { intimacy: 0.6, benevolence: 1.0, integrity: 0.5,
+            safety: 1.0, mood: 1.0, talks: 9, earshot: false };
+        assert!(shy.reached(3, false, false, false), "reach .78 opens the core");
+        assert!(!shy.reached(3, false, true, false), "guarded raises the core bar");
+        assert!(!Open::default().reached(1, false, false, false));
+        assert!(Open { talks: 1, ..Open::default() }.reached(1, true, false, false),
+            "a talkative one opens the personal after a single talk");
+        assert!(Open { talks: 2, ..Open::default() }.reached(1, false, false, false));
+    }
+
+    /// the pair's openness lands on the asked-about's own facts, the
+    /// criteria a topic's tier reads
+    #[test]
+    fn the_open_facts_say_what_reaches() {
+        let mut s = Speaker::new("Hob");
+        s.open = Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4,
+            safety: 0.5, mood: 0.0, talks: 3, earshot: false };
+        let f = Facts::for_roles(&s, &Speaker::new("Wanderer"), Relation::Friend);
+        assert!(f.has("self:open:heart:2"), "warm enough for the private layer");
+        assert!(f.has("self:open:village:1"));
+        assert!(f.has("self:closed:heart:3"), "the core stays shut");
+        // a stranger's facts are all closed past public
+        let cold = Facts::for_roles(&Speaker::new("Nog"), &Speaker::new("Pell"), Relation::Stranger);
+        assert!(cold.has("self:closed:trouble:2"));
+        assert!(!cold.has("self:open:work:1"));
+    }
+
+    /// a topic above the pair's openness never fires (the done-when):
+    /// their grief stays off the open menu for someone barely known -
+    /// and the named-tell ask that can't carry deflects instead
+    #[test]
+    fn a_too_deep_topic_never_fires() {
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("grieving");
+        caller.open = Open { talks: 1, ..Open::default() };
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                    return ch.iter().position(|c| c.preview == "Ask about their grief")
+                        .or_else(|| ch.iter().position(|c| c.preview == "Say nothing of it"));
+                }
+                ch.iter().position(|c| c.preview == "Put a question to them")
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
+        assert_eq!(tr.vibe, Some(Vibe::Mismatch), "{:?}", tr.lines());
+        assert!(tr.forward >= 1);
+        assert!(tr.asked.is_empty(), "a deflected ask never draws: {:?}", tr.asked);
+        assert!(tr.turns.iter().any(|t| t.line.map(|l| DEFLECTED.contains(&l)).unwrap_or(false)),
+            "no turn-aside on the record: {:?}", tr.lines());
+    }
+
+    /// naming a tell the asker saw earns the bonus: grief worn openly
+    /// opens what the bare reach wouldn't
+    #[test]
+    fn a_named_tell_opens_the_tier() {
+        // just under the private bar: .15 + .10 + .04 = .29 closed;
+        // the .2 bonus carries it
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("grieving");
+        caller.open = Open { intimacy: 0.5, benevolence: 0.4, integrity: 0.2,
+            safety: 0.0, mood: 0.0, talks: 3, earshot: false };
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                    return ch.iter().position(|c| c.preview == "Ask about their grief")
+                        .or_else(|| ch.iter().position(|c| c.preview == "Say nothing of it"));
+                }
+                ch.iter().position(|c| c.preview == "Put a question to them")
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
+        assert_eq!(tr.forward, 0, "{:?}", tr.lines());
+        assert_eq!(tr.asked, vec!["their grief"], "{:?}", tr.lines());
+    }
+
+    /// nothing unseen opens the named ask: a closed area with no wear
+    /// showing simply isn't on the menu at all
+    #[test]
+    fn no_tell_no_named_ask() {
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("keeps_secret");
+        caller.open = Open::default();
+        let you = Speaker::new("Wanderer");
+        let mut saw_menu = false;
+        for seed in 0..20 {
+            converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
+                &mut |ch: &[Choice]| {
+                    if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                        saw_menu = true;
+                        // what weighs on them is closed tier-2 - but the
+                        // kept secret's own wear tells on it, so it lists;
+                        // what stays off is every other closed topic
+                        assert!(ch.iter().all(|c| c.preview == "Say nothing of it"
+                            || c.preview == "Ask about what weighs on them"),
+                            "a closed tell-less ask listed: {:?}",
+                            ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
+                        return ch.iter().position(|c| c.preview == "Say nothing of it");
+                    }
+                    ch.iter().position(|c| c.preview == "Put a question to them")
+                        .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+                }, &mut Rng::new(7 + seed));
+            if saw_menu { break; }
+        }
+        assert!(saw_menu, "the ask slot never opened");
     }
 }

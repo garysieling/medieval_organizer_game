@@ -430,6 +430,12 @@ impl Sex {
     /// The body the spawn gives them, by the entity's own number -
     /// deterministic, and half the world either way
     pub fn from_id(e: Entity) -> Sex { if e % 2 == 0 { Sex::Female } else { Sex::Male } }
+
+    /// The body the persona draws instead, when the cast's seeded
+    /// (#1411): the person's own stream, not the entity number's parity
+    pub fn from_persona(p: &crate::game::persona::Persona) -> Sex {
+        if p.draw(90) < 0.5 { Sex::Female } else { Sex::Male }
+    }
 }
 
 pub fn spawn_villager(world: &mut World, x: f32, y: f32) -> Entity {

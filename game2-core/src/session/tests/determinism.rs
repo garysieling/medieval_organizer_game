@@ -42,3 +42,34 @@ fn the_same_seed_plays_the_same_game() {
         panic!("two runs of seed 42 diverge at tick {t}:\n  a: {a}\n  b: {b}");
     }
 }
+
+/// E1-2 (#1411): the seeded cast is deterministic too - same seed, same
+/// villagers: same personas, dealt names and bodies, no duplicates
+#[test]
+fn a_seeded_cast_deals_the_same_people() {
+    let a = Game::new_seeded_cast(77);
+    let b = Game::new_seeded_cast(77);
+    assert_eq!(a.villagers.len(), b.villagers.len());
+    // every villager carries a persona and its dealt name
+    for (i, (&va, &vb)) in a.villagers.iter().zip(b.villagers.iter()).enumerate() {
+        let (pa, pb) = (a.world.get_component::<crate::game::persona::Persona>(va).unwrap(),
+            b.world.get_component::<crate::game::persona::Persona>(vb).unwrap());
+        assert_eq!(pa, pb, "slot {} persona", i);
+        assert_eq!(a.names[i], b.names[i], "slot {} name", i);
+        assert_eq!(a.world.get_component::<villager::Sex>(va),
+                   b.world.get_component::<villager::Sex>(vb), "slot {} body", i);
+    }
+    // a different seed deals a different cast
+    let c = Game::new_seeded_cast(78);
+    let same = (0..a.villagers.len()).filter(|&i| a.names[i] == c.names[i]).count();
+    assert!(same < a.villagers.len() / 2, "casts should differ: {}", same);
+    // no two villagers share a name
+    let mut seen = crate::engine::det::HashSet::default();
+    for &n in a.names.iter().take(a.villagers.len()) {
+        assert!(seen.insert(n), "duplicate name {}", n);
+    }
+    // the fixed cast is untouched: positional names as before
+    let f = Game::new_seeded(77);
+    assert!(!f.seeded_cast);
+    assert_eq!(f.names[0], vill_name(0));
+}

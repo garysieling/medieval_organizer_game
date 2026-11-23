@@ -623,7 +623,7 @@ fn apply_op(op: &ScriptOp, game: &mut Game, view: &mut View, held_walk: &mut Opt
 /// Play the game with no window for `play_secs` of play time, rendering a
 /// video frame every `capture_every` game frames. Returns the output path.
 pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Result<String> {
-    let mut game = Game::new_seeded(seed);
+    let mut game = Game::new_seeded_cast(seed);
     game.speed = opts.game_speed;
     let mut view = View::new(art);
     view.zoom = opts.zoom;

@@ -395,7 +395,7 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
             restored = Some(Restored { frames: f.frame, inputs: f.journal.entries.len(), digest_matched: matched });
             (game, f.journal, f.frame, f.claims.into_iter().collect(), f.minted)
         }
-        None => (Game::new_seeded(cfg.seed), Journal::new(cfg.seed), 0, Default::default(), 0),
+        None => (Game::new_seeded_cast(cfg.seed), Journal::new_cast(cfg.seed, true), 0, Default::default(), 0),
     };
     let seed = journal.seed;
     let server = Arc::new(Mutex::new(Server {

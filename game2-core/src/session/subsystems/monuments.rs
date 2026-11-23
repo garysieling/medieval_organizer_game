@@ -37,7 +37,7 @@ impl Game {
                 // it rises where the village walks - near the market cross
                 let spot = self.map.nearest_passable(self.village.0 + 3, self.village.1 + 3)
                     .unwrap_or(self.village);
-                let name = vill_name(i);
+                let name = self.cast_name(i);
                 self.monuments.push(Monument { pos: spot, honoree: i,
                     title: st.title.clone(), build_until: tick + BUILD_DAYS, stood_on: None,
                     kind: MonumentKind::Column });
@@ -91,7 +91,7 @@ impl Game {
                 let name = if m.honoree == usize::MAX {
                     "the one who moved on"
                 } else {
-                    vill_name(m.honoree)
+                    cast_of(&self.names, m.honoree)
                 };
                 self.log.push_ev(EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable), format!("t{}: the monument stands - {} is remembered. {}'s stone rises at the cross.",
                     tick, name, name));

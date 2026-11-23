@@ -128,6 +128,7 @@ impl Game {
         // and no place in the village's food rolls
         self.world.remove_component::<villager::Hunger>(v);
         let i = self.villagers.len();
+        self.deal_cast(v, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
         self.world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
@@ -216,7 +217,7 @@ impl Game {
         let (who, goal) = (t.who, t.goal.clone());
         let Some(at) = self.world.get_component::<Pos>(who).map(|p| (p.x, p.y)) else { return };
         let at_tile = (at.0.round() as i32, at.1.round() as i32);
-        let name = self.villagers.iter().position(|&x| x == who).map(vill_name).unwrap_or("a traveller");
+        let name = self.villagers.iter().position(|&x| x == who).map(|i| cast_of(&self.names, i)).unwrap_or("a traveller");
         // the convoy's escort answers first: a guard bound for the same
         // door standing close enough reads the ambush and stands to it
         let escorted = self.travels.iter().any(|e| e.who != who

@@ -1554,6 +1554,7 @@ impl Game {
                             grievances: vec![], satisfied: vec![] });
                         self.world.add_component(v, crate::game::vocation::craft(voc, 0.2));
                         self.world.add_component(v, Purse { gold: 0.5 });
+                        self.deal_cast(v, Some(voc));
                         self.villagers.push(v);
                         // a roof where there's room (the camp's behind them)
                         if let Some(h) = home {

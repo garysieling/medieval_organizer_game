@@ -51,7 +51,7 @@ impl Game {
                     *p = Pos { x: sx as f32, y: sy as f32 };
                 }
                 self.world.add_component(v, villager::Buried);
-                let name = vill_name(i);
+                let name = self.cast_name(i);
                 // the priest says the words where the village keeps one
                 let said = if self.church.is_some() {
                     " The priest says the words."

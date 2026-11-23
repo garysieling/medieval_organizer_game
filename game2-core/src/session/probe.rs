@@ -114,7 +114,7 @@ impl Game {
     pub fn probe(&self) -> ProbeView {
         let name_of = |e: crate::engine::ecs::Entity| {
             self.villagers.iter().position(|&v| v == e)
-                .map(|i| crate::session::vill_name(i).to_string())
+                .map(|i| self.cast_name(i).to_string())
                 .unwrap_or_else(|| format!("e{}", e))
         };
         let org_power = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)

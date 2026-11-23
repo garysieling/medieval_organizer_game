@@ -1331,6 +1331,10 @@ pub struct Game {
     /// Every conversation heard - villagers in passing, the player's Talk,
     /// house meetings - for the TALK panel (session::dialogue)
     pub talk_log: Vec<dialogue::TalkRecord>,
+    /// The village's memory of what was said: tree line template -> the
+    /// day it was last spoken, so nobody repeats a thing still fresh in
+    /// ears (#1369)
+    pub said_lines: crate::engine::det::HashMap<&'static str, u64>,
     pub talk_next_id: u64,
     pub frame_n: u32,
 

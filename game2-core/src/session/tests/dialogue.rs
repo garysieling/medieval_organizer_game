@@ -1524,3 +1524,52 @@ fn test_the_convo_box_marks_the_speakers_mood() {
     assert!(g.convo_panel_at(0).unwrap().rows.iter().all(|r| r.who.is_some() || r.mood == 0),
         "only a villager speaker can carry the mark");
 }
+
+
+#[test]
+fn test_a_neighbor_asked_for_a_hand_comes_by_or_stings() {
+    // #1368: ambient chats sometimes end in one neighbor asking another
+    // for a hand - a yes sends them by to lend it (the favor lands warm
+    // on arrival), a no adds its cool on top of the chat's own landing
+    let mut g = Game::new();
+    let ad: Vec<Entity> = adults(&g).iter().map(|&i| g.villagers[i]).collect();
+    let rel_of = |g: &Game, a: Entity, b: Entity|
+        relationships::find_relationship(&g.world, a, b)
+            .and_then(|e| g.world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| (r.interactions, r.strength));
+    let mut yes: Option<(Entity, Entity)> = None;
+    let mut refused: Option<(Entity, Entity)> = None;
+    'outer: for &a in ad.iter().take(24) {
+        for &b in ad.iter().take(24) {
+            if a == b { continue; }
+            let before = rel_of(&g, a, b).map(|(i, _)| i).unwrap_or(0);
+            let n = g.talk_log.len();
+            if !g.villagers_chat(a, b) || g.talk_log.len() == n { continue; }
+            let rec = g.talk_log.last().unwrap();
+            let Some(ai) = rec.lines.iter().position(|l| HELP_ASKS.contains(&l.text.as_str())) else { continue };
+            let asker = rec.lines[ai].who.unwrap();
+            let answer = &rec.lines[ai + 1];
+            let asked = answer.who.unwrap();
+            if HELP_YES.contains(&answer.text.as_str()) {
+                yes = Some((asker, asked));
+            } else {
+                assert!(HELP_NO.contains(&answer.text.as_str()),
+                    "the answer's a yes or a no: {:?}", answer.text);
+                let after = rel_of(&g, a, b).map(|(i, _)| i).unwrap_or(0);
+                assert_eq!(after - before, 2,
+                    "a turned-down hand adds its sting on top of the chat's own landing");
+                refused = Some((asker, asked));
+            }
+            if yes.is_some() && refused.is_some() { break 'outer; }
+        }
+    }
+    let (asker, asked) = yes.expect("some passing chat asks for a hand and gets a yes");
+    assert!(g.travels.iter().any(|t| t.who == asked
+        && matches!(&t.goal, Goal::HelpOut(e) if *e == asker)),
+        "a yes puts the hand on the road to the one who asked");
+    let before = rel_of(&g, asked, asker).map(|(_, s)| s).unwrap_or(0.0);
+    g.arrive(asked, Goal::HelpOut(asker));
+    let after = rel_of(&g, asked, asker).map(|(_, s)| s).unwrap_or(0.0);
+    assert!(after > before, "the hand lent warms the bond: {before} -> {after}");
+    assert!(refused.is_some(), "some passing chat asks and is turned down");
+}

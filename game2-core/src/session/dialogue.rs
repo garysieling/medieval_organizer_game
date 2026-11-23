@@ -33,6 +33,24 @@ use super::Game;
 pub const TALK_LOG_MAX: usize = 240;
 /// The longest villager-to-villager exchange recorded
 pub const CHAT_MAX_LINES: usize = 6;
+
+/// The help-ask's lines (#1368): one neighbor asks another for a hand
+pub(crate) const HELP_ASKS: &[&str] = &[
+    "Couldst thou spare a hand at my fence come the morrow?",
+    "My cart's wheel wants a second pair of hands - couldst thou come by?",
+    "The roof wants patching before the rain - wouldst thou lend a hand?",
+    "The woodpile's behind and my back's not what it was - a hand, neighbor?",
+];
+pub(crate) const HELP_YES: &[&str] = &[
+    "Aye, I'll come by.",
+    "Gladly - look for me before the day's old.",
+    "I'll be there, never fear.",
+];
+pub(crate) const HELP_NO: &[&str] = &[
+    "I've no hands to spare, neighbor.",
+    "Can't - my own work's piled past the door.",
+    "Not this week - ask me again when the rain's past.",
+];
 /// The children's tree: a pair of kids keeps to it
 pub const KID_TREE: &str = "children_at_play";
 /// Walk further than this (tiles) from whoever you're talking with and
@@ -652,6 +670,51 @@ impl Game {
         // piece on - whole to a fellow member, a little bent past that,
         // and marked where it lands on a wrong ear
         if !kids.0 { self.rumor_pass(a, b, &mut lines, seed); }
+        // a neighbor asks a neighbor for a hand (#1368): rare, and the
+        // kind and sociable dare to ask where the proud won't - a yes
+        // sends them by to lend it, a no or a can't stings a little
+        if !kids.0 {
+            let mut hr = TalkRng::new(seed ^ 0xA11F_5EED);
+            let bent = |t: &[crate::game::traits::Trait]| -> f32 {
+                t.iter().map(|t| match t {
+                    crate::game::traits::Trait::Kind => 1.0,
+                    crate::game::traits::Trait::Gregarious => 0.5,
+                    crate::game::traits::Trait::Proud => -0.5,
+                    crate::game::traits::Trait::Cruel => -1.0,
+                    _ => 0.0,
+                }).sum()
+            };
+            let asker_a = (bent(&sa.traits), -(a as i64)) >= (bent(&sb.traits), -(b as i64));
+            let (asker, asked) = if asker_a { (a, b) } else { (b, a) };
+            let (asker_name, asked_name) = if asker_a { (na.clone(), nb.clone()) } else { (nb.clone(), na.clone()) };
+            let atraits = if asker_a { &sa.traits } else { &sb.traits };
+            let ttraits = if asker_a { &sb.traits } else { &sa.traits };
+            let rate = 0.04 * (1.0 + 0.5 * bent(atraits).max(0.0));
+            let gone = |e: Entity| super::is_sick(&self.world, e)
+                || self.world.get_component::<super::Pos>(e).is_none();
+            if (hr.below(1000) as f32) < rate * 1000.0 && !gone(asker) && !gone(asked) {
+                lines.push(TalkLine { who: Some(asker), name: asker_name,
+                    text: HELP_ASKS[hr.below(HELP_ASKS.len())].into(), gist: false });
+                let refuse = (hr.below(1000) as f32)
+                    < (0.25 - 0.08 * bent(ttraits)).clamp(0.05, 0.9) * 1000.0;
+                let tile = self.world.get_component::<super::Pos>(asker)
+                    .map(|p| (p.x.round() as i32, p.y.round() as i32));
+                // a promise only binds if the road's theirs to take:
+                // already bound elsewhere, that's the can't, not the won't
+                let free = !self.travels.iter().any(|t| t.who == asked);
+                let sent = !refuse && free && tile
+                    .map(|t| self.send_far(asked, t, super::Goal::HelpOut(asker)))
+                    .unwrap_or(false);
+                let pool = if sent { HELP_YES } else { HELP_NO };
+                lines.push(TalkLine { who: Some(asked), name: asked_name,
+                    text: pool[hr.below(pool.len())].into(), gist: false });
+                if !sent {
+                    relationships::record_interaction(&mut self.world, asker,
+                        relationships::Interaction { other: asked,
+                            kind: relationships::InteractionKind::Conflict, intensity: 0.15 });
+                }
+            }
+        }
         self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, temp <= super::SPAT_TEMP);
         self.chat_lands(a, b, temp, spat_by);
         true

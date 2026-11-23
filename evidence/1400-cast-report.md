@@ -21,11 +21,12 @@
 | contradictions per cast | ~1 in 6 +/-10% | 95 |
 
 - nearest pair: min 0.211, mean 0.374, max 0.524 (worst seed 84, slots 23 and 28)
-- trait sets: fewest 17 in 31, mean 21.7
+- trait sets: fewest 17 in 31, mean 21.7 (identical-line rate ~30%)
+- fixed cast identical-line rate: 16% (5 of 31 share a trait set)
 - contradictions per cast: mean 0.7 (target ~5)
 - distinct wounds per cast: mean 5.5
-- archetype holders per cast: all 11 present on average (mean 2.5-3.0,
-  worst single-cast share 9/31)
+- archetype holders per cast: mean 2.5-3.0 each, some absent in a
+  seed (min 0), worst single-cast share 9/31
 
 ## Findings for E1-5 (#1413)
 

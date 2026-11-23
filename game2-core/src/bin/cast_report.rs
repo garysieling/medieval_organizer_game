@@ -75,6 +75,10 @@ fn main() {
     let mut args = std::env::args().skip(1);
     let n: u64 = args.next().and_then(|a| a.parse().ok()).unwrap_or(100);
     let mode = args.next().unwrap_or_else(|| "seeded".to_string());
+    if n == 0 {
+        eprintln!("cast_report needs at least one seed");
+        std::process::exit(2);
+    }
 
     if mode == "fixed" || mode == "both" {
         let mut worst_sets = (usize::MAX, 0u64);
@@ -98,6 +102,10 @@ fn main() {
         println!(
             "  biggest hook pile-up: {} holders (seed {})",
             worst_hook.0, worst_hook.1
+        );
+        println!(
+            "  identical-line rate: {:.0}% of villagers share a trait set",
+            100.0 * (1.0 - worst_sets.0 as f32 / NAMES.len() as f32)
         );
         if mode == "fixed" {
             return;
@@ -140,10 +148,15 @@ fn main() {
         sets_sum += c.distinct_trait_sets;
         contra_sum += c.contradictions;
         wounds_sum += c.distinct_wounds;
-        for &(a, k) in &c.archetypes {
-            let e = archetype_totals
-                .entry(a as usize)
-                .or_insert((0, usize::MAX, 0));
+        // absent archetypes count as zero holders in this seed
+        for (i, a) in game2_core::game::persona::ARCHETYPES.iter().enumerate() {
+            let k = c
+                .archetypes
+                .iter()
+                .find(|&&(x, _)| x == *a)
+                .map(|&(_, k)| k)
+                .unwrap_or(0);
+            let e = archetype_totals.entry(i).or_insert((0, usize::MAX, 0));
             e.0 += k;
             e.1 = e.1.min(k);
             e.2 = e.2.max(k);
@@ -195,6 +208,10 @@ fn main() {
         sets_min,
         NAMES.len(),
         sets_sum as f32 / n as f32
+    );
+    println!(
+        "identical-line rate: {:.0}% of villagers share a trait set",
+        100.0 * (1.0 - (sets_sum as f32 / n as f32) / NAMES.len() as f32)
     );
     println!(
         "contradictions per cast: mean {:.1}",

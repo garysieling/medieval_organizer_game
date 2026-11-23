@@ -253,6 +253,10 @@ pub struct Open {
     pub talks: u32,
     /// Someone can hear: the exposure term, and tier 3's hard bar
     pub earshot: bool,
+    /// What the asker's given back of themselves (E3-3): the count of
+    /// their disclosures that landed. Private wants one, the core two -
+    /// openness without reciprocation stalls at the personal layer
+    pub shared: u8,
 }
 
 impl Open {
@@ -280,8 +284,11 @@ impl Open {
             // a tell substitutes for warmth, not for time spent: the
             // personal layer still wants the talks behind it
             1 => self.talks >= if talkative { 1 } else { 2 },
-            2 => self.reach() + if tell { Self::TELL_BONUS } else { 0.0 } >= 0.4,
-            _ => !self.earshot
+            // private wants warmth *and* a piece of yourself given back
+            2 => self.shared >= 1
+                && self.reach() + if tell { Self::TELL_BONUS } else { 0.0 } >= 0.4,
+            // the core wants it mutual: two landed disclosures, unheard
+            _ => self.shared >= 2 && !self.earshot
                 && self.reach() + if tell { Self::TELL_BONUS } else { 0.0 }
                     >= if guarded { 0.8 } else { 0.7 },
         }
@@ -374,6 +381,52 @@ pub enum Act {
     Farewell,
 }
 
+/// How a reply receives what was just said (E3-3, #1428): the
+/// responsiveness read `chat_temp` weighs. Authors may tag a `Reply`
+/// directly; untagged ones derive from their act (`respond_of`)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Respond {
+    /// Takes up what was said and hands it back heard
+    Reflect,
+    /// Lets it stand - agreement, acknowledgment
+    Validate,
+    /// Meets it with warmth or worry for the speaker
+    Care,
+    /// Answers it with a way forward
+    Advise,
+    /// Steps around it
+    Deflect,
+    /// Turns it into a question of their own
+    PivotAsk,
+}
+
+/// The responsiveness an untagged reply carries by default (E3-3):
+/// an answer reflects, agreement validates, a question back pivots
+pub fn respond_of(act: Act) -> Respond {
+    match act {
+        Act::Answer => Respond::Reflect,
+        Act::Agree | Act::Remark | Act::Greet | Act::Farewell => Respond::Validate,
+        Act::Question => Respond::PivotAsk,
+        Act::PushBack => Respond::Deflect,
+    }
+}
+
+/// A player disclosure settling or not (E3-3): each lands a step
+/// deeper than the last, and only as deep as the pair's openness
+/// holds - a civil greeting holds a first telling; what goes in past
+/// the bond reads as strange
+fn note_disclosure(tr: &mut Transcript, open: &mut Open) {
+    if tr.shared >= 3 { return; }
+    let depth = tr.shared + 1;
+    if open.reach() >= depth as f32 * 0.2 {
+        tr.shared = depth;
+        // the landed telling deepens the running pair-open mid-talk:
+        // later beats (rebuilt asks, replies) gate on it - the stored
+        // snapshot stays untouched so replays keep earlier picks valid
+        open.shared = open.shared.max(depth);
+    } else { tr.overshot = true; }
+}
+
 /// How a conversation closes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ending {
@@ -401,6 +454,8 @@ pub struct Reply {
     pub bias: &'static [(Trait, f32)],
     /// What this line does in the exchange
     pub act: Act,
+    /// How it receives the call (E3-3): `None` derives from the act
+    pub respond: Option<Respond>,
     /// What it's about; a house meeting threads on these
     pub concepts: &'static [&'static str],
     /// Ways to say it; `{other}` is filled with the listener's name.
@@ -462,6 +517,9 @@ pub struct Turn {
     /// Index into the speakers pair (0 = initiator)
     pub speaker: usize,
     pub act: Act,
+    /// The reply's responsiveness tag, resolved at the pick (E3-3);
+    /// calls and fixed ask-path turns carry theirs or none
+    pub respond: Option<Respond>,
     pub text: String,
     pub concepts: Vec<&'static str>,
     /// Which tree the line came from - handy for a grader
@@ -489,6 +547,13 @@ pub struct Transcript {
     /// How many questions went in above the pair's openness and came
     /// back turned aside (E3-2): each costs the bond a rung of nerve
     pub forward: u8,
+    /// The depth of yourself the responder gave and the pair could hold
+    /// (E3-3): each landed disclosure goes a step deeper; the session
+    /// keeps the deepest reached so later asks find it mutual
+    pub shared: u8,
+    /// A disclosure went in past what the pair could hold (E3-3): a
+    /// tier-3 confession to a stranger reads as strange
+    pub overshot: bool,
 }
 
 /// What the trust-probe read off the answer (#1187)
@@ -527,10 +592,18 @@ pub struct Probe {
 pub fn chat_temp(tr: &Transcript) -> f32 {
     let mut score = 0i32;
     for t in &tr.turns {
-        score += match t.act {
-            Act::PushBack => -1,
-            Act::Agree | Act::Answer => 1,
-            _ => 0,
+        // a tagged reply reads on its responsiveness (E3-3): care and
+        // reflection warm the talk, a deflection or a pivot cools it;
+        // untagged turns score on their act as they ever did
+        score += match t.respond {
+            Some(Respond::Care) => 2,
+            Some(Respond::Reflect | Respond::Validate | Respond::Advise) => 1,
+            Some(Respond::Deflect | Respond::PivotAsk) => -1,
+            None => match t.act {
+                Act::PushBack => -1,
+                Act::Agree | Act::Answer => 1,
+                _ => 0,
+            },
         };
     }
     score += match tr.ending {
@@ -778,7 +851,9 @@ pub fn converse_with(
     // no village memory (synthetic talks): nothing reads as a repeat
     let no_recent = HashSet::default();
     let recent = recent.unwrap_or(&no_recent);
-    let pair = [a, b];
+    // owned clones: a landed telling deepens `open.shared` mid-loop
+    // (E3-3) - the snapshot callers passed stays immutable for replay
+    let mut pair = [a.clone(), b.clone()];
     let mut tr = Transcript {
         speakers: [a.name.clone(), b.name.clone()],
         trees_walked: vec![],
@@ -787,6 +862,8 @@ pub fn converse_with(
         vibe: None,
         asked: vec![],
         forward: 0,
+        shared: 0,
+        overshot: false,
     };
     let mut used: HashSet<&'static str> = HashSet::default();
     // topics already asked this talk - each one's a beat, once
@@ -835,19 +912,19 @@ pub fn converse_with(
         }
         if audition && !probed && tr.turns.len() == 2 {
             probed = true;
-            if let Some(p) = probe_for(pair[caller]) {
-                if let Some((ct, call)) = fresh_line(p.calls, pair[caller], pair[responder], &used, recent, matches!(p.act, Act::Greet | Act::Farewell), rng) {
+            if let Some(p) = probe_for(&pair[caller]) {
+                if let Some((ct, call)) = fresh_line(p.calls, &pair[caller], &pair[responder], &used, recent, matches!(p.act, Act::Greet | Act::Farewell), rng) {
                     used.insert(ct);
                     tr.trees_walked.push(PROBE_TREE);
-                    tr.turns.push(Turn { speaker: caller, act: p.act, text: call,
+                    tr.turns.push(Turn { speaker: caller, act: p.act, respond: None, text: call,
                         concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(ct) });
                     // the tested side gets the two forks the probe
                     // holds - the answer that lands and the wrong note
                     let mut choices: Vec<Choice> = vec![];
                     let mut forks: Vec<(&'static str, bool)> = vec![];
                     for ((act, lines), vibe) in [(p.pass, true), (p.fail, false)] {
-                        let (t, preview) = fresh_line(lines, pair[responder], pair[caller], &used, recent, matches!(act, Act::Greet | Act::Farewell), rng)
-                            .unwrap_or((lines[0], fill(lines[0], pair[responder], pair[caller])));
+                        let (t, preview) = fresh_line(lines, &pair[responder], &pair[caller], &used, recent, matches!(act, Act::Greet | Act::Farewell), rng)
+                            .unwrap_or((lines[0], fill(lines[0], &pair[responder], &pair[caller])));
                         choices.push(Choice { act, preview });
                         forks.push((t, vibe));
                     }
@@ -857,9 +934,18 @@ pub fn converse_with(
                         Some(i) => {
                             let (t, vibe) = forks[i];
                             used.insert(t);
+                            let tag = respond_of(choices[i].act);
                             tr.turns.push(Turn { speaker: responder, act: choices[i].act,
-                                text: fill(t, pair[responder], pair[caller]),
+                                respond: Some(tag),
+                                text: fill(t, &pair[responder], &pair[caller]),
                                 concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(t) });
+                            // answering their probe is telling of
+                            // yourself (E3-3): it lands as deep as the
+                            // pair's openness holds
+                            if responder == player
+                                && matches!(choices[i].act, Act::Answer | Act::Agree) {
+                                note_disclosure(&mut tr, &mut pair[1 - player].open);
+                            }
                             tr.vibe = Some(if vibe { Vibe::Safe } else { Vibe::Mismatch });
                             // a good answer picks the talk up where it
                             // left off; a miss leaves it on the polite
@@ -879,8 +965,8 @@ pub fn converse_with(
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
         // The floor-holder opens the beat, in the register their own
         // facts put them in (a lord's condescension, a rival's chill)
-        let call_facts = Facts::for_roles(pair[caller], pair[responder], rel);
-        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, pair[caller], pair[responder], &used, recent, matches!(ex.act, Act::Greet | Act::Farewell), rng) else {
+        let call_facts = Facts::for_roles(&pair[caller], &pair[responder], rel);
+        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, &pair[caller], &pair[responder], &used, recent, matches!(ex.act, Act::Greet | Act::Farewell), rng) else {
             // Nothing fresh to call with: fall through to the next rejoinable tree,
             // or dry up entirely at the generic tail
             match advance_to_rejoin(&mut trees) {
@@ -890,11 +976,11 @@ pub fn converse_with(
             continue;
         };
         used.insert(call_t);
-        tr.turns.push(Turn { speaker: caller, act: ex.act, text: call,
+        tr.turns.push(Turn { speaker: caller, act: ex.act, respond: None, text: call,
             concepts: ex.concepts.to_vec(), tree: node_tree, line: Some(call_t) });
 
         // The other side picks a fork
-        let facts = Facts::for_roles(pair[responder], pair[caller], rel);
+        let facts = Facts::for_roles(&pair[responder], &pair[caller], rel);
         let pool = eligible(ex.replies, &facts, &used);
         // the reply has to follow what was just said (#1367): the pool
         // keeps only the best-fitting acts on offer, and when nothing
@@ -920,7 +1006,7 @@ pub fn converse_with(
             }
             continue;
         }
-        let weights: Vec<f32> = pool.iter().map(|r| draw_weight(r, pair[responder])).collect();
+        let weights: Vec<f32> = pool.iter().map(|r| draw_weight(r, &pair[responder])).collect();
 
         // (fork index, line template): the fork picked and the variant it
         // will speak. For a player turn the variants are rolled with the
@@ -939,9 +1025,9 @@ pub fn converse_with(
             let mut rolled: Vec<(&'static str, Choice)> = vec![];
             for &i in &sampled {
                 let r = pool[i];
-                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, pair[responder], pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
+                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
                     .map(|(t, s)| (t, s))
-                    .unwrap_or((r.lines[0], fill(r.lines[0], pair[responder], pair[caller])));
+                    .unwrap_or((r.lines[0], fill(r.lines[0], &pair[responder], &pair[caller])));
                 rolled.push((t, Choice { act: r.act, preview }));
             }
             // a farewell's the tail of a talk, not a per-turn option (#1179):
@@ -964,7 +1050,7 @@ pub fn converse_with(
             {
                 let tells = pair[caller].tell_areas();
                 for (ti, t) in crate::game::dialogue_trees::ASK_TOPICS.iter().enumerate() {
-                    if asked.contains(&ti) || !topic_open(t, pair[caller]) { continue; }
+                    if asked.contains(&ti) || !topic_open(t, &pair[caller]) { continue; }
                     if call_facts.has(&format!("self:open:{}:{}", area_name(t.area), t.tier)) {
                         open_topics.push(ti);
                     } else if t.tier >= 2 && tells.contains(&t.area) {
@@ -997,11 +1083,12 @@ pub fn converse_with(
                             let tp = &crate::game::dialogue_trees::ASK_TOPICS[menu[i]];
                             asked.insert(menu[i]);
                             if !tr.trees_walked.contains(&ASK_TREE) { tr.trees_walked.push(ASK_TREE); }
-                            let (qt, _) = fresh_line(tp.ask, pair[responder], pair[caller], &used, recent, false, rng)
+                            let (qt, _) = fresh_line(tp.ask, &pair[responder], &pair[caller], &used, recent, false, rng)
                                 .unwrap_or((tp.ask[0], String::new()));
                             used.insert(qt);
                             tr.turns.push(Turn { speaker: responder, act: Act::Question,
-                                text: fill(qt, pair[responder], pair[caller]),
+                                respond: Some(Respond::PivotAsk),
+                                text: fill(qt, &pair[responder], &pair[caller]),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(qt) });
                             if tell_topics.contains(&menu[i]) {
                                 let talkative = pair[caller].traits.contains(&Trait::Gregarious);
@@ -1012,21 +1099,23 @@ pub fn converse_with(
                                     // a visible turn-aside, talk goes on
                                     tr.vibe = Some(Vibe::Mismatch);
                                     tr.forward += 1;
-                                    let (dt, _) = fresh_line(DEFLECTED, pair[caller], pair[responder], &used, recent, false, rng)
+                                    let (dt, _) = fresh_line(DEFLECTED, &pair[caller], &pair[responder], &used, recent, false, rng)
                                         .unwrap_or((DEFLECTED[0], String::new()));
                                     used.insert(dt);
                                     tr.turns.push(Turn { speaker: caller, act: Act::Answer,
-                                        text: fill(dt, pair[caller], pair[responder]),
+                                        respond: Some(Respond::Deflect),
+                                        text: fill(dt, &pair[caller], &pair[responder]),
                                         concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(dt) });
                                     continue;
                                 }
                             }
                             tr.asked.push(tp.label);
-                            let (at, _) = fresh_line(tp.tell, pair[caller], pair[responder], &used, recent, false, rng)
+                            let (at, _) = fresh_line(tp.tell, &pair[caller], &pair[responder], &used, recent, false, rng)
                                 .unwrap_or((tp.tell[0], String::new()));
                             used.insert(at);
                             tr.turns.push(Turn { speaker: caller, act: Act::Answer,
-                                text: fill(at, pair[caller], pair[responder]),
+                                respond: Some(Respond::Reflect),
+                                text: fill(at, &pair[caller], &pair[responder]),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(at) });
                             continue;
                         }
@@ -1040,15 +1129,24 @@ pub fn converse_with(
             }
         } else {
             let i = rng.weighted(&weights);
-            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, pair[responder], pair[caller], &used, recent, matches!(pool[i].act, Act::Greet | Act::Farewell), rng) {
+            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(pool[i].act, Act::Greet | Act::Farewell), rng) {
                 Some((t, _)) => (i, t),
                 None => { tr.ending = Some(Ending::Exhausted); break; }
             }
         };
         let reply = pool[pick];
         used.insert(line_t);
-        tr.turns.push(Turn { speaker: responder, act: reply.act, text: fill(line_t, pair[responder], pair[caller]),
+        let tag = reply.respond.unwrap_or_else(|| respond_of(reply.act));
+        tr.turns.push(Turn { speaker: responder, act: reply.act, respond: Some(tag),
+            text: fill(line_t, &pair[responder], &pair[caller]),
             concepts: reply.concepts.to_vec(), tree: node_tree, line: Some(line_t) });
+        // telling of yourself (E3-3): a substantive answer is a
+        // disclosure; each lands as deep as the pair's openness holds -
+        // a confession past the bond reads as strange
+        if responder == player && matches!(reply.act, Act::Answer | Act::Agree)
+            && matches!(tag, Respond::Reflect | Respond::Validate | Respond::Care | Respond::Advise) {
+            note_disclosure(&mut tr, &mut pair[1 - player].open);
+        }
         // the beat advanced the talk if it walked a new tree or named
         // something unsaid (#1368)
         let advanced = node_tree != last_tree
@@ -2698,7 +2796,7 @@ mod tests {
     /// enough for tier 2, three talks in, unheard
     fn warm_open() -> Open {
         Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4, safety: 0.5,
-            mood: 0.0, talks: 3, earshot: false }
+            mood: 0.0, talks: 3, earshot: false, shared: 1 }
     }
 
     fn ask_talk(status: &'static str, want: &[&'static str]) -> Transcript {
@@ -2832,8 +2930,8 @@ mod tests {
     // --- the hog: a villager who never trades, only talks (#1252) ---
 
     fn reply(act: Act) -> Reply {
-        Reply { criteria: &[], weight: 1.0, bias: &[], act, concepts: &[],
-            lines: &["x"], voice: &[], then: None, end: None }
+        Reply { criteria: &[], weight: 1.0, bias: &[], act, respond: None,
+            concepts: &[], lines: &["x"], voice: &[], then: None, end: None }
     }
 
     #[test]
@@ -2902,6 +3000,7 @@ mod tests {
             calls: &["Morrow to thee."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                respond: None,
                 concepts: &["farewell"], lines: &["I must be on my way."],
                 voice: &[], then: None, end: Some(Ending::Farewell),
             }],
@@ -2911,6 +3010,7 @@ mod tests {
             calls: &["Looks like rain again."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &["weather"], lines: &["Aye, grey all week."],
                 voice: &[], then: None, end: Some(Ending::Farewell),
             }],
@@ -2950,6 +3050,7 @@ mod tests {
             voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &["weather"],
                 lines: &["Aye, that it is.", "So it is.", "Truth in that.",
                     "Can't argue.", "Aye, neighbor.", "Indeed.", "Hmm, aye.",
@@ -3008,6 +3109,7 @@ mod tests {
             calls: &["Hast thou seen the miller?"], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                respond: None,
                 concepts: &[], lines: &["Fare thee well."], voice: &[],
                 then: None, end: Some(Ending::Farewell),
             }],
@@ -3030,11 +3132,13 @@ mod tests {
             replies: &[
                 Reply {
                     criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                    respond: None,
                     concepts: &[], lines: &["Fare thee well."], voice: &[],
                     then: None, end: Some(Ending::Farewell),
                 },
                 Reply {
                     criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                    respond: None,
                     concepts: &[], lines: &["The mill sees whom it sees."], voice: &[],
                     then: None, end: None,
                 },
@@ -3058,6 +3162,7 @@ mod tests {
             calls: &["A fair morning to thee."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                respond: None,
                 concepts: &[], lines: &["And to thee."], voice: &[],
                 then: None, end: Some(Ending::Farewell),
             }],
@@ -3067,6 +3172,7 @@ mod tests {
             calls: &["The lane's all mud."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &[], lines: &["Every year about now."], voice: &[],
                 then: Some(CLOSING), end: None,
             }],
@@ -3076,6 +3182,7 @@ mod tests {
             calls: &["Grey sky again."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &[], lines: &["Aye, all week."], voice: &[],
                 then: Some(MID), end: None,
             }],
@@ -3134,6 +3241,7 @@ mod tests {
             calls: &["Grey sky again."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &[], lines: &["Aye, all week."], voice: &[],
                 then: None, end: None,
             }],
@@ -3158,7 +3266,7 @@ mod e3_2 {
     #[test]
     fn the_formula_reads_the_parts() {
         let o = Open { intimacy: 0.6, benevolence: 0.4, integrity: 0.5,
-            safety: 0.5, mood: 0.5, talks: 0, earshot: false };
+            safety: 0.5, mood: 0.5, talks: 0, earshot: false, shared: 2 };
         // .30*.6 + .25*.4 + .20*.5 + .15*.5 + .10*.5 = .505
         assert!((o.reach() - 0.505).abs() < 1e-6, "{}", o.reach());
         // ears near cost the exposure term
@@ -3169,13 +3277,13 @@ mod e3_2 {
         assert!(!x.reached(2, false, false, false), "ears close the private layer");
         assert!(!o.reached(3, false, false, false));
         let deep = Open { intimacy: 1.0, benevolence: 1.0, integrity: 1.0,
-            safety: 1.0, mood: 1.0, talks: 9, earshot: false };
+            safety: 1.0, mood: 1.0, talks: 9, earshot: false, shared: 2 };
         assert!(deep.reached(3, false, false, false));
         assert!(!Open { earshot: true, ..deep }.reached(3, false, false, false),
             "the core never opens with ears near");
         // a guarded one asks more of the core; a talkative one meets sooner
         let shy = Open { intimacy: 0.6, benevolence: 1.0, integrity: 0.5,
-            safety: 1.0, mood: 1.0, talks: 9, earshot: false };
+            safety: 1.0, mood: 1.0, talks: 9, earshot: false, shared: 2 };
         assert!(shy.reached(3, false, false, false), "reach .78 opens the core");
         assert!(!shy.reached(3, false, true, false), "guarded raises the core bar");
         assert!(!Open::default().reached(1, false, false, false));
@@ -3190,7 +3298,7 @@ mod e3_2 {
     fn the_open_facts_say_what_reaches() {
         let mut s = Speaker::new("Hob");
         s.open = Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4,
-            safety: 0.5, mood: 0.0, talks: 3, earshot: false };
+            safety: 0.5, mood: 0.0, talks: 3, earshot: false, shared: 1 };
         let f = Facts::for_roles(&s, &Speaker::new("Wanderer"), Relation::Friend);
         assert!(f.has("self:open:heart:2"), "warm enough for the private layer");
         assert!(f.has("self:open:village:1"));
@@ -3237,7 +3345,7 @@ mod e3_2 {
         let mut caller = Speaker::new("Hob");
         caller.status.push("grieving");
         caller.open = Open { intimacy: 0.5, benevolence: 0.4, integrity: 0.2,
-            safety: 0.0, mood: 0.0, talks: 3, earshot: false };
+            safety: 0.0, mood: 0.0, talks: 3, earshot: false, shared: 1 };
         let you = Speaker::new("Wanderer");
         let tr = converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
@@ -3322,5 +3430,84 @@ mod e3_2_tells {
             if saw_menu { break; }
         }
         assert!(saw_menu, "the ask slot never opened");
+    }
+}
+
+#[cfg(test)]
+mod e3_3 {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+
+    /// a reply's tag resolves at the pick and the chat's warmth reads
+    /// it (E3-3): care warms past reflection, a deflection chills what
+    /// an agreeable answer would have warmed
+    #[test]
+    fn the_tags_say_how_the_answer_landed() {
+        let tr = |tag: Option<Respond>| Transcript {
+            speakers: ["A".into(), "B".into()], trees_walked: vec![],
+            turns: vec![Turn { speaker: 0, act: Act::Question, respond: None,
+                    text: "q".into(), concepts: vec![], tree: "t", line: None },
+                Turn { speaker: 1, act: Act::Answer, respond: tag,
+                    text: "a".into(), concepts: vec![], tree: "t", line: None }],
+            ending: Some(Ending::Farewell), vibe: None, asked: vec![],
+            forward: 0, shared: 0, overshot: false };
+        assert!(chat_temp(&tr(Some(Respond::Care))) > chat_temp(&tr(Some(Respond::Reflect))));
+        assert!(chat_temp(&tr(Some(Respond::Deflect))) < chat_temp(&tr(None)),
+            "a deflection reads colder than a bare answer");
+        // and the untagged derive from the act
+        assert_eq!(respond_of(Act::Answer), Respond::Reflect);
+        assert_eq!(respond_of(Act::PushBack), Respond::Deflect);
+        assert_eq!(respond_of(Act::Question), Respond::PivotAsk);
+    }
+
+    /// the gate wants reciprocation, not just warmth (E3-3): a bond
+    /// warm but never told anything stalls at the personal layer
+    #[test]
+    fn warmth_without_sharing_stalls() {
+        let warm = Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.5,
+            safety: 0.5, mood: 0.0, talks: 3, earshot: false, shared: 0 };
+        assert!(!warm.reached(2, false, false, false),
+            "the private layer wants something of yourself back");
+        assert!(Open { shared: 1, ..warm }.reached(2, false, false, false));
+        assert!(!Open { shared: 1, ..warm }.reached(3, false, false, false),
+            "the core wants it mutual - two landings, not one");
+        let deep = Open { shared: 2, ..warm };
+        assert!(deep.reached(2, false, false, false));
+    }
+
+    /// answering their audition tells of yourself (E3-3): when the pair
+    /// can hold it, the telling lands and the count rises
+    #[test]
+    fn an_answered_probe_counts_as_sharing() {
+        let mut caller = Speaker::new("Hob");
+        caller.traits.push(Trait::Stingy);
+        caller.open = Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4,
+            safety: 0.5, mood: 0.0, talks: 3, earshot: false, shared: 0 };
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                ch.iter().position(|c| matches!(c.act, Act::Agree | Act::Answer))
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
+        assert!(tr.shared >= 1, "the told tale landed: {:?}", tr.lines());
+        assert!(tr.turns.iter().any(|t| t.respond.is_some()),
+            "the replies carry their tags: {:?}", tr.lines());
+    }
+
+    /// the same telling to a cold pair reads as strange (E3-3): a
+    /// stranger has no warmth to hold it, so it overshoots
+    #[test]
+    fn a_telling_past_the_bond_overshoots() {
+        let mut caller = Speaker::new("Hob");
+        caller.traits.push(Trait::Stingy);
+        caller.open = Open::default();
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Stranger, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                ch.iter().position(|c| matches!(c.act, Act::Agree | Act::Answer))
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
+        assert_eq!(tr.shared, 0, "nothing landed: {:?}", tr.lines());
+        assert!(tr.overshot, "the stranger found it strange");
     }
 }

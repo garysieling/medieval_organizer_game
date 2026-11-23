@@ -96,6 +96,15 @@ pub struct TalkMemory {
     pub tick: u64,
 }
 
+/// What one seat's told them that landed (E3-3, #1428): keyed by the
+/// seat's player entity -> (deepest disclosure reached, day it did) -
+/// per-player, fading on the same clock as TalkMemory. A second seat
+/// finds nothing of the first's telling
+#[derive(Debug, Default)]
+pub struct SharedDepth {
+    pub of: crate::engine::det::HashMap<Entity, (u8, u64)>,
+}
+
 /// How many times `of` has made amends to the bearer (#1251): the
 /// count outlives the 20-day memory - a sorry repeated too often stops
 /// landing, and that wears longer than the slight it was for
@@ -198,6 +207,9 @@ pub struct PlayerTalk {
     /// Too-deep asks already paid for (E3-2): each one the replay
     /// reports anew costs the bond a rung of nerve
     pub forward_seen: u8,
+    /// The deepest disclosure the seat's given them this talk (E3-3) -
+    /// lands on their TalkMemory when the talk closes
+    pub shared: u8,
     /// How the picks so far have left them feeling (#1183)
     pub mood: TalkMood,
     /// How their audition of you read, once it's been answered (#1187)
@@ -431,7 +443,7 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 /// Replay a Talk: the lines so far (speaker 0 the villager, 1 the
 /// player), the replies on offer if it's the player's turn, and how it
 /// ended if it has
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, String)>> = None;
     let tr = converse_with(&t.villager, &t.player, t.rel, library(), recent, 1, &mut |ch: &[Choice]| {
@@ -445,7 +457,7 @@ fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static s
     }, &mut TalkRng::new(t.seed));
     let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone(), x.line)).collect();
     let ending = if offered.is_some() { None } else { tr.ending };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward)
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared)
 }
 
 impl Game {
@@ -1109,7 +1121,7 @@ impl Game {
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
-            asks_taken: vec![], asked_seen: 0, forward_seen: 0,
+            asks_taken: vec![], asked_seen: 0, forward_seen: 0, shared: 0,
             // a villager who once heard this seat's testimony opens a
             // rung warmer - they heard the story, they know the teller (#1333)
             mood: if crate::sim::psychology::heard_testimony(&self.world, v, pe) {
@@ -1133,7 +1145,14 @@ impl Game {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
         let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked, forward) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward, shared) = replay(&t, Some(&recent));
+        if shared > t.shared {
+            // the deepest telling so far this talk (E3-3): the running
+            // gate already lives in the replay - this only carries the
+            // count to the parting for persistence; the speaker
+            // snapshot stays as-opened so earlier picks replay exact
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.shared = shared; }
+        }
         // a too-deep ask costs the bond its nerve (E3-2): each new
         // forward mark on the replay drops the rung a step - and a
         // safe read's deeper offers come back off the table, the same
@@ -1417,6 +1436,12 @@ impl Game {
         o.mood = match self.talk_mood_of(who) {
             Some(TalkMood::Warmed) => 0.5, Some(TalkMood::Guarded) => -0.2,
             Some(TalkMood::Slighted) => -0.5, _ => 0.0 };
+        // what THIS seat's told them that landed, while it's still
+        // fresh (E3-3): another seat's telling is not yours
+        o.shared = self.world.get_component::<SharedDepth>(who)
+            .and_then(|s| s.of.get(&to).copied())
+            .filter(|(_, day)| self.tick < day + TALK_MEMORY_DAYS)
+            .map(|(depth, _)| depth).unwrap_or(0);
         o
     }
 
@@ -1447,6 +1472,19 @@ impl Game {
     pub fn close_player_talk(&mut self, seat: usize, note: Option<&str>) {
         let Some(t) = self.seats[seat].talk.take() else { return };
         self.world.add_component(t.who, TalkMemory { mood: t.mood, tick: self.tick });
+        // what they were told stays told (E3-3): keyed under this
+        // seat's player, refreshed only when the talk told something -
+        // small talk neither revives an expired telling nor rewinds it
+        if t.shared > 0 {
+            let pe = self.seats[seat].player;
+            let mut sd = self.world.get_component::<SharedDepth>(t.who)
+                .map(|s| s.of.clone()).unwrap_or_default();
+            let prev = sd.get(&pe).copied()
+                .filter(|(_, day)| self.tick < day + TALK_MEMORY_DAYS)
+                .map(|(depth, _)| depth).unwrap_or(0);
+            sd.insert(pe, (prev.max(t.shared), self.tick));
+            self.world.add_component(t.who, SharedDepth { of: sd });
+        }
         // they're their own again - unless another seat still holds them
         if !self.seats.iter().any(|s| s.talk.as_ref().map(|k| k.who == t.who).unwrap_or(false)) {
             self.world.remove_component::<villager::InPlayerTalk>(t.who);

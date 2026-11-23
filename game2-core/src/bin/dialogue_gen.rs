@@ -82,6 +82,7 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
                 mood: (rng.below(1000) as f32 / 500.0) - 1.0,
                 talks: rng.below(4) as u32,
                 earshot: rng.below(4) == 0,
+                shared: rng.below(3) as u8,
             },
         });
     }

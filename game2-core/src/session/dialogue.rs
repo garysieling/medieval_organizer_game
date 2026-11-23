@@ -210,8 +210,8 @@ pub struct PlayerTalk {
     pub profile: String,
     /// What's on their mind, said after their opening line
     pub gist: String,
-    /// The replies on offer now: (act, the line)
-    pub options: Vec<(Act, String)>,
+    /// The replies on offer now: (act, its responsiveness tag, the line)
+    pub options: Vec<(Act, crate::game::conversation::Respond, String)>,
     /// Which tree's fork offered them - a greeting on old_scores is no
     /// greeting
     pub opt_tree: Option<&'static str>,
@@ -342,11 +342,11 @@ impl PlayerTalk {
         self.job.then(|| "About that job - I'll take it.".to_string()).into_iter()
             .chain(self.options.iter().map(|o| {
                 // the words that pick a fight say so (#1348)
-                if crate::game::persuasion::is_argumentative(&o.1)
+                if crate::game::persuasion::is_argumentative(&o.2)
                     || crate::game::persuasion::ARGUMENTATIVE_LINES.iter()
-                        .any(|l| o.1 == self.said(l, true)) {
-                    format!("{} - a quarrel", o.1)
-                } else { o.1.clone() }
+                        .any(|l| o.2 == self.said(l, true)) {
+                    format!("{} - a quarrel", o.2)
+                } else { o.2.clone() }
             }))
             .chain(self.asks.iter().take(self.asks_shown())
                 .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
@@ -523,15 +523,15 @@ pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: R
         &mut crate::game::conversation::Rng::new(0))
 }
 
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8) {
     let mut n = 0;
-    let mut offered: Option<Vec<(Act, String)>> = None;
+    let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
     let tr = converse_with(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &mut |ch: &[Choice]| {
         if n < t.picks.len() {
             n += 1;
             Some(t.picks[n - 1].min(ch.len().saturating_sub(1)))
         } else {
-            offered = Some(ch.iter().map(|c| (c.act, c.preview.clone())).collect());
+            offered = Some(ch.iter().map(|c| (c.act, c.respond, c.preview.clone())).collect());
             None
         }
     }, &mut TalkRng::new(t.seed));
@@ -1443,7 +1443,7 @@ impl Game {
         // so close on a mutual parting rather than an exit menu
         if let Some(opts) = &offered {
             if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating && t.tell.is_none()
-                && opts.iter().all(|(a, _)| *a == Act::Farewell) {
+                && opts.iter().all(|(a, _, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");
                 // a spent talk parts kindly - unless the last word chosen
                 // was a slight, which is what they keep (#1183)
@@ -1478,7 +1478,7 @@ impl Game {
                 // A real ending (a walk-off) still closes as before.
                 if t.picks.is_empty() && ending.is_none() {
                     if let Some(cur) = self.seats[seat].talk.as_mut() {
-                        cur.options = vec![(Act::Farewell, "I take my leave.".into())];
+                        cur.options = vec![(Act::Farewell, crate::game::conversation::Respond::Validate, "I take my leave.".into())];
                         cur.opt_tree = tree;
                     }
                     return;
@@ -1584,7 +1584,8 @@ impl Game {
             let mut r2 = crate::game::relationships::Relationship {
                 from: r.from, other: r.other, kind: r.kind, strength: r.strength,
                 interactions: r.interactions, intimacy: r.intimacy,
-                trust: r.trust, safety: r.safety };
+                trust: r.trust, safety: r.safety,
+                pivots: r.pivots, deflects: r.deflects };
             r2.recompose();
             o.intimacy = r2.intimacy;
             o.benevolence = r2.trust.benevolence;
@@ -1803,8 +1804,8 @@ impl Game {
             self.refresh_player_talk(seat);
             return;
         }
-        let act = t.options[i].0;
-        let pick_text = t.options[i].1.clone();
+        let (act, pick_respond) = (t.options[i].0, t.options[i].1);
+        let pick_text = t.options[i].2.clone();
         // the pick's special effects match on the realized text (E4-4):
         // the pair cloned now so `t`'s borrow is free for the effects
         let (said_v, said_p, said_rel) =
@@ -1846,11 +1847,18 @@ impl Game {
         // valence - a morning slight and an evening kindness don't both
         // count (#1232); a rival's cold greet moves nothing and spends
         // nothing, and an audition read isn't a pick at all
-        let bond_moving = !probing && match act {
+        // every offered line is a way of *receiving* what they said
+        // (E6-3): its respond tag lands on the bond's parts - reflect
+        // and care warm them, a pivot is remembered. Once a day, like
+        // the beat; an audition read isn't a pick at all
+        let bond_moving = !probing && (match act {
             Act::PushBack | Act::Agree | Act::Answer => true,
             Act::Greet | Act::Farewell => !old_scores,
             _ => false,
-        };
+        } || !matches!(pick_respond, crate::game::conversation::Respond::Validate));
+        if bond_moving && !spent {
+            relationships::push_respond(&mut self.world, pe, who, pick_respond);
+        }
         // the line you take is heard by the one you're talking to - the
         // day's first pick with them, like the bond (#1236)
         if bond_moving && !spent {

@@ -105,7 +105,7 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
     // pick fights - take your leave over pushing back
     if let Some(t) = game.seats[seat].talk.as_ref() {
         let pick = t.options.iter()
-            .position(|(a, _)| *a != game2_core::game::conversation::Act::PushBack);
+            .position(|(a, _, _)| *a != game2_core::game::conversation::Act::PushBack);
         game.command_at(seat, Command::TalkPick(pick));
         return;
     }

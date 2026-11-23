@@ -138,7 +138,7 @@ fn warm_bond(g: &mut Game, v: Entity) {
         crate::game::relationships::Relationship {
             from: pe, other: v, kind: RelKind::Friend,
             strength: 1.0, interactions: 3,
-            intimacy: 0.6,
+            intimacy: 0.6, pivots: 0, deflects: 0,
             trust: crate::game::relationships::Trust {
                 ability: 0.0, benevolence: 0.6, integrity: 0.6 },
             safety: crate::game::relationships::SafetyRung::Challenger,
@@ -179,7 +179,7 @@ fn test_talk_opens_a_conversation_on_the_talk_panel_with_replies() {
     // pick the first reply: it's said, as previewed
     g.talk_pick_at(0, Some(0));
     let rec = g.talk_log.iter().find(|r| r.id == rec.id).unwrap();
-    assert!(rec.lines.iter().any(|l| l.who == Some(g.player) && l.text == t.options[0].1), "{:?}", rec.lines);
+    assert!(rec.lines.iter().any(|l| l.who == Some(g.player) && l.text == t.options[0].2), "{:?}", rec.lines);
 }
 
 #[test]
@@ -258,7 +258,7 @@ fn test_a_spent_talk_closes_itself_on_a_mutual_parting() {
     // keeps talking until the talk itself decides it's done
     while g.seats[0].talk.is_some() && picks < 30 {
         if let Some(t) = &g.seats[0].talk {
-            let farewells = t.options.iter().filter(|(a, _)| *a == Act::Farewell).count();
+            let farewells = t.options.iter().filter(|(a, _, _)| *a == Act::Farewell).count();
             assert!(farewells == 0 || farewells == t.options.len(),
                 "farewells shared a list with live replies: {:?}", t.options);
         }
@@ -471,7 +471,7 @@ fn test_a_talked_back_answer_is_remembered_next_time() {
     for &i in ad.iter() {
         let v = talk_beside(&mut g, i);
         let has = g.seats[0].talk.as_ref().unwrap().options.iter()
-            .position(|(a, _)| *a == Act::PushBack);
+            .position(|(a, _, _)| *a == Act::PushBack);
         if let Some(p) = has {
             g.talk_pick_at(0, Some(p));
             g.talk_pick_at(0, None);
@@ -511,7 +511,7 @@ fn test_a_kind_answer_warms_the_hello_after() {
         // usually a greeting), taking it when it comes
         for _ in 0..10 {
             let Some(t) = &g.seats[0].talk else { break };
-            match t.options.iter().position(|(a, _)| matches!(a, Act::Agree | Act::Answer)) {
+            match t.options.iter().position(|(a, _, _)| matches!(a, Act::Agree | Act::Answer)) {
                 Some(p) => { g.talk_pick_at(0, Some(p)); break; }
                 None => g.talk_pick_at(0, Some(0)),
             }
@@ -578,7 +578,7 @@ fn audition_bonded(g: &mut Game, i: usize, pass: bool, revealed: Vec<crate::game
     // pick the fork whose words are the stingy test's pass (or miss)
     let probe = crate::game::conversation::probe_for(&t.villager).unwrap();
     let wanted = if pass { probe.pass.1 } else { probe.fail.1 };
-    let pick = t.options.iter().position(|(_, l)| wanted.contains(&l.as_str()))
+    let pick = t.options.iter().position(|(_, _, l)| wanted.contains(&l.as_str()))
         .expect("their fork among the two");
     g.talk_pick_at(0, Some(pick));
     (v, t.id)
@@ -659,14 +659,14 @@ fn test_a_mismatch_keeps_the_asks_shallow_not_barred() {
 
 /// Pick through a Talk until the ask-slot shows, take it, and hand the
 /// topics it opened - `t.options` at that point is the question menu
-fn open_ask_menu(g: &mut Game) -> Vec<(Act, String)> {
+fn open_ask_menu(g: &mut Game) -> Vec<(Act, crate::game::conversation::Respond, String)> {
     for _ in 0..30 {
         let t = g.seats[0].talk.as_ref().expect("still talking").clone();
-        if let Some(i) = t.options.iter().position(|(_, l)| l == "Put a question to them") {
+        if let Some(i) = t.options.iter().position(|(_, _, l)| l == "Put a question to them") {
             g.talk_pick_at(0, Some(i));
             return g.seats[0].talk.as_ref().expect("the menu opens").options.clone();
         }
-        match t.options.iter().position(|(a, _)| *a != Act::Farewell) {
+        match t.options.iter().position(|(a, _, _)| *a != Act::Farewell) {
             Some(i) => g.talk_pick_at(0, Some(i)),
             None => break,
         }
@@ -686,9 +686,9 @@ fn test_a_talk_lets_you_put_your_own_questions() {
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
     // the standing asks never leave the table, and the out is a remark
-    assert!(menu.iter().any(|(_, l)| l == "Ask about themselves"), "{:?}", menu);
-    assert_eq!(menu.last().unwrap().1, "Say nothing of it");
-    let p = menu.iter().position(|(_, l)| l == "Ask about themselves").unwrap();
+    assert!(menu.iter().any(|(_, _, l)| l == "Ask about themselves"), "{:?}", menu);
+    assert_eq!(menu.last().unwrap().2, "Say nothing of it");
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about themselves").unwrap();
     let pe = g.player;
     g.talk_pick_at(0, Some(p));
     let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
@@ -715,7 +715,7 @@ fn test_asking_what_weighs_on_them_draws_it_out() {
         wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    let p = menu.iter().position(|(_, l)| l == "Ask about what weighs on them")
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
         .expect("a kept secret opens the deep ask");
     g.talk_pick_at(0, Some(p));
     let known = g.world.get_component::<Known>(v).expect("the asking drew something out");
@@ -746,7 +746,7 @@ fn test_a_too_deep_ask_costs_them_nerve() {
         wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    let p = menu.iter().position(|(_, l)| l == "Ask about what weighs on them")
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
         .expect("the worn secret's ask lists, as the tell-named kind");
     g.talk_pick_at(0, Some(p));
     let r = find_relationship(&g.world, pe, v)
@@ -770,7 +770,7 @@ fn test_the_trouble_they_told_is_an_ask() {
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    assert!(menu.iter().any(|(_, l)| l == "Ask about the trouble they told"),
+    assert!(menu.iter().any(|(_, _, l)| l == "Ask about the trouble they told"),
         "a shared trouble opens the follow-up: {:?}", menu);
 }
 
@@ -786,7 +786,7 @@ fn test_a_live_mystery_is_its_own_ask() {
     g.seats[0].mystery = Some(SeatMystery { def: 0, known: 0, asker: v });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    let p = menu.iter().position(|(_, l)| l == "Ask about the question folk whisper of")
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about the question folk whisper of")
         .expect("a live mystery opens the ask");
     let before = g.seats[0].mystery.as_ref().unwrap().heard();
     g.talk_pick_at(0, Some(p));
@@ -1108,7 +1108,7 @@ fn ledger(g: &Game, a: Entity, b: Entity) -> u32 {
 /// a hello or a goodbye); false if none are up right now
 fn pick_bond_moving(g: &mut Game) -> bool {
     let idx = g.seats[0].talk.as_ref().and_then(|t| t.options.iter()
-        .position(|(a, _)| matches!(a, Act::PushBack | Act::Agree | Act::Answer
+        .position(|(a, _, _)| matches!(a, Act::PushBack | Act::Agree | Act::Answer
             | Act::Greet | Act::Farewell)));
     match idx { Some(i) => { g.talk_pick_at(0, Some(i)); true } None => false }
 }
@@ -1644,7 +1644,7 @@ fn test_the_trouble_they_told_comes_back_around() {
     g.world.add_component(v, Known { revealed: all });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    let p = menu.iter().position(|(_, l)| l == "Ask about the trouble they told")
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about the trouble they told")
         .expect("a shared trouble stays an ask");
     g.talk_pick_at(0, Some(p));
     let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
@@ -1660,7 +1660,7 @@ fn test_the_trouble_they_told_comes_back_around() {
     // record like an argument's do
     for _ in 0..30 {
         let t = g.seats[0].talk.as_ref().expect("still talking").clone();
-        match t.options.iter().position(|(a, _)| *a != crate::game::conversation::Act::Farewell) {
+        match t.options.iter().position(|(a, _, _)| *a != crate::game::conversation::Act::Farewell) {
             Some(i) => g.talk_pick_at(0, Some(i)),
             None => break,
         }
@@ -1790,9 +1790,9 @@ fn test_a_first_talk_counts_no_talks_yet() {
     g.world.add_component(v, Personality { traits: vec![Trait::Gregarious] });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    assert!(menu.iter().all(|(_, l)| l != "Ask about themselves"),
+    assert!(menu.iter().all(|(_, _, l)| l != "Ask about themselves"),
         "the personal layer opened on a first meeting: {:?}",
-        menu.iter().map(|(_, l)| l).collect::<Vec<_>>());
+        menu.iter().map(|(_, _, l)| l).collect::<Vec<_>>());
 }
 
 #[test]
@@ -1810,15 +1810,15 @@ fn test_the_responsive_guest_hears_more_than_the_curious() {
             let Some(t) = g.seats[0].talk.clone() else { break };
             let pos = if curious {
                 // only ever asks and remarks - never answers or agrees
-                t.options.iter().position(|(a, _)| *a == Act::Question)
+                t.options.iter().position(|(a, _, _)| *a == Act::Question)
                     .or_else(|| t.options.iter()
-                        .position(|(a, _)| !matches!(a, Act::Farewell | Act::Answer | Act::Agree)))
-                    .or_else(|| t.options.iter().position(|(a, _)| *a != Act::Farewell))
+                        .position(|(a, _, _)| !matches!(a, Act::Farewell | Act::Answer | Act::Agree)))
+                    .or_else(|| t.options.iter().position(|(a, _, _)| *a != Act::Farewell))
             } else {
                 // answers and agrees where they're offered - tells of themself
                 t.options.iter()
-                    .position(|(a, _)| matches!(a, Act::Answer | Act::Agree))
-                    .or_else(|| t.options.iter().position(|(a, _)| *a != Act::Farewell))
+                    .position(|(a, _, _)| matches!(a, Act::Answer | Act::Agree))
+                    .or_else(|| t.options.iter().position(|(a, _, _)| *a != Act::Farewell))
             };
             match pos { Some(p) => g.talk_pick_at(0, Some(p)), None => break }
         }
@@ -1838,7 +1838,7 @@ fn test_the_responsive_guest_hears_more_than_the_curious() {
             crate::game::relationships::Relationship {
                 from: pe, other: v, kind: RelKind::Acquaintance,
                 strength: 0.6, interactions: 2,
-                intimacy: 0.5,
+                intimacy: 0.5, pivots: 0, deflects: 0,
                 trust: crate::game::relationships::Trust {
                     ability: 0.0, benevolence: 0.6, integrity: 0.5 },
                 safety: crate::game::relationships::SafetyRung::Contributor,
@@ -1869,7 +1869,7 @@ fn test_another_guests_telling_isnt_yours() {
         crate::game::relationships::Relationship {
             from: pe, other: v, kind: RelKind::Acquaintance,
             strength: 0.6, interactions: 2,
-            intimacy: 0.5,
+            intimacy: 0.5, pivots: 0, deflects: 0,
             trust: crate::game::relationships::Trust {
                 ability: 0.0, benevolence: 0.6, integrity: 0.5 },
             safety: crate::game::relationships::SafetyRung::Contributor });
@@ -1898,7 +1898,7 @@ fn test_a_later_telling_keeps_the_earlier_deflection() {
         crate::game::relationships::Relationship {
             from: pe, other: v, kind: RelKind::Acquaintance,
             strength: 0.6, interactions: 2,
-            intimacy: 0.5,
+            intimacy: 0.5, pivots: 0, deflects: 0,
             trust: crate::game::relationships::Trust {
                 ability: 0.0, benevolence: 0.6, integrity: 0.5 },
             safety: crate::game::relationships::SafetyRung::Contributor });
@@ -1913,17 +1913,17 @@ fn test_a_later_telling_keeps_the_earlier_deflection() {
         for _ in 0..30 {
             let t = g.seats[0].talk.as_ref().expect("still talking").clone();
             if let Some(i) = t.options.iter()
-                .position(|(_, l)| l == "Put a question to them") {
+                .position(|(_, _, l)| l == "Put a question to them") {
                 g.talk_pick_at(0, Some(i));
                 return g.seats[0].talk.as_ref().unwrap().options.clone();
             }
-            let pos = t.options.iter().position(|(a, _)|
+            let pos = t.options.iter().position(|(a, _, _)|
                 !matches!(a, Act::Farewell | Act::Answer | Act::Agree));
             match pos { Some(i) => g.talk_pick_at(0, Some(i)), None => break }
         }
         panic!("the ask slot never showed");
     })();
-    let p = menu.iter().position(|(_, l)| l == "Ask about what weighs on them")
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
         .expect("the worn secret's ask lists, as the tell-named kind");
     g.talk_pick_at(0, Some(p));
     assert_eq!(g.seats[0].talk.as_ref().unwrap().forward_seen, 1,
@@ -1933,8 +1933,8 @@ fn test_a_later_telling_keeps_the_earlier_deflection() {
         let t = g.seats[0].talk.as_ref().expect("still talking").clone();
         if t.shared >= 1 { break; }
         let pos = t.options.iter()
-            .position(|(a, _)| matches!(a, Act::Answer | Act::Agree))
-            .or_else(|| t.options.iter().position(|(a, _)| *a != Act::Farewell));
+            .position(|(a, _, _)| matches!(a, Act::Answer | Act::Agree))
+            .or_else(|| t.options.iter().position(|(a, _, _)| *a != Act::Farewell));
         match pos { Some(p) => g.talk_pick_at(0, Some(p)), None => break }
     }
     let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
@@ -2038,4 +2038,53 @@ fn test_a_favor_ask_names_their_trade() {
         let _ = i;
     }
     assert!(found, "600 chats and no favor-ask fired");
+}
+
+#[test]
+fn test_the_responsive_guest_outbonds_the_greedy_one() {
+    // E6-3's done-when: the greedy bot loses to the responsive bot.
+    // Two identical games, the same villager, a talk a day - one guest
+    // always takes the kindest reply on offer, the other always takes
+    // the one that turns the talk back to themselves
+    use crate::game::conversation::Respond;
+    use crate::game::relationships::{find_relationship, Relationship};
+    fn respond_rank(r: &Respond) -> i32 {
+        match r {
+            Respond::Care => 4, Respond::Reflect => 3, Respond::Advise => 2,
+            Respond::Validate => 1, Respond::Deflect => -1, Respond::PivotAsk => -2,
+        }
+    }
+    fn bond_after(g: &mut Game, i: usize, responsive: bool) -> (f32, u32, u32) {
+        let v = g.villagers[i];
+        let pe = g.player;
+        for day in 0..8u64 {
+            g.tick = day;
+            talk_beside(g, i);
+            let mut guard = 0;
+            while g.seats[0].talk.is_some() && guard < 30 {
+                guard += 1;
+                let t = g.seats[0].talk.clone().unwrap();
+                if t.options.is_empty() { g.talk_pick_at(0, None); continue }
+                let (p, _) = t.options.iter().enumerate()
+                    .max_by_key(|(_, (_, r, _))| {
+                        let s = respond_rank(r);
+                        if responsive { s } else { -s }
+                    })
+                    .expect("a non-empty menu picks");
+                g.talk_pick_at(0, Some(p));
+            }
+        }
+        let e = find_relationship(&g.world, pe, v).expect("the talks left a bond");
+        let r = g.world.get_component::<Relationship>(e).unwrap();
+        (r.intimacy + r.trust.benevolence + r.trust.integrity, r.pivots, r.deflects)
+    }
+    let mut g1 = Game::new();
+    let i = adults(&g1)[0];
+    let responsive = bond_after(&mut g1, i, true);
+    let mut g2 = Game::new();
+    let greedy = bond_after(&mut g2, i, false);
+    assert!(responsive.0 > greedy.0,
+        "a guest who receives you comes out closer than one who doesn't: {responsive:?} vs {greedy:?}");
+    assert!(greedy.1 + greedy.2 > 0,
+        "the greedy guest left marks the bond keeps: {greedy:?}");
 }

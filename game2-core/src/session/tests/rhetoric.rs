@@ -166,6 +166,7 @@ fn test_how_you_argue_is_a_line_they_hear() {
     {
         let t = g.seats[0].talk.as_mut().unwrap();
         t.options[0] = (crate::game::conversation::Act::PushBack,
+            crate::game::conversation::Respond::Deflect,
             crate::game::dialogue_trees::FT_ACCUSE.into());
     }
     g.talk_pick_at(0, Some(0));
@@ -192,14 +193,14 @@ fn test_a_talk_pick_reaches_only_the_partner() {
         for _ in 0..6 {
             let Some(t) = g.seats[0].talk.as_ref() else { break };
             if t.argue.is_some() { break; }
-            if let Some(k) = t.options.iter().position(|(act, _)| *act == Act::PushBack) {
+            if let Some(k) = t.options.iter().position(|(act, _, _)| *act == Act::PushBack) {
                 let probing = t.opt_tree == Some(crate::game::conversation::PROBE_TREE);
                 g.talk_pick_at(0, Some(k));
                 if !probing { seen = Some(v); break 'outer; }
                 continue;
             }
             if t.options.is_empty() { break; }
-            let k = t.options.iter().position(|(act, _)| !matches!(act, Act::Agree | Act::Answer | Act::Greet | Act::Farewell)).unwrap_or(usize::MAX);
+            let k = t.options.iter().position(|(act, _, _)| !matches!(act, Act::Agree | Act::Answer | Act::Greet | Act::Farewell)).unwrap_or(usize::MAX);
             if k == usize::MAX { break; }
             g.talk_pick_at(0, Some(k));
         }

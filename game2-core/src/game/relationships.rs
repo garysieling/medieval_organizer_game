@@ -106,6 +106,11 @@ pub struct Relationship {
     pub intimacy: f32,
     pub trust: Trust,
     pub safety: SafetyRung,
+    /// Times they turned your words aside instead of answering (E6-3):
+    /// the reproach beat of E8-3 reads this later
+    pub pivots: u32,
+    /// Times they stepped around you; enough and the nerve closes
+    pub deflects: u32,
 }
 
 impl Relationship {
@@ -299,6 +304,40 @@ pub fn find_relationship(world: &World, from: Entity, other: Entity) -> Option<E
         }
     }
     lowest_matching(world, matches)
+}
+
+/// How a reply's responsiveness lands on the bond's parts (E6-3,
+/// #1441): the reflect/validate/care/advise/deflect/pivot tags each
+/// push their own components. A deflect does nothing - but enough of
+/// them closes the nerve; a pivot costs and is remembered (`pivots`,
+/// the reproach beat of E8-3 consumes it later).
+pub fn push_respond(world: &mut World, from: Entity, other: Entity,
+                    respond: crate::game::conversation::Respond) {
+    use crate::game::conversation::Respond;
+    let e = find_relationship(world, from, other).unwrap_or_else(|| {
+        add_relationship(world, Relationship {
+            from, other, kind: RelKind::Stranger, strength: 0.0, interactions: 0,
+            ..Default::default()
+        })
+    });
+    if let Some(r) = world.get_component_mut::<Relationship>(e) {
+        r.recompose();
+        match respond {
+            Respond::Reflect => { r.intimacy += 0.06; r.trust.benevolence += 0.08; }
+            Respond::Validate => { r.intimacy += 0.04; }
+            Respond::Care => { r.trust.benevolence += 0.15; }
+            Respond::Advise => { r.intimacy += 0.05; r.trust.ability += 0.10; }
+            Respond::Deflect => {
+                r.deflects += 1;
+                if r.deflects % 3 == 0 { r.safety = r.safety.lower(); }
+            }
+            Respond::PivotAsk => {
+                r.intimacy -= 0.05; r.trust.integrity -= 0.08; r.pivots += 1;
+            }
+        }
+        r.derive();
+        r.interactions += 1;
+    }
 }
 
 /// Record an interaction - relationships evolve emergently. Finds the
@@ -591,6 +630,7 @@ mod e6_1 {
             from: r.from, other: r.other, kind: r.kind,
             strength: r.strength, interactions: r.interactions,
             intimacy: r.intimacy, trust: r.trust, safety: r.safety,
+            pivots: r.pivots, deflects: r.deflects,
         })
     }
 

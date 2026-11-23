@@ -415,6 +415,18 @@ pub enum Act {
     Agree,
     PushBack,
     Farewell,
+    /// A question carrying a fear, usually at the door (E5-1, #1430)
+    Worry,
+    /// A small reach for attention; a safety bid tests before telling
+    Bid,
+    /// Style and target from the persona, gated by setting
+    Joke,
+    /// A job tied to a ghost; extends organizing::Deeds
+    Errand,
+    /// A visible refusal of a topic above its tier
+    Evade,
+    /// A leak the realizer produces, at most once per arc
+    Slip,
 }
 
 /// How a reply receives what was just said (E3-3, #1428): the
@@ -441,9 +453,12 @@ pub enum Respond {
 pub fn respond_of(act: Act) -> Respond {
     match act {
         Act::Answer => Respond::Reflect,
-        Act::Agree | Act::Remark | Act::Greet | Act::Farewell => Respond::Validate,
-        Act::Question => Respond::PivotAsk,
-        Act::PushBack => Respond::Deflect,
+        Act::Agree | Act::Remark | Act::Greet | Act::Farewell | Act::Bid | Act::Joke => Respond::Validate,
+        Act::Errand => Respond::Advise,
+        Act::Question | Act::Worry => Respond::PivotAsk,
+        // a leak undercuts the answer it rides on - a misstep, not
+        // warmth (E5-1)
+        Act::PushBack | Act::Evade | Act::Slip => Respond::Deflect,
     }
 }
 
@@ -639,6 +654,10 @@ pub fn chat_temp(tr: &Transcript) -> f32 {
             None => match t.act {
                 Act::PushBack => -1,
                 Act::Agree | Act::Answer => 1,
+                // the reveal acts (E5-1): a reach warms, a pestered
+                // fear, a turned-aside topic or a leaked word cools
+                Act::Bid | Act::Joke | Act::Errand => 1,
+                Act::Worry | Act::Evade | Act::Slip => -1,
                 _ => 0,
             },
         };
@@ -671,7 +690,9 @@ pub const ASK_TREE: &str = "the_asking";
 
 /// A too-deep ask, turned aside (E3-2): the refusal is seen, the talk
 /// goes on - and a tell seen another day may yet open it
-const DEFLECTED: &[&str] = &[
+/// The visible turn-aside an over-deep ask earns (E3-2); E5-1 tags the
+/// act `Evade` and the same set answers gossip it shouldn't
+pub const DEFLECTED: &[&str] = &[
     "That's not for the telling, friend.",
     "We don't know each other so well as that.",
     "Ask me another.",
@@ -761,6 +782,17 @@ pub fn act_fit(call: Act, reply: Act) -> u8 {
         // answer's left, but a question back or a goodbye never follows
         Act::Question => match reply {
             Act::Answer | Act::Agree | Act::PushBack => 2,
+            // an evasion answers an unwelcome question; a leak IS the
+            // answer slipping out sideways (E5-1)
+            Act::Evade | Act::Slip => 2,
+            // a bid, a joke or a worry back is a passable side-step
+            Act::Remark | Act::Bid | Act::Joke | Act::Worry => 1,
+            _ => 0,
+        },
+        // a door-side fear asks like a question does - and "ask why"
+        // is one of the doors it opens (E5-1)
+        Act::Worry => match reply {
+            Act::Answer | Act::Agree | Act::PushBack | Act::Question => 2,
             Act::Remark => 1,
             _ => 0,
         },
@@ -1154,7 +1186,7 @@ pub fn converse_with(
                                     let (dt, _) = fresh_line(DEFLECTED, &pair[caller], &pair[responder], &used, recent, false, rng)
                                         .unwrap_or((DEFLECTED[0], String::new()));
                                     used.insert(dt);
-                                    tr.turns.push(Turn { speaker: caller, act: Act::Answer,
+                                    tr.turns.push(Turn { speaker: caller, act: Act::Evade,
                                         respond: Some(Respond::Deflect),
                                         text: fill(dt, &pair[caller], &pair[responder], rng),
                                         concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(dt) });

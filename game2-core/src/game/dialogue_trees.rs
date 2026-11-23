@@ -71,6 +71,17 @@ const SMALL_GOSSIP_MORE: Exchange = Exchange {
             voice: &[],
             then: Some(SMALL_FADE), end: None,
         },
+        // the rare leak (E5-1, #1430): a tense slips past the guard
+        // before they catch it - the once-per-arc cap lives with the
+        // arc runner (E5-8)
+        Reply {
+            criteria: &[Has("self:status:grieving")], weight: 0.30, bias: &[],
+            act: Act::Slip, concepts: &["gossip", "slip"],
+            respond: None,
+            lines: &["My brother is... was a carter.", "We kept bees, my - we don't speak of it now.", "The harvest sang that year, when - it doesn't matter."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
+        },
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Hotheaded, 2.0)],
             act: Act::PushBack, concepts: &["gossip"],
@@ -153,6 +164,31 @@ const SMALL_GOSSIP: Exchange = Exchange {
             voice: &[],
             then: Some(SMALL_FADE), end: None,
         },
+        // jokes ride gossip (E5-1, #1430): the everyday set bonds and
+        // copes; the ones that name power only come where it's safe to
+        // say them - the style/target matrix is E5-6's
+        Reply {
+            criteria: &[], weight: 0.50, bias: &[(Gregarious, 1.6)],
+            act: Act::Joke, concepts: &["gossip", "joke"],
+            respond: None,
+            lines: &["I told the rain to stop and it came down the harder. So much for commanding the weather.", "My wife says I snore like the mill at full grind. I tell her the mill learned it from me.", "The cat catches nothing and eats like a deacon. We've a prior in the house."],
+            voice: &[
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["The reeve's horse eats better than my children. Mind, it works harder.", "The priest's sermon ran so long the candles asked for mercy."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["The lord's feast had more ale than harvest - I'll say it to {2:obj} and no further.", "The reeve counts our sheep twice over - practices, I hear, on his own children."] },
+                Voice { criteria: &[Has("self:status:drunk")], lines: &["Ale's the only thing that listens to me - and even it makes me pay."] },
+            ],
+            then: Some(SMALL_GOSSIP_MORE), end: None,
+        },
+        // a visible turn-aside (E5-1): the refused reach reads as a
+        // wall, not a silence - temperament flavors it in E5-2
+        Reply {
+            criteria: &[], weight: 0.20, bias: &[(Proud, 1.5)],
+            act: Act::Evade, concepts: &["gossip", "evade"],
+            respond: None,
+            lines: crate::game::conversation::DEFLECTED,
+            voice: &[],
+            then: Some(SMALL_GOSSIP_MORE), end: None,
+        },
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
@@ -222,6 +258,49 @@ const SMALL_VOLLEY: Exchange = Exchange {
             act: Act::Agree, concepts: &["smalltalk"],
             respond: None,
             lines: &["That they will - the store is not full yet.", "Aye, we have lived through harder winters than this.", "True words; worry never baked a single loaf.", "So long as the well stays sweet, we'll thrive."],
+            voice: &[],
+            then: Some(SMALL_GOSSIP), end: None,
+        },
+        // the reveal acts (E5-1, #1430): a burden carried slips out as a
+        // question, a reach, or a job asked - mid-talk for now; the
+        // door-side placing is E5-3's, the errand's content E5-7's
+        Reply {
+            criteria: &[Has("self:status:hungry")], weight: 0.55, bias: &[],
+            act: Act::Worry, concepts: &["worry", "fear"],
+            respond: None,
+            lines: &["They say the levy rides again come spring - is it true, {other}?", "Will the frost take the late sowings? The store's so thin.", "Do the tithe-men read letters, {other}? I heard they do."],
+            voice: &[],
+            then: Some(SMALL_GOSSIP), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:grieving")], weight: 0.55, bias: &[],
+            act: Act::Worry, concepts: &["worry", "fear"],
+            respond: None,
+            lines: &["Do the dead sleep, {other}? Or do they wait on us?", "Is the grave the end of it? Folk by the stones say otherwise.", "I dream of the bell some nights - does it mean aught?"],
+            voice: &[],
+            then: Some(SMALL_GOSSIP), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:sick")], weight: 0.55, bias: &[],
+            act: Act::Worry, concepts: &["worry", "fear"],
+            respond: None,
+            lines: &["This cough that's going round - does it take the old ones, {other}?", "Will the physic come dear this year? My chest's not right.", "Is the well still sweet? I heard it turned a baby ill."],
+            voice: &[],
+            then: Some(SMALL_GOSSIP), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.45, bias: &[(Kind, 1.6), (Gregarious, 1.5)],
+            act: Act::Bid, concepts: &["bid", "smalltalk"],
+            respond: None,
+            lines: &["Look, the swallows are back.", "Walk with me to the well a moment, {other}.", "It's good to see {2:obj} about, {other}.", "Mind how the light sits on the church roof this hour.", "Can I tell {2:obj} a thing, quiet like?"],
+            voice: &[],
+            then: Some(SMALL_GOSSIP), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.30, bias: &[],
+            act: Act::Errand, concepts: &["errand", "favor"],
+            respond: None,
+            lines: &["Leave this loaf at the cairn on the hill - and don't say who from.", "Carry a word to the hermit for me, quiet like. There's a loaf in it.", "Mind the stall an hour come market day - a loaf and my thanks for it."],
             voice: &[],
             then: Some(SMALL_GOSSIP), end: None,
         },
@@ -692,11 +771,48 @@ const SICK_GREET: Exchange = Exchange {
     ],
 };
 
+/// The visitor's own close (E5-1): the sick one's answers deepen
+/// before it ends - aid content on the way out
+const VISIT_CLOSE: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["aid", "concern:sickness"],
+    calls: &["I'll look in again on the morrow, rest now.", "The parish keeps its own, {other} - sleep easy."],
+    voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["Rest well, {other}.", "Then I'll see {2:obj} at first light."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
 const VISIT_PROMISE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["aid"],
     calls: &["It is done - look for it by sundown.", "I'll have my girl bring the loaf before dark.", "Rest easy; the parish will not let {2:obj} freeze.", "We do what we must while daylight holds."], voice: &[],
     replies: &[
+        Reply {
+            criteria: &[], weight: 0.90, bias: &[(Kind, 1.4)],
+            act: Act::Agree, concepts: &["aid"],
+            respond: None,
+            lines: &["Aye, that would sit kindly, {other}.", "The house thanks {2:obj} for it."],
+            voice: &[],
+            then: Some(VISIT_CLOSE), end: None,
+        },
+        // the sickbed worry (E5-1): the fear asks out loud what the
+        // fever's been whispering
+        Reply {
+            criteria: &[Has("self:status:sick")], weight: 0.45, bias: &[],
+            act: Act::Worry, concepts: &["worry", "concern:sickness"],
+            respond: None,
+            lines: &["This cough that's going round - does it take the old ones, {other}?", "Will the physic come dear this year? My chest's not right.", "Is the well still sweet? I heard it turned a baby ill."],
+            voice: &[],
+            then: Some(VISIT_CLOSE), end: None,
+        },
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
@@ -761,6 +877,24 @@ const GRIEF_CLOSE: Exchange = Exchange {
     concepts: &["concern:grief"],
     calls: &["Thank {2:obj} for listening, {other} - it lightens the heart.", "It does a body good to speak their name aloud.", "The house feels less empty when a neighbor sits a spell.", "The sorrow will ease as the seasons turn and heal."], voice: &[],
     replies: &[
+        Reply {
+            criteria: &[], weight: 0.90, bias: &[(Kind, 1.4)],
+            act: Act::Agree, concepts: &["concern:grief"],
+            respond: None,
+            lines: &["We'll see it through, {other} - the village does.", "Gently does it, friend. Day by day."],
+            voice: &[],
+            then: None, end: None,
+        },
+        // the consoler's own reach (E5-1): the bid asks them to stay a
+        // little longer than the words do
+        Reply {
+            criteria: &[], weight: 0.35, bias: &[(Kind, 1.6)],
+            act: Act::Bid, concepts: &["bid", "concern:grief"],
+            respond: None,
+            lines: &["Sit a while longer - the kettle's still warm.", "Walk with me to the well a moment, {other}."],
+            voice: &[],
+            then: None, end: None,
+        },
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
@@ -867,11 +1001,58 @@ const GRIEF_GREET: Exchange = Exchange {
     ],
 };
 
+/// The condoler's own close (E5-1): the rejoin's answers deepen
+/// before it ends - it keeps grief content on the way out
+const CONDOLE_CLOSE: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["concern:grief", "aid"],
+    calls: &["I'll sit with {2:obj} a while yet, if it helps.", "The house won't grieve alone, {other}.", "Send for me at any hour - the latch lifts easy."],
+    voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["{2:poss} coming did the house good, {other}.", "Go gently, {other}. The door's always open to {2:obj}."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
 const CONDOLE_OFFER: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:grief", "aid"],
     calls: &["If {2:subj} {2:need} aught at all, say but the word.", "We have flour and eggs; let us share with {2:poss} house.", "My sons can plough {2:poss} furrow until {2:subj} {2:be} ready.", "The sorrow will ease as the seasons turn and heal."], voice: &[],
     replies: &[
+        Reply {
+            criteria: &[], weight: 0.90, bias: &[(Kind, 1.4)],
+            act: Act::Agree, concepts: &["concern:grief", "aid"],
+            respond: None,
+            lines: &["Sit then, {other} - the fire's low but there's room.", "Kindly said, {other}. Stay the hour."],
+            voice: &[],
+            then: Some(CONDOLE_CLOSE), end: None,
+        },
+        // a door-side fear (E5-1, #1430): grief carries its questions -
+        // the deep placements come with E5-3
+        Reply {
+            criteria: &[Has("self:status:grieving")], weight: 0.50, bias: &[],
+            act: Act::Worry, concepts: &["worry", "concern:grief"],
+            respond: None,
+            lines: &["Do the dead sleep, {other}? Or do they wait on us?", "Is the grave the end of it? Folk by the stones say otherwise.", "I dream of the bell some nights - does it mean aught?"],
+            voice: &[],
+            then: Some(CONDOLE_CLOSE), end: None,
+        },
+        // the rare leak (E5-1): consolation presses past the guard -
+        // the once-per-arc cap lives with the arc runner (E5-8)
+        Reply {
+            criteria: &[Has("self:status:grieving")], weight: 0.35, bias: &[],
+            act: Act::Slip, concepts: &["slip", "concern:grief"],
+            respond: None,
+            lines: &["My brother is... was a carter.", "We kept bees, my - we don't speak of it now.", "The harvest sang that year, when - it doesn't matter."],
+            voice: &[],
+            then: Some(CONDOLE_CLOSE), end: None,
+        },
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
@@ -1039,6 +1220,24 @@ const FATHER_THANKS: Exchange = Exchange {
     calls: &["Thank {2:obj}, father - that lifts a great stone from my mind.", "{2:poss} counsel is wise, father. We will trust in Providence.", "The church has been our refuge through many a cold year.", "{2:poss} blessing gives me heart to face the coming week, father."], voice: &[],
     replies: &[
         Reply {
+            criteria: &[], weight: 0.90, bias: &[],
+            act: Act::Agree, concepts: &["concern:faith"],
+            respond: None,
+            lines: &["Blessings on {2:poss} house, father.", "The parish is lucky in its father."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
+        },
+        // a job asked of the priest (E5-1): the errand's ghost-tied
+        // shapes come with E5-7
+        Reply {
+            criteria: &[], weight: 0.35, bias: &[],
+            act: Act::Errand, concepts: &["errand", "concern:faith"],
+            respond: None,
+            lines: &["Carry a word to the hermit for me, quiet like. There's a loaf in it.", "Would the parish take a letter to the bishop's man? I'll see the wax paid for."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
+        },
+        Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
             respond: None,
@@ -1059,6 +1258,16 @@ const FATHER_ASKS: Exchange = Exchange {
             act: Act::Answer, concepts: &["concern:faith"],
             respond: None,
             lines: &["The church will share its grain, child - none shall starve at the door.", "The tithe stands, but I will speak for {2:poss} house at the manor court.", "Holy candles and broth shall be brought to their bedside this very day.", "We do what we can with the strength Heaven gives."],
+            voice: &[],
+            then: Some(FATHER_THANKS), end: None,
+        },
+        // the confessional's wall (E5-1, #1430): some asks a father
+        // turns aside - the tier-driven evasions come with E5-2
+        Reply {
+            criteria: &[], weight: 0.30, bias: &[(Proud, 1.5)],
+            act: Act::Evade, concepts: &["evade", "concern:faith"],
+            respond: None,
+            lines: crate::game::conversation::DEFLECTED,
             voice: &[],
             then: Some(FATHER_THANKS), end: None,
         },
@@ -1158,6 +1367,15 @@ const RIVAL_SNIPE: Exchange = Exchange {
             voice: &[],
             then: Some(RIVAL_BITE), end: None,
         },
+        // the cold rival turns it aside rather than bite (E5-1)
+        Reply {
+            criteria: &[], weight: 0.25, bias: &[(Proud, 1.5)],
+            act: Act::Evade, concepts: &["evade", "feud"],
+            respond: None,
+            lines: crate::game::conversation::DEFLECTED,
+            voice: &[],
+            then: Some(RIVAL_END), end: None,
+        },
     ],
 };
 
@@ -1204,6 +1422,27 @@ const HUNGER_HOPE: Exchange = Exchange {
         Voice { criteria: &[Has("self:status:thaw_joined")], lines: &["The tithe barn opens for those who ask together, I hear."] },
     ],
     replies: &[
+        Reply {
+            criteria: &[], weight: 0.90, bias: &[],
+            act: Act::Agree, concepts: &["concern:food"],
+            respond: None,
+            lines: &["Aye, hold fast - the year's not written yet.", "Here's to a fat harvest, neighbor."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
+        },
+        // the thin joke is how the lean ones cope (E5-1): power is
+        // only fair game where it's safe to say - E5-6 fills the matrix
+        Reply {
+            criteria: &[], weight: 0.30, bias: &[(Gregarious, 1.6)],
+            act: Act::Joke, concepts: &["concern:food", "joke"],
+            respond: None,
+            lines: &["I've started watering the soup twice - the pot's never looked fuller.", "My belt's a sundial now - every notch marks a leaner week."],
+            voice: &[
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["The reeve's horse eats better than my children. Mind, it works harder."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["The lord's feast had more ale than harvest - I'll say it to {2:obj} and no further."] },
+            ],
+            then: Some(SMALL_FADE), end: None,
+        },
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
@@ -1383,6 +1622,25 @@ const DRUNK_RECALL: Exchange = Exchange {
     concepts: &["smalltalk"],
     calls: &["Did I truly challenge the smith to a wrestling match at midnight?", "They say we sang every verse of the Harvest ballad three times over.", "My purse is six silver pennies lighter than when dusk fell.", "We do what we must while daylight holds."], voice: &[],
     replies: &[
+        // a reach and a laugh back at the drunk's recall (E5-1, #1430)
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[(Kind, 1.5), (Gregarious, 1.5)],
+            act: Act::Bid, concepts: &["bid", "smalltalk"],
+            respond: None,
+            lines: &["Look, the swallows are back.", "It's good to see {2:obj} about, {other}.", "Walk with me to the well a moment, {other}."],
+            voice: &[],
+            then: Some(DRUNK_SOBER), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.35, bias: &[(Gregarious, 1.6)],
+            act: Act::Joke, concepts: &["joke", "smalltalk"],
+            respond: None,
+            lines: &["They'll sing of that night till harvest - mostly the fiddler's part.", "I told the rain to stop and it came down the harder. So much for commanding the weather."],
+            voice: &[
+                Voice { criteria: &[Has("self:status:drunk")], lines: &["Ale's the only thing that listens to me - and even it makes me pay."] },
+            ],
+            then: Some(DRUNK_SOBER), end: None,
+        },
         Reply {
             criteria: &[], weight: 1.00, bias: &[(Gregarious, 2.0)],
             act: Act::Agree, concepts: &["smalltalk"],
@@ -1446,6 +1704,24 @@ const KIN_AID: Exchange = Exchange {
     concepts: &["aid", "family"],
     calls: &["Blood is thicker than river mud, {other}.", "Whatever befalls the village, our clan stands shoulder to shoulder.", "Our grandfather laid the hearthstones in both our cottages.", "We do what we must while daylight holds."], voice: &[],
     replies: &[
+        Reply {
+            criteria: &[], weight: 0.90, bias: &[],
+            act: Act::Agree, concepts: &["family"],
+            respond: None,
+            lines: &["Kindly, kin - I'll not forget it.", "Blood looks to blood, and here we are."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
+        },
+        // kin ask kin (E5-1): the errand's ghost-tied shapes come with
+        // E5-7 - this is the family's ordinary ask
+        Reply {
+            criteria: &[], weight: 0.35, bias: &[],
+            act: Act::Errand, concepts: &["errand", "family"],
+            respond: None,
+            lines: &["Carry a word to the hermit for me, quiet like. There's a loaf in it.", "Mind the stall an hour come market day - a loaf and my thanks for it."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
+        },
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
@@ -1684,6 +1960,24 @@ const STRANGER_PASS: Exchange = Exchange {
     calls: &["Keep to the beaten track; the marshes to the east are treacherous.", "The alehouse by the bridge offers straw beds if {2:subj} {2:have} coin.", "The parish watch keeps guard after the curfew bell.", "The road is wide enough for all peaceful travelers."], voice: &[],
     replies: &[
         Reply {
+            criteria: &[], weight: 0.90, bias: &[],
+            act: Act::Agree, concepts: &["stranger"],
+            respond: None,
+            lines: &["A fair road and fair talk, traveler.", "Then the parish wishes {2:obj} well of it."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
+        },
+        // anyone carries a worry (E5-1): the stranger's the one who
+        // knows the roads a fear travels on
+        Reply {
+            criteria: &[], weight: 0.35, bias: &[],
+            act: Act::Worry, concepts: &["worry", "stranger"],
+            respond: None,
+            lines: &["Is the north road safe still? I've kin on it.", "They say the levy rides again come spring - is it true, {other}?"],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
+        },
+        Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
             respond: None,
@@ -1704,6 +1998,15 @@ const STRANGER_PATH: Exchange = Exchange {
             act: Act::Answer, concepts: &["stranger"],
             respond: None,
             lines: &["It leads down to the cathedral town and the salt wharves.", "I come from the valley beyond the high moors.", "The road is quiet by day, but light a torch if {2:subj} {2:walk} at dusk.", "The road to the cathedral town follows the river south."],
+            voice: &[],
+            then: Some(STRANGER_PASS), end: None,
+        },
+        // a stranger owes no answers (E5-1): the visible turn-aside
+        Reply {
+            criteria: &[], weight: 0.30, bias: &[(Proud, 1.5)],
+            act: Act::Evade, concepts: &["evade", "stranger"],
+            respond: None,
+            lines: crate::game::conversation::DEFLECTED,
             voice: &[],
             then: Some(STRANGER_PASS), end: None,
         },

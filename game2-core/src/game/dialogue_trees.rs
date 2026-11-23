@@ -15,6 +15,15 @@ use crate::game::conversation::{
 use crate::game::traits::Trait;
 use crate::game::traits::Trait::*;
 
+/// Stock phrases that are the village's common property: anyone may say
+/// them any day, so the freshness memory (#1369) doesn't count them
+pub const STOCK_LINES: &[&'static str] = &[
+    "As thou sayest, friend.",
+    "True enough - the fields don't gossip.",
+    "Aye, there is truth in what thou sayest.",
+    "Thou hast spoken the plain heart of the matter.",
+];
+
 const SMALL_FADE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk"],

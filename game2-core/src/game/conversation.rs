@@ -293,6 +293,9 @@ pub struct Turn {
     pub concepts: Vec<&'static str>,
     /// Which tree the line came from - handy for a grader
     pub tree: &'static str,
+    /// The template the text was filled from, when one was - the village's
+    /// freshness memory (#1369) counts templates, not rendered words
+    pub line: Option<&'static str>,
 }
 
 /// The full record of a two-person conversation
@@ -510,21 +513,30 @@ fn fill(t: &str, speaker: &Speaker, other: &Speaker) -> String {
 
 /// An unused variant of a line set: the template (so it can be spent) and
 /// the rendered text with the pair's slots filled
-fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, rng: &mut Rng) -> Option<(&'static str, String)> {
+fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
     let fresh: Vec<&'static str> = lines.iter().copied().filter(|l| !used.contains(*l)).collect();
-    fresh.get(rng.below(fresh.len())).map(|&t| (t, fill(t, speaker, other)))
+    // the village remembers (#1369): a content line someone said lately
+    // is passed over for fresher words - ritual speech and the stock
+    // phrases are common property, and when everything left is a repeat
+    // the talk repeats rather than starve
+    let pick: Vec<&'static str> = if ritual { fresh } else {
+        let newer: Vec<&'static str> = fresh.iter().copied()
+            .filter(|l| !recent.contains(*l) || crate::game::dialogue_trees::STOCK_LINES.contains(l)).collect();
+        if newer.is_empty() { fresh } else { newer }
+    };
+    pick.get(rng.below(pick.len())).map(|&t| (t, fill(t, speaker, other)))
 }
 
 /// A variant in the speaker's register: voice sets whose criteria the
 /// speaker's facts satisfy are drawn from first, in authored order; the
 /// base lines take over once the register's material is spent
-fn fresh_voiced(lines: &[&'static str], voice: &[Voice], facts: &Facts, speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, rng: &mut Rng) -> Option<(&'static str, String)> {
+fn fresh_voiced(lines: &[&'static str], voice: &[Voice], facts: &Facts, speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
     for v in voice {
         if v.criteria.iter().all(|c| c.holds(facts)) {
-            if let Some(f) = fresh_line(v.lines, speaker, other, used, rng) { return Some(f); }
+            if let Some(f) = fresh_line(v.lines, speaker, other, used, recent, ritual, rng) { return Some(f); }
         }
     }
-    fresh_line(lines, speaker, other, used, rng)
+    fresh_line(lines, speaker, other, used, recent, ritual, rng)
 }
 
 /// The matching trees, most specific first (Ruskin's scoring: criterion
@@ -558,9 +570,10 @@ pub fn converse(
     b: &Speaker,
     rel: Relation,
     library: &[DialogueTree],
+    recent: Option<&HashSet<&'static str>>,
     rng: &mut Rng,
 ) -> Transcript {
-    converse_with(a, b, rel, library, usize::MAX, &mut |_| Some(0), rng)
+    converse_with(a, b, rel, library, recent, usize::MAX, &mut |_| Some(0), rng)
 }
 
 /// As `converse`, but speaker `player`'s response turns go through
@@ -572,10 +585,14 @@ pub fn converse_with(
     b: &Speaker,
     rel: Relation,
     library: &[DialogueTree],
+    recent: Option<&HashSet<&'static str>>,
     player: usize,
     choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
     rng: &mut Rng,
 ) -> Transcript {
+    // no village memory (synthetic talks): nothing reads as a repeat
+    let no_recent = HashSet::default();
+    let recent = recent.unwrap_or(&no_recent);
     let pair = [a, b];
     let mut tr = Transcript {
         speakers: [a.name.clone(), b.name.clone()],
@@ -633,17 +650,17 @@ pub fn converse_with(
         if audition && !probed && tr.turns.len() == 2 {
             probed = true;
             if let Some(p) = probe_for(pair[caller]) {
-                if let Some((ct, call)) = fresh_line(p.calls, pair[caller], pair[responder], &used, rng) {
+                if let Some((ct, call)) = fresh_line(p.calls, pair[caller], pair[responder], &used, recent, matches!(p.act, Act::Greet | Act::Farewell), rng) {
                     used.insert(ct);
                     tr.trees_walked.push(PROBE_TREE);
                     tr.turns.push(Turn { speaker: caller, act: p.act, text: call,
-                        concepts: p.concepts.to_vec(), tree: PROBE_TREE });
+                        concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(ct) });
                     // the tested side gets the two forks the probe
                     // holds - the answer that lands and the wrong note
                     let mut choices: Vec<Choice> = vec![];
                     let mut forks: Vec<(&'static str, bool)> = vec![];
                     for ((act, lines), vibe) in [(p.pass, true), (p.fail, false)] {
-                        let (t, preview) = fresh_line(lines, pair[responder], pair[caller], &used, rng)
+                        let (t, preview) = fresh_line(lines, pair[responder], pair[caller], &used, recent, matches!(act, Act::Greet | Act::Farewell), rng)
                             .unwrap_or((lines[0], fill(lines[0], pair[responder], pair[caller])));
                         choices.push(Choice { act, preview });
                         forks.push((t, vibe));
@@ -656,7 +673,7 @@ pub fn converse_with(
                             used.insert(t);
                             tr.turns.push(Turn { speaker: responder, act: choices[i].act,
                                 text: fill(t, pair[responder], pair[caller]),
-                                concepts: p.concepts.to_vec(), tree: PROBE_TREE });
+                                concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(t) });
                             tr.vibe = Some(if vibe { Vibe::Safe } else { Vibe::Mismatch });
                             // a good answer picks the talk up where it
                             // left off; a miss leaves it on the polite
@@ -677,7 +694,7 @@ pub fn converse_with(
         // The floor-holder opens the beat, in the register their own
         // facts put them in (a lord's condescension, a rival's chill)
         let call_facts = Facts::for_roles(pair[caller], pair[responder], rel);
-        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, pair[caller], pair[responder], &used, rng) else {
+        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, pair[caller], pair[responder], &used, recent, matches!(ex.act, Act::Greet | Act::Farewell), rng) else {
             // Nothing fresh to call with: fall through to the next rejoinable tree,
             // or dry up entirely at the generic tail
             match advance_to_rejoin(&mut trees) {
@@ -688,7 +705,7 @@ pub fn converse_with(
         };
         used.insert(call_t);
         tr.turns.push(Turn { speaker: caller, act: ex.act, text: call,
-            concepts: ex.concepts.to_vec(), tree: node_tree });
+            concepts: ex.concepts.to_vec(), tree: node_tree, line: Some(call_t) });
 
         // The other side picks a fork
         let facts = Facts::for_roles(pair[responder], pair[caller], rel);
@@ -736,7 +753,7 @@ pub fn converse_with(
             let mut rolled: Vec<(&'static str, Choice)> = vec![];
             for &i in &sampled {
                 let r = pool[i];
-                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, pair[responder], pair[caller], &used, rng)
+                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, pair[responder], pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
                     .map(|(t, s)| (t, s))
                     .unwrap_or((r.lines[0], fill(r.lines[0], pair[responder], pair[caller])));
                 rolled.push((t, Choice { act: r.act, preview }));
@@ -777,18 +794,18 @@ pub fn converse_with(
                             asked.insert(open_topics[i]);
                             tr.asked.push(tp.label);
                             if !tr.trees_walked.contains(&ASK_TREE) { tr.trees_walked.push(ASK_TREE); }
-                            let (qt, _) = fresh_line(tp.ask, pair[responder], pair[caller], &used, rng)
+                            let (qt, _) = fresh_line(tp.ask, pair[responder], pair[caller], &used, recent, false, rng)
                                 .unwrap_or((tp.ask[0], String::new()));
                             used.insert(qt);
                             tr.turns.push(Turn { speaker: responder, act: Act::Question,
                                 text: fill(qt, pair[responder], pair[caller]),
-                                concepts: tp.concepts.to_vec(), tree: ASK_TREE });
-                            let (at, _) = fresh_line(tp.tell, pair[caller], pair[responder], &used, rng)
+                                concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(qt) });
+                            let (at, _) = fresh_line(tp.tell, pair[caller], pair[responder], &used, recent, false, rng)
                                 .unwrap_or((tp.tell[0], String::new()));
                             used.insert(at);
                             tr.turns.push(Turn { speaker: caller, act: Act::Answer,
                                 text: fill(at, pair[caller], pair[responder]),
-                                concepts: tp.concepts.to_vec(), tree: ASK_TREE });
+                                concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(at) });
                             continue;
                         }
                         // "say nothing of it" picks the talk up where it stood
@@ -801,7 +818,7 @@ pub fn converse_with(
             }
         } else {
             let i = rng.weighted(&weights);
-            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, pair[responder], pair[caller], &used, rng) {
+            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, pair[responder], pair[caller], &used, recent, matches!(pool[i].act, Act::Greet | Act::Farewell), rng) {
                 Some((t, _)) => (i, t),
                 None => { tr.ending = Some(Ending::Exhausted); break; }
             }
@@ -809,7 +826,7 @@ pub fn converse_with(
         let reply = pool[pick];
         used.insert(line_t);
         tr.turns.push(Turn { speaker: responder, act: reply.act, text: fill(line_t, pair[responder], pair[caller]),
-            concepts: reply.concepts.to_vec(), tree: node_tree });
+            concepts: reply.concepts.to_vec(), tree: node_tree, line: Some(line_t) });
         // the beat advanced the talk if it walked a new tree or named
         // something unsaid (#1368)
         let advanced = node_tree != last_tree
@@ -1186,7 +1203,7 @@ pub fn run_meeting<'a>(
         } else {
             attendees[record[target].speaker]
         };
-        let Some((t, text)) = fresh_line(floor_lines(line, other_sp), attendees[speaker], other_sp, &used, rng) else { continue };
+        let Some((t, text)) = fresh_line(floor_lines(line, other_sp), attendees[speaker], other_sp, &used, &HashSet::default(), false, rng) else { continue };
         used.insert(t);
         if target == Q { answers += 1; }
         // A reply is about what it shares with its target: a stock "aye,
@@ -1371,7 +1388,7 @@ mod tests {
             let a = Speaker::new("Aldric");
             let b = Speaker::new("Eliza");
             let mut mixed = false;
-            converse_with(&a, &b, Relation::Acquaintance, &library, 1, &mut |ch: &[Choice]| {
+            converse_with(&a, &b, Relation::Acquaintance, &library, None, 1, &mut |ch: &[Choice]| {
                 let farewells = ch.iter().filter(|c| c.act == Act::Farewell).count();
                 assert!(farewells == 0 || farewells == ch.len(),
                     "farewells shared a list with live replies: {:?}",
@@ -1394,12 +1411,12 @@ mod tests {
         sick.status.push("sick");
         let well = Speaker::new("Aldric");
 
-        let tr = converse(&sick, &well, Relation::Acquaintance, &library, &mut rng);
+        let tr = converse(&sick, &well, Relation::Acquaintance, &library, None, &mut rng);
         assert_eq!(tr.trees_walked[0], "the_sickness", "sick speaker leads with the_sickness tree");
         assert!(tr.turns.iter().any(|t| t.tree == "the_sickness"));
 
         // A well villager talking to a well villager leads with generic smalltalk
-        let tr_well = converse(&well, &Speaker::new("Bram"), Relation::Acquaintance, &library, &mut rng);
+        let tr_well = converse(&well, &Speaker::new("Bram"), Relation::Acquaintance, &library, None, &mut rng);
         assert_eq!(tr_well.trees_walked[0], "village_smalltalk", "well speaker leads with smalltalk");
     }
 
@@ -1414,7 +1431,7 @@ mod tests {
         let mut fell_through = false;
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
-            let tr = converse(&sick, &well, Relation::Acquaintance, &library, &mut rng);
+            let tr = converse(&sick, &well, Relation::Acquaintance, &library, None, &mut rng);
             if tr.trees_walked.contains(&"village_smalltalk") && tr.trees_walked[0] == "the_sickness" {
                 fell_through = true;
                 break;
@@ -1439,7 +1456,7 @@ mod tests {
             // calling out: the resigned register on their own trouble -
             // a hungry speaker leads hunger_lean_times, so the weave
             // lives where the issue lives
-            let tr = converse(&cold, &warm, Relation::Acquaintance, &library, &mut rng);
+            let tr = converse(&cold, &warm, Relation::Acquaintance, &library, None, &mut rng);
             cold_call |= tr.turns.iter().any(|t| t.speaker == 0
                 && (t.text.contains("nothing for it")
                     || t.text.contains("a thing to be")
@@ -1448,7 +1465,7 @@ mod tests {
                     || t.text.contains("never asked us")));
             // answering: the dedicated pool's resignation
             let mut rng = Rng::new(seed);
-            let tr = converse(&warm, &cold, Relation::Acquaintance, &library, &mut rng);
+            let tr = converse(&warm, &cold, Relation::Acquaintance, &library, None, &mut rng);
             cold_reply |= tr.turns.iter().any(|t| t.speaker == 1
                 && (t.text.contains("What's to be done but bear it")
                     || t.text.contains("nothing we say moves the sky")
@@ -1468,7 +1485,7 @@ mod tests {
             let mut warm = Speaker::new("Eliza");
             warm.status.push("thaw_joined");
             warm.status.push("hungry");
-            let tr = converse(&warm, &Speaker::new("Aldric"), Relation::Acquaintance, &library, &mut rng);
+            let tr = converse(&warm, &Speaker::new("Aldric"), Relation::Acquaintance, &library, None, &mut rng);
             for t in &tr.turns {
                 assert!(!t.text.contains("nothing for it")
                     && !t.text.contains("What's to be done but bear it"),
@@ -1488,7 +1505,7 @@ mod tests {
             let mut rng = Rng::new(seed);
             let a = Speaker::new("Aldric");
             let b = Speaker::new("Eliza");
-            let tr = converse(&a, &b, Relation::Acquaintance, &library, &mut rng);
+            let tr = converse(&a, &b, Relation::Acquaintance, &library, None, &mut rng);
 
             let mut seen = HashSet::default();
             for turn in &tr.turns {
@@ -1513,11 +1530,11 @@ mod tests {
         let mut calm_pushbacks = 0;
         for seed in 0..100 {
             let mut rng = Rng::new(seed);
-            let tr_hot = converse(&rival, &hothead, Relation::Rival, &library, &mut rng);
+            let tr_hot = converse(&rival, &hothead, Relation::Rival, &library, None, &mut rng);
             hot_pushbacks += tr_hot.turns.iter().filter(|t| t.speaker == 1 && t.act == Act::PushBack).count();
 
             let mut rng = Rng::new(seed);
-            let tr_calm = converse(&rival, &calm, Relation::Rival, &library, &mut rng);
+            let tr_calm = converse(&rival, &calm, Relation::Rival, &library, None, &mut rng);
             calm_pushbacks += tr_calm.turns.iter().filter(|t| t.speaker == 1 && t.act == Act::PushBack).count();
         }
         assert!(hot_pushbacks > calm_pushbacks, "Hothead should push back more: hot={}, calm={}", hot_pushbacks, calm_pushbacks);
@@ -1532,7 +1549,7 @@ mod tests {
         // Player leaves immediately (choose returns None)
         let mut rng = Rng::new(1);
         let tr_leave = converse_with(
-            &a, &player, Relation::Acquaintance, &library, 1,
+            &a, &player, Relation::Acquaintance, &library, None, 1,
             &mut |_choices| None,
             &mut rng,
         );
@@ -1543,7 +1560,7 @@ mod tests {
         let mut rng = Rng::new(2);
         let mut choices_seen = 0;
         let tr_play = converse_with(
-            &a, &player, Relation::Acquaintance, &library, 1,
+            &a, &player, Relation::Acquaintance, &library, None, 1,
             &mut |choices| {
                 // two replies, or two replies plus the ask slot (#1189)
                 assert!(!choices.is_empty() && choices.len() <= 3);
@@ -1772,7 +1789,7 @@ mod tests {
         let mut saw_rival_walked = false;
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
-            let tr = converse(&sick_rival, &rival, Relation::Rival, &library, &mut rng);
+            let tr = converse(&sick_rival, &rival, Relation::Rival, &library, None, &mut rng);
             if tr.trees_walked.contains(&"old_scores") && tr.trees_walked[0] == "the_sickness" {
                 saw_rival_walked = true;
                 break;
@@ -1790,7 +1807,7 @@ mod tests {
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
             converse_with(
-                &a, &player, Relation::Acquaintance, &library, 1,
+                &a, &player, Relation::Acquaintance, &library, None, 1,
                 &mut |choices| {
                     if choices.len() == 2 {
                         assert_ne!(choices[0].preview, choices[1].preview, "Player choices must be distinct");
@@ -2035,7 +2052,7 @@ mod tests {
             let mut flock = Speaker::new("Bram");
             flock.status.push(status);
             let prayed = (0..50).any(|seed| {
-                let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, &mut Rng::new(seed));
+                let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, None, &mut Rng::new(seed));
                 tr.turns.iter().any(|t| t.speaker == 0 && t.act == Act::Question)
                     && tr.turns.iter().any(|t| t.speaker == 1 && t.act == Act::Answer)
             });
@@ -2066,7 +2083,7 @@ mod tests {
         // grief-less CLERIC_PARISH small talk.
         let mut saw_the_cleric_consoles_rejoin = false;
         for seed in 0..50 {
-            let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, &mut Rng::new(seed));
+            let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, None, &mut Rng::new(seed));
             // speaker 0 (the cleric) opens the rejoin exchange with its `calls`
             // line; that's the line whose concepts identify which exchange it is.
             for t in tr.turns.iter().filter(|t| t.tree == "the_cleric_consoles" && t.speaker == 0) {
@@ -2179,9 +2196,9 @@ mod tests {
         let mut differed = 0;
         for seed in 0..20 {
             let mut ra = Rng::new(seed);
-            let rival = converse(&sick, &other, Relation::Rival, &library, &mut ra);
+            let rival = converse(&sick, &other, Relation::Rival, &library, None, &mut ra);
             let mut fa = Rng::new(seed);
-            let friend = converse(&sick, &other, Relation::Friend, &library, &mut fa);
+            let friend = converse(&sick, &other, Relation::Friend, &library, None, &mut fa);
             assert_eq!(rival.trees_walked[0], "the_sickness");
             assert_eq!(friend.trees_walked[0], "the_sickness");
             if rival.lines() != friend.lines() { differed += 1; }
@@ -2207,7 +2224,7 @@ mod tests {
         ];
         for seed in 0..10 {
             let mut ra = Rng::new(seed);
-            let tr = converse(&sick, &other, Relation::Rival, &library, &mut ra);
+            let tr = converse(&sick, &other, Relation::Rival, &library, None, &mut ra);
             assert_eq!(tr.trees_walked[0], "the_sickness");
             let opening = &tr.turns[0].text;
             assert!(!base_calls.iter().any(|t| t.replace("{other}", "Corvin") == *opening),
@@ -2225,18 +2242,18 @@ mod tests {
 
         // Fresh voice wins over fresh base
         let rival = Facts::for_roles(&a, &b, Relation::Rival);
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &empty, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &empty, &HashSet::default(), false, &mut rng).unwrap();
         assert_eq!(t, "Cold line");
 
         // Spent voice hands the floor back to the base lines
         let mut used: HashSet<&'static str> = HashSet::default();
         used.insert("Cold line");
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &used, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &used, &HashSet::default(), false, &mut rng).unwrap();
         assert_eq!(t, "Base line");
 
         // A voice for another register never speaks
         let friend = Facts::for_roles(&a, &b, Relation::Friend);
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &friend, &a, &b, &empty, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &friend, &a, &b, &empty, &HashSet::default(), false, &mut rng).unwrap();
         assert_eq!(t, "Base line");
     }
 
@@ -2252,18 +2269,18 @@ mod tests {
         // The lord holds court where the laborer would smalltalk
         for seed in 0..5 {
             let mut ra = Rng::new(seed);
-            let tr = converse(&lord, &laborer, Relation::Acquaintance, &library, &mut ra);
+            let tr = converse(&lord, &laborer, Relation::Acquaintance, &library, None, &mut ra);
             assert_eq!(tr.trees_walked[0], "the_lords_levee");
             assert!(tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("m'lord")),
                 "the tenant never deferred to rank: {:?}", tr.lines());
         }
         // The merchant keeps the ledger instead
         let mut ra = Rng::new(0);
-        let tr = converse(&merchant, &laborer, Relation::Acquaintance, &library, &mut ra);
+        let tr = converse(&merchant, &laborer, Relation::Acquaintance, &library, None, &mut ra);
         assert_eq!(tr.trees_walked[0], "the_merchants_ledger");
         // And the way up still runs through the manor
         let mut ra = Rng::new(0);
-        let tr = converse(&laborer, &lord, Relation::Acquaintance, &library, &mut ra);
+        let tr = converse(&laborer, &lord, Relation::Acquaintance, &library, None, &mut ra);
         assert_eq!(tr.trees_walked[0], "lord_manor");
     }
 
@@ -2279,7 +2296,7 @@ mod tests {
         // still carry the manor's address
         for seed in 0..10 {
             let mut ra = Rng::new(seed);
-            let tr = converse(&sick_lord, &tenant, Relation::Acquaintance, &library, &mut ra);
+            let tr = converse(&sick_lord, &tenant, Relation::Acquaintance, &library, None, &mut ra);
             assert_eq!(tr.trees_walked[0], "the_sickness");
             assert!(tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("m'lord")),
                 "no deference in the tenant's replies: {:?}", tr.lines());
@@ -2298,18 +2315,18 @@ mod tests {
         let mut rng = Rng::new(0);
         let used: HashSet<&'static str> = HashSet::default();
         let (_, text) = fresh_line(&["How goes it at {other_trade}, {other}?"],
-            &smith, &fisher, &used, &mut rng).unwrap();
+            &smith, &fisher, &used, &HashSet::default(), false, &mut rng).unwrap();
         assert_eq!(text, "How goes it at the weir, Wat?");
         let (_, text) = fresh_line(&["{trade} keeps my hands full."],
-            &smith, &fisher, &used, &mut rng).unwrap();
+            &smith, &fisher, &used, &HashSet::default(), false, &mut rng).unwrap();
         assert_eq!(text, "the forge keeps my hands full.");
 
         // No craft named: the day's wage fills the slot, not a raw "{trade}"
         let (_, text) = fresh_line(&["Hard at it down at {other_trade}?"],
-            &hand, &fisher, &used, &mut rng).unwrap();
+            &hand, &fisher, &used, &HashSet::default(), false, &mut rng).unwrap();
         assert_eq!(text, "Hard at it down at the weir?");
         let (_, text) = fresh_line(&["{trade} keeps my hands full."],
-            &hand, &fisher, &used, &mut rng).unwrap();
+            &hand, &fisher, &used, &HashSet::default(), false, &mut rng).unwrap();
         assert_eq!(text, "the day's work keeps my hands full.");
     }
 
@@ -2326,13 +2343,13 @@ mod tests {
         let mut work_seen = false;
         for seed in 0..20 {
             let mut ra = Rng::new(seed);
-            let tr = converse(&hand, &smith, Relation::Acquaintance, &library, &mut ra);
+            let tr = converse(&hand, &smith, Relation::Acquaintance, &library, None, &mut ra);
             if tr.turns.iter().any(|t| t.text.contains("forge")) {
                 work_seen = true;
                 break;
             }
             let mut ra = Rng::new(seed);
-            let tr = converse(&hand, &fisher, Relation::Acquaintance, &library, &mut ra);
+            let tr = converse(&hand, &fisher, Relation::Acquaintance, &library, None, &mut ra);
             if tr.turns.iter().any(|t| t.text.contains("weir")) {
                 work_seen = true;
                 break;
@@ -2344,9 +2361,9 @@ mod tests {
         let mut diffs = 0;
         for seed in 0..20 {
             let mut ra = Rng::new(seed);
-            let a = converse(&hand, &smith, Relation::Acquaintance, &library, &mut ra);
+            let a = converse(&hand, &smith, Relation::Acquaintance, &library, None, &mut ra);
             let mut rb = Rng::new(seed);
-            let b = converse(&hand, &fisher, Relation::Acquaintance, &library, &mut rb);
+            let b = converse(&hand, &fisher, Relation::Acquaintance, &library, None, &mut rb);
             if a.lines() != b.lines() { diffs += 1; }
         }
         assert!(diffs > 0, "smith and fisher talks were identical on every seed");
@@ -2360,7 +2377,7 @@ mod tests {
         let you = Speaker::new("Wanderer");
         // at the audition - both options drawn from the probe's two
         // pools - pick the landing or the wrong note as asked
-        converse_with(&caller, &you, rel, &village_library(), 1,
+        converse_with(&caller, &you, rel, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if let Some(p) = probe {
                     let in_pool = |c: &Choice, pool: &[&'static str]| pool.iter().any(|l| *l == c.preview);
@@ -2421,7 +2438,7 @@ mod tests {
         let mut a = Speaker::new("Hob");
         a.traits = vec![Trait::Pious];
         let tr = converse(&a, &Speaker::new("Tilda"), Relation::Acquaintance,
-            &village_library(), &mut Rng::new(7));
+            &village_library(), None, &mut Rng::new(7));
         assert!(!tr.trees_walked.contains(&PROBE_TREE));
     }
 
@@ -2445,7 +2462,7 @@ mod tests {
         caller.status.push(status);
         let you = Speaker::new("Wanderer");
         let mut queue: Vec<&'static str> = want.to_vec();
-        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), 1,
+        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if let Some(&w) = queue.first() {
                     if let Some(i) = ch.iter().position(|c| c.preview == w) {
@@ -2482,7 +2499,7 @@ mod tests {
         caller.status.push("sick");
         let you = Speaker::new("Wanderer");
         let mut first_seen = false;
-        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), 1,
+        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if !first_seen {
                     first_seen = true;
@@ -2512,7 +2529,7 @@ mod tests {
             // few seeds until one lives long enough to open the menu
             let mut menu: Vec<String> = vec![];
             for seed in 0..20 {
-                converse_with(&caller, &you, Relation::Acquaintance, &village_library(), 1,
+                converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
                     &mut |ch: &[Choice]| {
                         if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
                             if menu.is_empty() {
@@ -2545,7 +2562,7 @@ mod tests {
         let you = Speaker::new("Wanderer");
         let mut menus: Vec<Vec<String>> = vec![];
         let mut took_sick = false;
-        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), 1,
+        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
                     menus.push(ch.iter().map(|c| c.preview.clone()).collect());
@@ -2655,7 +2672,7 @@ mod tests {
             name: "chattier", criteria: &[], root: &CHAT, rejoin: Some(&CHAT) };
         for seed in 0..10 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[EARLY, TAIL], &mut Rng::new(seed));
+                Relation::Acquaintance, &[EARLY, TAIL], None, &mut Rng::new(seed));
             assert_eq!(tr.turns[1].act, Act::Remark,
                 "the talk moved to the livelier tree, not the early goodbye");
             assert!(tr.turns.iter().take(2).all(|t| t.act != Act::Farewell),
@@ -2665,7 +2682,7 @@ mod tests {
         // trade a hello for a goodbye
         for seed in 0..5 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[EARLY], &mut Rng::new(seed));
+                Relation::Acquaintance, &[EARLY], None, &mut Rng::new(seed));
             assert_eq!(tr.turns.len(), 1, "the hello stands alone: {:?}", tr.turns.len());
             assert_eq!(tr.ending, Some(Ending::Exhausted));
         }
@@ -2695,7 +2712,7 @@ mod tests {
             name: "loop", criteria: &[], root: &LOOP, rejoin: None };
         for seed in 0..10 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[LOOP_TREE], &mut Rng::new(seed));
+                Relation::Acquaintance, &[LOOP_TREE], None, &mut Rng::new(seed));
             assert!(tr.turns.len() <= AMBIENT_MAX_TURNS,
                 "the doldrums end it before the cap: {} turns", tr.turns.len());
             assert_eq!(tr.ending, Some(Ending::Exhausted),
@@ -2718,7 +2735,7 @@ mod tests {
                         Relation::Friend, Relation::Kin, Relation::Rival] {
                 let a = Speaker::new(names[rng.below(names.len())]);
                 let b = Speaker::new(names[rng.below(names.len())]);
-                let tr = converse(&a, &b, rel, &library, &mut rng);
+                let tr = converse(&a, &b, rel, &library, None, &mut rng);
                 assert!(tr.turns.len() <= AMBIENT_MAX_TURNS,
                     "an ambient talk stays inside its cap: {}", tr.turns.len());
                 for w in tr.turns.windows(2) {
@@ -2751,7 +2768,7 @@ mod tests {
         };
         for seed in 0..10 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[Q_TREE], &mut Rng::new(seed));
+                Relation::Acquaintance, &[Q_TREE], None, &mut Rng::new(seed));
             assert_eq!(tr.turns.len(), 1,
                 "nobody could answer but a reply was spoken: {:?}",
                 tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
@@ -2779,7 +2796,7 @@ mod tests {
         };
         for seed in 0..10 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[D_TREE], &mut Rng::new(seed));
+                Relation::Acquaintance, &[D_TREE], None, &mut Rng::new(seed));
             assert_eq!(tr.turns[1].act, Act::Remark,
                 "the remark was the only answer on offer: {:?}", tr.turns[1].text);
         }
@@ -2818,8 +2835,67 @@ mod tests {
             name: "r_closing", criteria: &[], root: &OPENER, rejoin: None,
         };
         let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-            Relation::Acquaintance, &[C_TREE], &mut Rng::new(1));
+            Relation::Acquaintance, &[C_TREE], None, &mut Rng::new(1));
         assert_eq!(tr.turns.last().unwrap().act, Act::Farewell);
         assert_eq!(tr.ending, Some(Ending::Farewell));
+    }
+
+    #[test]
+    fn test_the_village_doesnt_say_the_same_thing_twice() {
+        // #1369: a line anyone said lately is passed over for fresher
+        // words - the deterministic floor is that across a run of talks
+        // no content line repeats while fresher words remained
+        let library = village_library();
+        let names = ["Hob", "Tilda", "Aldric", "Marga", "Peryn", "Bram",
+                     "Oswyn", "Gisela", "Warin", "Edith", "Lucan", "Rohese"];
+        // the village's memory holds a few days of talk, not every word
+        // ever said - emulate it with a sliding window over the run
+        let mut said: Vec<HashSet<&'static str>> = vec![];
+        let mut rng = Rng::new(11);
+        let mut repeats = 0usize;
+        for _ in 0..30 {
+            let recent: HashSet<&'static str> =
+                said.iter().flatten().copied().collect();
+            let a = Speaker::new(names[rng.below(names.len())]);
+            let b = Speaker::new(names[rng.below(names.len())]);
+            let rel = [Relation::Stranger, Relation::Acquaintance,
+                       Relation::Friend, Relation::Rival][rng.below(4)];
+            let tr = converse(&a, &b, rel, &library, Some(&recent), &mut rng);
+            for turn in &tr.turns {
+                let Some(l) = turn.line else { continue };
+                if recent.contains(l) && !crate::game::dialogue_trees::STOCK_LINES.contains(&l)
+                    && !matches!(turn.act, Act::Greet | Act::Farewell) {
+                    repeats += 1;
+                }
+            }
+            said.push(tr.turns.iter().filter_map(|t| t.line).collect());
+            if said.len() > 4 { said.remove(0); }
+        }
+        // a repeat is only the dry-pool fallback; inside the window it
+        // should be all but unheard of
+        assert!(repeats <= 2, "{repeats} repeated content lines inside the window");
+    }
+
+    #[test]
+    fn test_a_tired_line_still_lands_when_the_pool_is_dry() {
+        // #1369: when everything a fork can say is a repeat, the talk
+        // repeats rather than starve before its time
+        const WORN: Exchange = Exchange {
+            act: Act::Remark, concepts: &[],
+            calls: &["Grey sky again."], voice: &[],
+            replies: &[Reply {
+                criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                concepts: &[], lines: &["Aye, all week."], voice: &[],
+                then: None, end: None,
+            }],
+        };
+        const WORN_TREE: DialogueTree = DialogueTree {
+            name: "worn", criteria: &[], root: &WORN, rejoin: None,
+        };
+        let recent: HashSet<&'static str> = ["Grey sky again.", "Aye, all week."].into_iter().collect();
+        let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
+            Relation::Acquaintance, &[WORN_TREE], Some(&recent), &mut Rng::new(3));
+        assert_eq!(tr.turns.len(), 2,
+            "a dry pool still speaks what it has: {:?}", tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
     }
 }

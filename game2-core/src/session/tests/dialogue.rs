@@ -1110,7 +1110,7 @@ fn test_the_acts_say_how_the_chat_landed() {
     let tr = |acts: &[(usize, Act)], ending| Transcript {
         speakers: ["A".into(), "B".into()], trees_walked: vec![],
         turns: acts.iter().map(|&(speaker, act)| Turn {
-            speaker, act, text: "x".into(), concepts: vec![], tree: "t",
+            speaker, act, text: "x".into(), concepts: vec![], tree: "t", line: None,
         }).collect(),
         ending, vibe: None, asked: vec![],
     };
@@ -1572,4 +1572,22 @@ fn test_a_neighbor_asked_for_a_hand_comes_by_or_stings() {
     let after = rel_of(&g, asked, asker).map(|(_, s)| s).unwrap_or(0.0);
     assert!(after > before, "the hand lent warms the bond: {before} -> {after}");
     assert!(refused.is_some(), "some passing chat asks and is turned down");
+}
+
+#[test]
+fn test_the_village_remembers_what_was_said() {
+    // #1369: a chat's lines go into the village's memory, and the memory
+    // lets go of what was said long enough ago
+    let mut g = Game::new();
+    let ad = adults(&g);
+    let (a, b) = (g.villagers[ad[0]], g.villagers[ad[1]]);
+    assert!(g.villagers_chat(a, b));
+    assert!(!g.said_lines.is_empty(), "the talk's lines go into memory");
+    // a line from long enough ago falls out of the memory on the next chat
+    g.tick = 10;
+    g.said_lines.insert("Said ages ago, and forgot.", g.tick - crate::session::dialogue::FRESH_LINE_DAYS - 1);
+    let (c, d) = (g.villagers[ad[2]], g.villagers[ad[3]]);
+    assert!(g.villagers_chat(c, d));
+    assert!(!g.said_lines.contains_key("Said ages ago, and forgot."),
+        "the memory let go of a line past the window");
 }

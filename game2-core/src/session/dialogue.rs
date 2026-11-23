@@ -58,6 +58,9 @@ pub const KID_TREE: &str = "children_at_play";
 pub const PLAYER_TALK_RANGE: f32 = 6.0;
 /// A reply not given inside this many days and they've gone back to work
 pub const PLAYER_TALK_DAYS: u64 = 8;
+/// A line spoken stays fresh in the village's ears this many days:
+/// tree lines said this recently are passed over for fresher words (#1369)
+pub const FRESH_LINE_DAYS: u64 = 3;
 /// What a reply does to the bond: agreeing warms, pushing back cools
 const AGREE_WARMTH: f32 = 0.3;
 const PUSHBACK_CHILL: f32 = 0.2;
@@ -403,10 +406,10 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 /// Replay a Talk: the lines so far (speaker 0 the villager, 1 the
 /// player), the replies on offer if it's the player's turn, and how it
 /// ended if it has
-fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, String)>> = None;
-    let tr = converse_with(&t.villager, &t.player, t.rel, library(), 1, &mut |ch: &[Choice]| {
+    let tr = converse_with(&t.villager, &t.player, t.rel, library(), recent, 1, &mut |ch: &[Choice]| {
         if n < t.picks.len() {
             n += 1;
             Some(t.picks[n - 1].min(ch.len().saturating_sub(1)))
@@ -415,12 +418,27 @@ fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, 
             None
         }
     }, &mut TalkRng::new(t.seed));
-    let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone())).collect();
+    let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone(), x.line)).collect();
     let ending = if offered.is_some() { None } else { tr.ending };
     (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked)
 }
 
 impl Game {
+    /// Tree lines the village has spoken lately - still fresh in ears (#1369)
+    fn fresh_lines(&self) -> crate::engine::det::HashSet<&'static str> {
+        self.said_lines.iter()
+            .filter(|(_, day)| *day + FRESH_LINE_DAYS >= self.tick)
+            .map(|(t, _)| *t).collect()
+    }
+
+    /// Mark the transcript's tree lines as spoken today, and let the
+    /// village's memory of what's said fall off past the window
+    fn note_said_lines(&mut self, lines: impl Iterator<Item = &'static str>) {
+        for t in lines { self.said_lines.insert(t, self.tick); }
+        let today = self.tick;
+        self.said_lines.retain(|_, day| *day + FRESH_LINE_DAYS >= today);
+    }
+
     pub(in crate::session) fn push_talk(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>) -> u64 {
         self.push_talk_cold(kind, with, lines, false)
     }
@@ -647,7 +665,9 @@ impl Game {
         // street mustn't shift every other roll in the sim
         let seed = self.tick.wrapping_mul(0x9E37_79B9)
             ^ ((a as u64) << 32) ^ (b as u64) ^ self.last_chat.len() as u64;
-        let tr = converse(&sa, &sb, rel, library(), &mut TalkRng::new(seed));
+        let recent = self.fresh_lines();
+        let tr = converse(&sa, &sb, rel, library(), Some(&recent), &mut TalkRng::new(seed));
+        self.note_said_lines(tr.turns.iter().filter_map(|t| t.line));
         // the exchange types what it does to the bond (#1230): the acts
         // and the close read warm or cold before the lines go on record
         let temp = crate::game::conversation::chat_temp(&tr);
@@ -1056,7 +1076,9 @@ impl Game {
     fn refresh_player_talk(&mut self, seat: usize) {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
-        let (said, offered, ending, tree, vibe, asked) = replay(&t);
+        let recent = self.fresh_lines();
+        let (said, offered, ending, tree, vibe, asked) = replay(&t, Some(&recent));
+        self.note_said_lines(said.iter().filter_map(|x| x.2));
         let vname = t.villager.name.clone();
         // the audition's read, the first time it's answered (#1187): a
         // good answer warms them and opens the deep material; a miss
@@ -1091,7 +1113,7 @@ impl Game {
             return;
         }
         let mut lines: Vec<TalkLine> = vec![];
-        for (k, (sp, text)) in said.iter().enumerate() {
+        for (k, (sp, text, _line)) in said.iter().enumerate() {
             let (who, name) = if *sp == 0 { (t.who, vname.clone()) } else { (pe, self.speaker_name(pe)) };
             lines.push(TalkLine { who: Some(who), name, text: text.clone(), gist: false });
             if k == 0 { lines.extend(Self::gist_lines(&t, &vname)); }
@@ -1677,7 +1699,8 @@ impl Game {
     /// been said so far (#1234)
     fn argue_line(&mut self, seat: usize, who: Option<Entity>, text: String) {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
-        let at = replay(t).0.len().max(1);
+        let recent = self.fresh_lines();
+        let at = replay(t, Some(&recent)).0.len().max(1);
         let name = match who { Some(w) if w == t.who => t.villager.name.clone(), Some(w) => self.speaker_name(w), None => String::new() };
         if let Some(cur) = self.seats[seat].talk.as_mut() {
             cur.argued.push((at, TalkLine { who, name, text, gist: false }));

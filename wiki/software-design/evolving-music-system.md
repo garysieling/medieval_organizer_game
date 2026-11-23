@@ -1,5 +1,7 @@
 # Evolving Music System (Techno-Style Layering)
 
+> Superseded by [sound-system](sound-system.md); kept for history.
+
 **Category:** Audio / System Design
 **Source:** Backlog item (Medium) — "music that evolves as world changes (mood, events). Techno-style: slowly adding/dropping layers over time. INITIAL VERSION: simple mood recommendation for Spotify or silent." Implemented stub: `game2-core/src/game/music.rs`.
 

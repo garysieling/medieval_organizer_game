@@ -297,6 +297,31 @@ pub fn pause_menu_click(mx: i32, my: i32) -> Option<MenuPick> {
         .map(|r| r.4)
 }
 
+/// Where a frame's Escape goes when the pause menu isn't already up:
+/// a Talk's leave first (it goes out through `read_input`), then the
+/// board's postings, then a conversation box that isn't a Talk just
+/// holds the press - and only a bare Escape opens the menu
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EscRoute {
+    /// A Talk is up: the leave goes out as Command::TalkPick(None)
+    TalkLeave,
+    /// The board's postings are up: they close as Command::Board(false)
+    Board,
+    /// A conversation box that isn't a Talk holds the press
+    Swallow,
+    /// Nothing conversational has it: the pause menu opens
+    Pause,
+}
+
+/// The route a frame's Escape takes, read off the seat's model
+pub fn esc_route(m: &UiModel) -> EscRoute {
+    let leave = m.convo.as_ref().map(|p| p.leave).unwrap_or(false) || m.talk.in_talk;
+    if leave { EscRoute::TalkLeave }
+    else if m.notice_panel && !m.notices.is_empty() { EscRoute::Board }
+    else if m.convo.is_some() { EscRoute::Swallow }
+    else { EscRoute::Pause }
+}
+
 /// The title screen shown until the player presses Enter: what the game
 /// is, how organizing works, the main keys, and how to start
 pub fn render_title() -> Buffer {

@@ -57,14 +57,15 @@ fn test_the_talk_fills_the_conversation_box_with_clickable_lines() {
     let c = g.convo_panel_at(0).expect("the talk on the conversation box");
     assert!(c.leave && !c.decides && !c.options.is_empty(), "{:?}", c.options);
     // a reply button clicks through as that reply
-    let (boxes, _) = convo_layout(&c);
+    let mut pin = ConvoPin::default();
+    let (boxes, _) = convo_layout(&c, &mut pin);
     let reply = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Reply(Some(0)))))
         .expect("a reply button");
-    assert_eq!(convo_click(&c, reply.x + 2, reply.y + 2), Some(ConvoClick::Reply(Some(0))));
+    assert_eq!(convo_click(&c, reply.x + 2, reply.y + 2, &mut pin), Some(ConvoClick::Reply(Some(0))));
     // and the villager's own line selects them
     let line = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(_))))
         .expect("a speaker's line");
-    match convo_click(&c, line.x + 2, line.y + 2) {
+    match convo_click(&c, line.x + 2, line.y + 2, &mut pin) {
         Some(ConvoClick::Speaker(v)) => assert_eq!(v, i),
         other => panic!("a speaker's line clicked: {:?}", other),
     }
@@ -96,10 +97,11 @@ fn test_a_house_meeting_ends_in_the_organizers_call_not_a_done_deal() {
     let issue = game2_core::game::desires::issue_name("the taxes".into());
     assert!(c.options.iter().take(3).all(|o| o.contains(&issue)), "{:?} vs {}", c.options, issue);
     // letting it rest answers the call and founds nothing
-    let (boxes, _) = convo_layout(&c);
+    let mut pin = ConvoPin::default();
+    let (boxes, _) = convo_layout(&c, &mut pin);
     let rest = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Decide(3))))
         .expect("the let-it-rest button");
-    assert_eq!(convo_click(&c, rest.x + 2, rest.y + 2), Some(ConvoClick::Decide(3)));
+    assert_eq!(convo_click(&c, rest.x + 2, rest.y + 2, &mut pin), Some(ConvoClick::Decide(3)));
     g.decide_at(0, 3);
     assert!(g.seats[0].pending_founding.is_none());
     assert!(game2_core::game::campaign::campaign_of(&g.world, g.org).is_none());
@@ -162,12 +164,116 @@ fn test_the_conversation_box_draws_its_buttons() {
         decides: true, leave: false,
     };
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &p, (-1, -1));
-    let (boxes, h) = convo_layout(&p);
+    let mut pin = ConvoPin::default();
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut pin);
+    let (boxes, h) = convo_layout(&p, &mut pin);
     for b in &boxes {
         assert!(b.y >= CONVO_Y && b.y + b.h <= CONVO_Y + h, "a button sits inside the box");
         assert!(b.x >= CONVO_X && b.x + b.w <= CONVO_X + CONVO_W);
     }
+}
+
+#[test]
+fn test_the_conversation_box_appends_and_scrolls_without_jumping() {
+    // one wrapped row per line, so every button is the same 19px pitch
+    let line = |k: usize| TalkRowV {
+        name: Some(format!("Speaker{}", k % 3)), text: format!("line {} said", k),
+        gist: false, you: false, rule: false, who: Some(k),
+    };
+    let mut p = ConvoPanelV {
+        title: "TALK - SOMEONE".into(), rows: vec![],
+        options: vec!["A reply".into()], decides: false, leave: true,
+    };
+    let mut pin = ConvoPin::default();
+    // the line boxes in row order: (row index, y, h)
+    let ys = |p: &ConvoPanelV, pin: &mut ConvoPin| -> Vec<(usize, i32, i32)> {
+        convo_layout(p, pin).0.into_iter()
+            .filter(|b| !b.choice)
+            .map(|b| match b.click {
+                Some(ConvoClick::Speaker(k)) => (k, b.y, b.h),
+                _ => unreachable!("every test line names its speaker"),
+            })
+            .collect()
+    };
+    // grow the conversation a line at a time: while the box has room
+    // every line keeps the y it was first drawn at
+    let mut before: Vec<(usize, i32)> = vec![];
+    for k in 0..31 {
+        p.rows.push(line(k));
+        let now = ys(&p, &mut pin);
+        for &(i, y) in &before {
+            assert_eq!(now.iter().find(|(j, _, _)| *j == i).map(|(_, y, _)| *y), Some(y),
+                "line {} moved while the box was still growing", i);
+        }
+        before = now.iter().map(|&(i, y, _)| (i, y)).collect();
+    }
+    // past the cap the oldest lines drop off the top: the kept rows stay
+    // a contiguous suffix ending at the newest, the first never comes
+    // back, and the survivors scroll as one block - same gaps, shifted
+    // together, never re-laid out
+    let mut first = 0usize;
+    for k in 31..48 {
+        p.rows.push(line(k));
+        let now = ys(&p, &mut pin);
+        assert_eq!(now.last().map(|r| r.0), Some(k), "the newest line is always shown");
+        for w in now.windows(2) {
+            assert_eq!(w[1].0, w[0].0 + 1, "the kept lines stay contiguous");
+            assert_eq!(w[1].1 - w[0].1, 19, "the block keeps its pitch");
+        }
+        let deltas: Vec<i32> = now.iter().filter_map(|&(i, y, _)|
+            before.iter().find(|(j, _)| *j == i).map(|(_, y0)| y - y0)).collect();
+        if !deltas.is_empty() {
+            assert!(deltas.iter().all(|&d| d == deltas[0]),
+                "survivors moved as one block, not re-laid out");
+        }
+        assert!(now[0].0 >= first, "a dropped line came back");
+        first = now[0].0;
+        before = now.iter().map(|&(i, y, _)| (i, y)).collect();
+    }
+    // shrinking the choices doesn't reshow what already fell
+    p.options.clear();
+    p.leave = false;
+    let now = ys(&p, &mut pin);
+    assert_eq!(now[0].0, first, "lines that fell stayed fallen");
+    // a different conversation starts from the top again - with the
+    // extra room the choices freed, more of the tail fits than did
+    // under the stale anchor
+    p.title = "HOUSE MEETING - ELSEWHERE".into();
+    let now = ys(&p, &mut pin);
+    assert!(now[0].0 < first, "a new conversation re-anchors at the top");
+}
+
+/// For eyes: a Talk's box and a long scrolled one, rendered as
+/// --dump-frame would. `CONVO_FRAME=<path.bmp> cargo test -p
+/// game2-client --lib convo_pin_frames -- --ignored`
+#[test]
+#[ignore]
+fn convo_pin_frames() {
+    let Ok(path) = std::env::var("CONVO_FRAME") else { return };
+    let mut g = Game::new_seeded(MAP_SEED);
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    let view = crate::View::new(crate::Art::load_fs("../assets", MAP_SEED));
+    view.render(&g.ui_model(), (-1, -1)).save_bmp(&path).unwrap();
+    // and the box tall and scrolled, the way a long Talk leaves it
+    let line = |k: usize| TalkRowV {
+        name: Some(format!("Speaker{}", k % 3)), text: format!("line {} said", k),
+        gist: false, you: false, rule: false, who: Some(k),
+    };
+    let mut p = ConvoPanelV {
+        title: "TALK - SOMEONE".into(),
+        rows: (0..48).map(line).collect(),
+        options: vec!["A reply".into(), "Another".into()], decides: false, leave: true,
+    };
+    let mut pin = ConvoPin::default();
+    let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+    // lay it out the way frames would: grown, then past the cap
+    for _ in 0..3 { convo_layout(&p, &mut pin); }
+    p.rows.push(line(48));
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut pin);
+    let long = path.replace(".bmp", "-scrolled.bmp");
+    buf.save_bmp(&long).unwrap();
+    println!("saved {} and {}", path, long);
 }
 
 #[test]
@@ -182,8 +288,9 @@ fn test_the_calls_question_rows_decide_the_probe() {
         other => panic!("a digit on the question picked: {:?}", other),
     }
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &c, (-1, -1));
-    let (boxes, _) = convo_layout(&c);
+    let mut pin = ConvoPin::default();
+    draw_convo_panel(&mut buf, &c, (-1, -1), &mut pin);
+    let (boxes, _) = convo_layout(&c, &mut pin);
     assert!(boxes.len() >= c.options.len(), "both questions are buttons");
     g.command(Command::Decide(1));
     assert!(g.seats[0].frame_offer.is_none(), "the pick answers it");
@@ -196,8 +303,9 @@ fn test_the_testimony_rows_decide_the_story() {
     let c = g.convo_panel_at(0).expect("which story to tell");
     assert_eq!(c.title, "THE CALL - WHAT WILL YOU TELL");
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &c, (-1, -1));
-    assert!(convo_layout(&c).0.len() >= 2, "both stories are buttons");
+    let mut pin = ConvoPin::default();
+    draw_convo_panel(&mut buf, &c, (-1, -1), &mut pin);
+    assert!(convo_layout(&c, &mut pin).0.len() >= 2, "both stories are buttons");
     match digit_cmd(Some(&c), 1) {
         Some(Command::Decide(1)) => {}
         other => panic!("a digit on the stories picked: {:?}", other),

@@ -82,6 +82,9 @@ pub struct View {
     /// sprint stride at their own pace instead of every figure
     /// moonwalking to the same beat. (last x, last y, tiles walked, frame)
     walk: std::cell::RefCell<game2_core::engine::det::HashMap<u32, (f32, f32, f32, u32)>>,
+    /// The conversation box's scroll anchor: which lines have fallen
+    /// off the top, so the rest keep their places between frames (#1317)
+    pub convo_pin: std::cell::RefCell<talk::ConvoPin>,
 }
 
 /// The mystery panel's display line, composed the way the sim used to
@@ -134,6 +137,7 @@ impl View {
             winter: std::cell::Cell::new(false),
             season: std::cell::Cell::new(Season::Spring),
             walk: std::cell::RefCell::new(game2_core::engine::det::HashMap::default()),
+            convo_pin: std::cell::RefCell::new(talk::ConvoPin::default()),
         }
     }
 
@@ -1415,7 +1419,9 @@ impl View {
 
         // the conversation box, top-right of the map: a Talk under way or
         // a house meeting's lines as they're said - and the call one leaves
-        if let Some(c) = &m.convo { talk::draw_convo_panel(&mut buf, c, (mx, my)); }
+        if let Some(c) = &m.convo {
+            talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut());
+        }
 
         // what the marks over villagers' heads mean, under the log
         let mut mx = UI_X as i32 + 14;

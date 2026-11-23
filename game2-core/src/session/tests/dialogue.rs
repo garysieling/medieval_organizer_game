@@ -39,6 +39,26 @@ fn test_speaker_reads_traits_trade_and_circumstance_off_the_world() {
 }
 
 #[test]
+fn test_a_speakers_body_reaches_the_fact_stream() {
+    // E1-3 (#1417): the pronoun facts text.rs will consume - set even
+    // through the child's early out
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    let w = g.villagers[adults(&g)[1]];
+    g.world.add_component(v, villager::Sex::Female);
+    let s = speaker_of(&g.world, v, "Eliza", g.tick);
+    assert_eq!(s.sex, Some("female"));
+    let other = speaker_of(&g.world, w, "Aldric", g.tick);
+    let f = crate::game::conversation::Facts::for_roles(&s, &other,
+        crate::game::conversation::Relation::Acquaintance);
+    assert!(f.has("self:sex:female"));
+    assert!(!f.has("self:sex:male"));
+    // and a kid still carries theirs
+    g.world.add_component(v, Kid);
+    assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).sex, Some("female"));
+}
+
+#[test]
 fn test_neighbours_are_acquaintances_but_the_wanderer_is_a_stranger() {
     assert_eq!(relation_of(Some(RelKind::Family)), Relation::Kin);
     assert_eq!(relation_of(Some(RelKind::Rival)), Relation::Rival);

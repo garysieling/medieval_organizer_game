@@ -494,6 +494,28 @@ const NEW_NAMES: [&str; 78] = [
     "Juliana","Miles","Nicolas","Orm","Petronel","Roget",
     "Sanchia","Terrice","Vincent","Wymund","Aveline","Bricot",
 ];
+/// The same two rolls split by the body they name (E1-3, #1417): a
+/// seeded cast deals from the pool matching the persona's sex, so
+/// names and pronouns agree by construction. Tests assert the pools
+/// partition NAMES + NEW_NAMES exactly, so the rolls stay the source
+pub(crate) const MALE_NAMES: [&str; 61] = [
+    "Aldric","Bram","Corvin","Hob","Wystan","Aelfric","Osric","Fenwick",
+    "Cedric","Godric","Leofric","Anselm","Roderick","Osmund","Pip","Tom",
+    "Reeve","Dunn","Hamelin","Colle","Merrick","Sabyn","Tybalt","Peryn",
+    "Hobkin","Wymond","Oswin","Milo","Ralf","Baldwin","Drogo","Fulke",
+    "Jocelin","Wymar","Hugh","Lucan","Sturmy","Garard","Thurstan","Engelard",
+    "Conan","Warin","Aldwin","Goscelin","Bartram","Serle","Jankin","Osbert",
+    "Quintin","Tibbets","Urian","Wymark","Erk","Miles","Nicolas","Orm",
+    "Roget","Terrice","Vincent","Wymund","Bricot",
+];
+pub(crate) const FEMALE_NAMES: [&str; 48] = [
+    "Eliza","Dagny","Marga","Gisela","Tilda","Hilda","Rowena","Matilda",
+    "Edith","Bertha","Winifred","Greta","Nell","Willa","Sible","Avice",
+    "Imma","Lettice","Tansy","Godelieve","Sabine","Eglantine","Isolde","Clarice",
+    "Emeline","Petronilla","Beatrice","Agnes","Philippa","Ysolde","Denise","Rohese",
+    "Basilia","Melisende","Jocosa","Ermentrude","Mahelt","Pernel","Simone","Adeline",
+    "Hawise","Mabyn","Peronell","Rohaise","Juliana","Petronel","Sanchia","Aveline",
+];
 /// A villager's name by index - past the named roll, the second roll
 /// keeps them distinct; past that, a newcomer stands in
 pub fn vill_name(i: usize) -> &'static str {
@@ -509,14 +531,18 @@ pub(crate) fn cast_of(names: &[&'static str], i: usize) -> &'static str {
 }
 
 /// The name a persona draws for its bearer, in a seeded cast (#1411):
-/// seeded off the person's own stream, and never one already carried -
-/// retries step through the draws till it lands one
+/// seeded off the person's own stream from the pool matching its sex
+/// (#1417), and never one already carried - retries step through the
+/// draws till it lands one
 pub(crate) fn deal_name(p: &crate::game::persona::Persona,
     taken: &mut Vec<&'static str>) -> &'static str {
-    const POOL: usize = NAMES.len() + NEW_NAMES.len();
-    for n in 0..(POOL + 40) {
-        let i = (p.draw(100 + n as u64) * POOL as f32) as usize % POOL;
-        let name = if i < NAMES.len() { NAMES[i] } else { NEW_NAMES[i - NAMES.len()] };
+    let pool: &[&'static str] = match p.sex {
+        crate::game::villager::Sex::Female => &FEMALE_NAMES,
+        crate::game::villager::Sex::Male => &MALE_NAMES,
+    };
+    for n in 0..(pool.len() + 40) {
+        let i = (p.draw(100 + n as u64) * pool.len() as f32) as usize % pool.len();
+        let name = pool[i];
         if !taken.contains(&name) { taken.push(name); return name; }
     }
     // the roll must stay positional even when the pool runs dry - a

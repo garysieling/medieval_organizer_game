@@ -883,7 +883,7 @@ impl Game {
         if !self.seeded_cast { return; }
         let p = crate::game::persona::generate(self.seed, self.villagers.len(),
             &crate::game::persona::Past { vocation, ..Default::default() });
-        self.world.add_component(v, villager::Sex::from_persona(&p));
+        self.world.add_component(v, p.sex);
         deal_name(&p, &mut self.names);
         self.world.add_component(v, p);
     }

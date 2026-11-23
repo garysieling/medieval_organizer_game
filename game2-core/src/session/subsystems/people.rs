@@ -23,7 +23,48 @@ impl Game {
     pub(in crate::session) fn spawn_kid(&mut self, home: Entity, tick: u64) {
         let (x, y) = self.world.get_component::<Pos>(home).map(|p| (p.x, p.y)).unwrap_or((14.0, 14.0));
         let v = villager::spawn_villager(&mut self.world, x + 0.5, y + 0.5);
-        let dealt = self.deal_cast(v, None);
+        // E2-2 (#1420): the roof's folk raise the child - the two elders'
+        // mean temperament pulls their axes, and the roof gives them kin
+        let occupants: Vec<Entity> = self.world
+            .get_component::<crate::game::household::Building>(home)
+            .map(|b| b.occupants.clone()).unwrap_or_default();
+        let (axes, kin) = if self.seeded_cast {
+            let adults: Vec<Entity> = occupants.iter().copied()
+                .filter(|&o| self.world.get_component::<crate::game::persona::Persona>(o)
+                    .is_some()
+                    && self.world.get_component::<crate::game::vocation::Kid>(o).is_none())
+                .collect();
+            let parents: Vec<Entity> = adults.iter().copied().take(2).collect();
+            let mean = if parents.is_empty() { None } else {
+                let mut m = [0.0f32; 5];
+                for &p in &parents {
+                    if let Some(pp) = self.world
+                        .get_component::<crate::game::persona::Persona>(p)
+                    {
+                        for a in 0..5 { m[a] += pp.temperament[a] / parents.len() as f32; }
+                    }
+                }
+                Some(m)
+            };
+            let siblings: Vec<Entity> = occupants.iter().copied()
+                .filter(|&o| !adults.contains(&o)).collect();
+            let housemates: Vec<Entity> = adults.iter().copied()
+                .filter(|&o| !parents.contains(&o)).collect();
+            (mean, villager::Kin { parents, siblings, housemates })
+        } else {
+            (None, villager::Kin::default())
+        };
+        let dealt = self.deal_cast(v, None, axes);
+        if self.seeded_cast {
+            for o in kin.all() {
+                crate::game::relationships::add_relationship(&mut self.world,
+                    crate::game::relationships::Relationship {
+                        from: v, other: o,
+                        kind: crate::game::relationships::RelKind::Family,
+                        strength: 0.8, interactions: 0 });
+            }
+            self.world.add_component(v, kin);
+        }
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
@@ -145,7 +186,7 @@ impl Game {
         // a seeded cast rolls the trade first so the persona grows up
         // with it; the fixed cast keeps the roll where it always sat
         let voc = if self.seeded_cast { Some(roll_vocation(&mut self.rng)) } else { None };
-        let dealt = self.deal_cast(v, voc);
+        let dealt = self.deal_cast(v, voc, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
@@ -887,8 +928,11 @@ impl Game {
     /// and the persona's two personality views (E1-4, #1412) for the
     /// villager about to join the roll. Returns the derived traits so
     /// the caller can feed `Virtues::seeded` and add the component -
-    /// None in a fixed cast, where the old rolls still stand
-    pub(in crate::session) fn deal_cast(&mut self, v: Entity, vocation: Option<Vocation>)
+    /// None in a fixed cast, where the old rolls still stand. `parents`
+    /// is the household's mean temperament when the spawn's a child
+    /// raised under a roof (#1420)
+    pub(in crate::session) fn deal_cast(&mut self, v: Entity, vocation: Option<Vocation>,
+        parents: Option<[f32; 5]>)
         -> Option<crate::game::traits::Personality>
     {
         if !self.seeded_cast { return None; }
@@ -897,7 +941,7 @@ impl Game {
         let story = self.world.resource::<crate::session::prehistory::Prehistory>()
             .map(|ph| ph.story_of(self.villagers.len())).unwrap_or_default();
         let p = crate::game::persona::generate(self.seed, self.villagers.len(),
-            &crate::game::persona::Past { story, vocation, ..Default::default() });
+            &crate::game::persona::Past { story, parents, vocation, ..Default::default() });
         let (big5, traits) = p.personalities();
         self.world.add_component(v, big5);
         self.world.add_component(v, p.sex);

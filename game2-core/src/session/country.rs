@@ -648,7 +648,7 @@ impl Game {
         let door = self.at_the_door(hp.0, hp.1).unwrap_or(hp);
         let v = villager::spawn_villager(&mut self.world, door.0 as f32 + k as f32 * 0.4, door.1 as f32 + 0.3);
         let i = self.villagers.len();
-        let dealt = self.deal_cast(v, voc);
+        let dealt = self.deal_cast(v, voc, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
         if !self.seeded_cast {

@@ -2359,7 +2359,7 @@ impl Game {
         self.world.add_component(e, Pos { x: at.0, y: at.1 });
         self.world.add_component(e, Villager { activity: Activity::Idle, target_food: None });
         self.world.add_component(e, TownRole::Teacher);
-        if let Some(traits) = self.deal_cast(e, None) {
+        if let Some(traits) = self.deal_cast(e, None, None) {
             self.world.add_component(e, traits);
         }
         self.villagers.push(e);

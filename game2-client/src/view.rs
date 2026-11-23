@@ -87,15 +87,32 @@ pub struct View {
     walk: std::cell::RefCell<game2_core::engine::det::HashMap<u32, (f32, f32, f32, u32)>>,
 }
 
-/// The mystery panel's display line, composed the way the sim used to
-/// send it - a legacy bare-string entry (empty title) draws verbatim
+/// The mystery panel's first line, composed the way the sim used to
+/// send it - a legacy bare-string entry (empty title) draws verbatim.
+/// The asker leads so their name lands in the first rows of the wrap:
+/// the button only reaches the top four
 fn mystery_line(mz: &MysteryV) -> String {
     if mz.title.is_empty() {
         mz.asker_name.clone()
     } else {
-        format!("{} {}/{} ({} wants to know)",
-            mz.title, mz.heard, mz.total, mz.asker_name)
+        format!("({}) wants to know {}", mz.asker_name, mz.title)
     }
+}
+
+/// The mystery panel's progress line (#1350): the count of whispers
+/// heard, then each direction's mark - a `*` when the story's need for
+/// it's met, a `.` while it's still wanted, and nothing at all when the
+/// story never asks it
+fn mystery_marks(mz: &MysteryV) -> Option<String> {
+    if mz.title.is_empty() { return None; }
+    // an old payload carries no directions - show the flat count (#1350)
+    if mz.dims.is_empty() { return Some(format!("{}/{}", mz.heard, mz.total)); }
+    let marks: Vec<String> = mz.dims.iter().map(|(w, heard, want)| {
+        if *want == 0 { w.clone() }
+        else if heard >= want { format!("{}*", w) }
+        else { format!("{}.", w) }
+    }).collect();
+    Some(format!("{}/{} {}", mz.heard, mz.total, marks.join(" ")))
 }
 
 /// Where the asker's name lands in the wrapped panel line: (row, first
@@ -104,7 +121,8 @@ fn mystery_line(mz: &MysteryV) -> String {
 /// follows, so wrapping just up to the name finds its row and column
 pub(crate) fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
     if mz.title.is_empty() || mz.asker_name.is_empty() { return None; }
-    let prefix = format!("{} {}/{} (", mz.title, mz.heard, mz.total);
+    let line = mystery_line(mz);
+    let prefix = line[..line.find("(")?].to_string() + "(";
     let lines = wrap_text(&format!("{}{}", prefix, mz.asker_name), 16);
     let (row, last) = lines.iter().enumerate().last()?;
     if row >= 4 { return None; }
@@ -1216,6 +1234,13 @@ impl View {
                     let x = UI_X as i32 + 150 + c0 as i32 * GLYPH_W;
                     let (r, g, b) = if hovered { (255, 240, 160) } else { (255, 220, 120) };
                     draw_text(&mut buf, x, y, &name, r, g, b);
+                }
+            }
+            // the directions' marks ride the last rows, always the same
+            // spot however long the question runs
+            if let Some(marks) = mystery_marks(mz) {
+                for (n, l) in wrap_text(&marks, 16).iter().take(3).enumerate() {
+                    draw_text(&mut buf, UI_X as i32 + 150, 90 + (4 + n) as i32 * LINE_H, l, 200, 180, 235);
                 }
             }
         }

@@ -405,14 +405,17 @@ when nothing's on record. Older servers omit it; read it as empty.
 watch the plan fill before it calls the meeting.
 
 `panel.mystery` is the village mystery the seat is piecing together, or
-absent: `{title, heard, total, asker_name, asker?, asker_at?}` - the
-question, the count of whispers heard, and who's asking, carried as data
-so the client can make the asker's name a button (select + camera jump).
-Older servers send the whole line as a bare string instead
+absent: `{title, heard, total, dims?, asker_name, asker?, asker_at?}` -
+the question, the count of whispers heard, and who's asking, carried as
+data so the client can make the asker's name a button (select + camera
+jump). `dims` is the per-direction progress: `["who",2,2]` and friends -
+(word, heard, wanted) for each of who/what/when/where/why, `wanted` 0
+where the story doesn't ask it; a `*` mark's due when heard meets
+wanted. Older servers send the whole line as a bare string instead
 (`"Mystery: ... - 3/5 whispers (Matilda wants to know)"`); it decodes
 with an empty `title`, which the client draws verbatim with nothing
-clickable. Servers that predate the field omit it; read it as no
-mystery under way.
+clickable. Servers that predate the field omit it - and omit `dims`;
+read it as no mystery under way, and `dims` as empty.
 
 `snowballs` lists the snowballs in the air this frame, each `[x,y]` where
 it has got to - empty outside a snowball fight. Older servers omit it;

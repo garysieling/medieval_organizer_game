@@ -215,6 +215,10 @@ pub struct Seat {
     pub mystery_wait: u64,
     /// The last mystery dealt, so the same one doesn't come round twice
     pub mystery_last: usize,
+    /// Mysteries this seat's pieced all the way together - the count
+    /// sets which band of the pool the next one draws from (#1350): the
+    /// first ask's easy, the deeper stories come round as solves rack up
+    pub mystery_solved: u32,
     /// Whether they're stood reading the market board: the notices panel
     /// opens on this seat's screen alone (#819)
     pub notice_panel: bool,
@@ -264,7 +268,7 @@ impl Default for Seat {
                pick_near: false,
                pending_founding: None, meet_offer: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
                quest: None, mystery: None, mystery_wait: 0,
-               mystery_last: usize::MAX, notice_panel: false, aboard: None,
+               mystery_last: usize::MAX, mystery_solved: 0, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,
                player_passed: false, survey: None, survey_wait: 0, survey_seen: 0,
                quests_done: 0, survey_capture: None }

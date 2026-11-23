@@ -57,6 +57,7 @@ pub mod conversation;
 pub mod dialogue_trees;
 pub mod scenes;
 pub mod mysteries;
+pub mod mystery_stories;
 pub mod prophetic;
 pub mod pass;
 pub mod amends;

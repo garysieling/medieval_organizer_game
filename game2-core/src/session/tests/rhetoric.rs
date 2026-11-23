@@ -148,7 +148,7 @@ fn test_their_read_moves_the_asks_a_rung() {
     assert_eq!(rhetoric::ask_shift(&g.world, kind, org), -1, "the gentle shy off");
     talk_beside(&mut g, a[0]);
     let asks = g.seats[0].talk.as_ref().unwrap().asks.clone();
-    assert_eq!(asks, crate::game::organizing::ask_offers(&g.world, g.org, hot, 1), "the open talk takes the shift");
+    assert_eq!(asks, crate::game::organizing::ask_offers(&g.world, g.org, hot, 1, g.tick), "the open talk takes the shift");
     let mut p = Game::new();
     let pa = adults(&p);
     let hot = known(&mut p, pa[0], vec![Trait::Hotheaded]);

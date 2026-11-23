@@ -549,12 +549,60 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
     }
 }
 
-/// What a person can be made to reveal: their unsatisfied wants, their
-/// live problems, and their fresh grievances - skipping anything already
-/// in `known`
-pub fn unrevealed(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
-    let known = world.get_component::<Known>(e)
-        .map(|k| k.revealed.clone()).unwrap_or_default();
+/// The still-carrying line for a fact already heard (#1347): a re-told
+/// trouble reads as catching up, not amnesia - "it still presses", not
+/// a fresh confession
+pub fn catchup_speech(name: &str, r: &Reveal) -> (String, String) {
+    match r {
+        Reveal::Want(Want::GoodFood) => (format!("{} still misses good bread", name), "The bread's no better, if you're asking.".into()),
+        Reveal::Want(Want::Finery) => (format!("{} still wishes for fine clothes", name), "Still not one decent garment to my name.".into()),
+        Reveal::Want(Want::Faith) => (format!("{} still misses the faith", name), "I still can't feel it, whatever I do.".into()),
+        Reveal::Want(Want::Shelter) => (format!("{} still longs for a home", name), "Still sleeping under another's roof.".into()),
+        Reveal::Want(Want::Security) => (format!("{} still feels unsafe", name), "The door's barred still. It doesn't help.".into()),
+        Reveal::Want(Want::Mastery) => (format!("{} still wants to rise in the trade", name), "Nobody's seen it yet. I'm still better than this.".into()),
+        Reveal::Want(Want::Music) => (format!("{} still misses music", name), "Still not a song to be had.".into()),
+        Reveal::Want(Want::Instrument) => (format!("{} still covets an instrument", name), "The lute's still a dream, friend.".into()),
+        Reveal::Want(Want::BetterTools) => (format!("{} still needs better tools", name), "Same dull tools. Same hard work.".into()),
+        Reveal::Want(Want::DifferentTrade) => (format!("{} still finds the trade stale", name), "This still isn't the life I pictured.".into()),
+        Reveal::Want(Want::Love) => (format!("{} is still lonely", name), "Still no one, when the lamp goes out.".into()),
+        Reveal::Want(Want::Joy) => (format!("{} still wants to play", name), "Still no play to be had.".into()),
+        Reveal::Want(Want::Drink) => (format!("{} still misses a cup", name), "That cup would still sit well.".into()),
+        Reveal::Problem(Problem::NoHome) => (format!("{} still has no home", name), "Still nowhere to lay my head.".into()),
+        Reveal::Problem(Problem::NoWorkplace) => (format!("{} still has no workshop", name), "Still working in the street.".into()),
+        Reveal::Problem(Problem::NoMaster) => (format!("{} still has no master", name), "Still no one to learn from.".into()),
+        Reveal::Problem(Problem::NoInput(g)) => (format!("{} still can't get {}", name, g), format!("Still no {} to be had.", g)),
+        Reveal::Problem(Problem::DerelictNearby) => (format!("{} still hates the empty shop", name), "The boarded shop sits there still.".into()),
+        Reveal::Problem(Problem::OverseerCut) => (format!("{} still resents the overseer's cut", name), "He takes his share still, for watching.".into()),
+        Reveal::Problem(Problem::Taxed) => (format!("{} still curses the tax collector", name), "The tolls press the same as ever.".into()),
+        Reveal::Problem(Problem::Broke) => (format!("{} is still nearly broke", name), "The purse is no fatter, if you're asking.".into()),
+        Reveal::Problem(Problem::Smelly) => (format!("{} still stinks of honest work", name), "The smell still hangs on.".into()),
+        Reveal::Problem(Problem::Loss) => (format!("{} still counts what the wolves took", name), "I still count what the wolves took.".into()),
+        Reveal::Problem(Problem::Bereaved) => (format!("{} is still grieving", name), "The grief's still with me.".into()),
+        Reveal::Problem(Problem::Blamed) => (format!("{} is still blamed for the sickness", name), "They still say my bread did it.".into()),
+        Reveal::Problem(Problem::SourGut) => (format!("{} still suffers the spoiled stock", name), "The gut's still not done with me.".into()),
+        Reveal::Problem(Problem::DeathDuty) => (format!("{} still feels the lord's fifth", name), "A fifth, still gone. For dying.".into()),
+        Reveal::Problem(Problem::ThinWood) => (format!("{}: the wood's still thin", name), "Still half a day's walk for a bundle.".into()),
+        Reveal::Problem(Problem::DryPit) => (format!("{}: the pit's still drowned", name), "Still water in the cut.".into()),
+        Reveal::Problem(Problem::StinkingReach) => (format!("{}: the reach still stinks", name), "You can smell it still, on a quiet night.".into()),
+        Reveal::Problem(Problem::ShortChanged) => (format!("{}: the reckoning's still off", name), "Counted his way again. Short again.".into()),
+        Reveal::Problem(Problem::Tempted) => (format!("{}'s feet still itch", name), "The road still looks shorter from the gate.".into()),
+        Reveal::Problem(Problem::WritBorne) => (format!("{} still bears the writ", name), "The wax still says what it says.".into()),
+        Reveal::Problem(Problem::LongWinter) => (format!("{}'s stores are still thin", name), "The barrel still knows it.".into()),
+        Reveal::Problem(Problem::ColdHearth) => (format!("{} still eats cold", name), "The pot's still cold. The bed's no warmer.".into()),
+        Reveal::Problem(Problem::TheDark) => (format!("{} still keeps to the dark", name), "Still honest, down here in the dark.".into()),
+        Reveal::Problem(Problem::Grief) => (format!("{} still sees it", name), "Strung up where we could see. I still see it.".into()),
+        Reveal::Problem(Problem::Robbed) => (format!("{} still remembers the robbery", name), "Took the good stock, quiet as a cat. Nothing's come back.".into()),
+        Reveal::Problem(Problem::ChildLabor) => (format!("{} still sees the child's hands", name), "Small hands in the rows still. It isn't right.".into()),
+        Reveal::Problem(Problem::Rowdy) => (format!("{} still sees the strangers' brawls", name), "The nights still end in the mud.".into()),
+        Reveal::Problem(Problem::Hungry) => (format!("{}'s pot is still bare", name), "Thin broth again today.".into()),
+        Reveal::Problem(Problem::Sick) => (format!("{} is still sick", name), "The fever still rides.".into()),
+        Reveal::Problem(Problem::Doctrine) => (format!("{} still takes the green word", name), "The word's still for all of us.".into()),
+    }
+}
+
+/// What a person's carrying right now: their live problems and their
+/// unsatisfied wants - the pool every reveal draw works from
+fn live_pool(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
     let mut out: Vec<Reveal> = problems_of(world, e, tick).into_iter()
         .map(Reveal::Problem).collect();
     if let Some(life) = world.get_component::<InnerLife>(e) {
@@ -563,7 +611,27 @@ pub fn unrevealed(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
             out.push(Reveal::Want(*w));
         }
     }
+    out
+}
+
+/// What a person can be made to reveal: their unsatisfied wants, their
+/// live problems, and their fresh grievances - skipping anything already
+/// in `known`
+pub fn unrevealed(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
+    let known = world.get_component::<Known>(e)
+        .map(|k| k.revealed.clone()).unwrap_or_default();
+    let mut out = live_pool(world, e, tick);
     out.retain(|r| !known.contains(r));
+    out
+}
+
+/// The live facts already told (#1347): what a catch-up draw can still
+/// speak to - a burden they still carry that you've already heard
+pub fn live_known(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
+    let known = world.get_component::<Known>(e)
+        .map(|k| k.revealed.clone()).unwrap_or_default();
+    let mut out = live_pool(world, e, tick);
+    out.retain(|r| known.contains(r));
     out
 }
 
@@ -571,6 +639,16 @@ pub fn unrevealed(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
 /// then wants. `roll` is 0..1 - callers give it a boosted chance
 pub fn next_reveal(world: &World, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
     let pool = unrevealed(world, e, tick);
+    if pool.is_empty() { return None; }
+    Some(pool[(seed % pool.len() as u64) as usize])
+}
+
+/// Pick an old truth to come back around (#1347): once every live fact
+/// is heard, asking can still catch up on what's still pressing. None
+/// when nothing's been heard yet or what's heard has all resolved - a
+/// healed trouble doesn't get re-mourned
+pub fn catchup_reveal(world: &World, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
+    let pool = live_known(world, e, tick);
     if pool.is_empty() { return None; }
     Some(pool[(seed % pool.len() as u64) as usize])
 }
@@ -906,24 +984,42 @@ mod tests {
     }
 
     #[test]
-    fn test_the_probe_stays_open_only_while_theres_a_want_to_plant() {
+    fn test_the_probe_stays_open_while_theres_something_left_to_hear() {
         let mut w = World::new();
         let (v, asker) = (person(&mut w, &[]), person(&mut w, &[]));
-        assert!(probe_open(&w, v));
-        // carry every probeable want and the question's spent
+        assert!(probe_open(&w, v, 0));
+        // carry every probeable want, all of them heard, nothing
+        // pressing - the question's spent
         w.get_component_mut::<InnerLife>(v).unwrap().wants = PROBE_WANTS.to_vec();
-        assert!(!probe_open(&w, v));
+        housed(&mut w, v);
+        w.add_component(v, Known { revealed: PROBE_WANTS.iter()
+            .map(|x| Reveal::Want(*x)).collect() });
+        assert!(!probe_open(&w, v, 0));
         // a kid never takes a planted want
         let kid = w.create_entity();
         w.add_component(kid, Pos { x: 0.0, y: 0.0 });
         w.add_component(kid, Kid);
-        assert!(!probe_open(&w, kid));
+        assert!(!probe_open(&w, kid, 0));
         // a want already ripening still counts as covered
         w.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
         plant_want(&mut w, v, asker, 0, 1);
-        assert!(probe_open(&w, v), "other wants remain open");
+        assert!(probe_open(&w, v, 0), "other wants remain open");
         w.get_component_mut::<InnerLife>(v).unwrap().wants = PROBE_WANTS.to_vec();
-        assert!(!probe_open(&w, v));
+        assert!(!probe_open(&w, v, 0));
+        // but the world moving re-opens it: a fresh grievance is
+        // something to hear - heard or run out, it closes again
+        add_grievance(&mut w, v, Problem::Loss, 60);
+        assert!(probe_open(&w, v, 0), "a new burden reopens the question");
+        hear(&mut w, asker, v, Reveal::Problem(Problem::Loss), 0);
+        assert!(!probe_open(&w, v, 0), "heard, it's spent again");
+        let mut w2 = World::new();
+        let v2 = person(&mut w2, &[]);
+        w2.get_component_mut::<InnerLife>(v2).unwrap().wants = PROBE_WANTS.to_vec();
+        housed(&mut w2, v2);
+        w2.add_component(v2, Known { revealed: PROBE_WANTS.iter()
+            .map(|x| Reveal::Want(*x)).collect() });
+        add_grievance(&mut w2, v2, Problem::Loss, 60);
+        assert!(!probe_open(&w2, v2, 70), "the grief's run out");
     }
 }
 
@@ -951,15 +1047,18 @@ pub struct Planted {
     pub wants: Vec<(Want, u64, Entity)>,
 }
 
-/// Whether the probing question could still plant something new
-/// (#1269): a want they neither carry nor already have ripening - the
-/// ask's only worth offering while this holds
-pub fn probe_open(world: &World, e: Entity) -> bool {
+/// Whether the probing question could still open something (#1269,
+/// #1347): a want they neither carry nor already have ripening - or,
+/// once those are all spoken for, a burden their life's taken on that
+/// you've not yet heard. The world moves: a fresh grievance re-opens
+/// the ask
+pub fn probe_open(world: &World, e: Entity, tick: u64) -> bool {
     if is_kid(world, e) { return false; }
     let carried = world.get_component::<InnerLife>(e).map(|l| l.wants.clone()).unwrap_or_default();
     let planted: Vec<Want> = world.get_component::<Planted>(e)
         .map(|p| p.wants.iter().map(|(w, _, _)| *w).collect()).unwrap_or_default();
     PROBE_WANTS.iter().any(|w| !carried.contains(w) && !planted.contains(w))
+        || !unrevealed(world, e, tick).is_empty()
 }
 
 /// Plant a want the hearer doesn't already carry, ripening in

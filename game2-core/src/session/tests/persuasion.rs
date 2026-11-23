@@ -87,7 +87,7 @@ fn test_the_argument_waits_on_knowing_them() {
     assert_eq!(stage_of(&g.world, g.player, v), RelStage::Known);
     // "argue a point" is no ask at all now (#1348) - the argumentative
     // lines in the ordinary picks carry the quarrel themselves
-    assert!(!crate::game::organizing::ask_offers(&g.world, g.org, v, 0).iter().any(|o| o.kind == PropKind::Argue));
+    assert!(!crate::game::organizing::ask_offers(&g.world, g.org, v, 0, g.tick).iter().any(|o| o.kind == PropKind::Argue));
     // an acquaintance (one piece heard) gets no hearing for your case:
     // a quarrel's opening needs them to know you
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });

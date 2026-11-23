@@ -1123,11 +1123,43 @@ pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
     base + 5.0 * (need - at).max(0) as f32
 }
 
+/// The season a refused ask stays off the table (#1347): a "won't hear
+/// it" cools off for the season - hearts change, and the second ask can
+/// land differently
+pub const ASK_COOLDOWN_DAYS: u64 = 90;
+
+/// Asks this person refused, and when (#1347): scoped to the org the
+/// ask was put for, so another cause's asking carries no chill
+#[derive(Debug, Default)]
+pub struct DeclinedAsks {
+    pub entries: Vec<(Entity, PropKind, AskKey, u64)>,
+}
+
+/// Whether this exact ask is still cooling on a refusal (#1347)
+fn declined_cooling(world: &World, org: Entity, person: Entity, o: &AskOffer, tick: u64) -> bool {
+    world.get_component::<DeclinedAsks>(person)
+        .map(|d| d.entries.iter().any(|(g, k, key, day)|
+            *g == org && *k == o.kind && *key == o.key && tick < *day + ASK_COOLDOWN_DAYS))
+        .unwrap_or(false)
+}
+
+/// Record a refusal (#1347): the ask cools off for the season, then can
+/// be put again - hearts change
+fn note_declined(world: &mut World, org: Entity, person: Entity, o: AskOffer, tick: u64) {
+    let mut entries = world.get_component::<DeclinedAsks>(person)
+        .map(|d| d.entries.clone()).unwrap_or_default();
+    entries.retain(|(_, _, _, day)| tick <= *day + ASK_COOLDOWN_DAYS);
+    entries.retain(|(g, k, key, _)| !(*g == org && *k == o.kind && *key == o.key));
+    entries.push((org, o.kind, o.key, tick));
+    world.add_component(person, DeclinedAsks { entries });
+}
+
 /// Every ask on the table, any currency (#1225): the earned asks the
 /// bond reaches, and where the ladder locks one out, the coin's priced
 /// variant (which reaches anyone the purse can pay) and the nerve's
-/// pressed one (which needs a piece of them heard to pull on).
-pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<AskOffer> {
+/// pressed one (which needs a piece of them heard to pull on). Asks
+/// refused inside the season stay off the table (#1347).
+pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u64) -> Vec<AskOffer> {
     let heard = world.get_component::<crate::game::desires::Known>(person)
         .map(|k| !k.revealed.is_empty()).unwrap_or(false);
     let (stage, purse) = world.get_component::<Organization>(org)
@@ -1148,7 +1180,7 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
     }
     // the probing question (#1269): the thaw move the talk shares with
     // the meeting - only while there's a want left to plant
-    if reached >= RelStage::Acquaintance && crate::game::desires::probe_open(world, person) {
+    if reached >= RelStage::Acquaintance && crate::game::desires::probe_open(world, person, tick) {
         out.push(AskOffer { kind: PropKind::Probe, key: AskKey::Earned, price: 0.0 });
     }
     for p in ask_candidates(world, org, person) {
@@ -1167,6 +1199,9 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
         && crate::game::inoculation::COUNTERS.iter().any(|&c| !crate::game::inoculation::shielded(world, person, c)) {
         out.push(AskOffer { kind: PropKind::Inoculate, key: AskKey::Earned, price: 0.0 });
     }
+    // a refused ask cools off for the season (#1347) - it re-qualifies
+    // when its days are out, not before
+    out.retain(|o| !declined_cooling(world, org, person, o, tick));
     out
 }
 
@@ -1290,6 +1325,7 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
         if refuses {
             record_interaction(world, organizer, Interaction {
                 other: person, kind: InteractionKind::Conflict, intensity: 0.15 });
+            note_declined(world, org, person, AskOffer { kind: p, key, price }, tick);
             return (format!("{} won't be bought - and won't forget you tried.", name), None);
         }
         let gold = world.get_component::<crate::game::livelihood::Purse>(organizer)
@@ -1310,6 +1346,7 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
     if yes_chance(world, organizer, person, p) <= roll {
         record_interaction(world, organizer, Interaction {
             other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
+        note_declined(world, org, person, AskOffer { kind: p, key, price }, tick);
         return match no_reason(world, person) {
             Some(why) => (format!("{} won't hear it - \"{}\"", name, why), None),
             None => (format!("{} won't hear it - not yet.", name), None),

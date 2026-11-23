@@ -1000,7 +1000,7 @@ impl Game {
         }
         // the line they read you by moves what they'll hear a rung (#1236)
         let mut asks = crate::game::organizing::ask_offers(&self.world, self.seats[seat].org, v,
-            crate::game::rhetoric::ask_shift(&self.world, v, self.seats[seat].org));
+            crate::game::rhetoric::ask_shift(&self.world, v, self.seats[seat].org), self.tick);
         // pressing is the act (#1226): the tally counts this talk the
         // moment it opens, whoever's seat asked - and it lifts at dawn
         let tired = {
@@ -1123,7 +1123,7 @@ impl Game {
             // they offer slow - anything already put stays spent
             let mut asks = crate::game::organizing::ask_offers(
                 &self.world, self.seats[seat].org, t.who,
-                if safe { 1 } else { -1 } + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org));
+                if safe { 1 } else { -1 } + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org), self.tick);
             asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 cur.vibe = Some(v);
@@ -1171,6 +1171,16 @@ impl Game {
                             self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
                                 pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                         }
+                        if let Some(rec) = self.talk_record_mut(t.id) {
+                            rec.lines.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
+                            rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
+                        }
+                        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
+                    } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, t.who, self.tick, pick) {
+                        // the well's not dry - it circles (#1347): an old
+                        // truth they still carry comes back around,
+                        // re-read as catching up, not a fresh telling
+                        let (did, said_line) = crate::game::desires::catchup_speech(&vname, &r);
                         if let Some(rec) = self.talk_record_mut(t.id) {
                             rec.lines.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
                             rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
@@ -1436,8 +1446,30 @@ impl Game {
                     Some(w) => self.argue_line(seat, Some(who), format!(
                         "I ... I'd like {}, I'd warrant. I'd never thought to ask myself that.",
                         crate::game::desires::want_phrase(w))),
-                    None => self.argue_line(seat, Some(who),
-                        "Want? I've wants enough, friend. Ask me another.".into()),
+                    None => {
+                        // nothing left to plant - but the question still
+                        // draws what their life's taken on since (#1347):
+                        // a fresh reveal, an old burden come back
+                        // around, or a plain "I've wants enough"
+                        let pick = self.rng.next();
+                        let name = self.name_of(who);
+                        if let Some(r) = crate::game::desires::next_reveal(&self.world, who, self.tick, pick) {
+                            let (_did, said) = crate::game::desires::reveal_speech(&name, &r);
+                            self.argue_line(seat, Some(who), said);
+                            if let Some(issue) = crate::game::desires::hear(&mut self.world, pe, who, r, self.tick) {
+                                use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
+                                self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                                self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                                    pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                            }
+                        } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, who, self.tick, pick) {
+                            let (_did, said) = crate::game::desires::catchup_speech(&name, &r);
+                            self.argue_line(seat, Some(who), said);
+                        } else {
+                            self.argue_line(seat, Some(who),
+                                "Want? I've wants enough, friend. Ask me another.".into());
+                        }
+                    }
                 }
                 self.refresh_player_talk(seat);
                 return;
@@ -1678,7 +1710,7 @@ impl Game {
             // repair reopens the ask path: the asks a slight cleared
             // come back on the table - the work isn't over, it's heard
             let mut asks = crate::game::organizing::ask_offers(
-                &self.world, oe, who, crate::game::rhetoric::ask_shift(&self.world, who, oe));
+                &self.world, oe, who, crate::game::rhetoric::ask_shift(&self.world, who, oe), self.tick);
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 asks.retain(|o| !cur.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
                 cur.asks = asks;
@@ -1697,9 +1729,19 @@ impl Game {
         let (pe, who) = (self.seats[seat].player, self.seats[seat].talk.as_ref().map(|t| t.who).unwrap());
         if let Some(t) = self.seats[seat].talk.as_mut() { t.let_run = false; }
         use crate::game::desires;
-        if let Some(r) = desires::next_reveal(&self.world, who, self.tick, self.rng.next()) {
+        let run_pick = self.rng.next();
+        let run_fresh = desires::next_reveal(&self.world, who, self.tick, run_pick);
+        // an old trouble's still worth the running on (#1347): the
+        // still-carrying line when the fresh well's dry
+        let run_reveal = run_fresh.clone()
+            .or_else(|| desires::catchup_reveal(&self.world, who, self.tick, run_pick));
+        if let Some(r) = run_reveal {
             let name = self.name_of(who);
-            let (_did, said) = desires::reveal_speech(name.as_str(), &r);
+            let (_did, said) = if run_fresh.is_some() {
+                desires::reveal_speech(name.as_str(), &r)
+            } else {
+                desires::catchup_speech(name.as_str(), &r)
+            };
             self.argue_line(seat, Some(who), said);
             if let Some(issue) = desires::hear(&mut self.world, pe, who, r, self.tick) {
                 self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));

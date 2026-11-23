@@ -420,9 +420,9 @@ pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
     let mut temperament = [0.0f32; 5];
     for i in 0..5 {
         let mut t = (d(10 + i as u64) * 0.7 + (0.5 + pull[i]) * 0.3).clamp(0.0, 1.0);
+        // a child's starts at the parents' mean, plus noise (pass 2)
         if let Some(p) = past.parents {
-            t = (t * 0.55 + p[i] * 0.45 + (d(20 + i as u64) - 0.5) * 0.15)
-                .clamp(0.0, 1.0);
+            t = (p[i] + (d(20 + i as u64) - 0.5) * 0.3).clamp(0.0, 1.0);
         }
         temperament[i] = t;
     }
@@ -455,7 +455,9 @@ pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
         }
         t
     };
-    let contradiction = if temperament[1] < 0.25 && (top.0 == 3 || top.0 == 4) {
+    // Ambitious: Advancement or Standing among the top two values
+    let contradiction = if temperament[1] < 0.25
+        && [top.0, top.1].iter().any(|&i| i == 3 || i == 4) {
         Some(Contradiction::IdleStriver)
     } else {
         None
@@ -542,6 +544,23 @@ mod tests {
     fn the_story_comes_through() {
         let past = Past { story: vec![EventId(3), EventId(9)], ..Past::default() };
         assert_eq!(generate(1, 0, &past).story, vec![EventId(3), EventId(9)]);
+    }
+
+    #[test]
+    fn a_lazy_striver_is_tagged() {
+        // Advancement OR Standing anywhere in the top two counts, not
+        // only first - and a Lazy streak must ride against it
+        let mut found = false;
+        for slot in 0..400 {
+            let p = generate(3, slot, &Past::default());
+            let lazy = p.temperament[1] < 0.25;
+            let (a, b) = p.top_values();
+            let ambitious = a == 3 || a == 4 || b == 3 || b == 4;
+            assert_eq!(p.contradiction == Some(Contradiction::IdleStriver),
+                       lazy && ambitious, "slot {}", slot);
+            found |= p.contradiction == Some(Contradiction::IdleStriver);
+        }
+        assert!(found, "someone in a big cast should earn the tag");
     }
 
     #[test]

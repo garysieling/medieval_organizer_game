@@ -1,10 +1,16 @@
 //! Village mysteries: a question doing the rounds, the gossip learned a
 //! fact at a time in talk, the solve carried back to whoever asked -
 //! and they remember it
+use crate::engine::ecs::Entity;
 use crate::session::*;
 use crate::session::mystery::SeatMystery;
-use crate::game::mysteries::{self, FACTS, MYSTERIES};
+use crate::game::mysteries::{self, Band, Dim, MYSTERIES};
 use crate::game::relationships::{find_relationship, Relationship, RelKind};
+
+/// Every clue of a story in - the mask a solved mystery's built on
+fn all_known(def: usize) -> u32 {
+    (1u32 << MYSTERIES[def].clues.len()) - 1
+}
 
 /// A grown villager of the village - old enough to be asking after things
 fn askers(g: &Game) -> Vec<Entity> {
@@ -59,7 +65,11 @@ fn test_talk_now_and_then_passes_on_a_fact() {
     // so their name can be a button (#646)
     let mz = g.mystery_panel_line(0).expect("the panel names the mystery");
     assert_eq!(mz.title, mysteries::MYSTERIES[m.def].title);
-    assert_eq!((mz.heard, mz.total), (FACTS, FACTS), "five of five whispers");
+    let story = &MYSTERIES[m.def];
+    assert_eq!(mz.heard, m.heard(), "the panel's count matches the mark");
+    assert_eq!(mz.total, story.clues.len(), "against the story's whole gossip");
+    assert!(mz.heard >= story.need, "enough of it to be the answer");
+    assert_eq!(mz.dims.len(), 5, "every direction's progress rides along");
     assert_eq!(mz.asker, Some(g.villagers.iter().position(|&v| v == m.asker).unwrap()));
     assert_eq!(mz.asker_name, g.name_of(m.asker));
     assert!(mz.asker_at.is_some(), "the asker's spot rides along");
@@ -89,7 +99,7 @@ fn test_a_heard_fact_is_marked_in_the_moment() {
             g.talk_to_at(0, who);
             let t = g.seats[0].talk.as_ref().expect("a talk's open");
             if let Some(n) = t.notes.iter().find(|n| n.contains("Worth remembering")) {
-                assert!(n.contains("of 5 heard"), "the tally rides along: {}", n);
+                assert!(n.contains("of 10 heard"), "the tally rides along: {}", n);
                 marked = true;
                 break 'talks;
             }
@@ -104,7 +114,7 @@ fn test_telling_the_asker_makes_them_a_friend() {
     let folk = askers(&g);
     let asker = folk[0];
     g.seats[0].mystery = Some(SeatMystery {
-        def: 1, known: (1 << FACTS) - 1, asker });
+        def: 1, known: all_known(1), asker });
     // picked and beside the asker, the card offers to tell them
     g.seats[0].picked = true;
     g.seats[0].selected_target = g.villagers.iter().position(|&v| v == asker).unwrap();
@@ -131,7 +141,7 @@ fn test_the_question_passes_on_when_the_asker_is_gone() {
     let folk = askers(&g);
     let asker = folk[0];
     g.seats[0].mystery = Some(SeatMystery {
-        def: 0, known: (1 << FACTS) - 1, asker });
+        def: 0, known: all_known(0), asker });
     // the asker dies - telling it to them is refused
     g.world.add_component(asker, crate::game::villager::Dead);
     g.seats[0].picked = true;
@@ -146,7 +156,7 @@ fn test_the_question_passes_on_when_the_asker_is_gone() {
     assert_ne!(m.asker, asker, "somebody else is asking now");
     assert!(g.villagers.contains(&m.asker) && !crate::game::villager::is_dead(&g.world, m.asker),
         "and they're somebody who can still hear the answer");
-    assert_eq!(m.heard(), FACTS, "what was heard still counts");
+    assert_eq!(m.heard(), m.story().clues.len(), "what was heard still counts");
 }
 
 #[test]
@@ -179,7 +189,7 @@ fn test_it_wont_be_told_to_the_wrong_person() {
     let folk = askers(&g);
     let (asker, other) = (folk[0], folk[1]);
     g.seats[0].mystery = Some(SeatMystery {
-        def: 2, known: (1 << FACTS) - 1, asker });
+        def: 2, known: all_known(2), asker });
     // somebody else's card: no delivery on offer
     g.seats[0].picked = true;
     g.seats[0].selected_target = g.villagers.iter().position(|&v| v == other).unwrap();
@@ -207,7 +217,7 @@ fn talk_to(g: &mut Game, v: Entity) {
 }
 
 fn solved(g: &mut Game, def: usize, asker: Entity) {
-    g.seats[0].mystery = Some(SeatMystery { def, known: (1 << FACTS) - 1, asker });
+    g.seats[0].mystery = Some(SeatMystery { def, known: all_known(def), asker });
 }
 
 /// The telling's pick on the open talk, if it's on offer
@@ -322,4 +332,151 @@ fn test_word_of_the_doorstep_gifts_goes_round() {
     g.talk_pick_at(0, tell_pick(&g));
     let after = crate::game::player::rapport(&g.world, g.player, other);
     assert!(after > before, "folk who never asked think the better of you: {} -> {}", before, after);
+}
+
+
+/// A clue-mask covering one of each direction a story asks - the
+/// minimum that could call it solved
+fn cover_mask(def: usize) -> u32 {
+    let story = &MYSTERIES[def];
+    let mut known = 0u32;
+    for &(d, _) in story.dims {
+        let i = story.clues.iter().position(|c| c.dim == d).unwrap();
+        known |= 1 << i;
+    }
+    known
+}
+
+#[test]
+fn test_an_early_ask_solves_on_three_directions() {
+    // an easy story's answered by one of each direction it wants -
+    // three pieces covering who, what and when, not a flat five
+    let def = MYSTERIES.iter().position(|m| m.band() == Band::Easy)
+        .expect("an easy story in the pool");
+    let story = &MYSTERIES[def];
+    assert_eq!(story.need, 3, "the early asks are small");
+    let m = SeatMystery { def, known: cover_mask(def), asker: 0 };
+    assert_eq!(m.heard(), 3, "three pieces, one of each direction");
+    assert!(m.solved(), "the who, the what and the when make the answer");
+    // and the same count all in one direction doesn't
+    let mut one_dim = 0u32;
+    for (i, _) in story.clues.iter().enumerate().filter(|(_, c)| c.dim == Dim::What).take(3) {
+        one_dim |= 1 << i;
+    }
+    let m = SeatMystery { def, known: one_dim, asker: 0 };
+    assert_eq!(m.heard(), 3, "three pieces, but all of a kind");
+    assert!(!m.solved(), "a flat count isn't the answer - the directions matter");
+}
+
+#[test]
+fn test_a_deep_story_waits_on_its_directions() {
+    // a hard story wants two of a kind: eight heard pieces isn't the
+    // answer until every direction the story asks is covered - and a
+    // second clue of the same direction has to be found too
+    let def = MYSTERIES.iter().position(|m| m.band() == Band::Hard)
+        .expect("a hard story in the pool");
+    let story = &MYSTERIES[def];
+    assert_eq!(story.need, 8, "the deep ones run long");
+    // eight pieces, all of directions the story doesn't need two of -
+    // the count's met and it's still not the answer
+    let mut known = 0u32;
+    let mut n = 0;
+    for (i, c) in story.clues.iter().enumerate() {
+        if c.dim != Dim::Who && n < story.need { known |= 1 << i; n += 1; }
+    }
+    assert_eq!(n, story.need, "enough non-who pieces to fake the count");
+    let m = SeatMystery { def, known, asker: 0 };
+    assert_eq!(m.heard(), story.need, "the count's met");
+    assert!(!m.solved(), "but the who's short - a flat count isn't the answer");
+    // the first who isn't enough either - the story wants two
+    let i = story.clues.iter().position(|c| c.dim == Dim::Who).unwrap();
+    let m = SeatMystery { def, known: known | (1 << i), asker: 0 };
+    assert!(!m.solved(), "one of a direction that wants two isn't the answer");
+    // the second who makes it whole - though it still wants its second
+    // why first, if the fake count skipped one
+    let j = story.clues.iter().enumerate()
+        .find(|(j, c)| c.dim == Dim::Who && *j != i).map(|(j, _)| j).unwrap();
+    let mut full = known | (1 << i) | (1 << j);
+    for &(d, want) in story.dims {
+        while story.clues.iter().enumerate()
+                .filter(|(k, c)| c.dim == d && full & (1 << k) != 0).count() < want {
+            let k = story.clues.iter().enumerate()
+                .find(|(k, c)| c.dim == d && full & (1 << k) == 0).map(|(k, _)| k)
+                .expect("a story asks no more of a direction than it holds");
+            full |= 1 << k;
+        }
+    }
+    let m = SeatMystery { def, known: full, asker: 0 };
+    assert!(m.solved(), "two of the who, and the story's told");
+}
+
+#[test]
+fn test_a_solve_steps_the_seats_band_without_a_telling() {
+    // the seat's band steps up on the solve itself - carrying it back
+    // to the asker isn't part of the ramp
+    let mut g = Game::new();
+    let folk = askers(&g);
+    let def = MYSTERIES.iter().position(|m| m.band() == Band::Easy).unwrap();
+    // one clue short of the easy ask's cover
+    let known = cover_mask(def) & !(cover_mask(def) & (!cover_mask(def) + 1));
+    let m = SeatMystery { def, known, asker: folk[0] };
+    assert!(!m.solved(), "a piece short of the answer");
+    g.seats[0].mystery = Some(m);
+    assert_eq!(g.seats[0].mystery_solved, 0, "nothing solved yet");
+    // draws run until the missing direction comes in
+    for _ in 0..200 {
+        if g.seats[0].mystery.as_ref().map(|m| m.solved()).unwrap_or(true) { break; }
+        g.mystery_fact_asked(0);
+    }
+    assert!(g.seats[0].mystery.as_ref().unwrap().solved(), "the last piece lands");
+    assert_eq!(g.seats[0].mystery_solved, 1,
+        "the solve itself counts - nobody's been told yet");
+}
+
+#[test]
+fn test_the_asks_run_deeper_as_the_solves_rack_up() {
+    // a seat's band is its own count: the first ask's easy, the next
+    // couple run the mid stories, and after that the deep ones
+    let mut g = Game::new();
+    let mut rng = Rng(13);
+    for (solves, want) in [(0, Band::Easy), (1, Band::Medium), (2, Band::Medium), (3, Band::Hard), (7, Band::Hard)] {
+        g.seats[0].mystery_solved = solves;
+        g.seats[0].mystery_wait = 0;
+        let mut dealt = 0;
+        for _ in 0..500 {
+            g.mystery_dawn(g.tick, &mut rng);
+            if let Some(m) = &g.seats[0].mystery {
+                assert_eq!(MYSTERIES[m.def].band(), want,
+                    "with {} solves the band's {:?}, got {}", solves, want, MYSTERIES[m.def].title);
+                g.seats[0].mystery = None;
+                dealt += 1;
+                if dealt >= 3 { break; }
+            }
+        }
+        assert!(dealt >= 3, "a few deals at {} solves: {}", solves, dealt);
+    }
+}
+
+
+#[test]
+fn test_the_pool_is_solvable_as_written() {
+    // every story's ask fits inside its gossip: no more needed than
+    // there is to hear, no direction asked past its count, and enough
+    // left over that there's always a draw to come (#1350)
+    for (i, m) in MYSTERIES.iter().enumerate() {
+        assert!(m.need <= m.clues.len(), "{} needs more than it holds", i);
+        assert!(m.clues.len() <= 31, "{} outgrows the mark's bits", i);
+        assert!(m.clues.len() > m.need + 1,
+            "{} has too little gossip left past the answer", i);
+        for &(d, want) in m.dims {
+            let have = m.clues.iter().filter(|c| c.dim == d).count();
+            assert!(have >= want, "{} asks {} of {:?}, holds {}", i, want, d, have);
+        }
+    }
+    // and the bands all have enough to deal in - the draw avoids the
+    // just-told one, so a band wants at least a pair
+    for band in [Band::Easy, Band::Medium, Band::Hard] {
+        assert!(MYSTERIES.iter().filter(|m| m.band() == band).count() >= 2,
+            "{:?} has too few to deal in", band);
+    }
 }

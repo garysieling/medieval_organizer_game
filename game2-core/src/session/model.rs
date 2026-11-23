@@ -388,6 +388,11 @@ pub struct MysteryV {
     pub title: String,
     pub heard: usize,
     pub total: usize,
+    /// Per-direction progress (#1350): (word, heard, wanted) for each of
+    /// who/what/when/where/why - `wanted` 0 means the story doesn't ask
+    /// it. Empty on old payloads, where the flat count's all there is
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dims: Vec<(String, usize, usize)>,
     pub asker_name: String,
     /// The asker's villager index (like `Command::Select`), when they're
     /// still on the roll
@@ -408,6 +413,7 @@ impl<'de> Deserialize<'de> for MysteryV {
                 title: String,
                 #[serde(default)] heard: usize,
                 #[serde(default)] total: usize,
+                #[serde(default)] dims: Vec<(String, usize, usize)>,
                 asker_name: String,
                 #[serde(default)] asker: Option<usize>,
                 #[serde(default)] asker_at: Option<(f32, f32)>,
@@ -415,9 +421,9 @@ impl<'de> Deserialize<'de> for MysteryV {
         }
         Ok(match Repr::deserialize(d)? {
             Repr::Plain(line) => MysteryV { title: String::new(), heard: 0, total: 0,
-                asker_name: line, asker: None, asker_at: None },
-            Repr::Full { title, heard, total, asker_name, asker, asker_at } =>
-                MysteryV { title, heard, total, asker_name, asker, asker_at },
+                dims: vec![], asker_name: line, asker: None, asker_at: None },
+            Repr::Full { title, heard, total, dims, asker_name, asker, asker_at } =>
+                MysteryV { title, heard, total, dims, asker_name, asker, asker_at },
         })
     }
 }

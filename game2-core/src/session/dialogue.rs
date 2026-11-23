@@ -1191,7 +1191,7 @@ impl Game {
                         if let Some(m) = &self.seats[seat].mystery {
                             let def = &crate::game::mysteries::MYSTERIES[m.def];
                             let note = format!("A piece of {} - {} of {} heard. Worth remembering.",
-                                def.title, m.known.count_ones(), def.facts.len());
+                                def.title, m.known.count_ones(), def.clues.len());
                             if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(note); }
                         }
                     }

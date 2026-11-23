@@ -378,7 +378,7 @@ impl Game {
                 let got = m.known.count_ones();
                 self.narrate_talk(seat, &format!(
                     "A piece of {} - {} of {} heard. Worth remembering.",
-                    def.title, got, def.facts.len()
+                    def.title, got, def.clues.len()
                 ));
             }
         }

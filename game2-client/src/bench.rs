@@ -200,6 +200,19 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
             None => eprintln!("GAME2_DUMP_MARCH: no {:?} in this seed's country", want),
         }
     }
+    // GAME2_DUMP_MYSTERY=N[:K]: set mystery N doing the rounds with K
+    // clues heard (default half), so the panel's dim marks can be shot
+    if let Some(spec) = std::env::var("GAME2_DUMP_MYSTERY").ok().filter(|v| !v.is_empty()) {
+        let mut parts = spec.split(':');
+        if let Some(def) = parts.next().and_then(|v| v.parse::<usize>().ok()) {
+            use game2_core::session::mystery::SeatMystery;
+            let heard: u32 = parts.next().and_then(|v| v.parse().ok())
+                .unwrap_or((game2_core::game::mysteries::MYSTERIES[def].clues.len() / 2) as u32);
+            let mut known = 0u32;
+            for i in 0..heard { known |= 1 << i; }
+            game.seats[0].mystery = Some(SeatMystery { def, known, asker: game.villagers[0] });
+        }
+    }
     // GAME2_DUMP_FRAMES=N: play N more frames into the day, so a dump shows
     // folk where the day's plan took them (stalls up, a congregation seated)
     let more: u32 = std::env::var("GAME2_DUMP_FRAMES").ok().and_then(|v| v.parse().ok()).unwrap_or(0);

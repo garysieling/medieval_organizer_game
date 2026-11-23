@@ -689,7 +689,7 @@ fn test_a_live_mystery_is_its_own_ask() {
     assert_eq!(m.heard(), before + 1, "the asking drew a fact");
     let t = g.seats[0].talk.as_ref().expect("still talking").clone();
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
-    let facts: Vec<&str> = crate::game::mysteries::MYSTERIES[0].facts.to_vec();
+    let facts: Vec<&str> = crate::game::mysteries::MYSTERIES[0].clues.iter().map(|c| c.text).collect();
     assert!(rec.lines.iter().any(|l| l.who == Some(v) && facts.contains(&l.text.as_str())),
         "they passed the piece on: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }

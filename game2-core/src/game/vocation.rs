@@ -453,12 +453,11 @@ pub fn vocation_named(lower: &str) -> Option<Vocation> {
     ALL.iter().copied().find(|v| vocation_name(*v).eq_ignore_ascii_case(lower))
 }
 
-/// "a" or "an" for the word that follows - "an Apprentice", "a Master"
+/// "a" or "an" for the word that follows - "an Apprentice", "a Master".
+/// The lexicon owns the rule (E4-3, #1408); this stays so older calls
+/// keep working.
 pub fn article(word: &str) -> &'static str {
-    match word.chars().next().map(|c| c.to_ascii_lowercase()) {
-        Some('a') | Some('e') | Some('i') | Some('o') | Some('u') => "an",
-        _ => "a",
-    }
+    crate::game::text::article(word)
 }
 
 pub fn class_name(c: SocialClass) -> &'static str {

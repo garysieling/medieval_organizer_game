@@ -264,9 +264,19 @@ entry with neither is a plain line. A click on a positioned entry jumps
 the camera there; one naming a villager also selects them. Older
 servers send bare strings in `log`; those read as unclickable lines.
 
+Story lines also carry `tag`, the event's story metadata, absent on
+plain lines: `{"thread":"...","valence":N,"sev":N}`. `thread` names the
+story thread the line belongs to (`weather`, `illness`, `fire`, `law`,
+`beast`, `visitor`, `org`, `economy`, `lifecycle`, `craft`, `player`,
+`other`); `valence` is the news' sign - `1` good, `0` neutral, `-1`
+bad; `sev` is how big it is - `0` minor, `1` notable, `2` major.
+Older servers omit `tag`; read it as an untagged line. A line that has
+story metadata always sends it, so a missing `tag` means the line was
+never tagged, not that the client should infer one.
+
 ```
-{"text":"t640: Aldric died.","at":[11.0,7.5],"who":3}
-{"text":"t641: drizzle begins"}
+{"text":"t640: Aldric died.","at":[11.0,7.5],"who":3,"tag":{"thread":"lifecycle","valence":-1,"sev":2}}
+{"text":"t641: drizzle begins","tag":{"thread":"weather","valence":0,"sev":0}}
 ```
 
 `ctx_hint` says what pressing each context action does, one entry per

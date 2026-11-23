@@ -344,6 +344,19 @@ pub struct ToastV {
     pub born: Option<u32>,
 }
 
+/// A log line's story tag on the wire (#1488): the braid it belongs
+/// to (`thread`: weather/illness/fire/law/beast/visitor/org/economy/
+/// lifecycle/craft/player/other), its `valence` (-1 bad news, 0
+/// neutral, +1 good), and its `sev` (0 patter, 1 a beat, 2 a
+/// headline). Only structures what the line's text already shows the
+/// reader - the log colours it the same way.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagV {
+    pub thread: String,
+    pub valence: i8,
+    pub sev: u8,
+}
+
 /// One event-log line plus where it happened / who it was about, when the
 /// event had a position or a villager to point at (#645): a click jumps
 /// the camera there and selects the villager. Older servers send bare
@@ -357,6 +370,10 @@ pub struct LogEntryV {
     /// The villager it was about (a villager index, like `Command::Select`)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub who: Option<usize>,
+    /// The story tag, when the line was pushed tagged (#1488) -
+    /// absent from older servers and from plain untagged lines
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<TagV>,
 }
 
 impl<'de> Deserialize<'de> for LogEntryV {
@@ -369,11 +386,12 @@ impl<'de> Deserialize<'de> for LogEntryV {
                 text: String,
                 #[serde(default)] at: Option<(f32, f32)>,
                 #[serde(default)] who: Option<usize>,
+                #[serde(default)] tag: Option<TagV>,
             },
         }
         Ok(match Repr::deserialize(d)? {
-            Repr::Plain(text) => LogEntryV { text, at: None, who: None },
-            Repr::Full { text, at, who } => LogEntryV { text, at, who },
+            Repr::Plain(text) => LogEntryV { text, at: None, who: None, tag: None },
+            Repr::Full { text, at, who, tag } => LogEntryV { text, at, who, tag },
         })
     }
 }

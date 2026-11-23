@@ -670,7 +670,22 @@ impl Game {
             // rides along so a click can jump to where it happened (#645)
             log: visible_log(&self.log).into_iter().map(|i| {
                 let meta = self.log.meta(i);
-                LogEntryV { text: self.log[i].clone(), at: meta.at, who: meta.who }
+                LogEntryV { text: self.log[i].clone(), at: meta.at, who: meta.who,
+                    // the story tag, structured (#1488): nothing the
+                    // line's colour doesn't already tell the reader
+                    tag: self.log.ev(i).map(|e| TagV {
+                        thread: e.thread.name().into(),
+                        valence: match e.valence {
+                            gamelog::Valence::Positive => 1,
+                            gamelog::Valence::Neutral => 0,
+                            gamelog::Valence::Negative => -1,
+                        },
+                        sev: match e.sev {
+                            gamelog::Sev::Minor => 0,
+                            gamelog::Sev::Notable => 1,
+                            gamelog::Sev::Major => 2,
+                        },
+                    }) }
             }).collect(),
             log_dropped: self.log_dropped,
             seed: self.seed,

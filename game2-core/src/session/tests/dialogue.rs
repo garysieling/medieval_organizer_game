@@ -119,7 +119,9 @@ fn warm_bond(g: &mut Game, v: Entity) {
         });
     // and the seat's told them a piece of themselves (E3-3): the
     // private layer wants reciprocation, not just warmth
-    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick, shared: 2 });
+    let mut sd = SharedDepth::default();
+    sd.of.insert(pe, (2, g.tick));
+    g.world.add_component(v, sd);
 }
 
 fn talk_beside(g: &mut Game, i: usize) -> Entity {
@@ -1289,7 +1291,7 @@ fn test_the_street_only_goes_so_deep() {
 
 /// Leave a Slighted memory on `v` fresh today
 fn slight(g: &mut Game, v: Entity) {
-    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: g.tick, shared: 0 });
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: g.tick });
 }
 
 #[test]
@@ -1309,7 +1311,7 @@ fn test_the_amends_is_on_offer_only_after_a_slight() {
     assert_eq!(t.options.len(), t.options.len()); // options still lead the list
     g.talk_pick_at(0, None);
     // a warm parting carries no amends
-    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick, shared: 0 });
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick });
     talk_beside(&mut g, ad[0]);
     assert!(!g.seats[0].talk.as_ref().unwrap().amends,
         "nothing to make good once it's warm");
@@ -1399,7 +1401,7 @@ fn test_the_sorry_count_outlives_the_memory() {
     g.world.add_component(v, Personality { traits: vec![Trait::Kind] });
     g.world.add_component(v, AmendsTally { of: g.seats[0].player, n: 2 });
     // the slight's memory's a season gone - the tally isn't
-    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: 0, shared: 0 });
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: 0 });
     g.tick = 21; // past the 20-day memory
     // wrong them again today: the count from the old sorries still stands
     slight(&mut g, v);
@@ -1813,12 +1815,106 @@ fn test_the_responsive_guest_hears_more_than_the_curious() {
             });
         g.world.add_component(v, Personality { traits: vec![Trait::Stingy] });
         // nothing told them yet: the talk starts unreciprocated
-        g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick, shared: 0 });
+        g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick });
         play_talk(&mut g, i, curious);
-        g.world.get_component::<TalkMemory>(v).map(|m| m.shared).unwrap_or(0)
+        g.world.get_component::<SharedDepth>(v)
+            .and_then(|sd| sd.of.get(&pe).copied())
+            .map(|(depth, _)| depth).unwrap_or(0)
     };
     let responsive = shared_after(false);
     let curious = shared_after(true);
     assert!(responsive >= 1, "the responsive guest's telling landed: {responsive}");
     assert_eq!(curious, 0, "the curious guest never told them anything");
+}
+
+#[test]
+fn test_another_guests_telling_isnt_yours() {
+    // E3-3: disclosure credit keys to the seat's player - a different
+    // guest's deep telling doesn't open the private layer for you
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    let pe = g.player;
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: pe, other: v, kind: RelKind::Acquaintance,
+            strength: 0.6, interactions: 2,
+            intimacy: 0.5,
+            trust: crate::game::relationships::Trust {
+                ability: 0.0, benevolence: 0.6, integrity: 0.5 },
+            safety: crate::game::relationships::SafetyRung::Contributor });
+    // someone else's deepest telling sits on them
+    let mut sd = SharedDepth::default();
+    sd.of.insert(u32::MAX, (3, g.tick));
+    g.world.add_component(v, sd);
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.villager.open.shared, 0,
+        "another guest's telling doesn't count for this seat");
+}
+
+#[test]
+fn test_a_later_telling_keeps_the_earlier_deflection() {
+    // E3-3 + replay: a telling mid-talk opens deeper asks for LATER
+    // beats only - the replay rebuild keeps earlier forward asks
+    // turned aside, not rewritten by the newer count
+    use crate::game::desires::{InnerLife, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    let pe = g.player;
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: pe, other: v, kind: RelKind::Acquaintance,
+            strength: 0.6, interactions: 2,
+            intimacy: 0.5,
+            trust: crate::game::relationships::Trust {
+                ability: 0.0, benevolence: 0.6, integrity: 0.5 },
+            safety: crate::game::relationships::SafetyRung::Contributor });
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick });
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    // walk to the ask slot without answering - an agree/answer on the
+    // way would already count as the telling under test
+    let menu = (|| {
+        for _ in 0..30 {
+            let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+            if let Some(i) = t.options.iter()
+                .position(|(_, l)| l == "Put a question to them") {
+                g.talk_pick_at(0, Some(i));
+                return g.seats[0].talk.as_ref().unwrap().options.clone();
+            }
+            let pos = t.options.iter().position(|(a, _)|
+                !matches!(a, Act::Farewell | Act::Answer | Act::Agree));
+            match pos { Some(i) => g.talk_pick_at(0, Some(i)), None => break }
+        }
+        panic!("the ask slot never showed");
+    })();
+    let p = menu.iter().position(|(_, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists, as the tell-named kind");
+    g.talk_pick_at(0, Some(p));
+    assert_eq!(g.seats[0].talk.as_ref().unwrap().forward_seen, 1,
+        "the forward ask deflected");
+    // answer substantively - a telling lands mid-talk
+    for _ in 0..30 {
+        let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+        if t.shared >= 1 { break; }
+        let pos = t.options.iter()
+            .position(|(a, _)| matches!(a, Act::Answer | Act::Agree))
+            .or_else(|| t.options.iter().position(|(a, _)| *a != Act::Farewell));
+        match pos { Some(p) => g.talk_pick_at(0, Some(p)), None => break }
+    }
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    assert!(t.shared >= 1, "the telling landed mid-talk");
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    let deflected = ["That's not for the telling",
+        "We don't know each other so well as that",
+        "Ask me another", "Some things keep"];
+    assert!(rec.lines.iter().any(|l| l.who == Some(v)
+            && deflected.iter().any(|d| l.text.contains(d))),
+        "the earlier ask stays turned aside after the telling: {:?}",
+        rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }

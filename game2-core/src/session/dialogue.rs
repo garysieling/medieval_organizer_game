@@ -94,9 +94,15 @@ pub struct TalkMemory {
     pub mood: TalkMood,
     /// The day it was set; past TALK_MEMORY_DAYS it fades
     pub tick: u64,
-    /// What the seat's told them that landed (E3-3): the deepest
-    /// disclosure reached, carried like the mood
-    pub shared: u8,
+}
+
+/// What one seat's told them that landed (E3-3, #1428): keyed by the
+/// seat's player entity -> (deepest disclosure reached, day it did) -
+/// per-player, fading on the same clock as TalkMemory. A second seat
+/// finds nothing of the first's telling
+#[derive(Debug, Default)]
+pub struct SharedDepth {
+    pub of: crate::engine::det::HashMap<Entity, (u8, u64)>,
 }
 
 /// How many times `of` has made amends to the bearer (#1251): the
@@ -1141,13 +1147,11 @@ impl Game {
         let recent = self.fresh_lines();
         let (said, offered, ending, tree, vibe, asked, forward, shared) = replay(&t, Some(&recent));
         if shared > t.shared {
-            if let Some(cur) = self.seats[seat].talk.as_mut() {
-                // a landed disclosure opens them further mid-talk
-                // (E3-3): the gate's count grows by what just landed
-                cur.villager.open.shared =
-                    (cur.villager.open.shared + shared - cur.shared).min(3);
-                cur.shared = shared;
-            }
+            // the deepest telling so far this talk (E3-3): the running
+            // gate already lives in the replay - this only carries the
+            // count to the parting for persistence; the speaker
+            // snapshot stays as-opened so earlier picks replay exact
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.shared = shared; }
         }
         // a too-deep ask costs the bond its nerve (E3-2): each new
         // forward mark on the replay drops the rung a step - and a
@@ -1432,10 +1436,12 @@ impl Game {
         o.mood = match self.talk_mood_of(who) {
             Some(TalkMood::Warmed) => 0.5, Some(TalkMood::Guarded) => -0.2,
             Some(TalkMood::Slighted) => -0.5, _ => 0.0 };
-        // what the seat's told them that landed, while it's still fresh
-        o.shared = self.world.get_component::<TalkMemory>(who)
-            .filter(|m| self.tick < m.tick + TALK_MEMORY_DAYS)
-            .map(|m| m.shared).unwrap_or(0);
+        // what THIS seat's told them that landed, while it's still
+        // fresh (E3-3): another seat's telling is not yours
+        o.shared = self.world.get_component::<SharedDepth>(who)
+            .and_then(|s| s.of.get(&to).copied())
+            .filter(|(_, day)| self.tick < day + TALK_MEMORY_DAYS)
+            .map(|(depth, _)| depth).unwrap_or(0);
         o
     }
 
@@ -1465,11 +1471,20 @@ impl Game {
     /// and remembers how it ended (#1183)
     pub fn close_player_talk(&mut self, seat: usize, note: Option<&str>) {
         let Some(t) = self.seats[seat].talk.take() else { return };
-        // what they were told stays told (E3-3): the deepest sharing
-        // carries, fading on the memory's own clock
-        let shared = self.world.get_component::<TalkMemory>(t.who)
-            .map(|m| m.shared.max(t.villager.open.shared)).unwrap_or(t.villager.open.shared);
-        self.world.add_component(t.who, TalkMemory { mood: t.mood, tick: self.tick, shared });
+        self.world.add_component(t.who, TalkMemory { mood: t.mood, tick: self.tick });
+        // what they were told stays told (E3-3): keyed under this
+        // seat's player, refreshed only when the talk told something -
+        // small talk neither revives an expired telling nor rewinds it
+        if t.shared > 0 {
+            let pe = self.seats[seat].player;
+            let mut sd = self.world.get_component::<SharedDepth>(t.who)
+                .map(|s| s.of.clone()).unwrap_or_default();
+            let prev = sd.get(&pe).copied()
+                .filter(|(_, day)| self.tick < day + TALK_MEMORY_DAYS)
+                .map(|(depth, _)| depth).unwrap_or(0);
+            sd.insert(pe, (prev.max(t.shared), self.tick));
+            self.world.add_component(t.who, SharedDepth { of: sd });
+        }
         // they're their own again - unless another seat still holds them
         if !self.seats.iter().any(|s| s.talk.as_ref().map(|k| k.who == t.who).unwrap_or(false)) {
             self.world.remove_component::<villager::InPlayerTalk>(t.who);

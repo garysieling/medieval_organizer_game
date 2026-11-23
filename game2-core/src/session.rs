@@ -742,6 +742,9 @@ pub enum Goal {
     /// A work-party hand walking out to the site (index into
     /// Game.work_parties) - arrival counts them on the work (#1344)
     WorkParty(usize),
+    /// They said they'd lend a hand: walk to the neighbor who asked and
+    /// do the day's favor (#1368)
+    HelpOut(Entity),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after

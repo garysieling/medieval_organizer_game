@@ -31,7 +31,8 @@ impl Game {
                         .min_by_key(|&(x, y)| ((x as f32 - from.x).abs() + (y as f32 - from.y).abs()) as i32)
                 })
             }
-            Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e) =>
+            Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e)
+            | Goal::HelpOut(e) =>
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
             Goal::Gather(..) => return false, // gathers go through send_gather
@@ -665,6 +666,19 @@ impl Game {
                             );
                         }
                     }
+                }
+            }
+            Goal::HelpOut(e) => {
+                // the hand was promised to a person, not a doorstep
+                // (#1368): they're there, the favor lands warm; they're
+                // gone, the road was for nothing and that stings a little
+                if crate::game::dungeon::unavailable(&self.world, e)
+                    || self.world.get_component::<Pos>(e).is_none() {
+                    self.say(who, "An empty doorstep.", TALK_BUBBLE_SECS);
+                } else {
+                    relationships::record_interaction(&mut self.world, who, relationships::Interaction {
+                        other: e, kind: relationships::InteractionKind::Aid, intensity: 0.6 });
+                    self.say(who, "Here as promised.", TALK_BUBBLE_SECS);
                 }
             }
             Goal::Wander | Goal::AttendRite => {}

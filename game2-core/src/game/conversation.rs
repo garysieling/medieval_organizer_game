@@ -411,6 +411,19 @@ impl Transcript {
 /// Safety bound so an unlucky cascade can't loop forever
 const MAX_TURNS: usize = 24;
 
+/// Villager-to-villager chatter wraps earlier than a player talk:
+/// nobody's steering it, so the talk closes before it wanders (#1368)
+const AMBIENT_MAX_TURNS: usize = 16;
+
+/// A goodbye this early is a brush-off, not a parting (#1368): while the
+/// talk's still finding its feet a pool of nothing but partings falls
+/// through to the next tree instead of closing
+const MIN_LIVE_TURNS: usize = 4;
+
+/// This many turns with no new tree walked and nothing new spoken of is
+/// the talk circling - they drift apart (#1368)
+const DOLDRUMS: usize = 6;
+
 /// Reply forks whose lines are all spent count as exhausted (Versu's
 /// exclusivity): a spent fork stops being offered, which is how a
 /// conversation runs out of material.
@@ -606,7 +619,17 @@ pub fn converse_with(
         && matches!(rel, Relation::Stranger | Relation::Acquaintance);
     let mut probed = false;
 
-    for _ in 0..MAX_TURNS {
+    // the doldrums watch: a turn advances the talk when it walks a new
+    // tree or says something not yet said (#1368)
+    let mut said: HashSet<&'static str> = HashSet::default();
+    let mut last_advance = 0usize;
+    let mut last_tree = node_tree;
+    let cap = if player == usize::MAX { AMBIENT_MAX_TURNS } else { MAX_TURNS };
+    for _ in 0..cap {
+        if tr.turns.len() - last_advance >= DOLDRUMS {
+            tr.ending = Some(Ending::Exhausted);
+            break;
+        }
         if audition && !probed && tr.turns.len() == 2 {
             probed = true;
             if let Some(p) = probe_for(pair[caller]) {
@@ -680,7 +703,12 @@ pub fn converse_with(
         } else {
             pool.into_iter().filter(|r| act_fit(ex.act, r.act) == fit).collect()
         };
-        if pool.is_empty() {
+        // a goodbye before the talk's had its say is a brush-off, not a
+        // parting (#1368): early on, a pool of nothing but partings
+        // falls through to the next tree just like an empty one
+        let early_parting = tr.turns.len() < MIN_LIVE_TURNS && !pool.is_empty()
+            && pool.iter().all(|r| r.end == Some(Ending::Farewell));
+        if pool.is_empty() || early_parting {
             // Nothing left to say back: the floor-holder shifts to a more
             // generic tree if there is one, else the talk dries up
             match advance_to_rejoin(&mut trees) {
@@ -782,6 +810,12 @@ pub fn converse_with(
         used.insert(line_t);
         tr.turns.push(Turn { speaker: responder, act: reply.act, text: fill(line_t, pair[responder], pair[caller]),
             concepts: reply.concepts.to_vec(), tree: node_tree });
+        // the beat advanced the talk if it walked a new tree or named
+        // something unsaid (#1368)
+        let advanced = node_tree != last_tree
+            || tr.turns.iter().rev().take(2)
+                .flat_map(|t| t.concepts.iter()).any(|c| said.insert(*c));
+        if advanced { last_advance = tr.turns.len(); last_tree = node_tree; }
 
         if let Some(end) = reply.end {
             tr.ending = Some(end);
@@ -2593,6 +2627,85 @@ mod tests {
     }
 
     #[test]
+    fn test_an_early_goodbye_finds_a_livelier_tree() {
+        // #1368: a parting before the talk's had its say is a brush-off -
+        // early on, a pool of nothing but farewells falls through to the
+        // next tree's rejoin instead of closing at the hello
+        const BRUSHOFF: Exchange = Exchange {
+            act: Act::Greet, concepts: &["greeting"],
+            calls: &["Morrow to thee."], voice: &[],
+            replies: &[Reply {
+                criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                concepts: &["farewell"], lines: &["I must be on my way."],
+                voice: &[], then: None, end: Some(Ending::Farewell),
+            }],
+        };
+        const CHAT: Exchange = Exchange {
+            act: Act::Remark, concepts: &["weather"],
+            calls: &["Looks like rain again."], voice: &[],
+            replies: &[Reply {
+                criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                concepts: &["weather"], lines: &["Aye, grey all week."],
+                voice: &[], then: None, end: Some(Ending::Farewell),
+            }],
+        };
+        const EARLY: DialogueTree = DialogueTree {
+            name: "early_exit", criteria: &[], root: &BRUSHOFF, rejoin: None };
+        const TAIL: DialogueTree = DialogueTree {
+            name: "chattier", criteria: &[], root: &CHAT, rejoin: Some(&CHAT) };
+        for seed in 0..10 {
+            let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
+                Relation::Acquaintance, &[EARLY, TAIL], &mut Rng::new(seed));
+            assert_eq!(tr.turns[1].act, Act::Remark,
+                "the talk moved to the livelier tree, not the early goodbye");
+            assert!(tr.turns.iter().take(2).all(|t| t.act != Act::Farewell),
+                "no farewell inside the hello: {:?}", tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
+        }
+        // and with nowhere livelier to go the talk dries rather than
+        // trade a hello for a goodbye
+        for seed in 0..5 {
+            let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
+                Relation::Acquaintance, &[EARLY], &mut Rng::new(seed));
+            assert_eq!(tr.turns.len(), 1, "the hello stands alone: {:?}", tr.turns.len());
+            assert_eq!(tr.ending, Some(Ending::Exhausted));
+        }
+    }
+
+    #[test]
+    fn test_a_circling_talk_drifts_apart() {
+        // #1368: a node whose material repeats without naming anything
+        // new is the doldrums - six unadvanced turns and they part
+        const LOOP: Exchange = Exchange {
+            act: Act::Remark, concepts: &["weather"],
+            calls: &["Looks like rain.", "Grey sky again.", "Cold wind today.",
+                "The clouds hang low.", "Damp underfoot.", "Dark by four, I warrant.",
+                "The lane's all mud.", "A raw morning.", "Wet through, this week.",
+                "The thatch is dripping."],
+            voice: &[],
+            replies: &[Reply {
+                criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                concepts: &["weather"],
+                lines: &["Aye, that it is.", "So it is.", "Truth in that.",
+                    "Can't argue.", "Aye, neighbor.", "Indeed.", "Hmm, aye.",
+                    "That's the way of it.", "Just so.", "Well seen."],
+                voice: &[], then: None, end: None,
+            }],
+        };
+        const LOOP_TREE: DialogueTree = DialogueTree {
+            name: "loop", criteria: &[], root: &LOOP, rejoin: None };
+        for seed in 0..10 {
+            let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
+                Relation::Acquaintance, &[LOOP_TREE], &mut Rng::new(seed));
+            assert!(tr.turns.len() <= AMBIENT_MAX_TURNS,
+                "the doldrums end it before the cap: {} turns", tr.turns.len());
+            assert_eq!(tr.ending, Some(Ending::Exhausted),
+                "a circling talk drifts apart");
+            assert!(tr.turns.len() <= 8,
+                "six unadvanced turns is the doldrums: {} turns", tr.turns.len());
+        }
+    }
+
+    #[test]
     fn test_every_reply_follows_the_call() {
         // #1367: across seeds, relations and pairs, whatever the
         // responder says fits the act it answers - a question never
@@ -2606,6 +2719,8 @@ mod tests {
                 let a = Speaker::new(names[rng.below(names.len())]);
                 let b = Speaker::new(names[rng.below(names.len())]);
                 let tr = converse(&a, &b, rel, &library, &mut rng);
+                assert!(tr.turns.len() <= AMBIENT_MAX_TURNS,
+                    "an ambient talk stays inside its cap: {}", tr.turns.len());
                 for w in tr.turns.windows(2) {
                     if w[0].speaker == 0 && w[1].speaker == 1 {
                         assert!(act_fit(w[0].act, w[1].act) > 0,
@@ -2668,7 +2783,10 @@ mod tests {
             assert_eq!(tr.turns[1].act, Act::Remark,
                 "the remark was the only answer on offer: {:?}", tr.turns[1].text);
         }
-        // and a goodbye still closes a spent talk after a remark
+        // and a goodbye still closes a talk that's had its say - once
+        // past the hello, a lone parting fork is the polite exit (#1368:
+        // it's only early that a pool of nothing but partings falls
+        // through to a livelier tree)
         const CLOSING: Exchange = Exchange {
             act: Act::Remark, concepts: &[],
             calls: &["A fair morning to thee."], voice: &[],
@@ -2678,13 +2796,30 @@ mod tests {
                 then: None, end: Some(Ending::Farewell),
             }],
         };
+        const MID: Exchange = Exchange {
+            act: Act::Remark, concepts: &[],
+            calls: &["The lane's all mud."], voice: &[],
+            replies: &[Reply {
+                criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                concepts: &[], lines: &["Every year about now."], voice: &[],
+                then: Some(CLOSING), end: None,
+            }],
+        };
+        const OPENER: Exchange = Exchange {
+            act: Act::Remark, concepts: &[],
+            calls: &["Grey sky again."], voice: &[],
+            replies: &[Reply {
+                criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                concepts: &[], lines: &["Aye, all week."], voice: &[],
+                then: Some(MID), end: None,
+            }],
+        };
         const C_TREE: DialogueTree = DialogueTree {
-            name: "r_closing", criteria: &[], root: &CLOSING, rejoin: None,
+            name: "r_closing", criteria: &[], root: &OPENER, rejoin: None,
         };
         let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
             Relation::Acquaintance, &[C_TREE], &mut Rng::new(1));
-        assert_eq!(tr.turns[1].act, Act::Farewell);
+        assert_eq!(tr.turns.last().unwrap().act, Act::Farewell);
         assert_eq!(tr.ending, Some(Ending::Farewell));
     }
 }
-

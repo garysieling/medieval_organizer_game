@@ -8,6 +8,7 @@ mod apprentice;
 mod assembly;
 mod attach;
 mod authority;
+mod beats;
 mod blocker;
 mod bookbinder;
 mod broker;

@@ -682,6 +682,17 @@ for slug, subj in [
         w=256, h=256, remove_bg=False, n=1,
         notes=None if painterly else "ui_panel draws a matched chrome set; slice per element")
 
+# Illuminated marginalia (#1323): manuscript frame pieces, seasonal vine
+# flourishes and small accents, composed into borders at load
+for slug, subj in [
+    ("border-set", "medieval illuminated manuscript border pieces, flat: four ornate foliate corner pieces and matching straight edge strips, dark ink, gold leaf and muted red and blue on plain parchment, each piece separate"),
+    ("vine-seasons", "medieval illuminated manuscript corner vine flourishes in four seasons: spring pink blossom, summer green leaf, autumn gold leaf, winter bare thorn, one per cell"),
+    ("fleuron-accents", "small medieval illuminated manuscript line ornaments and fleurons: leaf sprigs, stars, knotwork marks, each a single muted colour"),
+]:
+    add("icons/ui", f"ui-{slug}", subj + ", game UI element",
+        style="rd_pro__spritesheet", w=256, h=256, remove_bg=True, n=1,
+        notes="marginalia pieces for the manuscript frame (#1323); slice per cell")
+
 # ---------------------------------------------------------------------------
 # Matched sprite sheets: rd_pro__spritesheet returns a grid of same-style
 # assets or poses on a plain ground. One call = a whole set that would

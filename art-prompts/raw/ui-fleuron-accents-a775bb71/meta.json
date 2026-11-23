@@ -1,0 +1,29 @@
+{
+ "created_at": 1795396105,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "36f4d664-5ba5-439f-b304-e207ecb3c09a",
+ "outputs_retained_until": 1795482453,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 61,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "ui-fleuron-accents-a775bb71",
+ "prompt": "small medieval illuminated manuscript line ornaments and fleurons: leaf sprigs, stars, knotwork marks, each a single muted colour, game UI element",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-22T20:08:26",
+ "seconds": 52.7
+}

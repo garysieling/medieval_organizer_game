@@ -343,12 +343,22 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
 /// Draw the conversation box; a button under the mouse lights up.
 /// `portrait` resolves a speaker's villager index to their head still -
 /// where it answers None the slot stays empty and the name lead carries
-/// the line alone (#1319)
+/// the line alone (#1319). `mf` is the marginalia set (#1323): its pieces
+/// border the box, the season's vine corners it, and a fleuron marks
+/// who's speaking - what's missing falls back to a drawn gilt rule
 pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32), pin: &mut ConvoPin, frame: u32,
-        portrait: &'a dyn Fn(usize) -> Option<&'a Sprite>) {
+        portrait: &'a dyn Fn(usize) -> Option<&'a Sprite>, mf: &UiFrame, season: Season) {
     let (boxes, h) = convo_layout(p, pin, frame);
     buf.rect(CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2, 20, 20, 32);
     buf.rect(CONVO_X, CONVO_Y, CONVO_W, h, 25, 25, 40);
+    // the manuscript border: edge runs and corner blocks round the box,
+    // the season's vine flourishes over them, the speaker's fleuron
+    // beside the title (#1323)
+    mf.draw_around(buf, CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2);
+    mf.draw_vines(buf, season, CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2);
+    if let Some(a) = mf.accent(&p.rows) {
+        a.blit(buf, CONVO_X + CONVO_W - ACCENT_PX as i32 - 7, CONVO_Y + 5);
+    }
     // the doubled title; a long call's name falls back to 1x rather
     // than spilling into the sidebar
     if p.title.len() as i32 * 12 <= CONVO_W - 12 {

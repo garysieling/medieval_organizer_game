@@ -1,0 +1,29 @@
+{
+ "created_at": 1795395993,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "71732443-e4f6-42ff-97db-510eb7a8efea",
+ "outputs_retained_until": 1795482343,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 61,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "ui-border-set-a4d28eae",
+ "prompt": "medieval illuminated manuscript border pieces, flat: four ornate foliate corner pieces and matching straight edge strips, dark ink, gold leaf and muted red and blue on plain parchment, each piece separate, game UI element",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-22T20:06:34",
+ "seconds": 50.7
+}

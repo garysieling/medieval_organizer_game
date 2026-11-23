@@ -7,6 +7,8 @@ use game2_core::game::villager;
 use game2_core::game::vocation::Kid;
 use game2_core::session::model::{ConvoPanelV, TalkPanelV, TalkRowV};
 use crate::talk::*;
+use crate::UiFrame;
+use game2_core::sim::climate::Season;
 use game2_core::game::villager::Pos;
 
 /// Living grown-up villager indices
@@ -163,7 +165,7 @@ fn test_the_conversation_box_draws_its_buttons() {
         decides: true, leave: false,
     };
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None, &UiFrame::default(), Season::Summer);
     let (boxes, h) = convo_layout(&p, &mut ConvoPin::default(), 30);
     for b in &boxes {
         assert!(b.y >= CONVO_Y && b.y + b.h <= CONVO_Y + h, "a button sits inside the box");
@@ -183,7 +185,7 @@ fn test_the_calls_question_rows_decide_the_probe() {
         other => panic!("a digit on the question picked: {:?}", other),
     }
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30, &|_| None, &UiFrame::default(), Season::Summer);
     let (boxes, _) = convo_layout(&c, &mut ConvoPin::default(), 30);
     assert!(boxes.len() >= c.options.len(), "both questions are buttons");
     g.command(Command::Decide(1));
@@ -301,7 +303,7 @@ fn test_new_lines_fade_in_as_theyre_said() {
     // and nowhere outside the said lines' rows
     let draw = |pin: &mut ConvoPin, frame: u32| {
         let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-        draw_convo_panel(&mut buf, &p, (-1, -1), pin, frame, &|_| None);
+        draw_convo_panel(&mut buf, &p, (-1, -1), pin, frame, &|_| None, &UiFrame::default(), Season::Summer);
         buf
     };
     let mut pin2 = ConvoPin::default();
@@ -361,9 +363,9 @@ fn test_a_speaker_line_carries_their_portrait() {
         options: vec!["say so".into()], decides: false, leave: false,
     };
     let mut with = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut with, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| Some(&head));
+    draw_convo_panel(&mut with, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| Some(&head), &UiFrame::default(), Season::Summer);
     let mut without = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut without, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    draw_convo_panel(&mut without, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None, &UiFrame::default(), Season::Summer);
     let (boxes, _) = convo_layout(&p, &mut ConvoPin::default(), 30);
     let said = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(_)))).expect("a speaker's line");
     let px_at = |b: &Buffer, x: i32, y: i32| { let i = (y as usize * b.width + x as usize) * 4; b.pixels[i..i + 3].to_vec() };
@@ -401,7 +403,7 @@ fn test_the_testimony_rows_decide_the_story() {
     let c = g.convo_panel_at(0).expect("which story to tell");
     assert_eq!(c.title, "THE CALL - WHAT WILL YOU TELL");
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    draw_convo_panel(&mut buf, &c, (-1, -1), &mut ConvoPin::default(), 30, &|_| None, &UiFrame::default(), Season::Summer);
     assert!(convo_layout(&c, &mut ConvoPin::default(), 30).0.len() >= 2, "both stories are buttons");
     match digit_cmd(Some(&c), 1) {
         Some(Command::Decide(1)) => {}
@@ -461,7 +463,7 @@ fn test_the_speakers_mood_mark_badges_their_icon() {
     };
     let draw = |p: &ConvoPanelV| {
         let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-        draw_convo_panel(&mut buf, p, (-1, -1), &mut ConvoPin::default(), 30, &|_| Some(&head));
+        draw_convo_panel(&mut buf, p, (-1, -1), &mut ConvoPin::default(), 30, &|_| Some(&head), &UiFrame::default(), Season::Summer);
         buf
     };
     // the mark rides the box off the row
@@ -529,7 +531,7 @@ fn test_the_opener_carries_a_drop_cap() {
         "your words capped");
     // draw-level: the decorated box's gold edge lands where the cap is
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None, &UiFrame::default(), Season::Summer);
     let px_at = |x: i32, y: i32| { let i = (y as usize * buf.width + x as usize) * 4;
         [buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]] };
     let wx = CONVO_X + 10 + CONVO_PORT;   // the opener's a speaker: words after the head slot
@@ -558,7 +560,7 @@ fn test_the_convo_box_tiers_its_text() {
     assert_eq!(said.rows[0].3.as_ref().unwrap().0, "LIZA: ", "the lead isn't capital");
     // a doubled title inks the second glyph row - plain 1x can't reach it
     let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
-    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None);
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None, &UiFrame::default(), Season::Summer);
     let mut ink = 0;
     for y in CONVO_Y + 10..CONVO_Y + 16 {
         for x in CONVO_X + 6..CONVO_X + 100 {

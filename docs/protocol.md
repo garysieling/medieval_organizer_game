@@ -357,6 +357,27 @@ count toward `met` - a barter or a shared meal alone doesn't.
 
 Scenes from an older server may omit `social`; read it as all zeroes.
 
+`weather`, `calendar` and `clock` carry the sky, the village calendar
+and the frame clock for sound/music layers that can't watch the screen
+(P1): `weather` is the current weather event (`kind` one of `storm`,
+`drought`, `heat`, `frost`; `intensity` 0..1; `days_left` the days it
+still has) or `null` on a clear day; `calendar` is `holy_day`,
+`market_day`, `feast` (the feast's name today, else `null`),
+`days_to_holy` and `days_to_market`; `clock` is `day_frac` (0..1 of
+today elapsed), `frames_per_day` (1260 at normal speed) and `speed`
+(the multiplier vs normal: 1.0 normal, ~5.6 turbo, lower while a
+meeting slows the calendar).
+
+```
+"weather":{"kind":"storm","intensity":0.6,"days_left":2},
+"calendar":{"holy_day":false,"market_day":false,"feast":"May Day",
+            "days_to_holy":3,"days_to_market":11},
+"clock":{"day_frac":0.42,"frames_per_day":1260,"speed":1.0}
+```
+
+Scenes from an older server may omit all three; read them as
+"unknown" (no weather, all-zeroes calendar, `frames_per_day` 0).
+
 `panel.leader` names the org's head for the status line - `"you"` when
 the seat leads its own, a villager's name when the bond's passed to
 another. Older servers omit it or send null; a client should draw no

@@ -802,6 +802,37 @@ impl Game {
                     | Goal::Gift(..) | Goal::LevyCart(_)))
                 .filter_map(|t| world.get_component::<Pos>(t.who)
                     .map(|p| (p.x, p.y))).collect(),
+            // the sky's event, the calendar and the clock - what the
+            // seat already sees on screen, for the sound layer (#1487)
+            weather: world.query::<crate::sim::weather::CurrentWeather>()
+                .iter()
+                .filter_map(|e| world.get_component::<crate::sim::weather::CurrentWeather>(*e))
+                .find(|w| w.kind != crate::sim::weather::Weather::Clear)
+                .map(|w| {
+                    use crate::sim::weather::Weather as W;
+                    let k = match w.kind {
+                        W::Clear => "clear", W::Storm => "storm",
+                        W::Drought => "drought", W::HeatWave => "heat",
+                        W::Frost => "frost",
+                    };
+                    WeatherV { kind: k.into(), intensity: w.intensity, days_left: w.duration }
+                }),
+            calendar: CalendarV {
+                holy_day: routine::is_holy(self.tick),
+                market_day: routine::is_market_day(self.tick),
+                feast: subsystems::society::feast_of(self.tick).map(|s| s.to_string()),
+                days_to_holy: ((routine::HOLY_EVERY - self.tick % routine::HOLY_EVERY)
+                    % routine::HOLY_EVERY) as u32,
+                days_to_market: ((routine::MARKET_DAY + 30 - self.tick % 30) % 30) as u32,
+            },
+            clock: {
+                let tpf = self.ticks_per_frame();
+                ClockV {
+                    day_frac: if tpf > 0 { (self.frame_n % tpf) as f32 / tpf as f32 } else { 0.0 },
+                    frames_per_day: tpf,
+                    speed: if tpf > 0 { 21.0 * FPS as f32 / tpf as f32 } else { 0.0 },
+                }
+            },
         }
     }
 

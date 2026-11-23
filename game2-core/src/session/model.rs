@@ -445,6 +445,42 @@ pub struct EventFocusV {
     pub moving: bool,
 }
 
+/// The weather event the sky is running (#1487): kind mirrors
+/// `CurrentWeather` (storm/drought/heat/frost), intensity 0..1,
+/// `days_left` the days it still has. `UiModel.weather` is `None`
+/// when the sky is clear - the seat sees the same sky on screen.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeatherV {
+    pub kind: String,
+    pub intensity: f32,
+    pub days_left: u32,
+}
+
+/// Where the village calendar stands (#1487): today's observances,
+/// the feast's name when one falls today, and the countdowns to the
+/// next holy and market days - everything the seat already reads on
+/// the HUD.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CalendarV {
+    pub holy_day: bool,
+    pub market_day: bool,
+    pub feast: Option<String>,
+    pub days_to_holy: u32,
+    pub days_to_market: u32,
+}
+
+/// The frame clock (#1487): how far through today we are (0..1), how
+/// many frames a day lasts, and the current speed multiplier vs the
+/// normal 21s day (1.0 normal, ~5.6 turbo, 0.5 while a meeting slows
+/// the calendar). `frames_per_day` 0 from an older server means
+/// "unknown".
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ClockV {
+    pub day_frac: f32,
+    pub frames_per_day: u32,
+    pub speed: f32,
+}
+
 /// Everything `View::render` draws that comes from the simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiModel {
@@ -683,6 +719,18 @@ pub struct UiModel {
     /// so the client's marker can point the way
     #[serde(default)]
     pub quest_target: Option<(f32, f32)>,
+    /// The weather event in the sky - absent on a clear day and from
+    /// older servers (#1487)
+    #[serde(default)]
+    pub weather: Option<WeatherV>,
+    /// The village calendar: holy/market day, feasts, countdowns -
+    /// absent from older servers (zeroes: all false, 0 days to)
+    #[serde(default)]
+    pub calendar: CalendarV,
+    /// The frame clock: where in the day we are, the day's length,
+    /// the speed - absent from older servers (0s = unknown)
+    #[serde(default)]
+    pub clock: ClockV,
 }
 
 /// `PersonV.pose` values: the `rd/people/poses` cells, in order - 0

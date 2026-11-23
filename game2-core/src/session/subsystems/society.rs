@@ -79,7 +79,7 @@ impl Game {
                     self.rep_apply(offender, RepAction::BadDeed);
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
-                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
+                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names, i, tick,
                                 crate::sim::story::EventKind::Conflict, format!("{} - bad blood burns", offense));
                         }
                     }
@@ -112,7 +112,7 @@ impl Game {
                     );
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
-                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
+                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names, i, tick,
                                 crate::sim::story::EventKind::Peace, "the bad blood is settled".into());
                         }
                     }
@@ -407,7 +407,7 @@ impl Game {
             && self.try_plea(v, crate::game::sanctions::PleaSentence::Sanction(s)) {
             return;
         }
-        let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("someone");
+        let name = self.villagers.iter().position(|x| *x == v).map(|i| cast_of(&self.names, i)).unwrap_or("someone");
         // a bad word travels ahead of every rung
         self.rep_apply(v, RepAction::BadDeed);
         self.sanctioned.push((v, s, tick + 60));
@@ -821,7 +821,7 @@ impl Game {
         for (i, &v) in self.villagers.iter().enumerate().collect::<Vec<_>>() {
             if self.world.get_component::<crate::game::guilds::Merchant>(v).is_none()
                 && is_trader(&self.world, v) {
-                tag_trader(&mut self.world, v, vill_name(i));
+                tag_trader(&mut self.world, v, cast_of(&self.names, i));
             }
         }
     }

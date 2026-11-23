@@ -44,7 +44,7 @@ impl Game {
         let joined: Vec<&str> = invited.iter()
             .filter(|v| !members_before.contains(v))
             .filter(|v| self.world.get_component::<Organization>(oe).map(|o| o.members.contains(v)).unwrap_or(false))
-            .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i)))
+            .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| self.cast_name(i)))
             .collect();
         let outcome = if joined.is_empty() {
             "No one joins yet, but they'll remember the conversation.".to_string()
@@ -169,7 +169,7 @@ impl Game {
         // mends itself
         if let Some(t) = crate::game::organizing::target_for(&self.world, &vote.winner, self.collector) {
             if let Some(cc) = self.world.get_component_mut::<campaign::Campaign>(c) { cc.target = Some(t); }
-            let tname = self.villagers.iter().position(|&v| v == t).map(|i| vill_name(i)).unwrap_or("the Reeve");
+            let tname = self.villagers.iter().position(|&v| v == t).map(|i| self.cast_name(i)).unwrap_or("the Reeve");
             self.log_entity_ev(
                 EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
                 t,
@@ -187,7 +187,7 @@ impl Game {
         // grumble - heard in the log, not just counted on the ballots
         let grumbler = vote.ballots.iter().find(|b| b.grumbles).map(|b| b.member);
         if let Some(d) = grumbler {
-            let name = self.villagers.iter().position(|&v| v == d).map(|i| vill_name(i)).unwrap_or("someone");
+            let name = self.villagers.iter().position(|&v| v == d).map(|i| self.cast_name(i)).unwrap_or("someone");
             msg += &format!(" - {} {}", name, campaign::grumble_line(framing));
         }
         msg
@@ -233,7 +233,7 @@ impl Game {
                       c: Entity, tick: u64) -> Option<(String, Vec<Entity>)> {
         let out = crate::game::campaign::hold_campaign_meeting(&mut self.world, c, tick)?;
         let who: Vec<String> = out.attendees.iter()
-            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| self.cast_name(i).to_string()))
             .collect();
         // the room talks it through first: what it decided is what the
         // notes and the consent report
@@ -247,7 +247,7 @@ impl Game {
         if consent { msg += " - consent banked for the next action"; }
         if !out.healed.is_empty() {
             let healed: Vec<String> = out.healed.iter()
-                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| self.cast_name(i).to_string()))
                 .collect();
             msg += &format!(" - {} heard out", healed.join(", "));
         }
@@ -256,7 +256,7 @@ impl Game {
         // too long leaves the rolls (#1342)
         let dues = crate::game::campaign::dues_beat(&mut self.world, c);
         let names = |vs: &[Entity]| vs.iter()
-            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| self.cast_name(i).to_string()))
             .collect::<Vec<_>>().join(", ");
         if dues.paid > 0 || !dues.carried.is_empty() {
             let mut round = format!(" - the hat passes: {} pay", dues.paid);
@@ -354,7 +354,7 @@ impl Game {
             .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0)))
             .unwrap_or(self.village);
         let label = plan.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h))
-            .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the square".into());
+            .map(|i| format!("{}'s house", self.cast_name(i))).unwrap_or_else(|| "the square".into());
         // the invited: those who said they'd come, those who said
         // they'd bring friends (and the friends they bring), every
         // promise-keeper - and a plus-one for each of the committed,
@@ -417,7 +417,7 @@ impl Game {
         let roles = (plan.snacks.is_some(), plan.notes.is_some(), plan.opener.is_some(),
             plan.song.is_some(), plan.closer.is_some());
         let role_people = [plan.snacks, plan.notes, plan.opener, plan.song, plan.closer];
-        let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
+        let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| self.cast_name(i))).collect();
         let mut msg = format!("Word goes out - {} gather at {}.", names.join(", "), label);
         if stayed > 0 {
             msg = format!("{} - {} of those asked stayed home.", msg.trim_end_matches('.'), stayed);
@@ -533,7 +533,7 @@ impl Game {
                 if roll < chance {
                     let pick = self.rng.next();
                     if let Some(r) = desires::next_reveal(&self.world, v, self.tick, pick) {
-                        let (_, said) = desires::reveal_speech(vill_name(i), &r);
+                        let (_, said) = desires::reveal_speech(self.cast_name(i), &r);
                         self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
                         let pe = host_e;
                         if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
@@ -556,7 +556,7 @@ impl Game {
                     let line = match ready {
                         Some(j) => { let (k, _, text) = said[ci].remove(j);
                             aired.insert(k); reached = reached.max(k); text }
-                        None => meeting_remark(&self.world, v, vill_name(i), round),
+                        None => meeting_remark(&self.world, v, self.cast_name(i), round),
                     };
                     lines.push((v, line));
                 }

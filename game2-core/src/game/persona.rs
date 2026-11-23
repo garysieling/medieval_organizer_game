@@ -352,6 +352,10 @@ pub struct Persona {
 }
 
 impl Persona {
+    /// The n-th draw off this person's own stream, as a 0..1 fraction -
+    /// names, sex and every later choice read the same seed (#1411)
+    pub fn draw(&self, n: u64) -> f32 { draw(self.seed, n) }
+
     /// The two values that move them most - the start of a
     /// self-interest profile
     pub fn top_values(&self) -> (usize, usize) {

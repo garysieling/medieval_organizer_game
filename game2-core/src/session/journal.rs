@@ -94,10 +94,19 @@ pub struct Journal {
     /// Journals written before versioning carry no field - they read as 0
     #[serde(default)]
     pub version: u32,
+    /// Whether the world was a seeded cast (#1411): replay must rebuild it
+    /// the same way, or the digest check rightly rejects the restore.
+    /// Journals written before the flag read as a fixed cast.
+    #[serde(default)]
+    pub cast_seeded: bool,
 }
 
 impl Journal {
-    pub fn new(seed: u64) -> Journal { Journal { seed, entries: vec![], version: JOURNAL_VERSION } }
+    pub fn new(seed: u64) -> Journal { Journal::new_cast(seed, false) }
+    /// A journal stamped with the cast mode its world runs
+    pub fn new_cast(seed: u64, cast_seeded: bool) -> Journal {
+        Journal { seed, entries: vec![], version: JOURNAL_VERSION, cast_seeded }
+    }
 
     /// Note an input taken at `frame` (frames never go backwards)
     pub fn record(&mut self, frame: u64, input: Input) {
@@ -108,7 +117,7 @@ impl Journal {
 
 /// Rebuild the world a journal describes, `frames` world-loop frames in
 pub fn replay(j: &Journal, frames: u64) -> Game {
-    let mut g = Game::new_seeded(j.seed);
+    let mut g = if j.cast_seeded { Game::new_seeded_cast(j.seed) } else { Game::new_seeded(j.seed) };
     let mut next = j.entries.iter().peekable();
     let mut take = |g: &mut Game, f: u64| {
         while let Some((_, input)) = next.next_if(|(ef, _)| *ef == f) { g.apply_input(input); }

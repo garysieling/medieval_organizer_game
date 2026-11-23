@@ -14,6 +14,18 @@ impl Game {
     /// the map's grown a little townage of its own: a farm below the south
     /// gate, a woodcutter's clearing and a fisher's hut on the shore.
     pub fn new_seeded(seed: u64) -> Game {
+        Game::new_seeded_with(seed, false)
+    }
+
+    /// Same world, but the cast is generated, not the fixed roll (#1411,
+    /// E1-2): every villager carries a `persona::Persona`, a name dealt off
+    /// its own seed, and a body the persona draws. `new_seeded` stays the
+    /// fixed cast so tooling and tests keep their ground truth.
+    pub fn new_seeded_cast(seed: u64) -> Game {
+        Game::new_seeded_with(seed, true)
+    }
+
+    fn new_seeded_with(seed: u64, seeded_cast: bool) -> Game {
         let mut rng = Rng(seed ^ 0x9E3779B9);
         let mut world = World::new();
         let mut sched = Scheduler::new();
@@ -509,11 +521,26 @@ impl Game {
         gulls.truncate(4);
 
         let mut villagers = vec![];
+        // a seeded cast deals names off each persona, one per spawn -
+        // fixed keeps the whole roll pre-laid
+        let mut cast_names: Vec<&'static str> = if seeded_cast {
+            vec![]
+        } else {
+            NAMES.iter().chain(NEW_NAMES.iter()).copied().collect()
+        };
         // 23 vocation adults (0..23), two overseers (23,24), the trader
         // (25), three children (26..29) and the tax collector (29)
         for i in 0..NAMES.len() {
             let v = villager::spawn_villager(&mut world,
                 vx as f32 - 2.0 + (i % 6) as f32 * 0.8, vy as f32 - 2.0 + (i % 4) as f32 * 0.8);
+            if seeded_cast {
+                let past = crate::game::persona::Past {
+                    vocation: adult_vocs.get(i).copied(), ..Default::default() };
+                let p = crate::game::persona::generate(seed, i, &past);
+                world.add_component(v, villager::Sex::from_persona(&p));
+                deal_name(&p, &mut cast_names);
+                world.add_component(v, p);
+            }
             world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
             world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
             world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
@@ -914,7 +941,7 @@ impl Game {
         // plus the stock and tools the writs can strip
         for (i, &v) in villagers.iter().enumerate() {
             if subsystems::society::is_trader(&world, v) {
-                subsystems::society::tag_trader(&mut world, v, vill_name(i));
+                subsystems::society::tag_trader(&mut world, v, cast_of(&cast_names, i));
             }
         }
         // the keeper opens with a float. His trade is the only one in the
@@ -1027,6 +1054,8 @@ impl Game {
             talk_next_id: 0,
             was_sick: vec![None; NAMES.len()],
             died_on: vec![None; NAMES.len()],
+            names: cast_names,
+            seeded_cast,
             graveyard: None,
             frame_n: 0,
             precip: None,
@@ -1061,7 +1090,7 @@ impl Game {
             hall_tile,
             lord_works: vec![],
             attended_days: vec![],
-            journal: crate::session::journal::Journal::new(seed),
+            journal: crate::session::journal::Journal::new_cast(seed, seeded_cast),
             notices: vec![],
             dilemma: None, dilemma_debts: vec![],
             ewe_theft: None,

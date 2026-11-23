@@ -225,7 +225,7 @@ impl Game {
             // the find box knows them by name and posting both: "heart
             // helper" finds the matchmaker even where her trade reads first
             let mut find = format!("{} {}",
-                vill_name(i), crate::game::desires::occupation_of(world, *v).unwrap_or_default());
+                self.cast_name(i), crate::game::desires::occupation_of(world, *v).unwrap_or_default());
             if let Some(r) = world.get_component::<vocation::TownRole>(*v) {
                 find.push(' ');
                 find.push_str(crate::game::desires::town_role_name(*r));
@@ -233,7 +233,7 @@ impl Game {
             let dead = villager::is_dead(world, *v);
             people.push(PersonV {
                 e: *v, kind: PKind::Villager(i), pos: (p.x, p.y),
-                label: Some(format!("{}{}{}", vill_name(i), role, cause_mark)),
+                label: Some(format!("{}{}{}", self.cast_name(i), role, cause_mark)),
                 find: find_key(&find),
                 dead,
                 epitaph: dead.then(|| {
@@ -439,7 +439,7 @@ impl Game {
             // the dead don't talk - a bubble over a grave is ghost chatter
             if villager::is_dead(world, *e) { return None; }
             let p = world.get_component::<Pos>(*e)?;
-            let name = self.villagers.iter().position(|v| *v == *e).map(|i| vill_name(i).to_string())
+            let name = self.villagers.iter().position(|v| *v == *e).map(|i| self.cast_name(i).to_string())
                 .or_else(|| self.rivals.iter().position(|r| *r == *e).map(|i| RIVAL_NAMES[i].to_string()));
             Some(BubbleV { e: *e, pos: (p.x, p.y), text: text.clone(), thought: *thought, name })
         }).collect();
@@ -447,7 +447,7 @@ impl Game {
         let members: Vec<String> = org.members.iter()
             .filter_map(|m| self.villagers.iter().position(|v| v == m).map(|i| {
                 let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(*m).is_some();
-                format!("{}{}", vill_name(i), if held { " (held)" } else { "" })
+                format!("{}{}", self.cast_name(i), if held { " (held)" } else { "" })
             }))
             .collect();
         // the notebook reads in themes: a cluster of grievances shows as
@@ -474,7 +474,7 @@ impl Game {
         let guilds = world.query::<Guild>().len();
         let name_of = |e: Entity| {
             if e == self.seats[seat].player { return "you".to_string(); }
-            self.villagers.iter().position(|v| *v == e).map(|i| vill_name(i).to_string())
+            self.villagers.iter().position(|v| *v == e).map(|i| self.cast_name(i).to_string())
                 .or_else(|| self.rivals.iter().position(|r| *r == e).map(|i| RIVAL_NAMES[i].to_string()))
                 .unwrap_or_else(|| "someone".to_string())
         };
@@ -762,7 +762,7 @@ impl Game {
                     if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },
                     if m.kind == MonumentKind::Circle { m.title.clone() }
                     else { format!("{} - {}",
-                        if m.honoree == usize::MAX { "the one who moved on" } else { vill_name(m.honoree) },
+                        if m.honoree == usize::MAX { "the one who moved on" } else { self.cast_name(m.honoree) },
                         m.title) })).collect(),
             sites: self.sites.iter().map(|s| {
                 // the keeper: who holds the keep's first bed, when the
@@ -771,12 +771,12 @@ impl Game {
                     .and_then(|&h| world.get_component::<Building>(h))
                     .and_then(|b| b.occupants.first().copied())
                     .and_then(|o| self.villagers.iter().position(|v| *v == o))
-                    .map(|i| vill_name(i).to_string());
+                    .map(|i| self.cast_name(i).to_string());
                 // the head, styled: "Earl Godric" - the site's lord by
                 // the title their house holds
                 let head = s.lord
                     .and_then(|l| self.villagers.iter().position(|v| *v == l))
-                    .map(|i| format!("{} {}", s.title.unwrap_or("the head"), vill_name(i)));
+                    .map(|i| format!("{} {}", s.title.unwrap_or("the head"), self.cast_name(i)));
                 SiteV { x: s.centre.0 as f32, y: s.centre.1 as f32,
                     name: s.name.to_string(), kind: s.kind.clone(), keeper,
                     head, treasury: s.treasury }
@@ -905,20 +905,20 @@ impl Game {
         lines.push(Line { x: 18, y, rgb: (200, 200, 230),
             text: format!("{}{}", kind_word, if near_fire { " \u{00b7} the fire's near" } else { "" }) });
         let worker = b.worker.and_then(|w| self.villagers.iter().position(|v| *v == w))
-            .map(|i| vill_name(i).to_string())
+            .map(|i| self.cast_name(i).to_string())
             .or_else(|| b.worker.map(|_| "you".to_string()));
         let who = worker.map(|w| format!("worked by {}", w)).unwrap_or_else(|| "stands empty".to_string());
         let col = if household::derelict(b) { (230, 140, 90) } else { (190, 190, 210) };
         y += CARD_ROW;
         lines.push(Line { x: 18, y, text: who, rgb: col });
         if let Some(o) = b.overseer {
-            let on = self.villagers.iter().position(|v| *v == o).map(|i| vill_name(i)).unwrap_or("someone");
+            let on = self.villagers.iter().position(|v| *v == o).map(|i| self.cast_name(i)).unwrap_or("someone");
             y += CARD_ROW;
             lines.push(Line { x: 18, y, text: format!("overseer: {}", on), rgb: (200, 160, 120) });
         }
         if b.kind == BuildingKind::Home {
             let names: Vec<&str> = b.occupants.iter()
-                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| vill_name(i))
+                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| self.cast_name(i))
                     .or_else(|| self.rivals.iter().position(|r| *r == *o).map(|i| RIVAL_NAMES[i])))
                 .collect();
             // a home's other faces: rooms to let when it stands empty,
@@ -1016,7 +1016,7 @@ impl Game {
                 .filter(|(_, d)| self.tick.saturating_sub(*d) < 30)
                 .filter(|(w, _)| seen.insert(*w))
                 .map(|(w, _)| self.villagers.iter().position(|v| *v == *w)
-                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into()))
+                    .map(|i| self.cast_name(i).to_string()).unwrap_or_else(|| "someone".into()))
                 .collect();
             // the card's a fixed width: the last two nights' company,
             // then a count
@@ -1036,7 +1036,7 @@ impl Game {
             let callers: Vec<String> = self.remedy_visits.iter()
                 .filter(|(_, d)| self.tick - d <= 15)
                 .map(|(w, _)| self.villagers.iter().position(|v| *v == *w)
-                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into()))
+                    .map(|i| self.cast_name(i).to_string()).unwrap_or_else(|| "someone".into()))
                 .collect();
             // the card's a fixed width: the first two callers, then a count
             let late = match callers.len() {
@@ -1080,7 +1080,7 @@ impl Game {
         let v = self.villagers[i];
         let mut lines: Vec<Line> = vec![];
         let mut y = 330;
-        lines.push(Line { x: 60, y, text: vill_name(i).into(), rgb: (255, 255, 255) });
+        lines.push(Line { x: 60, y, text: self.cast_name(i).into(), rgb: (255, 255, 255) });
         // the family's record: the last beats of a life in a word each
         // - built before the dead's branch so a grave keeps it too
         let beats: Vec<&'static str> = self.tales.get(&i).map(|t| t.iter().rev().take(2).map(|e| match e.kind {
@@ -1122,7 +1122,7 @@ impl Game {
                     .unwrap_or(false))
                 .take(3)
                 .map(|m| self.villagers.iter().position(|&x| x == m)
-                    .map(|mi| vill_name(mi).to_string())
+                    .map(|mi| self.cast_name(mi).to_string())
                     .or_else(|| self.world.get_component::<PlayerCharacter>(m).map(|p| p.name.clone()))
                     .unwrap_or_else(|| "someone".into())).collect();
             // clear of the grave's portrait, then the plain record
@@ -1280,7 +1280,7 @@ impl Game {
             let kin: Vec<String> = self.villagers.iter().copied()
                 .filter(|&o| o != v && self.rel_kind(v, o) == Some(crate::game::relationships::RelKind::Family))
                 .take(3)
-                .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|i| vill_name(i).to_string()))
+                .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|i| self.cast_name(i).to_string()))
                 .collect();
             card_prop(&mut lines, &mut y, "Kin", &kin.join(", "), (190, 190, 210));
         }
@@ -1542,7 +1542,7 @@ impl Game {
                     && villager::is_dead(world, e.with))
                 .map(|e| e.with)) {
             let name = self.villagers.iter().position(|&x| x == gone)
-                .map(|i| vill_name(i).to_string())
+                .map(|i| self.cast_name(i).to_string())
                 .or_else(|| world.get_component::<PlayerCharacter>(gone).map(|p| p.name.clone()))
                 .unwrap_or_else(|| "someone".into());
             parts.push(format!("grieves for {}", name));
@@ -1603,7 +1603,7 @@ impl Game {
                 if *v == who { return None; }
                 let q = self.world.get_component::<Pos>(*v)?;
                 let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
-                (d < 8.0).then(|| ObsPerson { e: *v, name: vill_name(i).to_string(), dist: d,
+                (d < 8.0).then(|| ObsPerson { e: *v, name: self.cast_name(i).to_string(), dist: d,
                     dead: villager::is_dead(&self.world, *v),
                     job_offer: self.quest_offer_at(*v).map(|q| format!("{:?}", q.kind)) })
             }).collect();
@@ -1723,7 +1723,7 @@ impl Game {
         use crate::game::desires;
         let world = &self.world;
         let v = self.villagers[i];
-        let name = vill_name(i).to_string();
+        let name = self.cast_name(i).to_string();
         let sp = crate::session::dialogue::speaker_of(world, v, &name, self.tick);
         let kid = world.get_component::<Kid>(v).is_some();
         let reveal = |r: &desires::Reveal| match r {
@@ -1735,7 +1735,7 @@ impl Game {
         let secrets: Vec<String> = desires::unrevealed(world, v, self.tick).iter().map(reveal).collect();
         let kin: Vec<String> = self.villagers.iter().copied()
             .filter(|&o| o != v && self.rel_kind(v, o) == Some(crate::game::relationships::RelKind::Family))
-            .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|k| vill_name(k).to_string()))
+            .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|k| self.cast_name(k).to_string()))
             .collect();
         let feuds: Vec<String> = self.feuds_of(v).into_iter()
             .map(|(o, hot)| format!("{}{}", self.name_of(o), if hot { " (burning)" } else { "" })).collect();

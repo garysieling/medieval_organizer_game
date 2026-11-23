@@ -270,9 +270,9 @@ fn main() {
                 if j.version == game2_core::session::journal::JOURNAL_VERSION {
                     let frames = j.entries.last().map(|e| e.0).unwrap_or(0);
                     Some(game2_core::session::journal::replay(&j, frames))
-                } else { Some(Game::new_seeded(seed)) }
-            } else { Some(Game::new_seeded(seed)) }
-        } else { Some(Game::new_seeded(seed)) }
+                } else { Some(Game::new_seeded_cast(seed)) }
+            } else { Some(Game::new_seeded_cast(seed)) }
+        } else { Some(Game::new_seeded_cast(seed)) }
     } else { None };
     // the prologue card stands between the picker and the game: the
     // seed's own facts, till any key lets the day begin. A remote seat's

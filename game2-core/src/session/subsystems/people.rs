@@ -23,6 +23,7 @@ impl Game {
     pub(in crate::session) fn spawn_kid(&mut self, home: Entity, tick: u64) {
         let (x, y) = self.world.get_component::<Pos>(home).map(|p| (p.x, p.y)).unwrap_or((14.0, 14.0));
         let v = villager::spawn_villager(&mut self.world, x + 0.5, y + 0.5);
+        self.deal_cast(v, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
@@ -60,23 +61,21 @@ impl Game {
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
         self.died_on.push(None);
+        let born_name = self.cast_name(self.villagers.len() - 1);
         self.log_villager_ev(
             EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
             self.villagers.len() - 1,
-            format!(
-                "t{}: a child is born - {}.",
-                tick,
-                vill_name(self.villagers.len() - 1)
-            ),
+            format!("t{}: a child is born - {}.", tick, born_name),
         );
         note_story(
             &mut self.tales,
             &mut self.tales_told,
             &mut self.log,
+            &self.names,
             self.villagers.len() - 1,
             tick,
             crate::sim::story::EventKind::Birth,
-            format!("{} is born.", vill_name(self.villagers.len() - 1)),
+            format!("{} is born.", born_name),
         );
         // and the neighbours mark it: a small celebration at the house
         if let Some(p) = self.world.get_component::<Pos>(home) {
@@ -141,6 +140,7 @@ impl Game {
     pub(in crate::session) fn maybe_migrant(&mut self, tick: u64) {
         let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
         let v = villager::spawn_villager(&mut self.world, x, y);
+        self.deal_cast(v, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
@@ -196,7 +196,7 @@ impl Game {
             format!(
                 "t{}: a stranger settles - {} has come to town.",
                 tick,
-                vill_name(self.villagers.len() - 1)
+                self.cast_name(self.villagers.len() - 1)
             ),
         );
     }
@@ -589,7 +589,7 @@ impl Game {
             c.tasked_by = master;
             self.world.add_component(v, c);
             let name = self.world.get_component::<PlayerCharacter>(v).map(|p| p.name.clone())
-                .or_else(|| self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i).to_string()))
+                .or_else(|| self.villagers.iter().position(|x| *x == v).map(|i| self.cast_name(i).to_string()))
                 .unwrap_or_else(|| "a youngster".into());
             let trade = vocation::vocation_name(voc).to_lowercase();
             self.log_entity_ev(
@@ -636,7 +636,7 @@ impl Game {
                     format!(
                         "t{}: {} dies at {} winters, of old age.",
                         tick,
-                        vill_name(i),
+                        self.cast_name(i),
                         years.round() as u32
                     ),
                 );
@@ -875,8 +875,26 @@ impl Game {
             .map(|r| r.kind)
     }
 
+    /// A seeded cast's spawn rite (#1411): persona, body and a dealt
+    /// name for the villager about to join the roll. Every spawn site
+    /// calls it before `villagers.push` so `cast_name` stays positional
+    pub(in crate::session) fn deal_cast(&mut self, v: Entity, vocation: Option<Vocation>) {
+        if !self.seeded_cast { return; }
+        let p = crate::game::persona::generate(self.seed, self.villagers.len(),
+            &crate::game::persona::Past { vocation, ..Default::default() });
+        self.world.add_component(v, villager::Sex::from_persona(&p));
+        deal_name(&p, &mut self.names);
+        self.world.add_component(v, p);
+    }
+
+    /// The name this cast dealt to villager `i` - the dealt list in a
+    /// seeded cast (#1411), the fixed roll otherwise
+    pub(in crate::session) fn cast_name(&self, i: usize) -> &'static str {
+        self.names.get(i).copied().unwrap_or("a newcomer")
+    }
+
     pub(in crate::session) fn name_of(&self, e: Entity) -> String {
-        self.villagers.iter().position(|&x| x == e).map(|i| vill_name(i).to_string())
+        self.villagers.iter().position(|&x| x == e).map(|i| self.cast_name(i).to_string())
             .unwrap_or_else(|| "someone".into())
     }
 

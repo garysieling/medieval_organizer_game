@@ -93,7 +93,7 @@ impl Game {
                 .villagers
                 .iter()
                 .position(|&v| v == w)
-                .map(|i| vill_name(i))
+                .map(|i| self.cast_name(i))
                 .unwrap_or("a hand");
             self.log_entity_ev(
                 EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
@@ -167,7 +167,7 @@ impl Game {
                 .villagers
                 .iter()
                 .position(|&v| v == w)
-                .map(|i| vill_name(i))
+                .map(|i| self.cast_name(i))
                 .unwrap_or("a hand");
             self.log_entity_ev(
                 EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),

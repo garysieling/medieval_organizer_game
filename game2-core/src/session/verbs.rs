@@ -291,7 +291,7 @@ impl Game {
         // close it and start over - the conversation's still going,
         // the replies still on offer (#1058)
         if self.seats[seat].talk.as_ref().map(|t| t.who) == Some(v) {
-            return format!("You are already speaking with {}.", vill_name(who));
+            return format!("You are already speaking with {}.", self.cast_name(who));
         }
         // Uncapped talk count - Rapport caps at 1.0 and would
         // freeze the concern/small-talk index after a few talks.
@@ -322,7 +322,7 @@ impl Game {
         let mut whispered = false;
         let (did, said) = match revealed {
             Some(r) => {
-                let (d, s) = desires::reveal_speech(vill_name(who), &r);
+                let (d, s) = desires::reveal_speech(self.cast_name(who), &r);
                 let pe = self.seats[seat].player;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                     self.toasts.push((
@@ -339,12 +339,12 @@ impl Game {
             }
             // still smarting: what's on their mind is you
             None if mood == Some(dialogue::TalkMood::Slighted) =>
-                crate::game::organizing::cold_gist(vill_name(who)),
+                crate::game::organizing::cold_gist(self.cast_name(who)),
             None => match if hog { None } else { self.mystery_fact_at(seat) } {
                 // gossip carries a piece of the mystery, now and then
                 Some(text) => {
                     whispered = true;
-                    (format!("{} passes on a rumor", vill_name(who)), text)
+                    (format!("{} passes on a rumor", self.cast_name(who)), text)
                 }
                 // a sworn villager's opening is the cause's weather, not
                 // the sky's (#1228); no live cause, ordinary small talk -
@@ -352,10 +352,10 @@ impl Game {
                 None => self.cause_gist(seat, v)
                     .or_else(|| hog.then(|| {
                         let gists = crate::game::conversation::HOG_GISTS;
-                        (format!("{} holds forth", vill_name(who)),
+                        (format!("{} holds forth", self.cast_name(who)),
                             gists[(self.rng.next() as usize) % gists.len()].to_string())
                     }))
-                    .unwrap_or_else(|| talk_response(&self.world, v, vill_name(who), talks_before, self.tick)),
+                    .unwrap_or_else(|| talk_response(&self.world, v, self.cast_name(who), talks_before, self.tick)),
             },
         };
         let pe = self.seats[seat].player;
@@ -457,10 +457,10 @@ impl Game {
         match self.path_to_at(seat, who) {
             Some(path) => {
                 self.seats[seat].approach = Some(Approach { who, action, path, stuck: 0 });
-                Some(format!("You walk over to {}.", vill_name(who)))
+                Some(format!("You walk over to {}.", self.cast_name(who)))
             }
             None => Some(format!("Can't {}: there's no way to reach {}.",
-                ACTION_LABELS[action].to_lowercase(), vill_name(who))),
+                ACTION_LABELS[action].to_lowercase(), self.cast_name(who))),
         }
     }
 
@@ -533,7 +533,7 @@ impl Game {
                         format!(
                             "t{}: You can't find a way to {}.",
                             self.tick,
-                            vill_name(who)
+                            self.cast_name(who)
                         ),
                     );
                     return;
@@ -556,7 +556,7 @@ impl Game {
                 format!(
                     "t{}: You can't get through to {}.",
                     self.tick,
-                    vill_name(who)
+                    self.cast_name(who)
                 ),
             );
             return;
@@ -613,8 +613,8 @@ impl Game {
                 1 => if let Some(walking) = self.start_approach_at(seat, selected_target, 1) { walking } else {
                     let (pe, oe, te) = (self.seats[seat].player, self.seats[seat].org, self.villagers[selected_target]);
                     let r = act_recruit(&mut self.world, pe, oe, te);
-                    if r.success { format!("{} joined!", vill_name(selected_target)) }
-                    else { format!("{}: {}", vill_name(selected_target), r.description.to_lowercase()) }
+                    if r.success { format!("{} joined!", self.cast_name(selected_target)) }
+                    else { format!("{}: {}", self.cast_name(selected_target), r.description.to_lowercase()) }
                 }
                 _ => unreachable!("no action button {}", i),
             }
@@ -1027,7 +1027,7 @@ impl Game {
                             if held > 0 { parts.push(format!("{} in your satchel", held)); }
                             if senior > 0 {
                                 let sname = tasked_by.and_then(|s| self.villagers.iter().position(|v| *v == s))
-                                    .map(|i| vill_name(i)).unwrap_or("your senior");
+                                    .map(|i| self.cast_name(i)).unwrap_or("your senior");
                                 parts.push(format!("{} through {}'s shop", senior, sname));
                             }
                             if gold > 0.0 { parts.push(format!("{:.0}g earned", gold)); }
@@ -1054,7 +1054,7 @@ impl Game {
                         relationships::add_relationship(&mut self.world, relationships::Relationship {
                             from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1 });
                         let mi = self.villagers.iter().position(|x| *x == m).unwrap();
-                        format!("You pair {} with {} - he'll learn faster now.", vill_name(self.seats[seat].selected_target), vill_name(mi))
+                        format!("You pair {} with {} - he'll learn faster now.", self.cast_name(self.seats[seat].selected_target), self.cast_name(mi))
                     }
                     None => "No master of their trade to pair them with.".into(),
                 }
@@ -1104,12 +1104,12 @@ impl Game {
                         self.travels.retain(|t| t.who != k);
                         self.send(k, Goal::RunOddJob);
                         if hirer == player {
-                            format!("You send {} to fetch {}.", vill_name(self.seats[seat].selected_target), g)
+                            format!("You send {} to fetch {}.", self.cast_name(self.seats[seat].selected_target), g)
                         } else {
                             let pname = self.villagers.iter().position(|&p| p == hirer)
-                                .map(vill_name).unwrap_or("the printer");
+                                .map(|i| cast_of(&self.names, i)).unwrap_or("the printer");
                             format!("You send {} to fetch {} for {}.",
-                                vill_name(self.seats[seat].selected_target), g, pname)
+                                self.cast_name(self.seats[seat].selected_target), g, pname)
                         }
                     }
                     None => "Nothing needs fetching right now.".into(),
@@ -1160,7 +1160,7 @@ impl Game {
             CtxAct::Delegate => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
                 let v = self.villagers[self.seats[seat].selected_target];
-                let name = vill_name(self.seats[seat].selected_target);
+                let name = self.cast_name(self.seats[seat].selected_target);
                 use crate::game::campaign::Role;
                 let role_name = |r: Role| match r {
                     Role::TurnoutCoordinator => "turnout coordinator",
@@ -1210,7 +1210,7 @@ impl Game {
             CtxAct::Strike => self.strike_at(seat),
             CtxAct::Reach => {
                 let v = self.villagers[self.seats[seat].selected_target];
-                let name = vill_name(self.seats[seat].selected_target);
+                let name = self.cast_name(self.seats[seat].selected_target);
                 let org = self.seats[seat].org;
                 match crate::game::leadership::reach_target(&self.world, org, v, &self.villagers) {
                     Some(t) => {
@@ -1474,7 +1474,7 @@ impl Game {
                 // the cell opening is news however often the letters go
                 let freed = crate::game::dungeon::release_check(&mut self.world, v, 1.0);
                 let said = if freed {
-                    let name = vill_name(self.seats[seat].selected_target);
+                    let name = self.cast_name(self.seats[seat].selected_target);
                     self.toasts.push_at((format!("{} walks free", name), tick + 40), toast_spot(&self.world, v));
                     format!("The letters don't stop - and the cell opens. {} walks free.", name)
                 } else {
@@ -1557,7 +1557,7 @@ impl Game {
                         if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources = gold; }
                         let n = self.name_of(v);
                         self.say(v, "It's sworn - you've a friend in me.", TALK_BUBBLE_SECS);
-                        note_story(&mut self.tales, &mut self.tales_told, &mut self.log,
+                        note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names,
                             self.seats[seat].selected_target, tick,
                             crate::sim::story::EventKind::Alliance, "sworn to aid the Wanderer".into());
                         format!("You press wax with {} - sworn to aid each other ({:.0}g).", n, crate::game::contracts::PACT_AID)
@@ -1673,7 +1673,7 @@ impl Game {
                         crate::game::relationships::record_interaction(&mut self.world, pe,
                             crate::game::relationships::Interaction {
                                 other: v, kind, intensity: (worth / 10.0).clamp(0.5, 2.0) });
-                        let who = vill_name(self.seats[seat].selected_target);
+                        let who = self.cast_name(self.seats[seat].selected_target);
                         format!("you give {} the {} - and it warms them.", who, g)
                     }
                     None => "your satchel's empty - nothing to give.".into(),
@@ -2214,7 +2214,7 @@ impl Game {
                         
                         // hauled off mid-errand: whatever they were doing is dropped
                         self.travels.retain(|t| t.who != taken);
-                        let tn = self.villagers.iter().position(|v| *v == taken).map(|i| vill_name(i))
+                        let tn = self.villagers.iter().position(|v| *v == taken).map(|i| self.cast_name(i))
                             .unwrap_or("someone");
                         msg += &format!(" {} is taken.", tn);
                         // the release effort is a campaign of its own:
@@ -2359,6 +2359,7 @@ impl Game {
         self.world.add_component(e, Pos { x: at.0, y: at.1 });
         self.world.add_component(e, Villager { activity: Activity::Idle, target_food: None });
         self.world.add_component(e, TownRole::Teacher);
+        self.deal_cast(e, None);
         self.villagers.push(e);
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
@@ -2962,7 +2963,7 @@ impl Game {
             let for_day = self.tick + n;
             let label = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
                 .and_then(|p| p.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h)))
-                .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the square".into());
+                .map(|i| format!("{}'s house", self.cast_name(i))).unwrap_or_else(|| "the square".into());
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
                 p.for_day = Some(for_day);
             }
@@ -3044,7 +3045,7 @@ impl Game {
             if !joined.is_empty() {
                 let names: Vec<String> = joined.iter()
                     .filter_map(|e| self.villagers.iter().position(|v| v == e)
-                        .map(|i| vill_name(i).to_string()))
+                        .map(|i| self.cast_name(i).to_string()))
                     .collect();
                 msg += &format!(" - {} join the rolls", names.join(", "));
             }
@@ -3777,7 +3778,7 @@ impl Game {
         }
         self.send_far(who, to, Goal::FieldPost(site));
         let name = self.villagers.iter().position(|&v| v == who)
-            .map(vill_name).unwrap_or("one of theirs");
+            .map(|i| cast_of(&self.names, i)).unwrap_or("one of theirs");
         format!("the vote sends {} to raise {} for the cause.", name, self.sites[site].name)
     }
 

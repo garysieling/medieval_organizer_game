@@ -26,5 +26,8 @@ jobs:
       - name: Build the wasm crate
         run: cargo build -p game2-web --release --target wasm32-unknown-unknown
 
+      - name: Check the audio engine stays wasm-clean
+        run: cargo check -p game2-audio --target wasm32-unknown-unknown
+
       - name: Test it natively (page pipeline, camera, scene, probe)
         run: cargo test -p game2-web

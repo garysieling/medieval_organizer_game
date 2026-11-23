@@ -270,6 +270,12 @@ pub const SMALL_CHAT: Exchange = Exchange {
         Voice { criteria: &[Has("self:status:drunk")], lines: &["Is it raining, or is that the ale talking? *hic*"] },
         Voice { criteria: &[Has("self:ideology:lord")], lines: &["The sky owes my wheat a fortnight of sun.", "The weather keeps my stewards busy, I'll warrant."] },
         Voice { criteria: &[Has("self:ideology:merchant")], lines: &["Rain means mud, and mud means slow wagons.", "Grey skies never stopped a good price."] },
+        // the fine bond out-reads the coarse one (#1372): a sweetheart
+        // hears the weather as a sweetheart
+        Voice { criteria: &[Has("pair:kind:lover")], lines: &["Cold wind - stand closer, love, and share my cloak.", "Gray sky or no, the world's brighter where thou standest."] },
+        Voice { criteria: &[Has("pair:kind:family")], lines: &["Rain's coming - mother's joints will know it first.", "Gray clouds - same sky that watched us grow up side by side."] },
+        Voice { criteria: &[Has("pair:kind:mentor")], lines: &["Watch the sky awhile - weather-reading is half the craft, {other}.", "Cold mornings teach what warm ones cannot, mark me."] },
+        Voice { criteria: &[Has("pair:kind:apprentice")], lines: &["Cold wind - I'll fetch thy cloak, master, before we start.", "Gray skies - is it true the old masters read rain in the smoke?"] },
         Voice { criteria: &[Has("pair:relation:friend")], lines: &["Gray clouds again - thou and I have worked under worse, {other}.", "Cold wind this morning - good thing thy tales are warm."] },
         Voice { criteria: &[Has("pair:relation:kin")], lines: &["Rain's coming - mother will want the washing in.", "A gray sky over our lane again, {other}."] },
         Voice { criteria: &[Has("pair:relation:stranger")], lines: &["The moor wind blows cold on travelers, stranger.", "Gray clouds - ill weather for the road, I'm told."] },
@@ -1503,6 +1509,115 @@ const FRIEND_TRUST: Exchange = Exchange {
             act: Act::Farewell, concepts: &["farewell"],
             respond: None,
             lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+/// Sweethearts get a beat of their own (#1372): the coarse Kin fold
+/// never told a lover from a cousin
+const LOVER_BEAT: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["bond:lover"],
+    calls: &["My heart sits lighter having seen thee this morning.", "I saved a smile for thee since yesterday - here it is.", "The lane could burn down and I'd not mark it, talking with thee."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["bond:lover"],
+            respond: None,
+            lines: &["And mine at seeing thee - walk with me a while.", "Thy words are warmer than the hearth, love.", "As thou sayest - the day is kinder for thee."],
+            voice: &[],
+            then: None, end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.50, bias: &[],
+            act: Act::PushBack, concepts: &["bond:lover"],
+            respond: None,
+            lines: &["Sweet words - and didst thou say the same to the miller's daughter?", "Thou'rt bold this morning - what dost thou want of me?"],
+            voice: &[],
+            then: None, end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.60, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["Till this evening, my heart.", "Go well - and think of me at the well, love."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+/// Blood kin, not just any kin (#1372): family news, family claims
+const KIN_BLOOD: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["bond:family"],
+    calls: &["Mother sent word - she prays for thy cough every bell.", "Blood is blood - what little we have is thine to share.", "Thy grandfather and mine broke the same field, remember."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["bond:family"],
+            respond: None,
+            lines: &["Kin looks after kin - now and always.", "Tell her I mend, and she should spare her knees.", "Our houses stand closer than these lanes show."],
+            voice: &[],
+            then: None, end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.60, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["Give my love to thy mother when thou seest her.", "Go well, cousin - the house is always open to thee."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+/// A mentor's counsel (#1372): the teacher's register, not smalltalk
+const MENTOR_COUNSEL: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["bond:mentor"],
+    calls: &["Mark this well - the work outlives the wage.", "Patience, lad - the craft reveals itself to those who wait.", "I was green once, same as thee - the hand learns what the eye cannot."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["bond:mentor"],
+            respond: None,
+            lines: &["Thy words are worth more than a day's wage, master.", "Aye, I mark it - as thou hast taught me.", "Every lesson thou givest me I keep by heart."],
+            voice: &[],
+            then: None, end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.60, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["I go to practice what thou saidst. Fair day, master.", "By thy leave, master - the bench calls."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+/// The apprentice's eager report (#1372): the learner's register
+const APPRENTICE_EAGER: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["bond:apprentice"],
+    calls: &["I set the joints as thou showed me - wilt thou look?", "The work goes quicker now - thy lessons hold.", "Tell me again how the old ones did it - I want it right."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["bond:apprentice"],
+            respond: None,
+            lines: &["Well enough - keep thy hand steady and thy eyes open.", "Thou learnest faster than I did at thy age.", "Eager hands make light work - go on."],
+            voice: &[],
+            then: None, end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.60, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["Back to the bench with thee - I'll look in before the bell.", "Go on then, and mind the edge as I showed thee."],
             voice: &[],
             then: None, end: Some(Farewell),
         },
@@ -3942,6 +4057,17 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &COLD_GREET, rejoin: Some(&COLD_GATHER) },
         DialogueTree { name: "morning_after_drunk", criteria: &[Has("self:status:drunk")],
             root: &DRUNK_GREET, rejoin: Some(&DRUNK_RECALL) },
+        // the fine kinds (#1372): a sweetheart, a cousin, a master and a
+        // learner each get their own beat before the coarse kin/acquaintance
+        // material - and before the generic talk
+        DialogueTree { name: "sweetheart_beat", criteria: &[Has("pair:kind:lover")],
+            root: &LOVER_BEAT, rejoin: Some(&LOVER_BEAT) },
+        DialogueTree { name: "blood_kin", criteria: &[Has("pair:kind:family")],
+            root: &KIN_BLOOD, rejoin: Some(&KIN_BLOOD) },
+        DialogueTree { name: "mentor_counsel", criteria: &[Has("pair:kind:mentor")],
+            root: &MENTOR_COUNSEL, rejoin: Some(&MENTOR_COUNSEL) },
+        DialogueTree { name: "apprentice_eager", criteria: &[Has("pair:kind:apprentice")],
+            root: &APPRENTICE_EAGER, rejoin: Some(&APPRENTICE_EAGER) },
         DialogueTree { name: "kin_warmth", criteria: &[Has("pair:relation:kin")],
             root: &KIN_GREET, rejoin: Some(&KIN_FAMILY) },
         DialogueTree { name: "friendship_bonds", criteria: &[Has("pair:relation:friend")],

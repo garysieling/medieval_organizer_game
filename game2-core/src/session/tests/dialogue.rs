@@ -1918,3 +1918,36 @@ fn test_a_later_telling_keeps_the_earlier_deflection() {
         "the earlier ask stays turned aside after the telling: {:?}",
         rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
+
+/// #1372: the pair's fine bond rides into the talk - lovers hear the
+/// sweetheart beat, not the coarse kin material or smalltalk
+#[test]
+fn test_a_sweetheart_chat_speaks_as_sweethearts() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: a, other: b, kind: RelKind::Lover, strength: 0.8, interactions: 3, ..Default::default() });
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let lovers = ["my heart", "love", "stand closer", "thee this morning",
+        "saved a smile", "talking with thee", "at the well"];
+    assert!(r.lines.iter().any(|l| lovers.iter().any(|w| l.text.to_lowercase().contains(w))),
+        "no sweetheart words in the record: {:?}", r.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+
+/// #1372: a master and their learner get the teacher's register
+#[test]
+fn test_a_mentor_chat_carries_the_craft() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: a, other: b, kind: RelKind::Mentor, strength: 0.5, interactions: 5, ..Default::default() });
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let craft = ["master", "the craft", "mark me", "mark this", "the bench", "lesson"];
+    assert!(r.lines.iter().any(|l| craft.iter().any(|w| l.text.to_lowercase().contains(w))),
+        "no mentor register in the record: {:?}", r.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+

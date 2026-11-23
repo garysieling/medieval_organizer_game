@@ -693,9 +693,10 @@ fn test_a_talk_lets_you_put_your_own_questions() {
     g.talk_pick_at(0, Some(p));
     let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
-    let asks = crate::game::dialogue_trees::ASK_TOPICS.iter()
-        .find(|tp| tp.label == "themselves").unwrap().ask;
-    assert!(rec.lines.iter().any(|l| l.who == Some(pe) && asks.contains(&l.text.as_str())),
+    let asks: Vec<String> = crate::game::dialogue_trees::ASK_TOPICS.iter()
+        .find(|tp| tp.label == "themselves").unwrap().ask.iter()
+        .map(|a| super::fixtures::said(&t, true, *a)).collect();
+    assert!(rec.lines.iter().any(|l| l.who == Some(pe) && asks.contains(&l.text)),
         "your question's on the record: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
     assert!(!t.options.is_empty(), "asking isn't a farewell - options stay live");
 }

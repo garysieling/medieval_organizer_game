@@ -66,9 +66,9 @@ pub const ARGUMENTATIVE_LINES: &[&str] = &[
     "Nay, I see it differently, mark me.",
     "That is not the way the elders told it.",
     "I have heard that lie three times this week.",
-    "Say that again, if thou darest.",
-    "Thou hast a treacherous tongue in thy skull.",
-    "The whole parish knows the measure of thy word.",
+    "Say that again, if {2:subj} {2:dare}.",
+    "{2:subj} {2:have} a treacherous tongue in {2:poss} skull.",
+    "The whole parish knows the measure of {2:poss} word.",
 ];
 
 /// Whether a reply's own words are an argument's opening

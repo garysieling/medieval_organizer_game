@@ -2980,7 +2980,7 @@ fn test_the_held_name_pays_out_once() {
     assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_PRICE_TREE),
         "his talk's the squeezed one: {:?}", talk.opt_tree);
     let i = talk.options.iter()
-        .position(|o| o.1 == crate::game::dialogue_trees::EWE_SQUEEZE)
+        .position(|o| o.1 == super::fixtures::said(&talk, true, crate::game::dialogue_trees::EWE_SQUEEZE))
         .expect("the squeeze is on offer");
     if g.world.get_component::<crate::game::livelihood::Purse>(t.thief).is_none() {
         g.world.add_component(t.thief, crate::game::livelihood::Purse { gold: 9.0 });
@@ -3208,7 +3208,7 @@ fn test_the_mediator_takes_a_side() {
         "raised voices out there");
     let talk = g.seats[0].talk.clone().expect("the talk's open");
     let i = talk.options.iter()
-        .position(|o| o.1 == crate::game::dialogue_trees::NOAH_SIDE_THEM)
+        .position(|o| o.1 == super::fixtures::said(&talk, true, crate::game::dialogue_trees::NOAH_SIDE_THEM))
         .expect("the side pick's on offer");
     g.talk_pick_at(0, Some(i));
     assert!(g.noah_row.is_some(),
@@ -3235,8 +3235,8 @@ fn walk_in_false_traveller(g: &mut Game) -> Entity {
 fn accuse_pick(g: &Game) -> usize {
     let t = g.seats[0].talk.as_ref().expect("the talk's open");
     t.options.iter().position(|o|
-        o.1 == crate::game::dialogue_trees::FT_ACCUSE
-        || o.1 == crate::game::dialogue_trees::FT_ACCUSE_RUN)
+        o.1 == super::fixtures::said(t, true, crate::game::dialogue_trees::FT_ACCUSE)
+        || o.1 == super::fixtures::said(t, true, crate::game::dialogue_trees::FT_ACCUSE_RUN))
         .unwrap_or_else(|| panic!("the accusation's on offer: {:?} (tree {:?})",
             t.options, t.opt_tree))
 }

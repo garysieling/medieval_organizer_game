@@ -100,8 +100,6 @@ pub enum CtxAct {
     /// Call the house meeting the organizer has earned - a venue promised
     /// and folk who've said they'll come
     Gather,
-    /// Take on the odd job the picked villager is asking for
-    TakeJob,
     /// Press wax with the picked villager: ten gold of aid, sworn
     Pact,
     /// Stroke the stray cat who's keeping you company
@@ -383,8 +381,28 @@ impl Game {
         let target = target.unwrap_or(who);
         let target_index = self.villagers.iter().position(|&v| v == target)
             .ok_or_else(|| "target isn't a villager".to_string())?;
+        // the job's taken in the Talk now (#1336): the agent's ask runs
+        // the same accept the talk's pick does - no card button left
+        if action == AgentAction::TakeJob {
+            let old_target = self.seats[seat].selected_target;
+            let old_building = self.seats[seat].selected_building;
+            self.seats[seat].selected_target = target_index;
+            self.seats[seat].selected_building = None;
+            let had = self.seats[seat].quest.is_some();
+            let msg = self.accept_quest_at(seat);
+            let took = !had && self.seats[seat].quest.is_some();
+            if took && !msg.is_empty() {
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}", self.tick, msg));
+            }
+            self.seats[seat].selected_target = old_target;
+            self.seats[seat].selected_building = old_building;
+            return if took { Ok(()) } else { Err(msg) };
+        }
         let ctx = match action {
-            AgentAction::TakeJob => CtxAct::TakeJob,
+            // taken in the Talk now (#1336) - the early return above has it
+            AgentAction::TakeJob => unreachable!("handled above"),
             AgentAction::Douse => CtxAct::Douse,
             AgentAction::Tame => CtxAct::Tame,
             AgentAction::Recruit => CtxAct::Recruit,

@@ -1,6 +1,7 @@
-//! The odd jobs villagers ask the Wanderer to run: taken from the card,
-//! the thing fetched where it lies, handed over by talking to whoever
-//! it's for - or by standing on the far village's ground
+//! The odd jobs villagers ask the Wanderer to run: taken in the Talk
+//! they open with, the thing fetched where it lies, handed over by
+//! talking to whoever it's for - or by standing on the far village's
+//! ground
 use crate::session::*;
 use crate::session::quests::{PendingQuest, PlayerQuest, QuestKind, QuestStage, QuestTarget};
 use crate::game::livelihood::Purse;
@@ -19,8 +20,11 @@ fn pending(giver: Entity, kind: QuestKind, target: QuestTarget, pickup: Option<(
     PendingQuest { giver, kind, target, pickup, expires: 100 }
 }
 
+/// A job going begging opens the Talk it's taken in: the offer leads
+/// the picks, your yes runs the same accept the card's button did, and
+/// the exchange lands on the transcript (#1336)
 #[test]
-fn test_a_begging_job_shows_on_the_card_and_can_be_taken() {
+fn test_a_begging_job_opens_the_talk_and_its_pick_takes_it() {
     let mut g = Game::new();
     // the opening job's been heard out - the slot's free for a begging one
     g.seats[0].quest = None;
@@ -28,21 +32,61 @@ fn test_a_begging_job_shows_on_the_card_and_can_be_taken() {
     assert!(folk.len() >= 3, "enough folk to ask");
     let (giver, other) = (folk[0], folk[1]);
     g.pending_quests.push(pending(giver, QuestKind::Note, QuestTarget::Villager(other), None));
-    // picked, and close enough to hear the ask, the card offers to take it
-    g.seats[0].selected_target = g.villagers.iter().position(|&v| v == giver).unwrap();
+    // beside them, Talk opens on the offer: it leads the picks
+    let gi = g.villagers.iter().position(|&v| v == giver).unwrap();
     let gp = *g.world.get_component::<Pos>(giver).unwrap();
     if let Some(p) = g.world.get_component_mut::<Pos>(g.player) { p.x = gp.x; p.y = gp.y; }
-    g.update_ctx_actions_at(0);
-    assert!(g.seats[0].ctx_actions.contains(&CtxAct::TakeJob),
-        "the job should be on the card: {:?}", g.seats[0].ctx_actions);
-    // taken: it's the seat's to run, and the panel says what it is
-    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::TakeJob).unwrap();
-    g.ctx_act_at(0, i);
+    g.talk_to_at(0, gi);
+    let t = g.seats[0].talk.as_ref().expect("the talk's open");
+    assert!(t.job, "the offer latched onto the talk");
+    let labels = t.choice_labels(&g.world);
+    assert_eq!(labels.first().map(String::as_str), Some("About that job - I'll take it."),
+        "the take-it pick leads: {:?}", labels);
+    // the pick takes it: quest's the seat's, offer's off the list
+    g.talk_pick_at(0, Some(0));
     assert!(g.seats[0].quest.is_some(), "the job should be under way");
     assert!(g.pending_quests.is_empty(), "and it's off the begging list");
+    assert!(!g.seats[0].talk.as_ref().map(|t| t.job).unwrap_or(false),
+        "the pick's spent - it leads no more");
+    // the exchange's on the record once the talk's let go
+    g.talk_pick_at(0, None);
+    let lines: Vec<&str> = g.talk_log.last().expect("the talk's recorded")
+        .lines.iter().map(|l| l.text.as_str()).collect();
+    assert!(lines.iter().any(|l| l.contains("take it")),
+        "your yes is on the record: {:?}", lines);
+    assert!(lines.iter().any(|l| l.contains("note")),
+        "their ask is on the record: {:?}", lines);
+    // and the panel names the job as ever
     let m = g.ui_model();
     let line = m.panel.quest.expect("the panel should name the job");
     assert!(line.contains("note") && line.contains(&g.name_of(other)), "the line names the thing and the one it's for: {}", line);
+}
+
+/// The job pick only rides while there's an offer to take and hands
+/// free to take it - otherwise the talk opens as ever
+#[test]
+fn test_the_job_pick_needs_a_live_offer_and_free_hands() {
+    let mut g = Game::new();
+    g.seats[0].quest = None;
+    let folk = askers(&g);
+    assert!(folk.len() >= 3, "enough folk to ask");
+    let giver = folk[0];
+    let gi = g.villagers.iter().position(|&v| v == giver).unwrap();
+    let gp = *g.world.get_component::<Pos>(giver).unwrap();
+    if let Some(p) = g.world.get_component_mut::<Pos>(g.player) { p.x = gp.x; p.y = gp.y; }
+    // no offer on the table: the talk's an ordinary one
+    g.talk_to_at(0, gi);
+    assert!(!g.seats[0].talk.as_ref().unwrap().job, "nothing to take, no job pick");
+    g.talk_pick_at(0, None);
+    // hands full: a live offer stays off the picks
+    g.pending_quests.push(pending(giver, QuestKind::Egg, QuestTarget::Villager(giver),
+        Some((g.chicken_at.0, g.chicken_at.1))));
+    g.seats[0].quest = Some(PlayerQuest {
+        giver: folk[1], kind: QuestKind::Note, target: QuestTarget::Villager(folk[2]),
+        stage: QuestStage::ToCarry, pickup: None, expires: g.tick + 10 });
+    g.talk_to_at(0, gi);
+    assert!(!g.seats[0].talk.as_ref().unwrap().job,
+        "no free hands, no job pick");
 }
 
 #[test]

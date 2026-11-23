@@ -215,3 +215,27 @@ fn a_spawned_body_isnt_the_ids_parity() {
     }
     assert!(shared > 0, "bodies still alternate with the id");
 }
+
+/// E1-5 (#1413): the founding cast passes the checks - no signature
+/// dealt twice, no wound held by more than two - across several seeds
+#[test]
+fn a_seeded_cast_passes_the_checks() {
+    use crate::engine::det::HashSet;
+    for seed in [7u64, 77, 2024] {
+        let g = Game::new_seeded_cast(seed);
+        let personas: Vec<crate::game::persona::Persona> = g.villagers.iter().take(31)
+            .map(|&v| g.world.get_component::<crate::game::persona::Persona>(v)
+                .unwrap().clone())
+            .collect();
+        let mut sigs = HashSet::default();
+        for p in &personas {
+            assert!(sigs.insert(p.signature.text()),
+                "seed {seed}: {} dealt twice", p.signature.text());
+        }
+        let refs: Vec<&crate::game::persona::Persona> = personas.iter().collect();
+        let c = crate::game::cast_check::measure(&refs);
+        assert_eq!(c.shared_signatures, 0, "seed {seed}");
+        assert!(c.max_wound_holders <= crate::game::cast_check::MAX_WOUND_HOLDERS,
+            "seed {seed}: a wound has {} holders", c.max_wound_holders);
+    }
+}

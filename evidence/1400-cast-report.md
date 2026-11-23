@@ -44,3 +44,30 @@
 - Archetype spread: 16% of seeds exceed the 20% share cap; reroll of
   passes 3-6 does not move archetype, so the check stays advisory or
   the archetype must join the rerolled passes.
+
+## After E1-5 (#1413) - cast validation + rerolls
+
+`cargo run -p game2-core --bin cast_report --release -- 100 both` on the
+E1-5 branch: the validator rerolls passes 3-6 of whoever fails a check
+(<= 24 attempts, ghost caps re-run each round) and deals signatures off
+the pool without replacement. The pair floor moved to 0.25 (the 0.5
+guess was unreachable - the natural mean is 0.37) and the contradiction
+target judges the ensemble mean, since a per-cast +/-10% band on a ~1/6
+rate is finer than one villager (3%).
+
+```
+check                              target            seeds failing
+  shared signatures                  0                 0
+  most holders of one wound          <= 2             0
+  archetypes present / biggest share >= 6/<= 20%      0
+  nearest pair distance              >= 0.25           0
+  contradictions per cast (ensemble) ~1 in 6 +/- 5%    ok (mean 13%)
+
+distinctive in 100% of seeds (worst single check: 0 failures)
+```
+
+The contradiction draw itself had to widen to reach the rate: the
+strict "C < 0.25 *and* an ambitious top-two" collision fired ~2% of the
+time; "low" now reads as the lower half of conscientiousness, which
+lands at about one cast member in five (~13% ensemble mean) and keeps
+every strict Lazy+Ambitious pair inside the crack.

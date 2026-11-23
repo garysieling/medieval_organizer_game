@@ -61,6 +61,26 @@ pub struct EvTag {
     pub sev: Sev,
 }
 
+impl Thread {
+    /// The braid's name on the wire (#1488)
+    pub fn name(&self) -> &'static str {
+        match self {
+            Thread::Weather => "weather",
+            Thread::Illness => "illness",
+            Thread::Fire => "fire",
+            Thread::Law => "law",
+            Thread::Beast => "beast",
+            Thread::Visitor => "visitor",
+            Thread::Org => "org",
+            Thread::Economy => "economy",
+            Thread::Lifecycle => "lifecycle",
+            Thread::Craft => "craft",
+            Thread::Player => "player",
+            Thread::Other => "other",
+        }
+    }
+}
+
 impl EvTag {
     /// `EvTag::new(Thread::Law, Valence::Negative, Sev::Major)`
     pub const fn new(thread: Thread, valence: Valence, sev: Sev) -> Self {

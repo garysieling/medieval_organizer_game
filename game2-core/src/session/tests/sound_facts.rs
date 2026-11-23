@@ -104,3 +104,50 @@ fn old_payload_without_new_fields_decodes() {
     assert!(!old.calendar.holy_day && old.calendar.days_to_holy == 0);
     assert_eq!(old.clock.frames_per_day, 0, "0 = unknown");
 }
+
+// P2 (#1488): the log line's story tag rides on LogEntryV - structured
+// form of what the line's colour already shows the player.
+
+#[test]
+fn every_log_line_with_evtag_projects_tag() {
+    let mut g = Game::new();
+    g.log.push_ev(gamelog::EvTag::new(gamelog::Thread::Law,
+        gamelog::Valence::Negative, gamelog::Sev::Notable),
+        "t0: the writ lands on the church door".into());
+    g.log.push_ev(gamelog::EvTag::new(gamelog::Thread::Visitor,
+        gamelog::Valence::Neutral, gamelog::Sev::Minor),
+        "t0: a pedlar rings his bell".into());
+    g.log.push("untagged filler".into());
+    let m = g.ui_model();
+    let tagged: Vec<_> = m.log.iter().filter(|l| l.tag.is_some()).collect();
+    assert_eq!(tagged.len(), 2, "every tagged line must carry its tag");
+    let mut threads: Vec<_> = tagged.iter()
+        .map(|l| l.tag.as_ref().unwrap().thread.as_str()).collect();
+    threads.sort();
+    assert_eq!(threads, ["law", "visitor"]);
+    let plain = m.log.iter().find(|l| l.text == "untagged filler").unwrap();
+    assert!(plain.tag.is_none(), "a plain push stays untagged");
+}
+
+#[test]
+fn major_negative_tag_values() {
+    let mut g = Game::new();
+    g.log.push_ev(gamelog::EvTag::new(gamelog::Thread::Lifecycle,
+        gamelog::Valence::Negative, gamelog::Sev::Major),
+        "t0: Old Wystan died in the night".into());
+    let m = g.ui_model();
+    let t = m.log.iter()
+        .find(|l| l.text.contains("died")).unwrap().tag.as_ref().unwrap();
+    assert_eq!(t.valence, -1, "a death is bad news");
+    assert_eq!(t.sev, 2, "a headline's weight");
+    assert_eq!(t.thread, "lifecycle");
+}
+
+#[test]
+fn old_log_payload_without_tag_decodes() {
+    let json = serde_json::json!({"text":"t0: line","at":[3.0,4.0],"who":2});
+    let e: LogEntryV = serde_json::from_value(json).expect("old entry decodes");
+    assert!(e.tag.is_none());
+    let p: LogEntryV = serde_json::from_value(serde_json::json!("bare line")).unwrap();
+    assert!(p.tag.is_none() && p.text == "bare line");
+}

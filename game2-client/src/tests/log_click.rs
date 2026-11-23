@@ -10,7 +10,7 @@ fn log_model(entries: Vec<LogEntryV>) -> UiModel {
 }
 
 fn entry(text: &str, at: Option<(f32, f32)>, who: Option<usize>) -> LogEntryV {
-    LogEntryV { text: text.into(), at, who }
+    LogEntryV { text: text.into(), at, who, tag: None }
 }
 
 #[test]

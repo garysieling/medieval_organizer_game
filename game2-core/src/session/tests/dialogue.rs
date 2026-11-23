@@ -199,9 +199,12 @@ fn test_a_spent_talk_closes_itself_on_a_mutual_parting() {
     }
     assert!(g.seats[0].talk.is_none(), "a spent talk doesn't hover");
     let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
-    assert!(rec.lines.iter().any(|l| l.text.contains("part") || l.text.contains("leave")
-        || l.text.contains("walks off") || l.text.contains("in peace")),
-        "the parting's on the record: {:?}", rec.lines.last().map(|l| l.text.clone()));
+    // the talk closed on its own parting - a villager's goodbye or the
+    // dry-talk narration - never on the player's "take your leave":
+    // 417 farewell lines exist, so the check is what the close isn't
+    assert!(rec.lines.last().is_some_and(|l| l.text != "You take your leave."),
+        "the player had to leave a talk that should have closed itself: {:?}",
+        rec.lines.last().map(|l| l.text.clone()));
 }
 
 #[test]

@@ -440,6 +440,33 @@ fn draw_weight(r: &Reply, speaker: &Speaker) -> f32 {
     w
 }
 
+/// How well a reply's act follows the call's (#1367): a proper answer
+/// draws at full strength, a passable side-step only speaks when
+/// nothing better's on offer, and a true non-sequitur never does - the
+/// pool filters to the best tier present
+pub fn act_fit(call: Act, reply: Act) -> u8 {
+    match call {
+        // a question wants its answer; a remark's a dodge when no
+        // answer's left, but a question back or a goodbye never follows
+        Act::Question => match reply {
+            Act::Answer | Act::Agree | Act::PushBack => 2,
+            Act::Remark => 1,
+            _ => 0,
+        },
+        // a goodbye takes a goodbye (or a last remark), nothing else
+        Act::Farewell => match reply {
+            Act::Farewell | Act::Remark => 2,
+            _ => 0,
+        },
+        // a statement leaves the floor open; the exit only rides once
+        // the talk's run dry - the rule player options already use
+        _ => match reply {
+            Act::Farewell => 1,
+            _ => 2,
+        },
+    }
+}
+
 /// What a hog's monologue opens on, when the talk's own draw gives
 /// nothing back (#1252): they don't pass on the village's business -
 /// they hold forth about their own
@@ -643,6 +670,16 @@ pub fn converse_with(
         // The other side picks a fork
         let facts = Facts::for_roles(pair[responder], pair[caller], rel);
         let pool = eligible(ex.replies, &facts, &used);
+        // the reply has to follow what was just said (#1367): the pool
+        // keeps only the best-fitting acts on offer, and when nothing
+        // even passable remains the talk shifts or dries up rather than
+        // speak a line that doesn't follow
+        let fit = pool.iter().map(|r| act_fit(ex.act, r.act)).max().unwrap_or(0);
+        let pool: Vec<&Reply> = if fit == 0 {
+            vec![]
+        } else {
+            pool.into_iter().filter(|r| act_fit(ex.act, r.act) == fit).collect()
+        };
         if pool.is_empty() {
             // Nothing left to say back: the floor-holder shifts to a more
             // generic tree if there is one, else the talk dries up
@@ -2553,6 +2590,101 @@ mod tests {
         assert!(!meeting_pool(&Speaker::new("Pell")).iter()
             .any(|l| l.bias.iter().any(|(t, _)| *t == Trait::SelfAbsorbed)),
             "nobody else does");
+    }
+
+    #[test]
+    fn test_every_reply_follows_the_call() {
+        // #1367: across seeds, relations and pairs, whatever the
+        // responder says fits the act it answers - a question never
+        // draws a goodbye while the filter stands
+        let library = village_library();
+        let names = ["Hob", "Tilda", "Aldric", "Marga", "Peryn", "Bram"];
+        for seed in 0..40 {
+            let mut rng = Rng::new(seed);
+            for rel in [Relation::Stranger, Relation::Acquaintance,
+                        Relation::Friend, Relation::Kin, Relation::Rival] {
+                let a = Speaker::new(names[rng.below(names.len())]);
+                let b = Speaker::new(names[rng.below(names.len())]);
+                let tr = converse(&a, &b, rel, &library, &mut rng);
+                for w in tr.turns.windows(2) {
+                    if w[0].speaker == 0 && w[1].speaker == 1 {
+                        assert!(act_fit(w[0].act, w[1].act) > 0,
+                            "seed {seed} {rel:?}: {:?} answered by {:?}: {:?} -> {:?}",
+                            w[0].act, w[1].act, w[0].text, w[1].text);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_a_question_nobody_can_answer_dries_up() {
+        // #1367: when every fork left can't follow the call, the
+        // responder stays silent and the talk closes - no question
+        // answered by a goodbye
+        const NO_ANSWER: Exchange = Exchange {
+            act: Act::Question, concepts: &[],
+            calls: &["Hast thou seen the miller?"], voice: &[],
+            replies: &[Reply {
+                criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                concepts: &[], lines: &["Fare thee well."], voice: &[],
+                then: None, end: Some(Ending::Farewell),
+            }],
+        };
+        const Q_TREE: DialogueTree = DialogueTree {
+            name: "q_no_answer", criteria: &[], root: &NO_ANSWER, rejoin: None,
+        };
+        for seed in 0..10 {
+            let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
+                Relation::Acquaintance, &[Q_TREE], &mut Rng::new(seed));
+            assert_eq!(tr.turns.len(), 1,
+                "nobody could answer but a reply was spoken: {:?}",
+                tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
+            assert_eq!(tr.ending, Some(Ending::Exhausted));
+        }
+        // a dodge still rides when it's the only non-answer left
+        const DODGE: Exchange = Exchange {
+            act: Act::Question, concepts: &[],
+            calls: &["Hast thou seen the miller?"], voice: &[],
+            replies: &[
+                Reply {
+                    criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                    concepts: &[], lines: &["Fare thee well."], voice: &[],
+                    then: None, end: Some(Ending::Farewell),
+                },
+                Reply {
+                    criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                    concepts: &[], lines: &["The mill sees whom it sees."], voice: &[],
+                    then: None, end: None,
+                },
+            ],
+        };
+        const D_TREE: DialogueTree = DialogueTree {
+            name: "q_dodge", criteria: &[], root: &DODGE, rejoin: None,
+        };
+        for seed in 0..10 {
+            let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
+                Relation::Acquaintance, &[D_TREE], &mut Rng::new(seed));
+            assert_eq!(tr.turns[1].act, Act::Remark,
+                "the remark was the only answer on offer: {:?}", tr.turns[1].text);
+        }
+        // and a goodbye still closes a spent talk after a remark
+        const CLOSING: Exchange = Exchange {
+            act: Act::Remark, concepts: &[],
+            calls: &["A fair morning to thee."], voice: &[],
+            replies: &[Reply {
+                criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                concepts: &[], lines: &["And to thee."], voice: &[],
+                then: None, end: Some(Ending::Farewell),
+            }],
+        };
+        const C_TREE: DialogueTree = DialogueTree {
+            name: "r_closing", criteria: &[], root: &CLOSING, rejoin: None,
+        };
+        let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
+            Relation::Acquaintance, &[C_TREE], &mut Rng::new(1));
+        assert_eq!(tr.turns[1].act, Act::Farewell);
+        assert_eq!(tr.ending, Some(Ending::Farewell));
     }
 }
 

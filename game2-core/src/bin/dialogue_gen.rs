@@ -15,7 +15,7 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{self, Write};
 
-use game2_core::game::conversation::{converse, Relation, Rng, Speaker, Turn};
+use game2_core::game::conversation::{act_fit, converse, Relation, Rng, Speaker, Turn};
 use game2_core::game::dialogue_trees::{backstory, village_library};
 use game2_core::game::traits::Trait;
 use game2_core::session::NAMES;
@@ -107,6 +107,7 @@ fn main() -> io::Result<()> {
     let mut seed = 42u64;
     let mut out_path = None;
     let mut json = false;
+    let mut coherence = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -131,6 +132,10 @@ fn main() -> io::Result<()> {
                 json = true;
                 i += 1;
             }
+            "--coherence" => {
+                coherence = true;
+                i += 1;
+            }
             _ => {
                 i += 1;
             }
@@ -144,6 +149,37 @@ fn main() -> io::Result<()> {
 
     let mut rng = Rng::new(seed);
     let library = village_library();
+
+    if coherence {
+        // score the reply adjacencies that never follow the call (#1367):
+        // the same seeded roster and pairings as --json, so the rate a
+        // fresh batch would show the review tool
+        let roster = generate_roster(num_characters, &mut rng);
+        let mut adjacencies = 0usize;
+        let mut incoherent = 0usize;
+        for (char_idx, char_a) in roster.iter().enumerate() {
+            for _ in 0..num_conversations {
+                let char_b = &roster[(char_idx + 1 + rng.below(num_characters - 1)) % num_characters];
+                let relation = RELATIONS[rng.below(RELATIONS.len())];
+                let t = converse(char_a, char_b, relation, &library, &mut rng);
+                // the responder's turn answers the caller's immediately
+                // before it; a fresh call after a reply is a new beat,
+                // not an adjacency
+                for w in t.turns.windows(2) {
+                    if w[0].speaker == 0 && w[1].speaker == 1 {
+                        adjacencies += 1;
+                        if act_fit(w[0].act, w[1].act) == 0 {
+                            incoherent += 1;
+                        }
+                    }
+                }
+            }
+        }
+        println!("coherence: {}/{} reply adjacencies follow ({:.1}% non-sequitur)",
+            adjacencies - incoherent, adjacencies,
+            100.0 * incoherent as f64 / adjacencies.max(1) as f64);
+        return Ok(());
+    }
 
     if json {
         let convs = json_conversations(num_characters, num_conversations, seed, &mut rng, &library);

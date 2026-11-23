@@ -428,8 +428,8 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     // the full thou-pattern; the rest take thou only as a marked shift
     s.archaism = if s.ideology == "clergy"
         || s.traits.contains(&crate::game::traits::Trait::Pious)
-        || s.status.iter().any(|st| matches!(*st, "devout" | "old_ways"))
-        || s.facts.open.iter().any(|f| f == "archetype:old_guard") { 2 } else { 1 };
+        || s.status.iter().any(|st| *st == "old_ways")
+        || s.facts.open.iter().any(|f| matches!(f.as_str(), "archetype:devout" | "archetype:old_guard")) { 2 } else { 1 };
     s
 }
 

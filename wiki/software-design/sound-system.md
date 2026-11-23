@@ -419,6 +419,42 @@ Coloured tickets are the critical path. Public facts, M1 and S0 have no dependen
 
 Each dependency chain shares one `queue-N` label, as the ticket loop expects: S1–S3–I1–I2; S4–S5–I4; A1–A2–A4–A5; M2–M4–M5–M6–I3; U1–U4. P1, P2, P3, A3, M1, M3 and S0 each get their own queue.
 
+## Filed tickets
+
+Filed 2026-11-23 on GitHub, label `audio`; each body carries its own acceptance criteria and verify steps.
+
+| Plan ID | Issue |
+|---|---|
+| S0 | #1485 |
+| S1 | #1486 |
+| S2 | #1491 |
+| S3 | #1493 |
+| S4 | #1494 |
+| S5 | #1497 |
+| P1 | #1487 |
+| P2 | #1488 |
+| P3 | #1489 |
+| A1 | #1495 |
+| A2 | #1498 |
+| A3 | #1496 |
+| A4 | #1500 |
+| A5 | #1501 |
+| M1 | #1490 |
+| M2 | #1499 |
+| M3 | #1492 |
+| M4 | #1502 |
+| M5 | #1503 |
+| M6 | #1504 |
+| U1 | #1505 |
+| U2 | #1506 |
+| U3 | #1507 |
+| U4 | #1508 |
+| I1 | #1509 |
+| I2 | #1510 |
+| I3 | #1511 |
+| I4 | #1512 |
+| I5 | #1513 |
+
 ## Risks and open questions
 
 The biggest risk is generated melody that sounds aimless. The plan counters it with authored motifs, a strict phrase grammar, a silence budget, and your listening pass (I5) before any polish work.

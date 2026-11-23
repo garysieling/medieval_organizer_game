@@ -120,10 +120,9 @@ struct SaveFile {
     digest: u64,
 }
 
-// bumped past 1: dropping the Invest button shifted Act(2)/Act(3) (Build
-// moved to 2, nothing answers 3 any more), so an old save's journal would
-// replay the wrong action, or panic on the now-unreachable index
-const SAVE_VERSION: u32 = 2;
+// bumped past 2: the Build button is gone, so an old save's Act(2) journal
+// entry would replay as a no-op and the world would diverge from its digest
+const SAVE_VERSION: u32 = 3;
 
 impl ServerHandle {
     /// Stop the world loop and the listeners; connections close as their

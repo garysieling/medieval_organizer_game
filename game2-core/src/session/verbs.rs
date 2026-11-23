@@ -2,33 +2,6 @@
 
 use crate::session::*;
 
-fn ordinal_suffix(n: usize) -> &'static str {
-    if (11..=13).contains(&(n % 100)) {
-        "th"
-    } else {
-        match n % 10 {
-            1 => "st",
-            2 => "nd",
-            3 => "rd",
-            _ => "th",
-        }
-    }
-}
-
-#[cfg(test)]
-mod ordinal_tests {
-    use super::ordinal_suffix;
-
-    #[test]
-    fn ordinal_suffix_handles_teens_and_units() {
-        let cases = [(1, "st"), (2, "nd"), (3, "rd"), (4, "th"),
-            (11, "th"), (12, "th"), (13, "th"), (21, "st"), (22, "nd"), (23, "rd")];
-        for (n, expected) in cases {
-            assert_eq!(ordinal_suffix(n), expected, "{n}");
-        }
-    }
-}
-
 /// The chest's price for outfitting a brigade: the buckets,
 /// the bell, and the first crew's share
 const BRIGADE_COST: f32 = 30.0;
@@ -39,15 +12,8 @@ const SCHOOL_FOUND_COST: f32 = 30.0;
 const SCHOOL_TEACHER_COST: f32 = 10.0;
 
 impl Game {
-    /// Why action button `i` can't be used right now, if it can't: Build's
-    /// own rules (gold, a free site), otherwise disabled_reason
+    /// Why action button `i` can't be used right now, if it can't
     pub fn action_blocker_at(&self, seat: usize, i: usize) -> Option<String> {
-        if i == 2 {
-            let gold = self.world.get_component::<PlayerCharacter>(self.seats[seat].player).map(|p| p.resources).unwrap_or(0.0);
-            if gold < BUILD_COST { return Some(format!("need {:.0} gold", BUILD_COST)); }
-            if self.build_site_at(seat).is_none() { return Some("no room nearby".into()); }
-            return None;
-        }
         self.disabled_reason_at(seat, i)
     }
 
@@ -178,8 +144,8 @@ impl Game {
     /// can't - the seat's own selection, reach, purse and org answer, not
     /// seat 0's
     pub fn disabled_reason_at(&self, seat: usize, i: usize) -> Option<String> {
-        // Recruit is pointless on a member: say so on the button, as Build
-        // does, rather than fail in the log. Talk and Recruit need the
+        // Recruit is pointless on a member: say so on the button rather
+        // than fail in the log. Talk and Recruit need the
         // selected villager alive (they walk over to them)
         // nobody within a shout to talk to: the button says so outright
         if i == 0 && self.talk_target_at(seat).is_none()
@@ -598,8 +564,10 @@ impl Game {
         self.seats[seat].approach = Some(a);
     }
 
-    /// Take action button `i` (Talk, Recruit, Build)
+    /// Take action button `i` (Talk, Recruit). An index past the buttons
+    /// is ignored - a stale client or recording can't panic the sim
     pub fn act_at(&mut self, seat: usize, i: usize) {
+        if i >= ACTION_LABELS.len() { return; }
         let tick = self.tick;
         // Recruit goes to whoever the player picked; otherwise to whoever
         // is in reach
@@ -647,18 +615,6 @@ impl Game {
                     let r = act_recruit(&mut self.world, pe, oe, te);
                     if r.success { format!("{} joined!", vill_name(selected_target)) }
                     else { format!("{}: {}", vill_name(selected_target), r.description.to_lowercase()) }
-                }
-                2 => {
-                    // action_blocker checked there's gold and a site
-                    let (bx, by) = self.build_site_at(seat).unwrap();
-                    if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.seats[seat].player) { p.resources -= BUILD_COST; }
-                    self.buildings.push((bx, by, BSprite::House(self.rng.below(97) as usize)));
-                    self.map.build_at(bx as i32, by as i32);
-                    // the road is laid a tile at a time, then the house goes up
-                    let road = self.map.plan_road((bx as i32, by as i32));
-                    self.works.push(Works { building: self.buildings.len() - 1, road, frames: 0 });
-                    self.built_count += 1;
-                    format!("Work starts on a new house beside you - {:.0} gold; it will be the village's {}{} roof.", BUILD_COST, self.built_count, ordinal_suffix(self.built_count))
                 }
                 _ => unreachable!("no action button {}", i),
             }

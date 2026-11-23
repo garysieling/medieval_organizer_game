@@ -541,8 +541,8 @@ pub struct UiModel {
     /// None when nobody's near enough to hear; absent from older servers
     #[serde(default)]
     pub talk_target: Option<usize>,
-    /// Disabled reason per action button
-    pub blocked: [Option<String>; 3],
+    /// Disabled reason per action button, same index order as the buttons
+    pub blocked: Vec<Option<String>>,
     pub ctx: Vec<CtxAct>,
     /// Disabled reason per ctx button, same index order as `ctx`
     pub ctx_blocked: Vec<Option<String>>,

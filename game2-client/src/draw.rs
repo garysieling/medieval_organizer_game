@@ -423,7 +423,7 @@ pub(crate) fn precip_icon(k: game2_core::sim::precipitation::PrecipKind) -> &'st
 }
 
 /// The icon tokens for session::action_buttons(), in its order
-pub(crate) const ACTION_ICONS: [&str; 3] = ["icon-talk", "icon-recruit", "icon-build"];
+pub(crate) const ACTION_ICONS: [&str; 2] = ["icon-talk", "icon-recruit"];
 
 /// The icon a contextual action's button takes: only the acts a token
 /// clearly reads for get one ("" = none, the label carries it alone)
@@ -817,8 +817,7 @@ pub(crate) fn draw_rect(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32, r: u8,
     buf.rect(x, y, w, h, r, g, b);
 }
 
-pub(crate) const TOOLTIPS: [&str; 3] = [
+pub(crate) const TOOLTIPS: [&str; 2] = [
     "talk to someone nearby",
     "recruit villager to your org",
-    "commission a new house",
 ];

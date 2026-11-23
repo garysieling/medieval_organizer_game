@@ -176,7 +176,7 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
     }
     // a click or a held key between the presses breaks the double-tap
     if !cmds.is_empty() { *talk_armed = None; }
-    const KEYS: [Key; 3] = [Key::T, Key::R, Key::B];
+    const KEYS: [Key; 2] = [Key::T, Key::R];
     for (i, k) in KEYS.iter().enumerate() {
         if window.is_key_pressed(*k, minifb::KeyRepeat::No) {
             if i == 0 && talk_armed.map(|t| t.elapsed() < TALK_DBL).unwrap_or(false) {

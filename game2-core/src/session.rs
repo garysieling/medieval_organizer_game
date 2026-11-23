@@ -215,8 +215,6 @@ const SHOUT_DIST: f32 = 10.0;
 /// How far (tiles) an idle villager strays from the village food store
 /// before heading back
 const VILLAGE_RADIUS: f32 = 7.0;
-/// Gold a new house costs
-const BUILD_COST: f32 = 30.0;
 /// Every fourth row and column through the market is a street: blocks
 /// three plots deep, the houses fronting the street and a yard behind
 const STREET_EVERY: i32 = 4;
@@ -346,11 +344,11 @@ const BUILD_SEARCH: i32 = 8;
 /// Day a traveller brings la grippe to the village
 const FLU_DAY: u64 = 120;
 
-/// Keyboard shortcut for each action button, in button order (Talk, Recruit,
-/// Build). The input loop and the buttons' key hints
+/// Keyboard shortcut for each action button, in button order (Talk,
+/// Recruit). The input loop and the buttons' key hints
 /// both come from here so they can't disagree. W/A/S/D move the player, so
 /// no action may use them.
-const ACTION_KEYS: [char; 3] = ['T', 'R', 'B'];
+const ACTION_KEYS: [char; 2] = ['T', 'R'];
 /// Whether action button `i` is shown at all: Recruit only appears once
 /// there's a campaign to recruit into (founded at a house meeting)
 pub fn action_shown(m: &UiModel, i: usize) -> bool {
@@ -358,13 +356,12 @@ pub fn action_shown(m: &UiModel, i: usize) -> bool {
 }
 
 /// The action panel's buttons, in ACTION_KEYS order
-pub const ACTION_LABELS: [&str; 3] = ["Talk", "Recruit", "Build"];
+pub const ACTION_LABELS: [&str; 2] = ["Talk", "Recruit"];
 /// The action panel's buttons, laid out the same for every player
-pub fn action_buttons() -> [Button; 3] {
+pub fn action_buttons() -> [Button; 2] {
     [
         Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
         Button { label: ACTION_LABELS[1].into(), key: ACTION_KEYS[1], x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
-        Button { label: ACTION_LABELS[2].into(), key: ACTION_KEYS[2], x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (80,60,120) },
     ]
 }
 /// The button a contextual action draws with

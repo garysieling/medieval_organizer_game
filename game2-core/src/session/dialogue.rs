@@ -351,6 +351,13 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     // wound, lie and the tiers each area reaches
     if let Some(p) = world.get_component::<crate::game::persona::Persona>(who) {
         s.facts = p.fact_table();
+        // the visible habits the wounds and lessons leave (E3-4, #1425):
+        // neighbors' gossip and the ask gate's tell bonus both read them
+        for t in p.tells() { s.status.push(t); }
+        // a carried ghost is a kept thing - `keeps_wound` opens the
+        // deep asks but wears no area of its own: the wound's own tell
+        // slugs mark only the areas it actually hides behind
+        if !p.ghosts.is_empty() { s.status.push("keeps_wound"); }
     }
     // the voice's own weight in the room (#1249): bonds, seniority,
     // standing, the moral pull of a dead loss - read live, not stored

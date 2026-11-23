@@ -1362,3 +1362,66 @@ fn test_a_stranger_hears_no_inside_news() {
     }
     assert!(g.world.get_component::<crate::game::rumor::Rumor>(b).is_none());
 }
+
+/// A ghost-carrier hangs back when only the bare word calls (E3-4,
+/// #1425): the levy's wound halves their showing - and when they say
+/// no, they say it in the wound's own words
+#[test]
+fn test_a_ghost_hangs_back_from_the_bare_word() {
+    use crate::game::organizing::{no_reason, shows_up, Invite};
+    use crate::game::persona::*;
+    let mut g = Game::new();
+    // a contented guest whose roll floats near the drift-in edge
+    let v = g.villagers.iter().copied().find(|&v| {
+        if let Some(l) = g.world.get_component_mut::<crate::game::desires::InnerLife>(v) { l.wants.clear(); }
+        crate::game::desires::unrevealed(&g.world, v, g.tick).is_empty()
+    }).expect("someone content enough to have nothing to say");
+    let at = {
+        let p = *g.world.get_component::<Pos>(v).unwrap();
+        (p.x as i32, p.y as i32)
+    };
+    // the drift-in edge: this roll passes while unhurt
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.10, g.tick),
+        "the bare roll should drift them in");
+    let mut p = Persona {
+        seed: 1, sex: villager::Sex::Male, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+    };
+    p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+        lie: Belief::NeverCrossReeve, strength: 0.8, fear: Fear::BailiffKnowsMyFace,
+        need: Need::ToBeSafe });
+    g.world.add_component(v, p);
+    // the same roll now keeps them home (0.55 levy x 0.45 reeve lie)
+    assert!(!shows_up(&g.world, g.player, v, at, Invite::Word, 0.10, g.tick),
+        "the wound hangs them back");
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.02, g.tick),
+        "but a low roll still finds them");
+    // and a no lands in the wound's own words, not a trait's stock excuse
+    assert_eq!(no_reason(&g.world, v),
+        Some("You'll not see me stand under that gate. Ask another."));
+    // a warm ghost cuts the other way: the feast-keeper comes readier
+    let w = g.villagers.iter().copied().find(|&w| {
+        if let Some(l) = g.world.get_component_mut::<crate::game::desires::InnerLife>(w) { l.wants.clear(); }
+        crate::game::desires::unrevealed(&g.world, w, g.tick).is_empty()
+    }).expect("another contented one");
+    let at2 = {
+        let p = *g.world.get_component::<Pos>(w).unwrap();
+        (p.x as i32, p.y as i32)
+    };
+    assert!(!shows_up(&g.world, g.player, w, at2, Invite::Word, 0.14, g.tick),
+        "the bare drift-in stops short here");
+    let mut p2 = Persona {
+        seed: 2, sex: villager::Sex::Female, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+    };
+    p2.ghosts.push(Ghost { event: EventId(0), kind: EventKind::HarvestFeast, hook: None,
+        lie: Belief::StrongTogether, strength: 0.8, fear: Fear::AloneInIt,
+        need: Need::ToBelong });
+    g.world.add_component(w, p2);
+    assert!(shows_up(&g.world, g.player, w, at2, Invite::Word, 0.14, g.tick),
+        "the feast-keeper's year draws them out (1.15 x 1.15)");
+}

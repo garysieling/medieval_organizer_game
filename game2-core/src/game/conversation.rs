@@ -177,7 +177,11 @@ impl Speaker {
                 "sick" | "hungry" => mark(Area::Body),
                 "keeps_secret" => mark(Area::Trouble),
                 _ if st.starts_with("hook:") => { mark(Area::Trouble); mark(Area::Heart); }
-                _ => {}
+                // a fact's visible habit (E3-4): the wear names the ask
+                // its area hides behind
+                _ => if let Some(c) = crate::game::fact_content::content_for_tell(st) {
+                    mark(c.area);
+                }
             }
         }
         v
@@ -500,6 +504,7 @@ pub struct Exchange {
 /// A whole dialogue tree plus the circumstances it speaks to. The library
 /// holds many; the most specific match leads (Ruskin: specificity is the
 /// criterion count; library order breaks ties).
+#[derive(Clone)]
 pub struct DialogueTree {
     pub name: &'static str,
     pub criteria: &'static [Criterion],
@@ -1110,8 +1115,24 @@ pub fn converse_with(
                                 }
                             }
                             tr.asked.push(tp.label);
-                            let (at, _) = fresh_line(tp.tell, &pair[caller], &pair[responder], &used, recent, false, rng)
-                                .unwrap_or((tp.tell[0], String::new()));
+                            // a covered fact tells in its own words at
+                            // that depth, but only to the "what you keep"
+                            // asks (Draw::Secret): the named-status asks
+                            // keep their authored answers (E3-4, #1425)
+                            let (at, _) = if matches!(tp.draws,
+                                    crate::game::dialogue_trees::Draw::Secret) {
+                                crate::game::fact_content::telling(
+                                        &call_facts, tp.area, tp.tier,
+                                        rng.next_f32(), &used)
+                                    .map(|l| (l, String::new()))
+                                    .or_else(|| fresh_line(tp.tell, &pair[caller],
+                                        &pair[responder], &used, recent, false, rng))
+                                    .unwrap_or((tp.tell[0], String::new()))
+                            } else {
+                                fresh_line(tp.tell, &pair[caller],
+                                    &pair[responder], &used, recent, false, rng)
+                                    .unwrap_or((tp.tell[0], String::new()))
+                            };
                             used.insert(at);
                             tr.turns.push(Turn { speaker: caller, act: Act::Answer,
                                 respond: Some(Respond::Reflect),
@@ -3379,13 +3400,15 @@ mod e3_2 {
                             "the public layer didn't list: {:?}",
                             ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
                         // the public layer lists for anyone; what weighs
-                        // on them is closed tier-2 but the kept secret's
-                        // own wear tells on it; everything else closed
-                        // and tell-less stays off
+                        // on them and the tier-3 secret ask are closed
+                        // but the kept secret's own wear tells on them
+                        // (E3-4); everything else closed and tell-less
+                        // stays off
                         assert!(ch.iter().all(|c| c.preview == "Say nothing of it"
                             || c.preview == "Ask about the village"
                             || c.preview == "Ask about the day's work"
-                            || c.preview == "Ask about what weighs on them"),
+                            || c.preview == "Ask about what weighs on them"
+                            || c.preview == "Ask about what they never told"),
                             "a closed tell-less ask listed: {:?}",
                             ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
                         return ch.iter().position(|c| c.preview == "Say nothing of it");

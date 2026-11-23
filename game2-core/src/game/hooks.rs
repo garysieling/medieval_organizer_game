@@ -98,10 +98,17 @@ pub fn seed(index: u64) -> Hooks {
 /// event maps to a HOOKS row carry a talk status - the rest stay
 /// records on the persona until content claims them
 pub fn from_ghosts(ghosts: &[crate::game::persona::Ghost]) -> Hooks {
-    Hooks { carried: ghosts.iter()
-        .filter_map(|g| g.hook.map(|id| Carried {
-            id, laid: None, told: false, ghost: Some(*g),
-        })).collect() }
+    // ghosts arrive deepest-first; two wounds may claim one row, and
+    // the stronger keeps it - `open`/`tell` only ever find the first
+    let mut carried: Vec<Carried> = vec![];
+    for g in ghosts {
+        if let Some(id) = g.hook {
+            if !carried.iter().any(|c| c.id == id) {
+                carried.push(Carried { id, laid: None, told: false, ghost: Some(*g) });
+            }
+        }
+    }
+    Hooks { carried }
 }
 
 /// The first hook they've not laid to rest

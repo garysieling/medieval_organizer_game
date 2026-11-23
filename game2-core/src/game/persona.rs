@@ -574,7 +574,7 @@ pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
     let ghosts: Vec<Ghost> = scored.into_iter().take(2)
         .map(|(s, m)| {
-            let (hook, lie, fear, need) = rationalize(m.kind, disp);
+            let (hook, lie, fear, need) = rationalize(m.kind, disp, m.part);
             Ghost { event: m.id, hook, lie, strength: s.min(1.0), fear, need }
         }).collect();
 
@@ -628,9 +628,28 @@ impl Disposition {
 
 /// The rationalization table (E2-3): each event kind teaches each
 /// disposition a lesson - a lie or a true belief, a fear, a need, and
-/// the HOOKS row that carries it where one exists. HarvestFeast never
+/// the HOOKS row that carries it where one exists. The part played
+/// picks the row where the authored wounds differ by side: the burned
+/// out carry `burnt_barn`, a watcher who let the blame land carries
+/// `blamed_neighbor`, and the scapegoat and the levy's survivors keep
+/// records only - no authored line fits them yet. HarvestFeast never
 /// reaches here: the feast is a warm memory, not a ghost
-fn rationalize(kind: EventKind, d: Disposition) -> (Option<usize>, Belief, Fear, Need) {
+fn rationalize(kind: EventKind, d: Disposition, part: &str) -> (Option<usize>, Belief, Fear, Need) {
+    let (hook, lie, fear, need) = rationalize_row(kind, d);
+    let hook = match (kind, part) {
+        (EventKind::Fire, "burned out") => Some(5),
+        (EventKind::Fire, "watched it burn") => Some(6),
+        (EventKind::Fire, "blamed") => None,
+        // the one who remembers a taken brother carries it; the one who
+        // served and came home keeps a survivor's wound, unwritten
+        (EventKind::Levy, "served and came home") => None,
+        _ => hook,
+    };
+    (hook, lie, fear, need)
+}
+
+/// The kind x disposition rows the rationalization reads
+fn rationalize_row(kind: EventKind, d: Disposition) -> (Option<usize>, Belief, Fear, Need) {
     use Disposition::*;
     match kind {
         EventKind::Fire => match d {
@@ -808,10 +827,15 @@ mod tests {
         // the truth comes out, a meek one to keep their head down
         let mut values = [0.3; 10];
         values[9] = 0.9; // Fairness top
-        let lie_just = rationalize(EventKind::Fire, Disposition::Just).1;
+        let lie_just = rationalize(EventKind::Fire, Disposition::Just, "burned out").1;
         assert_eq!(lie_just, Belief::TruthComesOut);
-        let lie_meek = rationalize(EventKind::Fire, Disposition::Meek).1;
+        let lie_meek = rationalize(EventKind::Fire, Disposition::Meek, "burned out").1;
         assert_eq!(lie_meek, Belief::SomeoneToBlame);
+        // the part picks the wound's hook: a watcher who let blame land
+        // carries `blamed_neighbor`; the scapegoat has no authored line
+        assert_eq!(rationalize(EventKind::Fire, Disposition::Meek, "watched it burn").0, Some(6));
+        assert_eq!(rationalize(EventKind::Fire, Disposition::Meek, "blamed").0, None);
+        assert_eq!(rationalize(EventKind::Levy, Disposition::Meek, "served and came home").0, None);
         // and the disposition picks Just off the value circle
         assert!(matches!(Disposition::of(Archetype::QuietHand, &values), Disposition::Just));
         assert!(matches!(Disposition::of(Archetype::Burned, &[0.3; 10]), Disposition::Meek));

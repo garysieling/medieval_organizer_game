@@ -12,6 +12,22 @@ use crate::game::vocation::Vocation;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EventId(pub u32);
 
+/// The record-sources the thirty years are written in (#1419). The
+/// kinds live beside the persona because the ghost pass keys on them
+/// (E2-3, #1421); `session::prehistory` re-exports this
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventKind {
+    Fire,
+    Levy,
+    DeathDuty,
+    Fever,
+    MillerDebt,
+    BrokenBetrothal,
+    OldFaith,
+    Eviction,
+    HarvestFeast,
+}
+
 /// The archetypes are the biomes: a region of temperament and value
 /// space with a voice register, an audition question and a tendency
 /// in a campaign
@@ -182,13 +198,14 @@ pub enum Need {
 }
 
 /// A deep mark a prehistory event left: wound, lie, fear and need.
-/// `hook` indexes `hooks::HOOKS` so the old wound carries its lines (#1421)
-#[derive(Debug, Clone, PartialEq)]
+/// `hook` indexes `hooks::HOOKS` where the wound carries a talk status
+/// (#1421) - events without a HOOKS row keep the ghost as a record only
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ghost {
     /// The event that left it
     pub event: EventId,
-    /// Index into `hooks::HOOKS`, kept
-    pub hook: usize,
+    /// Index into `hooks::HOOKS`, when one carries it
+    pub hook: Option<usize>,
     /// The belief it taught, with its strength: campaign outcomes move it
     pub lie: Belief,
     /// How hard they hold it, 0 to 1
@@ -424,10 +441,27 @@ impl Persona {
 /// What the earlier passes hand down - near-empty today, filled when
 /// prehistory and households land (#1419, #1420). Bundled so `generate`'s
 /// signature doesn't churn as the passes come in
+/// A prehistory event the person was in, as pass 1 hands it down -
+/// what the ghost pass rolls a mark from (E2-3, #1421)
+#[derive(Debug, Clone)]
+pub struct Mark {
+    /// Its record in the event log
+    pub id: EventId,
+    /// What kind of happening it was
+    pub kind: EventKind,
+    /// The part they played in it
+    pub part: &'static str,
+    /// How hard it hit, 0 to 1 - the mark roll's severity leg
+    pub severity: f32,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Past {
     /// Prehistory events this person was in (pass 1)
     pub story: Vec<EventId>,
+    /// The events' own records for the ghost pass (E2-3): the kind,
+    /// the part they played and how hard it hit
+    pub marks: Vec<Mark>,
     /// Parents' mean temperament, when the household pass ran one
     /// (pass 2) - a child's starts there plus noise
     pub parents: Option<[f32; 5]>,
@@ -526,16 +560,153 @@ pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
         % SIGNATURES.len()];
     let hidden = HIDDENS[(d(80) * HIDDENS.len() as f32) as usize % HIDDENS.len()];
 
+    // pass 5, life story (E2-3, #1421): the events they were in roll
+    // their marks - weighted by severity and neuroticism, and the
+    // deepest two land as ghosts. Nothing simulates why: the lesson
+    // comes off the event x disposition table
+    let disp = Disposition::of(archetype, &values);
+    let mut scored: Vec<(f32, &Mark)> = past.marks.iter()
+        // a warm memory, not a ghost
+        .filter(|m| m.kind != EventKind::HarvestFeast)
+        .map(|m| (m.severity * (0.35 + 0.65 * temperament[4]) * d(110 + m.id.0 as u64), m))
+        .filter(|(s, _)| *s > 0.35)
+        .collect();
+    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    let ghosts: Vec<Ghost> = scored.into_iter().take(2)
+        .map(|(s, m)| {
+            let (hook, lie, fear, need) = rationalize(m.kind, disp, m.part);
+            Ghost { event: m.id, hook, lie, strength: s.min(1.0), fear, need }
+        }).collect();
+
     // the body (pass 0, E1-3): drawn off the person's own stream so
     // names and pronouns can agree with it
     let sex = if d(90) < 0.5 { Sex::Female } else { Sex::Male };
 
     Persona {
         seed, sex, archetype, temperament, trust_propensity, values,
-        story: past.story.clone(),
-        // pass 5 lands with #1421: the story's events roll into ghosts
-        ghosts: Vec::new(),
+        story: past.story.clone(), ghosts,
         signature, hidden, contradiction,
+    }
+}
+
+/// The stance the ghost table keys on (E2-3): who they are when it
+/// happens to them. Archetypes cluster into four; a person with
+/// Fairness in their top two takes the Just row instead - the same
+/// fire teaches the fearful to keep their head down and them that the
+/// truth comes out
+#[derive(Debug, Clone, Copy)]
+enum Disposition {
+    /// Burned, Doubter: keep your head down
+    Meek,
+    /// OldGuard, Devout, QuietHand: bear it, keep the custom
+    Steadfast,
+    /// SoftHeart, Merrymaker: keep hold of one another
+    Tender,
+    /// Striver, Firebrand, TongueOfTheWell, Climber: someone pays for this
+    Restless,
+    /// Fairness in the top two values: the truth matters more
+    Just,
+}
+
+impl Disposition {
+    fn of(archetype: Archetype, values: &[f32; 10]) -> Self {
+        let mut top = (usize::MAX, usize::MAX);
+        let mut v = (f32::MIN, f32::MIN);
+        for (i, &x) in values.iter().enumerate() {
+            if x > v.0 { top = (i, top.0); v = (x, v.0); }
+            else if x > v.1 { top.1 = i; v.1 = x; }
+        }
+        if top.0 == 9 || top.1 == 9 { return Disposition::Just; }
+        match archetype {
+            Archetype::Burned | Archetype::Doubter => Disposition::Meek,
+            Archetype::OldGuard | Archetype::Devout | Archetype::QuietHand => Disposition::Steadfast,
+            Archetype::SoftHeart | Archetype::Merrymaker => Disposition::Tender,
+            _ => Disposition::Restless,
+        }
+    }
+}
+
+/// The rationalization table (E2-3): each event kind teaches each
+/// disposition a lesson - a lie or a true belief, a fear, a need, and
+/// the HOOKS row that carries it where one exists. The part played
+/// picks the row where the authored wounds differ by side: the burned
+/// out carry `burnt_barn`, a watcher who let the blame land carries
+/// `blamed_neighbor`, and the scapegoat and the levy's survivors keep
+/// records only - no authored line fits them yet. HarvestFeast never
+/// reaches here: the feast is a warm memory, not a ghost
+fn rationalize(kind: EventKind, d: Disposition, part: &str) -> (Option<usize>, Belief, Fear, Need) {
+    let (hook, lie, fear, need) = rationalize_row(kind, d);
+    let hook = match (kind, part) {
+        (EventKind::Fire, "burned out") => Some(5),
+        (EventKind::Fire, "watched it burn") => Some(6),
+        (EventKind::Fire, "blamed") => None,
+        // the one who remembers a taken brother carries it; the one who
+        // served and came home keeps a survivor's wound, unwritten
+        (EventKind::Levy, "served and came home") => None,
+        _ => hook,
+    };
+    (hook, lie, fear, need)
+}
+
+/// The kind x disposition rows the rationalization reads
+fn rationalize_row(kind: EventKind, d: Disposition) -> (Option<usize>, Belief, Fear, Need) {
+    use Disposition::*;
+    match kind {
+        EventKind::Fire => match d {
+            Meek => (Some(5), Belief::SomeoneToBlame, Fear::WhispersTurn, Need::ToBeSafe),
+            Steadfast => (Some(6), Belief::SomeoneToBlame, Fear::FireReturns, Need::ToSetItRight),
+            Tender => (Some(5), Belief::SomeoneToBlame, Fear::FireReturns, Need::ToBelong),
+            Restless => (Some(6), Belief::SomeoneToBlame, Fear::WhispersTurn, Need::ToSetItRight),
+            Just => (Some(6), Belief::TruthComesOut, Fear::WhispersTurn, Need::ToBeBelieved),
+        },
+        EventKind::Levy => match d {
+            Meek => (Some(0), Belief::WarsTakeSons, Fear::BuriedLikeHim, Need::ToBeSafe),
+            Steadfast => (Some(0), Belief::LordAlwaysWins, Fear::BuriedLikeHim, Need::ToLayItDown),
+            Tender => (Some(0), Belief::WarsTakeSons, Fear::AloneInIt, Need::ToBelong),
+            Restless => (Some(1), Belief::WarsTakeSons, Fear::BuriedLikeHim, Need::ToSetItRight),
+            Just => (Some(1), Belief::LordAlwaysWins, Fear::AloneInIt, Need::ToSetItRight),
+        },
+        EventKind::DeathDuty => match d {
+            Meek => (None, Belief::LordTakesFromDead, Fear::BailiffKnowsMyFace, Need::ToBeSafe),
+            Steadfast => (None, Belief::LordTakesFromDead, Fear::BailiffKnowsMyFace, Need::ToProvide),
+            Tender => (None, Belief::LordTakesFromDead, Fear::BellTolls, Need::ToBelong),
+            Restless | Just => (None, Belief::LordTakesFromDead, Fear::BailiffKnowsMyFace, Need::ToSetItRight),
+        },
+        EventKind::Fever => match d {
+            Meek => (Some(4), Belief::GodSends, Fear::BellTolls, Need::ToBeSafe),
+            Steadfast => (Some(4), Belief::GodSends, Fear::BellTolls, Need::ToLayItDown),
+            Tender => (Some(4), Belief::GodSends, Fear::BellTolls, Need::ToBelong),
+            Restless => (Some(4), Belief::GodSends, Fear::AloneInIt, Need::ToBeSeen),
+            Just => (Some(4), Belief::GodSends, Fear::BellTolls, Need::ToBeBelieved),
+        },
+        EventKind::MillerDebt => match d {
+            Meek => (Some(2), Belief::MillOwnsUs, Fear::CollectorAtTheDoor, Need::ToBeSafe),
+            Steadfast => (Some(2), Belief::MillOwnsUs, Fear::CollectorAtTheDoor, Need::ToProvide),
+            Tender => (Some(2), Belief::MillOwnsUs, Fear::CollectorAtTheDoor, Need::ToBelong),
+            Restless | Just => (Some(2), Belief::MillOwnsUs, Fear::CollectorAtTheDoor, Need::ToSetItRight),
+        },
+        EventKind::BrokenBetrothal => match d {
+            Meek => (Some(7), Belief::PromisesForKeepers, Fear::WhispersTurn, Need::ToBeSeen),
+            Steadfast => (Some(7), Belief::PromisesForKeepers, Fear::WhispersTurn, Need::ToLayItDown),
+            Tender => (Some(7), Belief::PromisesForKeepers, Fear::AloneInIt, Need::ToBelong),
+            Restless => (Some(7), Belief::PromisesForKeepers, Fear::AloneInIt, Need::ToBeSeen),
+            Just => (Some(7), Belief::PromisesForKeepers, Fear::WhispersTurn, Need::ToSetItRight),
+        },
+        EventKind::OldFaith => match d {
+            Meek => (Some(3), Belief::KeepHidden, Fear::StonesRemember, Need::ToBeSafe),
+            Steadfast => (Some(3), Belief::KeepHidden, Fear::StonesRemember, Need::ToLayItDown),
+            Tender => (Some(3), Belief::KeepHidden, Fear::StonesRemember, Need::ToBeSeen),
+            Restless => (Some(3), Belief::KeepHidden, Fear::StonesRemember, Need::ToBeSeen),
+            Just => (Some(3), Belief::KeepHidden, Fear::StonesRemember, Need::ToBeBelieved),
+        },
+        EventKind::Eviction => match d {
+            Meek => (None, Belief::NeverCrossReeve, Fear::BailiffKnowsMyFace, Need::ToBeSafe),
+            Steadfast => (None, Belief::NeverCrossReeve, Fear::CollectorAtTheDoor, Need::ToProvide),
+            Tender => (None, Belief::NeverCrossReeve, Fear::AloneInIt, Need::ToBelong),
+            Restless | Just => (None, Belief::NeverCrossReeve, Fear::BailiffKnowsMyFace, Need::ToSetItRight),
+        },
+        // unreachable in `generate` - the feast is filtered from the roll
+        EventKind::HarvestFeast => (None, Belief::StrongTogether, Fear::AloneInIt, Need::ToBelong),
     }
 }
 
@@ -605,6 +776,74 @@ mod tests {
     fn the_story_comes_through() {
         let past = Past { story: vec![EventId(3), EventId(9)], ..Past::default() };
         assert_eq!(generate(1, 0, &past).story, vec![EventId(3), EventId(9)]);
+    }
+
+    /// A Past with one of every kind - severe parts in several, so the
+    //  mark roll lands
+    fn storied_past() -> Past {
+        Past {
+            story: (0..5).map(EventId).collect(),
+            marks: vec![
+                Mark { id: EventId(0), kind: EventKind::Fire, part: "burned out", severity: 0.9 },
+                Mark { id: EventId(1), kind: EventKind::Levy, part: "taken", severity: 0.9 },
+                Mark { id: EventId(2), kind: EventKind::Fever, part: "buried their own", severity: 0.9 },
+                Mark { id: EventId(3), kind: EventKind::HarvestFeast, part: "feasted", severity: 0.3 },
+                Mark { id: EventId(4), kind: EventKind::MillerDebt, part: "owes the miller", severity: 0.6 },
+            ],
+            ..Past::default()
+        }
+    }
+
+    #[test]
+    fn every_ghost_cites_its_event() {
+        // the done-when: ghosts cite the event that left them, capped
+        // at two, and the feast never leaves one
+        for s in 0..60 {
+            let past = storied_past();
+            let p = generate(11, s, &past);
+            assert!(p.ghosts.len() <= 2, "slot {} carries {}", s, p.ghosts.len());
+            for g in &p.ghosts {
+                assert!(past.marks.iter().any(|m| m.id == g.event),
+                    "ghost cites {:?} which touched nobody", g.event);
+                assert!(p.story.contains(&g.event));
+            }
+            assert!(!p.ghosts.iter().any(|g|
+                past.marks.iter().find(|m| m.id == g.event).unwrap().kind == EventKind::HarvestFeast));
+        }
+    }
+
+    #[test]
+    fn the_ghost_roll_replays() {
+        // same seed, same past: the same ghosts
+        let a = generate(13, 4, &storied_past());
+        let b = generate(13, 4, &storied_past());
+        assert_eq!(a.ghosts, b.ghosts);
+        assert!(!a.ghosts.is_empty(), "a storied past leaves a mark somewhere");
+    }
+
+    #[test]
+    fn the_event_and_the_disposition_set_the_lesson() {
+        // the table, not simulation: fire teaches a Just person that
+        // the truth comes out, a meek one to keep their head down
+        let mut values = [0.3; 10];
+        values[9] = 0.9; // Fairness top
+        let lie_just = rationalize(EventKind::Fire, Disposition::Just, "burned out").1;
+        assert_eq!(lie_just, Belief::TruthComesOut);
+        let lie_meek = rationalize(EventKind::Fire, Disposition::Meek, "burned out").1;
+        assert_eq!(lie_meek, Belief::SomeoneToBlame);
+        // the part picks the wound's hook: a watcher who let blame land
+        // carries `blamed_neighbor`; the scapegoat has no authored line
+        assert_eq!(rationalize(EventKind::Fire, Disposition::Meek, "watched it burn").0, Some(6));
+        assert_eq!(rationalize(EventKind::Fire, Disposition::Meek, "blamed").0, None);
+        assert_eq!(rationalize(EventKind::Levy, Disposition::Meek, "served and came home").0, None);
+        // and the disposition picks Just off the value circle
+        assert!(matches!(Disposition::of(Archetype::QuietHand, &values), Disposition::Just));
+        assert!(matches!(Disposition::of(Archetype::Burned, &[0.3; 10]), Disposition::Meek));
+    }
+
+    #[test]
+    fn no_past_no_ghosts() {
+        assert!(generate(1, 0, &Past::default()).ghosts.is_empty());
     }
 
     #[test]

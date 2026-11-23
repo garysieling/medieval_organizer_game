@@ -938,10 +938,11 @@ impl Game {
         if !self.seeded_cast { return None; }
         // a newcomer wasn't here for the thirty years - their story
         // starts empty and the life writes the rest
-        let story = self.world.resource::<crate::session::prehistory::Prehistory>()
-            .map(|ph| ph.story_of(self.villagers.len())).unwrap_or_default();
-        let p = crate::game::persona::generate(self.seed, self.villagers.len(),
-            &crate::game::persona::Past { story, parents, vocation, ..Default::default() });
+        let slot = self.villagers.len();
+        let (story, marks) = self.world.resource::<crate::session::prehistory::Prehistory>()
+            .map(|ph| (ph.story_of(slot), ph.marks_of(slot))).unwrap_or_default();
+        let p = crate::game::persona::generate(self.seed, slot,
+            &crate::game::persona::Past { story, marks, parents, vocation, ..Default::default() });
         let (big5, traits) = p.personalities();
         self.world.add_component(v, big5);
         self.world.add_component(v, p.sex);

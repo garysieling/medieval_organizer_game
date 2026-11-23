@@ -547,10 +547,14 @@ impl Game {
             let story_of = |i: usize| world
                 .resource::<crate::session::prehistory::Prehistory>()
                 .map(|ph| ph.story_of(i)).unwrap_or_default();
+            let marks_of = |i: usize| world
+                .resource::<crate::session::prehistory::Prehistory>()
+                .map(|ph| ph.marks_of(i)).unwrap_or_default();
             for i in 0..NAMES.len() {
                 if KID_IDXS.contains(&i) { continue; }
                 personas[i] = Some(crate::game::persona::generate(seed, i,
                     &crate::game::persona::Past { story: story_of(i),
+                        marks: marks_of(i),
                         vocation: adult_vocs.get(i).copied(), ..Default::default() }));
             }
             for &k in &KID_IDXS {
@@ -566,6 +570,7 @@ impl Game {
                 };
                 personas[k] = Some(crate::game::persona::generate(seed, k,
                     &crate::game::persona::Past { story: story_of(k),
+                        marks: marks_of(k),
                         parents: mean, ..Default::default() }));
             }
         }
@@ -597,8 +602,16 @@ impl Game {
             world.add_component(v, traits);
             world.add_component(v, Satchel::default());
             world.add_component(v, Known::default());
-            // the old wounds they carry in (#1243)
-            world.add_component(v, crate::game::hooks::seed(i as u64));
+            // the old wounds they carry in (#1243); a seeded cast's
+            // come off its persona's ghosts instead (E2-3, #1421)
+            let hooks = if seeded_cast {
+                world.get_component::<crate::game::persona::Persona>(v)
+                    .map(|p| crate::game::hooks::from_ghosts(&p.ghosts))
+                    .unwrap_or_default()
+            } else {
+                crate::game::hooks::seed(i as u64)
+            };
+            world.add_component(v, hooks);
             if i < 23 {
                 // a working adult: the level roll sets the skill band
                 let skill = match rng.below(100) {

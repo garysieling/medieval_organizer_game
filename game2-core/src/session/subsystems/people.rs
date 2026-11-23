@@ -142,16 +142,20 @@ impl Game {
     pub(in crate::session) fn maybe_migrant(&mut self, tick: u64) {
         let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
         let v = villager::spawn_villager(&mut self.world, x, y);
-        let dealt = self.deal_cast(v, None);
+        // fixed-cast mode still draws its trait roll before the vocation
+        // roll, same order as before - only the seeded cast changes
+        let legacy_traits = (!self.seeded_cast).then(|| personality_from_seed(self.rng.next()));
+        let voc = roll_vocation(&mut self.rng);
+        let dealt = self.deal_cast(v, Some(voc));
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
-        let traits = dealt.unwrap_or_else(|| personality_from_seed(self.rng.next()));
+        let traits = dealt.or(legacy_traits).unwrap_or_else(|| personality_from_seed(self.rng.next()));
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
         self.world.add_component(v, Known::default());
-        self.world.add_component(v, vocation::craft(roll_vocation(&mut self.rng),
+        self.world.add_component(v, vocation::craft(voc,
             0.1 + (self.rng.next() % 40) as f32 / 100.0));
         self.world.add_component(v, Purse { gold: 8.0 });
         let years = 19.0 + (self.rng.next() % 42) as f32;

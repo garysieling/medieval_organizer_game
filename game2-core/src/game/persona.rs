@@ -382,6 +382,41 @@ impl Persona {
         bot
     }
 
+    /// A mentor's mark (#1412): nudges the temperament/value axes that
+    /// `personalities()` thresholds on, so the taught trait - and the
+    /// opposite it drives out, where the pass-3 table ties them to the
+    /// same axis - show up on both views once this persona is re-derived.
+    /// Fixed-cast mentorship bypasses this and mutates the trait list
+    /// directly, unchanged from before #1412.
+    pub fn teach(&mut self, took: crate::game::traits::Trait) {
+        use crate::game::traits::Trait::*;
+        match took {
+            Lazy => {
+                self.temperament[1] = 0.1; // C down
+                // Ambitious reads the values ranking, not C - drive it
+                // out explicitly so the two legs don't fight
+                let hi = self.values.iter().cloned().fold(0.0f32, f32::max);
+                self.values[3] = (hi - 0.4).max(0.0).min(self.values[3]);
+                self.values[4] = (hi - 0.4).max(0.0).min(self.values[4]);
+            }
+            Ambitious => {
+                self.values[3] = 1.0; // Advancement to the top
+                self.temperament[1] = self.temperament[1].max(0.3); // drives out Lazy
+            }
+            Kind => self.temperament[3] = 0.85,   // A up - drives out Cruel
+            Cruel => self.temperament[3] = 0.05,  // A down - drives out Kind
+            Stingy => { self.values[5] = 1.0; self.values[8] = 0.0; }
+            Pious => self.values[7] = 1.0,
+            Hotheaded => { self.temperament[4] = 0.8; self.temperament[3] = 0.2; }
+            Gregarious => self.temperament[2] = 0.85, // E up - drives out Stolid
+            Stolid => { self.temperament[2] = 0.15; self.temperament[4] = 0.2; } // drives out Gregarious
+            Steady => { self.temperament[1] = 0.8; self.temperament[4] = 0.2; } // drives out Hotheaded
+            Proud => { self.values[4] = 1.0; self.temperament[3] = self.temperament[3].min(0.3); }
+            Wary => self.trust_propensity = 0.15,
+            SelfAbsorbed => { self.temperament[2] = 0.8; self.temperament[3] = 0.2; }
+        }
+    }
+
     /// E1-4 (#1412): both personality models as views of the persona -
     /// the Big Five component is the temperament axes verbatim, and the
     /// discrete traits come off the pass-3 threshold table, so the two

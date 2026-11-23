@@ -187,6 +187,32 @@ fn test_new_temperaments_roll_beside_the_old_ones() {
 }
 
 #[test]
+fn test_a_seeded_pupils_two_views_agree_after_a_lesson() {
+    // #1412: a seeded villager's discrete traits and Big Five are both
+    // derived from one persona - a mentor's mark must nudge the persona
+    // and re-derive both, not just the trait list, or the two views split
+    let mut g = Game::new_seeded_cast(MAP_SEED);
+    let vs = living(&g);
+    let (t, p) = (vs[0], vs[1]);
+    assert!(g.world.get_component::<crate::game::persona::Persona>(p).is_some(),
+        "a seeded pupil carries a persona");
+    let before = traits_of(&g, p);
+    let took = traits::TRAITS.iter().copied().find(|tr| !before.contains(tr))
+        .expect("some untaught trait");
+    assert!(m::mark(&mut g.world, p, Teacher::Person(t), took, 1), "the lesson should take");
+
+    let persona = g.world.get_component::<crate::game::persona::Persona>(p).unwrap().clone();
+    let (big5, traits) = persona.personalities();
+    assert_eq!(traits_of(&g, p), traits.traits, "the trait view should match the re-derived persona");
+    assert!(traits_of(&g, p).contains(&took), "{:?} should contain {took:?}", traits_of(&g, p));
+    let seen = g.world.get_component::<crate::sim::psychology::Personality>(p).unwrap();
+    assert_eq!(
+        (seen.openness, seen.conscientiousness, seen.extraversion, seen.agreeableness, seen.neuroticism),
+        (big5.openness, big5.conscientiousness, big5.extraversion, big5.agreeableness, big5.neuroticism),
+        "the Big Five view should match the re-derived persona too");
+}
+
+#[test]
 fn test_the_dead_neither_teach_nor_learn() {
     let mut g = Game::new();
     let (t, p) = apprenticed(&mut g, vec![Trait::Kind], vec![]);

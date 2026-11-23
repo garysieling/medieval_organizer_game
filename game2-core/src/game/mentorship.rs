@@ -119,12 +119,28 @@ pub fn cause_shape(world: &World, org: Entity) -> Option<Trait> {
 /// Mark `pupil` with `took`: it drives out its opposite if they carry
 /// it, else joins their traits. False if they already had it.
 pub fn mark(world: &mut World, pupil: Entity, by: Teacher, took: Trait, day: u64) -> bool {
-    let Some(p) = world.get_component_mut::<Personality>(pupil) else { return false };
+    let Some(p) = world.get_component::<Personality>(pupil) else { return false };
     if p.traits.contains(&took) { return false; }
     let drove_out = took.opposite().filter(|o| p.traits.contains(o));
-    match drove_out.and_then(|o| p.traits.iter().position(|&t| t == o)) {
-        Some(i) => p.traits[i] = took,
-        None => p.traits.push(took),
+
+    // A seeded pupil has a persona behind both views (#1412) - nudge the
+    // axes the pass-3 table reads and re-derive both, so the taught
+    // trait (and the opposite it drives out) land on the Big Five view
+    // too. A fixed-cast pupil has no persona: fall back to mutating the
+    // trait list directly, same as before #1412.
+    if let Some(persona) = world.get_component_mut::<crate::game::persona::Persona>(pupil) {
+        persona.teach(took);
+    }
+    if let Some(persona) = world.get_component::<crate::game::persona::Persona>(pupil).cloned() {
+        let (big5, traits) = persona.personalities();
+        world.add_component(pupil, big5);
+        world.add_component(pupil, traits);
+    } else {
+        let Some(p) = world.get_component_mut::<Personality>(pupil) else { return false };
+        match drove_out.and_then(|o| p.traits.iter().position(|&t| t == o)) {
+            Some(i) => p.traits[i] = took,
+            None => p.traits.push(took),
+        }
     }
     let mut taught = world.get_component::<Taught>(pupil).cloned().unwrap_or_default();
     taught.marks.push(Mark { by, took, drove_out, day, told: false });

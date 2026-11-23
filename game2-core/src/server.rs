@@ -122,7 +122,14 @@ struct SaveFile {
 
 // bumped past 2: the Build button is gone, so an old save's Act(2) journal
 // entry would replay as a no-op and the world would diverge from its digest
-const SAVE_VERSION: u32 = 3;
+//
+// bumped past 3 (#1412): personalities() now derives both the Big Five and
+// the discrete traits from the persona, so a seeded save written under the
+// old independent rolls would replay a different starting cast - and every
+// later random draw past that point - under today's generator. Reject it
+// up front instead of starting (and then saving over) a world that no
+// longer matches its own history.
+const SAVE_VERSION: u32 = 4;
 
 impl ServerHandle {
     /// Stop the world loop and the listeners; connections close as their

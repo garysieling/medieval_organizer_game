@@ -353,6 +353,38 @@ fn a_saved_village_comes_back_after_a_restart() {
 }
 
 #[test]
+fn an_old_version_save_is_rejected_not_silently_replayed() {
+    // a save written under older rules must not be started and replayed
+    // into a different village - it should be turned away up front (#1412:
+    // personalities() changed what a seeded cast's starting traits are, so
+    // an older save's journal would now replay a divergent world and save
+    // right over it)
+    let dir = std::env::temp_dir().join(format!("game2-oldver-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let save = dir.join("village.json");
+    let _ = std::fs::remove_file(&save);
+    let cfg = || ServerConfig { save: Some(save.clone()), save_every: Duration::from_secs(3600), ..fast() };
+    let server = start_with(cfg());
+    std::thread::sleep(Duration::from_millis(200));
+    server.stop(); // writes the save under today's version
+    assert!(save.exists());
+
+    // roll the save's version back, as if an older build had written it
+    let text = std::fs::read_to_string(&save).unwrap();
+    let mut v: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let old = v["version"].as_u64().expect("a version field") - 1;
+    v["version"] = serde_json::Value::from(old);
+    std::fs::write(&save, serde_json::to_string(&v).unwrap()).unwrap();
+
+    let err = match serve(cfg()) {
+        Err(e) => e,
+        Ok(_) => panic!("an old-version save started anyway, instead of being turned away"),
+    };
+    assert!(err.to_string().contains("version"), "the refusal should name the version mismatch: {err}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn an_unwritable_save_fails_the_start_and_a_tmp_named_save_is_safe() {
     // a save in a folder that isn't there: the server won't start, rather
     // than play for an hour and lose it

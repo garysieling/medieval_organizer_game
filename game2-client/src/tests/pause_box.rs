@@ -35,6 +35,31 @@ fn test_the_pause_menu_centres_and_its_rows_click() {
 }
 
 #[test]
+fn test_one_escape_one_errand() {
+    // the route a bare Escape takes, read off the model: a Talk's
+    // leave first, then the board's postings, then a conversation box
+    // that isn't a Talk holds the press - only nothing-up is the menu's
+    let mut m = Game::new_seeded(MAP_SEED).ui_model();
+    assert_eq!(esc_route(&m), EscRoute::Pause, "a bare map is the menu's");
+    m.notice_panel = true;
+    m.notices.push(("writ".into(), "a posting".into()));
+    assert_eq!(esc_route(&m), EscRoute::Board);
+    // the board still closes first while a call's box is up
+    m.convo = Some(ConvoPanelV { decides: true, ..Default::default() });
+    assert_eq!(esc_route(&m), EscRoute::Board);
+    // the board gone: the call just holds the press
+    m.notice_panel = false;
+    m.notices.clear();
+    assert_eq!(esc_route(&m), EscRoute::Swallow);
+    // a Talk's leave is the press's own - on the box or the panel
+    m.convo = Some(ConvoPanelV { leave: true, ..Default::default() });
+    assert_eq!(esc_route(&m), EscRoute::TalkLeave);
+    m.convo = None;
+    m.talk.in_talk = true;
+    assert_eq!(esc_route(&m), EscRoute::TalkLeave);
+}
+
+#[test]
 fn test_the_pause_menu_draws_its_rows() {
     let mut buf = Buffer::new(W, H);
     draw_pause_menu(&mut buf, (-1, -1), "PAUSED");

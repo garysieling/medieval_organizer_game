@@ -455,10 +455,6 @@ fn main() {
         // standing over the talk
         leave_offered = cur_model.as_ref().map(|m|
             m.convo.as_ref().map(|p| p.leave).unwrap_or(false) || m.talk.in_talk).unwrap_or(false);
-        // the board's postings are up: an Esc closes them ahead of the
-        // pause menu (#1349)
-        let board_open = cur_model.as_ref()
-            .map(|m| m.notice_panel && !m.notices.is_empty()).unwrap_or(false);
 
         // the sim asked the camera somewhere - an introduction's name:
         // centre on them and lean in, once per ask
@@ -532,8 +528,6 @@ fn main() {
             if session::search_box_at(mx, my) { view.search_focus = true; swallow_click = true; }
             else if view.search_focus { view.search_focus = false; swallow_click = true; }
         }
-        // the find box may take this frame's Escape ahead of the menu
-        let search_esc = view.search_focus && window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No);
         // its keys while it has them: Enter walks the camera to the next
         // who fits the query
         if view.search_focus {
@@ -555,16 +549,6 @@ fn main() {
             }
             // a new query starts its matches over at the first
             if view.search_q != typed { search_at = 0; }
-        }
-
-        // a bare Escape opens the pause menu: the find box's release,
-        // the picker's decline, the intro's dismiss, the talk's leave
-        // and the board's postings all took theirs ahead of it
-        let board_esc = !pause_menu && !search_esc && !leave_offered && board_open
-            && window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No);
-        if !pause_menu && !search_esc && !leave_offered && !board_esc
-            && window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) {
-            pause_menu = true;
         }
 
         // a mouse hovering at the map view's rim drifts the camera that
@@ -606,9 +590,14 @@ fn main() {
         present(&mut window, &buf);
 
         // the menu owns the input while it's up: Esc or Enter resumes,
-        // Q or the Quit row lets the day go - the claim token keeps
+        // Q or the Quit row lets the day go - the claim token keeps.
+        // The frame's Escape is read once, here, for both menu
+        // decisions: a press edge stays visible across the present,
+        // so a second read next frame would fire the same press twice
+        // (#1324)
+        let esc_now = window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No);
         if pause_menu {
-            if window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No)
+            if esc_now
                 || window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { pause_menu = false; }
             if window.is_key_pressed(Key::Q, minifb::KeyRepeat::No) { quit = true; }
             if clicked {
@@ -623,13 +612,33 @@ fn main() {
             if spent < frame_len { std::thread::sleep(frame_len - spent); }
             continue;
         }
+        // one Escape, one errand on the same edge read_input sees: the
+        // find box's release is still ahead on this press, a Talk's
+        // leave goes out through it, the board's postings close, a
+        // conversation box that isn't a Talk just holds it, and only a
+        // bare press opens the menu
+        let mut esc_cmd = None;
+        if esc_now && !view.search_focus {
+            match cur_model.as_ref().map(client::esc_route) {
+                Some(client::EscRoute::Board) => esc_cmd = Some(Command::Board(false)),
+                Some(client::EscRoute::Pause) => pause_menu = true,
+                // TalkLeave goes out through read_input; Swallow holds it
+                _ => {}
+            }
+        }
+        if pause_menu {
+            view.recycle(buf);
+            let spent = frame_at.elapsed();
+            if spent < frame_len { std::thread::sleep(frame_len - spent); }
+            continue;
+        }
 
         // input -> commands -> local game or the wire
         let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus, &mut talk_armed,
             cur_model.as_ref().and_then(|m| m.convo.as_ref()), leave_offered);
         // the board's Esc: a set, not a toggle - the seat's panel state
         // can't desync from what the frame showed
-        if board_esc { cmds.push(Command::Board(false)); }
+        if let Some(c) = esc_cmd { cmds.push(c); }
         // a hidden button (Recruit, before there's a campaign) can't be pressed
         if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
         if clicked && !on_minimap && !swallow_click {

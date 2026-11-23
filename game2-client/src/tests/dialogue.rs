@@ -134,6 +134,25 @@ fn test_the_numbered_rows_take_the_digit_keys() {
 }
 
 #[test]
+fn test_escape_routes_off_the_real_boxes() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    // nothing up: a bare Escape is the menu's
+    assert_eq!(crate::esc_route(&g.ui_model()), crate::EscRoute::Pause);
+    // a Talk under way: its leave, never the menu
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    assert_eq!(crate::esc_route(&g.ui_model()), crate::EscRoute::TalkLeave);
+    g.command(Command::TalkPick(None));
+    // the founding call a meeting leaves: a box that isn't a Talk
+    // holds the press instead of the menu opening over it
+    org_ready(&mut g);
+    let came = g.villagers[..3].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    assert_eq!(crate::esc_route(&g.ui_model()), crate::EscRoute::Swallow);
+}
+
+#[test]
 fn test_the_calls_rows_take_the_digit_keys_too() {
     let mut g = Game::new_seeded(MAP_SEED);
     org_ready(&mut g);

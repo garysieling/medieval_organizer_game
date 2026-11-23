@@ -35,7 +35,7 @@ fn test_speaker_reads_traits_trade_and_circumstance_off_the_world() {
     g.world.add_component(v, crate::game::vocation::craft(Vocation::Farmer, 0.5));
     assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).trade, Some("farmer"));
     g.world.add_component(v, Kid);
-    assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).status, vec!["child"]);
+    assert!(speaker_of(&g.world, v, "Eliza", g.tick).status.contains(&"child"));
 }
 
 #[test]
@@ -1977,3 +1977,61 @@ fn test_a_mentor_chat_carries_the_craft() {
         "no mentor register in the record: {:?}", r.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
 
+
+/// #1388: the weather talk tracks the sky - a wet day falls rain lines,
+/// a fair one dries - the day's own weather rides as a status
+#[test]
+fn test_weather_talk_matches_the_sky() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    // set the sky to rain: the drift past the threshold reads Rain
+    g.world.get_component_mut::<crate::sim::climate::Climate>(g.climate).unwrap().rainfall_drift = 1.0;
+    let na = g.name_of(a);
+    let s = speaker_of(&g.world, a, &na, g.tick);
+    assert!(s.status.contains(&"wx-rain"), "the wet sky rode no status: {:?}", s.status);
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let text = r.lines.iter().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" | ");
+    assert!(!text.contains("dew lay heavy") && !text.contains("drying") && !text.contains("hay wishes"),
+        "fair-sky lines under a wet sky: {text}");
+    // and a fair day hears no rain
+    g.world.get_component_mut::<crate::sim::climate::Climate>(g.climate).unwrap().rainfall_drift = 0.0;
+    g.tick += 1;
+    let s = speaker_of(&g.world, a, &na, g.tick);
+    assert!(s.status.contains(&"wx-fair"), "the clear sky rode no status: {:?}", s.status);
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let text = r.lines.iter().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" | ");
+    assert!(!text.contains("Looks like rain") && !text.contains("wet week") && !text.contains("mud will take"),
+        "wet-sky lines under a fair sky: {text}");
+}
+
+/// #1388: a favor-ask names the asked's trade - the fisher gets asked
+/// for a fish, and a yes walks it round like any help-out
+#[test]
+fn test_a_favor_ask_names_their_trade() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    let fisher = || crate::game::vocation::Craft {
+        vocation: crate::game::vocation::Vocation::Fisher, skill: 0.7,
+        workplace: None, master: None, exposure: 0.0, tasked_by: None,
+        pending: 0.0, apprentice_years: 0, stage: 0 };
+    g.world.add_component(a, fisher());
+    g.world.add_component(b, fisher());
+    let mut found = false;
+    for i in 0..600 {
+        g.tick += 1;
+        g.villagers_chat(a, b);
+        let r = g.talk_log.last().unwrap();
+        if r.lines.iter().any(|l| l.text.contains("spare a fat trout")) {
+            let texts: Vec<&str> = r.lines.iter().map(|l| l.text.as_str()).collect();
+            assert!(texts.iter().any(|t| t.contains("bring it by") || t.contains("set it aside")
+                    || t.contains("at thy door") || HELP_NO.iter().any(|n| t.contains(n))),
+                "the ask never got its answer: {texts:?}");
+            found = true;
+            break;
+        }
+        let _ = i;
+    }
+    assert!(found, "600 chats and no favor-ask fired");
+}

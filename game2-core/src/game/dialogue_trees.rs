@@ -241,8 +241,14 @@ const SMALL_VOLLEY: Exchange = Exchange {
 pub const SMALL_CHAT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk", "weather"],
-    calls: &["Looks like rain again, doesn't it?", "Cold wind off the moor this morning.", "Gray clouds gathering over the western hill.", "Aye, the dew lay heavy on the clover this morning.", "A gray dawn, but the day's work won't wait for it.", "The frost sat late on the furrows this morning."],
+    calls: &["Cold wind off the moor this morning.", "The sky does what it does, {other}."],
     voice: &[
+        // the sky overhead (#1388): a wet sky falls rain lines, a fair
+        // one drying lines - the day's own weather rides as wx-*
+        Voice { criteria: &[Has("self:status:wx-rain")], lines: &["Looks like rain again, doesn't it?", "Gray clouds gathering over the western hill.", "The rain's been at it since matins, hasn't it?"] },
+        Voice { criteria: &[Has("self:status:wx-snow")], lines: &["The frost sat late on the furrows this morning.", "Snow again - the lane's white to the gate.", "It came down in the night; drifts against the byre."] },
+        Voice { criteria: &[Has("self:status:wx-fog")], lines: &["A gray dawn, but the day's work won't wait for it.", "The haar's rolled in thick - the steeple's gone clean out of sight.", "Pale and close this morning - can't see past the hedge."] },
+        Voice { criteria: &[Has("self:status:wx-fair")], lines: &["Aye, the dew lay heavy on the clover this morning.", "Bright enough for drying, thank God.", "A fine morning - the kind the hay wishes for."] },
         // helplessness as a delivery mode (#1269): the same issue lands
         // resigned while they're cold, and warms rung by rung - these
         // lead so they out-read the plain status voices below
@@ -297,7 +303,7 @@ pub const SMALL_CHAT: Exchange = Exchange {
             then: Some(SMALL_VOLLEY), end: None,
         },
         Reply {
-            criteria: &[], weight: 1.00, bias: &[],
+            criteria: &[Has("self:status:wx-rain")], weight: 1.00, bias: &[],
             act: Act::Agree, concepts: &["weather"],
             respond: None,
             lines: &["It will be a wet week, mark me.", "The thatch won't thank it if it pours.", "Aye, and the mud will take thy boots right off.", "Good for the barley, but bad for the road."],
@@ -312,7 +318,31 @@ pub const SMALL_CHAT: Exchange = Exchange {
             then: Some(SMALL_VOLLEY), end: None,
         },
         Reply {
-            criteria: &[], weight: 0.40, bias: &[(Hotheaded, 2.0)],
+            criteria: &[Has("self:status:wx-snow")], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["weather"],
+            respond: None,
+            lines: &["Aye, deep snow keeps us close to the hearth.", "The drifts will have us digging till Candlemas.", "Aye - good snow keeps the root cellar cold."],
+            voice: &[],
+            then: Some(SMALL_VOLLEY), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:wx-fog")], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["weather"],
+            respond: None,
+            lines: &["Aye, thick as wool out there.", "Can't see the ford for it, mark me.", "Aye - a morning for staying by the fire."],
+            voice: &[],
+            then: Some(SMALL_VOLLEY), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:wx-fair")], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["weather"],
+            respond: None,
+            lines: &["Aye, a day made for the field.", "Good drying weather, praise be.", "Aye - a sky worth working under."],
+            voice: &[],
+            then: Some(SMALL_VOLLEY), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:wx-rain")], weight: 0.40, bias: &[(Hotheaded, 2.0)],
             act: Act::PushBack, concepts: &["weather"],
             respond: None,
             lines: &["Rain? It is the driest week in memory.", "Thou seest a tempest in every puff of smoke.", "My joints say dry weather, whatever the sky says.", "Nay, I see it differently, mark me.", "That is not the way the elders told it."],
@@ -2681,7 +2711,7 @@ const LEVEE_GREET: Exchange = Exchange {
             criteria: &[], weight: 0.50, bias: &[],
             act: Act::Question, concepts: &["concern:rents", "aid"],
             respond: None,
-            lines: &["{addr} - might the hail damage weigh on the tallage?", "A word of grace, {addr} - the oats failed on the lower strip.", "Will the court hear our plea about the common ditch, {addr}?"],
+            lines: &["{addr} - might the hail damage weigh on the tallage?", "A word of grace, {addr} - the oats failed on the lower strip.", "Will the court hear our plea about the common ditch, {addr}?", "Will the court grant us gleaning after the lord's own harvest, {addr}?", "A word, {addr} - the mill queue starves us; might a second stone be licensed?", "{addr} - may my boy take dead wood from the manor copse this winter?", "Will the manor take our rent in rye this year, {addr}? The silver's short.", "A word of grace, {addr} - the boon-works fall on haymaking week."],
             voice: &[],
             then: Some(LEVEE_LAW), end: None,
         },

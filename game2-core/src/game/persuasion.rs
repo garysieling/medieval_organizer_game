@@ -53,6 +53,27 @@ pub struct PendingPersuasion {
 /// Whether the bond's deep enough to argue with them: you know them
 pub fn can_argue(stage: RelStage) -> bool { stage >= RelStage::Known }
 
+/// Lines that are themselves an argument (#1348): the talk offers no
+/// "argue a point" ask any more - the words carry it. Picking one of
+/// these speaks it, then opens the argument the ask used to open.
+/// The accusation picks of the event trees, the flat contradiction the
+/// PushBack replies lean on, calling their word a liar's, and taking
+/// a side in the Noah row all count.
+pub const ARGUMENTATIVE_LINES: &[&str] = &[
+    crate::game::dialogue_trees::FT_ACCUSE,
+    crate::game::dialogue_trees::FT_ACCUSE_RUN,
+    crate::game::dialogue_trees::NOAH_SIDE_THEM,
+    "Nay, I see it differently, mark me.",
+    "That is not the way the elders told it.",
+    "I have heard that lie three times this week.",
+    "Say that again, if thou darest.",
+    "Thou hast a treacherous tongue in thy skull.",
+    "The whole parish knows the measure of thy word.",
+];
+
+/// Whether a reply's own words are an argument's opening
+pub fn is_argumentative(line: &str) -> bool { ARGUMENTATIVE_LINES.contains(&line) }
+
 /// The live issues worth arguing with `person`: the campaign's, the
 /// ones the organizer has found, then what they've told you of their
 /// own and what's woken them - deduped, at most `ARGUABLE_MAX`

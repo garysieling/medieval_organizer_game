@@ -62,6 +62,18 @@ fn pick(g: &mut Game, label: &str) {
     g.talk_pick_at(0, Some(i));
 }
 
+/// Open the argument the way it opens now (#1348): the ask's gone -
+/// an argumentative line among the replies, said, is the way in
+fn argue(g: &mut Game) {
+    {
+        let t = g.seats[0].talk.as_mut().unwrap();
+        t.options[0] = (crate::game::conversation::Act::PushBack,
+            crate::game::dialogue_trees::FT_ACCUSE.into());
+    }
+    g.talk_pick_at(0, Some(0));
+    assert!(g.seats[0].talk.as_ref().unwrap().argue.is_some(), "the words open it");
+}
+
 fn record_texts(g: &Game) -> Vec<String> {
     let id = g.seats[0].talk.as_ref().unwrap().id;
     g.talk_log.iter().find(|r| r.id == id).unwrap().lines.iter().map(|l| l.text.clone()).collect()
@@ -73,15 +85,65 @@ fn test_the_argument_waits_on_knowing_them() {
     let i = adult(&g);
     let v = known(&mut g, i, vec![], 0.3);
     assert_eq!(stage_of(&g.world, g.player, v), RelStage::Known);
-    let offers = crate::game::organizing::ask_offers(&g.world, g.org, v, 0);
-    assert_eq!(offers.first().map(|o| o.kind), Some(PropKind::Argue), "{offers:?}");
-    // an acquaintance (one piece heard) gets no hearing for your case
+    // "argue a point" is no ask at all now (#1348) - the argumentative
+    // lines in the ordinary picks carry the quarrel themselves
+    assert!(!crate::game::organizing::ask_offers(&g.world, g.org, v, 0).iter().any(|o| o.kind == PropKind::Argue));
+    // an acquaintance (one piece heard) gets no hearing for your case:
+    // a quarrel's opening needs them to know you
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
     assert_eq!(stage_of(&g.world, g.player, v), RelStage::Acquaintance);
-    assert!(!crate::game::organizing::ask_offers(&g.world, g.org, v, 0).iter().any(|o| o.kind == PropKind::Argue));
-    // nor does a safe read lift an acquaintance to it: they couldn't be moved
-    assert!(!crate::game::organizing::ask_offers(&g.world, g.org, v, 1).iter().any(|o| o.kind == PropKind::Argue));
+    assert!(!persuasion::can_argue(stage_of(&g.world, g.player, v)));
     assert_eq!(persuasion::magnitude(&g.world, g.player, v, &"the taxes".to_string(), ArgueMove::HearOut, g.tick), 0.0);
+}
+
+#[test]
+fn test_the_words_themselves_open_the_argument() {
+    let mut g = Game::new();
+    let i = adult(&g);
+    known(&mut g, i, vec![], 0.3);
+    talk_beside(&mut g, i);
+    // the accusation line carries the flag's mark on the menu
+    {
+        let t = g.seats[0].talk.as_mut().unwrap();
+        t.options[0] = (crate::game::conversation::Act::PushBack,
+            crate::game::dialogue_trees::FT_ACCUSE.into());
+    }
+    let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
+    assert_eq!(labels[0], format!("{} - a quarrel", crate::game::dialogue_trees::FT_ACCUSE));
+    // saying it opens the argument the ask once did
+    g.talk_pick_at(0, Some(0));
+    let a = g.seats[0].talk.as_ref().unwrap().argue.clone().expect("the words should open it");
+    assert!(!a.issues.is_empty(), "their known trouble is arguable");
+    // and it plays out through the same moves
+    pick(&mut g, "Argue ");
+    pick(&mut g, "Argue for");
+    let before = g.talk_log.iter().map(|r| r.lines.len()).sum::<usize>();
+    pick(&mut g, "Hear them out");
+    let after = g.talk_log.iter().map(|r| r.lines.len()).sum::<usize>();
+    assert!(after > before, "the argument resolved through the moves");
+    assert!(g.seats[0].talk.as_ref().unwrap().argue.is_none(), "the case is made");
+}
+
+#[test]
+fn test_a_quarrel_a_stranger_cant_take_up() {
+    let mut g = Game::new();
+    let i = adult(&g);
+    let v = g.villagers[i];
+    // one piece heard - an acquaintance, not yet known
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let pe = g.player;
+    relationships::record_interaction(&mut g.world, pe,
+        Interaction { other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
+    assert_eq!(stage_of(&g.world, g.player, v), RelStage::Acquaintance);
+    talk_beside(&mut g, i);
+    {
+        let t = g.seats[0].talk.as_mut().unwrap();
+        t.options[0] = (crate::game::conversation::Act::PushBack,
+            "Nay, I see it differently, mark me.".into());
+    }
+    g.talk_pick_at(0, Some(0));
+    assert!(g.seats[0].talk.as_ref().unwrap().argue.is_none(),
+        "an acquaintance lets the quarrel pass");
 }
 
 #[test]
@@ -174,7 +236,7 @@ fn test_an_argument_plays_out_in_the_talk() {
     let i = adult(&g);
     let v = known(&mut g, i, vec![Trait::Stingy], 0.3);
     talk_beside(&mut g, i);
-    pick(&mut g, "Argue a point");
+    argue(&mut g);
     let t = g.seats[0].talk.as_ref().unwrap().clone();
     assert!(t.argue.is_some(), "the argument's under way");
     let shown = g.convo_panel_at(0).unwrap().options;
@@ -187,7 +249,7 @@ fn test_an_argument_plays_out_in_the_talk() {
     pick(&mut g, "Hear them out");
     let t = g.seats[0].talk.as_ref().unwrap().clone();
     assert!(t.argue.is_none(), "resolved");
-    assert!(t.choice_labels(&g.world).iter().all(|l| !l.starts_with("Argue a point")), "spent for this talk");
+    assert!(t.choice_labels(&g.world).iter().all(|l| !l.contains("a quarrel") || !l.starts_with("Argue")), "spent for this talk");
     let lines = record_texts(&g);
     assert!(lines.iter().any(|l| l.contains("think on it") || l.contains("Neither of you") || l.contains("other way")),
         "the outcome is narrated: {lines:?}");
@@ -200,7 +262,7 @@ fn test_letting_it_drop_leaves_them_unmoved() {
     let i = adult(&g);
     let v = known(&mut g, i, vec![], 0.3);
     talk_beside(&mut g, i);
-    pick(&mut g, "Argue a point");
+    argue(&mut g);
     pick(&mut g, "Let it drop");
     assert!(g.seats[0].talk.as_ref().unwrap().argue.is_none());
     assert!(g.world.get_component::<PendingPersuasion>(v).is_none());
@@ -217,7 +279,7 @@ fn argue_for_taxes(held: bool) -> f32 {
     }
     talk_beside(&mut g, i);
     let before = strength(&g, v);
-    pick(&mut g, "Argue a point");
+    argue(&mut g);
     pick(&mut g, "Argue the tax");
     pick(&mut g, "Argue for");
     pick(&mut g, "Hear them out");

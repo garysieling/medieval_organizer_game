@@ -260,3 +260,4 @@ mod mentorship;
 mod table;
 mod hooks;
 mod inoculation;
+mod text_lint;

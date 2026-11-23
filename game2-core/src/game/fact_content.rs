@@ -362,7 +362,7 @@ mod tests {
         a.status.push("shuns_the_gate");
         let b = Speaker::new("B");
         let lib = crate::game::dialogue_trees::village_library();
-        let tr = converse(&a, &b, Relation::Acquaintance, &lib, None, &mut Rng::new(7));
+        let tr = converse(&a, &b, Relation::Acquaintance, None, &lib, None, &mut Rng::new(7));
         assert!(tr.turns.iter().any(|t| t.text == content_for_fact("ghost:levy").unwrap().slip),
             "the slip never fell: {:?}", tr.turns.iter().map(|t| t.text.as_str()).collect::<Vec<_>>());
     }
@@ -376,7 +376,7 @@ mod tests {
         let mut b = Speaker::new("B");
         b.status.push("shuns_the_gate");
         let lib = crate::game::dialogue_trees::village_library();
-        let tr = converse(&a, &b, Relation::Acquaintance, &lib, None, &mut Rng::new(7));
+        let tr = converse(&a, &b, Relation::Acquaintance, None, &lib, None, &mut Rng::new(7));
         assert!(tr.turns.iter().any(|t| t.text == content_for_fact("ghost:levy").unwrap().gossip),
             "the wear was never named: {:?}", tr.turns.iter().map(|t| t.text.as_str()).collect::<Vec<_>>());
     }
@@ -436,7 +436,7 @@ mod tests {
         let b = Speaker::new("B");
         let lib = crate::game::dialogue_trees::village_library();
         let mut phase = 0;
-        let tr = converse_with(&a, &b, Relation::Friend, &lib, None, 1,
+        let tr = converse_with(&a, &b, Relation::Friend, None, &lib, None, 1,
             &mut |choices: &[crate::game::conversation::Choice]| {
                 // the ask slot appears only from the second player turn
                 if let Some(i) = choices.iter().position(|c| c.preview.contains("Put a question")) {

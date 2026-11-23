@@ -98,6 +98,9 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
                 earshot: rng.below(4) == 0,
                 shared: rng.below(3) as u8,
             },
+            tv: game2_core::game::text::Tv::You,
+            archaism: 1,
+            rel: game2_core::game::conversation::Relation::Stranger,
         });
     }
     roster

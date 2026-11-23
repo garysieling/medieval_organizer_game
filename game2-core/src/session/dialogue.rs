@@ -424,6 +424,12 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     }
     // an old wound colors their talk long before they'll name it (#1243)
     s.status.extend(crate::game::hooks::statuses(world, who));
+    // their own archaism (E4-2, #1414): the devout and the old-ways keep
+    // the full thou-pattern; the rest take thou only as a marked shift
+    s.archaism = if s.ideology == "clergy"
+        || s.traits.contains(&crate::game::traits::Trait::Pious)
+        || s.status.iter().any(|st| *st == "old_ways")
+        || s.facts.open.iter().any(|f| matches!(f.as_str(), "archetype:devout" | "archetype:old_guard")) { 2 } else { 1 };
     s
 }
 

@@ -1687,12 +1687,12 @@ mod tests {
     /// lines like these, and a Farewell reply may hold none.
     const RUDE: &[&str] = &[
         "knave", "scoundrel", "Out of my way", "parley", "Breathe elsewhere",
-        "nothing to say", "frightened", "Get out", "Hold thy tongue", "pox",
-        "thy pride", "thy own yard", "fool",
+        "nothing to say", "frightened", "Get out", "Hold {2:poss} tongue", "pox",
+        "{2:poss} pride", "{2:poss} own yard", "fool",
         // cold refusals and hostile dismissals that end a talk on a hard note
         "Cur!", "break them", "shadow off my path", "Begone", "be gone",
         "before I shout", "call folk out", "not plague", "move on",
-        "speak poison", "look to my door", "stretch our own store",
+        "{2:speak} poison", "look to my door", "stretch our own store",
         "nothing spare", "bailiff watches", "barely has coals", "not from me",
     ];
 
@@ -2797,12 +2797,23 @@ mod tests {
         caller.status.push("sick"); // a status tree to lose, so depth shows
         let probe = probe_for(&caller);
         let you = Speaker::new("Wanderer");
+        // the offered previews are realized text (E4-4): match them
+        // against the pools realized with the pair's own patch
+        let mut yours = you.clone();
+        let mut theirs = caller.clone();
+        yours.rel = rel;
+        theirs.rel = rel;
+        yours.tv = crate::game::text::tv_for(&yours, &theirs, rel,
+            matches!(rel, Relation::Rival));
+        let cx = crate::game::text::Cx::plain(&yours, &theirs, &[]);
         // at the audition - both options drawn from the probe's two
         // pools - pick the landing or the wrong note as asked
         converse_with(&caller, &you, rel, None, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if let Some(p) = probe {
-                    let in_pool = |c: &Choice, pool: &[&'static str]| pool.iter().any(|l| *l == c.preview);
+                    let in_pool = |c: &Choice, pool: &[&'static str]| pool.iter()
+                        .any(|l| crate::game::text::realize(l, &cx,
+                            &mut Rng::new(0)) == c.preview);
                     if ch.iter().all(|c| in_pool(c, p.pass.1) || in_pool(c, p.fail.1)) {
                         let wanted = if pass { p.pass.1 } else { p.fail.1 };
                         return ch.iter().position(|c| in_pool(c, wanted));
@@ -2841,7 +2852,19 @@ mod tests {
             let tr = audition_talk(&[p.who], Relation::Acquaintance, true);
             assert!(tr.trees_walked.contains(&PROBE_TREE), "{:?} never probed", p.who);
             let call = tr.turns.iter().find(|t| t.tree == PROBE_TREE && t.speaker == 0).unwrap();
-            assert!(p.calls.contains(&call.text.as_str()), "{:?}: {:?} not theirs", p.who, call.text);
+            // the call on the record is realized text - compare like to
+            // like with the caller's own pair patch (E4-4)
+            let mut hob = Speaker::new("Hob");
+            hob.traits = vec![p.who];
+            hob.status.push("sick");
+            let you = Speaker::new("Wanderer");
+            hob.rel = Relation::Acquaintance;
+            hob.tv = crate::game::text::tv_for(&hob, &you, Relation::Acquaintance, false);
+            let cx = crate::game::text::Cx::plain(&hob, &you, &[]);
+            let calls: Vec<String> = p.calls.iter()
+                .map(|l| crate::game::text::realize(l, &cx, &mut Rng::new(0)))
+                .collect();
+            assert!(calls.contains(&call.text), "{:?}: {:?} not theirs", p.who, call.text);
         }
         let none = audition_talk(&[], Relation::Acquaintance, true);
         assert!(!none.trees_walked.contains(&PROBE_TREE));

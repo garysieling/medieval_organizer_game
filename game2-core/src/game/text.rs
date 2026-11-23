@@ -447,9 +447,14 @@ pub fn thou_form(verb: &str) -> String {
         "may" => "mayst",
         "might" => "mightst",
         "must" => "must",
+        "said" => "saidst",
         "ought" => "oughtest",
         "wit" => "wost",
-        v => return if v.ends_with('e') { format!("{v}st") } else { format!("{v}est") },
+        v if v.ends_with('e') => return format!("{v}st"),
+        // carriest, spiest - a consonant's y goes to i before -est
+        v if v.ends_with('y') && !matches!(v.as_bytes()[v.len() - 2],
+            b'a' | b'e' | b'i' | b'o' | b'u') => return format!("{}iest", &v[..v.len() - 1]),
+        v => return format!("{v}est"),
     }.to_string()
 }
 
@@ -522,7 +527,7 @@ const THOU_IRREG: &[(&str, &str)] = &[
     ("can", "canst"), ("could", "couldst"),
     ("will", "wilt"), ("would", "wouldst"),
     ("shall", "shalt"), ("should", "shouldst"),
-    ("may", "mayst"), ("might", "mightst"),
+    ("may", "mayst"), ("might", "mightst"), ("said", "saidst"),
     ("ought", "oughtest"), ("wit", "wost"),
 ];
 
@@ -532,40 +537,90 @@ const THOU_IRREG: &[(&str, &str)] = &[
 /// tests sweep it.
 #[doc(hidden)]
 pub fn authored_lines() -> Vec<&'static str> {
-    fn gather<'a>(ex: &'a crate::game::conversation::Exchange, out: &mut Vec<&'static str>) {
-        out.extend(ex.calls.iter().copied());
-        for v in ex.voice { out.extend(v.lines.iter().copied()); }
+    authored_lines_by_source().into_iter().map(|(_, l)| l).collect()
+}
+
+/// The corpus with each line tagged by the file it was authored in
+/// (E4-4): the migration lint counts typed second-person forms per
+/// source so a file's leftovers are its own to clear.
+#[doc(hidden)]
+pub fn authored_lines_by_source() -> Vec<(&'static str, &'static str)> {
+    fn gather<'a>(src: &'static str, ex: &'a crate::game::conversation::Exchange,
+                  out: &mut Vec<(&'static str, &'static str)>) {
+        out.extend(ex.calls.iter().map(|l| (src, *l)));
+        for v in ex.voice { out.extend(v.lines.iter().map(|l| (src, *l))); }
         for r in ex.replies {
-            out.extend(r.lines.iter().copied());
-            for v in r.voice { out.extend(v.lines.iter().copied()); }
-            if let Some(then) = &r.then { gather(then, out); }
+            out.extend(r.lines.iter().map(|l| (src, *l)));
+            for v in r.voice { out.extend(v.lines.iter().map(|l| (src, *l))); }
+            if let Some(then) = &r.then { gather(src, then, out); }
         }
     }
     let mut all = vec![];
     for tree in crate::game::dialogue_trees::village_library() {
-        gather(tree.root, &mut all);
-        if let Some(rejoin) = tree.rejoin { gather(rejoin, &mut all); }
+        gather("trees", tree.root, &mut all);
+        if let Some(rejoin) = tree.rejoin { gather("trees", rejoin, &mut all); }
     }
     for t in crate::game::dialogue_trees::ASK_TOPICS {
-        all.extend(t.tell.iter().copied());
+        all.extend(t.tell.iter().map(|l| ("asks", *l)));
     }
     for b in crate::game::campaign_meeting_beats::MEETING_BEATS {
-        all.extend(b.lines.iter().copied());
-        for m in b.moves { all.extend(m.lines.iter().copied()); }
+        all.extend(b.lines.iter().map(|l| ("meeting", *l)));
+        for m in b.moves { all.extend(m.lines.iter().map(|l| ("meeting", *l))); }
     }
     for b in crate::game::campaign_arc_beats::ARC_BEATS {
-        all.extend(b.lines.iter().copied());
-        for m in b.moves { all.extend(m.lines.iter().copied()); }
+        all.extend(b.lines.iter().map(|l| ("arc", *l)));
+        for m in b.moves { all.extend(m.lines.iter().map(|l| ("arc", *l))); }
     }
     for s in crate::game::scenes::SCENES {
         for v in s.variants {
-            all.extend(v.lines.iter().map(|(_, l)| *l));
+            all.extend(v.lines.iter().map(|(_, l)| ("scenes", *l)));
         }
     }
-    all.extend(crate::game::conversation::HOG_RUN.iter().copied());
-    all.extend(crate::game::conversation::HOG_GISTS.iter().copied());
-    all.extend(crate::game::conversation::HOG_FLOOR.iter().copied());
+    all.extend(crate::game::conversation::HOG_RUN.iter().map(|l| ("hog", *l)));
+    all.extend(crate::game::conversation::HOG_GISTS.iter().map(|l| ("hog", *l)));
+    all.extend(crate::game::conversation::HOG_FLOOR.iter().map(|l| ("hog", *l)));
     all
+}
+
+/// A line's typed second-person forms (E4-4's leftover census): the
+/// archaic set, the modern set, and any -st/-est verb a subject's "thou"
+/// or "you" still binds. Everything a realizer slot can carry should be
+/// a slot; what remains is what the lint counts.
+#[doc(hidden)]
+pub fn typed_second_person(line: &str) -> Vec<String> {
+    let words: Vec<String> = line
+        .split(|c: char| !(c.is_alphabetic() || c == '\''))
+        .filter(|w| !w.is_empty())
+        .map(|w| w.to_lowercase())
+        .collect();
+    let mut hits = vec![];
+    for (i, w) in words.iter().enumerate() {
+        let hit = match w.as_str() {
+            "thee" | "thou" | "thy" | "thine" | "thyself" | "ye" | "art"
+            | "wast" | "wert" | "hast" | "hadst" | "dost" | "didst" | "canst"
+            | "couldst" | "wilt" | "wouldst" | "shalt" | "shouldst" | "mayst"
+            | "mightst" | "saidst" | "you" | "your" | "yours" | "yourself"
+            | "yourselves" => true,
+            // a -st verb only counts beside its subject: "thou knowest",
+            // "knowest thou" - "last" and "priest" are not verbs
+            _ if w.len() > 3 && (w.ends_with("est") || w.ends_with("st"))
+                && !matches!(w.as_str(), "last" | "lost" | "rest" | "best"
+                    | "priest" | "quest" | "first" | "honest" | "earnest"
+                    | "tempest" | "forest" | "harvest" | "interest" | "west"
+                    | "east" | "feast" | "beast" | "least" | "breast" | "jest"
+                    | "nest" | "test" | "pest" | "vest" | "chest" | "guest"
+                    | "request" | "conquest" | "manifest" | "lest" | "just"
+                    | "must" | "dust" | "thrust" | "trust" | "crust" | "worst"
+                    | "against" | "amongst" | "midst" | "whilst" | "thirst") => {
+                let near = |j: usize| matches!(words.get(j).map(|s| s.as_str()),
+                    Some("thou") | Some("ye") | Some("you"));
+                near(i.wrapping_sub(1)) || near(i + 1)
+            }
+            _ => false,
+        };
+        if hit { hits.push(w.clone()); }
+    }
+    hits
 }
 
 #[cfg(test)]

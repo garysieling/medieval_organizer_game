@@ -3,7 +3,8 @@
 //! lord gets thee only when flagged (kin, friend, or a rival's slight).
 
 use crate::game::conversation::{Relation, Rng, Speaker};
-use crate::game::text::{agreement_faults, authored_lines, realize, tv_for, Cx};
+use crate::game::text::{agreement_faults, authored_lines, authored_lines_by_source,
+    realize, tv_for, typed_second_person, Cx};
 
 #[test]
 fn test_no_authored_line_crosses_the_forms() {
@@ -91,4 +92,28 @@ fn test_a_lord_gets_thee_only_when_flagged() {
             assert!(thee.iter().any(|w| toks.contains(w)), "flagged lord got no thou-form: {got} <- {t}");
         }
     }
+}
+
+#[test]
+fn test_the_migration_leaves_no_typed_forms_in_the_trees() {
+    // E4-4's leftover lint: typed second-person forms counted per source
+    // file. The trees are migrated; the beats and scenes count down to
+    // zero on the second pass.
+    let mut counts: std::collections::BTreeMap<&str, usize> = Default::default();
+    let mut samples: std::collections::BTreeMap<&str, Vec<String>> = Default::default();
+    for (src, line) in authored_lines_by_source() {
+        let hits = typed_second_person(line);
+        if hits.is_empty() { continue; }
+        *counts.entry(src).or_default() += hits.len();
+        let s = samples.entry(src).or_default();
+        if s.len() < 3 {
+            s.push(format!("{hits:?} <- {line}"));
+        }
+    }
+    assert_eq!(counts.get("trees").copied().unwrap_or(0), 0,
+        "typed forms left in the trees: {:?}", samples.get("trees"));
+    assert_eq!(counts.get("asks").copied().unwrap_or(0), 0,
+        "typed forms left in the asks: {:?}", samples.get("asks"));
+    // the rest are PR2's to clear - report them so the count is visible
+    eprintln!("typed second-person forms by source: {counts:?}");
 }

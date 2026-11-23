@@ -456,12 +456,13 @@ fn test_a_follower_greets_you_differently() {
     g.talk_to(1);
     let r = g.talk_log.iter().rev().find(|r| r.kind == crate::session::dialogue::TalkKind::Talk).expect("the talk record");
     let first = &r.lines[0].text;
+    let t = g.seats[0].talk.as_ref().expect("the talk's open");
     let expected: Vec<String> = [
-        "{other}! Good day - I was hoping I'd see thee about.",
-        "There thou art, {other}. Word is thou'rt still talking to folk.",
-        "A fair morning to thee, {other} - and to the work we share.",
-        "I saved thee a thought or two since last we spoke, {other}."]
-        .iter().map(|s| s.replace("{other}", "wanderer")).collect();
+        "{other}! Good day - I was hoping I'd see {2:obj} about.",
+        "There {2:subj} {2:be}, {other}. Word is {2:subj} {2:be} still talking to folk.",
+        "A fair morning to {2:obj}, {other} - and to the work we share.",
+        "I saved {2:obj} a thought or two since last we spoke, {other}."]
+        .iter().map(|s| super::fixtures::said(t, false, *s)).collect();
     assert!(expected.contains(first), "a follower greets the bond: {}", first);
 }
 

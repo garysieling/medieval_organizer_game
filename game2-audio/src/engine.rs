@@ -16,12 +16,15 @@ const fn bi(b: Bus) -> usize { b as usize }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct VoiceId(pub u32);
 
-/// What a voice makes. The enum leaves room for the sampler and synth
-/// variants S3/A2 add; S1 ships an oscillator and noise.
+/// What a voice makes. The enum leaves room for the sampler variants
+/// A2 adds; S3 adds the legacy cue synths.
 #[derive(Clone, Copy, Debug)]
 pub enum Source {
     Sine { hz: f32 },
     Noise,
+    /// One of the game's cue voices - plays out its own envelope then
+    /// retires itself
+    Synth(crate::synth::SynthKind),
 }
 
 /// How a voice sounds: loudness, stereo place, speed, tone and how
@@ -195,7 +198,7 @@ impl Engine {
     /// cap and the perf budget both read this.
     pub fn live_voices(&self) -> usize { self.voices.len() }
 
-    fn voice_sample(v: &mut Voice, sr: f32, rng: &mut Rng) -> f32 {
+    fn voice_sample(v: &mut Voice, sr: f32, rng: &mut Rng, age: u64) -> f32 {
         let s = match v.src {
             Source::Sine { hz } => {
                 let y = (v.phase * TAU).sin();
@@ -203,6 +206,10 @@ impl Engine {
                 y
             }
             Source::Noise => rng.range(-1.0, 1.0),
+            Source::Synth(kind) => {
+                let t = age as f32 / sr;
+                if t > kind.len() { 0.0 } else { kind.sample(t, rng.range(-1.0, 1.0)) }
+            }
         };
         let a = 1.0 - (-TAU * v.params.lowpass_hz / sr).exp(); // 1 - e^(-2pi fc / sr)
         v.lp += a.min(1.0) * (s - v.lp);
@@ -225,7 +232,8 @@ impl Engine {
                     v.attack -= 1;
                     f
                 } else { 1.0 };
-                let s = Self::voice_sample(v, self.sr, &mut self.rng) * ramp;
+                let age = self.clock + (i / 2) as u64 - v.born;
+                let s = Self::voice_sample(v, self.sr, &mut self.rng, age) * ramp;
                 let th = (v.params.pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
                 let (l, r) = (s * th.cos(), s * th.sin());
                 if v.bus == bi(Bus::Master) { m[0] += l; m[1] += r; }
@@ -238,7 +246,8 @@ impl Engine {
             }
             for d in self.dying.iter_mut() {
                 let fade = d.left as f32 / d.total as f32;
-                let s = Self::voice_sample(&mut d.v, self.sr, &mut self.rng) * fade;
+                let age = self.clock + (i / 2) as u64 - d.v.born;
+                let s = Self::voice_sample(&mut d.v, self.sr, &mut self.rng, age) * fade;
                 let th = (d.v.params.pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
                 let (l, r) = (s * th.cos(), s * th.sin());
                 if d.v.bus == bi(Bus::Master) { m[0] += l; m[1] += r; }
@@ -261,5 +270,11 @@ impl Engine {
         }
         self.dying.retain(|d| d.left > 0);
         self.clock += (out.len() / 2) as u64;
+        // a cue voice that's played itself out frees its slot
+        let clock = self.clock;
+        self.voices.retain(|v| match v.src {
+            Source::Synth(kind) => (clock - v.born) as f32 <= kind.len() * self.sr,
+            _ => true,
+        });
     }
 }

@@ -288,7 +288,12 @@ impl PlayerTalk {
                 .chain(std::iter::once("Let it drop".to_string())).collect();
         }
         self.job.then(|| "About that job - I'll take it.".to_string()).into_iter()
-            .chain(self.options.iter().map(|o| o.1.clone()))
+            .chain(self.options.iter().map(|o| {
+                // the words that pick a fight say so (#1348)
+                if crate::game::persuasion::is_argumentative(&o.1) {
+                    format!("{} - a quarrel", o.1)
+                } else { o.1.clone() }
+            }))
             .chain(self.asks.iter().take(self.asks_shown())
                 .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
             .chain(self.inoculation_beyond().as_ref()
@@ -1575,6 +1580,18 @@ impl Game {
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }
         self.refresh_player_talk(seat);
+        // an argumentative line is the argument's way in now (#1348):
+        // the ask's gone from the menu - the words themselves open the
+        // same flow, where they know you well enough to take it up
+        if crate::game::persuasion::is_argumentative(&pick_text) {
+            let stage = crate::game::organizing::stage_of(&self.world,
+                self.seats[seat].player, who);
+            if crate::game::persuasion::can_argue(stage) {
+                self.open_argument(seat, crate::game::organizing::AskOffer {
+                    kind: crate::game::organizing::PropKind::Argue,
+                    key: crate::game::organizing::AskKey::Earned, price: 0.0 });
+            }
+        }
     }
 
     /// The scouting read (#1249): who the room already follows, said in

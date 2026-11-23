@@ -163,11 +163,18 @@ fn test_how_you_argue_is_a_line_they_hear() {
     let i = adults(&g)[0];
     let v = known(&mut g, i, vec![]);
     talk_beside(&mut g, i);
-    pick(&mut g, "Argue a point");
+    {
+        let t = g.seats[0].talk.as_mut().unwrap();
+        t.options[0] = (crate::game::conversation::Act::PushBack,
+            crate::game::dialogue_trees::FT_ACCUSE.into());
+    }
+    g.talk_pick_at(0, Some(0));
     pick(&mut g, "Argue the tax");
     pick(&mut g, "Argue for");
     pick(&mut g, "Press");
-    assert_eq!(weight(&g, v, Line::Firebrand), 1.0);
+    // the accusation's own words are a firebrand line too (#1348): the
+    // flag's pick witnesses one, the Press's move witnesses the other
+    assert_eq!(weight(&g, v, Line::Firebrand), 2.0);
     let other = g.villagers[adults(&g)[1]];
     assert_eq!(weight(&g, other, Line::Firebrand), 0.0, "only the one you argued with heard it");
 }

@@ -1137,14 +1137,9 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
         .unwrap_or((RelStage::Stranger, 0.0));
     let reached = bumped(stage, shift);
     let mut out = vec![];
-    // the argument's earned or not at all (#1234): coin doesn't buy a
-    // hearing for your case, and you can't press one on a stranger;
-    // it leads the asks so it's never crowded off the choice list. A
-    // safe read doesn't lift it early: the case moves them by the bond
-    // they actually hold, so an acquaintance couldn't be swayed
-    if crate::game::persuasion::can_argue(stage) && crate::game::persuasion::can_argue(reached) {
-        out.push(AskOffer { kind: PropKind::Argue, key: AskKey::Earned, price: 0.0 });
-    }
+    // the argument's no ask at all now (#1348): the words carry it -
+    // an argumentative line in the ordinary picks opens the same
+    // machinery the offer once did (persuasion::ARGUMENTATIVE_LINES)
     // the scouting read (#1249): an acquaintance will tell you who the
     // room follows - the answer's the talk's yield, so it's earned or
     // not offered; you don't pay for a picture of the room

@@ -65,6 +65,7 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
 
         roster.push(Speaker {
             name: name.to_string(),
+            facts: game2_core::game::conversation::lite_facts(&traits, i as u64),
             traits,
             ideology,
             status,

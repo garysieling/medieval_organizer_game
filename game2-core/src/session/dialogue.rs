@@ -332,6 +332,11 @@ fn trade_status(v: Vocation) -> Option<&'static str> {
 /// `who` as a conversation speaker, read off the world at `tick`
 pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker {
     let mut s = Speaker::new(name);
+    // the persona's fact table (E3-1, #1423): archetype, top values,
+    // wound, lie and the tiers each area reaches
+    if let Some(p) = world.get_component::<crate::game::persona::Persona>(who) {
+        s.facts = p.fact_table();
+    }
     // the voice's own weight in the room (#1249): bonds, seniority,
     // standing, the moral pull of a dead loss - read live, not stored
     s.pull = crate::game::organizing::pull_of(world, who);

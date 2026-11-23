@@ -239,3 +239,23 @@ fn a_seeded_cast_passes_the_checks() {
             "seed {seed}: a wound has {} holders", c.max_wound_holders);
     }
 }
+
+/// E3-1 (#1423): a seeded villager's Speaker carries the persona's fact
+/// table - archetype and values open, the wound's facts self-only
+#[test]
+fn a_seeded_villagers_speaker_carries_the_personas_facts() {
+    let g = Game::new_seeded_cast(77);
+    for (i, &v) in g.villagers.iter().take(31).enumerate() {
+        let p = g.world.get_component::<crate::game::persona::Persona>(v).unwrap();
+        let s = crate::session::dialogue::speaker_of(&g.world, v, "X", g.tick);
+        assert!(s.facts.open.contains(&format!("archetype:{}", p.archetype.tag())),
+            "slot {i}: {:?}", s.facts.open);
+        assert_eq!(s.facts.open.iter().filter(|f| f.starts_with("value:")).count(), 2);
+        for ghost in &p.ghosts {
+            assert!(s.facts.hidden.contains(&format!("ghost:{}", ghost.kind.tag())),
+                "slot {i}: {:?}", s.facts.hidden);
+            assert!(s.facts.hidden.contains(&format!("lie:{}", ghost.lie.tag())));
+        }
+        assert!(s.facts.hidden.iter().any(|f| f.starts_with("tier:")));
+    }
+}

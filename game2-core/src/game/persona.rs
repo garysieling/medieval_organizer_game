@@ -28,6 +28,23 @@ pub enum EventKind {
     HarvestFeast,
 }
 
+impl EventKind {
+    /// The event's slug for the fact table ("ghost:levy")
+    pub fn tag(self) -> &'static str {
+        match self {
+            EventKind::Fire => "fire",
+            EventKind::Levy => "levy",
+            EventKind::DeathDuty => "death_duty",
+            EventKind::Fever => "fever",
+            EventKind::MillerDebt => "miller_debt",
+            EventKind::BrokenBetrothal => "broken_betrothal",
+            EventKind::OldFaith => "old_faith",
+            EventKind::Eviction => "eviction",
+            EventKind::HarvestFeast => "harvest_feast",
+        }
+    }
+}
+
 /// The archetypes are the biomes: a region of temperament and value
 /// space with a voice register, an audition question and a tendency
 /// in a campaign
@@ -64,6 +81,23 @@ pub const VALUES: [&str; 10] = ["Freedom", "Adventure", "Pleasure", "Advancement
     "Standing", "Safety", "Propriety", "Custom", "Care", "Fairness"];
 
 impl Archetype {
+    /// The biome's slug for the fact table ("archetype:old_guard")
+    pub fn tag(self) -> &'static str {
+        match self {
+            Archetype::OldGuard => "old_guard",
+            Archetype::Striver => "striver",
+            Archetype::SoftHeart => "soft_heart",
+            Archetype::Firebrand => "firebrand",
+            Archetype::QuietHand => "quiet_hand",
+            Archetype::TongueOfTheWell => "tongue_of_the_well",
+            Archetype::Burned => "burned",
+            Archetype::Doubter => "doubter",
+            Archetype::Devout => "devout",
+            Archetype::Merrymaker => "merrymaker",
+            Archetype::Climber => "climber",
+        }
+    }
+
     /// What the village would call the sort
     pub fn name(self) -> &'static str {
         match self {
@@ -162,6 +196,23 @@ pub const BELIEFS: [Belief; 11] = [
 ];
 
 impl Belief {
+    /// The wound's slug for the fact table ("lie:lord_always_wins")
+    pub fn tag(self) -> &'static str {
+        match self {
+            Belief::LordAlwaysWins => "lord_always_wins",
+            Belief::SomeoneToBlame => "someone_to_blame",
+            Belief::WarsTakeSons => "wars_take_sons",
+            Belief::LordTakesFromDead => "lord_takes_from_dead",
+            Belief::GodSends => "god_sends",
+            Belief::MillOwnsUs => "mill_owns_us",
+            Belief::PromisesForKeepers => "promises_for_keepers",
+            Belief::KeepHidden => "keep_hidden",
+            Belief::NeverCrossReeve => "never_cross_reeve",
+            Belief::StrongTogether => "strong_together",
+            Belief::TruthComesOut => "truth_comes_out",
+        }
+    }
+
     /// The lesson as they'd say it
     pub fn text(self) -> &'static str {
         match self {
@@ -212,6 +263,8 @@ pub enum Need {
 pub struct Ghost {
     /// The event that left it
     pub event: EventId,
+    /// The event's kind - the fact table names the wound by it (#1423)
+    pub kind: EventKind,
     /// Index into `hooks::HOOKS`, when one carries it
     pub hook: Option<usize>,
     /// The belief it taught, with its strength: campaign outcomes move it
@@ -394,6 +447,38 @@ impl Persona {
             else if self.values[i] > self.values[top.1] { top = (top.0, i); }
         }
         top
+    }
+
+    /// The tier each fact-area reaches (E3-1, #1423): the surface at 1,
+    /// kin/faith and the told past at 2, the wound at 3 - #1424's
+    /// openness reads these to know how deep a topic can go
+    pub fn tiers(&self) -> Vec<(&'static str, u8)> {
+        let mut v = vec![("self", 1u8), ("work", 1), ("village", 1),
+            ("kin", 2), ("faith", 2)];
+        if !self.story.is_empty() { v.push(("past", 2)); }
+        if !self.ghosts.is_empty() { v.push(("wound", 3)); }
+        v
+    }
+
+    /// The persona's shadow on the conversation's fact table (E3-1,
+    /// #1423): archetype and the top two values are voice-observable
+    /// and go under every prefix; the wound, its lie and the tiers
+    /// stay self-only until disclosure opens them
+    pub fn fact_table(&self) -> crate::game::conversation::FactTable {
+        let (a, b) = self.top_values();
+        let open = vec![
+            format!("archetype:{}", self.archetype.tag()),
+            format!("value:{}", VALUES[a].to_lowercase()),
+            format!("value:{}", VALUES[b].to_lowercase()),
+        ];
+        let mut hidden: Vec<String> = self.ghosts.iter()
+            .flat_map(|g| [format!("ghost:{}", g.kind.tag()),
+                format!("lie:{}", g.lie.tag())])
+            .collect();
+        for (area, t) in self.tiers() {
+            hidden.push(format!("tier:{area}={t}"));
+        }
+        crate::game::conversation::FactTable { open, hidden }
     }
 
     /// The two values that move them least - the "low" legs of the
@@ -599,7 +684,7 @@ pub fn generate_attempt(world_seed: u64, slot: usize, past: &Past, attempt: u32)
     let ghosts: Vec<Ghost> = scored.into_iter().take(2)
         .map(|(s, m)| {
             let (hook, lie, fear, need) = rationalize(m.kind, disp, m.part);
-            Ghost { event: m.id, hook, lie, strength: s.min(1.0), fear, need }
+            Ghost { event: m.id, kind: m.kind, hook, lie, strength: s.min(1.0), fear, need }
         }).collect();
 
     // the body (pass 0, E1-3): drawn off the person's own stream so
@@ -924,7 +1009,7 @@ mod tests {
         // two deepest; the rest demote to light marks. And over a cast
         // the severe ghosts stay near one in eight
         let ghost = |event: u32, lie: Belief, strength: f32| Ghost {
-            event: EventId(event), hook: None, lie, strength,
+            event: EventId(event), kind: EventKind::Fire, hook: None, lie, strength,
             fear: Fear::BuriedLikeHim, need: Need::ToBelong,
         };
         let mut cast: Vec<Option<Persona>> = (0..16).map(|s| {

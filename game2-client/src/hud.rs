@@ -233,6 +233,31 @@ pub(crate) fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * GLYPH_W as usize * scale) as i32 - scale as i32
 }
 
+/// How wide the muted-speaker glyph's box is - the HUD strip grows by
+/// this much while `View.mute` is on (#1505)
+pub(crate) const MUTE_GLYPH_W: i32 = 16;
+
+/// Where the muted-speaker glyph starts in the HUD strip (#1505):
+/// right after the season line's text, on the icon row. Render and
+/// the draw test agree through here.
+pub(crate) fn mute_glyph_x(hud: &str, icon_w: i32) -> i32 {
+    10 + icon_w + text_width(hud, 1) + 4
+}
+
+/// The muted-speaker mark (#1505): a little horn crossed out, drawn at
+/// the end of the HUD strip while `View.mute` is on. 12 px wide on the
+/// icon row, in the strip's own palette.
+pub(crate) fn draw_mute_glyph(buf: &mut Buffer, x: i32, y: i32) {
+    // the horn: a speaker box with a wedge opening right
+    buf.rect(x, y + 4, 3, 6, 255, 232, 160);
+    for i in 0..4 { buf.rect(x + 3 + i, y + 3 - i, 1, 8 + i * 2, 255, 232, 160); }
+    // the slash, two px wide so it reads at this size
+    for i in 0..12 {
+        buf.set(x + i, y + 11 - i, 220, 90, 70);
+        buf.set(x + i, y + 10 - i, 220, 90, 70);
+    }
+}
+
 /// Draw `text` horizontally centred on x = `cx` at row `y`
 pub(crate) fn draw_centered_at(buf: &mut Buffer, cx: i32, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
     draw_text_scaled(buf, cx - text_width(text, scale) / 2, y, text, scale, r, g, b);

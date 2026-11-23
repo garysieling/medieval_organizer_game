@@ -130,6 +130,16 @@ fn limit(x: f32) -> f32 {
     x.signum() * (KNEE + (CEILING - KNEE) * t)
 }
 
+/// Night mode's static compressor (#1505): under -24 dBFS the signal
+/// passes untouched; past it the excess is squashed 3:1. A simple
+/// memoryless curve keeps it deterministic and cheap - it's a tamer,
+/// not a mastering chain.
+const NIGHT_THR: f32 = 0.063095734; // 10^(-24/20)
+fn night_comp(x: f32) -> f32 {
+    let a = x.abs();
+    if a <= NIGHT_THR { x } else { x.signum() * (NIGHT_THR + (a - NIGHT_THR) / 3.0) }
+}
+
 /// The deterministic mixer. `new` fixes the sample rate and the seed
 /// the noise source draws from; everything else is calls.
 pub struct Engine {
@@ -141,6 +151,7 @@ pub struct Engine {
     bus_gain: [f32; N_BUS],
     reverbs: [Reverb; N_BUS - 1],
     mono: bool,
+    night: bool,
     clock: u64,
     fade_samples: u32,
 }
@@ -157,6 +168,7 @@ impl Engine {
             reverbs: [Reverb::new(sample_rate), Reverb::new(sample_rate),
                       Reverb::new(sample_rate), Reverb::new(sample_rate)],
             mono: false,
+            night: false,
             clock: 0,
             fade_samples: (sample_rate as f32 * 0.005) as u32,
         }
@@ -194,6 +206,10 @@ impl Engine {
     pub fn set_bus_gain(&mut self, bus: Bus, gain: f32) { self.bus_gain[bi(bus)] = gain; }
     /// Mono folds the two channels together; each side carries L+R.
     pub fn set_mono(&mut self, on: bool) { self.mono = on; }
+    /// Night mode's soft compressor on Master (#1505): past -24 dBFS
+    /// everything squashes 3:1, so a loud beat tames without touching
+    /// the quiet ones.
+    pub fn set_night(&mut self, on: bool) { self.night = on; }
     /// Voices currently playing (fading-out steals don't count): the
     /// cap and the perf budget both read this.
     pub fn live_voices(&self) -> usize { self.voices.len() }
@@ -265,6 +281,7 @@ impl Engine {
                 let s = (m[0] + m[1]) * 0.5;
                 m = [s, s];
             }
+            if self.night { m[0] = night_comp(m[0]); m[1] = night_comp(m[1]); }
             out[i] = limit(m[0]);
             out[i + 1] = limit(m[1]);
         }

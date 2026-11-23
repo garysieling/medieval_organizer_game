@@ -53,6 +53,7 @@ mod search;
 mod sel_marker;
 mod sign;
 mod sound_dump;
+mod sound_hud;
 mod status_line;
 mod title;
 mod toast;

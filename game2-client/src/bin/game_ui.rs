@@ -241,6 +241,12 @@ fn main() {
     };
     #[cfg(not(all(feature = "audio", not(target_arch = "wasm32"))))]
     let mut audio_host = { let _ = no_audio; game2_audio::host::AudioHost::silent() };
+    // the persisted audio settings (#1505): game2.settings.json beside
+    // game2.claim, applied now, saved a second after a change, flushed
+    // on quit. The Sound menu lands with U2; nothing else writes yet.
+    let mut settings_store = client::audio::SettingsStore::load(
+        std::path::Path::new("game2.settings.json"));
+    audio_host.apply_settings(&settings_store.settings);
     let mut view = View::new(art);
     // the camera opens on the player, wherever this seed's village stands
     let mut cam_centered = false;
@@ -434,6 +440,10 @@ fn main() {
         // View.mute during play (never while the find box has the keys)
         if let Some(m) = &cur_model { audio_host.push(m); }
         audio_host.set_muted(view.mute);
+        // #1505: a blurred window fades out when the settings say so,
+        // and a pending settings write lands once the second's out
+        audio_host.set_focused(window.is_active());
+        settings_store.due(std::time::Instant::now());
         // a talk under way offers leave on either box it shows on -
         // the convo box's "x)", or the TALK panel's when a call's
         // standing over the talk
@@ -708,8 +718,11 @@ fn main() {
         }
         if !view.search_focus && (window.is_key_pressed(Key::H, minifb::KeyRepeat::No)) { view.help_open = !view.help_open; }
         if !view.search_focus && (window.is_key_pressed(Key::F3, minifb::KeyRepeat::No)) { view.ledger_open = !view.ledger_open; }
-        // M mutes: the host reads View.mute each frame (#1494)
-        if !view.search_focus && (window.is_key_pressed(Key::M, minifb::KeyRepeat::No)) { view.mute = !view.mute; }
+        // M mutes: the host reads View.mute each frame (#1494), and
+        // the press says so on the toast feed (#1505)
+        if !view.search_focus && (window.is_key_pressed(Key::M, minifb::KeyRepeat::No)) {
+            view.toggle_mute(cur_model.as_ref().map(|m| m.frame).unwrap_or(0));
+        }
         if let Some((_, scroll_y)) = window.get_scroll_wheel() {
             // Scale multiplicatively so a wheel notch feels consistent at any zoom,
             // while trackpads can still make smaller, smooth adjustments.
@@ -748,6 +761,10 @@ fn main() {
         let spent = frame_at.elapsed();
         if spent < frame_len { std::thread::sleep(frame_len - spent); }
     }
+
+    // the settings file lands on the way out (#1505) - pending changes
+    // written, a corrupt one rewritten
+    settings_store.flush();
 
     let _ = MAP_TILES;
 }

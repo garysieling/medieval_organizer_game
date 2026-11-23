@@ -4,6 +4,9 @@
 //! silent host, never a crash. Everything device-shaped stays behind
 //! the `audio` feature so `--no-default-features` builds silent.
 use game2_audio::host::{AudioHost, AudioSink, HostSettings};
+use game2_audio::settings::AudioSettings;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 /// `game_ui`'s host: a real device when one's open, a silent host for
 /// `--no-audio` or a failed open. The sink owns the stream, so the
@@ -14,6 +17,66 @@ pub fn open_host(no_audio: bool, settings: &HostSettings,
     match sink {
         Some(s) => AudioHost::start(settings, s),
         None => AudioHost::silent(),
+    }
+}
+
+/// How long after the last change the settings file is written - a
+/// slider drag saves once at the end, not on every step.
+const DEBOUNCE: Duration = Duration::from_millis(1000);
+
+/// The desktop's persisted `AudioSettings` (#1505):
+/// `game2.settings.json` in the working directory, next to
+/// `game2.claim`. Changes are written a second after the last one and
+/// flushed on quit; a corrupt file is one warning and defaults, not a
+/// crash - the next write puts a clean copy back.
+pub struct SettingsStore {
+    pub settings: AudioSettings,
+    path: PathBuf,
+    /// When the last change happened; `None` means nothing to write
+    changed: Option<Instant>,
+}
+
+impl SettingsStore {
+    /// Load `path`, or defaults when it doesn't exist or won't parse.
+    pub fn load(path: &Path) -> Self {
+        let settings = match std::fs::read_to_string(path) {
+            Ok(text) => match serde_json::from_str(&text) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("audio: ignoring corrupt {} ({e}) - defaults", path.display());
+                    AudioSettings::default()
+                }
+            },
+            Err(_) => AudioSettings::default(),
+        };
+        SettingsStore { settings, path: path.to_path_buf(), changed: None }
+    }
+
+    /// A setting changed: the write lands a second out, and a later
+    /// change restarts the clock.
+    pub fn touch(&mut self, now: Instant) { self.changed = Some(now); }
+
+    /// Write if the debounce has run out; the caller passes the clock
+    /// so tests can inject one. Returns true when a write happened.
+    pub fn due(&mut self, now: Instant) -> bool {
+        if self.changed.is_some_and(|t| now.duration_since(t) >= DEBOUNCE) {
+            self.changed = None;
+            self.write();
+            true
+        } else { false }
+    }
+
+    /// On quit: the current settings always land, so the file exists
+    /// (and a corrupt one gets rewritten) even when nothing changed.
+    pub fn flush(&mut self) {
+        self.changed = None;
+        self.write();
+    }
+
+    fn write(&self) {
+        if let Ok(text) = serde_json::to_string_pretty(&self.settings) {
+            let _ = std::fs::write(&self.path, text);
+        }
     }
 }
 

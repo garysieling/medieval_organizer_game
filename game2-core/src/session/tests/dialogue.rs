@@ -117,6 +117,9 @@ fn warm_bond(g: &mut Game, v: Entity) {
                 ability: 0.0, benevolence: 0.6, integrity: 0.6 },
             safety: crate::game::relationships::SafetyRung::Challenger,
         });
+    // and the seat's told them a piece of themselves (E3-3): the
+    // private layer wants reciprocation, not just warmth
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick, shared: 2 });
 }
 
 fn talk_beside(g: &mut Game, i: usize) -> Entity {
@@ -1183,9 +1186,10 @@ fn test_the_acts_say_how_the_chat_landed() {
     let tr = |acts: &[(usize, Act)], ending| Transcript {
         speakers: ["A".into(), "B".into()], trees_walked: vec![],
         turns: acts.iter().map(|&(speaker, act)| Turn {
-            speaker, act, text: "x".into(), concepts: vec![], tree: "t", line: None,
+            speaker, act, respond: None, text: "x".into(), concepts: vec![],
+            tree: "t", line: None,
         }).collect(),
-        ending, vibe: None, asked: vec![], forward: 0,
+        ending, vibe: None, asked: vec![], forward: 0, shared: 0, overshot: false,
     };
     // a warm exchange
     assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],
@@ -1285,7 +1289,7 @@ fn test_the_street_only_goes_so_deep() {
 
 /// Leave a Slighted memory on `v` fresh today
 fn slight(g: &mut Game, v: Entity) {
-    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: g.tick });
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: g.tick, shared: 0 });
 }
 
 #[test]
@@ -1305,7 +1309,7 @@ fn test_the_amends_is_on_offer_only_after_a_slight() {
     assert_eq!(t.options.len(), t.options.len()); // options still lead the list
     g.talk_pick_at(0, None);
     // a warm parting carries no amends
-    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick });
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick, shared: 0 });
     talk_beside(&mut g, ad[0]);
     assert!(!g.seats[0].talk.as_ref().unwrap().amends,
         "nothing to make good once it's warm");
@@ -1395,7 +1399,7 @@ fn test_the_sorry_count_outlives_the_memory() {
     g.world.add_component(v, Personality { traits: vec![Trait::Kind] });
     g.world.add_component(v, AmendsTally { of: g.seats[0].player, n: 2 });
     // the slight's memory's a season gone - the tally isn't
-    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: 0 });
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Slighted, tick: 0, shared: 0 });
     g.tick = 21; // past the 20-day memory
     // wrong them again today: the count from the old sorries still stands
     slight(&mut g, v);
@@ -1757,4 +1761,64 @@ fn test_a_first_talk_counts_no_talks_yet() {
     assert!(menu.iter().all(|(_, l)| l != "Ask about themselves"),
         "the personal layer opened on a first meeting: {:?}",
         menu.iter().map(|(_, l)| l).collect::<Vec<_>>());
+}
+
+#[test]
+fn test_the_responsive_guest_hears_more_than_the_curious() {
+    // E3-3's done-when: telling of yourself opens them - the guest who
+    // answers substantively is told more than the one who only asks.
+    // Same pair, same bond warmth; only the talk policy differs
+    use crate::game::conversation::Act;
+    let play_talk = |g: &mut Game, i: usize, curious: bool| {
+        // ears near the crowd close them: a telling wants the pair alone
+        let v = g.villagers[i];
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+        talk_beside(g, i);
+        for _ in 0..60 {
+            let Some(t) = g.seats[0].talk.clone() else { break };
+            let pos = if curious {
+                // only ever asks and remarks - never answers or agrees
+                t.options.iter().position(|(a, _)| *a == Act::Question)
+                    .or_else(|| t.options.iter()
+                        .position(|(a, _)| !matches!(a, Act::Farewell | Act::Answer | Act::Agree)))
+                    .or_else(|| t.options.iter().position(|(a, _)| *a != Act::Farewell))
+            } else {
+                // answers and agrees where they're offered - tells of themself
+                t.options.iter()
+                    .position(|(a, _)| matches!(a, Act::Answer | Act::Agree))
+                    .or_else(|| t.options.iter().position(|(a, _)| *a != Act::Farewell))
+            };
+            match pos { Some(p) => g.talk_pick_at(0, Some(p)), None => break }
+        }
+        // part kindly when the talk's spent: only the parting writes
+        // the sitting's telling into what they keep of you
+        if g.seats[0].talk.is_some() { g.talk_pick_at(0, None); }
+    };
+    let shared_after = |curious: bool| {
+        let mut g = Game::new();
+        let i = adults(&g)[0];
+        let v = g.villagers[i];
+        let pe = g.player;
+        // an acquaintance warm enough to hold a first telling - the
+        // audition fires for acquaintances, so their probe is where
+        // the telling happens
+        crate::game::relationships::add_relationship(&mut g.world,
+            crate::game::relationships::Relationship {
+                from: pe, other: v, kind: RelKind::Acquaintance,
+                strength: 0.6, interactions: 2,
+                intimacy: 0.5,
+                trust: crate::game::relationships::Trust {
+                    ability: 0.0, benevolence: 0.6, integrity: 0.5 },
+                safety: crate::game::relationships::SafetyRung::Contributor,
+            });
+        g.world.add_component(v, Personality { traits: vec![Trait::Stingy] });
+        // nothing told them yet: the talk starts unreciprocated
+        g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick, shared: 0 });
+        play_talk(&mut g, i, curious);
+        g.world.get_component::<TalkMemory>(v).map(|m| m.shared).unwrap_or(0)
+    };
+    let responsive = shared_after(false);
+    let curious = shared_after(true);
+    assert!(responsive >= 1, "the responsive guest's telling landed: {responsive}");
+    assert_eq!(curious, 0, "the curious guest never told them anything");
 }

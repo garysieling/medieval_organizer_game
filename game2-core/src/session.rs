@@ -519,6 +519,9 @@ pub(crate) fn deal_name(p: &crate::game::persona::Persona,
         let name = if i < NAMES.len() { NAMES[i] } else { NEW_NAMES[i - NAMES.len()] };
         if !taken.contains(&name) { taken.push(name); return name; }
     }
+    // the roll must stay positional even when the pool runs dry - a
+    // skipped slot would shift every name after it
+    taken.push("a newcomer");
     "a newcomer"
 }
 /// Which villager indices are the children, the tax collector and the herb-wife

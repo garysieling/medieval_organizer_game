@@ -210,6 +210,7 @@ impl Game {
         self.villagers.remove(idx);
         self.was_sick.remove(idx);
         self.died_on.remove(idx);
+        if idx < self.names.len() { self.names.remove(idx); }
         self.tales = std::mem::take(&mut self.tales).into_iter()
             .filter(|(i, _)| *i != idx)
             .map(|(i, t)| (if i > idx { i - 1 } else { i }, t))

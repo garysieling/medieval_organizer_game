@@ -82,7 +82,7 @@ The same inputs the window sends, one frame's worth each.
 {"Command":{"Board":false}}
 ```
 
-`Act(i)` is one of the two action buttons (0 Talk, 1 Recruit);
+`Act(i)` is the action button (0 Talk);
 `CtxAct(i)` the i-th context action the scene lists
 in `ctx`; `Select(i)` picks a villager; `Unselect` lets the pick go - the
 ring, the walk-over and the talk under way; `TalkPick(n)` answers mid-Talk
@@ -122,7 +122,7 @@ and Tame use the agent's position and don't need a target.
 {"AgentCmd":{"Context":{"action":"Douse","target":null}}}
 ```
 
-Available actions are `TakeJob`, `Douse`, `Tame`, `Recruit`, `Matchmake`,
+Available actions are `TakeJob`, `Douse`, `Tame`, `Matchmake`,
 `Errand`, `PairUp`, `ShareFindings`, `PickCaps`, `Snowballs`, `PetCat`, and
 `Pact`. The server checks the same context availability and blockers as the
 player menu. Campaign leadership actions remain player-only; the agent

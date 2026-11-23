@@ -144,28 +144,16 @@ impl Game {
     /// can't - the seat's own selection, reach, purse and org answer, not
     /// seat 0's
     pub fn disabled_reason_at(&self, seat: usize, i: usize) -> Option<String> {
-        // Recruit is pointless on a member: say so on the button rather
-        // than fail in the log. Talk and Recruit need the
-        // selected villager alive (they walk over to them)
         // nobody within a shout to talk to: the button says so outright
         if i == 0 && self.talk_target_at(seat).is_none()
             && self.visitor_talk_target_at(seat).is_none() { return Some("no one near enough".into()); }
-        let target = self.villagers[match i {
-            0 => self.talk_target_at(seat).unwrap_or(self.seats[seat].selected_target),
-            1 if self.seats[seat].picked => self.seats[seat].selected_target,
-            _ => self.reach_target_at(seat),
-        }];
+        // Talk needs the picked or nearest villager alive (it walks over)
+        let target = self.villagers[self.talk_target_at(seat).unwrap_or(self.seats[seat].selected_target)];
         let target_alive = self.world.get_component::<Health>(target).is_some();
-        let campaign = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org);
-        let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
         let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some()
             || self.world.get_component::<crate::game::dungeon::CastleHeld>(target).is_some();
-        if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
-        else if (i == 0 || i == 1) && held { Some("in the dungeon".into()) }
-        else if i == 1 && member { Some("already a member".into()) }
-        else if i == 1 && campaign.is_none() { Some("no campaign to join".into()) }
-        else if i == 1 && !campaign.map(|c| crate::game::player::sympathizes(&self.world, c, target)).unwrap_or(false)
-            && crate::game::player::rapport(&self.world, self.seats[seat].player, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
+        if !target_alive { Some("they have died".into()) }
+        else if held { Some("in the dungeon".into()) }
         else { None }
     }
 
@@ -564,16 +552,13 @@ impl Game {
         self.seats[seat].approach = Some(a);
     }
 
-    /// Take action button `i` (Talk, Recruit). An index past the buttons
+    /// Take action button `i` (Talk). An index past the buttons
     /// is ignored - a stale client or recording can't panic the sim
     pub fn act_at(&mut self, seat: usize, i: usize) {
         if i >= ACTION_LABELS.len() { return; }
         let tick = self.tick;
-        // Recruit goes to whoever the player picked; otherwise to whoever
-        // is in reach
-        if i == 1 && !self.seats[seat].picked { self.seats[seat].selected_target = self.reach_target_at(seat); }
         // Talk singles out someone to hear: the picked one, near or far -
-        // you walk over to a far one like a Recruit - else the best near,
+        // you walk over to a far one - else the best near,
         // the least lately heard first (#944, #1066). A road visitor in
         // reach answers instead when they're the nearer of the two - but
         // a picked villager keeps the word they were clicked for (#1168)
@@ -610,12 +595,6 @@ impl Game {
                         None => { talked = true; self.talk_to_at(seat, selected_target) }
                     },
                 },
-                1 => if let Some(walking) = self.start_approach_at(seat, selected_target, 1) { walking } else {
-                    let (pe, oe, te) = (self.seats[seat].player, self.seats[seat].org, self.villagers[selected_target]);
-                    let r = act_recruit(&mut self.world, pe, oe, te);
-                    if r.success { format!("{} joined!", vill_name(selected_target)) }
-                    else { format!("{}: {}", vill_name(selected_target), r.description.to_lowercase()) }
-                }
                 _ => unreachable!("no action button {}", i),
             }
         };
@@ -901,16 +880,6 @@ impl Game {
                     }
                     let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
                         .map(|o| o.members.contains(&v)).unwrap_or(false);
-                    // a trusted ear can be won to the cause: it takes a tie
-                    // of its own, not just the cause existing
-                    let trust = crate::game::relationships::find_relationship(&self.world, self.seats[seat].player, v)
-                        .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
-                        .map(|r| r.strength).unwrap_or(0.0);
-                    if !is_member && trust >= crate::sim::community::RECRUIT_MIN_TRUST
-                        && self.world.get_component::<crate::session::country::Outlander>(v).is_none()
-                        && self.world.get_component::<crate::game::prophetic::Follower>(v).is_none() {
-                        self.seats[seat].ctx_actions.push(CtxAct::Recruit);
-                    }
                     // a leader - one who's brought someone in - can go out
                     // and hold a one-on-one of their own
                     if is_member && crate::game::leadership::rung(&self.world, self.seats[seat].org, v)
@@ -1488,21 +1457,6 @@ impl Game {
                     format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
                 };
                 if repeat && !freed { String::new() } else { said }
-            }
-            CtxAct::Recruit => {
-                let v = self.villagers[self.seats[seat].selected_target];
-                let oe = self.seats[seat].org;
-                let trust = crate::game::relationships::find_relationship(&self.world, self.seats[seat].player, v)
-                    .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
-                    .map(|r| r.strength).unwrap_or(0.0);
-                if crate::sim::community::recruit(&mut self.world, oe, v, trust) {
-                    crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
-                        crate::game::org_skills::OrgSkill::Training,
-                        crate::game::org_skills::SEAT_PRACTICE);
-                    format!("{} hears you out - and signs on with your cause.", self.name_of(v))
-                } else {
-                    format!("{} won't be won over - the trust isn't there yet.", self.name_of(v))
-                }
             }
             CtxAct::PickCaps => {
                 match self.shroom_patch_at(seat) {

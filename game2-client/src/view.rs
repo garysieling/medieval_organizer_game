@@ -1227,7 +1227,6 @@ impl View {
 
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {
-            if !action_shown(m, i) { continue; }
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             let reason = m.blocked[i].as_deref();
             draw_button(&mut buf, b, hover, reason.is_some());

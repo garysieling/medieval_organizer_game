@@ -46,6 +46,14 @@ impl Game {
             .filter(|v| self.world.get_component::<Organization>(oe).map(|o| o.members.contains(v)).unwrap_or(false))
             .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i)))
             .collect();
+        // bringing them in is the craft the dropped Recruit button
+        // practiced: a meeting that lands members teaches the host to
+        // draw a crowd, a head at a time
+        if !joined.is_empty() {
+            crate::game::org_skills::practice(&mut self.world, pe,
+                crate::game::org_skills::OrgSkill::Training,
+                crate::game::org_skills::SEAT_PRACTICE * joined.len() as f32);
+        }
         let outcome = if joined.is_empty() {
             "No one joins yet, but they'll remember the conversation.".to_string()
         } else {

@@ -16,7 +16,7 @@ cargo run --bin game           # text-mode version
 |  buildings, trees, villagers     | WANDERER |
 |  walking around, name labels     |          |
 |                                  | [Talk]   |
-|  YOU = white marker              | [Recruit]|
+|  YOU = white marker              |          |
 |  click a villager to inspect     |          |
 |                                  |          |
 |                                  | Inspector|
@@ -34,7 +34,7 @@ cargo run --bin game           # text-mode version
 | **Click villager** | Select/inspect them (class, vocation, skill, gold, home, shop, and any secrets they've let slip) |
 | **Click building** | Inspect it: purpose, who works or lives there, stock and what's for offer |
 | **1-5** | Select villager by number |
-| **T/R** | Keyboard: Talk/Recruit. T with nobody selected singles out someone nearby - folk you haven't heard lately first |
+| **T** | Keyboard: Talk. T with nobody selected singles out someone nearby - folk you haven't heard lately first |
 | **T,T** | Let go of the pick (double-tap) |
 | **Arrows** | Pan the camera around the map |
 | **Space** | Pause/unpause |
@@ -57,7 +57,7 @@ You are **The Wanderer** - an outsider who arrives in a medieval village with no
 ### The Core Loop
 
 1. **Talk** to villagers (1-1 meetings) - learn their concerns, build relationships
-2. **Recruit** them to your organization (trust-gated)
+2. **Win them over** through talk asks and house meetings - trust-gated intake, no button
 3. **Organize** house meetings, committees, actions
 4. **Raise** houses and grow your standing - the campaign's work parties put the roofs up
 
@@ -238,8 +238,7 @@ Other villages/castles are AI-controlled with different ruler personalities:
 
 ### Player Actions
 
-- **Talk** (`act_talk`) - build relationship, learn concerns
-- **Recruit** (`act_recruit`) - try to get them to join (needs trust>0.5)
+- **Talk** (`act_talk`) - build relationship, learn concerns; the asks it carries are how people join
 - **Organize** - house meetings, committees
 - **Contract** - formal agreements
 

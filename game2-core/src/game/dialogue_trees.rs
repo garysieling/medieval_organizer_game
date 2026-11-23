@@ -23,7 +23,7 @@ const SMALL_FADE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Fair day to thee, {other}.", "Go well, {other}, and mind the mud.", "The saints keep thy roof whole.", "Fare thee well until the morrow."],
+            lines: &["Fair day to thee, {other} - 'twas good to pass the time.", "Go well, {other}, and mind the mud.", "The saints keep thy roof whole.", "Fare thee well until the morrow."],
             voice: &[
                 Voice { criteria: &[Has("other:ideology:lord")], lines: &["Thy servant, m'lord. Good day.", "God keep the manor and thee with it, m'lord."] },
                 Voice { criteria: &[Has("other:ideology:merchant")], lines: &["Fair profit to thee, trader.", "May the road pay thy way, merchant."] },
@@ -192,12 +192,12 @@ const SMALL_FARES: Exchange = Exchange {
 const SMALL_VOLLEY: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk"],
-    calls: &["Even so, we will manage as we always do.", "Aye, the year will turn and bring what it brings.", "A steady hand and a patient mule see it through.", "No use fretting over skies we cannot steer."], voice: &[],
+    calls: &["Even so, we will manage as we always do.", "Aye, the year will turn and bring what it brings.", "My bones say the rain will hold off till evening.", "No use fretting over skies we cannot steer."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Agree, concepts: &["smalltalk"],
-            lines: &["That it will - the store is not empty yet.", "Aye, we have lived through harder winters than this.", "True words; worry never baked a single loaf.", "So long as the well stays sweet, we'll thrive."],
+            lines: &["That they will - the store is not full yet.", "Aye, we have lived through harder winters than this.", "True words; worry never baked a single loaf.", "So long as the well stays sweet, we'll thrive."],
             voice: &[],
             then: Some(SMALL_GOSSIP), end: None,
         },
@@ -216,7 +216,7 @@ const SMALL_VOLLEY: Exchange = Exchange {
 pub const SMALL_CHAT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk", "weather"],
-    calls: &["Looks like rain again, doesn't it?", "Cold wind off the moor this morning.", "Gray clouds gathering over the western hill.", "The morning dew was heavy on the clover.", "A gray dawn, but the day's work won't wait for it.", "The frost sat late on the furrows this morning."],
+    calls: &["Looks like rain again, doesn't it?", "Cold wind off the moor this morning.", "Gray clouds gathering over the western hill.", "Aye, the dew lay heavy on the clover this morning.", "A gray dawn, but the day's work won't wait for it.", "The frost sat late on the furrows this morning."],
     voice: &[
         // helplessness as a delivery mode (#1269): the same issue lands
         // resigned while they're cold, and warms rung by rung - these
@@ -343,7 +343,7 @@ const SMALL_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[(Hotheaded, 3.0), (Proud, 2.0)],
             act: Act::Remark, concepts: &["greeting"],
-            lines: &["Morrow.", "Aye. What is it, {other}?", "I am here, as thou seest.", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
+            lines: &["Morrow.", "Aye. What is it, {other}?", "I am here, as thou seest.", "Grace and good morrow to thee, {other}.", "Time will tell what comes of this."],
             voice: &[
                 Voice { criteria: &[Has("pair:relation:rival")], lines: &["Speak thy piece and be done.", "Out with it - I've no patience for thee today."] },
                 Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Aye. What dost thou want of me?", "I am here, stranger - as thou seest."] },
@@ -876,7 +876,7 @@ const CLERIC_PARISH: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.70, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I will see thee at the Sunday bell, father.", "Pray for our harvest, father. Fair day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
+            lines: &["I will see thee at the Sunday bell, father.", "Keep our fields in thy prayers, father. Fair day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             voice: &[],
             then: None, end: Some(Farewell),
         },
@@ -891,7 +891,7 @@ const CLERIC_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.20, bias: &[(Pious, 2.0)],
             act: Act::Greet, concepts: &["concern:faith"],
-            lines: &["And on thee, father.", "Blessings on thy holy house as well.", "Peace be with thee, good priest.", "God bless thy steps this day, {other}.", "Well met, friend, under the open sky."],
+            lines: &["And on thee, father.", "Blessings on thy holy house as well.", "Peace be with thee, good priest.", "God bless thy steps this day, {other}.", "A blessed morning to thee, father."],
             voice: &[],
             then: Some(CLERIC_PARISH), end: None,
         },
@@ -1774,7 +1774,7 @@ const CARPENTER_GREET: Exchange = Exchange {
 const MASON_LIME: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:mason"],
-    calls: &["Hot slaked lime and sharp sand bond tighter than the quarry itself.", "A drystone foundation keeps the rot out of the lowest timbers.", "Granite breaks the chisel, but limestone yields to an honest stroke.", "A stone set plumb stands against every gale."], voice: &[],
+    calls: &["Hot slaked lime and sharp sand bond tighter than the quarry itself.", "A drystone foundation keeps the rot out of the lowest timbers.", "Granite breaks the chisel, but limestone yields to an honest stroke.", "Three cartloads of lime came down the hill at daybreak."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1833,7 +1833,7 @@ const MASON_GREET: Exchange = Exchange {
 const SHEPHERD_PASTURE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:shepherd"],
-    calls: &["The upland turf is sweet and short; the ewes grow fat on it.", "The sheepfold dung will enrich the barley fields when autumn comes.", "A good dog is worth three hired hands on the open hills.", "The bell-wether leads the flock safely to fold."], voice: &[],
+    calls: &["The upland turf is sweet and short; the ewes grow fat on it.", "The sheepfold dung will enrich the barley fields when autumn comes.", "A good dog is worth three hired hands on the open hills.", "The hound barked at midnight and drove the beast away."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1853,7 +1853,7 @@ const SHEPHERD_EWES: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:shepherd"],
-            lines: &["Six fine lambs, all suckling strong by their mothers.", "The hound barked at midnight and drove the beast away.", "By next full moon the fleece will be clean for the shearers.", "The ewes are content and the lambs suckle strong."],
+            lines: &["Six fine lambs, all suckling strong by their mothers.", "Aye, the hound fetched the strays from the briars by daybreak.", "By next full moon the fleece will be clean for the shearers.", "The ewes are content and the lambs suckle strong."],
             voice: &[],
             then: Some(SHEPHERD_PASTURE), end: None,
         },
@@ -1988,7 +1988,7 @@ const TAVERNER_BARREL: Exchange = Exchange {
 const TAVERNER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:taverner"],
-    calls: &["Good morrow, taverner! The ale-stake is out, so there is something in the barrel.", "Well met, {other}! Thy bench is full before noon again.", "Hail the keeper of the one table in this village. Is the fire lit?", "A peaceful day to thee, {other}."], voice: &[],
+    calls: &["Good morrow, taverner! The ale-stake is out, so there is something in the barrel.", "Well met, {other}! A pint of the good dark, if the barrel holds.", "Hail the keeper of the one table in this village. Is the fire lit?", "A peaceful day to thee, {other}."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -2010,7 +2010,7 @@ const TAVERNER_GREET: Exchange = Exchange {
 const BEEKEEPER_SWARM: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:beekeeper"],
-    calls: &["Sweet yellow wax makes the church tapers that burn without smoke.", "The clover blossoms give the clearest honey in the valley.", "Bees love a quiet tongue and a gentle step among the skeps.", "The wax is sweet and the honey flows clear."], voice: &[],
+    calls: &["Sweet yellow wax makes the church tapers that burn without smoke.", "A swarm in May is worth a load of hay.", "Bees love a quiet tongue and a gentle step among the skeps.", "The wax is sweet and the honey flows clear."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -2030,7 +2030,7 @@ const BEEKEEPER_HONEY: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:beekeeper"],
-            lines: &["Aye, we beat the brass pan and hived them safely under the hedge.", "Take this jar of dark thyme honey; it mends a cough overnight.", "Three cakes of yellow wax, filtered clean and smelling of clover.", "The skeps are heavy with comb and clear summer honey."],
+            lines: &["Aye, we beat the brass pan and hived them safely under the hedge.", "Take this jar of dark clover honey; it mends a cough overnight.", "Three cakes of yellow wax, filtered clean and smelling of clover.", "Aye, a pot for a penny - it will soothe her before the week's out."],
             voice: &[],
             then: Some(BEEKEEPER_SWARM), end: None,
         },
@@ -2268,12 +2268,12 @@ const LORD_PETITION: Exchange = Exchange {
 const LORD_LEASES: Exchange = Exchange {
     act: Act::Question,
     concepts: &["concern:rents"],
-    calls: &["Will the rent in silver be abated because the hail ruined the oats?", "Must our cottage provide three days of boon-ploughing this season?", "When will the lord's bailiff hear our plea concerning the common ditch?", "Will the lord's bailiff hear our plea concerning the hail damage?"], voice: &[],
+    calls: &["Will the rent in silver be abated because the hail ruined the oats?", "Must our cottage provide three days of boon-ploughing this season?", "Will the bailiff hear the widow's plea for her late husband's strip?", "Will the lord's bailiff hear our plea concerning the hail damage?"], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["concern:rents"],
-            lines: &["The steward will inspect the damaged fields before the tally is set.", "Two days of plough-service are due by custom, as the parchment records.", "The court sits under the great oak on Thursday morning; be present.", "The manor court must recognize the customary rights of our lane."],
+            lines: &["The steward will inspect the damaged fields before the tally is set.", "Two days of plough-service are due by custom, as the parchment records.", "The court sits under the great oak on Thursday morning; be present.", "The bailiff hears all pleas when the court sits under the oak."],
             voice: &[],
             then: Some(LORD_PETITION), end: None,
         },
@@ -2312,12 +2312,12 @@ const LORD_GREET: Exchange = Exchange {
 const LEVEE_SEASON: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:rents", "concern:crops"],
-    calls: &["The harvest was thin on thy strip this year - the steward keeps count.", "My bailiff tells me the common ditch wants scouring before the rains.", "A good tenant pays his boon-days without the tally being read twice.", "The deer have been at the lower field again - keep thy dogs close."], voice: &[],
+    calls: &["The steward keeps count of every sheaf from thy strip, goodman.", "My bailiff tells me the common ditch wants scouring before the rains.", "A good tenant renders his boon-days before the tally is read.", "The deer have been at the lower field again - keep thy dogs close."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Agree, concepts: &["concern:rents"],
-            lines: &["Aye, m'lord - the strip will be tended.", "As thou sayest, m'lord.", "The ditch will be cleared by the quarter day, m'lord."],
+            lines: &["I'll see to it before the week's end, m'lord.", "As thou sayest, m'lord.", "The ditch will be cleared by the quarter day, m'lord."],
             voice: &[],
             then: Some(LEVEE_LAW), end: None,
         },
@@ -2341,12 +2341,12 @@ const LEVEE_SEASON: Exchange = Exchange {
 const LEVEE_LAW: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:rents"],
-    calls: &["The manor court sits under the oak on Thursday - bring thy witnesses.", "Custom binds us both, goodman - thy strip, my tallage.", "The rolls are kept fair; what thy father owed, thou owest, no more.", "A lord's word travels furthur than a crier's bell."], voice: &[],
+    calls: &["The manor court sits under the oak on Thursday - bring thy witnesses.", "Custom binds us both, goodman - thy strip, my tallage.", "The rolls are kept fair; what thy father owed, thou owest, no more.", "A lord's word is the law of the lane, goodman."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I'll be at the oak, m'lord. Fair day.", "The rolls are just, as my father said before me.", "Thy servant, m'lord - and my thanks for the hearing."],
+            lines: &["I'll stand at the oak on Thursday, m'lord.", "Custom holds, m'lord - my strip, thy tallage.", "Thy servant, m'lord - and my thanks for the hearing."],
             voice: &[],
             then: None, end: Some(Farewell),
         },

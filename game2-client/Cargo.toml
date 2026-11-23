@@ -19,8 +19,9 @@ dev-voice = ["dep:cpal"]
 
 [dependencies]
 game2-core = { path = "../game2-core" }
-# WAV output moved here (#1486)
-game2-audio = { path = "../game2-audio" }
+# WAV output moved here (#1486); sound_dump's scenario library is the
+# audio crate's harness file, always on for the client (#1493)
+game2-audio = { path = "../game2-audio", features = ["scenarios"] }
 gif = "0.13"
 jpeg-encoder = "0.6"
 png = "0.18.1"

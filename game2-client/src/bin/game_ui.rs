@@ -3,12 +3,13 @@
 //! opens a window, feeds input to the Game (local) or the server
 //! (--connect ws://host:port), and blits what View draws.
 
-use std::sync::{Arc, Mutex};
+use std::io::Write;
 use minifb::{Key, Window, WindowOptions, MouseMode, Scale, ScaleMode};
 use game2_core::engine::render::Buffer;
 use game2_client::{self as client, Art, EventCam, View};
+use game2_client::remote::{connect_remote, save_token};
 use game2_core::session::{
-    self, ClientKind, ClientMsg, Command, ConvoPanelV, Game, SceneCache, ServerMsg, UiModel, MAP_TILES,
+    self, ClientMsg, Command, ConvoPanelV, Game, UiModel, MAP_TILES,
 };
 
 const W: usize = session::W;
@@ -60,72 +61,6 @@ fn make_window(fullscreen: bool) -> Window {
         WindowOptions::default()
     };
     Window::new("The Wanderer - Medieval Village", W, H, options).expect("window failed")
-}
-
-/// A claim token kept on disk: relaunch and you're the same wanderer (the
-/// browser keeps it in localStorage)
-fn claim_token() -> Option<String> {
-    std::fs::read_to_string("game2.claim").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-}
-fn save_token(t: &str) { let _ = std::fs::write("game2.claim", t); }
-
-/// A live server connection: the ws for sends, the latest scene for draws
-struct Remote {
-    ws: Mutex<tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>>,
-    latest: Mutex<Option<UiModel>>,
-    token_seen: Mutex<Option<String>>,
-    /// The server turned us away (a wrong join secret, a full village)
-    denied: Mutex<Option<String>>,
-    /// The roster the Welcome dealt, for the character picker
-    roster: Mutex<Option<Vec<session::roster::RosterCard>>>,
-    /// The seed's stage-setting facts, for the prologue card after the picker
-    intro: Mutex<Option<Vec<String>>>,
-}
-
-fn connect_remote(url: &str) -> Arc<Remote> {
-    let (mut ws, _) = tungstenite::connect(url).expect("can't reach the server");
-    ws.send(tungstenite::Message::Text(
-        serde_json::to_string(&ClientMsg::Hello { token: claim_token(), kind: ClientKind::Human, name: None,
-            secret: std::env::var("GAME2_JOIN_SECRET").ok().filter(|s| !s.is_empty()) }).unwrap().into()
-    )).ok();
-    let remote = Arc::new(Remote {
-        ws: Mutex::new(ws), latest: Mutex::new(None), token_seen: Mutex::new(None),
-        denied: Mutex::new(None), roster: Mutex::new(None), intro: Mutex::new(None),
-    });
-    {
-        let remote = remote.clone();
-        std::thread::spawn(move || {
-            // scenes arrive without the map (it's sent apart, when it
-            // changes): the cache puts the last one back in
-            let mut cache = SceneCache::new();
-            let mut welcomed = false;
-            loop {
-                let msg = remote.ws.lock().unwrap().read();
-                match msg {
-                    Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
-                        Ok(msg) => {
-                            if let ServerMsg::Welcome { token, roster, intro, .. } = &msg {
-                                *remote.token_seen.lock().unwrap() = Some(token.clone());
-                                *remote.roster.lock().unwrap() = Some(roster.clone());
-                                *remote.intro.lock().unwrap() = Some(intro.clone());
-                            }
-                            // a Denied before the Welcome is a refusal (we're not
-                            // in); after it, it's a warning ("slow down") and play goes on
-                            if let ServerMsg::Welcome { .. } = &msg { welcomed = true; }
-                            if let ServerMsg::Denied { reason } = &msg {
-                                if welcomed { eprintln!("game_ui: the server says: {reason}"); }
-                                else { *remote.denied.lock().unwrap() = Some(reason.clone()); }
-                            }
-                            if let Some(scene) = cache.apply(msg) { *remote.latest.lock().unwrap() = Some(scene); }
-                        }
-                        Err(_) => {}
-                    },
-                    _ => break,
-                }
-            }
-        });
-    }
-    remote
 }
 
 /// What the find box's keys did this frame
@@ -231,6 +166,10 @@ fn main() {
         .and_then(|v| v.parse().ok()).unwrap_or_else(session::run_seed);
     // remote play: --connect ws://host:port
     let connect: Option<String> = args.iter().position(|a| a == "--connect").and_then(|i| args.get(i + 1)).cloned();
+    // scene capture (#1493): --record-scenes path.jsonl appends each
+    // frame's UiModel, the static map on the first line only
+    let record_scenes: Option<String> = args.iter().position(|a| a == "--record-scenes")
+        .and_then(|i| args.get(i + 1)).cloned();
 
     if let Some(target) = dump_at {
         let art = Art::load_fs("assets", seed);
@@ -279,6 +218,10 @@ fn main() {
     // facts ride the Welcome - the card shows once it lands
     let mut intro: Option<Vec<String>> = game.as_ref().map(|g| g.intro_facts()).filter(|f| !f.is_empty());
     let mut intro_wanted = remote.is_some();
+    // --record-scenes: the JSONL file and its line count
+    let mut scenes_out = record_scenes.map(|p|
+        std::io::BufWriter::new(std::fs::File::create(&p).expect("can't create the scenes file")));
+    let mut scenes_wrote = 0u64;
     let mut view = View::new(art);
     // the camera opens on the player, wherever this seed's village stands
     let mut cam_centered = false;
@@ -454,6 +397,20 @@ fn main() {
             (None, Some(g)) => { if !pause_menu { g.update(); } Some(g.ui_model()) }
             (None, None) => None,
         };
+        // --record-scenes: one JSON line per frame; the map (98% of a
+        // model) rides the first line only, like the wire protocol's
+        // lean scenes. sound_dump --scenes replays the file.
+        if let (Some(w), Some(m)) = (&mut scenes_out, &cur_model) {
+            let line = if scenes_wrote == 0 {
+                serde_json::to_string(m).unwrap_or_default()
+            } else {
+                let mut lean = m.clone();
+                lean.map = Default::default();
+                serde_json::to_string(&lean).unwrap_or_default()
+            };
+            let _ = writeln!(w, "{line}");
+            scenes_wrote += 1;
+        }
         // a talk under way offers leave on either box it shows on -
         // the convo box's "x)", or the TALK panel's when a call's
         // standing over the talk

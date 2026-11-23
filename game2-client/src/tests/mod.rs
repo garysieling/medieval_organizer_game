@@ -51,6 +51,7 @@ mod season;
 mod search;
 mod sel_marker;
 mod sign;
+mod sound_dump;
 mod status_line;
 mod title;
 mod toast;

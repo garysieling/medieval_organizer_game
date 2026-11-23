@@ -94,15 +94,6 @@ impl Game {
                 (purse < crate::game::organizing::HALL_REPAIR_COST)
                     .then(|| "the chest can't make the carpenter's bill".to_string())
             }
-            CtxAct::Brigade => {
-                let oe = self.seats[seat].org;
-                if self.world.get_component::<crate::game::organizing::MeetingHall>(oe).is_none() {
-                    Some("the brigade needs a hall to muster in".to_string())
-                } else if self.world.get_component::<Organization>(oe)
-                    .map(|o| o.resources < BRIGADE_COST).unwrap_or(true) {
-                    Some("the chest can't outfit a crew".to_string())
-                } else { None }
-            }
             CtxAct::Reach => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 if self.world.get_component::<crate::game::leadership::Reach>(v).is_some() {
@@ -878,14 +869,6 @@ impl Game {
                 .map(|o| o.resources >= crate::game::organizing::HALL_REPAIR_COST).unwrap_or(false) {
             self.seats[seat].ctx_actions.push(CtxAct::MendHall);
         }
-        // the charter's offered while there's a hall to muster in and
-        // gold enough for buckets - and no brigade yet to answer
-        if self.brigade.is_none()
-            && self.world.get_component::<crate::game::organizing::MeetingHall>(self.seats[seat].org).is_some()
-            && self.world.get_component::<Organization>(self.seats[seat].org)
-                .map(|o| o.resources >= BRIGADE_COST).unwrap_or(false) {
-            self.seats[seat].ctx_actions.push(CtxAct::Brigade);
-        }
         if self.seats[seat].selected_building.is_none()
             && (self.seats[seat].picked || self.seats[seat].agent) {
             let v = self.villagers[self.seats[seat].selected_target];
@@ -1641,7 +1624,6 @@ impl Game {
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Tame => self.tame_stroke_at(seat),
             CtxAct::School => self.school_at(seat),
-            CtxAct::Brigade => self.brigade_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),
             CtxAct::Douse => self.player_douse_at(seat),
@@ -3287,6 +3269,12 @@ impl Game {
             Motion::ParallelEvent(_) => true,
             // the pledges that put it on the slate carry it through
             Motion::GroupBuy(..) => true,
+            // the charter wants its hall and chest, and there's no
+            // second brigade (#1346)
+            Motion::Brigade => self.brigade.is_none()
+                && self.world.get_component::<crate::game::organizing::MeetingHall>(self.seats[seat].org).is_some()
+                && self.world.get_component::<Organization>(self.seats[seat].org)
+                    .map(|o| o.resources >= BRIGADE_COST).unwrap_or(false),
             // the party needs its ground: a flushed patch to pick, a
             // free plot to raise on (#1344)
             Motion::WorkParty(crate::game::campaign::PartyKind::Forage) =>
@@ -3440,6 +3428,7 @@ impl Game {
             Motion::Survey => self.survey_motion(seat, c),
             Motion::GroupBuy(gi, _) => self.group_buy_at(seat, c, gi),
             Motion::WorkParty(kind) => self.work_party_at(seat, c, kind),
+            Motion::Brigade => self.brigade_at(seat),
         }
     }
 

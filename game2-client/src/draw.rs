@@ -432,7 +432,7 @@ pub(crate) fn ctx_icon(act: game2_core::session::CtxAct) -> &'static str {
     match act {
         Recruit => "icon-recruit",
         Gather | Meet | March => "icon-organize",
-        MendHall | School | Brigade => "icon-build",
+        MendHall | School => "icon-build",
         _ => "",
     }
 }

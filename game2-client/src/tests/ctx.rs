@@ -15,7 +15,7 @@ fn test_ctx_buttons_never_overlap() {
         CtxAct::Gather, CtxAct::Pact, CtxAct::PetCat,
         CtxAct::Snowballs, CtxAct::Douse, CtxAct::Flyers, CtxAct::Recruit,
         CtxAct::PickCaps, CtxAct::ShareFindings, CtxAct::TakeCache,
-        CtxAct::Give, CtxAct::Buy, CtxAct::Tame, CtxAct::School, CtxAct::Brigade,
+        CtxAct::Give, CtxAct::Buy, CtxAct::Tame, CtxAct::School,
     ];
     let btns = ctx_buttons(&acts);
     assert_eq!(btns.len(), acts.len(), "one button per action, in order");

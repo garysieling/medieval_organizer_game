@@ -930,6 +930,9 @@ pub enum Motion {
     /// raising (#1344): the take fills the chest, the shared day warms
     /// the hands
     WorkParty(PartyKind),
+    /// Charter the fire brigade (#1346): the cause's answer to a fire
+    /// grief it's identified - sworn hands on every bell
+    Brigade,
 }
 
 /// The work a party walks out to (#1344): caps under the trees, or a
@@ -953,6 +956,7 @@ pub fn motion_line(m: Motion) -> Option<crate::game::rhetoric::Line> {
         Motion::GroupBuy(..) => Some(Line::Patient),
         Motion::WorkParty(_) => Some(Line::Patient),
         Motion::SendOrganizer | Motion::ParallelEvent(_) => None,
+        Motion::Brigade => Some(Line::Patient),
     }
 }
 
@@ -994,6 +998,8 @@ pub fn motion_label(m: Motion) -> String {
             "Send a work party out for the caps - the take fills the chest".into(),
         Motion::WorkParty(PartyKind::Raise) =>
             "Raise a roof together - call the village out for it".into(),
+        Motion::Brigade =>
+            "Charter a fire brigade - sworn hands on every bell".into(),
     }
 }
 
@@ -1436,6 +1442,21 @@ pub fn survey_ring(world: &World, v: Entity, issue: &IssueTag, tick: u64) -> u8 
     if known { 1 } else { 0 }
 }
 
+/// The fire grief the brigade answers (#1346): "the bad bread" voiced
+/// or surveyed into the cause's legwork book - or a living member
+/// still carrying the blame themselves, identified or not
+fn fire_known(world: &World, campaign: Entity) -> bool {
+    const FIRE_TAG: &str = "the bad bread";
+    let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else { return false };
+    if world.get_component::<Legwork>(org)
+        .map(|l| l.0.iter().any(|t| t.as_str() == FIRE_TAG)).unwrap_or(false) {
+        return true;
+    }
+    let Some(members) = world.get_component::<Organization>(org).map(|o| o.members.clone()) else { return false };
+    members.iter().any(|&m| !is_dead(world, m)
+        && desires::problems_of(world, m, u64::MAX).contains(&desires::Problem::Blamed))
+}
+
 /// The motions a cause this size can carry tonight: more people means
 /// more and different doors - two fronts want hands for both at once,
 /// a post wants someone to spare, and a warm town wants staging (#1157)
@@ -1460,6 +1481,14 @@ pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
     // needs the hands
     if n >= 3 { ms.push(Motion::WorkParty(PartyKind::Forage)); }
     if n >= 5 { ms.push(Motion::WorkParty(PartyKind::Raise)); }
+    // the fire brigade is the cause's answer to a fire grief it's
+    // identified (#1346): a bad-bread tag voiced or surveyed into the
+    // legwork book, or a member still carrying the blame themselves.
+    // Chartering's loud enough it wants the same survey-first
+    // discipline the street verbs ride
+    if asked && n >= 3 && fire_known(world, campaign) {
+        ms.push(Motion::Brigade);
+    }
     // the room's own coin: when the pledges gather behind a good, the
     // floor can carry the pooled buy - quiet work, no legwork asked
     if let Some((gi, pledgers)) = group_pledges(world, campaign).into_iter()

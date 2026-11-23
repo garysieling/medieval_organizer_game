@@ -10,43 +10,93 @@ fn able_fire_spot(g: &Game) -> (i32, i32) {
         .expect("the map has a burnable spot")
 }
 
-#[test]
-fn test_the_brigade_needs_a_hall_and_a_chest() {
-    let mut g = Game::new();
-    g.seats[0].ctx_actions = vec![CtxAct::Brigade];
-    // no hall: the charter can't be raised
-    assert!(g.ctx_blocker_at(0, CtxAct::Brigade).map(|b| b.contains("hall")).unwrap_or(false),
-        "a charter with no hall to muster in");
-    let oe = g.seats[0].org;
+/// Set the cause up so its floor could carry the charter: three grown
+/// members, the asking done on its own issue, a hall, a fat chest.
+/// `fire` adds the grief the brigade answers - voiced, or worn by a member
+fn brigade_ready(g: &mut Game, fire: bool) {
+    let oe = g.org;
+    let grown: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
+        .take(4).collect();
+    g.world.get_component_mut::<Organization>(oe).unwrap().members = grown.clone();
+    // the cause's own trouble: the taxes weigh on the room
+    for &v in &grown[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    if fire {
+        desires::add_grievance(&mut g.world, grown[3], desires::Problem::Blamed, u64::MAX);
+    }
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, oe).unwrap();
+    let issue = g.world.get_component::<crate::game::campaign::Campaign>(c).unwrap().issue.clone();
+    crate::game::campaign::mark_legwork(&mut g.world, oe, issue);
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 0;
     g.world.add_component(oe, crate::game::organizing::MeetingHall);
-    // no gold: the bell stays silent
-    g.world.get_component_mut::<Organization>(oe).unwrap().resources = 0.0;
-    assert!(g.ctx_blocker_at(0, CtxAct::Brigade).map(|b| b.contains("chest")).unwrap_or(false),
-        "a charter the chest can't outfit");
-    // hall and gold: the bell has hands
     g.world.get_component_mut::<Organization>(oe).unwrap().resources = 50.0;
-    g.ctx_act_at(0, 0);
-    let b = g.brigade.expect("no brigade chartered");
+}
+
+/// The floor's slate after a Meet: picks the charter's spot if offered
+fn brigade_pick(g: &mut Game) -> Option<usize> {
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    let mi = g.seats[0].ctx_actions.len() - 1;
+    g.ctx_act_at(0, mi);
+    g.seats[0].pending_agenda.as_ref().map(|(slate, _)| {
+        slate.iter().position(|&m| m == crate::game::campaign::Motion::Brigade)
+    }).flatten()
+}
+
+#[test]
+fn test_the_brigade_waits_for_a_named_fire() {
+    // no fire grief's ever been heard -> the charter doesn't reach the
+    // floor however fat the chest (#1346)
+    let mut g = Game::new();
+    brigade_ready(&mut g, false);
+    assert!(brigade_pick(&mut g).is_none(),
+        "the cause crewed a bucket line for a fire it never heard: {:?}",
+        g.seats[0].pending_agenda.as_ref().map(|(s, _)| s));
+}
+
+#[test]
+fn test_a_voiced_fire_or_a_burned_member_puts_the_charter_on_the_floor() {
+    use crate::game::campaign::Motion;
+    // a member still wearing the blame crews the brigade herself
+    let mut g = Game::new();
+    brigade_ready(&mut g, true);
+    let pick = brigade_pick(&mut g).expect("a burned hand puts the bell on the slate");
+    g.decide_at(0, pick);
+    let b = g.brigade.expect("the vote chartered no brigade");
     let o = g.world.get_component::<Organization>(b).unwrap();
     assert_eq!(o.name, "the fire brigade");
     assert!(o.members.len() >= 2, "a brigade of one isn't a crew");
     assert_eq!(g.brigade_gear, 3, "the chest bought no buckets");
-    assert!(g.world.get_component::<Organization>(oe).unwrap().resources < 50.0,
+    assert!(g.world.get_component::<Organization>(g.org).unwrap().resources < 50.0,
         "the outfitting was free");
-    // and once sworn, there's no second charter
-    g.ctx_act_at(0, 0);
-    assert_eq!(g.brigade, Some(b), "the bell was re-sworn");
+
+    // a fire the meeting voiced counts too - the cause needn't carry it
+    let mut g = Game::new();
+    brigade_ready(&mut g, false);
+    let oe = g.org;
+    crate::game::campaign::mark_legwork(&mut g.world, oe, "the bad bread".into());
+    assert!(brigade_pick(&mut g).is_some(), "a voiced fire still uncrewed");
+    // but it's still the cause's to vote: a thin chest stays quiet
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 0.0;
+    assert!(brigade_pick(&mut g).is_none(), "the slate offered buckets the chest can't buy");
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 50.0;
+    g.world.remove_component::<crate::game::organizing::MeetingHall>(g.org);
+    assert!(brigade_pick(&mut g).is_none(), "the slate offered a crew with no hall");
+    let _ = Motion::Brigade;
 }
 
 #[test]
 fn test_the_sworn_answer_before_the_willing() {
     let mut g = Game::new();
     g.speed = 4;
-    let oe = g.seats[0].org;
-    g.world.add_component(oe, crate::game::organizing::MeetingHall);
-    g.world.get_component_mut::<Organization>(oe).unwrap().resources = 50.0;
-    g.seats[0].ctx_actions = vec![CtxAct::Brigade];
-    g.ctx_act_at(0, 0);
+    brigade_ready(&mut g, true);
+    let pick = brigade_pick(&mut g).expect("the charter's on the floor");
+    g.decide_at(0, pick);
     let sworn: Vec<Entity> = g.world.get_component::<Organization>(g.brigade.unwrap())
         .unwrap().members.clone();
     // a volunteer closer to the flames than any sworn hand

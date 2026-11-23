@@ -309,7 +309,15 @@ impl Game {
             // the vote with a meeting of its own (#1157)
             if seat.map(|s| s.pending_agenda.is_some()).unwrap_or(false) { continue; }
             let player = seat.map(|s| s.player);
-            if let Some((msg, _)) = self.hold_and_note_campaign_meeting(player, c, tick) {
+            if let Some((msg, attendees)) = self.hold_and_note_campaign_meeting(player, c, tick) {
+                // the cause met on its own day, without you (E6-2):
+                // "we looked for you and you never came" can surface
+                if let Some(pe) = player {
+                    for a in &attendees {
+                        crate::game::episodes::file(&mut self.world, *a, pe,
+                            crate::game::episodes::MemKind::MissedMeeting, tick, &["meeting"]);
+                    }
+                }
                 self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
                     format!("t{}: {}", tick, msg));
             }

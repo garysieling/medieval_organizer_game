@@ -50,6 +50,7 @@ pub mod reactions;
 pub mod persuasion;
 pub mod rhetoric;
 pub mod mentorship;
+pub mod episodes;
 pub mod hooks;
 pub mod inoculation;
 pub mod dungeon;

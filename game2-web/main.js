@@ -38,6 +38,56 @@ const ctx = canvas.getContext('2d');
 // gesture opens its AudioContext
 const audio_start = () => { if (g) g.audio_start(); };
 
+// the Sound dialog (#1507): the same AudioSettings the desktop's
+// overlay writes, bound through set_audio_setting/audio_settings and
+// parked in localStorage["game2.audio"]. The saved rows land on the
+// wasm before audio starts; the fresh device inherits them.
+const SND_KEY = 'game2.audio';
+const snd_dialog = document.getElementById('sound-dialog');
+const snd_rows = [...document.querySelectorAll('#sound-dialog [data-key]')];
+const audio_persist = () => localStorage.setItem(SND_KEY, g.audio_settings());
+function audio_load_saved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SND_KEY) || 'null');
+    if (saved) for (const [k, v] of Object.entries(saved)) {
+      if (k !== 'version') g.set_audio_setting(k, v);
+    }
+  } catch (_) { /* a corrupt store is just defaults */ }
+}
+function snd_populate() {
+  const s = JSON.parse(g.audio_settings());
+  for (const el of snd_rows) {
+    const k = el.dataset.key;
+    if (!(k in s)) continue;
+    if (el.type === 'checkbox') el.checked = s[k]; else el.value = s[k];
+    if (el.dataset.out) document.getElementById(el.dataset.out).textContent = `${s[k]}%`;
+  }
+}
+document.getElementById('sound-gear').addEventListener('click', () => {
+  audio_start();            // the click's a gesture: the context may run
+  snd_populate();
+  snd_dialog.showModal();   // modal keeps the canvas inert beneath it
+});
+for (const el of snd_rows) {
+  const apply = () => {
+    const v = el.type === 'checkbox' ? el.checked
+      : el.tagName === 'SELECT' ? el.value : +el.value;
+    if (g.set_audio_setting(el.dataset.key, v)) {
+      audio_persist();
+      if (el.dataset.out) document.getElementById(el.dataset.out).textContent = `${el.value}%`;
+    }
+  };
+  // ranges report as they're dragged; selects and checks on change
+  el.addEventListener(el.type === 'range' ? 'input' : 'change', apply);
+}
+document.getElementById('snd-reset').addEventListener('click', () => {
+  g.reset_audio_settings();
+  audio_persist();
+  snd_populate();
+});
+// mute-in-background follows the tab, like the desktop follows its window
+addEventListener('visibilitychange', () => { if (g) g.audio_focused(!document.hidden); });
+
 function say(msg) {
   if (!boot.isConnected) document.getElementById('wrap').appendChild(boot);
   boot.textContent = msg;
@@ -78,6 +128,9 @@ if (remote) {
       : (params.get('staged') ? WasmGame.staged(params.get('staged')) : new WasmGame());
   }
 }
+
+// the saved sound rows land before the first gesture can open audio
+audio_load_saved();
 
 // 'connect' waits on the Welcome; 'picker' deals the roster; 'intro'
 // shows the prologue card; 'play' runs the loop. The embedded harness

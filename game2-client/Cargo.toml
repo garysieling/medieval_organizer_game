@@ -19,6 +19,8 @@ dev-voice = ["dep:cpal"]
 
 [dependencies]
 game2-core = { path = "../game2-core" }
+# WAV output moved here (#1486)
+game2-audio = { path = "../game2-audio" }
 gif = "0.13"
 jpeg-encoder = "0.6"
 png = "0.18.1"

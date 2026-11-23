@@ -1,0 +1,23 @@
+[package]
+name = "game2-audio"
+version = "0.1.0"
+edition = "2021"
+
+# The audio crate renders sound deterministically from a seat's view of
+# the world. It may read session's public API (UiModel) but never the
+# sim itself - tests/layering.rs greps for that. game2-core never
+# depends on it.
+[dependencies]
+game2-core = { path = "../game2-core" }
+
+# getrandom 0.3's wasm_js backend needs the feature on - scoped to the
+# wasm target like game2-web does, so native builds don't reach for a
+# backend that isn't there. The crate's own code never calls it - the
+# sim's transitive rng dep does.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
+[features]
+# S2 fills the analysis toolkit; S3 the scenario library
+analysis = []
+scenarios = []

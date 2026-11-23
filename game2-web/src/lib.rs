@@ -11,13 +11,13 @@
 //! `render()` produces the RGBA `Buffer` `frame_ptr`/`frame_len` point at,
 //! and the canvas blits it - the desktop's draw code, not a JS rewrite.
 
+use game2_audio::host::AudioHost;
 use game2_client::{
     camera_follow, render_intro, render_picker, talk::digit_cmd, Art, EventCam, View, MAX_ZOOM,
     MIN_ZOOM,
 };
-use game2_core::session::layout::MAP_W;
 use game2_core::session::{
-    self, iso_to_screen_cam, journal, roster::RosterCard, Command, Game, PKind, Scenario,
+    self, journal, roster::RosterCard, Command, Game, PKind, Scenario,
     SceneCache, ServerMsg, UiModel,
 };
 use std::collections::HashMap;
@@ -55,6 +55,13 @@ struct RenderHost {
     event_cam: EventCam,
     cam_centered: bool,
     focus_seeded: bool,
+    /// the frame's audio intent goes here every render; silent until a
+    /// gesture opens the device, so early frames just drop
+    audio: AudioHost,
+    /// the open device's stream - owns the heartbeat, so it must live
+    /// as long as `audio` does (#1497)
+    #[cfg(target_arch = "wasm32")]
+    audio_sink: Option<websink::WebSink>,
 }
 
 impl RenderHost {
@@ -70,6 +77,29 @@ impl RenderHost {
             event_cam: EventCam::default(),
             cam_centered: false,
             focus_seeded: false,
+            audio: AudioHost::silent(),
+            #[cfg(target_arch = "wasm32")]
+            audio_sink: None,
+        }
+    }
+
+    /// A click or key calls this (autoplay lets an AudioContext run only
+    /// under a gesture): the stream's built inside the call so its fresh
+    /// context starts running. A failed probe stays silent and the next
+    /// gesture tries again.
+    fn audio_start(&mut self) {
+        if !self.audio.is_silent() {
+            return;
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use game2_audio::host::HostSettings;
+            if self.audio_sink.is_none() {
+                self.audio_sink = websink::WebSink::probe().ok();
+            }
+            if let Some(sink) = self.audio_sink.as_mut() {
+                self.audio = AudioHost::start(&HostSettings::default(), sink);
+            }
         }
     }
 
@@ -121,39 +151,14 @@ impl RenderHost {
             .unwrap_or_default()
     }
 
-    /// The frame's audio cues, drained so a held frame doesn't replay
-    /// them: `[kind, pan, gain]` with pan where the cue lands on screen
-    /// (-1 left .. 1 right) through the same projection the view uses
-    fn take_sfx(&mut self) -> String {
-        let Some(m) = self.model.as_mut() else {
-            return "[]".into();
-        };
-        let cues = std::mem::take(&mut m.sfx_v);
-        let (cx, cy, zoom) = self
-            .view
-            .as_ref()
-            .map(|v| (v.cam_x, v.cam_y, v.zoom))
-            .unwrap_or((0, 0, 1.0));
-        let half = MAP_W as f32 / 2.0;
-        let out: Vec<(String, f32, f32)> = cues
-            .iter()
-            .map(|(kind, x, y, gain)| {
-                let (sx, _) = iso_to_screen_cam(*x as f32, *y as f32, cx, cy, zoom);
-                (
-                    kind.clone(),
-                    ((sx as f32 - half) / half).clamp(-1.0, 1.0),
-                    *gain,
-                )
-            })
-            .collect();
-        serde_json::to_string(&out).unwrap_or_else(|_| "[]".into())
-    }
-
     /// Draw a frame: the camera runs exactly the window's sequence
     /// (sim-asked look, first-frame centre on the player, the comfort-box
     /// follow muted while a focus jump or a live event holds it, then the
     /// event camera), and `View::render` produces the pixels
     fn render_model(&mut self, m: UiModel) {
+        // the frame's cues go down to the host first - the same
+        // AudioFrame::from_model the desktop pushes through (#1497)
+        self.audio.push(&m);
         let Some(view) = self.view.as_mut() else {
             return;
         };
@@ -372,10 +377,11 @@ impl WasmGame {
         self.host.digit_command(n)
     }
 
-    /// The frame's audio cues, drained so a held frame doesn't replay
-    /// them: `[kind, pan, gain]` - pan where the cue lands on screen
-    pub fn take_sfx(&mut self) -> String {
-        self.host.take_sfx()
+    /// The first gesture opens the page's AudioContext and swaps the
+    /// silent host for the real one; call it from click/key handlers.
+    /// Frames pushed before it just drop (#1497)
+    pub fn audio_start(&mut self) {
+        self.host.audio_start();
     }
 
     /// One frame of the village
@@ -682,9 +688,11 @@ impl WasmClient {
         self.host.digit_command(n)
     }
 
-    /// The newest scene's audio cues, drained: `[kind, pan, gain]`
-    pub fn take_sfx(&mut self) -> String {
-        self.host.take_sfx()
+    /// The first gesture opens the page's AudioContext and swaps the
+    /// silent host for the real one; call it from click/key handlers.
+    /// Frames pushed before it just drop (#1497)
+    pub fn audio_start(&mut self) {
+        self.host.audio_start();
     }
 
     /// Which entity is me, from the Welcome - for finding my figure in
@@ -697,6 +705,56 @@ impl WasmClient {
 #[wasm_bindgen(start)]
 pub fn start() {
     // The page constructs a WasmGame and ticks it - nothing to boot here
+}
+
+/// The page's output device: cpal's WebAudio host. `probe` asks for the
+/// default device; `open` builds the stream - inside a gesture, so the
+/// fresh `AudioContext` starts running instead of suspended (#1497).
+#[cfg(target_arch = "wasm32")]
+mod websink {
+    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+    use game2_audio::host::AudioSink;
+    use std::io;
+
+    pub struct WebSink {
+        device: cpal::Device,
+        config: cpal::StreamConfig,
+        /// the live stream - the context's heartbeat; dropped, it stops
+        stream: Option<cpal::Stream>,
+    }
+
+    impl WebSink {
+        pub fn probe() -> Result<WebSink, io::Error> {
+            let dev = cpal::default_host().default_output_device()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no output device"))?;
+            let supported = dev.default_output_config().map_err(io::Error::other)?;
+            if supported.sample_format() != cpal::SampleFormat::F32 {
+                return Err(io::Error::new(io::ErrorKind::Other, "device isn't f32"));
+            }
+            Ok(WebSink { device: dev, config: supported.config(), stream: None })
+        }
+    }
+
+    impl AudioSink for WebSink {
+        /// the AudioContext rate the stream was configured for - the
+        /// engine renders at it or the pitch goes sideways
+        fn sample_rate(&self) -> u32 { self.config.sample_rate.0 }
+
+        fn open(&mut self, mut pump: Box<dyn FnMut(&mut [f32]) + Send>) -> Result<(), io::Error> {
+            let stream = self.device
+                .build_output_stream(&self.config,
+                    move |data: &mut [f32], _: &cpal::OutputCallbackInfo| pump(data),
+                    |e| {
+                        web_sys::console::error_1(
+                            &format!("audio: stream error: {e}").into())
+                    },
+                    None)
+                .map_err(io::Error::other)?;
+            stream.play().map_err(io::Error::other)?;
+            self.stream = Some(stream);
+            Ok(())
+        }
+    }
 }
 
 #[cfg(test)]
@@ -908,5 +966,53 @@ mod tests {
             WasmGame::load(&tampered).is_none(),
             "a drifted replay refuses"
         );
+    }
+
+    /// A context that won't open leaves the page silent, not crashed -
+    /// the same sink failure the desktop's bridge test covers, through
+    /// the shared AudioHost (#1497)
+    #[test]
+    fn web_host_silent_when_context_fails() {
+        use game2_audio::host::{AudioSink, HostSettings};
+        struct NoContext;
+        impl AudioSink for NoContext {
+            fn sample_rate(&self) -> u32 { 44100 }
+            fn open(&mut self, _p: Box<dyn FnMut(&mut [f32]) + Send>)
+                -> Result<(), std::io::Error>
+            {
+                Err(std::io::Error::new(std::io::ErrorKind::Other, "AudioContext refused"))
+            }
+        }
+        let mut host = AudioHost::start(&HostSettings::default(), &mut NoContext);
+        assert!(host.is_silent(), "a refused context didn't fall back to silent");
+        let mut buf = [0.0f32; 16];
+        host.render_block(&mut buf);
+        assert!(buf.iter().all(|&s| s == 0.0));
+    }
+
+    /// Both clients push a `UiModel` through `AudioFrame::from_model` -
+    /// the one function - so the eight legacy cues sound the same on the
+    /// page as in the window (#1497)
+    #[test]
+    fn legacy_cue_list_identical_for_desktop_and_web() {
+        use game2_audio::host::{AudioFrame, CueKind};
+        let mut g = Game::new_seeded(session::MAP_SEED);
+        g.update();
+        let mut m = g.ui_model();
+        m.sfx_v = ["rain", "anvil", "festival", "wonder", "bell", "snowballs",
+                   "splash", "mood", "unheard-of"]
+            .iter().map(|k| (k.to_string(), 5, 5, 0.9)).collect();
+        let kinds: Vec<&str> = AudioFrame::from_model(&m).cues.iter().map(|c| match c {
+            CueKind::Rain { .. } => "rain",
+            CueKind::Anvil { .. } => "anvil",
+            CueKind::Festival { .. } => "festival",
+            CueKind::Wonder { .. } => "wonder",
+            CueKind::Bell { .. } => "bell",
+            CueKind::Snowballs { .. } => "snowballs",
+            CueKind::Splash { .. } => "splash",
+            CueKind::Mood { .. } => "mood",
+        }).collect();
+        assert_eq!(kinds, ["rain", "anvil", "festival", "wonder", "bell",
+                           "snowballs", "splash", "mood", "mood"]);
     }
 }

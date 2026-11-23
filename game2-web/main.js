@@ -24,7 +24,6 @@
 // of this file's directory), and hands the bytes back.
 
 import init, { WasmGame, WasmClient } from './pkg/game2_web.js';
-import { SoundBoard } from './sound.js';
 import { load as db_load, save as db_save } from './db.js';
 
 const ASSET_BASE = new URL('../assets/', import.meta.url).href;
@@ -35,7 +34,9 @@ const remote = !!server;
 const boot = document.getElementById('boot');
 const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
-const sound = new SoundBoard();
+// the page's audio lives inside the wasm (game2-audio); the first
+// gesture opens its AudioContext
+const audio_start = () => { if (g) g.audio_start(); };
 
 function say(msg) {
   if (!boot.isConnected) document.getElementById('wrap').appendChild(boot);
@@ -141,7 +142,7 @@ canvas.addEventListener('pointermove', e => {
   }
 });
 canvas.addEventListener('pointerdown', e => {
-  sound.resume();
+  audio_start();
   drag = { x: e.clientX, y: e.clientY };
   down_at = { x: e.clientX, y: e.clientY, t: performance.now() };
 });
@@ -165,7 +166,7 @@ canvas.addEventListener('wheel', e => {
 
 const held = {};
 addEventListener('keydown', e => {
-  sound.resume();
+  audio_start();
   held[e.code] = true;
   if (phase === 'picker') {
     const n = g.roster_len();
@@ -219,7 +220,6 @@ function loop() {
     if (dx || dy) send({ Walk: [dx, dy] });
     if (!remote) g.tick();
     g.render();
-    sound.drain(JSON.parse(g.take_sfx()));
   }
   blit(g, wasm);
   requestAnimationFrame(loop);

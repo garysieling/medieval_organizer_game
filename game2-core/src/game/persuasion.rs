@@ -141,9 +141,9 @@ pub fn counter_line(traits: &[Trait], stance: Stance, issue: &IssueTag) -> Strin
     for t in traits {
         let line = match t {
             Trait::Stingy => format!("And who pays for {}? Not me, I'll wager.", what),
-            Trait::Pious => format!("Is {} right, though - or only useful to you?", what),
+            Trait::Pious => format!("Is {} right, though - or only useful to {{2:obj}}?", what),
             Trait::Hotheaded => format!("Talk's cheap. Who'd stand behind {} when it comes to it?", what),
-            Trait::Proud => format!("I'll make my own mind up on {}, thank you.", name),
+            Trait::Proud => format!("I'll make my own mind up on {}, thank {{2:obj}}.", name),
             Trait::Lazy => format!("{} sounds like work. Who'd carry it?", capitalize(&what)),
             _ => continue,
         };

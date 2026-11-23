@@ -138,6 +138,10 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
         "addr" => push(out, &address_form(cx)),
         // E4-2: second person - pronouns and verb agreement read `cx.tv`
         _ if slot.starts_with("2:") => push(out, &second_person(&slot[2..], cx.tv)),
+        // E4-4: second person plural - a room, a camp, the whole side;
+        // ye is the plural of thou, so the pair's tv picks it the way
+        // the singular path picks thee; verbs stay bare either way
+        _ if slot.starts_with("2p:") => push(out, &second_person_plural(&slot[3..], cx.tv)),
         // E4-3: the lexicon - third person, tense, number and lists,
         // each tail a referent slot ("{he:someone}", "{n:fingers}")
         _ if slot.starts_with("he:") => push(out, &third_person(&slot[3..], cx, Case::Subj)),
@@ -255,6 +259,23 @@ fn second_person(word: &str, tv: Tv) -> String {
         w if thou => thou_form(w),
         w => you_form(w),
     }
+}
+
+/// The word a `{2p:…}` slot stands in for (E4-4): the plural second
+/// person a line speaks to a room or a side. Ye is the plural of
+/// thou, so the pair's tv picks it exactly as the singular path picks
+/// thee; objects and possessives are "you"/"your" in both. Verbs
+/// after a plural subject keep the bare form ("ye go"), so only the
+/// pronouns need slots.
+fn second_person_plural(word: &str, tv: Tv) -> String {
+    match word {
+        "subj" => if tv == Tv::Thou { "ye" } else { "you" },
+        "obj" => "you",
+        "poss" => "your",
+        "own" => "yours",
+        "self" => "yourselves",
+        w => w,
+    }.to_string()
 }
 
 /// A verb's you-form: the lemma itself, save the copula and the
@@ -677,13 +698,13 @@ mod tests {
         let mut n = 0;
         let mut migrated = 0;
         for t in all_library_lines() {
-            if t.contains("{2:") || t.contains("{addr}") {
-                // E4-2 migrated this line - the old fills never owned
-                // these slots, so there is no old render to match;
-                // it must only resolve every owned slot
+            if t.contains("{2:") || t.contains("{2p:") || t.contains("{addr}") {
+                // E4-2/E4-4 migrated this line - the old fills never
+                // owned these slots, so there is no old render to
+                // match; it must only resolve every owned slot
                 migrated += 1;
                 let got = realize(t, &Cx::plain(&alys, &corvin, &[]), &mut rng);
-                assert!(!got.contains("{2:") && !got.contains("{addr}"), "line: {t}");
+                assert!(!got.contains("{2:") && !got.contains("{2p:") && !got.contains("{addr}"), "line: {t}");
                 continue;
             }
             let want = t.replace("{other}", "Corvin")

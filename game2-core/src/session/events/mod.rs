@@ -238,50 +238,50 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: Tinker, name: "the tinker", kind: Visitor, fig: Fig::Traveller, gap: 180, span: 120, stay: 4, cry: "Pots to mend! Kettles to patch!" },
     EventSpec { id: KnifeGrinder, name: "the knife-grinder", kind: Visitor, fig: Fig::Traveller, gap: 200, span: 120, stay: 3, cry: "Knives! Scissors! Put an edge on it!" },
     EventSpec { id: RagAndBone, name: "the rag-and-bone man", kind: Visitor, fig: Fig::Traveller, gap: 150, span: 100, stay: 3, cry: "Rags! Bones! Anything old!" },
-    EventSpec { id: ChimneySweep, name: "the sweep", kind: Visitor, fig: Fig::Traveller, gap: 280, span: 140, stay: 4, cry: "Sweep your flues, before they burn you out!" },
+    EventSpec { id: ChimneySweep, name: "the sweep", kind: Visitor, fig: Fig::Traveller, gap: 280, span: 140, stay: 4, cry: "Sweep {2p:poss} flues, before they burn {2p:obj} out!" },
     EventSpec { id: RatCatcher, name: "the rat-catcher", kind: Visitor, fig: Fig::Traveller, gap: 240, span: 140, stay: 4, cry: "Rats caught! Mice, moles, the lot!" },
-    EventSpec { id: Dowser, name: "the water-diviner", kind: Visitor, fig: Fig::Traveller, gap: 360, span: 200, stay: 5, cry: "Water under your feet - I can feel it." },
+    EventSpec { id: Dowser, name: "the water-diviner", kind: Visitor, fig: Fig::Traveller, gap: 360, span: 200, stay: 5, cry: "Water under {2p:poss} feet - I can feel it." },
     EventSpec { id: Scribe, name: "the scribe", kind: Visitor, fig: Fig::Traveller, gap: 200, span: 120, stay: 4, cry: "Letters writ, fair hand, a penny a page!" },
     EventSpec { id: ToothDrawer, name: "the tooth-drawer", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 160, stay: 3, cry: "Bad teeth out, no fuss, quick as a wink!" },
     EventSpec { id: BarberSurgeon, name: "the barber-surgeon", kind: Visitor, fig: Fig::Traveller, gap: 280, span: 160, stay: 4, cry: "Bled and bandaged, corns cut, humours set right!" },
     EventSpec { id: PilgrimBand, name: "a band of pilgrims", kind: Visitor, fig: Fig::Traveller, gap: 260, span: 160, stay: 3, cry: "We come from the shrine. God keep this place." },
     EventSpec { id: RelicSeller, name: "the relic-seller", kind: Visitor, fig: Fig::Traveller, gap: 340, span: 200, stay: 3, cry: "A saint's own knuckle-bone - see the seal!" },
-    EventSpec { id: Pardoner, name: "the pardoner", kind: Visitor, fig: Fig::Traveller, gap: 340, span: 200, stay: 3, cry: "Pardons, good folk - your sins made light for coin!" },
+    EventSpec { id: Pardoner, name: "the pardoner", kind: Visitor, fig: Fig::Traveller, gap: 340, span: 200, stay: 3, cry: "Pardons, good folk - {2p:poss} sins made light for coin!" },
     EventSpec { id: Juggler, name: "a juggler", kind: Visitor, fig: Fig::Traveller, gap: 160, span: 100, stay: 3, cry: "Watch me now! Knives in the air!" },
     EventSpec { id: BearWard, name: "a bear-ward", kind: Visitor, fig: Fig::Traveller, gap: 380, span: 220, stay: 4, cry: "The bear dances! A penny to see him bow!" },
     EventSpec { id: Puppeteer, name: "a puppeteer", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 180, stay: 3, cry: "A play! Noah's flood and the devil's due!" },
     EventSpec { id: BalladMonger, name: "the ballad-monger", kind: Visitor, fig: Fig::Traveller, gap: 180, span: 120, stay: 3, cry: "New ballads! All the doings of the wide world!" },
-    EventSpec { id: NewsCrier, name: "the news-crier", kind: Visitor, fig: Fig::Traveller, gap: 140, span: 100, stay: 2, cry: "Hear ye! News from the castle and the town!" },
+    EventSpec { id: NewsCrier, name: "the news-crier", kind: Visitor, fig: Fig::Traveller, gap: 140, span: 100, stay: 2, cry: "Oyez! News from the castle and the town!" },
     EventSpec { id: Recruiter, name: "the recruiting sergeant", kind: Visitor, fig: Fig::Traveller, gap: 320, span: 200, stay: 4, cry: "The lord's coin for strong backs - the wars pay!" },
     EventSpec { id: Deserter, name: "a deserter", kind: Visitor, fig: Fig::Traveller, gap: 400, span: 260, stay: 4, cry: "..." },
     EventSpec { id: RefugeeFamily, name: "a refugee family", kind: Visitor, fig: Fig::Traveller, gap: 380, span: 240, stay: 5, cry: "Our village burned. Is there work here?" },
     EventSpec { id: LeperBand, name: "a leper band", kind: Visitor, fig: Fig::Traveller, gap: 420, span: 260, stay: 3, cry: "Unclean - a crust for Christ's sake." },
-    EventSpec { id: Friar, name: "a wandering friar", kind: Visitor, fig: Fig::Traveller, gap: 240, span: 160, stay: 4, cry: "A word for your souls, good people." },
+    EventSpec { id: Friar, name: "a wandering friar", kind: Visitor, fig: Fig::Traveller, gap: 240, span: 160, stay: 4, cry: "A word for {2p:poss} souls, good people." },
     EventSpec { id: Heretic, name: "a quiet preacher", kind: Visitor, fig: Fig::Traveller, gap: 420, span: 280, stay: 4, cry: "The church sells what God gives free." },
     EventSpec { id: Drover, name: "a drover", kind: Visitor, fig: Fig::Traveller, gap: 200, span: 120, stay: 3, cry: "Sheep to market! Stand clear!" },
     EventSpec { id: FishHawker, name: "a fish-hawker", kind: Visitor, fig: Fig::Traveller, gap: 160, span: 100, stay: 3, cry: "Salt fish! Keep all winter!" },
     EventSpec { id: SaltSeller, name: "the salt-seller", kind: Visitor, fig: Fig::Traveller, gap: 240, span: 140, stay: 3, cry: "Salt! White gold! None goes bad who buys it!" },
     EventSpec { id: WoolMerchant, name: "the wool merchant", kind: Visitor, fig: Fig::Traveller, gap: 260, span: 160, stay: 3, cry: "Fleece bought, top price, by the stone!" },
-    EventSpec { id: WineMerchant, name: "the wine merchant", kind: Visitor, fig: Fig::Traveller, gap: 280, span: 160, stay: 3, cry: "Wine from over the hills - a cup before you buy!" },
+    EventSpec { id: WineMerchant, name: "the wine merchant", kind: Visitor, fig: Fig::Traveller, gap: 280, span: 160, stay: 3, cry: "Wine from over the hills - a cup before {2p:subj} buy!" },
     EventSpec { id: SpiceMerchant, name: "the spice merchant", kind: Visitor, fig: Fig::Traveller, gap: 320, span: 200, stay: 3, cry: "Pepper! Cloves! Things that cure what ails!" },
     EventSpec { id: Bookseller, name: "the bookseller", kind: Visitor, fig: Fig::Traveller, gap: 380, span: 220, stay: 3, cry: "Books! Words that outlive the winter!" },
     EventSpec { id: Glazier, name: "the glazier", kind: Visitor, fig: Fig::Traveller, gap: 360, span: 220, stay: 5, cry: "Glass for the church, light for the dark months!" },
-    EventSpec { id: Thatcher, name: "the thatcher", kind: Visitor, fig: Fig::Traveller, gap: 220, span: 140, stay: 5, cry: "Roofs patched before the rain finds you!" },
+    EventSpec { id: Thatcher, name: "the thatcher", kind: Visitor, fig: Fig::Traveller, gap: 220, span: 140, stay: 5, cry: "Roofs patched before the rain finds {2p:obj}!" },
     EventSpec { id: WellDigger, name: "the well-digger", kind: Visitor, fig: Fig::Traveller, gap: 400, span: 240, stay: 6, cry: "Wells dug deep - sweet water, not the pond's!" },
-    EventSpec { id: CharcoalBurner, name: "a charcoal burner", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 180, stay: 7, cry: "I'll take your dead wood and leave you coal." },
-    EventSpec { id: LimeBurner, name: "the lime-burner", kind: Visitor, fig: Fig::Traveller, gap: 360, span: 220, stay: 6, cry: "Lime for your fields - the soil thanks you next year!" },
+    EventSpec { id: CharcoalBurner, name: "a charcoal burner", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 180, stay: 7, cry: "I'll take {2p:poss} dead wood and leave {2p:obj} coal." },
+    EventSpec { id: LimeBurner, name: "the lime-burner", kind: Visitor, fig: Fig::Traveller, gap: 360, span: 220, stay: 6, cry: "Lime for {2p:poss} fields - the soil thanks {2p:obj} next year!" },
     EventSpec { id: Tanner, name: "the tanner", kind: Visitor, fig: Fig::Traveller, gap: 260, span: 160, stay: 4, cry: "Hides bought! Mind the smell, it's honest work!" },
     EventSpec { id: CandleMaker, name: "the candle-maker", kind: Visitor, fig: Fig::Traveller, gap: 260, span: 160, stay: 3, cry: "Wax bought! Tallow taken! Light for the dark!" },
     EventSpec { id: Potter, name: "the potter", kind: Visitor, fig: Fig::Traveller, gap: 240, span: 140, stay: 3, cry: "Pots and crocks! A jug that doesn't weep!" },
     EventSpec { id: HorseCop, name: "the horse-coper", kind: Visitor, fig: Fig::Traveller, gap: 380, span: 240, stay: 3, cry: "Fine horses! Sound wind, and mostly honest!" },
-    EventSpec { id: Eggler, name: "the eggler", kind: Visitor, fig: Fig::Traveller, gap: 200, span: 120, stay: 2, cry: "Eggs! Butter! Cheese! What have your hens done?" },
+    EventSpec { id: Eggler, name: "the eggler", kind: Visitor, fig: Fig::Traveller, gap: 200, span: 120, stay: 2, cry: "Eggs! Butter! Cheese! What have {2p:poss} hens done?" },
     EventSpec { id: CheeseMonger, name: "the cheese-monger", kind: Visitor, fig: Fig::Traveller, gap: 240, span: 160, stay: 3, cry: "Aged wheels bought - the older the better!" },
-    EventSpec { id: FortuneTeller, name: "the fortune-teller", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 200, stay: 4, cry: "Your palm, love - the lines don't lie." },
+    EventSpec { id: FortuneTeller, name: "the fortune-teller", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 200, stay: 4, cry: "{2p:poss} palm, love - the lines don't lie." },
     EventSpec { id: Astrologer, name: "the astrologer", kind: Visitor, fig: Fig::Traveller, gap: 420, span: 280, stay: 4, cry: "The stars over this village - let me read them." },
     EventSpec { id: Alchemist, name: "the alchemist", kind: Visitor, fig: Fig::Traveller, gap: 460, span: 300, stay: 4, cry: "I buy strange things. Strange things only." },
     EventSpec { id: Quack, name: "the quack", kind: Visitor, fig: Fig::Traveller, gap: 260, span: 160, stay: 3, cry: "Cures all! Ague, ache, and the falling sickness!" },
     EventSpec { id: Midwife, name: "the midwife", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 180, stay: 5, cry: "Babies caught, mothers kept - a blessing on the house." },
-    EventSpec { id: Sowgelder, name: "the pig man", kind: Visitor, fig: Fig::Traveller, gap: 320, span: 200, stay: 3, cry: "Pigs doctored! Beasts tended! Show me your stock!" },
+    EventSpec { id: Sowgelder, name: "the pig man", kind: Visitor, fig: Fig::Traveller, gap: 320, span: 200, stay: 3, cry: "Pigs doctored! Beasts tended! Show me {2p:poss} stock!" },
     EventSpec { id: Farrier, name: "the farrier", kind: Visitor, fig: Fig::Traveller, gap: 280, span: 160, stay: 4, cry: "Shoes for hooves - hear that ring of iron!" },
     EventSpec { id: CornFactor, name: "the corn-factor", kind: Visitor, fig: Fig::Traveller, gap: 220, span: 140, stay: 3, cry: "Grain bought by the quarter - good weight, fair price!" },
     EventSpec { id: Messenger, name: "a messenger", kind: Visitor, fig: Fig::Traveller, gap: 200, span: 140, stay: 2, cry: "A letter! Is there one here called-?" },
@@ -828,14 +828,16 @@ impl Game {
                     );
                 } else {
                     self.vax_offer = Some(VaxOffer { authority: e.unwrap_or(0) });
-                    if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
+                    if let Some(e) = e { let cry = self.pair_said(e, self.player, s.cry);
+                    self.say(e, &cry, TALK_BUBBLE_SECS * 2); }
                     self.log.push_ev_at_who(EvTag::new(Thread::Illness, Valence::Neutral, Sev::Notable), format!("t{}: {} reads the vaccination act on the square - the lancet's offered for the infants, the refusers pay the fine, and a third way's whispered in the crowd.", self.tick, s.name), pitch, None);
                     self.toasts.push_at(("The Vaccination Act".into(), self.tick + 40), pitch);
                 }
             }
             EventId::Tinker => {
                 if let Some(e) = e {
-                    self.say(e, s.cry, TALK_BUBBLE_SECS * 2);
+                    let cry = self.pair_said(e, self.player, s.cry);
+                    self.say(e, &cry, TALK_BUBBLE_SECS * 2);
                 }
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
@@ -858,7 +860,8 @@ impl Game {
                     _ => FalseMotive::Runaway,
                 };
                 if let Some(e) = e {
-                    self.say(e, s.cry, TALK_BUBBLE_SECS * 2);
+                    let cry = self.pair_said(e, self.player, s.cry);
+                    self.say(e, &cry, TALK_BUBBLE_SECS * 2);
                     self.false_traveller = Some(FalseTraveller {
                         e, motive, card: 0, handled: 0,
                     });
@@ -907,7 +910,8 @@ impl Game {
                 }
             }
             EventId::ProdigalSon => {
-                if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
+                if let Some(e) = e { let cry = self.pair_said(e, self.player, s.cry);
+                    self.say(e, &cry, TALK_BUBBLE_SECS * 2); }
                 // the fatted calf: a rolled home feasts him home, and
                 // the tales start before the soup's even cold
                 let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
@@ -930,7 +934,8 @@ impl Game {
             }
             EventId::KnifeGrinder => {
                 if let Some(e) = e {
-                    self.say(e, s.cry, TALK_BUBBLE_SECS * 2);
+                    let cry = self.pair_said(e, self.player, s.cry);
+                    self.say(e, &cry, TALK_BUBBLE_SECS * 2);
                 }
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
@@ -946,7 +951,8 @@ impl Game {
                 // the baseline: a figure stands his pitch and cries his trade
                 if let Some(e) = e {
                     let cry = if s.cry.is_empty() { "..." } else { s.cry };
-                    self.say(e, cry, TALK_BUBBLE_SECS);
+                    let cry = self.pair_said(e, self.player, cry);
+                    self.say(e, &cry, TALK_BUBBLE_SECS);
                 }
             }
         }

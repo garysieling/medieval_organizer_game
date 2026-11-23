@@ -674,12 +674,13 @@ impl Game {
                             o.members.iter().any(|&m| !crate::game::villager::is_dead(&self.world, m))))
                         .unwrap_or((false, false));
                     let (msg, tag) = if is_leader {
-                        (format!("{}: we've heard of you - the organizer.", RIVAL_NAMES[i]), "opened")
+                        (format!("{}: we've heard of {{2:obj}} - the organizer.", RIVAL_NAMES[i]), "opened")
                     } else if has_cause {
-                        (format!("{}: word travels. state your business.", RIVAL_NAMES[i]), "wary")
+                        (format!("{}: word travels. state {{2:poss}} business.", RIVAL_NAMES[i]), "wary")
                     } else {
-                        (format!("{}: we don't know you, outsider.", RIVAL_NAMES[i]), "rebuffed")
+                        (format!("{}: we don't know {{2:obj}}, outsider.", RIVAL_NAMES[i]), "rebuffed")
                     };
+                    let msg = self.pair_said(rv, self.player, &msg);
                     self.say(rv, &msg, TALK_BUBBLE_SECS);
                     self.log.push_ev(
                         EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
@@ -712,15 +713,16 @@ impl Game {
             hailed.push((e, s.name, s.cry.to_string()));
         }
         if let Some(d) = &self.doctor { hailed.push((d.e, "the plague doctor", "Stand back - the miasma's about.".into())); }
-        if let Some(m) = &self.minstrel { hailed.push((m.e, "the minstrel", "A tune, then - what's your fancy?".into())); }
+        if let Some(m) = &self.minstrel { hailed.push((m.e, "the minstrel", "A tune, then - what's {2:poss} fancy?".into())); }
         if let Some(m) = &self.pedlar { hailed.push((m.e, "the pedlar", "Pots, pins, and word of the next village.".into())); }
         if let Some(c) = &self.circus { hailed.push((c.e, "the circus", "Come see! Wonders from over the hill!".into())); }
-        if let Some(b) = &self.ink_boiler { hailed.push((b.e, "the ink-boiler", "Ink for the printer - and your crusts come back fried.".into())); }
+        if let Some(b) = &self.ink_boiler { hailed.push((b.e, "the ink-boiler", "Ink for the printer - and {2:poss} crusts come back fried.".into())); }
         for c in &self.couriers { hailed.push((c.e, "the courier", "Letters for the far town - I can't linger.".into())); }
         for (e, name, line) in hailed {
             let Some(p) = self.world.get_component::<Pos>(e) else { continue };
             let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
             if on_map && box_d(sx, sy) < 4.0 {
+                let line = self.pair_said(e, self.player, &line);
                 self.say(e, &line, TALK_BUBBLE_SECS);
                 self.log.push_ev(
                     EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),

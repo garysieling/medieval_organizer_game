@@ -15,6 +15,17 @@ const TESTIMONY_WARM_TIE: f32 = 0.3;
 const TESTIMONY_OPEN: f32 = 0.10;
 
 impl Game {
+    /// The org behind a campaign as conversation `Speaker`s (E4-4): the
+    /// arc's deliberations realize each line's thee and you against the
+    /// pair it was actually said to
+    pub(in crate::session) fn org_speakers(&self, c: Entity, tick: u64)
+            -> crate::engine::det::HashMap<Entity, crate::game::conversation::Speaker> {
+        let ms: Vec<Entity> = self.world.get_component::<crate::game::campaign::Campaign>(c)
+            .and_then(|c| self.world.get_component::<crate::sim::community::Organization>(c.org))
+            .map(|o| o.members.clone()).unwrap_or_default();
+        ms.iter().map(|&m| (m, dialogue::speaker_of(&self.world, m, &self.name_of(m), tick))).collect()
+    }
+
     /// The end of a house meeting, once those who came have talked it over.
     /// Those who already trust you join the org; everyone who came gets to
     /// know you a little better (organizing::house_meeting). The meeting
@@ -236,8 +247,12 @@ impl Game {
             .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| self.cast_name(i).to_string()))
             .collect();
         // the room talks it through first: what it decided is what the
-        // notes and the consent report
-        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick);
+        // notes and the consent report - each voice's thee and you
+        // realized against the speakers it already knows (E4-4)
+        let speakers: crate::engine::det::HashMap<Entity, crate::game::conversation::Speaker> =
+            out.attendees.iter()
+                .map(|&v| (v, dialogue::speaker_of(&self.world, v, &self.name_of(v), tick))).collect();
+        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick, &speakers);
         let decided = d.as_ref().map(|d| d.decided).unwrap_or(true);
         let consent = d.as_ref().map(|d| d.consent).unwrap_or(out.consent);
         let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
@@ -587,7 +602,9 @@ impl Game {
                 desires::plant_want(&mut self.world, v, host_e, self.tick, seed);
             }
         }
-        lines
+        lines.into_iter()
+            .map(|(e, t)| (e, self.pair_said(e, self.seats[seat].player, &t)))
+            .collect()
     }
 
     /// The organizer's history worth testifying to (#1248): the latest
@@ -639,7 +656,7 @@ impl Game {
             None => "And it's not mine alone - every house in this room has felt the lord's hand.".into(),
         };
         vec![
-            format!("I'll tell you why I stand here. I saw it: {} I couldn't keep quiet after that.", ev.trim_end_matches('.').to_string() + "."),
+            format!("I'll tell {{2p:obj}} why I stand here. I saw it: {} I couldn't keep quiet after that.", ev.trim_end_matches('.').to_string() + "."),
             us,
             "So tonight's the choosing: stand together on it, or each go home and bear it alone.".into(),
         ]
@@ -766,7 +783,8 @@ impl Game {
             m.lines.insert(m.lines.len().saturating_sub(1), (n, "Say it plain - I'll keep the word of it.".into()));
         }
         if let (true, Some(c)) = (m.roles.4, closer) {
-            m.lines.insert(m.lines.len().saturating_sub(1), (c, "Same time again, then - and each of you bring one more.".into()));
+            let close = self.pair_said(c, self.player, "Same time again, then - and each of {2p:obj} bring one more.");
+            m.lines.insert(m.lines.len().saturating_sub(1), (c, close));
         }
         if let (true, Some(s)) = (m.roles.3, song) {
             for &a in &m.invited {
@@ -779,10 +797,12 @@ impl Game {
             for &a in &m.invited {
                 desires::satisfy(&mut self.world, a, desires::Want::GoodFood, self.tick + 15);
             }
-            m.lines.insert(1.min(m.lines.len()), (s, "Bread's on the table - help yourselves.".into()));
+            let bread = self.pair_said(s, self.player, "Bread's on the table - help {2p:self}.");
+            m.lines.insert(1.min(m.lines.len()), (s, bread));
         }
         if let (true, Some(o)) = (m.roles.2, opener) {
-            m.lines.insert(0, (o, "Friends - you came, and that's the start of it.".into()));
+            let open = self.pair_said(o, self.player, "Friends - {2p:subj} came, and that's the start of it.");
+            m.lines.insert(0, (o, open));
         }
     }
 
@@ -915,9 +935,13 @@ impl Game {
                     match crate::game::organizing::stage_of(&self.world, self.player, a) {
                         RelStage::Known | RelStage::Follower | RelStage::CoLeader => {
                             let name = self.speaker_name(self.player);
-                            self.say_in_passing(a, &passing_greeting(n, &name), CHAT_BUBBLE_SECS);
+                            let said = self.pair_said(a, self.player, &passing_greeting(n, &name));
+                            self.say_in_passing(a, &said, CHAT_BUBBLE_SECS);
                         }
-                        RelStage::Acquaintance => { self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS); }
+                        RelStage::Acquaintance => {
+                            let said = self.pair_said(a, self.player, passing_remark(n));
+                            self.say_in_passing(a, &said, CHAT_BUBBLE_SECS);
+                        }
                         RelStage::Stranger => {}
                     }
                 }

@@ -1514,7 +1514,7 @@ const FRIEND_PART: Exchange = Exchange {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
             respond: None,
-            lines: &["Nor {2:own} me, old friend. Walk safe.", "We will share a cup of cider when the work is done.", "Fair day, {other} - peace on {2:poss} household.", "May the road be kind under {2:poss} boots.", "God's peace be upon {2:poss} cottage, {other}."],
+            lines: &["Nor {2:obj}, me old friend. Walk safe.", "We will share a cup of cider when the work is done.", "Fair day, {other} - peace on {2:poss} household.", "May the road be kind under {2:poss} boots.", "God's peace be upon {2:poss} cottage, {other}."],
             voice: &[],
             then: None, end: Some(Farewell),
         },

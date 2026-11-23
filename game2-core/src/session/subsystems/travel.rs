@@ -564,7 +564,7 @@ impl Game {
                         crate::game::desires::lift_grievance(&mut self.world, target, crate::game::desires::Problem::Taxed);
                     }
                 }
-                self.say(target, "The lord's share, if you please.", CHAT_BUBBLE_SECS);
+                self.say(target, &self.pair_said(target, self.player, "The lord's share, if {2:subj} please."), CHAT_BUBBLE_SECS);
                 if target == self.player {
                     self.log_entity_ev(
                         EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
@@ -654,7 +654,7 @@ impl Game {
                     relationships::record_interaction(&mut self.world, who, relationships::Interaction {
                         other: e, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
                     });
-                    self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
+                    self.say(who, &self.vv_said(who, e, "Good day to {2:obj}."), TALK_BUBBLE_SECS);
                     // an agent seat's chat is a talk like the Wanderer's:
                     // standing beside the one the job was for hands it
                     // over - the seat's own quest, not the villager's

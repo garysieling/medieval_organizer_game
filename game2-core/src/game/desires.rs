@@ -554,7 +554,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
 /// a fresh confession
 pub fn catchup_speech(name: &str, r: &Reveal) -> (String, String) {
     match r {
-        Reveal::Want(Want::GoodFood) => (format!("{} still misses good bread", name), "The bread's no better, if you're asking.".into()),
+        Reveal::Want(Want::GoodFood) => (format!("{} still misses good bread", name), "The bread's no better, if {2:subj} {2:be} asking.".into()),
         Reveal::Want(Want::Finery) => (format!("{} still wishes for fine clothes", name), "Still not one decent garment to my name.".into()),
         Reveal::Want(Want::Faith) => (format!("{} still misses the faith", name), "I still can't feel it, whatever I do.".into()),
         Reveal::Want(Want::Shelter) => (format!("{} still longs for a home", name), "Still sleeping under another's roof.".into()),
@@ -574,7 +574,7 @@ pub fn catchup_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::DerelictNearby) => (format!("{} still hates the empty shop", name), "The boarded shop sits there still.".into()),
         Reveal::Problem(Problem::OverseerCut) => (format!("{} still resents the overseer's cut", name), "He takes his share still, for watching.".into()),
         Reveal::Problem(Problem::Taxed) => (format!("{} still curses the tax collector", name), "The tolls press the same as ever.".into()),
-        Reveal::Problem(Problem::Broke) => (format!("{} is still nearly broke", name), "The purse is no fatter, if you're asking.".into()),
+        Reveal::Problem(Problem::Broke) => (format!("{} is still nearly broke", name), "The purse is no fatter, if {2:subj} {2:be} asking.".into()),
         Reveal::Problem(Problem::Smelly) => (format!("{} still stinks of honest work", name), "The smell still hangs on.".into()),
         Reveal::Problem(Problem::Loss) => (format!("{} still counts what the wolves took", name), "I still count what the wolves took.".into()),
         Reveal::Problem(Problem::Bereaved) => (format!("{} is still grieving", name), "The grief's still with me.".into()),

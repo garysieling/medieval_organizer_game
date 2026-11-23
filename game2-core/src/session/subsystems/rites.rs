@@ -155,15 +155,10 @@ impl Game {
             else { format!("{}'s rite of initiation", name) };
         self.local_celebration(tick, at, Some(v), &why);
         if !self.officiant_gone(p.by) {
-            self.say(
-                p.by,
-                if p.old {
-                    "The stones receive you."
-                } else {
-                    "The parish receives you."
-                },
-                TALK_BUBBLE_SECS * 2,
-            );
+            let rite = self.vv_said(p.by, v,
+                if p.old { "The stones receive {2:obj}." }
+                else { "The parish receives {2:obj}." });
+            self.say(p.by, &rite, TALK_BUBBLE_SECS * 2);
         }
         self.log_entity_ev(
             EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),

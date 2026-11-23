@@ -242,9 +242,12 @@ fn test_a_solved_mystery_is_told_in_the_talk() {
     assert!(tell_pick(&g).is_none(), "told once: {:?}", t.choice_labels(&g.world));
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
     let said: Vec<&str> = rec.lines.iter().map(|l| l.text.as_str()).collect();
-    assert!(rec.lines.iter().any(|l| l.who == Some(asker) && l.text == MYSTERIES[1].wonders),
+    let pe = g.player;
+    assert!(rec.lines.iter().any(|l| l.who == Some(asker)
+            && l.text == g.pair_said(asker, pe, MYSTERIES[1].wonders)),
         "they take the truth in, on the record: {:?}", said);
-    assert!(rec.lines.iter().any(|l| l.who == Some(asker) && l.text == MYSTERIES[1].thanks),
+    assert!(rec.lines.iter().any(|l| l.who == Some(asker)
+            && l.text == g.pair_said(asker, pe, MYSTERIES[1].thanks)),
         "and thank you for it: {:?}", said);
     let kind = find_relationship(&g.world, g.player, asker)
         .and_then(|r| g.world.get_component::<Relationship>(r)).map(|r| r.kind);

@@ -314,7 +314,7 @@ impl Game {
                     crate::game::relationships::record_interaction(&mut self.world, b,
                         Interaction { other: a, kind: InteractionKind::Conflict, intensity: 0.4 });
                     self.say(a, "You want a piece of me?!", CHAT_BUBBLE_SECS);
-                    self.say(b, "Say that again, I dare you!", CHAT_BUBBLE_SECS);
+                    self.say(b, &self.vv_said(b, a, "Say that again, I dare {2:obj}!"), CHAT_BUBBLE_SECS);
                     let who = self.villagers.iter().position(|&x| x == a);
                     self.log.push_ev_at_who(EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor), format!("t{}: a quarrel in the square - shouting, and the whole street turned out to watch.", self.tick), quarrel_at, who);
                 } else {
@@ -837,7 +837,7 @@ impl Game {
         };
         let (accuse, defend) = match &matter {
             crate::session::events::RowMatter::Cause { .. } =>
-                ("Thy meetings! I'll not have thee wasting thy nights in their company!",
+                ("{2:poss} meetings! I'll not have {2:obj} wasting {2:poss} nights in their company!",
                  "It's bread for the both of us, love."),
             crate::session::events::RowMatter::Want { want, .. } => match want {
                 desires::Want::Instrument =>
@@ -854,7 +854,7 @@ impl Game {
                      "A dry throat's no way to end a day."),
             },
             crate::session::events::RowMatter::Folly =>
-                ("I'll not come in thy ark!",
+                ("I'll not come in {2:poss} ark!",
                  "It's a roof-beam, love - a roof-beam!"),
         };
         self.say(accuser, accuse, CHAT_BUBBLE_SECS);

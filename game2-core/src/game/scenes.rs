@@ -50,49 +50,49 @@ pub struct Scene {
 pub const SCENES: &[Scene] = &[
     Scene { id: "feud_neighbors", pair: PairKind::Feuding, variants: &[
         SceneVariant { lo: -2.0, hi: -0.3, lines: &[
-            (0, "Thy fence still leans on my strip."),
-            (1, "And thy goose still fouls my stoop. We're even."),
+            (0, "{2:poss} fence still leans on my strip."),
+            (1, "And {2:poss} goose still fouls my stoop. We're even."),
             (0, "Even. When the hedge is righted, we'll talk even."),
             (1, "I'll right it when the crows take the corn."),
         ] },
         SceneVariant { lo: -0.3, hi: 0.35, lines: &[
-            (0, "Thy boy ran my fence line yesterday."),
+            (0, "{2:poss} boy ran my fence line yesterday."),
             (1, "He's six. The fence'll keep."),
             (0, "...It's not the fence I'm minded of."),
             (1, "No. It never was."),
         ] },
         SceneVariant { lo: 0.35, hi: 2.0, lines: &[
             (0, "Cold coming in early this year."),
-            (1, "Aye. Thine apple took it hard, I saw."),
-            (0, "Half went to the press. I'll spare thee a jar."),
-            (1, "Thou'rt not so bad, whatever I said."),
+            (1, "Aye. {2:poss} apple took it hard, I saw."),
+            (0, "Half went to the press. I'll spare {2:obj} a jar."),
+            (1, "{2:subj} {2:be} not so bad, whatever I said."),
         ] },
     ] },
     Scene { id: "widow_priest", pair: PairKind::WidowPriest, variants: &[
         SceneVariant { lo: -2.0, hi: 0.3, lines: &[
-            (1, "I saw thee at the grave again, child."),
+            (1, "I saw {2:obj} at the grave again, child."),
             (0, "The earth's fresh. That's all."),
             (1, "Fresh a year now. Grief keeps no calendar."),
             (0, "Mine does. It's always that day."),
         ] },
         SceneVariant { lo: 0.3, hi: 0.6, lines: &[
-            (1, "He'd not want thee keeping cold supper over a mound."),
+            (1, "He'd not want {2:obj} keeping cold supper over a mound."),
             (0, "No. He'd want his supper."),
-            (1, "And thee, at his table, laughing. Come to the hall Sunday."),
+            (1, "And {2:obj}, at his table, laughing. Come to the hall Sunday."),
             (0, "I'll sit at the back."),
         ] },
         SceneVariant { lo: 0.6, hi: 2.0, lines: &[
             (0, "Father, I dreamed him young again, cutting the hedge."),
             (1, "A mercy, that. How did he seem?"),
             (0, "Content. I woke easy for once."),
-            (1, "Then let him rest - and thee, a little, too."),
+            (1, "Then let him rest - and {2:obj}, a little, too."),
         ] },
     ] },
     Scene { id: "pedlar_guard", pair: PairKind::PedlarGuard, variants: &[
         SceneVariant { lo: -2.0, hi: 0.2, lines: &[
             (0, "Honest goods, watch - same as the last three times."),
             (1, "What's in the packs today, pedlar?"),
-            (0, "Ribbons, pins, a little tin. Weigh them thyself, I'll wait."),
+            (0, "Ribbons, pins, a little tin. Weigh them {2:self}, I'll wait."),
             (1, "Honest goods have a way of going short weight."),
         ] },
         SceneVariant { lo: 0.2, hi: 0.5, lines: &[
@@ -102,10 +102,10 @@ pub const SCENES: &[Scene] = &[
             (0, "Then I'll settle for customers with heavier purses."),
         ] },
         SceneVariant { lo: 0.5, hi: 2.0, lines: &[
-            (1, "Thy ribbons were the talk of the feast, pedlar."),
-            (0, "Sold out by noon, watch. Kept one back for thy wife, though."),
-            (1, "She'll have thy hide for the price."),
-            (0, "For thee? No price. For the missus - a fair one."),
+            (1, "{2:poss} ribbons were the talk of the feast, pedlar."),
+            (0, "Sold out by noon, watch. Kept one back for {2:poss} wife, though."),
+            (1, "She'll have {2:poss} hide for the price."),
+            (0, "For {2:obj}? No price. For the missus - a fair one."),
         ] },
     ] },
 ];

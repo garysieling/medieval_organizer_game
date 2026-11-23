@@ -21,21 +21,21 @@ fn test_a_log_line_with_a_spot_is_hit_where_it_is_drawn() {
         entry("t2: Bram died.", Some((3.0, 4.0)), Some(2)),
         entry("t3: fire on the meadow", Some((8.0, 9.0)), None),
     ]);
-    // the LOG box's rows start at y 530 on a 12px pitch, x from UI_X+10;
+    // the LOG box's rows start at y 530 on a 15px pitch, x from UI_X+10;
     // each short line wraps to a single row
     let lx = UI_X as i32 + 10;
     assert_eq!(view.log_hit(&m, lx + 20, 516), None, "the LOG title hits nothing");
     assert_eq!(view.log_hit(&m, lx + 20, 530), None, "a plain line is inert");
-    assert_eq!(view.log_hit(&m, lx + 20, 542), Some(1), "the death's line answers");
-    assert_eq!(view.log_hit(&m, lx + 20, 554), Some(2), "the fire's line answers");
-    assert_eq!(view.log_hit(&m, lx + 20, 566), None, "past the entries hits nothing");
+    assert_eq!(view.log_hit(&m, lx + 20, 545), Some(1), "the death's line answers");
+    assert_eq!(view.log_hit(&m, lx + 20, 560), Some(2), "the fire's line answers");
+    assert_eq!(view.log_hit(&m, lx + 20, 575), None, "past the entries hits nothing");
     assert_eq!(view.log_hit(&m, 40, 542), None, "off the panel hits nothing");
 }
 
 #[test]
 fn test_any_wrapped_row_of_a_log_line_counts() {
     let view = View::new(Art::load_fs("../assets", 0));
-    // "t9:" wraps alone, then the 80-char word splits into 52+28: three
+    // "t9:" wraps alone, then the 80-char word splits at 28 chars: four
     // rows for the one entry - a click on any of them hits it
     let long = format!("t9: {}", "x".repeat(80));
     let m = log_model(vec![
@@ -44,9 +44,10 @@ fn test_any_wrapped_row_of_a_log_line_counts() {
     ]);
     let lx = UI_X as i32 + 10;
     assert_eq!(view.log_hit(&m, lx + 20, 530), Some(0), "the first wrapped row");
-    assert_eq!(view.log_hit(&m, lx + 20, 542), Some(0), "and the second still hits it");
-    assert_eq!(view.log_hit(&m, lx + 20, 554), Some(0), "and the third");
-    assert_eq!(view.log_hit(&m, lx + 20, 566), None, "the plain line after is inert");
+    assert_eq!(view.log_hit(&m, lx + 20, 545), Some(0), "and the second still hits it");
+    assert_eq!(view.log_hit(&m, lx + 20, 560), Some(0), "and the third");
+    assert_eq!(view.log_hit(&m, lx + 20, 575), Some(0), "and the fourth");
+    assert_eq!(view.log_hit(&m, lx + 20, 590), None, "the plain line after is inert");
 }
 
 #[test]
@@ -58,5 +59,5 @@ fn test_the_earlier_lines_marker_is_not_a_button() {
     // "· · · N earlier lines" marker - and the marker itself is inert
     let lx = UI_X as i32 + 10;
     assert_eq!(view.log_hit(&m, lx + 20, 530), Some(0));
-    assert_eq!(view.log_hit(&m, lx + 20, 542), None);
+    assert_eq!(view.log_hit(&m, lx + 20, 545), None, "the marker row is inert");
 }

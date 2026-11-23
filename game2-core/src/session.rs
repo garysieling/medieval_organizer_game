@@ -360,8 +360,8 @@ pub const ACTION_LABELS: [&str; 2] = ["Talk", "Recruit"];
 /// The action panel's buttons, laid out the same for every player
 pub fn action_buttons() -> [Button; 2] {
     [
-        Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
-        Button { label: ACTION_LABELS[1].into(), key: ACTION_KEYS[1], x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
+        Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 116,  w: 130, h: 36, color: (60,60,120) },
+        Button { label: ACTION_LABELS[1].into(), key: ACTION_KEYS[1], x: UI_X as i32 + 10, y: 158, w: 130, h: 36, color: (60,120,60) },
     ]
 }
 /// The button a contextual action draws with
@@ -434,7 +434,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
 /// Where the context buttons stack: a two-column band under the BONDS
 /// block, clear of the campaign text and the LOG. `ctx_buttons` is the
 /// only place their positions live - the draw and the click both read it
-pub const CTX_BAND_Y: i32 = 240;
+pub const CTX_BAND_Y: i32 = 304;
 const CTX_COLS: usize = 2;
 const CTX_W: i32 = 152;
 const CTX_H: i32 = 20;

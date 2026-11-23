@@ -901,7 +901,7 @@ impl Game {
         // this roof could carry them home
         let near_fire = world.get_component::<Pos>(be)
             .map(|p| self.fire.burns_near(p.x as i32, p.y as i32, 4)).unwrap_or(false);
-        y += 14;
+        y += CARD_ROW;
         lines.push(Line { x: 18, y, rgb: (200, 200, 230),
             text: format!("{}{}", kind_word, if near_fire { " \u{00b7} the fire's near" } else { "" }) });
         let worker = b.worker.and_then(|w| self.villagers.iter().position(|v| *v == w))
@@ -909,11 +909,11 @@ impl Game {
             .or_else(|| b.worker.map(|_| "you".to_string()));
         let who = worker.map(|w| format!("worked by {}", w)).unwrap_or_else(|| "stands empty".to_string());
         let col = if household::derelict(b) { (230, 140, 90) } else { (190, 190, 210) };
-        y += 12;
+        y += CARD_ROW;
         lines.push(Line { x: 18, y, text: who, rgb: col });
         if let Some(o) = b.overseer {
             let on = self.villagers.iter().position(|v| *v == o).map(|i| vill_name(i)).unwrap_or("someone");
-            y += 12;
+            y += CARD_ROW;
             lines.push(Line { x: 18, y, text: format!("overseer: {}", on), rgb: (200, 160, 120) });
         }
         if b.kind == BuildingKind::Home {
@@ -948,7 +948,7 @@ impl Game {
         let stock_line = offers.iter().take(3).map(|(g, q, _)| format!("{}{} {}",
             g, if goods::tier(g) == goods::Tier::Luxury { "*" } else { "" }, q))
             .collect::<Vec<_>>().join(" \u{00b7} ");
-        y += 12;
+        y += CARD_ROW;
         for w in wrap_text(&if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
             card_chars(18)) {
             lines.push(Line { x: 18, y, text: w, rgb: (180, 190, 210) });
@@ -972,7 +972,7 @@ impl Game {
             let txt = flow.iter().map(|(g, n)| format!("{}{} {}", if *n < 0 { "" } else { "+" }, n, g))
                 .collect::<Vec<_>>().join("  ");
             if !txt.is_empty() {
-                y += 12;
+                y += CARD_ROW;
                 lines.push(Line { x: 18, y, text: format!("today: {}", txt), rgb: (200, 190, 160) });
             }
         }
@@ -982,7 +982,7 @@ impl Game {
             if let Some(t) = self.tech.iter()
                 .filter(|t| !t.discovered && crate::game::tech_tree::can_research(&self.tech, &t.name))
                 .min_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap()) {
-                y += 12;
+                y += CARD_ROW;
                 lines.push(Line { x: 18, y,
                     text: format!("learning: {} ({:.0}/{:.0})", t.name, t.progress, t.cost),
                     rgb: (170, 190, 230) });
@@ -993,7 +993,7 @@ impl Game {
         if b.kind == BuildingKind::Cellar {
             let n = self.cheeses.len();
             let oldest = self.cheeses.first().map(|t| self.tick - t).unwrap_or(0);
-            y += 12;
+            y += CARD_ROW;
             lines.push(Line { x: 18, y,
                 text: if n == 0 { format!("{} - empty", self.cellar_trait) }
                     else { format!("{} - {} wheels, oldest {}d", self.cellar_trait, n, oldest) },
@@ -1002,7 +1002,7 @@ impl Game {
         // a home that keeps hens says so - the roost's count with it
         if self.hen_houses.contains(&be) {
             let n = livestock::flock(&world, be).len();
-            y += 12;
+            y += CARD_ROW;
             lines.push(Line { x: 18, y,
                 text: if n == 0 { "roost empty".into() } else { format!("keeps hens - {} on the roost", n) },
                 rgb: (220, 180, 120) });
@@ -1025,7 +1025,7 @@ impl Game {
                 1..=2 => format!(" - {}", drank.join(", ")),
                 n => format!(" - {}, +{}", drank[..2].join(", "), n - 2),
             };
-            y += 12;
+            y += CARD_ROW;
             for w in wrap_text(&format!("the table's company{}", company), card_chars(18)) {
                 lines.push(Line { x: 18, y, text: w, rgb: (220, 180, 140) });
                 y += CARD_ROW;
@@ -1044,7 +1044,7 @@ impl Game {
                 1..=2 => format!(" - lately: {}", callers.join(", ")),
                 n => format!(" - lately: {}, +{}", callers[..2].join(", "), n - 2),
             };
-            y += 12;
+            y += CARD_ROW;
             for w in wrap_text(&format!("her tally: {} cures{}", self.cured, late), card_chars(18)) {
                 lines.push(Line { x: 18, y, text: w, rgb: (190, 210, 150) });
                 y += CARD_ROW;
@@ -1102,9 +1102,9 @@ impl Game {
         }).collect()).unwrap_or_default();
         let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
         if let Some(day) = self.died_on.get(i).copied().flatten() {
-            y += 14;
+            y += CARD_ROW;
             lines.push(Line { x: 60, y, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
-            y += 13;
+            y += CARD_ROW;
             lines.push(Line { x: 60, y, text: "rest in peace".into(), rgb: (150, 150, 165) });
             // who carries the grief for them - the losses the day their
             // death's mourned left behind
@@ -1135,7 +1135,7 @@ impl Game {
         let org_members = world.get_component::<Organization>(self.seats[seat].org)
             .map(|o| o.members.clone()).unwrap_or_default();
         let occ = desires::occupation_of(world, v).unwrap_or_else(|| "Villager".into());
-        y += 12;
+        y += CARD_ROW;
         lines.push(Line { x: 60, y,
             text: format!("{} \u{00b7} {}", occ, vocation::class_name(desires::class_of(world, v))), rgb: (200, 200, 230) });
         if livelihood::has_role(&self.world, v, TownRole::Herbologist) {
@@ -1149,7 +1149,7 @@ impl Game {
                 .unwrap_or_default();
             let what = if on_shelf.is_empty() { String::new() }
                 else { format!(" \u{00b7} {}", on_shelf.join(", ")) };
-            y += 12;
+            y += CARD_ROW;
             for w in wrap_text(&format!("knows the cures \u{00b7} {} remedies{}", n, what), card_chars(60)) {
                 lines.push(Line { x: 60, y, text: w, rgb: (150, 210, 150) });
                 y += CARD_ROW;
@@ -1165,23 +1165,23 @@ impl Game {
             // their rung first - it can't ride off the note's edge
             // behind a busy day's make
             let level = vocation::level_of(c.skill);
-            y += 12;
+            y += CARD_ROW;
             lines.push(Line { x: 60, y,
                 text: format!("\u{1}Craft\u{2}{}:{:.0}% \u{b7} {:?}{}", c.skill, c.skill * 100.0, level, made_txt), rgb: (0, 0, 0) });
         }
         if let Some(p) = world.get_component::<Purse>(v) {
-            y += 12;
+            y += CARD_ROW;
             lines.push(Line { x: 60, y, text: format!("Gold {:.0}", p.gold), rgb: (240, 210, 120) });
         }
         if let Some(h) = world.get_component::<Hunger>(v) {
-            y += 12;
+            y += CARD_ROW;
             lines.push(Line { x: 60, y,
                 text: format!("\u{1}Fed\u{2}{}:{}", h.value / 100.0, fullness_word(h.value)), rgb: (0, 0, 0) });
         }
         if let Some(he) = world.get_component::<Health>(v) {
             let note = disease_of(world, v).map(|(name, stage)| format!("{} ({:?})", name, stage))
                 .unwrap_or_else(|| format!("{:.0}%", he.condition * 100.0));
-            y += 12;
+            y += CARD_ROW;
             lines.push(Line { x: 60, y, text: format!("\u{1}Health\u{2}{}:{}", he.condition, note), rgb: (0, 0, 0) });
         }
         // how well the organizer knows them: the stage word rides the
@@ -1841,7 +1841,7 @@ pub(in crate::session) const CARD_RX: i32 = 366;
 /// dim end rather than snapping dark (#1069)
 pub(crate) const NAME_FADE_DAYS: f32 = 60.0;
 
-const CARD_ROW: i32 = 11;
+const CARD_ROW: i32 = LINE_H;
 /// The LIFE paragraph's cap: a life's longest telling earns a trailing
 /// "..." rather than a card that swallows the map
 const LIFE_LINES: usize = 6;

@@ -32,7 +32,7 @@ pub(crate) fn satchel_strip(m: &UiModel) -> String {
 
 /// The panel's standing reminder of the keys - the only on-screen pointer
 /// to the help overlay once the title screen is gone
-pub(crate) const PANEL_HINT: &str = "1-8 select villager   H help";
+pub(crate) const PANEL_HINT: &str = "1-8 pick villager - H help";
 
 pub(crate) const HELP_LINES: [&str; 10] = [
     "click button / key: take action",
@@ -47,7 +47,7 @@ pub(crate) const HELP_LINES: [&str; 10] = [
     "F11: fullscreen",
 ];
 
-pub(crate) const HELP_W: i32 = 420;
+pub(crate) const HELP_W: i32 = 460;
 
 pub(crate) const HELP_ROW: i32 = 22;
 
@@ -93,8 +93,8 @@ pub(crate) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8
     if let Some(f) = footer { draw_centered_at(buf, cx, y + h - 22, f, 1, (150, 150, 170)); }
 }
 
-/// A posting wraps inside the 480px board box (~72 glyphs leave the frame)
-pub(crate) const NOTICE_CHARS: usize = 72;
+/// A posting wraps inside the 480px board box (~41 glyphs leave the frame)
+pub(crate) const NOTICE_CHARS: usize = 41;
 
 /// As many wrapped rows as the box holds before a "+n more" tail: 24
 /// rows at NOTICE_ROW is a ~420px box, well inside the map view (#1349)
@@ -102,7 +102,7 @@ pub(crate) const NOTICE_MAX: usize = 24;
 
 /// The postings' row pitch - a wrapped list, not a menu (it was 120: the
 /// whole screen's worth a handful of notices in)
-pub(crate) const NOTICE_ROW: i32 = 14;
+pub(crate) const NOTICE_ROW: i32 = LINE_H;
 
 /// The board's postings as display rows: each `[kind] text` wrapped to
 /// the box with its continuation indented, the list capped at NOTICE_MAX
@@ -125,20 +125,24 @@ pub(crate) fn notice_lines(notices: &[(String, String)]) -> Vec<String> {
 /// The panel's status line: your organization by name, your gold, and the
 /// rival merchants' guild by size (it was "Org 5 | Guilds 1 | ... | lead at
 /// 2.0" - a count of guild objects, and the goal the bar already shows)
-pub(crate) fn status_line(org: &str, leader: Option<&str>, members: usize, gold: f32, guild: Option<usize>) -> String {
-    let rival = match guild { Some(n) => format!("Merchant Guild {}", n), None => "no guild yet".into() };
-    // the line fits ~55 glyphs before the screen edge: the count and the
-    // guild must always survive, so the name takes what's left - a short
-    // one in full, a long one clipped, none when the room's truly out
-    let tail = format!(" | Gold {:.0} | {}", gold, rival);
+/// The org row of the header: the cause's name, its count, its head
+/// when one's named - the wider face gives the row ~29 glyphs, so a
+/// long leader's name clips rather than run off the panel
+pub(crate) fn org_line(org: &str, leader: Option<&str>, members: usize) -> String {
     let lead = format!("{} {}", org.trim_start_matches("The "), members);
-    let room = 55i32 - (lead.len() + tail.len()) as i32;
+    let room = 29i32 - lead.len() as i32;
     let head = leader.map(|l| {
-        if l.len() + 8 <= room as usize { format!(" led by {}", l) }
-        else if room >= 11 { format!(" led by {}", &l[..room as usize - 8]) }
+        if l.len() + 8 <= room.max(0) as usize { format!(" led by {}", l) }
+        else if room >= 11 { format!(" led by {}", &l[..room.max(0) as usize - 8]) }
         else { String::new() }
     }).unwrap_or_default();
-    format!("{}{}{}", lead, head, tail)
+    format!("{}{}", lead, head)
+}
+
+/// The purse row of the header: gold held and the rival guild's roll
+pub(crate) fn purse_line(gold: f32, guild: Option<usize>) -> String {
+    let rival = match guild { Some(n) => format!("Merchant Guild {}", n), None => "no guild yet".into() };
+    format!("{:.0}g | {}", gold, rival)
 }
 
 /// The powers' standing words on the org, joined to the one line the
@@ -152,7 +156,7 @@ pub(crate) fn org_status_line(words: &[String]) -> String {
 pub(crate) const MEMBERS_LABEL: &str = "Joined";
 
 /// Characters that fit after the label, inside the villager card
-pub(crate) const MEMBERS_CHARS: usize = 36;
+pub(crate) const MEMBERS_CHARS: usize = 28;
 
 /// The card's member list, cut at a whole name with ".." when it won't fit
 /// The cause's own sign: the org's blocks only make sense once the
@@ -226,7 +230,7 @@ pub(crate) fn meeting_lines(m: &MeetingPlanV) -> Vec<String> {
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
 /// spacing, and the last space doesn't count
 pub(crate) fn text_width(text: &str, scale: usize) -> i32 {
-    (text.chars().count() * 6 * scale) as i32 - scale as i32
+    (text.chars().count() * GLYPH_W as usize * scale) as i32 - scale as i32
 }
 
 /// Draw `text` horizontally centred on x = `cx` at row `y`
@@ -347,7 +351,7 @@ pub fn render_intro(facts: &[String]) -> Buffer {
     for f in facts {
         for line in wrap_text(f, 80) {
             draw_centered(&mut buf, y, &line, 1, (190, 190, 205));
-            y += 16;
+            y += LINE_H;
         }
         y += 10;
     }

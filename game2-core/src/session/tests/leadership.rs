@@ -72,7 +72,9 @@ fn test_the_campaign_and_the_card_show_the_ladder() {
     g.seats[0].picked = true;
     let card = g.villager_inspector_at(0);
     let text: Vec<_> = card.lines.iter().map(|l| l.text.clone()).collect();
-    assert!(text.iter().any(|t| t.contains("helpless -> member -> LEADER (brought in 1)")), "{:?}", text);
+    // the ladder wraps to a second card row at the manuscript metric
+    let joined = text.join(" ");
+    assert!(joined.contains("helpless -> member -> LEADER (brought in 1)"), "{:?}", text);
 }
 
 #[test]

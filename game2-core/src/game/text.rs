@@ -13,12 +13,12 @@
 //! lexicon and `refs`' body fields in E4-3 (#1408), `stance` and the
 //! shaping operators in E4-5 (#1429).
 
-use crate::game::conversation::{Rng, Speaker};
+use crate::game::conversation::{Relation, Rng, Speaker};
 use crate::game::dialogue_trees::trade_noun;
 
 /// The second person a line speaks in (Part 5): thou for the intimate
-/// and the looked-down-on, you for the rest. `tv_for` (status gap,
-/// intimacy, contempt) lands with E4-2; until then every line talks you.
+/// and the looked-down-on, you for the rest. `tv_for` computes it per
+/// pair from the power semantic, gated by the speaker's archaism.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tv {
     Thou,
@@ -53,13 +53,16 @@ pub struct Referent {
 }
 
 /// The realizing context for one line: who talks to whom, in which
-/// person and stance, and what else the line may name. E4-2/E4-3/E4-5
-/// fill the grammar fields in; until then callers build the default -
-/// you, a neutral stance, modern wording.
+/// person and stance, the bond they speak across, and what else the
+/// line may name. E4-3/E4-5 fill the remaining fields in.
 pub struct Cx<'a> {
     pub speaker: &'a Speaker,
     pub listener: &'a Speaker,
+    /// How the speaker addresses this listener - `tv_for` sets it on the
+    /// Speaker at pair build; `Cx::plain` carries it through
     pub tv: Tv,
+    /// The bond the speaker speaks across - `{addr}` reads its intimacy
+    pub rel: Relation,
     pub stance: Stance,
     pub refs: &'a [Referent],
     /// 0 modern, 1 marked shifts, 2 the full thou-pattern (E4-2)
@@ -67,10 +70,13 @@ pub struct Cx<'a> {
 }
 
 impl<'a> Cx<'a> {
-    /// The plain context: you-form, a neutral stance, modern wording.
-    /// Slots beyond the pair's own resolve through `refs`.
+    /// The context the pair carries: the speaker's own `tv`, `rel` and
+    /// `archaism` (patched at pair build, or the `Speaker::new`
+    /// defaults), a neutral stance. Slots beyond the pair's own resolve
+    /// through `refs`.
     pub fn plain(speaker: &'a Speaker, listener: &'a Speaker, refs: &'a [Referent]) -> Self {
-        Cx { speaker, listener, tv: Tv::You, stance: Stance::default(), refs, archaism: 0 }
+        Cx { speaker, listener, tv: speaker.tv, rel: speaker.rel,
+            stance: Stance::default(), refs, archaism: speaker.archaism }
     }
 }
 
@@ -103,15 +109,37 @@ pub fn realize(template: &str, cx: &Cx, _rng: &mut Rng) -> String {
     out
 }
 
-/// One slot's words: the pair's own names and trades, then the refs;
-/// a slot nobody owns goes back in the line untouched.
+/// One slot's words: the pair's own names and trades, the second-person
+/// and address slots of the grammar layer, then the refs; a slot nobody
+/// owns goes back in the line untouched.
 fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
+    // a slot opening a sentence answers with a capital
+    let cap = out.is_empty()
+        || matches!(out.trim_end().chars().last(), Some('.' | '!' | '?'));
+    let push = |out: &mut String, word: &str| {
+        if cap {
+            let mut ch = word.chars();
+            if let Some(c) = ch.next() {
+                out.extend(c.to_uppercase());
+                out.push_str(ch.as_str());
+                return;
+            }
+        }
+        out.push_str(word);
+    };
     match slot {
+        // the legacy fills replace verbatim - no cap, or a trade
+        // after a full stop would render "The mill" where the old
+        // chain left "the mill"
         "other" => out.push_str(&cx.listener.name),
-        "trade" => out.push_str(trade_noun(cx.speaker)),
-        "other_trade" => out.push_str(trade_noun(cx.listener)),
+        "trade" => out.push_str(&trade_noun(cx.speaker)),
+        "other_trade" => out.push_str(&trade_noun(cx.listener)),
+        // E4-2: the address a relation earns - "m'lord", "goodwife Maud"
+        "addr" => push(out, &address_form(cx)),
+        // E4-2: second person - pronouns and verb agreement read `cx.tv`
+        _ if slot.starts_with("2:") => push(out, &second_person(&slot[2..], cx.tv)),
         _ => match cx.refs.iter().find(|r| r.slot == slot) {
-            Some(r) => out.push_str(&r.text),
+            Some(r) => push(out, &r.text),
             None => {
                 out.push('{');
                 out.push_str(slot);
@@ -121,11 +149,246 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
     }
 }
 
+/// The station a speaker's standing implies (Brown & Gilman's power
+/// axis): the manor over the church over the moneyed over the common
+/// sort; a child sits under all of it
+fn station(s: &Speaker) -> i8 {
+    if s.status.contains(&"child") { return -1; }
+    match s.ideology {
+        "lord" => 3,
+        "clergy" => 2,
+        "merchant" => 1,
+        _ => 0,
+    }
+}
+
+/// Thou or you for this speaker to this listener (E4-2, #1414; Brown
+/// and Gilman's power semantic): superiors give thou and receive you;
+/// peers keep thou for kin and friends and give strangers you.
+/// `contempt` marks the deliberate slight - thou where you is owed,
+/// which a rival's talk carries. The speaker's own archaism gates the
+/// pattern: 0 is modern you always, 1 keeps thou for the marked shifts
+/// (intimacy, contempt), 2 lets bare rank give thou too. Prayers are
+/// the caller's business - God takes thou whatever this returns.
+pub fn tv_for(speaker: &Speaker, listener: &Speaker, rel: Relation, contempt: bool) -> Tv {
+    if speaker.archaism == 0 { return Tv::You; }
+    let intimate = matches!(rel, Relation::Kin | Relation::Friend);
+    if intimate || contempt { return Tv::Thou; }
+    if speaker.archaism >= 2 && station(speaker) > station(listener) { return Tv::Thou; }
+    Tv::You
+}
+
+/// What `{addr}` stands in for (E4-2): the courtesy the listener's
+/// station, body and bond earn in the speaker's mouth
+fn address_form(cx: &Cx) -> String {
+    let l = cx.listener;
+    let name = l.name.as_str();
+    let female = l.sex == Some("female");
+    let close = matches!(cx.rel, Relation::Kin | Relation::Friend);
+    match station(l) {
+        // the high-born get their title - from intimates, their name
+        3.. => return if close { name.into() } else if female { "m'lady".into() } else { "m'lord".into() },
+        2 => return if female { format!("sister {name}") } else { "father".into() },
+        _ => {}
+    }
+    if l.status.contains(&"child") {
+        return if close { name.into() } else if female { "lass".into() } else { "lad".into() };
+    }
+    if close {
+        return match cx.rel {
+            Relation::Kin => name.into(),
+            _ => format!("friend {name}"),
+        };
+    }
+    if matches!(cx.rel, Relation::Rival) { return name.into(); }
+    if l.status.contains(&"elder") {
+        return if female { format!("goody {name}") } else { format!("gaffer {name}") };
+    }
+    // a child minds their betters however they stand
+    let courtesy = if station(l) == 1 || cx.speaker.status.contains(&"child") {
+        if female { format!("mistress {name}") } else { format!("master {name}") }
+    } else if female {
+        format!("goodwife {name}")
+    } else if l.sex == Some("male") {
+        format!("goodman {name}")
+    } else {
+        name.into()
+    };
+    courtesy
+}
+
+/// The word a `{2:…}` slot stands in for, in the form `tv` asks for:
+/// pronouns straight, verbs agreeing - "art"/"are", "hast"/"have",
+/// "sayest"/"say".
+fn second_person(word: &str, tv: Tv) -> String {
+    let thou = tv == Tv::Thou;
+    match word {
+        "subj" => if thou { "thou" } else { "you" }.into(),
+        "obj" => if thou { "thee" } else { "you" }.into(),
+        "poss" => if thou { "thy" } else { "your" }.into(),
+        "own" => if thou { "thine" } else { "yours" }.into(),
+        "self" => if thou { "thyself" } else { "yourself" }.into(),
+        w if thou => thou_form(w),
+        w => you_form(w),
+    }
+}
+
+/// A verb's you-form: the lemma itself, save the copula and the
+/// auxiliaries that inflect for person - "are", "have", "do".
+fn you_form(verb: &str) -> String {
+    match verb {
+        "be" | "is" | "am" | "are" => "are",
+        "was" | "were" => "were",
+        "has" | "have" => "have",
+        "does" | "do" => "do",
+        v => v,
+    }.to_string()
+}
+
+/// A verb's thou-form (E4-2): the auxiliaries by table, the rest by the
+/// -est/-st rule - makest, knowest, goest. "must" does not bend.
+pub fn thou_form(verb: &str) -> String {
+    match verb {
+        "be" | "is" | "are" | "am" => "art",
+        "was" | "were" => "wast",
+        "have" | "has" => "hast",
+        "had" => "hadst",
+        "do" | "does" => "dost",
+        "did" => "didst",
+        "can" => "canst",
+        "could" => "couldst",
+        "will" => "wilt",
+        "would" => "wouldst",
+        "shall" => "shalt",
+        "should" => "shouldst",
+        "may" => "mayst",
+        "might" => "mightst",
+        "must" => "must",
+        "ought" => "oughtest",
+        "wit" => "wost",
+        v => return if v.ends_with('e') { format!("{v}st") } else { format!("{v}est") },
+    }.to_string()
+}
+
+/// Verbs the lint knows a thou-form for; the irregulars' keys join them.
+/// The lexicon is closed by design - E4-3 grows the table.
+const VERBS: &[&str] = &[
+    "know", "keep", "say", "think", "make", "give", "take", "speak", "tell",
+    "hear", "see", "get", "bid", "hold", "find", "bring", "stand", "understand",
+    "owe", "seem", "love", "hate", "fear", "hope", "pray", "live", "lie",
+    "stay", "wait", "follow", "lead", "rest", "work", "ask", "answer",
+    "remember", "forget", "believe", "doubt", "go", "come", "want", "wish",
+    "mean", "call", "leave", "sit", "walk", "talk", "drink", "eat", "sleep",
+    "wake", "rise", "fall", "grow", "show", "draw", "drive", "ride", "write",
+    "read", "sing", "run", "break", "bear", "wear", "swear", "choose", "lose",
+    "seek", "hide", "bind", "wind", "fight", "strike", "win", "begin",
+];
+
+/// Scan a line - authored source or realized output - for second-person
+/// agreement faults (E4-2's lint): "thou are", "you art", and their kin.
+/// A modal licenses the bare infinitive ("dost thou have"), so it is no
+/// fault. Returns a short note per fault, empty when the line agrees.
+pub fn agreement_faults(line: &str) -> Vec<String> {
+    // thou-forms the lint knows: the irregulars' yields plus every
+    // regular verb conjugated - minus any that equal their plain form
+    let mut thou_forms: Vec<String> = THOU_IRREG.iter().map(|(_, t)| t.to_string()).collect();
+    for v in VERBS { let t = thou_form(v); if t != *v { thou_forms.push(t); } }
+    let words: Vec<String> = line
+        .split(|c: char| !(c.is_alphabetic() || c == '\''))
+        .filter(|w| !w.is_empty())
+        .map(|w| w.to_lowercase())
+        .collect();
+    let mut faults = vec![];
+    for (i, w) in words.iter().enumerate() {
+        let next = words.get(i + 1).map(|s| s.as_str()).unwrap_or("");
+        match w.as_str() {
+            // only the subject forms bind a verb - "thee" is object
+            // case, and names like Will would read as its verb
+            "thou" => {
+                // a modal before thou licenses the bare infinitive:
+                // "dost thou have", "wouldst thou go" agree fine
+                let licensed = i > 0 && matches!(words[i - 1].as_str(),
+                    "dost" | "didst" | "canst" | "wilt" | "wouldst" | "shalt"
+                    | "shouldst" | "mayst" | "mightst" | "must" | "needst" | "darest");
+                if !licensed && matches!(next,
+                    "are" | "is" | "have" | "has" | "do" | "does" | "did"
+                    | "can" | "can't" | "cannot" | "will" | "shall" | "may"
+                    | "was" | "were" | "could" | "would" | "should" | "might")
+                {
+                    faults.push(format!("{w} {next}"));
+                }
+            }
+            "you" | "ye" => {
+                if thou_forms.iter().any(|t| t == next) {
+                    faults.push(format!("{w} {next}"));
+                }
+            }
+            _ => {}
+        }
+    }
+    faults
+}
+
+/// The irregular verb pairs: (plain, thou-form). `thou_form` serves the
+/// realizer; this table serves the lint's "you X" check.
+const THOU_IRREG: &[(&str, &str)] = &[
+    ("be", "art"), ("is", "art"), ("are", "art"), ("am", "art"),
+    ("was", "wast"), ("were", "wast"),
+    ("have", "hast"), ("has", "hast"), ("had", "hadst"),
+    ("do", "dost"), ("does", "dost"), ("did", "didst"),
+    ("can", "canst"), ("could", "couldst"),
+    ("will", "wilt"), ("would", "wouldst"),
+    ("shall", "shalt"), ("should", "shouldst"),
+    ("may", "mayst"), ("might", "mightst"),
+    ("ought", "oughtest"), ("wit", "wost"),
+];
+
+/// Every authored line that can reach a mouth: the village library's
+/// exchanges, the ask topics' tells, the meeting and arc beats, the
+/// scenes and the hog's run-ons. The lint and the render-equivalence
+/// tests sweep it.
+#[doc(hidden)]
+pub fn authored_lines() -> Vec<&'static str> {
+    fn gather<'a>(ex: &'a crate::game::conversation::Exchange, out: &mut Vec<&'static str>) {
+        out.extend(ex.calls.iter().copied());
+        for v in ex.voice { out.extend(v.lines.iter().copied()); }
+        for r in ex.replies {
+            out.extend(r.lines.iter().copied());
+            for v in r.voice { out.extend(v.lines.iter().copied()); }
+            if let Some(then) = &r.then { gather(then, out); }
+        }
+    }
+    let mut all = vec![];
+    for tree in crate::game::dialogue_trees::village_library() {
+        gather(tree.root, &mut all);
+        if let Some(rejoin) = tree.rejoin { gather(rejoin, &mut all); }
+    }
+    for t in crate::game::dialogue_trees::ASK_TOPICS {
+        all.extend(t.tell.iter().copied());
+    }
+    for b in crate::game::campaign_meeting_beats::MEETING_BEATS {
+        all.extend(b.lines.iter().copied());
+        for m in b.moves { all.extend(m.lines.iter().copied()); }
+    }
+    for b in crate::game::campaign_arc_beats::ARC_BEATS {
+        all.extend(b.lines.iter().copied());
+        for m in b.moves { all.extend(m.lines.iter().copied()); }
+    }
+    for s in crate::game::scenes::SCENES {
+        for v in s.variants {
+            all.extend(v.lines.iter().map(|(_, l)| *l));
+        }
+    }
+    all.extend(crate::game::conversation::HOG_RUN.iter().copied());
+    all.extend(crate::game::conversation::HOG_GISTS.iter().copied());
+    all.extend(crate::game::conversation::HOG_FLOOR.iter().copied());
+    all
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game::conversation::Speaker;
-    use crate::game::dialogue_trees::village_library;
+    use crate::game::conversation::{Relation, Speaker};
 
     fn pair() -> (Speaker, Speaker) {
         let mut alys = Speaker::new("Alys");
@@ -163,27 +426,10 @@ mod tests {
         assert_eq!(realize_plain("an open {", &alys, &corvin, &[]), "an open {");
     }
 
-    /// The done-when: every authored line the library holds renders
-    /// through the realizer exactly as the old replace chain made it
+    /// The done-when: every authored line renders through the realizer
+    /// exactly as the old replace chain made it
     fn all_library_lines() -> Vec<&'static str> {
-        fn gather<'a>(ex: &'a crate::game::conversation::Exchange, out: &mut Vec<&'static str>) {
-            out.extend(ex.calls.iter().copied());
-            for v in ex.voice { out.extend(v.lines.iter().copied()); }
-            for r in ex.replies {
-                out.extend(r.lines.iter().copied());
-                for v in r.voice { out.extend(v.lines.iter().copied()); }
-                if let Some(then) = &r.then { gather(then, out); }
-            }
-        }
-        let mut all = vec![];
-        for tree in village_library() {
-            gather(tree.root, &mut all);
-            if let Some(rejoin) = tree.rejoin { gather(rejoin, &mut all); }
-        }
-        for t in crate::game::dialogue_trees::ASK_TOPICS {
-            all.extend(t.tell.iter().copied());
-        }
-        all
+        authored_lines()
     }
 
     #[test]
@@ -191,7 +437,17 @@ mod tests {
         let (alys, corvin) = pair();
         let mut rng = Rng::new(3);
         let mut n = 0;
+        let mut migrated = 0;
         for t in all_library_lines() {
+            if t.contains("{2:") || t.contains("{addr}") {
+                // E4-2 migrated this line - the old fills never owned
+                // these slots, so there is no old render to match;
+                // it must only resolve every owned slot
+                migrated += 1;
+                let got = realize(t, &Cx::plain(&alys, &corvin, &[]), &mut rng);
+                assert!(!got.contains("{2:") && !got.contains("{addr}"), "line: {t}");
+                continue;
+            }
             let want = t.replace("{other}", "Corvin")
                 .replace("{trade}", trade_noun(&alys))
                 .replace("{other_trade}", trade_noun(&corvin));
@@ -200,6 +456,7 @@ mod tests {
         }
         // the sweep must actually reach the corpus, not vacuously pass
         assert!(n > 1500, "only {n} lines swept");
+        assert!(migrated > 10, "the lord lines should be slotted by now");
     }
 
     #[test]
@@ -211,6 +468,139 @@ mod tests {
             let got = realize(t, &Cx::plain(&alys, &corvin, &refs), &mut rng);
             for slot in ["{other}", "{trade}", "{other_trade}", "{someone}"] {
                 assert!(!got.contains(slot), "{slot} left in: {t}");
+            }
+        }
+    }
+
+    // --- E4-2: the second person ---
+
+    fn lord() -> Speaker {
+        let mut l = Speaker::new("Edmund");
+        l.ideology = "lord";
+        l
+    }
+
+    #[test]
+    fn the_power_semantic_gives_thou_down_and_you_up() {
+        let mut reeve_man = Speaker::new("Hob");
+        reeve_man.archaism = 2;
+        let mut edmund = lord();
+        edmund.archaism = 2;
+        // superiors give thou, inferiors give you
+        assert_eq!(tv_for(&edmund, &reeve_man, Relation::Acquaintance, false), Tv::Thou);
+        assert_eq!(tv_for(&reeve_man, &edmund, Relation::Acquaintance, false), Tv::You);
+        // peers: thou for kin and friends, you for strangers
+        assert_eq!(tv_for(&reeve_man, &Speaker::new("Maud"), Relation::Friend, false), Tv::Thou);
+        assert_eq!(tv_for(&reeve_man, &Speaker::new("Maud"), Relation::Kin, false), Tv::Thou);
+        assert_eq!(tv_for(&reeve_man, &Speaker::new("Maud"), Relation::Stranger, false), Tv::You);
+        // a marked shift: contempt gives thou where you is owed
+        assert_eq!(tv_for(&reeve_man, &Speaker::new("Maud"), Relation::Rival, true), Tv::Thou);
+    }
+
+    #[test]
+    fn archaism_gates_the_full_pattern() {
+        let mut edmund = lord();
+        let hob = Speaker::new("Hob");
+        // level 1: thou only as a marked shift - bare rank earns you
+        assert_eq!(tv_for(&edmund, &hob, Relation::Acquaintance, false), Tv::You);
+        assert_eq!(tv_for(&edmund, &hob, Relation::Friend, false), Tv::Thou);
+        // level 0: modern you always
+        edmund.archaism = 0;
+        assert_eq!(tv_for(&edmund, &hob, Relation::Kin, false), Tv::You);
+        // level 2: the full pattern - rank itself gives thou
+        edmund.archaism = 2;
+        assert_eq!(tv_for(&edmund, &hob, Relation::Acquaintance, false), Tv::Thou);
+    }
+
+    #[test]
+    fn second_person_slots_agree_with_the_form() {
+        let (alys, corvin) = pair();
+        let t = "{2:subj} {2:be} kind, and I thank {2:obj} for it - {2:poss} hand in mine.";
+        let mut cx = Cx::plain(&alys, &corvin, &[]);
+        cx.tv = Tv::Thou;
+        assert_eq!(realize(t, &cx, &mut Rng::new(1)),
+            "Thou art kind, and I thank thee for it - thy hand in mine.");
+        cx.tv = Tv::You;
+        assert_eq!(realize(t, &cx, &mut Rng::new(1)),
+            "You are kind, and I thank you for it - your hand in mine.");
+    }
+
+    #[test]
+    fn verbs_agree() {
+        assert_eq!(thou_form("be"), "art");
+        assert_eq!(thou_form("have"), "hast");
+        assert_eq!(thou_form("do"), "dost");
+        assert_eq!(thou_form("can"), "canst");
+        assert_eq!(thou_form("will"), "wilt");
+        assert_eq!(thou_form("shall"), "shalt");
+        assert_eq!(thou_form("know"), "knowest");
+        assert_eq!(thou_form("make"), "makest");
+        assert_eq!(thou_form("go"), "goest");
+        assert_eq!(thou_form("say"), "sayest");
+        assert_eq!(thou_form("must"), "must");
+    }
+
+    #[test]
+    fn address_forms_follow_station_and_bond() {
+        let alys = Speaker::new("Alys");
+        let edmund = lord();
+        // a stranger to the manor: m'lord; his friend: his name
+        let mut cx = Cx::plain(&alys, &edmund, &[]);
+        assert_eq!(address_form(&cx), "m'lord");
+        cx.rel = Relation::Friend;
+        assert_eq!(address_form(&cx), "Edmund");
+        // a father, a goodwife, a lad
+        let mut priest = Speaker::new("Tobias");
+        priest.ideology = "clergy";
+        assert_eq!(address_form(&Cx::plain(&alys, &priest, &[])), "father");
+        let mut maud = Speaker::new("Maud");
+        maud.sex = Some("female");
+        assert_eq!(address_form(&Cx::plain(&alys, &maud, &[])), "goodwife Maud");
+        let mut will = Speaker::new("Will");
+        will.status.push("child");
+        assert_eq!(address_form(&Cx::plain(&alys, &will, &[])), "lad");
+    }
+
+    #[test]
+    fn a_lord_gets_thee_only_when_flagged() {
+        let alys = Speaker::new("Alys");
+        let edmund = lord();
+        // unflagged: you-forms and the title
+        let mut cx = Cx::plain(&alys, &edmund, &[]);
+        cx.tv = Tv::You;
+        let got = realize("God keep {2:obj} and {2:poss} house, {addr}.", &cx, &mut Rng::new(1));
+        assert_eq!(got, "God keep you and your house, m'lord.");
+        // flagged intimate: thee and the bare name
+        cx.tv = Tv::Thou;
+        cx.rel = Relation::Kin;
+        assert_eq!(realize("God keep {2:obj} and {2:poss} house, {addr}.", &cx, &mut Rng::new(1)),
+            "God keep thee and thy house, Edmund.");
+    }
+
+    #[test]
+    fn the_lint_catches_crossed_forms() {
+        assert!(agreement_faults("thou art well").is_empty());
+        assert!(agreement_faults("dost thou have grain").is_empty());
+        assert!(agreement_faults("wouldst thou have the village do it").is_empty());
+        assert_eq!(agreement_faults("thou are well"), vec!["thou are"]);
+        assert_eq!(agreement_faults("if thou can find them"), vec!["thou can"]);
+        assert_eq!(agreement_faults("you art mistaken"), vec!["you art"]);
+        assert_eq!(agreement_faults("you knowest it"), vec!["you knowest"]);
+        // and modern words that merely end in -est stay clear
+        assert!(agreement_faults("an honest request, at your best").is_empty());
+    }
+
+    #[test]
+    fn every_authored_second_person_line_agrees() {
+        // realized output of every slotted line agrees under each form
+        let (alys, corvin) = pair();
+        let mut rng = Rng::new(5);
+        for t in authored_lines().iter().filter(|t| t.contains("{2:")) {
+            for tv in [Tv::Thou, Tv::You] {
+                let mut cx = Cx::plain(&alys, &corvin, &[]);
+                cx.tv = tv;
+                let got = realize(t, &cx, &mut rng);
+                assert!(agreement_faults(&got).is_empty(), "{tv:?}: {got}");
             }
         }
     }

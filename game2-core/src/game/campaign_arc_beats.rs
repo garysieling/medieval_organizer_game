@@ -762,7 +762,7 @@ pub const ARC_BEATS: &[Beat] = &[
           mv("drunk", 0.4, Member, &["Too much ale, too little talk.", "They came to drink."], Nothing, to(Build))],
         &["montgomery_mass_meeting"]),
     bt("ca_bu_teach", Build, &[], Member,
-        &["Teach ten people to tell the story of the toll as well as thou does."],
+        &["Teach ten people to tell the story of the toll as well as thou dost."],
         &[mv("teach", 1.0, Driver, &["Ten tellers by Sunday, each with their own way of saying it.", "Every teller makes three listeners."], Nothing, to(Test)),
           mv("muddle", 0.4, Member, &["Ten tellings become ten different stories.", "The story drifts."], Nothing, to(Build))],
         &["citizenship_schools"]),

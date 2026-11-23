@@ -138,11 +138,19 @@ pub struct Speaker {
     /// `speaker_of` is pair-blind, so the caller who knows the bond
     /// patches it; a stranger's is the default - nothing reached
     pub open: Open,
+    /// Thou or you to whoever they face (E4-2, #1414): patched per-pair
+    /// like `open`; a hand-made speaker's default is you
+    pub tv: crate::game::text::Tv,
+    /// Their own archaism: 0 modern, 1 thou only as a marked shift, 2
+    /// the full thou-pattern - `speaker_of` reads it off the persona
+    pub archaism: u8,
+    /// The bond to whoever they face - `{addr}`'s intimacy reads it
+    pub rel: Relation,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default() }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -885,6 +893,13 @@ pub fn converse_with(
     // owned clones: a landed telling deepens `open.shared` mid-loop
     // (E3-3) - the snapshot callers passed stays immutable for replay
     let mut pair = [a.clone(), b.clone()];
+    // each side's address is computed for the pair (E4-2): the power
+    // semantic, gated by the speaker's own archaism - a rival's thou is
+    // contempt made audible
+    for i in 0..2 {
+        pair[i].rel = rel;
+        pair[i].tv = crate::game::text::tv_for(&pair[i], &pair[1 - i], rel, matches!(rel, Relation::Rival));
+    }
     let mut tr = Transcript {
         speakers: [a.name.clone(), b.name.clone()],
         trees_walked: vec![],

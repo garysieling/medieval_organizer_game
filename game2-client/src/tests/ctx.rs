@@ -12,7 +12,7 @@ fn test_ctx_buttons_never_overlap() {
         CtxAct::Work, CtxAct::Errand, CtxAct::PairUp, CtxAct::Matchmake,
         CtxAct::Meet, CtxAct::Cadence, CtxAct::March, CtxAct::MendHall,
         CtxAct::Delegate, CtxAct::Strike, CtxAct::Townhall, CtxAct::Petition,
-        CtxAct::Gather, CtxAct::TakeJob, CtxAct::Pact, CtxAct::PetCat,
+        CtxAct::Gather, CtxAct::Pact, CtxAct::PetCat,
         CtxAct::Snowballs, CtxAct::Douse, CtxAct::Flyers, CtxAct::Recruit,
         CtxAct::PickCaps, CtxAct::ShareFindings, CtxAct::TakeCache,
         CtxAct::Give, CtxAct::Buy, CtxAct::Tame, CtxAct::School, CtxAct::Brigade,

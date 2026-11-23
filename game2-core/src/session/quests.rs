@@ -299,6 +299,14 @@ impl Game {
         }
     }
 
+    /// The begging job's ask in the giver's words - a Talk's opening
+    /// names it the way the card's bubble would (#1336)
+    pub(in crate::session) fn pending_ask_line(&self, q: &PendingQuest) -> String {
+        self.quest_ask_line(&PlayerQuest {
+            giver: q.giver, kind: q.kind, target: q.target,
+            stage: QuestStage::ToCarry, pickup: q.pickup, expires: q.expires })
+    }
+
     /// One frame of every job under way: standing on the thing picks it
     /// up, standing on the far village hands it over
     pub fn quest_frame(&mut self) {

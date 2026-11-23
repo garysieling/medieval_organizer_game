@@ -1910,9 +1910,24 @@ impl Game {
         // nobody else left to opine on? a hog names themselves just fine
         let other = someones.get((self.rng.next() as usize) % someones.len().max(1))
             .copied().unwrap_or(who);
+        // `{someone}` resolves through the realizer's refs (E4-1): the
+        // referent carries the body facts the grammar layers will read
+        let refs = [crate::game::text::Referent {
+            slot: "someone",
+            text: self.name_of(other),
+            sex: self.world.get_component::<villager::Sex>(other)
+                .map(|s| match s { villager::Sex::Female => "female", villager::Sex::Male => "male" }),
+            alive: !villager::is_dead(&self.world, other),
+            count: 1,
+        }];
         let run = crate::game::conversation::HOG_RUN;
-        let line = run[(self.rng.next() as usize) % run.len()]
-            .replace("{someone}", &self.name_of(other));
+        let template = run[(self.rng.next() as usize) % run.len()];
+        let line = match self.seats[seat].talk.as_ref() {
+            Some(t) => crate::game::text::realize(template,
+                &crate::game::text::Cx::plain(&t.villager, &t.player, &refs),
+                &mut TalkRng::new(t.seed ^ run_pick)),
+            None => template.replace("{someone}", &refs[0].text),
+        };
         self.argue_line(seat, Some(who), line);
         self.narrate_talk(seat, "You let them run - they fill the space with themselves.");
         self.refresh_player_talk(seat);

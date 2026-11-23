@@ -790,12 +790,12 @@ pub const HOG_RUN: &[&str] = &[
     "{someone} does the work well enough, I'll grant - though nothing to how my mother taught me.",
 ];
 
-/// A template rendered for the pair: `{other}` is the listener's name,
-/// `{trade}`/`{other_trade}` the each side's work-noun (#1181)
-fn fill(t: &str, speaker: &Speaker, other: &Speaker) -> String {
-    t.replace("{other}", &other.name)
-        .replace("{trade}", crate::game::dialogue_trees::trade_noun(speaker))
-        .replace("{other_trade}", crate::game::dialogue_trees::trade_noun(other))
+/// A template rendered for the pair, through the realizer (E4-1,
+/// #1403): `{other}` is the listener's name, `{trade}`/`{other_trade}`
+/// each side's work-noun (#1181); the talk's rng backs any draws the
+/// grammar layers add
+fn fill(t: &str, speaker: &Speaker, other: &Speaker, rng: &mut Rng) -> String {
+    crate::game::text::realize(t, &crate::game::text::Cx::plain(speaker, other, &[]), rng)
 }
 
 /// An unused variant of a line set: the template (so it can be spent) and
@@ -811,7 +811,7 @@ fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: 
             .filter(|l| !recent.contains(*l) || crate::game::dialogue_trees::STOCK_LINES.contains(l)).collect();
         if newer.is_empty() { fresh } else { newer }
     };
-    pick.get(rng.below(pick.len())).map(|&t| (t, fill(t, speaker, other)))
+    pick.get(rng.below(pick.len())).map(|&t| (t, fill(t, speaker, other, rng)))
 }
 
 /// A variant in the speaker's register: voice sets whose criteria the
@@ -955,7 +955,7 @@ pub fn converse_with(
                     let mut forks: Vec<(&'static str, bool)> = vec![];
                     for ((act, lines), vibe) in [(p.pass, true), (p.fail, false)] {
                         let (t, preview) = fresh_line(lines, &pair[responder], &pair[caller], &used, recent, matches!(act, Act::Greet | Act::Farewell), rng)
-                            .unwrap_or((lines[0], fill(lines[0], &pair[responder], &pair[caller])));
+                            .unwrap_or((lines[0], fill(lines[0], &pair[responder], &pair[caller], rng)));
                         choices.push(Choice { act, preview });
                         forks.push((t, vibe));
                     }
@@ -968,7 +968,7 @@ pub fn converse_with(
                             let tag = respond_of(choices[i].act);
                             tr.turns.push(Turn { speaker: responder, act: choices[i].act,
                                 respond: Some(tag),
-                                text: fill(t, &pair[responder], &pair[caller]),
+                                text: fill(t, &pair[responder], &pair[caller], rng),
                                 concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(t) });
                             // answering their probe is telling of
                             // yourself (E3-3): it lands as deep as the
@@ -1058,7 +1058,7 @@ pub fn converse_with(
                 let r = pool[i];
                 let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
                     .map(|(t, s)| (t, s))
-                    .unwrap_or((r.lines[0], fill(r.lines[0], &pair[responder], &pair[caller])));
+                    .unwrap_or((r.lines[0], fill(r.lines[0], &pair[responder], &pair[caller], rng)));
                 rolled.push((t, Choice { act: r.act, preview }));
             }
             // a farewell's the tail of a talk, not a per-turn option (#1179):
@@ -1119,7 +1119,7 @@ pub fn converse_with(
                             used.insert(qt);
                             tr.turns.push(Turn { speaker: responder, act: Act::Question,
                                 respond: Some(Respond::PivotAsk),
-                                text: fill(qt, &pair[responder], &pair[caller]),
+                                text: fill(qt, &pair[responder], &pair[caller], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(qt) });
                             if tell_topics.contains(&menu[i]) {
                                 let talkative = pair[caller].traits.contains(&Trait::Gregarious);
@@ -1135,7 +1135,7 @@ pub fn converse_with(
                                     used.insert(dt);
                                     tr.turns.push(Turn { speaker: caller, act: Act::Answer,
                                         respond: Some(Respond::Deflect),
-                                        text: fill(dt, &pair[caller], &pair[responder]),
+                                        text: fill(dt, &pair[caller], &pair[responder], rng),
                                         concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(dt) });
                                     continue;
                                 }
@@ -1162,7 +1162,7 @@ pub fn converse_with(
                             used.insert(at);
                             tr.turns.push(Turn { speaker: caller, act: Act::Answer,
                                 respond: Some(Respond::Reflect),
-                                text: fill(at, &pair[caller], &pair[responder]),
+                                text: fill(at, &pair[caller], &pair[responder], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(at) });
                             continue;
                         }
@@ -1185,7 +1185,7 @@ pub fn converse_with(
         used.insert(line_t);
         let tag = reply.respond.unwrap_or_else(|| respond_of(reply.act));
         tr.turns.push(Turn { speaker: responder, act: reply.act, respond: Some(tag),
-            text: fill(line_t, &pair[responder], &pair[caller]),
+            text: fill(line_t, &pair[responder], &pair[caller], rng),
             concepts: reply.concepts.to_vec(), tree: node_tree, line: Some(line_t) });
         // telling of yourself (E3-3): a substantive answer is a
         // disclosure; each lands as deep as the pair's openness holds -

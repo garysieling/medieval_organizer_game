@@ -64,3 +64,4 @@ pub mod prophetic;
 pub mod pass;
 pub mod amends;
 pub mod fact_content;
+pub mod text;

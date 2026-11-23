@@ -153,6 +153,14 @@ pub enum Belief {
     TruthComesOut,     // "the truth comes out if someone says it"
 }
 
+/// All beliefs, in a fixed order (cast check groups wounds by index)
+pub const BELIEFS: [Belief; 11] = [
+    Belief::LordAlwaysWins, Belief::SomeoneToBlame, Belief::WarsTakeSons,
+    Belief::LordTakesFromDead, Belief::GodSends, Belief::MillOwnsUs,
+    Belief::PromisesForKeepers, Belief::KeepHidden, Belief::NeverCrossReeve,
+    Belief::StrongTogether, Belief::TruthComesOut,
+];
+
 impl Belief {
     /// The lesson as they'd say it
     pub fn text(self) -> &'static str {

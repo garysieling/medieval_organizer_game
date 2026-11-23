@@ -58,6 +58,7 @@ pub mod dialogue_trees;
 pub mod scenes;
 pub mod mysteries;
 pub mod mystery_stories;
+pub mod cast_check;
 pub mod persona;
 pub mod prophetic;
 pub mod pass;

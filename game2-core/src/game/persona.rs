@@ -370,6 +370,55 @@ impl Persona {
         }
         top
     }
+
+    /// The two values that move them least - the "low" legs of the
+    /// threshold table rank the way "high" does
+    pub fn bottom_values(&self) -> (usize, usize) {
+        let mut bot = (0usize, 1usize);
+        for i in 1..self.values.len() {
+            if self.values[i] < self.values[bot.0] { bot = (i, bot.0); }
+            else if self.values[i] < self.values[bot.1] { bot = (bot.0, i); }
+        }
+        bot
+    }
+
+    /// E1-4 (#1412): both personality models as views of the persona -
+    /// the Big Five component is the temperament axes verbatim, and the
+    /// discrete traits come off the pass-3 threshold table, so the two
+    /// views can never disagree
+    pub fn personalities(&self)
+        -> (crate::sim::psychology::Personality, crate::game::traits::Personality)
+    {
+        use crate::game::traits::Trait::*;
+        let [o, c, e, a, n] = self.temperament;
+        let (t1, t2) = self.top_values();
+        let (b1, b2) = self.bottom_values();
+        let top = |v: usize| v == t1 || v == t2;
+        let low = |v: usize| v == b1 || v == b2;
+        // the pass-3 table (design part 1), in TRAITS order so a probe's
+        // first-match reads the same trait order the roll used to deal
+        let mut traits = vec![];
+        if c < 0.25 { traits.push(Lazy); }
+        if top(3) || top(4) { traits.push(Ambitious); }
+        if a > 0.70 { traits.push(Kind); }
+        if top(5) && low(8) { traits.push(Stingy); }
+        if top(7) { traits.push(Pious); }  // the devotion leg binds once faith's live
+        if n > 0.65 && a < 0.40 { traits.push(Hotheaded); }
+        if e > 0.70 { traits.push(Gregarious); }
+        if top(4) && a < 0.50 { traits.push(Proud); }
+        if c > 0.60 && n < 0.35 { traits.push(Steady); }
+        if self.trust_propensity < 0.30 { traits.push(Wary); }
+        if e < 0.25 && n < 0.40 { traits.push(Stolid); }
+        if a < 0.15 { traits.push(Cruel); }
+        if e > 0.65 && a < 0.30 { traits.push(SelfAbsorbed); }
+        (
+            crate::sim::psychology::Personality {
+                openness: o, neuroticism: n, extraversion: e,
+                agreeableness: a, conscientiousness: c,
+            },
+            crate::game::traits::Personality { traits },
+        )
+    }
 }
 
 /// What the earlier passes hand down - near-empty today, filled when
@@ -582,5 +631,72 @@ mod tests {
             .position(|&a| a == generate(11, slot, &Past::default()).archetype)
             .unwrap()] = true; }
         assert!(seen.iter().filter(|&&s| s).count() >= 5);
+    }
+
+    fn persona_with(temperament: [f32; 5], values: [f32; 10], trust: f32) -> Persona {
+        Persona {
+            seed: 1, sex: Sex::Male, archetype: Archetype::OldGuard,
+            temperament, trust_propensity: trust, values,
+            story: vec![], ghosts: vec![],
+            signature: Signature::Habit("x"), hidden: Landmark::Skill("y"),
+            contradiction: None,
+        }
+    }
+
+    #[test]
+    fn the_big_five_is_the_axes_verbatim() {
+        let (big5, _) = persona_with([0.1, 0.2, 0.3, 0.4, 0.5], [0.5; 10], 0.5).personalities();
+        assert_eq!((big5.openness, big5.conscientiousness, big5.extraversion,
+            big5.agreeableness, big5.neuroticism), (0.1, 0.2, 0.3, 0.4, 0.5));
+    }
+
+    #[test]
+    fn the_traits_come_off_the_threshold_table() {
+        use crate::game::traits::Trait::*;
+        let flat = [0.5; 10];
+        // O, C, E, A, N
+        let kind = persona_with([0.5, 0.5, 0.5, 0.75, 0.5], flat, 0.5).personalities().1;
+        assert_eq!(kind.traits, vec![Kind]);
+        let cruel = persona_with([0.5, 0.5, 0.5, 0.10, 0.5], flat, 0.5).personalities().1;
+        assert!(cruel.traits.contains(&Cruel) && !cruel.traits.contains(&Kind));
+        let hot = persona_with([0.5, 0.5, 0.5, 0.30, 0.80], flat, 0.5).personalities().1;
+        assert!(hot.traits.contains(&Hotheaded) && !hot.traits.contains(&Steady));
+        let steady = persona_with([0.5, 0.65, 0.5, 0.5, 0.30], flat, 0.5).personalities().1;
+        assert!(steady.traits.contains(&Steady) && !steady.traits.contains(&Lazy));
+        let watcher = persona_with([0.5; 5], flat, 0.10).personalities().1;
+        assert!(watcher.traits.contains(&Wary));
+    }
+
+    #[test]
+    fn values_drive_the_rank_traits() {
+        use crate::game::traits::Trait::*;
+        // Standing and Safety top, Care bottoms: proud and stingy,
+        // and ambitious for the standing
+        let mut values = [0.4; 10];
+        values[4] = 0.9; values[5] = 0.85; values[8] = 0.05;
+        let (_, t) = persona_with([0.5, 0.5, 0.5, 0.40, 0.5], values, 0.5).personalities();
+        assert!(t.traits.contains(&Ambitious) && t.traits.contains(&Proud)
+            && t.traits.contains(&Stingy), "{:?}", t.traits);
+        // Custom tops: pious
+        let mut values = [0.4; 10];
+        values[7] = 0.9;
+        let (_, t) = persona_with([0.5; 5], values, 0.5).personalities();
+        assert!(t.traits.contains(&Pious), "{:?}", t.traits);
+    }
+
+    #[test]
+    fn lazy_and_ambitious_only_with_the_crack() {
+        use crate::game::traits::Trait::*;
+        // the table can only pair Lazy with Ambitious where generate
+        // already tagged the idle_striver - the crack's the only door
+        for slot in 0..400 {
+            let p = generate(9, slot, &Past::default());
+            let t = p.personalities().1.traits;
+            let lazy_ambitious = t.contains(&Lazy) && t.contains(&Ambitious);
+            assert_eq!(lazy_ambitious, p.contradiction == Some(Contradiction::IdleStriver),
+                "slot {}", slot);
+            // and opposites never share a body
+            assert!(!(t.contains(&Kind) && t.contains(&Cruel)));
+        }
     }
 }

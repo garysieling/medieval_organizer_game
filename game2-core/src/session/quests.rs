@@ -442,6 +442,10 @@ impl Game {
         let mut deeds = self.world.get_component::<Deeds>(bond).copied().unwrap_or_default();
         deeds.n += 1;
         self.world.add_component(bond, deeds);
+        // a promise kept is the pair's own episode (E6-2): it can come
+        // back to you at a later talk as a callback
+        crate::game::episodes::file(&mut self.world, giver, pe,
+            crate::game::episodes::MemKind::KeptPromise, self.tick, &["errand", "promise"]);
         // they open up about why they needed the job
         if let Some(r) = desires::next_reveal(&self.world, giver, self.tick, self.tick) {
             if let Some(issue) = desires::hear(&mut self.world, pe, giver, r, self.tick) {

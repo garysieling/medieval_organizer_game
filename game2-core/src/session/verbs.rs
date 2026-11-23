@@ -1687,11 +1687,16 @@ impl Game {
                         if let Some(s) = self.world.get_component_mut::<Satchel>(v) {
                             *s.goods.entry(g.clone()).or_insert(0) += 1;
                         }
-                        let kind = if edible(&g) { crate::game::relationships::InteractionKind::SharedMeal }
+                        let shared_meal = edible(&g);
+                        let kind = if shared_meal { crate::game::relationships::InteractionKind::SharedMeal }
                             else { crate::game::relationships::InteractionKind::Aid };
                         crate::game::relationships::record_interaction(&mut self.world, pe,
                             crate::game::relationships::Interaction {
                                 other: v, kind, intensity: (worth / 10.0).clamp(0.5, 2.0) });
+                        if shared_meal {
+                            crate::game::episodes::file(&mut self.world, v, pe,
+                                crate::game::episodes::MemKind::SharedMeal, self.tick, &["meal", "gift"]);
+                        }
                         let who = self.cast_name(self.seats[seat].selected_target);
                         format!("you give {} the {} - and it warms them.", who, g)
                     }
@@ -3352,8 +3357,15 @@ impl Game {
         let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
             return "There's no cause to meet on.".into();
         };
-        match self.hold_and_note_campaign_meeting(Some(self.seats[seat].player), c, tick) {
+        let pe = self.seats[seat].player;
+        match self.hold_and_note_campaign_meeting(Some(pe), c, tick) {
             Some((mut msg, attendees)) => {
+                // you stood at the meeting with them (E6-2): the room
+                // keeps the episode against this seat's pair memory
+                for a in &attendees {
+                    crate::game::episodes::file(&mut self.world, *a, pe,
+                        crate::game::episodes::MemKind::StoodWithUs, tick, &["meeting", "cause"]);
+                }
                 // the pick IS the vote: the agenda the floor was handed
                 // carries, whatever the room settled for itself
                 if let Some(m) = motion {

@@ -63,6 +63,7 @@ mod estate;
 mod event_pace;
 mod edict;
 mod emergence;
+mod episodes;
 mod events;
 mod exit;
 mod emergency;

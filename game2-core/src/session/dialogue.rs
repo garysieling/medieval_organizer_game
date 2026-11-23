@@ -1223,6 +1223,19 @@ impl Game {
             let by_you = by == self.seats[seat].player;
             opening.push(format!("{}: \"{}\"", villager.name, crate::game::hooks::remembered(id, by_you, &friend)));
         }
+        // the pair's own memory surfaces (E6-2): the top episodes by
+        // the retrieval score become `mem:*` facts the trees can key
+        // and a callback line - every fact traces to a real episode
+        {
+            use crate::game::episodes;
+            let eps: Vec<episodes::PairEp> = self.world.get_component::<episodes::PairMemory>(v)
+                .filter(|m| m.pe == pe).map(|m| m.eps.clone()).unwrap_or_default();
+            let remembered = episodes::top(&eps, self.tick, &[], 2);
+            for e in &remembered { villager.facts.open.push(episodes::fact(e.kind).into()); }
+            if let Some(e) = remembered.first() {
+                opening.push(format!("{}: \"{}\"", villager.name, episodes::callback(e.kind)));
+            }
+        }
         // a whole mystery they've been asking after: the telling's on offer
         let tell = (rare.is_none() && self.mystery_due(seat, v)).then(|| {
             let m = self.seats[seat].mystery.as_ref().map(|m| m.def).unwrap_or(0);
@@ -1302,10 +1315,15 @@ impl Game {
         // safe read's deeper offers come back off the table, the same
         // reshift a missed audition would have dealt
         if forward > t.forward_seen {
-            if let Some(re) = crate::game::relationships::find_relationship(&self.world, pe, t.who)
+            let who = t.who;
+            if let Some(re) = crate::game::relationships::find_relationship(&self.world, pe, who)
                 .and_then(|e| self.world.get_component_mut::<crate::game::relationships::Relationship>(e)) {
                 for _ in t.forward_seen..forward { re.safety = re.safety.lower(); }
             }
+            // an ask that came before the bond was ready is a memory
+            // they keep (E6-2): "you asked too soon" can come back
+            crate::game::episodes::file(&mut self.world, who, pe,
+                crate::game::episodes::MemKind::AskedTooSoon, self.tick, &["ask"]);
             if t.vibe == Some(Vibe::Safe) {
                 let mut asks = crate::game::organizing::ask_offers(
                     &self.world, self.seats[seat].org, t.who,

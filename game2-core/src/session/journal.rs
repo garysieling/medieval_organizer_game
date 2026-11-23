@@ -80,16 +80,24 @@ impl Game {
     }
 }
 
+/// The journal format a binary reads. Bumped when an input's meaning
+/// changes - a journal from before the bump would replay it differently
+/// (the dropped Build button's Act(2) would silently no-op)
+pub const JOURNAL_VERSION: u32 = 1;
+
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Journal {
     pub seed: u64,
     /// (frame, input), in the order they were applied
     pub entries: Vec<(u64, Input)>,
+    /// Journals written before versioning carry no field - they read as 0
+    #[serde(default)]
+    pub version: u32,
 }
 
 impl Journal {
-    pub fn new(seed: u64) -> Journal { Journal { seed, entries: vec![] } }
+    pub fn new(seed: u64) -> Journal { Journal { seed, entries: vec![], version: JOURNAL_VERSION } }
 
     /// Note an input taken at `frame` (frames never go backwards)
     pub fn record(&mut self, frame: u64, input: Input) {

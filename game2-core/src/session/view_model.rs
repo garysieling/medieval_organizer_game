@@ -542,8 +542,9 @@ impl Game {
                 leaders: crate::game::leadership::leaders_grown(world, self.seats[seat].org),
             }
         });
-        let blocked: Vec<Option<String>> = (0..ACTION_LABELS.len())
-            .map(|i| self.action_blocker_at(seat, i)).collect();
+        let blocked: [Option<String>; 3] = std::array::from_fn(|i| {
+            if i < ACTION_LABELS.len() { self.action_blocker_at(seat, i) } else { None }
+        });
         // the bond ledger: who the seat has spoken to, by how far each
         // relationship has climbed - the same stages the inspector names.
         // rapport is talk-only, so a barter or a shared meal can't pad

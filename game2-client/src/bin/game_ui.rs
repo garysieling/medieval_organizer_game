@@ -265,8 +265,12 @@ fn main() {
             if let Ok(j) = std::fs::read_to_string(lp)
                 .and_then(|s| serde_json::from_str::<game2_core::session::journal::Journal>(&s)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))) {
-                let frames = j.entries.last().map(|e| e.0).unwrap_or(0);
-                Some(game2_core::session::journal::replay(&j, frames))
+                // a journal from before the action set changed can't
+                // replay faithfully - its Act(2)s would silently no-op
+                if j.version == game2_core::session::journal::JOURNAL_VERSION {
+                    let frames = j.entries.last().map(|e| e.0).unwrap_or(0);
+                    Some(game2_core::session::journal::replay(&j, frames))
+                } else { Some(Game::new_seeded(seed)) }
             } else { Some(Game::new_seeded(seed)) }
         } else { Some(Game::new_seeded(seed)) }
     } else { None };

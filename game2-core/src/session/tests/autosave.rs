@@ -22,6 +22,18 @@ fn test_the_days_own_record_replays_to_the_same_village() {
 }
 
 #[test]
+fn test_a_journal_from_before_versioning_reads_as_legacy() {
+    // journals written before the field existed carry no version - they
+    // read as 0 so a loader can refuse them rather than replay Act(2)s
+    // that would silently no-op
+    let j: crate::session::journal::Journal = serde_json::from_str(
+        r#"{"seed":7,"entries":[]}"#).unwrap();
+    assert_eq!(j.version, 0);
+    assert_eq!(crate::session::journal::Journal::new(7).version,
+        crate::session::journal::JOURNAL_VERSION);
+}
+
+#[test]
 fn test_the_record_carries_the_roster_pick() {
     let mut g = Game::new();
     g.pick_character_at(0, 2);

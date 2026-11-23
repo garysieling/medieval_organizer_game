@@ -586,6 +586,26 @@ impl Game {
             crate::game::cast_check::validate(&mut personas,
                 &mut |slot, attempt| crate::game::persona::generate_attempt(
                     seed, slot, &pasts[slot], attempt));
+            // a rerolled parent shifts the mean a child started from -
+            // redeal the children once over the settled cast
+            for &k in &KID_IDXS {
+                let parents: Vec<[f32; 5]> = kin_plan.get(k)
+                    .map(|p| p.parents.iter()
+                        .filter_map(|&s| personas[s].as_ref().map(|pp| pp.temperament))
+                        .collect())
+                    .unwrap_or_default();
+                let mean = if parents.is_empty() { None } else {
+                    let mut m = [0.0f32; 5];
+                    for t in &parents { for a in 0..5 { m[a] += t[a] / parents.len() as f32; } }
+                    Some(m)
+                };
+                if mean != pasts[k].parents {
+                    pasts[k].parents = mean;
+                    personas[k] = Some(crate::game::persona::generate_attempt(
+                        seed, k, &pasts[k], 0));
+                }
+            }
+            crate::game::persona::cap_cast_ghosts(&mut personas);
             crate::game::cast_check::deal_signatures(&mut personas, seed);
         }
         // 23 vocation adults (0..23), two overseers (23,24), the trader

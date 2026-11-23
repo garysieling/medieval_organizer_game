@@ -369,7 +369,6 @@ pub fn action_buttons() -> [Button; 2] {
 /// The button a contextual action draws with
 pub fn ctx_button(act: CtxAct) -> Button {
     match act {
-        CtxAct::Work => Button { label: "Work".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 90, 140) },
         CtxAct::Errand => Button { label: "Errand".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 120, 90) },
         CtxAct::PairUp => Button { label: "Pair up".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (120, 90, 140) },
         CtxAct::Matchmake => Button { label: "Matchmake".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (160, 90, 110) },
@@ -2668,6 +2667,7 @@ impl Game {
         crate::timed!("sim.formation", self.formation_step());
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
+            self.ambient_bench_at(seat);
             self.advance_approach_at(seat);
             self.advance_buy_walk_at(seat);
             self.advance_selection_at(seat);

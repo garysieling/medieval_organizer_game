@@ -11,6 +11,10 @@ const SCHOOL_FOUND_COST: f32 = 30.0;
 /// A teacher's season's wage from the chest
 const SCHOOL_TEACHER_COST: f32 = 10.0;
 
+/// Days' presence one bench batch costs (#1338): the click used to
+/// hand a day for a press; standing at the bench pays one slower
+pub(in crate::session) const AMBIENT_WORK_DAYS: f32 = 2.0;
+
 impl Game {
     /// Why action button `i` can't be used right now, if it can't
     pub fn action_blocker_at(&self, seat: usize, i: usize) -> Option<String> {
@@ -660,21 +664,136 @@ impl Game {
         }
     }
 
-    /// The contextual actions that apply right now: work at the player's
-    /// shop, pair a picked junior with a master, send a kid on an errand
+    /// The makings a bench day is short of, phrased how to come by them
+    /// (#1338): "wheat - gather some" when the hedgerow gives it, else
+    /// "- buy some"
+    fn bench_missing(&self, pe: Entity) -> Vec<String> {
+        let (voc, workplace) = self.world.get_component::<Craft>(pe)
+            .map(|c| (Some(c.vocation), c.workplace)).unwrap_or((None, None));
+        let Some(voc) = voc else { return vec![] };
+        vocation::inputs(voc).iter().copied().filter(|g| {
+            // a slot's only missing when nothing that fills it is to
+            // hand - the named good or its fellows
+            std::iter::once(*g).chain(crate::game::recipes::fillers(g).iter().copied())
+                .all(|c| {
+                    let held = self.world.get_component::<Satchel>(pe)
+                        .map(|s| s.goods.get(c).copied().unwrap_or(0)).unwrap_or(0);
+                    let stocked = workplace
+                        .and_then(|b| self.world.get_component::<Building>(b))
+                        .map(|b| b.stock.get(c).copied().unwrap_or(0)).unwrap_or(0);
+                    held + stocked < 1
+                })
+        }).map(|g| {
+            let opts: Vec<&'static str> = std::iter::once(g)
+                .chain(crate::game::recipes::fillers(g).iter().copied()).collect();
+            let what = opts.join(" or ");
+            if opts.iter().any(|o| vocation::gatherable(o)) { format!("{} - gather some", what) }
+            else { format!("{} - buy some", what) }
+        }).collect()
+    }
+
+    /// One day's work at the bench, and the words for where it went:
+    /// a full shelf spills to the satchel, a tasked hand's share runs
+    /// through the senior's shop, a full satchel loses it
+    fn work_bench_msg(&mut self, pe: Entity, tick: u64) -> String {
+        let (voc, workplace, tasked_by) = self.world.get_component::<Craft>(pe)
+            .map(|c| (Some(c.vocation), c.workplace, c.tasked_by)).unwrap_or((None, None, None));
+        let what = voc.and_then(vocation::output).unwrap_or("goods");
+        let held_before = self.world.get_component::<Satchel>(pe)
+            .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0);
+        let stocked_before = workplace
+            .and_then(|b| self.world.get_component::<Building>(b))
+            .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
+        let senior_shop = tasked_by
+            .and_then(|s| self.world.get_component::<Craft>(s))
+            .and_then(|c| c.workplace);
+        let senior_before = senior_shop
+            .and_then(|b| self.world.get_component::<Building>(b))
+            .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
+        let gold_before = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+        let (made, up) = self.bench_work(pe, tick);
+        match up {
+            Some(l) => {
+                let lvl = vocation::level_name(l);
+                let title = self.world.get_component::<Craft>(pe)
+                    .map(|c| format!("{} {}", lvl, vocation::vocation_name(c.vocation)))
+                    .unwrap_or_else(|| lvl.to_string());
+                format!("You work - and reach {}!", title)
+            }
+            None if made > 0.0 => {
+                let held = self.world.get_component::<Satchel>(pe)
+                    .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - held_before as i32;
+                let stocked = workplace
+                    .and_then(|b| self.world.get_component::<Building>(b))
+                    .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - stocked_before as i32;
+                // an heir keeps the senior's bench: when it's the
+                // same shelf, its take is already counted above
+                let senior = if senior_shop == workplace { 0 } else {
+                    senior_shop.and_then(|b| self.world.get_component::<Building>(b))
+                        .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - senior_before as i32
+                };
+                let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0) - gold_before;
+                let shop = workplace.and_then(|b| self.world.get_component::<Building>(b))
+                    .map(|b| b.name.as_str()).unwrap_or("the shop");
+                let mut parts: Vec<String> = vec![];
+                if stocked > 0 { parts.push(format!("{} stocked at {}", stocked, shop)); }
+                if held > 0 { parts.push(format!("{} in your satchel", held)); }
+                if senior > 0 {
+                    let sname = tasked_by.and_then(|s| self.villagers.iter().position(|v| *v == s))
+                        .map(|i| self.cast_name(i)).unwrap_or("your senior");
+                    parts.push(format!("{} through {}'s shop", senior, sname));
+                }
+                if gold > 0.0 { parts.push(format!("{:.0}g earned", gold)); }
+                let lost = made as i32 - stocked - held - senior;
+                if lost > 0 { parts.push(format!("{} spoiled - no room for it", lost)); }
+                let went = if parts.is_empty() { String::new() } else { format!(" - {}", parts.join(", ")) };
+                format!("You work - {:.0} {} made{}.", made, what, went)
+            }
+            None => "You put in the day, but make nothing yet.".into(),
+        }
+    }
+
+    /// Ambient craft (#1338): the work is being there, not a button. A
+    /// day at the bench banks a day's presence - AMBIENT_WORK_DAYS of
+    /// standing makes one day's batch, gentler than the click's - and
+    /// a bench short of its makings says so once a day
+    pub(in crate::session) fn ambient_bench_at(&mut self, seat: usize) {
+        if self.paused || self.seats[seat].talk.is_some() { return; }
+        let pe = self.seats[seat].player;
+        let bench = self.world.get_component::<Craft>(pe).and_then(|c| c.workplace);
+        let Some(bench) = bench else { self.seats[seat].ambient_bench = 0.0; return; };
+        let (px, py) = self.player_pos_at(seat);
+        let near = self.world.get_component::<Pos>(bench)
+            .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < 4.0).unwrap_or(false);
+        // banked days keep; being elsewhere or talking just doesn't add
+        if !near { return; }
+        self.seats[seat].ambient_bench += 1.0 / self.ticks_per_frame() as f32;
+        if self.seats[seat].ambient_bench < AMBIENT_WORK_DAYS { return; }
+        let tick = self.tick;
+        let missing = self.bench_missing(pe);
+        if !missing.is_empty() {
+            // the bench's want has a home in the log, once a day - the
+            // button's "you can't work" nag, ambient now
+            if self.seats[seat].bench_nudged != tick {
+                self.seats[seat].bench_nudged = tick;
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                    format!("t{}: The bench stands idle: no {} to hand.", tick, missing.join(", ")));
+            }
+            return;
+        }
+        self.seats[seat].ambient_bench = 0.0;
+        let msg = self.work_bench_msg(pe, tick);
+        self.log.push_ev(
+            EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+            format!("t{}: {}", tick, msg));
+    }
+
+    /// The contextual actions that apply right now: pair a picked
+    /// junior with a master, send a kid on an errand
     pub fn update_ctx_actions_at(&mut self, seat: usize) {
         self.seats[seat].ctx_actions.clear();
         let (px, py) = self.player_pos_at(seat);
-        // Work: the player's own craft, at the bench if they have one
-        if let Some(c) = self.world.get_component::<Craft>(self.seats[seat].player) {
-            let near = c.workplace
-                .and_then(|b| self.world.get_component::<Pos>(b))
-                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < 4.0)
-                .unwrap_or(true);
-            if near {
-                self.seats[seat].ctx_actions.push(CtxAct::Work);
-            }
-        }
         if self.seats[seat].selected_building.is_none() {
             let v = self.villagers[self.seats[seat].selected_target];
             if self.world.get_component::<Kid>(v).is_some() {
@@ -952,96 +1071,6 @@ impl Game {
             return;
         }
         let msg = match act {
-            CtxAct::Work => {
-                let pe = self.seats[seat].player;
-                let (voc, workplace, tasked_by) = self.world.get_component::<Craft>(pe)
-                    .map(|c| (Some(c.vocation), c.workplace, c.tasked_by)).unwrap_or((None, None, None));
-                // nothing comes of a day without the makings: say what's
-                // short and how to come by it, not just "nothing yet"
-                let missing: Vec<&'static str> = voc.map(|v| vocation::inputs(v).iter().copied()
-                    .filter(|g| {
-                        // a slot's only missing when nothing that fills
-                        // it is to hand - the named good or its fellows
-                        std::iter::once(*g).chain(crate::game::recipes::fillers(g).iter().copied())
-                            .all(|c| {
-                                let held = self.world.get_component::<Satchel>(pe)
-                                    .map(|s| s.goods.get(c).copied().unwrap_or(0)).unwrap_or(0);
-                                let stocked = workplace
-                                    .and_then(|b| self.world.get_component::<Building>(b))
-                                    .map(|b| b.stock.get(c).copied().unwrap_or(0)).unwrap_or(0);
-                                held + stocked < 1
-                            })
-                    }).collect()).unwrap_or_default();
-                if !missing.is_empty() {
-                    let how: Vec<String> = missing.iter().map(|g| {
-                        let opts: Vec<&'static str> = std::iter::once(*g)
-                            .chain(crate::game::recipes::fillers(g).iter().copied()).collect();
-                        let what = opts.join(" or ");
-                        if opts.iter().any(|o| vocation::gatherable(o)) { format!("{} - gather some", what) }
-                        else { format!("{} - buy some", what) }
-                    }).collect();
-                    format!("You can't work: no {} to hand.", how.join(", "))
-                } else {
-                    let what = voc.and_then(vocation::output).unwrap_or("goods");
-                    // where the day's work actually lands is read off the
-                    // before-and-after: a full shelf spills to the satchel,
-                    // and a full satchel loses it
-                    let held_before = self.world.get_component::<Satchel>(pe)
-                        .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0);
-                    let stocked_before = workplace
-                        .and_then(|b| self.world.get_component::<Building>(b))
-                        .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
-                    // a tasked junior's share goes through the senior's shop
-                    // and comes back as pay - neither is lost work
-                    let senior_shop = tasked_by
-                        .and_then(|s| self.world.get_component::<Craft>(s))
-                        .and_then(|c| c.workplace);
-                    let senior_before = senior_shop
-                        .and_then(|b| self.world.get_component::<Building>(b))
-                        .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
-                    let gold_before = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
-                    let (made, up) = self.bench_work(pe, tick);
-                    match up {
-                        Some(l) => {
-                            let lvl = vocation::level_name(l);
-                            let title = self.world.get_component::<Craft>(pe)
-                                .map(|c| format!("{} {}", lvl, vocation::vocation_name(c.vocation)))
-                                .unwrap_or_else(|| lvl.to_string());
-                            format!("You work - and reach {}!", title)
-                        }
-                        None if made > 0.0 => {
-                            let held = self.world.get_component::<Satchel>(pe)
-                                .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - held_before as i32;
-                            let stocked = workplace
-                                .and_then(|b| self.world.get_component::<Building>(b))
-                                .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - stocked_before as i32;
-                            // an heir keeps the senior's bench: when it's the
-                            // same shelf, its take is already counted above
-                            let senior = if senior_shop == workplace { 0 } else {
-                                senior_shop.and_then(|b| self.world.get_component::<Building>(b))
-                                    .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - senior_before as i32
-                            };
-                            let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0) - gold_before;
-                            let shop = workplace.and_then(|b| self.world.get_component::<Building>(b))
-                                .map(|b| b.name.as_str()).unwrap_or("the shop");
-                            let mut parts: Vec<String> = vec![];
-                            if stocked > 0 { parts.push(format!("{} stocked at {}", stocked, shop)); }
-                            if held > 0 { parts.push(format!("{} in your satchel", held)); }
-                            if senior > 0 {
-                                let sname = tasked_by.and_then(|s| self.villagers.iter().position(|v| *v == s))
-                                    .map(|i| self.cast_name(i)).unwrap_or("your senior");
-                                parts.push(format!("{} through {}'s shop", senior, sname));
-                            }
-                            if gold > 0.0 { parts.push(format!("{:.0}g earned", gold)); }
-                            let lost = made as i32 - stocked - held - senior;
-                            if lost > 0 { parts.push(format!("{} spoiled - no room for it", lost)); }
-                            let went = if parts.is_empty() { String::new() } else { format!(" - {}", parts.join(", ")) };
-                            format!("You work - {:.0} {} made{}.", made, what, went)
-                        }
-                        None => "You put in the day, but make nothing yet.".into(),
-                    }
-                }
-            }
             CtxAct::PairUp => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 let voc = self.world.get_component::<Craft>(v).map(|c| c.vocation);

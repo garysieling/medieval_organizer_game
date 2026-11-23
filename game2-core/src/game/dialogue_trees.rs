@@ -354,7 +354,7 @@ const SMALL_GREET: Exchange = Exchange {
     calls: &["Good morrow to thee, {other}.", "Well met, neighbor {other}.", "A fair day to thee and thine, {other}.", "God's peace on this path, {other}.", "Hail, {other} - traveling far today?"],
     voice: &[
         Voice { criteria: &[Has("self:ideology:lord")], lines: &["Morrow, {other} - thy strip looks well enough this year.", "Aye, neighbor - the morning serves us all."] },
-        Voice { criteria: &[Has("self:ideology:merchant")], lines: &["Morrow, {other} - brisk trade to thee.", "Fair day! The road's been kind to the purse."] },
+        Voice { criteria: &[Has("self:ideology:merchant")], lines: &["Morrow, {other} - brisk trade to thee.", "Fair day! The shelves are full and the till's been kind."] },
         Voice { criteria: &[Has("pair:relation:friend")], lines: &["Well met, {other} - the day brightens for thy company.", "Ah, {other}! I hoped the road would bring thee."] },
         Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, {other} - the house still smells of thy baking.", "{other}! Good blood on the road today."] },
         Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, traveler.", "A fair day, stranger - if friend thou be."] },
@@ -2419,13 +2419,13 @@ const HERB_GREET: Exchange = Exchange {
 const MERCHANT_BARTER: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:merchant"],
-    calls: &["A good trade leaves both men smiling when hands are struck.", "Silver coin or salted hams - sound goods are always welcome.", "The road is long, but fair trade makes every mile worthwhile.", "The pack mules know every turn of the king's road."], voice: &[],
+    calls: &["A good trade leaves both men smiling when hands are struck.", "Silver coin or salted hams - sound goods are always welcome.", "The tally keeps honest count, and honest count brings folk back.", "The scales do not lie - a scruple light and the whole village remembers."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
             respond: None,
-            lines: &["Fair journey on the highway, trader. Good day.", "May thy pack horses stay sure-footed on the ridge.", "Until the spring fair, merchant. Fare well.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
+            lines: &["Fair trade at the counter, trader. Good day.", "May thy shelves never stand empty of stock.", "Until the spring fair, merchant. Fare well.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             voice: &[],
             then: None, end: Some(Farewell),
         },
@@ -2435,13 +2435,13 @@ const MERCHANT_BARTER: Exchange = Exchange {
 const MERCHANT_WARES: Exchange = Exchange {
     act: Act::Question,
     concepts: &["trade:merchant"],
-    calls: &["Dost thou carry steel sewing needles and linen thread from the city?", "What price dost thou ask for a pound of sea salt?", "Hast thou any ribbons of silk or spice from overseas?", "What exchange dost thou ask for a bag of sea salt?"], voice: &[],
+    calls: &["Dost thou have steel needles and linen thread on thy shelf?", "What price for a pound of good salt this week?", "Hast thou ribbons or a pinch of spice left from the fair?", "What exchange dost thou take for a bag of salt?"], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:merchant"],
             respond: None,
-            lines: &["Fine iron needles in a bone case; two eggs or a penny each.", "White sea salt from the coast; three groats for a full measure.", "Scarlet ribbon from Flanders and a pinch of black pepper to trade.", "Two silver pennies or a salted ham buys the measure."],
+            lines: &["Fine iron needles in a bone case; two eggs or a penny each.", "Good salt by the measure; three groats and it's thine.", "Ribbon off the fair cart, and a pinch of pepper to spare.", "Two silver pennies or a salted ham buys the measure."],
             voice: &[],
             then: Some(MERCHANT_BARTER), end: None,
         },
@@ -2459,13 +2459,13 @@ const MERCHANT_WARES: Exchange = Exchange {
 const MERCHANT_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:merchant"],
-    calls: &["Good morrow, trader! Thy pack mules are laden heavy from the highway.", "Well met, merchant! What exotic wares bringest thou to our valley?", "Hail to the traveling merchant! How stood the roads through the forest?", "A peaceful day to thee, {other}."], voice: &[],
+    calls: &["Good morrow, trader! What does the stall hold today?", "Well met, {addr}! What sits behind the counter this week?", "Fair day to the stall-keeper! How stands the tally this season?", "A peaceful day to thee, {other}."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Greet, concepts: &["trade:merchant"],
             respond: None,
-            lines: &["Morrow, good folk! Goods from the sea ports and goods from the hills.", "Well met! Unbuckling the leather packs; step up and see the wares.", "Greetings! Mud on my boots, but treasures in my packs for honest barter.", "God bless thy steps this day, {other}.", "Well met, friend, under the open sky."],
+            lines: &["Morrow, good folk! Stock from the town fair and goods from the parish.", "Well met! Lifting the counter - step up and see the stock.", "Greetings! Dust on the shelves, but fair goods behind the counter.", "God bless thy steps this day, {other}.", "Well met, friend, under the open sky."],
             voice: &[],
             then: Some(MERCHANT_WARES), end: None,
         },
@@ -2507,7 +2507,7 @@ const LEDGER_ACCOUNTS: Exchange = Exchange {
 const LEDGER_ROADS: Exchange = Exchange {
     act: Act::Question,
     concepts: &["trade:merchant"],
-    calls: &["What news of the wool price in the towns, {other}?", "Knowest thou a steady hand for the autumn caravan?", "What exchange does the village offer for good salt this season?", "Hast thou goods to trade, or only gossip?"], voice: &[],
+    calls: &["What news of the wool price in the towns, {other}?", "Knowest thou a steady hand for the market day hauling?", "What exchange does the village offer for good salt this season?", "Hast thou goods to trade, or only gossip?"], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -2537,7 +2537,7 @@ const LEDGER_GREET: Exchange = Exchange {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Greet, concepts: &["trade:merchant"],
             respond: None,
-            lines: &["And fair coin to thy purse, merchant.", "Well met, trader - the village watches the road for thy pack.", "Morrow - what does the wide world charge for news today?"],
+            lines: &["And fair coin to thy purse, merchant.", "Well met, trader - the village keeps its tally with thee.", "Morrow - what does market day ask of us this season?"],
             voice: &[],
             then: Some(LEDGER_ROADS), end: None,
         },

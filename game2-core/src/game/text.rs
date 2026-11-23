@@ -224,6 +224,10 @@ fn address_form(cx: &Cx) -> String {
     if l.status.contains(&"elder") {
         return if female { format!("goody {name}") } else { format!("gaffer {name}") };
     }
+    // a caller off the road is a traveler, and the village's own
+    // shopkeeper a trader - the named courtesy, not a bare title (#1371)
+    if l.status.contains(&"visitor") { return "traveler".into(); }
+    if l.ideology == "merchant" { return "trader".into(); }
     // a child minds their betters however they stand
     let courtesy = if station(l) == 1 || cx.speaker.status.contains(&"child") {
         if female { format!("mistress {name}") } else { format!("master {name}") }
@@ -738,6 +742,14 @@ mod tests {
         let mut will = Speaker::new("Will");
         will.status.push("child");
         assert_eq!(address_form(&Cx::plain(&alys, &will, &[])), "lad");
+        // the village shopkeeper is a trader, the caller off the road a
+        // traveler (#1371): the named courtesy, not a bare title
+        let mut greta = Speaker::new("Greta");
+        greta.ideology = "merchant"; greta.sex = Some("female");
+        assert_eq!(address_form(&Cx::plain(&alys, &greta, &[])), "trader");
+        let mut pedlar = Speaker::new("Nan");
+        pedlar.status.push("visitor");
+        assert_eq!(address_form(&Cx::plain(&alys, &pedlar, &[])), "traveler");
     }
 
     #[test]

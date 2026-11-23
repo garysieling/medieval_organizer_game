@@ -259,7 +259,7 @@ fn test_the_card_names_the_odds_before_the_ask() {
     g.world.add_component(rel, crate::game::relationships::Relationship {
         from: g.seats[0].player, other: v,
         kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);
     let stage = ins.lines.iter().find(|l| l.x == 150 && l.y == 330).map(|l| l.text.clone()).unwrap_or_default();
@@ -287,7 +287,7 @@ fn test_the_panel_names_who_pulls_the_room() {
         g.world.add_component(rel, crate::game::relationships::Relationship {
             from: elite, other: m,
             kind: crate::game::relationships::RelKind::Friend,
-            strength: 0.95, interactions: 5 });
+            strength: 0.95, interactions: 5, ..Default::default() });
     }
     // the pull's only named once the room's observably followed them -
     // a drifted meeting marks its driver
@@ -496,7 +496,7 @@ fn survey_bond(g: &mut Game, a: Entity, b: Entity) {
     let r = g.world.create_entity();
     g.world.add_component(r, crate::game::relationships::Relationship {
         from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.5, interactions: 1 });
+        strength: 0.5, interactions: 1, ..Default::default() });
 }
 
 /// A four-hand cause on "the taxes" with the meeting pulled

@@ -21,7 +21,7 @@ fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
     // Eliza already trusts the player; Bram is a stranger who's merely
     // said he'll come - the meeting is earned: Eliza lends the house
     let rel = game.world.create_entity();
-    game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+    game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut game, eliza, (17.0, 16.0), &[bram]);
 
     assert!(game.meeting.is_none());
@@ -48,7 +48,7 @@ fn test_a_meeting_takes_time_people_gather_then_talk_then_it_ends() {
         if i != 1 && i != 2 { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32, y: 3.0 }; }
     }
     let rel = game.world.create_entity();
-    game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+    game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut game, eliza, (18.0, 16.0), &[bram]);
     game.call_meeting();
     assert!(game.log.last().unwrap().contains("gather at"), "{}", game.log.last().unwrap());
@@ -319,7 +319,7 @@ fn test_the_disinterested_drift_in_thinly_not_never() {
     };
     let rel = g.world.create_entity();
     g.world.add_component(rel, relationships::Relationship {
-        from: g.player, other: w, kind: RelKind::Friend, strength: 0.8, interactions: 5 });
+        from: g.player, other: w, kind: RelKind::Friend, strength: 0.8, interactions: 5, ..Default::default() });
     assert!(shows_up(&g.world, g.player, w, at, Invite::Word, 0.4, g2),
         "a real bond counts as its own stake");
 }
@@ -340,7 +340,7 @@ fn test_the_door_counts_who_stayed_home_without_naming_them() {
     g.world.add_component(corvin, villager::Dead);
     let rel = g.world.create_entity();
     g.world.add_component(rel, Relationship { from: g.player, other: host,
-        kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+        kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram, corvin]);
     g.call_meeting();
     let last = g.log.last().unwrap();
@@ -361,7 +361,7 @@ fn test_a_called_meeting_waits_for_the_day_its_word_names() {
     }
     let rel = g.world.create_entity();
     g.world.add_component(rel, Relationship { from: g.player, other: host,
-        kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+        kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
     // the press asks the day - nothing gathers yet
     g.update_ctx_actions_at(0);
@@ -723,9 +723,9 @@ fn test_the_committed_bring_a_friend_along() {
     // the comer's strongest bond is the friend, and the friend knows
     // the player well enough to make the walk
     let r = game.world.create_entity();
-    game.world.add_component(r, Relationship { from: comer, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+    game.world.add_component(r, Relationship { from: comer, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3, ..Default::default() });
     let rf = game.world.create_entity();
-    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5, ..Default::default() });
     plan_ready_meeting(&mut game, host, (17.0, 16.0), &[]);
     // the comer gave a bare yes - no spreading promised - and still a
     // friend comes in tow
@@ -753,11 +753,11 @@ fn test_spreaders_bring_their_friends_and_nobody_twice() {
     // overlap must still mean one invite
     for s in [spreader_a, spreader_b] {
         let r = game.world.create_entity();
-        game.world.add_component(r, Relationship { from: s, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+        game.world.add_component(r, Relationship { from: s, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3, ..Default::default() });
     }
     // and the friend knows the player well enough to actually come
     let rf = game.world.create_entity();
-    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5, ..Default::default() });
     plan_ready_meeting(&mut game, host, (17.0, 16.0), &[]);
     game.world.get_component_mut::<MeetingPlan>(game.org).unwrap().spreaders = vec![spreader_a, spreader_b];
     game.call_meeting();
@@ -945,10 +945,10 @@ fn test_bought_promises_read_cheap_at_the_meeting() {
     // the word were earned
     let r = g.world.create_entity();
     g.world.add_component(r, Relationship { from: spreader, other: friend,
-        kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+        kind: RelKind::Friend, strength: 9.0, interactions: 3, ..Default::default() });
     let rf = g.world.create_entity();
     g.world.add_component(rf, Relationship { from: pe, other: friend,
-        kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+        kind: RelKind::Friend, strength: 3.0, interactions: 5, ..Default::default() });
     g.call_meeting();
     let m = g.meeting.as_ref().expect("a meeting was called");
     // bought folk still fill their slots and walk to the door...
@@ -1242,7 +1242,7 @@ fn test_the_scout_ask_names_who_the_room_follows() {
     for kin in g.villagers.iter().copied().skip(3).take(6) {
         let r = g.world.create_entity();
         g.world.add_component(r, Relationship { from: bellwether, other: kin,
-            kind: RelKind::Family, strength: 0.9, interactions: 30 });
+            kind: RelKind::Family, strength: 0.9, interactions: 30, ..Default::default() });
     }
     assert!(pull_of(&g.world, bellwether) > pull_of(&g.world, talker).max(1.0),
         "bonds carry the voice: {} vs {}", pull_of(&g.world, bellwether), pull_of(&g.world, talker));

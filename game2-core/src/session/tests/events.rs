@@ -259,7 +259,7 @@ fn test_the_scribes_fair_hand() {
         let r = g.world.create_entity();
         g.world.add_component(r, crate::game::relationships::Relationship {
             from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
-            strength: 0.8, interactions: 5 });
+            strength: 0.8, interactions: 5, ..Default::default() });
         g.world.get_component_mut::<Purse>(a).unwrap().gold = 10.0;
         let model = g.ui_model();
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the scribe")),
@@ -604,7 +604,7 @@ fn test_the_news_sets_the_street_talking() {
         let bond = g.world.create_entity();
         g.world.add_component(bond, crate::game::relationships::Relationship {
             from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
-            strength: 0.5, interactions: 0 });
+            strength: 0.5, interactions: 0, ..Default::default() });
         let model = g.ui_model();
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the news-crier")),
             "the frame shows the crier on {:?}", st);

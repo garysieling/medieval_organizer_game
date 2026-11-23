@@ -8,7 +8,7 @@ fn test_a_death_unmourned_becomes_a_pile() {
     let honoree = g.villagers[i];
     let pal = g.villagers[3];
     let r = g.world.create_entity();
-    g.world.add_component(r, relationships::Relationship { from: pal, other: honoree, kind: relationships::RelKind::Friend, strength: 0.8, interactions: 5 });
+    g.world.add_component(r, relationships::Relationship { from: pal, other: honoree, kind: relationships::RelKind::Friend, strength: 0.8, interactions: 5, ..Default::default() });
     // the dead lie in the ground a week before the pile rises
     g.died_on[i] = Some(40);
     g.cairn_tick(46);
@@ -28,7 +28,7 @@ fn test_the_pile_grows_a_stone_a_day() {
     let honoree = g.villagers[i];
     let pal = g.villagers[3];
     let r = g.world.create_entity();
-    g.world.add_component(r, relationships::Relationship { from: pal, other: honoree, kind: relationships::RelKind::Friend, strength: 0.8, interactions: 5 });
+    g.world.add_component(r, relationships::Relationship { from: pal, other: honoree, kind: relationships::RelKind::Friend, strength: 0.8, interactions: 5, ..Default::default() });
     *g.world.get_component_mut::<Pos>(pal).unwrap() = Pos { x: g.village.0 as f32, y: g.village.1 as f32 };
     g.died_on[i] = Some(40);
     g.cairn_tick(48);
@@ -54,7 +54,7 @@ fn test_no_cairn_for_a_stranger_and_the_cap_holds() {
         let h = g.villagers[i];
         let pal = g.villagers[(i + 5) % 12];
         let r = g.world.create_entity();
-        g.world.add_component(r, relationships::Relationship { from: pal, other: h, kind: relationships::RelKind::Friend, strength: 0.8, interactions: 5 });
+        g.world.add_component(r, relationships::Relationship { from: pal, other: h, kind: relationships::RelKind::Friend, strength: 0.8, interactions: 5, ..Default::default() });
     }
     for _ in 0..8 { g.cairn_tick(48); }
     assert!(g.cairns.len() <= 4, "the village is all piles now");

@@ -701,7 +701,7 @@ impl Game {
                                 crate::game::relationships::Relationship {
                                     from: villagers[i], other: villagers[j],
                                     kind: crate::game::relationships::RelKind::Family,
-                                    strength: 0.8, interactions: 0 });
+                                    strength: 0.8, interactions: 0, ..Default::default() });
                         }
                     }
                 }
@@ -1095,7 +1095,7 @@ impl Game {
             if let Some(m) = master {
                 world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
                 relationships::add_relationship(&mut world, relationships::Relationship {
-                    from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.4, interactions: 3 });
+                    from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.4, interactions: 3, ..Default::default() });
             }
         }
         // purses and inner lives now that classes are settled

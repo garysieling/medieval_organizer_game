@@ -72,7 +72,7 @@ fn test_recruit_on_a_picked_villager_walks_over_then_recruits() {
     let rel = game.world.create_entity();
     game.world.add_component(rel, crate::game::relationships::Relationship {
         from: game.player, other: game.villagers[who],
-        kind: crate::game::relationships::RelKind::Friend, strength: 0.7, interactions: 8 });
+        kind: crate::game::relationships::RelKind::Friend, strength: 0.7, interactions: 8, ..Default::default() });
     assert_eq!(game.disabled_reason(1), None, "Recruit walks over, so distance doesn't grey it out");
 
     game.act(1);

@@ -61,7 +61,7 @@ impl Game {
                     crate::game::relationships::Relationship {
                         from: v, other: o,
                         kind: crate::game::relationships::RelKind::Family,
-                        strength: 0.8, interactions: 0 });
+                        strength: 0.8, interactions: 0, ..Default::default() });
             }
             self.world.add_component(v, kin);
         }
@@ -995,7 +995,7 @@ impl Game {
         if (roll as f32) / 1000.0 < spark {
             for (x, y) in [(a, b), (b, a)] {
                 relationships::add_relationship(&mut self.world, relationships::Relationship {
-                    from: x, other: y, kind: relationships::RelKind::Lover, strength: 0.6, interactions: 1 });
+                    from: x, other: y, kind: relationships::RelKind::Lover, strength: 0.6, interactions: 1, ..Default::default() });
             }
             desires::satisfy(&mut self.world, a, desires::Want::Love, tick + 365);
             desires::satisfy(&mut self.world, b, desires::Want::Love, tick + 365);

@@ -40,7 +40,7 @@ fn test_the_card_tells_the_biography_you_know() {
     g.world.add_component(rel, crate::game::relationships::Relationship {
         from: g.seats[0].player, other: v,
         kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     let bio = bio_of(&mut g, 7);
     let p = g.world.get_component::<crate::game::traits::Personality>(v).unwrap();
     let told = p.traits.iter().any(|t| {
@@ -88,7 +88,7 @@ fn test_the_card_tells_the_biography_you_know() {
     g.world.add_component(krel, crate::game::relationships::Relationship {
         from: v, other: k,
         kind: crate::game::relationships::RelKind::Family,
-        strength: 0.9, interactions: 0 });
+        strength: 0.9, interactions: 0, ..Default::default() });
     let bio = bio_of(&mut g, 7);
     assert!(bio.contains("Kin:"), "family shows once known: {}", bio);
 }
@@ -146,7 +146,7 @@ fn test_the_card_names_the_tie_between_you() {
     g.world.add_component(rel, crate::game::relationships::Relationship {
         from: g.seats[0].player, other: v,
         kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.6, interactions: 3 });
+        strength: 0.6, interactions: 3, ..Default::default() });
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);
     let bio = card_text(&ins);
@@ -178,7 +178,7 @@ fn test_the_card_names_their_cause_craft() {
     g.world.add_component(rel, crate::game::relationships::Relationship {
         from: g.seats[0].player, other: v,
         kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);
     let bio = card_text(&ins);
@@ -196,7 +196,7 @@ fn test_the_card_says_what_they_keep() {
     g.world.add_component(rel, crate::game::relationships::Relationship {
         from: g.seats[0].player, other: v,
         kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     g.seats[0].selected_target = g.villagers.iter().position(|&x| x == v).unwrap();
     let ins = g.villager_inspector_at(0);
     let bio = card_text(&ins);
@@ -249,7 +249,7 @@ fn test_the_card_names_a_weathered_one_and_a_sleeping_sickness() {
     g.world.add_component(rel, crate::game::relationships::Relationship {
         from: g.seats[0].player, other: v,
         kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);
     let bio = card_text(&ins);
@@ -296,7 +296,7 @@ fn test_the_card_names_their_temperament() {
     g.world.add_component(rel, crate::game::relationships::Relationship {
         from: g.seats[0].player, other: v,
         kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);
     let bio = card_text(&ins);
@@ -317,7 +317,7 @@ fn test_the_card_keeps_its_rows_inside_the_page() {
     g.world.add_component(rel, crate::game::relationships::Relationship {
         from: g.seats[0].player, other: v,
         kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);
     for l in &ins.lines {

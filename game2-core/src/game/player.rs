@@ -253,7 +253,7 @@ mod tests {
         let rel = w.create_entity();
         w.add_component(rel, crate::game::relationships::Relationship {
             from: p, other: vs[0], kind: crate::game::relationships::RelKind::Friend,
-            strength: 0.6, interactions: 8 });
+            strength: 0.6, interactions: 8, ..Default::default() });
         assert!(act_recruit(&mut w, p, o, vs[0]).success, "a friend who trusts you joins");
     }
 
@@ -293,7 +293,7 @@ mod tests {
         for v in &vs[..2] { w.add_component(*v, Rapport::for_player(p, RECRUIT_RAPPORT_NEEDED)); }
         assert!(!act_recruit(&mut w, p, o, vs[0]).success, "a stranger won't join on a nod");
         let r = w.create_entity();
-        w.add_component(r, Relationship { from: p, other: vs[1], kind: RelKind::Friend, strength: 0.6, interactions: 8 });
+        w.add_component(r, Relationship { from: p, other: vs[1], kind: RelKind::Friend, strength: 0.6, interactions: 8, ..Default::default() });
         assert!(act_recruit(&mut w, p, o, vs[1]).success, "a friend who trusts you joins anyway");
     }
 
@@ -308,7 +308,7 @@ mod tests {
         let bond = w.create_entity();
         w.add_component(bond, crate::game::relationships::Relationship {
             from: p, other: vs[0], kind: crate::game::relationships::RelKind::Friend,
-            strength: 0.6, interactions: 8 });
+            strength: 0.6, interactions: 8, ..Default::default() });
         assert!(act_recruit(&mut w, p, o, vs[0]).success, "with a campaign to join they sign on");
     }
 

@@ -1052,7 +1052,7 @@ impl Game {
                     Some(m) => {
                         self.world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
                         relationships::add_relationship(&mut self.world, relationships::Relationship {
-                            from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1 });
+                            from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1, ..Default::default() });
                         let mi = self.villagers.iter().position(|x| *x == m).unwrap();
                         format!("You pair {} with {} - he'll learn faster now.", self.cast_name(self.seats[seat].selected_target), self.cast_name(mi))
                     }

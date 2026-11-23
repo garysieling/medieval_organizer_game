@@ -5,3 +5,6 @@
 pub mod engine;
 pub mod rng;
 pub mod wav;
+
+#[cfg(feature = "analysis")]
+pub mod analysis;

@@ -339,6 +339,9 @@ pub struct Art {
     /// and the same as top faces only, for inland tiles
     pub tiles: [TileSet; 3],
     pub faces: [TileSet; 3],
+    /// The marginalia set (assets/rd/ui-frame, #1323): the manuscript
+    /// frame pieces the sidebar and the conversation box dress with
+    pub ui_frame: UiFrame,
 }
 
 /// A generated 4-direction walk cycle: a row per facing (0 up, 1 right,
@@ -881,6 +884,261 @@ pub(crate) fn compose_banner(pieces: &[Sprite]) -> Sprite {
     Sprite { width: w, height: h, pixels: px }
 }
 
+/// The illuminated-marginalia set (assets/rd/ui-frame, #1323): the pieces
+/// the conversation box's foliate border and the sidebar's manuscript
+/// frame are drawn from. Every piece is optional - a missing one leaves
+/// its gilt rule behind, so the surfaces stay dressed when the generated
+/// art isn't there. Everything here is composed, resampled and mirrored
+/// once at load; the frame draws are plain blits
+pub struct UiFrame {
+    /// The corner blocks at drawn size, in tl, tr, bl, br order
+    pub corners: [Option<Sprite>; 4],
+    /// The top and bottom edge runs, pre-composed to `frame_w` (the
+    /// bottom run mirrored so its scrollwork faces inward)
+    pub run_n: Option<Sprite>,
+    pub run_s: Option<Sprite>,
+    /// The vertical edge tile at drawn thickness: east and (mirrored)
+    /// west; the box tiles it down its sides
+    pub tile_e: Option<Sprite>,
+    pub tile_w: Option<Sprite>,
+    /// A corner flourish per season and corner, [spring..winter][tl,tr,
+    /// bl,br] - the generated vine faces top-left; the rest are mirrors
+    pub vines: [[Option<Sprite>; 4]; 4],
+    /// Speaker fleurons at drawn size: [0] is the player's mark; a
+    /// villager keeps `1 + (who % (accents.len() - 1))` as theirs
+    pub accents: Vec<Sprite>,
+    /// The sidebar's frame, composed once for its span: four strips (the
+    /// border area only, so drawing it scans no dead interior)
+    pub sidebar: Option<SideFrame>,
+}
+
+impl Default for UiFrame {
+    fn default() -> UiFrame {
+        UiFrame { corners: [None, None, None, None], run_n: None, run_s: None,
+            tile_e: None, tile_w: None, accents: vec![], sidebar: None,
+            vines: std::array::from_fn(|_| [None, None, None, None]) }
+    }
+}
+
+/// The corner block and edge thickness the conversation box's frame
+/// draws at
+pub const FRAME_CORNER: usize = 22;
+pub const FRAME_EDGE: usize = 8;
+/// The corner flourish's drawn height, and a speaker fleuron's size
+pub const VINE_PX: usize = 34;
+pub const ACCENT_PX: usize = 14;
+/// The sidebar frame's corner and edge sizes (its own scale)
+const SIDE_CORNER: usize = 30;
+const SIDE_EDGE: usize = 12;
+
+/// Paste `src` into `dst` at (dx, dy), skipping transparent pixels
+fn paste(dst: &mut Sprite, src: &Sprite, dx: usize, dy: usize) {
+    for y in 0..src.height {
+        if dy + y >= dst.height { break; }
+        for x in 0..src.width {
+            if dx + x >= dst.width { break; }
+            let s = (y * src.width + x) * 4;
+            if src.pixels[s + 3] < 128 { continue; }
+            let d = ((dy + y) * dst.width + dx + x) * 4;
+            dst.pixels[d..d + 4].copy_from_slice(&src.pixels[s..s + 4]);
+        }
+    }
+}
+
+/// Tile `tile` along a strip of `len` px inside `dst`, horizontally or
+/// vertically, and mirror it for the far edge
+fn tile_run(dst: &mut Sprite, tile: &Sprite, x0: usize, y0: usize, len: usize, horiz: bool) {
+    let step = if horiz { tile.width } else { tile.height };
+    let mut at = 0usize;
+    while at < len {
+        paste(dst, tile, x0 + if horiz { at } else { 0 }, y0 + if horiz { 0 } else { at });
+        at += step.max(1);
+    }
+}
+
+/// A composed manuscript frame's four strips: the top and bottom bands
+/// (carrying the corner blocks) and the two side runs between them -
+/// border pixels only, no dead interior to scan each frame
+pub struct SideFrame {
+    pub n: Sprite,
+    pub s: Sprite,
+    pub e: Sprite,
+    pub w: Sprite,
+}
+
+impl SideFrame {
+    /// Blit the four strips around a rect at (x, y): n and s carry the
+    /// corners, e and w fill the sides between them
+    pub fn blit(&self, buf: &mut Buffer, x: i32, y: i32) {
+        self.n.blit(buf, x, y);
+        self.w.blit(buf, x, y + self.n.height as i32);
+        self.e.blit(buf, x + self.n.width as i32 - self.e.width as i32, y + self.n.height as i32);
+        self.s.blit(buf, x, y + self.n.height as i32 + self.e.height as i32);
+    }
+}
+
+/// Compose the strips of a manuscript frame for a w×h surface: corner
+/// blocks in the n/s bands, the edge runs tiled between them, each
+/// mirrored so the scrollwork faces inward
+fn compose_frame(corners: &[Option<Sprite>; 4], eh: &Option<Sprite>, ev: &Option<Sprite>,
+        w: usize, h: usize, cp: usize, ep: usize) -> SideFrame {
+    let inner_w = w.saturating_sub(cp * 2);
+    let inner_h = h.saturating_sub(cp * 2);
+    let mut n = Sprite { width: w, height: cp, pixels: vec![0u8; w * cp * 4] };
+    let mut s = Sprite { width: w, height: cp, pixels: vec![0u8; w * cp * 4] };
+    if let Some(e) = eh {
+        let t = e.scaled(e.width * ep / e.height.max(1), ep);
+        tile_run(&mut n, &t, cp, 0, inner_w, true);
+        tile_run(&mut s, &t.flipped(false, true), cp, cp - ep, inner_w, true);
+    }
+    for (i, c) in corners.iter().enumerate() {
+        if let Some(c) = c {
+            let c = c.scaled(cp, cp);
+            let dst = if i < 2 { &mut n } else { &mut s };
+            paste(dst, &c, if i % 2 == 0 { 0 } else { w - cp }, 0);
+        }
+    }
+    let mut e2 = Sprite { width: ep, height: inner_h, pixels: vec![0u8; ep * inner_h * 4] };
+    let mut w2 = Sprite { width: ep, height: inner_h, pixels: vec![0u8; ep * inner_h * 4] };
+    if let Some(e) = ev {
+        let t = e.scaled(ep, e.height * ep / e.width.max(1));
+        tile_run(&mut e2, &t, 0, 0, inner_h, false);
+        tile_run(&mut w2, &t.flipped(true, false), 0, 0, inner_h, false);
+    }
+    SideFrame { n, s, e: e2, w: w2 }
+}
+
+/// The plain gilt double-rule a surface falls back to where no frame
+/// piece loaded - the marginalia's hand-drawn stand-in
+pub(crate) fn gilt_rule(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32) {
+    buf.rect(x, y, w, 1, 172, 136, 68);
+    buf.rect(x, y + h - 1, w, 1, 172, 136, 68);
+    buf.rect(x, y, 1, h, 172, 136, 68);
+    buf.rect(x + w - 1, y, 1, h, 172, 136, 68);
+    buf.rect(x + 2, y + 2, w - 4, 1, 96, 76, 44);
+    buf.rect(x + 2, y + h - 3, w - 4, 1, 96, 76, 44);
+    buf.rect(x + 2, y + 2, 1, h - 4, 96, 76, 44);
+    buf.rect(x + w - 3, y + 2, 1, h - 4, 96, 76, 44);
+}
+
+impl UiFrame {
+    /// Load the marginalia pieces through `at` and prepare them for the
+    /// draw calls: corners and edges resampled to frame size, the runs
+    /// composed to `run_w`, the vines mirrored per corner, the sidebar's
+    /// frame composed whole. `run_w` is the span the runs tile across
+    /// (the conversation box's width); `side` is the sidebar's frame span
+    pub fn load(at: &dyn Fn(&str) -> Option<Sprite>, run_w: usize, side: (usize, usize)) -> UiFrame {
+        let piece = |n: &str| at(&format!("rd/ui-frame/{}.png", n));
+        let mut corners: [Option<Sprite>; 4] = [None, None, None, None];
+        for (i, n) in ["corner-tl", "corner-tr", "corner-bl", "corner-br"].iter().enumerate() {
+            corners[i] = piece(n).map(|s| s.scaled(FRAME_CORNER, FRAME_CORNER));
+        }
+        let edge = |s: &Sprite| s.scaled(s.width * FRAME_EDGE / s.height.max(1), FRAME_EDGE);
+        let run = |s: &Sprite| -> Sprite {
+            let t = edge(s);
+            let mut run = Sprite { width: run_w, height: FRAME_EDGE, pixels: vec![0u8; run_w * FRAME_EDGE * 4] };
+            tile_run(&mut run, &t, 0, 0, run_w, true);
+            run
+        };
+        let run_n = piece("edge-n").map(|s| run(&s));
+        let run_s = run_n.as_ref().map(|s| s.flipped(false, true));
+        let tile_e = piece("edge-e")
+            .map(|s| s.scaled(FRAME_EDGE, s.height * FRAME_EDGE / s.width.max(1)));
+        let tile_w = tile_e.as_ref().map(|s| s.flipped(true, false));
+        let mut vines: [[Option<Sprite>; 4]; 4] = std::array::from_fn(|_| [None, None, None, None]);
+        for (i, n) in ["vine-spring", "vine-summer", "vine-autumn", "vine-winter"].iter().enumerate() {
+            if let Some(v) = piece(n) {
+                let v = v.scaled(v.width * VINE_PX / v.height.max(1), VINE_PX);
+                vines[i] = [Some(v.clone()), Some(v.flipped(true, false)),
+                    Some(v.flipped(false, true)), Some(v.flipped(true, true))];
+            }
+        }
+        let accents: Vec<Sprite> = ["acc-star", "acc-sprig", "acc-fleur", "acc-knot", "acc-heart", "acc-swirl"]
+            .iter().filter_map(|n| piece(n))
+            .map(|s| s.scaled(ACCENT_PX, s.height * ACCENT_PX / s.width.max(1)))
+            .collect();
+        let mut big: [Option<Sprite>; 4] = [None, None, None, None];
+        for (i, n) in ["corner-tl", "corner-tr", "corner-bl", "corner-br"].iter().enumerate() {
+            big[i] = piece(n);
+        }
+        let sidebar = if big.iter().all(|c| c.is_some()) {
+            Some(compose_frame(&big, &piece("edge-n"), &piece("edge-e"),
+                side.0, side.1, SIDE_CORNER, SIDE_EDGE))
+        } else { None };
+        UiFrame { corners, run_n, run_s, tile_e, tile_w, vines, accents, sidebar }
+    }
+
+    /// Draw the frame around (x, y, w, h): the runs along the top and
+    /// bottom, the edge tiles down the sides, the corner blocks on top.
+    /// Pieces not loaded leave their gilt rule behind
+    pub fn draw_around(&self, buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32) {
+        let cp = FRAME_CORNER as i32;
+        let ep = FRAME_EDGE as i32;
+        if self.corners.iter().all(|c| c.is_none()) && self.run_n.is_none() && self.tile_e.is_none() {
+            gilt_rule(buf, x, y, w, h);
+            return;
+        }
+        let inner_w = (w - cp * 2).max(0);
+        match &self.run_n {
+            Some(r) => { r.blit(buf, x + cp, y); }
+            None => { buf.rect(x + cp, y + ep / 2, inner_w, 1, 172, 136, 68); }
+        }
+        match &self.run_s {
+            Some(r) => { r.blit(buf, x + cp, y + h - ep); }
+            None => { buf.rect(x + cp, y + h - ep / 2, inner_w, 1, 172, 136, 68); }
+        }
+        // the side tiles step down from the top corners; the last one
+        // squashes to fit rather than spilling under the bottom corner
+        let step = self.tile_e.as_ref().or(self.tile_w.as_ref())
+            .map(|t| t.height as i32).unwrap_or(16);
+        if self.tile_e.is_none() {
+            buf.rect(x, y + cp, 1, h - cp * 2, 172, 136, 68);
+            buf.rect(x + w - 1, y + cp, 1, h - cp * 2, 172, 136, 68);
+        } else {
+            let mut ty = y + cp;
+            while ty < y + h - cp {
+                let th = ((y + h - cp - ty).min(step)).max(0) as usize;
+                if let Some(t) = &self.tile_w { t.blit_resized(buf, x, ty, FRAME_EDGE, th); }
+                if let Some(t) = &self.tile_e { t.blit_resized(buf, x + w - ep, ty, FRAME_EDGE, th); }
+                ty += step;
+            }
+        }
+        for (i, c) in self.corners.iter().enumerate() {
+            let (dx, dy) = [(x, y), (x + w - cp, y), (x, y + h - cp), (x + w - cp, y + h - cp)][i];
+            match c {
+                Some(s) => s.blit(buf, dx, dy),
+                None => {
+                    buf.rect(dx, dy + if i < 2 { 0 } else { cp - 1 }, cp, 1, 172, 136, 68);
+                    buf.rect(dx + if i % 2 == 0 { 0 } else { cp - 1 }, dy, 1, cp, 172, 136, 68);
+                }
+            }
+        }
+    }
+
+    /// The season's corner flourish on each corner of (x, y, w, h),
+    /// pointing inward
+    pub fn draw_vines(&self, buf: &mut Buffer, season: Season, x: i32, y: i32, w: i32, h: i32) {
+        let set = &self.vines[match season {
+            Season::Spring => 0, Season::Summer => 1, Season::Autumn => 2, Season::Winter => 3,
+        }];
+        for (i, v) in set.iter().enumerate() {
+            if let Some(v) = v {
+                let (dx, dy) = [(x, y), (x + w - v.width as i32, y),
+                    (x, y + h - v.height as i32), (x + w - v.width as i32, y + h - v.height as i32)][i];
+                v.blit(buf, dx, dy);
+            }
+        }
+    }
+
+    /// The fleuron for the panel's current speaker: the player carries
+    /// [0], a villager their own steady mark, nobody draws nothing
+    pub fn accent(&self, rows: &[TalkRowV]) -> Option<&Sprite> {
+        let last = rows.iter().rev().find(|r| r.you || r.who.is_some())?;
+        let i = if last.you { 0 } else { 1 + last.who.unwrap() % self.accents.len().saturating_sub(1).max(1) };
+        self.accents.get(i)
+    }
+}
+
 /// The weather paintings (assets/rd/weather/<name>.png)
 pub(crate) const WEATHER_ART: [&str; 5] = [
     "weather-dreich", "weather-four-seasons", "weather-haar",
@@ -1405,6 +1663,10 @@ impl Art {
             shrooms: bits("shroom"),
             fires: bits("fire"),
             burnt: bits("burnt"),
+            // the marginalia pieces (#1323): the conversation box's frame
+            // spans its own width; the sidebar's is composed whole
+            ui_frame: UiFrame::load(&at, talk::CONVO_W as usize + 4 - 2 * FRAME_CORNER,
+                (W - UI_X - 8, H - 8)),
         }
     }
 }

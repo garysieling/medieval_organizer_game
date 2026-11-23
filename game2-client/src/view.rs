@@ -1175,6 +1175,13 @@ impl View {
         prof.mark("render.gulls+labels");
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, W as i32 - UI_X as i32, H as i32, 32, 32, 48);
+        // the manuscript frame round the whole sidebar (#1323): composed
+        // once at load behind everything the panel draws; a gilt rule
+        // stands in when the generated pieces didn't
+        match &art.ui_frame.sidebar {
+            Some(f) => f.blit(&mut buf, UI_X as i32 + 4, 4),
+            None => gilt_rule(&mut buf, UI_X as i32 + 4, 4, W as i32 - UI_X as i32 - 8, H as i32 - 8),
+        }
         draw_text_scaled(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 2, 255, 220, 130);
 
         // status: members, season, tick
@@ -1440,7 +1447,8 @@ impl View {
                             .or_else(|| self.art.person_head(t)))
                         .or_else(|| self.art.look_head(look))
                 });
-            talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut(), m.frame, &portrait);
+            talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut(), m.frame, &portrait,
+                &art.ui_frame, m.season);
         }
 
         // what the marks over villagers' heads mean, under the log

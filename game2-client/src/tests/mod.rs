@@ -28,6 +28,7 @@ mod label;
 mod legend;
 mod log_click;
 mod log_day;
+mod marginalia;
 mod marker;
 mod member_line;
 mod minimap;

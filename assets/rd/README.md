@@ -381,3 +381,30 @@ a copy out of `art-prompts/raw/<id>/<0-3>.png`. Unwired tokens (dead,
 grieving, happy, cold, injured, invest, inspect, wait, trust, mood,
 faith, power, gold meters, storm/fog/overcast sky, sun, most events)
 load dormant for whoever wires them.
+
+## ui-frame (#1323)
+
+Three `rd_pro__spritesheet` sheets for the illuminated-marginalia UI
+frame: `ui-border-set` (four corner blocks, edge runs, small ornaments -
+sliced with `rd_slice.py` like any transparent sheet) plus
+`ui-vine-seasons` and `ui-fleuron-accents`, which came back as opaque
+parchment-ground compositions `rd_slice.py` can't flood-key. Those were
+cut with `scripts/rd_key_sheet.py` - explicit cell rectangles keyed by
+distance from the parchment colour, with `#tl`/`#tr`/`#bl`/`#br` masking
+a corner block where the sheet's frame ornaments bleed in:
+
+    python scripts/rd_key_sheet.py art-prompts/raw/ui-vine-seasons-977b26d6/0.png \
+        --out assets/rd/ui-frame --bg 241,225,181 --tol 45 \
+        "18,16,92,94=vine-spring#tl" "146,16,92,94=vine-summer#tr" \
+        "18,144,92,94=vine-autumn#bl" "146,144,92,94=vine-winter#br"
+
+    python scripts/rd_key_sheet.py art-prompts/raw/ui-fleuron-accents-a775bb71/0.png \
+        --out assets/rd/ui-frame --bg 237,214,173 --tol 40 --min-px 25 \
+        "39,2,32,33=acc-sprig" "75,39,33,32=acc-star" "112,75,32,33=acc-fleur" \
+        "39,112,32,32=acc-knot" "185,75,32,33=acc-heart" "221,221,33,33=acc-swirl"
+
+The unused cells (alternate edge runs, ~40 more fleurons) sit in the raw
+sheets for whoever wants more pieces. `UiFrame` in game2-client's art.rs
+resamples/mirrors/composes them once at load: the conversation box draws
+its border from the pieces, the sidebar's frame is composed as four
+strips.

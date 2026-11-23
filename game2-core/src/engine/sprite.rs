@@ -175,6 +175,20 @@ impl Sprite {
         }}
         Sprite { width: w, height: h, pixels }
     }
+
+    /// The sprite mirrored: `horiz` flips left-right, `vert` top-bottom
+    pub fn flipped(&self, horiz: bool, vert: bool) -> Sprite {
+        let (w, h) = (self.width, self.height);
+        let mut pixels = vec![0u8; w * h * 4];
+        for y in 0..h { for x in 0..w {
+            let sx = if horiz { w - 1 - x } else { x };
+            let sy = if vert { h - 1 - y } else { y };
+            let src = (sy * w + sx) * 4;
+            let dst = (y * w + x) * 4;
+            pixels[dst..dst + 4].copy_from_slice(&self.pixels[src..src + 4]);
+        }}
+        Sprite { width: w, height: h, pixels }
+    }
 }
 
 #[cfg(test)]

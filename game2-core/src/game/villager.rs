@@ -427,14 +427,11 @@ pub struct Laborer { pub until: u64 }
 pub struct InStocks { pub until: u64 }
 
 impl Sex {
-    /// The body the spawn gives them, by the entity's own number -
-    /// deterministic, and half the world either way
-    pub fn from_id(e: Entity) -> Sex { if e % 2 == 0 { Sex::Female } else { Sex::Male } }
-
-    /// The body the persona draws instead, when the cast's seeded
-    /// (#1411): the person's own stream, not the entity number's parity
-    pub fn from_persona(p: &crate::game::persona::Persona) -> Sex {
-        if p.draw(90) < 0.5 { Sex::Female } else { Sex::Male }
+    /// The body the spawn gives them, drawn off the entity's own seeded
+    /// stream (E1-3, #1417): deterministic, and no longer the id's
+    /// parity - persona villagers are re-seeded from the persona after
+    pub fn from_seed(e: Entity) -> Sex {
+        if crate::game::persona::draw(e as u64, 901) < 0.5 { Sex::Female } else { Sex::Male }
     }
 }
 
@@ -442,7 +439,7 @@ pub fn spawn_villager(world: &mut World, x: f32, y: f32) -> Entity {
     let e = world.create_entity();
     world.add_component(e, Pos { x, y });
     world.add_component(e, Hunger { value: 100.0 });
-    world.add_component(e, Sex::from_id(e));
+    world.add_component(e, Sex::from_seed(e));
     world.add_component(e, Villager {
         activity: Activity::Idle,
         target_food: None,

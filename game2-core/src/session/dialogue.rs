@@ -336,6 +336,11 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     // standing, the moral pull of a dead loss - read live, not stored
     s.pull = crate::game::organizing::pull_of(world, who);
     if let Some(p) = world.get_component::<Personality>(who) { s.traits = p.traits.clone(); }
+    // the body the talk can pronoun by (E1-3, #1417) - set before the
+    // child's early out so kids carry it too
+    if let Some(sex) = world.get_component::<villager::Sex>(who) {
+        s.sex = Some(match sex { villager::Sex::Female => "female", villager::Sex::Male => "male" });
+    }
     if world.get_component::<Kid>(who).is_some() { s.status.push("child"); return s; }
     let craft = world.get_component::<Craft>(who).map(|c| c.vocation);
     s.ideology = match craft {

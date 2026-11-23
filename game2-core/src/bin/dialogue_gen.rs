@@ -70,6 +70,7 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
             status,
             trade: None,
             pull: 0.8,
+            sex: None,
         });
     }
     roster

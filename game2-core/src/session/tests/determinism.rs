@@ -73,3 +73,47 @@ fn a_seeded_cast_deals_the_same_people() {
     assert!(!f.seeded_cast);
     assert_eq!(f.names[0], vill_name(0));
 }
+
+/// E1-3 (#1417): in a seeded cast names and bodies agree - every dealt
+/// name comes out of the pool matching the persona's sex, and the Sex
+/// component is the persona's own draw
+#[test]
+fn a_seeded_casts_names_agree_with_their_bodies() {
+    let g = Game::new_seeded_cast(77);
+    for (i, &v) in g.villagers.iter().enumerate() {
+        let p = g.world.get_component::<crate::game::persona::Persona>(v).unwrap();
+        let sex = g.world.get_component::<villager::Sex>(v).copied().unwrap();
+        assert_eq!(sex, p.sex, "slot {} body isn't the persona's", i);
+        let pool: &[&'static str] = match p.sex {
+            villager::Sex::Female => &FEMALE_NAMES,
+            villager::Sex::Male => &MALE_NAMES,
+        };
+        assert!(g.names[i] == "a newcomer" || pool.contains(&g.names[i]),
+            "slot {}: {} ({:?}) named off the wrong pool", i, g.names[i], p.sex);
+    }
+}
+
+/// E1-3 (#1417): the gendered pools partition the two authored rolls
+/// exactly - every name dealt is drawn from NAMES or NEW_NAMES, once
+#[test]
+fn the_name_pools_cover_the_authored_rolls() {
+    let mut all = crate::engine::det::HashSet::default();
+    for &n in MALE_NAMES.iter().chain(FEMALE_NAMES.iter()) {
+        assert!(all.insert(n), "{} sits in both pools", n);
+    }
+    for &n in NAMES.iter().chain(NEW_NAMES.iter()) {
+        assert!(all.contains(n), "{} never reaches a pool", n);
+    }
+    assert_eq!(all.len(), NAMES.len() + NEW_NAMES.len());
+}
+
+/// E1-3 (#1417): a spawned villager's body is drawn, not the entity
+/// id's parity - consecutive ids can share a sex now
+#[test]
+fn a_spawned_body_isnt_the_ids_parity() {
+    let mut shared = 0;
+    for e in 0..64u32 {
+        if villager::Sex::from_seed(e) == villager::Sex::from_seed(e + 1) { shared += 1; }
+    }
+    assert!(shared > 0, "bodies still alternate with the id");
+}

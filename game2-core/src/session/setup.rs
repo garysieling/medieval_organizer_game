@@ -537,7 +537,7 @@ impl Game {
                 let past = crate::game::persona::Past {
                     vocation: adult_vocs.get(i).copied(), ..Default::default() };
                 let p = crate::game::persona::generate(seed, i, &past);
-                world.add_component(v, villager::Sex::from_persona(&p));
+                world.add_component(v, p.sex);
                 deal_name(&p, &mut cast_names);
                 world.add_component(v, p);
             }

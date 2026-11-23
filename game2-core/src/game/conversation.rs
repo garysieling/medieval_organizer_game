@@ -85,17 +85,21 @@ pub struct Speaker {
     /// in particular; `speaker_of` reads it off the world, hand-made
     /// speakers default to a middling voice
     pub pull: f32,
+    /// "male"/"female" when the world knows the body (E1-3, #1417) -
+    /// the fact stream's pronoun source for `text.rs`'s {he}/{him}/{his}
+    pub sex: Option<&'static str>,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8 }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
         let mut v: Vec<String> = self.traits.iter().map(|t| format!("trait:{}", trait_name(*t))).collect();
         v.push(format!("ideology:{}", self.ideology));
         v.extend(self.status.iter().map(|s| format!("status:{}", s)));
+        if let Some(sex) = self.sex { v.push(format!("sex:{}", sex)); }
         v
     }
 }

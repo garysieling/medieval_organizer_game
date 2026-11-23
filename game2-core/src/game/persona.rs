@@ -4,6 +4,7 @@
 //! passes land in #1419/#1420 and the ghost pass in #1421, so `generate`
 //! takes what they'll hand down and the call itself doesn't churn.
 
+use crate::game::villager::Sex;
 use crate::game::vocation::Vocation;
 
 /// A prehistory event's record (pass 1, #1419): an index into the
@@ -331,6 +332,9 @@ impl Contradiction {
 pub struct Persona {
     /// hash(world_seed, slot)
     pub seed: u64,
+    /// The body the persona draws (E1-3, #1417) - names and pronouns
+    /// agree with it by construction
+    pub sex: Sex,
     /// The biome: voice register and priors
     pub archetype: Archetype,
     /// O, C, E, A, N as in `sim::psychology`
@@ -389,7 +393,7 @@ fn mix(mut x: u64) -> u64 {
 }
 
 /// The n-th draw off a seed, as a 0..1 fraction
-fn draw(seed: u64, n: u64) -> f32 {
+pub(crate) fn draw(seed: u64, n: u64) -> f32 {
     (mix(seed ^ n.wrapping_mul(0x9E37_79B9_7F4A_7C15)) % 10_000) as f32 / 10_000.0
 }
 
@@ -473,8 +477,12 @@ pub fn generate(world_seed: u64, slot: usize, past: &Past) -> Persona {
         % SIGNATURES.len()];
     let hidden = HIDDENS[(d(80) * HIDDENS.len() as f32) as usize % HIDDENS.len()];
 
+    // the body (pass 0, E1-3): drawn off the person's own stream so
+    // names and pronouns can agree with it
+    let sex = if d(90) < 0.5 { Sex::Female } else { Sex::Male };
+
     Persona {
-        seed, archetype, temperament, trust_propensity, values,
+        seed, sex, archetype, temperament, trust_propensity, values,
         story: past.story.clone(),
         // pass 5 lands with #1421: the story's events roll into ghosts
         ghosts: Vec::new(),

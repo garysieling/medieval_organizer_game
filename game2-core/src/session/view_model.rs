@@ -1710,6 +1710,95 @@ impl Game {
             held, orgs, campaigns, burning, me, notices, board,
         })
     }
+
+    /// Everything about villager `i`, nothing held back: the review
+    /// tool's character sheet (tools/convo-review). The inspector card
+    /// tells a seat only what it's earned; this tells the reviewer what
+    /// the talk engine was working from - the traits, ideology and
+    /// status tags `speaker_of` reads, and the wants and grievances
+    /// still kept secret
+    pub fn character_notes(&self, i: usize) -> CharacterNotes {
+        use crate::game::desires;
+        let world = &self.world;
+        let v = self.villagers[i];
+        let name = vill_name(i).to_string();
+        let sp = crate::session::dialogue::speaker_of(world, v, &name, self.tick);
+        let kid = world.get_component::<Kid>(v).is_some();
+        let reveal = |r: &desires::Reveal| match r {
+            desires::Reveal::Want(w) => desires::want_label(*w).to_string(),
+            desires::Reveal::Problem(p) => desires::problem_label(p),
+        };
+        let told: Vec<String> = world.get_component::<desires::Known>(v)
+            .map(|k| k.revealed.iter().map(reveal).collect()).unwrap_or_default();
+        let secrets: Vec<String> = desires::unrevealed(world, v, self.tick).iter().map(reveal).collect();
+        let kin: Vec<String> = self.villagers.iter().copied()
+            .filter(|&o| o != v && self.rel_kind(v, o) == Some(crate::game::relationships::RelKind::Family))
+            .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|k| vill_name(k).to_string()))
+            .collect();
+        let feuds: Vec<String> = self.feuds_of(v).into_iter()
+            .map(|(o, hot)| format!("{}{}", self.name_of(o), if hot { " (burning)" } else { "" })).collect();
+        let faith = world.get_component::<crate::sim::religion::Faith>(v)
+            .map(|f| format!("{} \u{00b7} devotion {:.0}%", f.religion, f.devotion * 100.0));
+        let home = household::home_of(world, v)
+            .and_then(|h| world.get_component::<Building>(h)).map(|b| b.name.clone());
+        CharacterNotes {
+            name,
+            fig: i,
+            kid,
+            person: person_look(world, v),
+            occupation: desires::occupation_of(world, v).unwrap_or_else(|| "Villager".into()),
+            class: vocation::class_name(desires::class_of(world, v)).to_string(),
+            age: world.get_component::<crate::game::lifecycle::Age>(v).map(|a| a.years.round() as u32),
+            traits: world.get_component::<crate::game::traits::Personality>(v)
+                .map(|p| p.traits.iter().map(|&t| format!("{} ({})", trait_word(t), trait_hint(t))).collect())
+                .unwrap_or_default(),
+            disposition: world.get_component::<crate::sim::psychology::Personality>(v)
+                .map(|p| crate::sim::psychology::disposition_word(p).to_string()),
+            nature: world.get_component::<AttachmentHistory>(v)
+                .map(|a| nature_word(crate::sim::psychology::infer_style(a)).to_string()),
+            ideology: sp.ideology.to_string(),
+            status: sp.status.iter().map(|s| s.to_string()).collect(),
+            faith,
+            home,
+            kin,
+            feuds,
+            told,
+            secrets,
+            life: self.bio_line_at(0, v),
+        }
+    }
+}
+
+/// A villager's full sheet for the conversation review tool - see
+/// [`Game::character_notes`]
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CharacterNotes {
+    pub name: String,
+    /// Their villager index - the figure look the map draws them in
+    pub fig: usize,
+    pub kid: bool,
+    /// The trade or posting's own figure, where the people art has one
+    pub person: Option<String>,
+    pub occupation: String,
+    pub class: String,
+    pub age: Option<u32>,
+    /// Each trait and what it does to their day
+    pub traits: Vec<String>,
+    pub disposition: Option<String>,
+    pub nature: Option<String>,
+    /// What the talk engine reads them as: ideology and status tags
+    pub ideology: String,
+    pub status: Vec<String>,
+    pub faith: Option<String>,
+    pub home: Option<String>,
+    pub kin: Vec<String>,
+    pub feuds: Vec<String>,
+    /// Wants and troubles they've already let slip
+    pub told: Vec<String>,
+    /// Wants and troubles they still keep to themselves
+    pub secrets: Vec<String>,
+    /// The inspector's biography line, as seat 0 would read it
+    pub life: Option<String>,
 }
 
 /// A trait in plain words, for the biography line

@@ -6,6 +6,7 @@ pub mod engine;
 pub mod host;
 pub mod rng;
 pub mod settings;
+pub mod soundscape;
 pub mod synth;
 pub mod wav;
 

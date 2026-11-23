@@ -102,6 +102,23 @@ fn test_kids_keep_to_childrens_talk() {
 }
 
 /// Stand the player beside villager index `i` and Talk
+/// A bond warm enough to hear the private layer (E3-2): three talks
+/// behind them, intimacy and trust to carry openness past the private
+/// bar even with ears near. Parts and summary are seeded consistent -
+/// reconcile leaves them be
+fn warm_bond(g: &mut Game, v: Entity) {
+    let pe = g.player;
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: pe, other: v, kind: RelKind::Friend,
+            strength: 1.0, interactions: 3,
+            intimacy: 0.6,
+            trust: crate::game::relationships::Trust {
+                ability: 0.0, benevolence: 0.6, integrity: 0.6 },
+            safety: crate::game::relationships::SafetyRung::Challenger,
+        });
+}
+
 fn talk_beside(g: &mut Game, i: usize) -> Entity {
     let v = g.villagers[i];
     let p = *g.world.get_component::<Pos>(v).unwrap();
@@ -633,6 +650,8 @@ fn test_a_talk_lets_you_put_your_own_questions() {
     // then the talk picks back up where it stood
     let mut g = Game::new();
     let i = adults(&g)[0];
+    let v = g.villagers[i];
+    warm_bond(&mut g, v);
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
     // the standing asks never leave the table, and the out is a remark
@@ -659,6 +678,7 @@ fn test_asking_what_weighs_on_them_draws_it_out() {
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
+    warm_bond(&mut g, v);
     g.world.add_component(v, InnerLife {
         wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
     talk_beside(&mut g, i);
@@ -676,6 +696,37 @@ fn test_asking_what_weighs_on_them_draws_it_out() {
 }
 
 #[test]
+fn test_a_too_deep_ask_costs_them_nerve() {
+    // a question above the pair's openness reads as forward (E3-2):
+    // the secret's own wear makes the ask listable, but asking a
+    // stranger after it deflects - and costs the bond a rung of nerve
+    use crate::game::desires::{InnerLife, Problem};
+    use crate::game::relationships::{SafetyRung, add_relationship, find_relationship};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    let pe = g.player;
+    add_relationship(&mut g.world, crate::game::relationships::Relationship {
+        from: pe, other: v, kind: RelKind::Acquaintance,
+        strength: 0.1, interactions: 1,
+        safety: SafetyRung::Contributor, ..Default::default() });
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists, as the tell-named kind");
+    g.talk_pick_at(0, Some(p));
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<crate::game::relationships::Relationship>(e))
+        .unwrap();
+    assert_eq!(r.safety, SafetyRung::Learner,
+        "a forward ask costs the bond a rung: {:?}", r.safety);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.forward_seen, 1);
+}
+
+#[test]
 fn test_the_trouble_they_told_is_an_ask() {
     // what's already shared sits on the menu as its own question
     // (#1189) - asking after it is following up, not prying anew
@@ -683,6 +734,7 @@ fn test_the_trouble_they_told_is_an_ask() {
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
+    warm_bond(&mut g, v);
     g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
@@ -698,6 +750,7 @@ fn test_a_live_mystery_is_its_own_ask() {
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
+    warm_bond(&mut g, v);
     g.seats[0].mystery = Some(SeatMystery { def: 0, known: 0, asker: v });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
@@ -1132,7 +1185,7 @@ fn test_the_acts_say_how_the_chat_landed() {
         turns: acts.iter().map(|&(speaker, act)| Turn {
             speaker, act, text: "x".into(), concepts: vec![], tree: "t", line: None,
         }).collect(),
-        ending, vibe: None, asked: vec![],
+        ending, vibe: None, asked: vec![], forward: 0,
     };
     // a warm exchange
     assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],
@@ -1550,6 +1603,7 @@ fn test_the_trouble_they_told_comes_back_around() {
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
+    warm_bond(&mut g, v);
     g.world.add_component(v, InnerLife {
         wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
     let all = crate::game::desires::unrevealed(&g.world, v, g.tick);
@@ -1686,4 +1740,21 @@ fn test_the_village_remembers_what_was_said() {
     assert!(g.villagers_chat(c, d));
     assert!(!g.said_lines.contains_key("Said ages ago, and forgot."),
         "the memory let go of a line past the window");
+}
+
+#[test]
+fn test_a_first_talk_counts_no_talks_yet() {
+    // the greeting's own beat isn't a talk behind the pair (E3-2):
+    // act_talk lands an interaction before the panel opens, but the
+    // personal layer's count is prior talks - even the gregarious
+    // don't open it on a first meeting
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.world.add_component(v, Personality { traits: vec![Trait::Gregarious] });
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    assert!(menu.iter().all(|(_, l)| l != "Ask about themselves"),
+        "the personal layer opened on a first meeting: {:?}",
+        menu.iter().map(|(_, l)| l).collect::<Vec<_>>());
 }

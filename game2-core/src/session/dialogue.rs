@@ -195,6 +195,9 @@ pub struct PlayerTalk {
     /// replay accumulates them, the watermark marks what's been seen
     /// (#1189)
     pub asked_seen: usize,
+    /// Too-deep asks already paid for (E3-2): each one the replay
+    /// reports anew costs the bond a rung of nerve
+    pub forward_seen: u8,
     /// How the picks so far have left them feeling (#1183)
     pub mood: TalkMood,
     /// How their audition of you read, once it's been answered (#1187)
@@ -428,7 +431,7 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 /// Replay a Talk: the lines so far (speaker 0 the villager, 1 the
 /// player), the replies on offer if it's the player's turn, and how it
 /// ended if it has
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, String)>> = None;
     let tr = converse_with(&t.villager, &t.player, t.rel, library(), recent, 1, &mut |ch: &[Choice]| {
@@ -442,7 +445,7 @@ fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static s
     }, &mut TalkRng::new(t.seed));
     let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone(), x.line)).collect();
     let ending = if offered.is_some() { None } else { tr.ending };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked)
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward)
 }
 
 impl Game {
@@ -683,6 +686,9 @@ impl Game {
             }
         }
         let rel = relation_of(self.rel_kind(a, b));
+        // a passing chat is exposed by its kind (E3-2): the street hears
+        sa.open = self.open_toward(a, b, false, None);
+        sb.open = self.open_toward(b, a, false, None);
         // seeded off the meeting itself, not the game's rng: chatter on the
         // street mustn't shift every other roll in the sim
         let seed = self.tick.wrapping_mul(0x9E37_79B9)
@@ -903,6 +909,14 @@ impl Game {
     /// `gist` (what Talk drew out of them), then the player's replies.
     /// `rel` is the bond as it stood before this talk.
     pub fn open_player_talk(&mut self, seat: usize, v: Entity, rel: Relation, gist: &str) {
+        self.open_player_talk_familiar(seat, v, rel, gist, None);
+    }
+
+    /// `talks` is the bond's count before this talk's own opening beat
+    /// deepened it (E3-2): act_talk lands an interaction before the
+    /// panel opens, and the personal tier's "two talks" means prior ones
+    pub(in crate::session) fn open_player_talk_familiar(&mut self, seat: usize, v: Entity,
+        rel: Relation, gist: &str, talks: Option<u32>) {
         let pe = self.seats[seat].player;
         let rare = self.rare.iter().find(|r| r.e == Some(v)).map(|r| r.id);
         let name = rare.map(|id| super::events::spec(id).name.to_string())
@@ -1081,6 +1095,10 @@ impl Game {
         // open (in_player_talk gates the sends and the walk systems)
         self.travels.retain(|t| t.who != v);
         self.world.add_component(v, villager::InPlayerTalk);
+        // how far they'll open to this seat (E3-2): a talk's a private
+        // 1-1 unless ears are near. `talks` is the count before this
+        // talk's own greeting deepened the bond
+        villager.open = self.open_toward(v, pe, true, talks);
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
         // a visitor's standing is the road's own blurb, not a villager
         // backstory built off statuses it doesn't have (#1168)
@@ -1091,7 +1109,7 @@ impl Game {
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
-            asks_taken: vec![], asked_seen: 0,
+            asks_taken: vec![], asked_seen: 0, forward_seen: 0,
             // a villager who once heard this seat's testimony opens a
             // rung warmer - they heard the story, they know the teller (#1333)
             mood: if crate::sim::psychology::heard_testimony(&self.world, v, pe) {
@@ -1115,7 +1133,26 @@ impl Game {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
         let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward) = replay(&t, Some(&recent));
+        // a too-deep ask costs the bond its nerve (E3-2): each new
+        // forward mark on the replay drops the rung a step - and a
+        // safe read's deeper offers come back off the table, the same
+        // reshift a missed audition would have dealt
+        if forward > t.forward_seen {
+            if let Some(re) = crate::game::relationships::find_relationship(&self.world, pe, t.who)
+                .and_then(|e| self.world.get_component_mut::<crate::game::relationships::Relationship>(e)) {
+                for _ in t.forward_seen..forward { re.safety = re.safety.lower(); }
+            }
+            if t.vibe == Some(Vibe::Safe) {
+                let mut asks = crate::game::organizing::ask_offers(
+                    &self.world, self.seats[seat].org, t.who,
+                    -1 + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org),
+                    self.tick);
+                asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asks = asks; }
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.forward_seen = forward; }
+        }
         self.note_said_lines(said.iter().filter_map(|x| x.2));
         let vname = t.villager.name.clone();
         // the audition's read, the first time it's answered (#1187): a
@@ -1344,6 +1381,56 @@ impl Game {
             "We stand ready - say the word and we move.".to_string()
         } else { return None; };
         Some((format!("{} talks the cause", self.name_of(v)), line))
+    }
+
+    /// The openness `who` carries toward `to` (E3-2, #1424): the bond's
+    /// parts as the components read them, last sit-down's mood, the
+    /// talks behind them, and ears near enough to hear. `private` marks
+    /// the talk a 1-1; anything else (a passing chat, a table) is
+    /// exposed by its kind alone. `talks` overrides the count when the
+    /// caller knows the bond's tally was taken before this talk's
+    /// opening beat landed on it
+    fn open_toward(&self, who: Entity, to: Entity, private: bool,
+        talks: Option<u32>) -> crate::game::conversation::Open {
+        use crate::game::relationships::SafetyRung;
+        let mut o = crate::game::conversation::Open {
+            earshot: !private || self.ears_near(who, to),
+            ..Default::default() };
+        if let Some(r) = crate::game::relationships::find_relationship(&self.world, who, to)
+            .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e)) {
+            // a seeded strength reconciles under intimacy before the
+            // parts read - same numbers the bond's own bookkeeping sees
+            let mut r2 = crate::game::relationships::Relationship {
+                from: r.from, other: r.other, kind: r.kind, strength: r.strength,
+                interactions: r.interactions, intimacy: r.intimacy,
+                trust: r.trust, safety: r.safety };
+            r2.recompose();
+            o.intimacy = r2.intimacy;
+            o.benevolence = r2.trust.benevolence;
+            o.integrity = r2.trust.integrity;
+            o.safety = match r2.safety {
+                SafetyRung::Inclusion => 0.0, SafetyRung::Learner => 1.0 / 3.0,
+                SafetyRung::Contributor => 2.0 / 3.0, SafetyRung::Challenger => 1.0 };
+            o.talks = r2.interactions;
+        }
+        if let Some(n) = talks { o.talks = n; }
+        o.mood = match self.talk_mood_of(who) {
+            Some(TalkMood::Warmed) => 0.5, Some(TalkMood::Guarded) => -0.2,
+            Some(TalkMood::Slighted) => -0.5, _ => 0.0 };
+        o
+    }
+
+    /// An open street is no confessional (E3-2): anyone standing within
+    /// earshot of `who` hears the talk
+    fn ears_near(&self, who: Entity, to: Entity) -> bool {
+        const EARSHOT: f32 = 5.0;
+        let Some(wp) = self.world.get_component::<villager::Pos>(who).map(|p| (p.x, p.y))
+            else { return false };
+        self.villagers.iter().any(|&v| v != who && v != to
+            && !villager::is_dead(&self.world, v)
+            && self.world.get_component::<villager::Pos>(v)
+                .map(|p| ((p.x - wp.0).powi(2) + (p.y - wp.1).powi(2)).sqrt() <= EARSHOT)
+                .unwrap_or(false))
     }
 
     /// How the last sit-down with them ended, while it's still fresh

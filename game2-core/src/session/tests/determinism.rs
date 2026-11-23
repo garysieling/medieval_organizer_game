@@ -128,6 +128,20 @@ fn a_seeded_casts_personalities_are_the_persona() {
     }
 }
 
+/// E2-1 (#1419): a seeded cast's personas remember the prehistory -
+/// each one's story cites exactly the events that touched its slot
+#[test]
+fn a_seeded_cast_remembers_its_prehistory() {
+    let g = Game::new_seeded_cast(77);
+    let ph = g.world.resource::<crate::session::prehistory::Prehistory>()
+        .expect("a seeded cast carries its thirty years");
+    assert!(!ph.events.is_empty());
+    for (i, &v) in g.villagers.iter().enumerate() {
+        let p = g.world.get_component::<crate::game::persona::Persona>(v).unwrap();
+        assert_eq!(p.story, ph.story_of(i), "slot {i}'s story isn't the record's");
+    }
+}
+
 /// E1-3 (#1417): a spawned villager's body is drawn, not the entity
 /// id's parity - consecutive ids can share a sex now
 #[test]

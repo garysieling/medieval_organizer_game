@@ -12,6 +12,7 @@ pub mod routine;
 pub mod country;
 pub mod quests;
 pub mod mystery;
+pub mod prehistory;
 pub mod survey;
 pub mod rebels;
 pub mod roster;

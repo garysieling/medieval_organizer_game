@@ -127,7 +127,7 @@ fn court_a_couple(g: &mut Game) -> (Entity, Entity) {
     for (x, y) in [(a, b), (b, a)] {
         relationships::add_relationship(&mut g.world, relationships::Relationship {
             from: x, other: y, kind: relationships::RelKind::Lover,
-            strength: 0.6, interactions: 1 });
+            strength: 0.6, interactions: 1, ..Default::default() });
     }
     g.courtships.push((a, b, 0));
     (a, b)

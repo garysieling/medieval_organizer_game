@@ -69,7 +69,7 @@ fn test_a_kind_neighbor_shares_their_table() {
     let r = g.world.create_entity();
     g.world.add_component(r, crate::game::relationships::Relationship {
         from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.6, interactions: 5 });
+        strength: 0.6, interactions: 5, ..Default::default() });
     // the fork needs a face: cut every other bond's strength so a's only
     // hungry neighbor is b and nobody else's fork can fire
     for e in g.world.query::<crate::game::relationships::Relationship>() {

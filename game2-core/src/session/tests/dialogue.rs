@@ -805,7 +805,7 @@ fn test_a_feuding_pair_plays_their_scene() {
     crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
     crate::game::relationships::add_relationship(&mut g.world,
         crate::game::relationships::Relationship {
-            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3 });
+            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3, ..Default::default() });
     assert!(g.villagers_chat(a, b));
     let r = g.talk_log.last().unwrap().clone();
     assert_eq!(r.kind, TalkKind::Chat);
@@ -827,7 +827,7 @@ fn test_the_scene_take_moves_with_the_bond() {
     crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
     let rel = crate::game::relationships::add_relationship(&mut g.world,
         crate::game::relationships::Relationship {
-            from: a, other: b, kind: RelKind::Rival, strength: 0.0, interactions: 1 });
+            from: a, other: b, kind: RelKind::Rival, strength: 0.0, interactions: 1, ..Default::default() });
     assert!(g.villagers_chat(a, b));
     let r = g.talk_log.last().unwrap().clone();
     assert_eq!(r.lines[0].text, "Thy boy ran my fence line yesterday.",
@@ -884,7 +884,7 @@ fn test_a_scene_cools_off_between_tellings() {
     crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
     crate::game::relationships::add_relationship(&mut g.world,
         crate::game::relationships::Relationship {
-            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3 });
+            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3, ..Default::default() });
     assert!(g.villagers_chat(a, b));
     assert_eq!(g.talk_log.last().unwrap().lines[0].text,
         "Thy fence still leans on my strip.");

@@ -380,7 +380,7 @@ mod tests {
         let friend = crate::game::villager::spawn_villager(&mut w, 0.0, 0.0);
         let stranger = crate::game::villager::spawn_villager(&mut w, 1.0, 0.0);
         let rel = w.create_entity();
-        w.add_component(rel, Relationship { from: player, other: friend, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+        w.add_component(rel, Relationship { from: player, other: friend, kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
 
         let msg = execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5);
 

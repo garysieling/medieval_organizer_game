@@ -528,7 +528,7 @@ mod tests {
             for _ in 0..n {
                 let other = w.create_entity();
                 let r = w.create_entity();
-                w.add_component(r, Relationship { from: c, other, kind, strength: 0.5, interactions: 6 });
+                w.add_component(r, Relationship { from: c, other, kind, strength: 0.5, interactions: 6, ..Default::default() });
             }
         }
         let r = one_on_one(&mut w, organizer, c, 1);
@@ -588,7 +588,7 @@ mod tests {
         for &f in &friends {
             let rel = w.create_entity();
             w.add_component(rel, Relationship {
-                from: leader, other: f, kind: RelKind::Friend, strength: 0.6, interactions: 5,
+                from: leader, other: f, kind: RelKind::Friend, strength: 0.6, interactions: 5, ..Default::default()
             });
         }
         let stranger = w.create_entity();

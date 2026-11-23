@@ -54,6 +54,7 @@ mod sel_marker;
 mod sign;
 mod sound_dump;
 mod sound_hud;
+mod sound_menu;
 mod status_line;
 mod title;
 mod toast;

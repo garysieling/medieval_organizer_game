@@ -365,7 +365,15 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     if let Some(n) = std::env::var("GAME2_BENCH").ok().and_then(|v| v.parse::<u32>().ok()) {
         bench_frames(&mut game, &mut view, n, weather.is_some());
     }
-    let buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
+    let mut buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
+    // GAME2_DUMP_MENU=sound: draw the pause menu with the Sound overlay
+    // over it (#1506) - screenshot checks for the panel land on the
+    // dump, no window needed
+    if std::env::var("GAME2_DUMP_MENU").ok().as_deref() == Some("sound") {
+        draw_pause_menu(&mut buf, (-1, -1), "PAUSED");
+        let s = game2_audio::settings::AudioSettings::default();
+        draw_sound_menu(&mut buf, (-1, -1), &s, 0);
+    }
     let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
     buf.save_bmp(&path).unwrap();
     sayln!("frame {} saved to {}", target_tick, path);

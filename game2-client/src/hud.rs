@@ -273,6 +273,8 @@ pub(crate) fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, 
 pub enum MenuPick {
     /// Close the menu and go on with the day
     Resume,
+    /// Open the Sound overlay over the menu (#1506)
+    Sound,
     /// Leave the day entirely - the window closes clean
     Quit,
 }
@@ -280,25 +282,26 @@ pub enum MenuPick {
 pub(crate) const MENU_W: i32 = 220;
 pub(crate) const MENU_ROW: i32 = 24;
 
-/// The pause menu's box and its two rows, centred on the map view
+/// The pause menu's box and its three rows, centred on the map view
 #[cfg(test)]
 pub(crate) fn pause_menu_box() -> (i32, i32, i32, i32) {
-    overlay_rect(MENU_W, 2, MENU_ROW, false)
+    overlay_rect(MENU_W, 3, MENU_ROW, false)
 }
 
-/// The pause menu's row rects, in draw order: Resume then Quit
-pub fn pause_menu_rows() -> [(i32, i32, i32, i32, MenuPick); 2] {
-    let (x, y, w, _) = overlay_rect(MENU_W, 2, MENU_ROW, false);
+/// The pause menu's row rects, in draw order: Resume, Sound, Quit
+pub fn pause_menu_rows() -> [(i32, i32, i32, i32, MenuPick); 3] {
+    let (x, y, w, _) = overlay_rect(MENU_W, 3, MENU_ROW, false);
     [
         (x + 8, y + 52, w - 16, MENU_ROW, MenuPick::Resume),
-        (x + 8, y + 52 + MENU_ROW + 2, w - 16, MENU_ROW, MenuPick::Quit),
+        (x + 8, y + 52 + MENU_ROW + 2, w - 16, MENU_ROW, MenuPick::Sound),
+        (x + 8, y + 52 + (MENU_ROW + 2) * 2, w - 16, MENU_ROW, MenuPick::Quit),
     ]
 }
 
-/// Draw the pause menu over the day's frame: two bordered rows like the
+/// Draw the pause menu over the day's frame: three bordered rows like the
 /// conversation box's choices, a hover lighting the one under the mouse
 pub fn draw_pause_menu(buf: &mut Buffer, mouse: (i32, i32), title: &str) {
-    let (x, y, w, h) = overlay_rect(MENU_W, 2, MENU_ROW, false);
+    let (x, y, w, h) = overlay_rect(MENU_W, 3, MENU_ROW, false);
     buf.rect(x, y, w, h, 20, 20, 35);
     buf.rect(x, y, w, 2, 200, 200, 220);
     draw_centered_at(buf, x + w / 2, y + 15, title, 2, (255, 220, 130));
@@ -313,6 +316,7 @@ pub fn draw_pause_menu(buf: &mut Buffer, mouse: (i32, i32), title: &str) {
         buf.rect(rx + rw - 1, ry, 1, rh, edge.0, edge.1, edge.2);
         let (label, lr, lg, lb) = match pick {
             MenuPick::Resume => ("Resume  (Esc)", 210, 230, 210),
+            MenuPick::Sound => ("Sound...  (V)", 215, 200, 150),
             MenuPick::Quit => ("Quit the day  (Q)", 220, 160, 140),
         };
         draw_centered_at(buf, rx + rw / 2, ry + 8, label, 1, (lr, lg, lb));

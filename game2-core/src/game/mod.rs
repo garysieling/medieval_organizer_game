@@ -66,3 +66,4 @@ pub mod pass;
 pub mod amends;
 pub mod fact_content;
 pub mod text;
+pub mod talk_gen;

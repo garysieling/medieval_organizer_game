@@ -2441,7 +2441,7 @@ const MERCHANT_WARES: Exchange = Exchange {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:merchant"],
             respond: None,
-            lines: &["Fine iron needles in a bone case; two eggs or a penny each.", "Good salt by the measure; three groats and it's thine.", "Ribbon off the fair cart, and a pinch of pepper to spare.", "Two silver pennies or a salted ham buys the measure."],
+            lines: &["Fine iron needles in a bone case; two eggs or a penny each.", "Good salt by the measure; three groats and it's {2:own}.", "Ribbon off the fair cart, and a pinch of pepper to spare.", "Two silver pennies or a salted ham buys the measure."],
             voice: &[],
             then: Some(MERCHANT_BARTER), end: None,
         },

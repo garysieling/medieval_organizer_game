@@ -72,6 +72,47 @@ impl Rng {
 /// A person in a conversation: enough of a profile to roll facts against.
 /// `status` carries circumstance ("sick", "grieving", "hungry", "drunk");
 /// `ideology` carries vocation ("laborer", "clergy", "merchant", "lord").
+/// What of a persona the fact stream can speak (E3-1, #1423): the open
+/// half (archetype, values) is voice-observable and folds under every
+/// prefix; the hidden half (wound, lie, disclosure tiers) stays
+/// self-only until a later ticket's disclosure opens it
+#[derive(Debug, Default, Clone)]
+pub struct FactTable {
+    /// `archetype:*`, `value:*` - folded under self/other/any
+    pub open: Vec<String>,
+    /// `ghost:*`, `lie:*`, `tier:*` - self-only for now
+    pub hidden: Vec<String>,
+}
+
+/// A persona-lite profile for speakers built without a world
+/// (talk_lab, dialogue_gen): an archetype read off the traits and two
+/// values sampled off the salt, so `archetype:*`/`value:*` still reach
+/// synthetic transcripts. Wounds need the E2-3 record - hidden stays
+/// empty here
+pub fn lite_facts(traits: &[Trait], salt: u64) -> FactTable {
+    use crate::game::persona::{draw, VALUES};
+    use crate::game::traits::Trait::*;
+    let arch = if traits.contains(&Pious) { "devout" }
+        else if traits.contains(&Kind) { "soft_heart" }
+        else if traits.contains(&Ambitious) { "striver" }
+        else if traits.contains(&Hotheaded) { "firebrand" }
+        else if traits.contains(&Proud) { "climber" }
+        else if traits.contains(&Gregarious) { "tongue_of_the_well" }
+        else if traits.contains(&Stolid) { "old_guard" }
+        else if traits.contains(&Wary) { "doubter" }
+        else if traits.contains(&Lazy) { "merrymaker" }
+        else { "quiet_hand" };
+    let a = (draw(salt, 300) * 10.0) as usize % VALUES.len();
+    let mut b = (draw(salt, 301) * 10.0) as usize % VALUES.len();
+    if b == a { b = (b + 1) % VALUES.len(); }
+    FactTable {
+        open: vec![format!("archetype:{arch}"),
+            format!("value:{}", VALUES[a].to_lowercase()),
+            format!("value:{}", VALUES[b].to_lowercase())],
+        hidden: vec![],
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Speaker {
     pub name: String,
@@ -88,11 +129,15 @@ pub struct Speaker {
     /// "male"/"female" when the world knows the body (E1-3, #1417) -
     /// the fact stream's pronoun source for `text.rs`'s {he}/{him}/{his}
     pub sex: Option<&'static str>,
+    /// The persona's fact table (E3-1, #1423): `speaker_of` fills it
+    /// off the world; hand-made speakers can carry a lite profile
+    /// (`lite_facts`) or none
+    pub facts: FactTable,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default() }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -100,6 +145,7 @@ impl Speaker {
         v.push(format!("ideology:{}", self.ideology));
         v.extend(self.status.iter().map(|s| format!("status:{}", s)));
         if let Some(sex) = self.sex { v.push(format!("sex:{}", sex)); }
+        v.extend(self.facts.open.iter().cloned());
         v
     }
 }
@@ -157,7 +203,10 @@ impl Facts {
     /// Facts for `speaker` choosing a line while talking to `other`
     pub fn for_roles(speaker: &Speaker, other: &Speaker, rel: Relation) -> Facts {
         let mut f = Facts::default();
-        for x in speaker.own_facts() { f.set.insert(format!("self:{}", x)); }
+        // the hidden half is the speaker's own until disclosed (E3-1)
+        for x in speaker.own_facts().into_iter().chain(speaker.facts.hidden.iter().cloned()) {
+            f.set.insert(format!("self:{}", x));
+        }
         for x in other.own_facts() { f.set.insert(format!("other:{}", x)); }
         for x in speaker.own_facts().into_iter().chain(other.own_facts()) {
             f.set.insert(format!("any:{}", x));
@@ -1271,6 +1320,23 @@ fn drifted(record: &[Statement]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    /// E3-1 (#1423): the fact table splits by sensitivity - open facts
+    /// fold under every prefix, hidden facts stay the speaker's own
+    #[test]
+    fn the_fact_table_splits_by_sensitivity() {
+        let mut s = Speaker::new("A");
+        s.facts.open = vec!["archetype:burned".into(), "value:safety".into()];
+        s.facts.hidden = vec!["ghost:levy".into(), "tier:wound=3".into()];
+        let other = Speaker::new("B");
+        let f = Facts::for_roles(&s, &other, Relation::Stranger);
+        // A's open facts read under self: and any:, never other:
+        assert!(f.has("self:archetype:burned") && f.has("any:archetype:burned"));
+        assert!(!f.has("other:archetype:burned"));
+        assert!(f.has("self:ghost:levy"));
+        assert!(!f.has("other:ghost:levy"));
+        assert!(!f.has("any:ghost:levy"));
+        assert!(f.has("self:tier:wound=3"));
+    }
     use super::*;
     use crate::engine::det::HashMap;
     use crate::game::dialogue_trees::*;

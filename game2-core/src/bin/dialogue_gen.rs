@@ -65,6 +65,7 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
 
         roster.push(Speaker {
             name: name.to_string(),
+            facts: game2_core::game::conversation::lite_facts(&traits, i as u64),
             traits,
             ideology,
             status,
@@ -207,6 +208,9 @@ fn main() -> io::Result<()> {
         writeln!(out, "- **Ideology:** {}", speaker.ideology)?;
         writeln!(out, "- **Traits:** {:?}", speaker.traits)?;
         writeln!(out, "- **Status:** {:?}", speaker.status)?;
+        if !speaker.facts.open.is_empty() {
+            writeln!(out, "- **Facts:** {}", speaker.facts.open.join(", "))?;
+        }
         writeln!(out, "- **Backstory:** {}\n", backstory(speaker))?;
     }
 
@@ -267,6 +271,7 @@ fn speaker_json(s: &Speaker) -> serde_json::Value {
         "ideology": s.ideology,
         "traits": s.traits.iter().map(|t| format!("{:?}", t)).collect::<Vec<_>>(),
         "status": s.status,
+        "facts": s.facts.open,
         "backstory": backstory(s),
     })
 }

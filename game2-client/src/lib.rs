@@ -30,6 +30,7 @@ macro_rules! sayln {
 }
 
 mod art;
+pub mod audio;
 mod bench;
 mod draw;
 mod hud;

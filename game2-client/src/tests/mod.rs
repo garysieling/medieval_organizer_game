@@ -2,6 +2,7 @@
 //! `session`'s public API, as the client itself does.
 
 mod action_log;
+mod audio_bridge;
 mod basics;
 mod blocker;
 mod bubble;

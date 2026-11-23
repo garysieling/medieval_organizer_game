@@ -170,6 +170,8 @@ fn main() {
     // frame's UiModel, the static map on the first line only
     let record_scenes: Option<String> = args.iter().position(|a| a == "--record-scenes")
         .and_then(|i| args.get(i + 1)).cloned();
+    // --no-audio (#1494): never opens a device
+    let no_audio = args.iter().any(|a| a == "--no-audio");
 
     if let Some(target) = dump_at {
         let art = Art::load_fs("assets", seed);
@@ -222,6 +224,23 @@ fn main() {
     let mut scenes_out = record_scenes.map(|p|
         std::io::BufWriter::new(std::fs::File::create(&p).expect("can't create the scenes file")));
     let mut scenes_wrote = 0u64;
+    // the audio host (#1494): the sink owns the device stream so it
+    // must outlive the host; a failed probe or --no-audio goes silent
+    #[cfg(all(feature = "audio", not(target_arch = "wasm32")))]
+    let (_audio_sink, mut audio_host) = {
+        let settings = game2_audio::host::HostSettings::default();
+        let mut sink = if no_audio { None } else {
+            client::audio::CpalSink::probe().map_err(|e| {
+                eprintln!("audio: {e} - running silent");
+                e
+            }).ok()
+        };
+        let host = client::audio::open_host(no_audio, &settings,
+            sink.as_mut().map(|s| s as &mut dyn game2_audio::host::AudioSink));
+        (sink, host)
+    };
+    #[cfg(not(all(feature = "audio", not(target_arch = "wasm32"))))]
+    let mut audio_host = { let _ = no_audio; game2_audio::host::AudioHost::silent() };
     let mut view = View::new(art);
     // the camera opens on the player, wherever this seed's village stands
     let mut cam_centered = false;
@@ -411,6 +430,10 @@ fn main() {
             let _ = writeln!(w, "{line}");
             scenes_wrote += 1;
         }
+        // the frame's audio intent goes down to the host; M toggles
+        // View.mute during play (never while the find box has the keys)
+        if let Some(m) = &cur_model { audio_host.push(m); }
+        audio_host.set_muted(view.mute);
         // a talk under way offers leave on either box it shows on -
         // the convo box's "x)", or the TALK panel's when a call's
         // standing over the talk
@@ -685,6 +708,8 @@ fn main() {
         }
         if !view.search_focus && (window.is_key_pressed(Key::H, minifb::KeyRepeat::No)) { view.help_open = !view.help_open; }
         if !view.search_focus && (window.is_key_pressed(Key::F3, minifb::KeyRepeat::No)) { view.ledger_open = !view.ledger_open; }
+        // M mutes: the host reads View.mute each frame (#1494)
+        if !view.search_focus && (window.is_key_pressed(Key::M, minifb::KeyRepeat::No)) { view.mute = !view.mute; }
         if let Some((_, scroll_y)) = window.get_scroll_wheel() {
             // Scale multiplicatively so a wheel notch feels consistent at any zoom,
             // while trackpads can still make smaller, smooth adjustments.

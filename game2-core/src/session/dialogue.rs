@@ -687,8 +687,8 @@ impl Game {
         }
         let rel = relation_of(self.rel_kind(a, b));
         // a passing chat is exposed by its kind (E3-2): the street hears
-        sa.open = self.open_toward(a, b, false);
-        sb.open = self.open_toward(b, a, false);
+        sa.open = self.open_toward(a, b, false, None);
+        sb.open = self.open_toward(b, a, false, None);
         // seeded off the meeting itself, not the game's rng: chatter on the
         // street mustn't shift every other roll in the sim
         let seed = self.tick.wrapping_mul(0x9E37_79B9)
@@ -909,6 +909,14 @@ impl Game {
     /// `gist` (what Talk drew out of them), then the player's replies.
     /// `rel` is the bond as it stood before this talk.
     pub fn open_player_talk(&mut self, seat: usize, v: Entity, rel: Relation, gist: &str) {
+        self.open_player_talk_familiar(seat, v, rel, gist, None);
+    }
+
+    /// `talks` is the bond's count before this talk's own opening beat
+    /// deepened it (E3-2): act_talk lands an interaction before the
+    /// panel opens, and the personal tier's "two talks" means prior ones
+    pub(in crate::session) fn open_player_talk_familiar(&mut self, seat: usize, v: Entity,
+        rel: Relation, gist: &str, talks: Option<u32>) {
         let pe = self.seats[seat].player;
         let rare = self.rare.iter().find(|r| r.e == Some(v)).map(|r| r.id);
         let name = rare.map(|id| super::events::spec(id).name.to_string())
@@ -1088,8 +1096,9 @@ impl Game {
         self.travels.retain(|t| t.who != v);
         self.world.add_component(v, villager::InPlayerTalk);
         // how far they'll open to this seat (E3-2): a talk's a private
-        // 1-1 unless ears are near
-        villager.open = self.open_toward(v, pe, true);
+        // 1-1 unless ears are near. `talks` is the count before this
+        // talk's own greeting deepened the bond
+        villager.open = self.open_toward(v, pe, true, talks);
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
         // a visitor's standing is the road's own blurb, not a villager
         // backstory built off statuses it doesn't have (#1168)
@@ -1126,11 +1135,21 @@ impl Game {
         let recent = self.fresh_lines();
         let (said, offered, ending, tree, vibe, asked, forward) = replay(&t, Some(&recent));
         // a too-deep ask costs the bond its nerve (E3-2): each new
-        // forward mark on the replay drops the rung a step
+        // forward mark on the replay drops the rung a step - and a
+        // safe read's deeper offers come back off the table, the same
+        // reshift a missed audition would have dealt
         if forward > t.forward_seen {
             if let Some(re) = crate::game::relationships::find_relationship(&self.world, pe, t.who)
                 .and_then(|e| self.world.get_component_mut::<crate::game::relationships::Relationship>(e)) {
                 for _ in t.forward_seen..forward { re.safety = re.safety.lower(); }
+            }
+            if t.vibe == Some(Vibe::Safe) {
+                let mut asks = crate::game::organizing::ask_offers(
+                    &self.world, self.seats[seat].org, t.who,
+                    -1 + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org),
+                    self.tick);
+                asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asks = asks; }
             }
             if let Some(cur) = self.seats[seat].talk.as_mut() { cur.forward_seen = forward; }
         }
@@ -1368,8 +1387,11 @@ impl Game {
     /// parts as the components read them, last sit-down's mood, the
     /// talks behind them, and ears near enough to hear. `private` marks
     /// the talk a 1-1; anything else (a passing chat, a table) is
-    /// exposed by its kind alone
-    fn open_toward(&self, who: Entity, to: Entity, private: bool) -> crate::game::conversation::Open {
+    /// exposed by its kind alone. `talks` overrides the count when the
+    /// caller knows the bond's tally was taken before this talk's
+    /// opening beat landed on it
+    fn open_toward(&self, who: Entity, to: Entity, private: bool,
+        talks: Option<u32>) -> crate::game::conversation::Open {
         use crate::game::relationships::SafetyRung;
         let mut o = crate::game::conversation::Open {
             earshot: !private || self.ears_near(who, to),
@@ -1391,6 +1413,7 @@ impl Game {
                 SafetyRung::Contributor => 2.0 / 3.0, SafetyRung::Challenger => 1.0 };
             o.talks = r2.interactions;
         }
+        if let Some(n) = talks { o.talks = n; }
         o.mood = match self.talk_mood_of(who) {
             Some(TalkMood::Warmed) => 0.5, Some(TalkMood::Guarded) => -0.2,
             Some(TalkMood::Slighted) => -0.5, _ => 0.0 };

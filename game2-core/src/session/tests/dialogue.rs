@@ -1603,6 +1603,7 @@ fn test_the_trouble_they_told_comes_back_around() {
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
+    warm_bond(&mut g, v);
     g.world.add_component(v, InnerLife {
         wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
     let all = crate::game::desires::unrevealed(&g.world, v, g.tick);
@@ -1739,4 +1740,21 @@ fn test_the_village_remembers_what_was_said() {
     assert!(g.villagers_chat(c, d));
     assert!(!g.said_lines.contains_key("Said ages ago, and forgot."),
         "the memory let go of a line past the window");
+}
+
+#[test]
+fn test_a_first_talk_counts_no_talks_yet() {
+    // the greeting's own beat isn't a talk behind the pair (E3-2):
+    // act_talk lands an interaction before the panel opens, but the
+    // personal layer's count is prior talks - even the gregarious
+    // don't open it on a first meeting
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.world.add_component(v, Personality { traits: vec![Trait::Gregarious] });
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    assert!(menu.iter().all(|(_, l)| l != "Ask about themselves"),
+        "the personal layer opened on a first meeting: {:?}",
+        menu.iter().map(|(_, l)| l).collect::<Vec<_>>());
 }

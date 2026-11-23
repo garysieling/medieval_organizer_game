@@ -156,7 +156,7 @@ impl Speaker {
         let talkative = self.traits.contains(&Trait::Gregarious);
         let guarded = self.traits.contains(&Trait::Wary);
         for &a in AREAS {
-            for t in 1..=3u8 {
+            for t in 0..=3u8 {
                 let reach = if self.open.reached(t, talkative, guarded, false)
                     { "open" } else { "closed" };
                 v.push(format!("{}:{}:{}", reach, area_name(a), t));
@@ -277,7 +277,9 @@ impl Open {
     pub fn reached(&self, tier: u8, talkative: bool, guarded: bool, tell: bool) -> bool {
         match tier {
             0 => true,
-            1 => self.talks >= if talkative { 1 } else { 2 } || tell,
+            // a tell substitutes for warmth, not for time spent: the
+            // personal layer still wants the talks behind it
+            1 => self.talks >= if talkative { 1 } else { 2 },
             2 => self.reach() + if tell { Self::TELL_BONUS } else { 0.0 } >= 0.4,
             _ => !self.earshot
                 && self.reach() + if tell { Self::TELL_BONUS } else { 0.0 }
@@ -965,8 +967,10 @@ pub fn converse_with(
                     if asked.contains(&ti) || !topic_open(t, pair[caller]) { continue; }
                     if call_facts.has(&format!("self:open:{}:{}", area_name(t.area), t.tier)) {
                         open_topics.push(ti);
-                    } else if tells.contains(&t.area) {
-                        // seen it, can't reach it - asking reads forward
+                    } else if t.tier >= 2 && tells.contains(&t.area) {
+                        // seen it, can't reach it - asking reads forward.
+                        // Only the deep asks ride a tell: the personal
+                        // layer is time-spent, nothing observed buys it
                         tell_topics.push(ti);
                     }
                 }
@@ -3190,9 +3194,11 @@ mod e3_2 {
         let f = Facts::for_roles(&s, &Speaker::new("Wanderer"), Relation::Friend);
         assert!(f.has("self:open:heart:2"), "warm enough for the private layer");
         assert!(f.has("self:open:village:1"));
+        assert!(f.has("self:open:village:0"), "the public layer never closes");
         assert!(f.has("self:closed:heart:3"), "the core stays shut");
         // a stranger's facts are all closed past public
         let cold = Facts::for_roles(&Speaker::new("Nog"), &Speaker::new("Pell"), Relation::Stranger);
+        assert!(cold.has("self:open:village:0"), "public still lists for a stranger");
         assert!(cold.has("self:closed:trouble:2"));
         assert!(!cold.has("self:open:work:1"));
     }
@@ -3260,10 +3266,17 @@ mod e3_2 {
                 &mut |ch: &[Choice]| {
                     if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
                         saw_menu = true;
-                        // what weighs on them is closed tier-2 - but the
-                        // kept secret's own wear tells on it, so it lists;
-                        // what stays off is every other closed topic
+                        assert!(ch.iter().any(|c| c.preview == "Ask about the village"
+                            || c.preview == "Ask about the day's work"),
+                            "the public layer didn't list: {:?}",
+                            ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
+                        // the public layer lists for anyone; what weighs
+                        // on them is closed tier-2 but the kept secret's
+                        // own wear tells on it; everything else closed
+                        // and tell-less stays off
                         assert!(ch.iter().all(|c| c.preview == "Say nothing of it"
+                            || c.preview == "Ask about the village"
+                            || c.preview == "Ask about the day's work"
                             || c.preview == "Ask about what weighs on them"),
                             "a closed tell-less ask listed: {:?}",
                             ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
@@ -3272,6 +3285,40 @@ mod e3_2 {
                     ch.iter().position(|c| c.preview == "Put a question to them")
                         .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
                 }, &mut Rng::new(7 + seed));
+            if saw_menu { break; }
+        }
+        assert!(saw_menu, "the ask slot never opened");
+    }
+}
+
+#[cfg(test)]
+mod e3_2_tells {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+
+    /// a tell names only the deep asks: grief worn openly can't stand
+    /// in for time spent - the stranger's "themselves" stays off the
+    /// menu while the grief's own question lists
+    #[test]
+    fn a_tell_names_only_the_deep_asks() {
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("grieving");
+        caller.open = Open::default();
+        let you = Speaker::new("Wanderer");
+        let mut saw_menu = false;
+        for seed in 0..30 {
+            converse_with(&caller, &you, Relation::Stranger, &village_library(), None, 1,
+                &mut |ch: &[Choice]| {
+                    if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                        saw_menu = true;
+                        assert!(ch.iter().all(|c| c.preview != "Ask about themselves"),
+                            "a tell bought the personal layer: {:?}",
+                            ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
+                        return ch.iter().position(|c| c.preview == "Say nothing of it");
+                    }
+                    ch.iter().position(|c| c.preview == "Put a question to them")
+                        .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+                }, &mut Rng::new(11 + seed));
             if saw_menu { break; }
         }
         assert!(saw_menu, "the ask slot never opened");

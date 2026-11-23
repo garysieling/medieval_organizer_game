@@ -361,6 +361,10 @@ impl Game {
         let pe = self.seats[seat].player;
         // the bond as it stood before this talk: a first talk is with a stranger
         let rel = dialogue::relation_with_wanderer(self.rel_kind(pe, v));
+        // the talks behind the pair, before act_talk lands this one's (#1424)
+        let talks = crate::game::relationships::find_relationship(&self.world, pe, v)
+            .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| r.interactions).unwrap_or(0);
         act_talk(&mut self.world, pe, v, self.tick);
         self.say(v, &said, TALK_BUBBLE_SECS);
         // a blow-off leaves them hollow: a real talk coaches them back
@@ -369,7 +373,7 @@ impl Game {
             " You talk the helplessness out of them."
         } else { "" };
         // the conversation itself goes on the TALK panel, the replies yours to pick
-        self.open_player_talk(seat, v, rel, &said);
+        self.open_player_talk_familiar(seat, v, rel, &said, Some(talks));
         if !coached.is_empty() { self.narrate_talk(seat, coached.trim()); }
         // a clue landing mid-talk is marked in the moment (#1184)
         if whispered {
@@ -428,9 +432,13 @@ impl Game {
             .expect("visitor talk target");
         let s = events::spec(id);
         let pe = self.seats[seat].player;
+        let talks = crate::game::relationships::find_relationship(&self.world, pe, e)
+            .and_then(|en| self.world.get_component::<crate::game::relationships::Relationship>(en))
+            .map(|r| r.interactions).unwrap_or(0);
         act_talk(&mut self.world, pe, e, self.tick);
         self.say(e, s.cry, TALK_BUBBLE_SECS);
-        self.open_player_talk(seat, e, crate::game::conversation::Relation::Stranger, s.cry);
+        self.open_player_talk_familiar(seat, e, crate::game::conversation::Relation::Stranger, s.cry,
+            Some(talks));
         format!("You talk with {}.", s.name)
     }
 

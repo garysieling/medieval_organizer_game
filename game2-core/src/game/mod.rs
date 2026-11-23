@@ -63,3 +63,4 @@ pub mod persona;
 pub mod prophetic;
 pub mod pass;
 pub mod amends;
+pub mod fact_content;

@@ -39,6 +39,32 @@ fn test_speaker_reads_traits_trade_and_circumstance_off_the_world() {
 }
 
 #[test]
+fn test_a_speakers_persona_wears_the_tells() {
+    // E3-4 (#1425): the wound's habits ride the speaker as statuses -
+    // the gossip criteria and the ask gate's tell bonus both read them
+    use crate::game::persona::*;
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    let mut p = Persona {
+        seed: 1, sex: villager::Sex::Male, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+    };
+    p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+        lie: Belief::PromisesForKeepers, strength: 0.8, fear: Fear::BailiffKnowsMyFace,
+        need: Need::ToBeSafe });
+    g.world.add_component(v, p);
+    let s = speaker_of(&g.world, v, "Eliza", g.tick);
+    assert!(s.status.contains(&"shuns_the_gate") && s.status.contains(&"promises_nothing"),
+        "the tells should ride the speaker: {:?}", s.status);
+    assert!(s.status.contains(&"keeps_secret"), "a carried ghost is a kept secret");
+    // and the wear names the deep ask it hides behind
+    assert!(s.tell_areas().contains(&crate::game::conversation::Area::Trouble)
+        && s.tell_areas().contains(&crate::game::conversation::Area::Heart));
+}
+
+#[test]
 fn test_a_speakers_body_reaches_the_fact_stream() {
     // E1-3 (#1417): the pronoun facts text.rs will consume - set even
     // through the child's early out

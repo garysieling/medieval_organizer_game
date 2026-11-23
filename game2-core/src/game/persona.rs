@@ -481,6 +481,12 @@ impl Persona {
         crate::game::conversation::FactTable { open, hidden }
     }
 
+    /// The tell slugs the ghosts and lies leave on them (E3-4, #1425) -
+    /// the visible habits: one per wound, one per lesson
+    pub fn tells(&self) -> Vec<&'static str> {
+        crate::game::fact_content::tells_of(self)
+    }
+
     /// The two values that move them least - the "low" legs of the
     /// threshold table rank the way "high" does
     pub fn bottom_values(&self) -> (usize, usize) {

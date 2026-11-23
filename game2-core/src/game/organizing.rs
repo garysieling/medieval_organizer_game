@@ -1276,7 +1276,7 @@ pub fn pull_of(world: &World, v: Entity) -> f32 {
 /// burdens gives them a real reason to say not-yet - the reeve's eye,
 /// a mourning, a purse too thin - before a trait supplies one. None
 /// means a plain no.
-fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
+pub(crate) fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
     use crate::game::desires::{Known, Problem, Reveal};
     let reason = world.get_component::<Known>(person)
         .and_then(|k| k.revealed.iter().find_map(|r| match r {
@@ -1288,7 +1288,11 @@ fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
             Reveal::Problem(Problem::SourGut) => Some("this gut's not done with me yet"),
             _ => None,
         }));
-    reason.or_else(|| world.get_component::<crate::game::traits::Personality>(person)
+    // the wound's own reason (E3-4, #1425): a ghost or its lie answers
+    // the ask in words only that fact could explain - it outranks a
+    // trait's stock excuse but not a burden you've been told
+    reason.or_else(|| crate::game::fact_content::pressure_reason(world, person))
+        .or_else(|| world.get_component::<crate::game::traits::Personality>(person)
         .and_then(|p| p.traits.iter().find_map(|t| match t {
             crate::game::traits::Trait::Lazy => Some("that's work you're asking, and I'm short of it"),
             crate::game::traits::Trait::Stingy => Some("mine's not for sharing out"),
@@ -1532,6 +1536,10 @@ pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i3
     if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, guest, tick).is_empty() {
         p *= 0.25;
     }
+    // the wound's nerve when the word alone calls (E3-4, #1425): a
+    // ghost that fears the gate halves their showing; the feast's
+    // keeper and the truth-teller come readier
+    if invite == Invite::Word { p *= crate::game::fact_content::showing_factor(world, guest); }
     roll < p
 }
 

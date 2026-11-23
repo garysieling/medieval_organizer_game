@@ -3757,6 +3757,35 @@ pub const ASK_TOPICS: &[Topic] = &[
             "Same story as the next one's, only mine.", "I came for the work and stayed for the quiet."],
         concepts: &["self", "history"], draws: Draw::No,
     },
+    // the deepest asks (E3-4, #1425): tier 3 - a kept secret tells in
+    // the fact's own words when the carrier holds one, else these
+    Topic {
+        label: "the weight they carry",
+        area: crate::game::conversation::Area::Heart,
+        tier: 2, needs: &["keeps_secret"], any: &[], not: &[],
+        ask: &["Thou carriest something, friend - what is it weighs on thee?"],
+        tell: &["It's a weight, is all - I carry it as I can.",
+            "Some things a body just keeps carrying."],
+        concepts: &["grief", "burden"], draws: Draw::Secret,
+    },
+    Topic {
+        label: "what they never told",
+        area: crate::game::conversation::Area::Trouble,
+        tier: 3, needs: &["keeps_secret"], any: &[], not: &[],
+        ask: &["There's something thou hast never told a soul - what is it?"],
+        tell: &["Thou'rt the first to ask it plain. I don't know that I can.",
+            "That's not a thing I've said aloud."],
+        concepts: &["trouble", "secret"], draws: Draw::Secret,
+    },
+    Topic {
+        label: "the thing nearest the bone",
+        area: crate::game::conversation::Area::Heart,
+        tier: 3, needs: &["keeps_secret"], any: &[], not: &[],
+        ask: &["What sits nearest the bone with thee, if thou'lt tell it?"],
+        tell: &["The thing nearest the bone stays there, mostly.",
+            "If I say it, it stops being only mine."],
+        concepts: &["grief", "secret"], draws: Draw::Secret,
+    },
 ];
 
 // Two children meeting in the lane: games, dares and the things grown-ups
@@ -3829,7 +3858,7 @@ const KIDS_GREET: Exchange = Exchange {
 
 /// The full dialogue library: 30 circumstance and vocation trees plus smalltalk tail
 pub fn village_library() -> Vec<DialogueTree> {
-    vec![
+    let mut lib = vec![
         // the sheep in the cradle (#1254): status-only trees, pushed by
         // the session while the vignette's live - first for the shortest
         // tie-break. The ewe trees never fire in villager-villager chat:
@@ -4021,7 +4050,11 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &VIRTUE_COLD_GREET, rejoin: Some(&SMALL_CHAT) },
         DialogueTree { name: "village_smalltalk", criteria: &[],
             root: &SMALL_GREET, rejoin: Some(&SMALL_CHAT) },
-    ]
+    ];
+    // the wounds wear (E3-4, #1425): the slip and the neighbor's remark,
+    // late in the library so a circumstance or a bond opens the talk
+    lib.extend(crate::game::fact_content::tell_trees().iter().cloned());
+    lib
 }
 
 /// The noun a speaker's work goes by in talk (`{trade}` / `{other_trade}`

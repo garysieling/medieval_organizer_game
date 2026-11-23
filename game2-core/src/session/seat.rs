@@ -22,7 +22,7 @@ pub struct BuyWalk {
 /// map to, so a local loop, a remote client and a test all steer the same way.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Command {
-    /// One of the five action buttons (Talk, Recruit, Invest, Organize, Build)
+    /// One of the action buttons (Talk, Recruit)
     Act(usize),
     /// A contextual action (Work, Pair up, Errand)
     CtxAct(usize),

@@ -10,11 +10,15 @@ fn test_a_new_house_lays_its_road_a_tile_at_a_time_then_rises() {
             (-4..=4).all(|dy| (-4..=4).all(|dx| game.map.get(cx + dx, cy + dy) != Some(Tile::Road)))
         }).expect("a spot out past the roads");
     *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
-    // the Wanderer's starting gold is rolled by class and can come up
-    // short - this test is about the works, not the purse
-    game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 100.0;
-    assert_eq!(game.action_blocker(2), None);
-    game.act(2);
+    // the plot a raising picks beside where the player stands, then what
+    // the work party's sweep does when the hands arrive (#1344) - the
+    // Build button that used to drive this is gone
+    let (bx, by) = game.build_site_at(0).expect("a free plot near the player");
+    game.buildings.push((bx, by, BSprite::House(0)));
+    game.map.build_at(bx as i32, by as i32);
+    let road = game.map.plan_road((bx as i32, by as i32));
+    game.works.push(Works { building: game.buildings.len() - 1, road, frames: 0 });
+    game.built_count += 1;
     let w = game.works.last().expect("building should start works");
     let road = w.road.clone();
     assert!(road.len() >= 1, "a house out here needs a road");

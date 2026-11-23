@@ -176,7 +176,7 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
     }
     // a click or a held key between the presses breaks the double-tap
     if !cmds.is_empty() { *talk_armed = None; }
-    const KEYS: [Key; 3] = [Key::T, Key::R, Key::B];
+    const KEYS: [Key; 2] = [Key::T, Key::R];
     for (i, k) in KEYS.iter().enumerate() {
         if window.is_key_pressed(*k, minifb::KeyRepeat::No) {
             if i == 0 && talk_armed.map(|t| t.elapsed() < TALK_DBL).unwrap_or(false) {
@@ -265,8 +265,12 @@ fn main() {
             if let Ok(j) = std::fs::read_to_string(lp)
                 .and_then(|s| serde_json::from_str::<game2_core::session::journal::Journal>(&s)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))) {
-                let frames = j.entries.last().map(|e| e.0).unwrap_or(0);
-                Some(game2_core::session::journal::replay(&j, frames))
+                // a journal from before the action set changed can't
+                // replay faithfully - its Act(2)s would silently no-op
+                if j.version == game2_core::session::journal::JOURNAL_VERSION {
+                    let frames = j.entries.last().map(|e| e.0).unwrap_or(0);
+                    Some(game2_core::session::journal::replay(&j, frames))
+                } else { Some(Game::new_seeded(seed)) }
             } else { Some(Game::new_seeded(seed)) }
         } else { Some(Game::new_seeded(seed)) }
     } else { None };

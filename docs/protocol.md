@@ -82,7 +82,7 @@ The same inputs the window sends, one frame's worth each.
 {"Command":{"Board":false}}
 ```
 
-`Act(i)` is one of the three action buttons (0 Talk, 1 Recruit, 2 Build);
+`Act(i)` is one of the two action buttons (0 Talk, 1 Recruit);
 `CtxAct(i)` the i-th context action the scene lists
 in `ctx`; `Select(i)` picks a villager; `Unselect` lets the pick go - the
 ring, the walk-over and the talk under way; `TalkPick(n)` answers mid-Talk

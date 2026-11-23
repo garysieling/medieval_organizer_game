@@ -40,7 +40,7 @@ pub(crate) const HELP_LINES: [&str; 10] = [
     "bright name: close enough to talk",
     "1-8: select villager",
     "T talk  R recruit  I invest",
-    "O organize  B build",
+    "O organize",
     "WASD: move   arrows: pan   +/-: zoom",
     "Space: pause   0: speed 4x",
     "F12: screenshot   Esc: menu",

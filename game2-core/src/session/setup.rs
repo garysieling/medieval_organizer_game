@@ -528,6 +528,13 @@ impl Game {
         } else {
             NAMES.iter().chain(NEW_NAMES.iter()).copied().collect()
         };
+        // E2-1 (#1419): the thirty years before play, walked once - the
+        // personas' stories cite it, and the later passes ground their
+        // households and ghosts in it
+        if seeded_cast {
+            world.insert_resource(
+                crate::session::prehistory::run(seed, NAMES.len()));
+        }
         // 23 vocation adults (0..23), two overseers (23,24), the trader
         // (25), three children (26..29) and the tax collector (29)
         for i in 0..NAMES.len() {
@@ -536,8 +543,10 @@ impl Game {
             // E1-4 (#1412): a persona's two personality views come off
             // it - the fixed cast keeps its independent rolls
             let traits = if seeded_cast {
+                let story = world.resource::<crate::session::prehistory::Prehistory>()
+                    .map(|ph| ph.story_of(i)).unwrap_or_default();
                 let past = crate::game::persona::Past {
-                    vocation: adult_vocs.get(i).copied(), ..Default::default() };
+                    story, vocation: adult_vocs.get(i).copied(), ..Default::default() };
                 let p = crate::game::persona::generate(seed, i, &past);
                 let (big5, t) = p.personalities();
                 world.add_component(v, big5);

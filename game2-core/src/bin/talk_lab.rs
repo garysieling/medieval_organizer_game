@@ -305,9 +305,10 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
             }
         }
     }
-    out.emit(&format!("REPRO: talk_lab talk --seed {} --villager {} --picks {} {}",
+    out.emit(&format!("REPRO: talk_lab talk --seed {} --villager {} --picks {} {}{}",
         a.seed, a.villager.clone().unwrap_or_else(|| vi.to_string()),
         taken.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(","),
+        if a.seeded_cast { "--cast seeded " } else { "" },
         if talk_seed != 0 { format!("(talk seed {talk_seed})") } else { String::new() }));
 }
 

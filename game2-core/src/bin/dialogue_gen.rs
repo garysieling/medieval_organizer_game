@@ -208,6 +208,9 @@ fn main() -> io::Result<()> {
         writeln!(out, "- **Ideology:** {}", speaker.ideology)?;
         writeln!(out, "- **Traits:** {:?}", speaker.traits)?;
         writeln!(out, "- **Status:** {:?}", speaker.status)?;
+        if !speaker.facts.open.is_empty() {
+            writeln!(out, "- **Facts:** {}", speaker.facts.open.join(", "))?;
+        }
         writeln!(out, "- **Backstory:** {}\n", backstory(speaker))?;
     }
 
@@ -268,6 +271,7 @@ fn speaker_json(s: &Speaker) -> serde_json::Value {
         "ideology": s.ideology,
         "traits": s.traits.iter().map(|t| format!("{:?}", t)).collect::<Vec<_>>(),
         "status": s.status,
+        "facts": s.facts.open,
         "backstory": backstory(s),
     })
 }

@@ -710,6 +710,54 @@ fn rationalize_row(kind: EventKind, d: Disposition) -> (Option<usize>, Belief, F
     }
 }
 
+/// A ghost this deep shows in how they live: about one villager in
+/// eight carries the worst of it, so a buried child lands once in the
+/// village and numbs in bulk - not everyone
+const SEVERE: f32 = 0.7;
+
+/// The cast's ghost caps (E2-4, #1422), run after the whole cast
+/// generates: no wound held by more than two villagers - shared event
+/// or not, the soldier-brother pile-up stays gone - and the severe
+/// ghosts capped near one in eight. The weakest holders' ghosts demote
+/// to light marks: the events stay in their story, the wound doesn't
+/// form. #1413's validation pass can own this list when it lands
+pub fn cap_cast_ghosts(cast: &mut [Option<Persona>]) {
+    use std::cmp::Ordering;
+    let cap = cast.len() / 8 + 1;
+    // every wound in the cast, strongest holder first within a type
+    let mut by_lie: Vec<(usize, f32, usize, EventId)> = vec![];
+    for (s, p) in cast.iter().enumerate() {
+        if let Some(p) = p {
+            for g in &p.ghosts {
+                by_lie.push((g.lie as usize, g.strength, s, g.event));
+            }
+        }
+    }
+    by_lie.sort_by(|a, b| a.0.cmp(&b.0)
+        .then(b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal))
+        .then(a.2.cmp(&b.2)).then(a.3.0.cmp(&b.3.0)));
+    let mut drop: crate::engine::det::HashSet<(usize, EventId)> = Default::default();
+    for run in by_lie.chunk_by(|a, b| a.0 == b.0) {
+        for &(_, _, s, e) in run.iter().skip(2) {
+            drop.insert((s, e));
+        }
+    }
+    // then the severe cap, over what the duplicate pass left
+    let mut severe: Vec<(f32, usize, EventId)> = by_lie.iter()
+        .filter(|&(_, st, s, e)| *st >= SEVERE && !drop.contains(&(*s, *e)))
+        .map(|&(_, st, s, e)| (st, s, e)).collect();
+    severe.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal)
+        .then(a.1.cmp(&b.1)).then(a.2.0.cmp(&b.2.0)));
+    for &(_, s, e) in severe.iter().skip(cap) {
+        drop.insert((s, e));
+    }
+    for (s, p) in cast.iter_mut().enumerate() {
+        if let Some(p) = p {
+            p.ghosts.retain(|g| !drop.contains(&(s, g.event)));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -844,6 +892,44 @@ mod tests {
     #[test]
     fn no_past_no_ghosts() {
         assert!(generate(1, 0, &Past::default()).ghosts.is_empty());
+    }
+
+    #[test]
+    fn the_cast_caps_the_pile_up() {
+        // E2-4 (#1422): five villagers carrying the same wound keep the
+        // two deepest; the rest demote to light marks. And over a cast
+        // the severe ghosts stay near one in eight
+        let ghost = |event: u32, lie: Belief, strength: f32| Ghost {
+            event: EventId(event), hook: None, lie, strength,
+            fear: Fear::BuriedLikeHim, need: Need::ToBelong,
+        };
+        let mut cast: Vec<Option<Persona>> = (0..16).map(|s| {
+            let mut p = generate(3, s, &Past::default());
+            p.ghosts = match s {
+                // five holders of the soldier-brother wound
+                0..=4 => vec![ghost(s as u32, Belief::WarsTakeSons, 0.5 + s as f32 * 0.02)],
+                // the rest all severe, each wound rare enough to pass
+                // the duplicate cap
+                _ => vec![ghost(s as u32, [
+                    Belief::MillOwnsUs, Belief::GodSends, Belief::KeepHidden,
+                    Belief::LordAlwaysWins, Belief::SomeoneToBlame,
+                    Belief::LordTakesFromDead,
+                ][s % 6], 0.9 + s as f32 * 0.001)],
+            };
+            Some(p)
+        }).collect();
+        cap_cast_ghosts(&mut cast);
+        let held: Vec<&Ghost> = cast.iter().flatten().flat_map(|p| p.ghosts.iter()).collect();
+        assert_eq!(held.iter().filter(|g| g.lie == Belief::WarsTakeSons).count(), 2,
+            "the pile-up keeps only its two deepest");
+        // the two strongest (slots 3 and 4) keep it
+        assert!(cast[3].as_ref().unwrap().ghosts.iter().any(|g| g.lie == Belief::WarsTakeSons));
+        assert!(cast[4].as_ref().unwrap().ghosts.iter().any(|g| g.lie == Belief::WarsTakeSons));
+        assert!(cast[0].as_ref().unwrap().ghosts.is_empty());
+        // 16 villagers cap at 3 severe: the eleven deep wounds beyond
+        // the pile-up demote to light marks
+        assert_eq!(held.iter().filter(|g| g.strength >= SEVERE).count(), 3,
+            "severe ghosts held at the cap");
     }
 
     #[test]

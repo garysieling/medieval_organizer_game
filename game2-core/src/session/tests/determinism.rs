@@ -185,6 +185,26 @@ fn a_seeded_casts_ghosts_cite_their_events() {
     }
 }
 
+/// E2-4 (#1422): the cast's caps - no wound held by more than two,
+/// the deep marks rare. The soldier-brother pile-up stays gone
+#[test]
+fn a_seeded_cast_caps_its_ghosts() {
+    let g = Game::new_seeded_cast(77);
+    let mut per_wound: crate::engine::det::HashMap<usize, usize> = Default::default();
+    let mut severe = 0;
+    for &v in g.villagers.iter().take(31) {
+        let p = g.world.get_component::<crate::game::persona::Persona>(v).unwrap();
+        for ghost in &p.ghosts {
+            *per_wound.entry(ghost.lie as usize).or_default() += 1;
+            severe += (ghost.strength >= 0.7) as usize;
+        }
+    }
+    for (lie, n) in &per_wound {
+        assert!(*n <= 2, "{n} villagers carry wound {lie}");
+    }
+    assert!(severe <= 5, "{severe} severe ghosts in one cast");
+}
+
 /// E1-3 (#1417): a spawned villager's body is drawn, not the entity
 /// id's parity - consecutive ids can share a sex now
 #[test]

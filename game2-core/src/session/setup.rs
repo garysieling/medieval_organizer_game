@@ -573,6 +573,9 @@ impl Game {
                         marks: marks_of(k),
                         parents: mean, ..Default::default() }));
             }
+            // E2-4 (#1422): the cast's caps - no wound held more than
+            // twice, the deep marks rare
+            crate::game::persona::cap_cast_ghosts(&mut personas);
         }
         // 23 vocation adults (0..23), two overseers (23,24), the trader
         // (25), three children (26..29) and the tax collector (29)

@@ -197,6 +197,42 @@ pub fn deal_signatures(cast: &mut [Option<Persona>], seed: u64) {
     }
 }
 
+/// Pass 6 extended to speech (E4-7, #1416): a pet phrase and a habit
+/// per villager, dealt without replacement in a seeded shuffle like
+/// the signatures. A persona whose top value a habit speaks for
+/// (caution's proverbs to the safety-minded, mockery's to the free)
+/// gets it first; the rest take what the shuffle leaves
+pub fn deal_idiolects(cast: &mut [Option<Persona>], seed: u64) {
+    use crate::game::idiolect::{Idiolect, HABITS, PHRASES};
+    let mut horder: Vec<usize> = (0..HABITS.len()).collect();
+    for i in (1..horder.len()).rev() {
+        let j = (draw(seed, 950 + i as u64) * (i + 1) as f32) as usize % (i + 1);
+        horder.swap(i, j);
+    }
+    let mut porder: Vec<usize> = (0..PHRASES.len()).collect();
+    for i in (1..porder.len()).rev() {
+        let j = (draw(seed, 1050 + i as u64) * (i + 1) as f32) as usize % (i + 1);
+        porder.swap(i, j);
+    }
+    let n = cast.iter().filter(|p| p.is_some()).count()
+        .min(HABITS.len()).min(PHRASES.len());
+    let mut used = HashSet::default();
+    for (n, slot) in cast.iter_mut().filter_map(|p| p.as_mut()).enumerate().take(n) {
+        let top = slot.values.iter().enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i);
+        let pick = horder.iter().copied()
+            .find(|&h| !used.contains(&h) && HABITS[h].prefers() == top)
+            .or_else(|| horder.iter().copied().find(|&h| !used.contains(&h)))
+            .unwrap_or(0);
+        used.insert(pick);
+        slot.idiolect = Idiolect {
+            phrase: PHRASES[porder[n % porder.len()]],
+            habit: HABITS[pick],
+        };
+    }
+}
+
 /// A villager is identical to another when it shares the other's
 /// signature or its full trait set - the report's "identical-line" side
 /// of the baseline ("26 trait sets in 31 villagers")

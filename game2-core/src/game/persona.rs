@@ -427,6 +427,10 @@ pub struct Persona {
     pub ghosts: Vec<Ghost>,
     /// Visible landmark, unique in the village
     pub signature: Signature,
+    /// How they sound (E4-7, #1416): a pet phrase and a speech habit,
+    /// each unique in the village - the cast deals them without
+    /// replacement like the signatures
+    pub idiolect: crate::game::idiolect::Idiolect,
     /// Secret passion, skill or past
     pub hidden: Landmark,
     /// A deliberate crack, when the thresholds collide
@@ -674,6 +678,16 @@ pub fn generate_attempt(world_seed: u64, slot: usize, past: &Past, attempt: u32)
     let signature = SIGNATURES[(r(70) * SIGNATURES.len() as f32) as usize
         % SIGNATURES.len()];
     let hidden = HIDDENS[(r(80) * HIDDENS.len() as f32) as usize % HIDDENS.len()];
+    // the ear's landmark (E4-7, #1416): a first draw off the person's
+    // own stream - the cast deal overwrites it for uniqueness
+    let idiolect = crate::game::idiolect::Idiolect {
+        phrase: crate::game::idiolect::PHRASES[
+            (r(75) * crate::game::idiolect::PHRASES.len() as f32) as usize
+                % crate::game::idiolect::PHRASES.len()],
+        habit: crate::game::idiolect::HABITS[
+            (r(85) * crate::game::idiolect::HABITS.len() as f32) as usize
+                % crate::game::idiolect::HABITS.len()],
+    };
 
     // pass 5, life story (E2-3, #1421): the events they were in roll
     // their marks - weighted by severity and neuroticism, and the
@@ -700,7 +714,7 @@ pub fn generate_attempt(world_seed: u64, slot: usize, past: &Past, attempt: u32)
     Persona {
         seed, sex, archetype, temperament, trust_propensity, values,
         story: past.story.clone(), ghosts,
-        signature, hidden, contradiction,
+        signature, idiolect, hidden, contradiction,
     }
 }
 
@@ -1080,6 +1094,8 @@ mod tests {
             temperament, trust_propensity: trust, values,
             story: vec![], ghosts: vec![],
             signature: Signature::Habit("x"), hidden: Landmark::Skill("y"),
+            idiolect: crate::game::idiolect::Idiolect {
+                phrase: "x", habit: crate::game::idiolect::Habit::Echo },
             contradiction: None,
         }
     }

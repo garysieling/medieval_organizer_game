@@ -50,6 +50,8 @@ fn test_a_speakers_persona_wears_the_tells() {
         temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
         story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
         hidden: Landmark::Skill("y"), contradiction: None,
+        idiolect: crate::game::idiolect::Idiolect {
+            phrase: "x", habit: crate::game::idiolect::Habit::Echo },
     };
     p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
         lie: Belief::PromisesForKeepers, strength: 0.8, fear: Fear::BailiffKnowsMyFace,

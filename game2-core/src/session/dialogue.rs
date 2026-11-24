@@ -492,6 +492,8 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
         // deep asks but wears no area of its own: the wound's own tell
         // slugs mark only the areas it actually hides behind
         if !p.ghosts.is_empty() { s.status.push("keeps_wound"); }
+        // the ear's landmark (E4-7, #1416): their phrase and habit
+        s.idiolect = Some(p.idiolect);
     }
     // the sky overhead (#1388): the day's weather rides as a status so
     // weather talk gates on what the day is actually doing - rain lines

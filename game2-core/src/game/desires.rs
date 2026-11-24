@@ -937,6 +937,16 @@ pub fn live_known(world: &World, knower: Entity, e: Entity, tick: u64) -> Vec<Re
     out
 }
 
+/// What they'd ask at the door (E5-3, #1435): the pressing thing a
+/// worry question keys off - the live pool's a person's whole current
+/// load, problems first. `seed` picks the one, stable across a talk's
+/// replays; None when they're carrying nothing the talk could take up
+pub fn worry_of(world: &World, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
+    let pool = live_pool(world, e, tick);
+    if pool.is_empty() { return None; }
+    Some(pool[(seed % pool.len() as u64) as usize])
+}
+
 /// Pick one secret to share: problems first (they're what's pressing),
 /// then wants. `roll` is 0..1 - callers give it a boosted chance
 pub fn next_reveal(world: &World, knower: Entity, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {

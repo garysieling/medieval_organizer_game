@@ -248,6 +248,9 @@ pub struct PlayerTalk {
     /// A hothead pressed past the shape already blurted this talk
     /// (E5-2): the telling's spent once, the temper doesn't pour twice
     pub blurted: bool,
+    /// The doorknob worry's truth already heard onto the ledger
+    /// (E5-3, #1435): the replay yields `worry_told` every refresh
+    pub worry_told_seen: bool,
     /// An easier ask already mended the nerve a press frayed (E5-2):
     /// backing off pays once a talk
     pub backed_off: bool,
@@ -648,7 +651,7 @@ pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: R
         &mut crate::game::conversation::Rng::new(0))
 }
 
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>, Option<crate::game::desires::Reveal>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
     let tr = converse_with_at(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &t.setting, &mut |ch: &[Choice]| {
@@ -666,7 +669,7 @@ fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static s
     // for a pick, the last turn is their call - a bid's met or missed
     // against it
     let call = if offered.is_some() { tr.turns.last().map(|t| t.act) } else { None };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call, tr.evasions)
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call, tr.evasions, tr.worry_told)
 }
 
 impl Game {
@@ -1417,6 +1420,12 @@ impl Game {
         // 1-1 unless ears are near. `talks` is the count before this
         // talk's own greeting deepened the bond
         villager.open = self.open_toward(v, pe, true, talks);
+        // the doorknob worry (E5-3, #1435): what they'd ask as you go -
+        // seeded off the talk's own seed so the replays land the same
+        // question; a visitor carries no life to worry over
+        if rare.is_none() {
+            villager.worry = crate::game::desires::worry_of(&self.world, v, self.tick, seed);
+        }
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
         // a visitor's standing is the road's own blurb, not a villager
         // backstory built off statuses it doesn't have (#1168)
@@ -1435,7 +1444,8 @@ impl Game {
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
             asks_taken: vec![], asked_seen: 0, forward_seen: 0,
-            evasions_seen: 0, blurted: false, backed_off: false, shared: 0,
+            evasions_seen: 0, blurted: false, backed_off: false,
+            worry_told_seen: false, shared: 0,
             // a villager who once heard this seat's testimony opens a
             // rung warmer - they heard the story, they know the teller (#1333)
             mood: if crate::sim::psychology::heard_testimony(&self.world, v, pe) {
@@ -1460,7 +1470,7 @@ impl Game {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
         let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions, worry_told) = replay(&t, Some(&recent));
         if shared > t.shared {
             // the deepest telling so far this talk (E3-3): the running
             // gate already lives in the replay - this only carries the
@@ -1537,6 +1547,16 @@ impl Game {
                 }
             }
             if let Some(cur) = self.seats[seat].talk.as_mut() { cur.evasions_seen = evasions.len(); }
+        }
+        // the doorknob worry that opened its tier (E5-3, #1435): the
+        // why's answer is the fear or need itself - it lands on the
+        // seat's ledger like a telling
+        if let Some(r) = worry_told {
+            if !t.worry_told_seen {
+                let who = t.who;
+                crate::game::desires::hear(&mut self.world, pe, who, r, self.tick);
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.worry_told_seen = true; }
+            }
         }
         self.note_said_lines(said.iter().filter_map(|x| x.2));
         let vname = t.villager.name.clone();

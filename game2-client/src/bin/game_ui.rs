@@ -207,11 +207,17 @@ fn main() {
                 .and_then(|s| serde_json::from_str::<game2_core::session::journal::Journal>(&s)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))) {
                 // a journal from before the action set changed can't
-                // replay faithfully - its Act(2)s would silently no-op
+                // replay faithfully - its Act(2)s would silently no-op.
+                // Starting fresh instead would let the autosave write
+                // over the saved village, so say so and stand down
                 if j.version == game2_core::session::journal::JOURNAL_VERSION {
                     let frames = j.entries.last().map(|e| e.0).unwrap_or(0);
                     Some(game2_core::session::journal::replay(&j, frames))
-                } else { Some(Game::new_seeded_cast(seed)) }
+                } else {
+                    eprintln!("{lp}: a journal of version {}, but this build replays {} - the save is left alone",
+                        j.version, game2_core::session::journal::JOURNAL_VERSION);
+                    std::process::exit(2);
+                }
             } else { Some(Game::new_seeded_cast(seed)) }
         } else { Some(Game::new_seeded_cast(seed)) }
     } else { None };

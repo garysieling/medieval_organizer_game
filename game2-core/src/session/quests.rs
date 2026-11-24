@@ -160,11 +160,13 @@ impl Game {
             }
             QuestKind::Ask => {
                 // who keeps the roll: the collector first, any posting else -
-                // never the asker themselves
-                let t = self.villagers.iter().copied().find(|&v| v != giver
+                // never the asker themselves, and nobody off the rolls
+                let can_answer = |v| v != giver
+                    && !crate::game::dungeon::unavailable(&self.world, v);
+                let t = self.villagers.iter().copied().find(|&v| can_answer(v)
                     && crate::game::livelihood::has_role(&self.world, v,
                         crate::game::vocation::TownRole::TaxCollector))
-                    .or_else(|| self.villagers.iter().copied().find(|&v| v != giver
+                    .or_else(|| self.villagers.iter().copied().find(|&v| can_answer(v)
                         && self.world.get_component::<crate::game::vocation::TownRole>(v).is_some()))?;
                 Some((kind, QuestTarget::Villager(t),
                     Errand { confirm: Some(g.kind.tag()), due: 0 }))
@@ -378,9 +380,15 @@ impl Game {
     pub(in crate::session) fn take_pending_quest(&mut self, seat: usize, i: usize) -> PlayerQuest {
         let q = self.pending_quests.remove(i);
         let stage = if q.pickup.is_some() { QuestStage::ToFetch } else { QuestStage::ToCarry };
+        // a bundle's days run from the handover, not the posting: the
+        // offer can sit on the board past the day it was meant to hold
+        let errand = q.errand.map(|mut e| {
+            if q.kind == QuestKind::Keep { e.due = self.tick + KEEP_DAYS; }
+            e
+        });
         let quest = PlayerQuest {
             giver: q.giver, kind: q.kind, target: q.target, stage, pickup: q.pickup,
-            expires: self.tick + QUEST_DAYS, errand: q.errand };
+            expires: self.tick + QUEST_DAYS, errand };
         self.say(q.giver, &self.quest_ask_line(&quest), TALK_BUBBLE_SECS * 2);
         self.seats[seat].quest = Some(quest.clone());
         self.quest_rest.insert(q.giver, self.tick + REST_DAYS);
@@ -585,7 +593,7 @@ impl Game {
 
     fn quest_bond_inner(&mut self, seat: usize, giver: Entity, kind: QuestKind) -> bool {
         use crate::game::organizing::{stage_of, Deeds, RelStage};
-        use crate::game::relationships::{record_interaction, Interaction, InteractionKind, Relationship};
+        use crate::game::relationships::{record_interaction, infer_kind, Interaction, InteractionKind, Relationship};
         if crate::game::villager::is_dead(&self.world, giver) { return false; }
         let pe = self.seats[seat].player;
         let bond = record_interaction(&mut self.world, pe, Interaction {
@@ -600,7 +608,11 @@ impl Game {
                 QuestKind::Keep => rel.trust.integrity += 0.15,
                 _ => {}
             }
-            rel.recompose();
+            // the press is real warmth, not overshoot: derive the total
+            // from the grown parts (recompose would scale them back to
+            // the old strength and shave the rest)
+            rel.derive();
+            rel.kind = infer_kind(rel);
         }
         let mut deeds = self.world.get_component::<Deeds>(bond).copied().unwrap_or_default();
         deeds.n += 1;

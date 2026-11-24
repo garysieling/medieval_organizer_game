@@ -430,3 +430,82 @@ fn test_a_held_bundle_comes_back_on_its_day() {
     assert!(rel.trust.integrity > 0.1,
         "the kept bundle reads as faith kept: {:.2}", rel.trust.integrity);
 }
+
+/// A shaped errand's trust press is real warmth (review on #1558):
+/// pushed after the aid's own push, it must raise the bond's total -
+/// recompose would read it as overshoot and scale the parts back
+#[test]
+fn test_an_errands_press_lifts_the_bonds_warmth() {
+    let mut g = Game::new();
+    let folk = askers(&g);
+    let (kept, plain) = (folk[0], folk[1]);
+    g.quest_bond(0, kept, QuestKind::Keep);
+    g.quest_bond(0, plain, QuestKind::Talk);
+    let rel_of = |g: &Game, v| {
+        let b = crate::game::relationships::find_relationship(&g.world, g.player, v)
+            .expect("the job made a bond");
+        let r = g.world.get_component::<crate::game::relationships::Relationship>(b).unwrap();
+        (r.strength, r.intimacy, r.trust.ability, r.trust.benevolence, r.trust.integrity)
+    };
+    let (rk, rp) = (rel_of(&g, kept), rel_of(&g, plain));
+    // the keeping proves its face and warms past a bare job done
+    assert!(rk.4 > rp.4 + 0.1,
+        "the press grew its face: {:.3} vs {:.3}", rk.4, rp.4);
+    assert!(rk.0 > rp.0 + 0.1,
+        "the press lifted the total: {:.3} vs {:.3}", rk.0, rp.0);
+    // and it shaved nothing it didn't grow
+    assert!((rk.3 - rp.3).abs() < 1e-3
+        && (rk.2 - rp.2).abs() < 1e-3
+        && (rk.1 - rp.1).abs() < 1e-3,
+        "the press left the other faces alone: {rk:?} vs {rp:?}");
+}
+
+/// A bundle's days run from the handover (review on #1558): a posting
+/// that sat on the board still gets its full four days to hold
+#[test]
+fn test_a_bundle_taken_late_holds_its_own_days() {
+    let mut g = Game::new();
+    let folk = askers(&g);
+    let giver = folk[0];
+    // the offer went up days ago - its due was set at the posting
+    g.pending_quests.push(crate::session::quests::PendingQuest {
+        giver, kind: QuestKind::Keep, target: QuestTarget::Villager(giver),
+        pickup: None, expires: g.tick + 6,
+        errand: Some(crate::session::quests::Errand { confirm: None, due: g.tick }) });
+    let q = g.take_pending_quest(0, 0);
+    assert_eq!(q.errand.map(|e| e.due), Some(g.tick + 4),
+        "the keeping's days run from the taking, not the posting");
+}
+
+/// The roll question skips who's off it (review on #1558): a dead or
+/// taken collector can't be sent to answer for the debt
+#[test]
+fn test_the_roll_question_skips_the_dead() {
+    use crate::game::persona::*;
+    let mut g = Game::new();
+    let folk = askers(&g);
+    let giver = folk[0];
+    let mut p = Persona {
+        seed: 1, sex: villager::Sex::Male, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+        idiolect: crate::game::idiolect::Idiolect {
+            phrase: "x", habit: crate::game::idiolect::Habit::Echo },
+    };
+    p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::MillerDebt,
+        hook: None, lie: Belief::LordAlwaysWins, strength: 0.9,
+        fear: Fear::BailiffKnowsMyFace, need: Need::ToBeSafe });
+    g.world.add_component(giver, p);
+    // the collector's gone - whoever the ask lands on must be answerable
+    if let Some(dead) = g.villagers.iter().copied().find(|&v|
+        crate::game::livelihood::has_role(&g.world, v,
+            crate::game::vocation::TownRole::TaxCollector)) {
+        g.world.add_component(dead, villager::Dead);
+        if let Some((_, QuestTarget::Villager(t), _)) = g.errand_offer(giver) {
+            assert!(t != dead, "the ask can't go to the dead collector");
+            assert!(!crate::game::dungeon::unavailable(&g.world, t),
+                "the ask lands on someone who can answer");
+        }
+    }
+}

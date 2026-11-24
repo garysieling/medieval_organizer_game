@@ -1228,6 +1228,8 @@ impl Game {
             townhall_day: u64::MAX,
             petition_day: u64::MAX,
             assembly_day: u64::MAX,
+            chant_day: u64::MAX,
+            funeral_toll_frame: 0,
             snowball_cued: false,
             snowball_at: (0.0, 0.0),
             snowballs: vec![],

@@ -3217,9 +3217,13 @@ impl Game {
                 let door = crate::game::household::home_of(&self.world, v)
                     .and_then(|h| self.world.get_component::<Pos>(h))
                     .or_else(|| self.world.get_component::<Pos>(v))
-                    .map(|p| (p.x.round() as i32, p.y.round() as i32));
+                    .map(|p| (p.x.round() as i32, p.y.round() as i32))
+                    // the house's anchor is an occupied tile - a knock
+                    // lands at its doorstep, not inside the wall (#1501)
+                    .and_then(|(x, y)| self.at_the_door(x, y));
                 let Some(at) = door else { continue };
                 if !self.send_far(m, at, Goal::TalkTo(v)) { continue; }
+                self.emit_sfx("door", at.0 as f32 + 0.5, at.1 as f32 + 0.5, 0.6);
                 knocked.insert(v);
                 doors += 1;
                 // a pressed door that doesn't share the worry wears the

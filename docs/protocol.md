@@ -388,6 +388,29 @@ meeting slows the calendar).
 Scenes from an older server may omit all three; read them as
 "unknown" (no weather, all-zeroes calendar, `frames_per_day` 0).
 
+`sfx_v` is the frame's sound cues, each `[kind, x, y, intensity]` -
+a cue lives exactly one scene and the audio layer turns it into a
+voice (A5). `x`/`y` are the tile the cue rose at, `intensity` its
+loudness 0..1. `kind` is one of:
+
+- `rain`, `anvil`, `festival`, `wonder`, `bell`, `snowballs`,
+  `splash`, `mood` - the legacy cues
+- `alarm` - a fire caught (chimney, lightning, an oil flare) or the
+  knights rode out on a crackdown
+- `toll` - the passing bell: a death, or a funeral column's beat
+  (at most one ring per two seconds of sim time)
+- `cheer` - a townhall demand carried, or a march home to a good
+  reception
+- `chant` - a march column's voice, once a day while it's out
+- `coins` - a purchase rung up, at market stall or in person
+- `quill` - a petition letter pressed, every press
+- `door` - a canvasser's knock
+- `cart_arrive` - a cart or levy train rolled in
+- `gate` - a walker stepped through the palisade's gate (the edge
+  only: standing on the tile doesn't ring it)
+
+Older servers omit it; read it as empty.
+
 `panel.leader` names the org's head for the status line - `"you"` when
 the seat leads its own, a villager's name when the bond's passed to
 another. Older servers omit it or send null; a client should draw no

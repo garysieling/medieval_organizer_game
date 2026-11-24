@@ -1458,6 +1458,10 @@ impl Game {
             }
             CtxAct::Petition => {
                 let v = self.villagers[self.seats[seat].selected_target];
+                // every press is a letter scratched out - the quill
+                // scratches however often the day hears about it
+                let (qx, qy) = self.player_pos_at(seat);
+                self.emit_sfx("quill", qx, qy, 0.5);
                 // the letters are the mechanic - every press still lands -
                 // but the log hears about them once a day, not per click
                 let repeat = self.petition_day == self.tick;
@@ -2157,6 +2161,7 @@ impl Game {
                 // a crackdown takes the loudest - and the cause
                 // becomes a prisoner
                 if r == Some(crate::game::reactions::Reaction::Crackdown) {
+                    self.emit_sfx("alarm", mx, my, 1.0);
                     // the knights stand in the streets where everyone
                     // can see them - once; posted guards stay posted
                     if !posted_before {
@@ -2225,6 +2230,12 @@ impl Game {
                         if signed > 0 { msg += &format!(" {} sign on to free them.", signed); }
                         self.toasts.push_at((format!("{} is taken", tn), tick + 40), toast_spot(&self.world, taken));
                     }
+                }
+                else if r == Some(crate::game::reactions::Reaction::Watched) || woke > 0
+                    || matches!(dest, Some((country::SiteKind::Town | country::SiteKind::Monastery, _))) {
+                    // a good reaction - the street sends the column home
+                    // with a cheer behind it
+                    self.emit_sfx("cheer", mx, my, 0.8);
                 }
                 // the campaign talks over what the street brought
                 // (after any arrest, so the taken are counted)
@@ -3703,6 +3714,8 @@ impl Game {
                     crate::game::org_skills::SEAT_PRACTICE);
                 let msg = match out.response {
                 TargetResponse::Carries => {
+                    let (cx, cy) = self.player_pos_at(seat);
+                    self.emit_sfx("cheer", cx, cy, 1.0);
                     self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
                     // the carried demand lands as a grant: the load
                     // the issue names eases for the cause's people,

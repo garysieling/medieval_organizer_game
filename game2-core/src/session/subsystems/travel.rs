@@ -114,6 +114,14 @@ impl Game {
         self.sfx.push(SfxCue { kind, x, y, intensity });
     }
 
+    /// A cart or a levy train rolls in: the wheels' clatter lands where
+    /// the walker stopped, whatever the errand carried
+    fn cart_rattle(&mut self, who: Entity) {
+        if let Some(p) = self.world.get_component::<Pos>(who) {
+            self.emit_sfx("cart_arrive", p.x, p.y, 0.7);
+        }
+    }
+
     /// The search is the game's hot line - a path's the same all frame,
     /// so remember it until the next one. Frame-scoped, not day-scoped:
     /// trail strength shifts underfoot as folk walk, and a path priced
@@ -223,6 +231,9 @@ impl Game {
     /// errand when it runs out
     pub fn advance_travels(&mut self) {
         let mut arrived: Vec<(Entity, Goal)> = vec![];
+        // gate crossings ring once each - collected under the walk
+        // borrow, sounded when it lets go
+        let mut gates: Vec<(i32, i32)> = vec![];
         let pace = self.walk_pace();
         // the country's carters and stewards go by cart and horse, and a
         // knight takes his mount for the long roads
@@ -273,6 +284,9 @@ impl Game {
                 if nt != ot {
                     let tr = self.trails.entry(nt).or_insert(Trail::wild());
                     trails::step_trail(tr, 1, 0.0, &TRAIL_PARAMS);
+                    // stepping through the palisade's gap creaks the
+                    // gate once - standing on it doesn't
+                    if self.map.is_gate(nt.0, nt.1) { gates.push(nt); }
                 }
                 if !landed { break; }
                 t.path.remove(0);
@@ -280,6 +294,9 @@ impl Game {
             }
         }
         self.travels.retain(|t| !t.path.is_empty());
+        for (gx, gy) in gates {
+            self.emit_sfx("gate", gx as f32 + 0.5, gy as f32 + 0.5, 0.6);
+        }
         for (who, goal) in arrived { self.arrive(who, goal); }
         // a work party resolves when its hands are on the site - or
         // when the day it's given the stragglers runs out (#1344)
@@ -359,6 +376,12 @@ impl Game {
                         }
                     }
                 }
+                // coin or a fair swap - the till rings either way
+                if paid.is_some() {
+                    if let Some(p) = self.world.get_component::<Pos>(who) {
+                        self.emit_sfx("coins", p.x, p.y, 0.7);
+                    }
+                }
                 // trade with the road's accounts loses a little to the
                 // reckoning - unless the village has a clerk for it
                 if Some(seller) == self.trader_stall && vocation::imported(good)
@@ -410,6 +433,9 @@ impl Game {
             }
             Goal::BuyAt(shop, good, want) => {
                 if household::buy_at_shop(&mut self.world, shop, who, good, 1).is_some() {
+                    if let Some(p) = self.world.get_component::<Pos>(who) {
+                        self.emit_sfx("coins", p.x, p.y, 0.7);
+                    }
                     if let Some(w) = want {
                         desires::satisfy(&mut self.world, who, w, tick + 60);
                         // consumable goods are enjoyed, not kept
@@ -708,15 +734,15 @@ impl Game {
             Goal::HeadHome(_) => {}
             Goal::FillBucket => self.fire_bucket_fill(who),
             Goal::DouseFire(t) => self.fire_bucket_douse(who, t),
-            Goal::Cart(si) => self.arrive_cart(who, si),
-            Goal::Levy(castle, town) => self.arrive_levy(who, castle, town),
-            Goal::Deliver(castle) => self.arrive_deliver(who, castle),
-            Goal::Remit(castle, gold) => self.arrive_remit(who, castle, gold),
+            Goal::Cart(si) => { self.cart_rattle(who); self.arrive_cart(who, si) }
+            Goal::Levy(castle, town) => { self.cart_rattle(who); self.arrive_levy(who, castle, town) }
+            Goal::Deliver(castle) => { self.cart_rattle(who); self.arrive_deliver(who, castle) }
+            Goal::Remit(castle, gold) => { self.cart_rattle(who); self.arrive_remit(who, castle, gold) }
             Goal::Post(stop) => self.arrive_post(who, stop),
             Goal::Owe(from, to, gold) => self.arrive_owe(who, from, to, gold),
             Goal::Gift(from, to) => self.arrive_gift(who, from, to),
             Goal::Escort(from, to) => self.arrive_escort(who, from, to),
-            Goal::LevyCart(castle) => self.arrive_levy_cart(who, castle),
+            Goal::LevyCart(castle) => { self.cart_rattle(who); self.arrive_levy_cart(who, castle) }
             // the post's marker already has them held to the town - the
             // arrival's just the walk done
             Goal::FieldPost(_) => {}

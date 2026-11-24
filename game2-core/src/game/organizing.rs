@@ -692,6 +692,31 @@ mod tests {
         let r = crate::game::relationships::find_relationship(&w, leader, v).unwrap();
         assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.10).abs() < 1e-6, "plain talk, not a shared meal");
     }
+
+    #[test]
+    fn test_the_read_is_a_guess_not_the_truth() {
+        // E7-3: the card's 1-5 reads what the seat could see - warmth
+        // reads loud, so a warm stranger overrates and a cold answer
+        // cools the guess; the band tightens with dealings
+        use crate::game::relationships::{RelKind, Relationship};
+        let mut w = World::new();
+        let (pe, v) = (w.create_entity(), w.create_entity());
+        assert!(read_of(&w, pe, v).is_none(), "no bond, no read");
+        let bond = w.create_entity();
+        w.add_component(bond, Relationship {
+            from: pe, other: v, kind: RelKind::Friend,
+            strength: 0.9, interactions: 6, ..Default::default() });
+        let (n, band) = read_of(&w, pe, v).unwrap();
+        assert!(n >= 4, "a warm ear reads high - the classic overrate: {}", n);
+        assert_eq!(band, ReadBand::Fair);
+        // turned-aside answers cool the guess while the truth wouldn't move
+        w.get_component_mut::<Relationship>(bond).unwrap().pivots = 6;
+        let (cooled, _) = read_of(&w, pe, v).unwrap();
+        assert!(cooled < n, "the pivots drag the read: {} -> {}", n, cooled);
+        // and many dealings make the guess sure of itself
+        w.get_component_mut::<Relationship>(bond).unwrap().interactions = 9;
+        assert_eq!(read_of(&w, pe, v).unwrap().1, ReadBand::Sure);
+    }
 }
 
 /// How well the organizer knows a person: a ladder you climb by talking
@@ -773,6 +798,75 @@ pub fn stage_label(s: RelStage) -> &'static str {
         RelStage::Follower => "a follower",
         RelStage::CoLeader => "a co-leader",
     }
+}
+
+/// How much evidence the seat's read stands on (E7-3, #1432): the
+/// band the card shows beside its 1-5 guess
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ReadBand {
+    /// A talk or two - barely a read at all
+    Guess,
+    /// Some dealings behind it
+    Fair,
+    /// Enough days and asks to trust it
+    Sure,
+}
+
+/// The word for a read's band
+pub fn band_label(b: ReadBand) -> &'static str {
+    match b { ReadBand::Guess => "a guess", ReadBand::Fair => "a fair read", ReadBand::Sure => "sure of it" }
+}
+
+/// The word for a 1-5 stance read: where they seem to stand with you
+pub fn read_label(n: u8) -> &'static str {
+    match n {
+        1 => "set against you",
+        2 => "cold to it",
+        3 => "uncommitted",
+        4 => "leans your way",
+        _ => "with you",
+    }
+}
+
+/// Your read of `who` (E7-3, #1432): the card's 1-5 guess at their
+/// stance, built only from what the seat could see - the warmth felt,
+/// their acts for the cause in the open, the reaches they answered -
+/// never the truth itself (`stage_of` stays that). Warmth reads loud,
+/// which is the point: the classic organizer's error is mistaking a
+/// warm ear for a signed name. None when there's no bond to read.
+pub fn read_of(world: &World, organizer: Entity, who: Entity) -> Option<(u8, ReadBand)> {
+    use crate::game::relationships::{find_relationship, Relationship};
+    let bond = find_relationship(world, organizer, who)?;
+    let r = world.get_component::<Relationship>(bond)?;
+    if r.interactions == 0 { return None; }
+    // the warmth the seat feels - the loudest and the least true signal
+    let warm = ((r.strength + 1.0) / 2.0).clamp(0.0, 1.0);
+    // the cause's public acts: sworn in, on the roll, woken to the issue
+    let mut acts = 0.0f32;
+    if world.query::<Organization>().iter().any(|&o|
+        world.get_component::<Organization>(o)
+            .map(|oo| oo.leader == organizer && oo.members.contains(&who)).unwrap_or(false)) {
+        acts += 1.0;
+    }
+    if crate::game::contracts::pact_live(world, organizer, who) { acts += 1.0; }
+    if let Some(c) = world.query::<Organization>().iter().copied()
+        .find(|&o| world.get_component::<Organization>(o)
+            .map(|oo| oo.leader == organizer).unwrap_or(false))
+        .and_then(|org| crate::game::campaign::campaign_of(world, org))
+        .and_then(|c| world.get_component::<crate::game::campaign::Campaign>(c).map(|cc| cc.issue.clone())) {
+        if world.get_component::<crate::game::reactions::Sympathized>(who)
+            .map(|s| s.issues.iter().any(|(i, _)| *i == c)).unwrap_or(false) {
+            acts += 1.0;
+        }
+    }
+    // the reaches they met, against the times they turned you aside
+    let met = (r.bids_met as f32).min(4.0);
+    let cold = ((r.pivots + r.deflects) as f32).min(5.0);
+    let score = (0.7 * warm + 0.08 * acts + 0.04 * met - 0.05 * cold).clamp(0.0, 1.0);
+    let n = (1 + (score * 4.0).round() as u8).clamp(1, 5);
+    let band = if r.interactions >= 8 { ReadBand::Sure }
+        else if r.interactions >= 3 { ReadBand::Fair } else { ReadBand::Guess };
+    Some((n, band))
 }
 
 /// What a meeting needs before it can happen, gathered one ask at a

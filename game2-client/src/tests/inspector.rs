@@ -123,3 +123,70 @@ fn test_the_card_marks_seen_yellow_and_held_green() {
     assert!(count((215, 190, 90)) > 20, "a watched job should yellow the card");
     assert!(count((110, 185, 90)) > 20, "a held job should green the card");
 }
+
+/// The ledger's page on a villager (E7-3, #1432): the card renders all
+/// five views of what the seat knows - facts with sources and age, the
+/// talk flagged against what's seen, silhouettes, the confidences held
+/// and lost, and the seat's own 1-5 read banded by evidence
+#[test]
+fn test_the_card_renders_the_ledgers_five_views() {
+    use game2_core::game::desires::{self, Reveal, Source, Silhouette, Problem, Want};
+    let mut game = Game::new_seeded(MAP_SEED);
+    let v = game.villagers[3];
+    let pe = game.player;
+    game.selected_target = 3;
+    // a bond old enough for a fair read
+    let rel = game.world.create_entity();
+    game.world.add_component(rel, game2_core::game::relationships::Relationship {
+        from: pe, other: v, kind: game2_core::game::relationships::RelKind::Friend,
+        strength: 0.9, interactions: 6, ..Default::default() });
+    // facts: one told, one carried - the telling files a confidence too
+    desires::record(&mut game.world, pe, v, "want:good_food".into(),
+        Some(Reveal::Want(Want::GoodFood)), Source::Told { speaker: v }, 5);
+    desires::record(&mut game.world, pe, v, "problem:taxed".into(),
+        Some(Reveal::Problem(Problem::Taxed)), Source::Told { speaker: v }, 5);
+    desires::record(&mut game.world, pe, v, "problem:broke".into(),
+        Some(Reveal::Problem(Problem::Broke)), Source::Told { speaker: v }, 5);
+    // the talk's word, and it cuts against what the seat saw
+    desires::record(&mut game.world, pe, v, "debt:paid".into(), None,
+        Source::Gossip { speaker: game.villagers[4] }, 6);
+    desires::record(&mut game.world, pe, v, "!debt:paid".into(), None,
+        Source::Witnessed, 7);
+    desires::record(&mut game.world, pe, v, "!problem:taxed".into(), None,
+        Source::Witnessed, 7);
+    // a word let slip: the held confidence on broke breaks
+    desires::leak(&mut game.world, pe, v, "problem:broke");
+    // the shape that shows without ever being told
+    game.world.get_component_mut::<desires::Known>(pe).unwrap()
+        .silhouettes.push(Silhouette { who: v, area: "the lord".into(), evasions: 2, last_day: 8 });
+    // the page dates itself off the newest hearing
+    game.tick = 40;
+    let m = game.ui_model();
+    let insp = m.inspector.as_ref().expect("a picked villager's card");
+    let text: Vec<&str> = insp.lines.iter().map(|l| l.text.as_str()).collect();
+    let joined = text.join(" ").split_whitespace().collect::<Vec<_>>().join(" ");
+    let has = |needle: &str| joined.contains(needle);
+    assert!(text.contains(&"THE LEDGER"), "no ledger head: {:?}", text);
+    assert!(has("wants: 1"), "facts by area, one want: {:?}", text);
+    assert!(has("troubles: 2"), "the two problems: {:?}", text);
+    assert!(has("their own telling"), "the source rides the area: {:?}", text);
+    assert!(has("the talk: debt paid"), "the claim words render: {:?}", text);
+    assert!(has("cuts against what you saw"), "the contradiction flags: {:?}", text);
+    assert!(has("heard it both ways"), "a typed fact flagged too: {:?}", text);
+    assert!(has("something about the lord"), "the silhouette: {:?}", text);
+    assert!(has("their word is yours to keep"), "the held confidence: {:?}", text);
+    assert!(has("their word's out now"), "the leaked one: {:?}", text);
+    assert!(has("last spoke"), "the page's age: {:?}", text);
+    assert!(has("the wants may have shifted"), "old wants flag stale: {:?}", text);
+    assert!(has("Your read:"), "the seat's read: {:?}", text);
+    assert!(has("of 5"), "the 1-5 band: {:?}", text);
+    // and it draws: the head's gold lands on the plate
+    let view = View::new(Art::load_fs("../assets", 0));
+    let buf = view.render(&m, (-1, -1));
+    let mut gold = 0;
+    for y in 300..940usize { for x in 80..370usize {
+        let i = (y * W + x) * 4;
+        if (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == (255, 215, 0) { gold += 1; }
+    }}
+    assert!(gold > 20, "the ledger head never drew: {} px", gold);
+}

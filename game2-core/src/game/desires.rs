@@ -147,37 +147,153 @@ pub struct Domination {
     pub experience: f32,
 }
 
+/// Where a ledger fact came from (E7-2, #1427): who put it in the
+/// seat's ear, or whether the seat saw it themselves. Every entry
+/// carries one - a fact with no source is a fact the ledger can't
+/// trust
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Source {
+    /// They said it to this seat themselves
+    Told { speaker: Entity },
+    /// A third party carried it - hearsay, and hearsay can be wrong
+    Gossip { speaker: Entity },
+    /// The seat saw it happen
+    Witnessed,
+}
+
+/// Certainty at the hearing by source: a telling straight from the
+/// horse's mouth sits highest, a seen thing a little under (eyes
+/// misread), a carried word lowest of all
+fn source_confidence(s: &Source) -> f32 {
+    match s {
+        Source::Told { .. } => 0.9,
+        Source::Witnessed => 0.7,
+        Source::Gossip { .. } => 0.5,
+    }
+}
+
+/// The fog-of-war clock a memory fades on (E7-2): each unrefreshed day
+/// shaves a little off what the seat was once sure of
+pub const LEDGER_FADE: f32 = 0.99;
+
+/// One line in the seat's ledger (E7-2, #1427): a fact held about a
+/// villager, who it came from, the day it landed, and how sure it still
+/// is. `reveal` is the typed read when the fact's a want or a problem;
+/// `fact` is its canonical id (`want:good_food`, `problem:no_input:*`,
+/// or a fact-table key like `ghost:levy`) - the space gossip beliefs
+/// and witnessed deeds write into
+#[derive(Debug, Clone)]
+pub struct LedgerEntry {
+    pub fact: String,
+    pub reveal: Option<Reveal>,
+    pub source: Source,
+    /// The day it landed - staleness derives off this
+    pub day: u64,
+    /// Certainty at the hearing; `confidence_of` fades it with age
+    pub confidence: f32,
+    /// A later entry said the opposite - both stay, both flag
+    pub contradicted: bool,
+}
+
+/// What they dodge on (E5-2 counts these up later; the record's kept
+/// now): the shape a villager shows a seat that asks where they won't
+/// go - a form without a name
+#[derive(Debug, Clone)]
+pub struct Silhouette {
+    pub who: Entity,
+    /// The ground they keep stepping around
+    pub area: String,
+    /// Times they've turned a question aside
+    pub evasions: u32,
+    /// The day they last did
+    pub last_day: u64,
+}
+
 /// What an organizer has learned about the village, piece by piece:
-/// the seat's own ledger of who told them what (E7-1, #1404). It lives
-/// on the seat's player entity - one seat's hearing is invisible to
-/// another
+/// the seat's own ledger of who told them what (E7-1, #1404), each
+/// fact sourced and dated (E7-2, #1427). It lives on the seat's player
+/// entity - one seat's hearing is invisible to another
 #[derive(Debug, Default)]
 pub struct Known {
-    pub revealed: crate::engine::det::HashMap<Entity, Vec<Reveal>>,
+    /// subject -> the seat's entries about them, oldest first
+    pub entries: crate::engine::det::HashMap<Entity, Vec<LedgerEntry>>,
+    /// The shapes that show without ever being told
+    pub silhouettes: Vec<Silhouette>,
+}
+
+/// The fact-table id a Reveal writes under in the ledger (E7-2):
+/// `want:*` / `problem:*`, with NoInput carrying its input
+fn reveal_key(r: &Reveal) -> String {
+    fn snake(s: &str) -> String {
+        s.chars().enumerate().flat_map(|(i, c)| {
+            if c.is_uppercase() && i > 0 { vec!['_', c.to_ascii_lowercase()] }
+            else { vec![c.to_ascii_lowercase()] }
+        }).collect()
+    }
+    match r {
+        Reveal::Want(w) => format!("want:{}", snake(&format!("{w:?}"))),
+        Reveal::Problem(Problem::NoInput(input)) => format!("problem:no_input:{input}"),
+        Reveal::Problem(p) => format!("problem:{}", snake(&format!("{p:?}"))),
+    }
+}
+
+/// Write `fact` into `knower`'s ledger about `e`: sourced and dated
+/// (E7-2). Dedups on the fact id - what the seat already knows says
+/// nothing new. A claim and its negation (`x` against a held `!x`, or
+/// the reverse) flag both sides contradicted rather than erasing
+/// either
+pub fn record(world: &mut World, knower: Entity, e: Entity, fact: String,
+              reveal: Option<Reveal>, source: Source, day: u64) {
+    if world.get_component::<Known>(knower).is_none() {
+        world.add_component(knower, Known::default());
+    }
+    let k = world.get_component_mut::<Known>(knower).unwrap();
+    let heard = k.entries.entry(e).or_default();
+    if heard.iter().any(|en| en.fact == fact) { return; }
+    let neg = fact.strip_prefix('!').map(str::to_string);
+    let anti = format!("!{fact}");
+    let contradicted = heard.iter_mut().fold(false, |hit, en| {
+        let clash = Some(&en.fact) == neg.as_ref() || en.fact == anti;
+        if clash { en.contradicted = true; }
+        hit || clash
+    });
+    heard.push(LedgerEntry {
+        fact, reveal, source, day,
+        confidence: source_confidence(&source),
+        contradicted,
+    });
+}
+
+/// The seat's ledger on `e`: every fact held, sourced and dated
+pub fn entries(world: &World, knower: Entity, e: Entity) -> Vec<LedgerEntry> {
+    world.get_component::<Known>(knower)
+        .and_then(|k| k.entries.get(&e).cloned()).unwrap_or_default()
+}
+
+/// How sure the seat still is of an entry: the certainty at the
+/// hearing, faded a little each day it sits unrefreshed
+pub fn confidence_of(entry: &LedgerEntry, tick: u64) -> f32 {
+    entry.confidence * LEDGER_FADE.powi(tick.saturating_sub(entry.day) as i32)
+}
+
+/// The newest day the seat heard anything about `e` - staleness reads
+/// off this and the TalkMemory's last-sit-down day
+pub fn last_heard(world: &World, knower: Entity, e: Entity) -> Option<u64> {
+    world.get_component::<Known>(knower)
+        .and_then(|k| k.entries.get(&e))
+        .and_then(|v| v.iter().map(|en| en.day).max())
 }
 
 /// The seat's record of `e`: what `knower` has already heard them tell
 pub fn known(world: &World, knower: Entity, e: Entity) -> Vec<Reveal> {
-    world.get_component::<Known>(knower)
-        .and_then(|k| k.revealed.get(&e).cloned()).unwrap_or_default()
+    entries(world, knower, e).into_iter().filter_map(|en| en.reveal).collect()
 }
 
-/// Mark `r` known to `knower` about `e`, without `hear`'s ledger and
-/// issue bookkeeping - tests and seeded knowledge take this road
+/// Mark `r` known to `knower` about `e`, as if `e` said it themselves,
+/// without `hear`'s ledger and issue bookkeeping - tests and seeded
+/// knowledge take this road
 pub fn note(world: &mut World, knower: Entity, e: Entity, r: Reveal) {
-    let mut known = world.get_component_mut::<Known>(knower);
-    match &mut known {
-        Some(k) => {
-            let heard = k.revealed.entry(e).or_default();
-            if !heard.contains(&r) { heard.push(r); }
-        }
-        None => {
-            drop(known);
-            let mut m = crate::engine::det::HashMap::default();
-            m.insert(e, vec![r]);
-            world.add_component(knower, Known { revealed: m });
-        }
-    }
+    record(world, knower, e, reveal_key(&r), Some(r), Source::Told { speaker: e }, 0);
 }
 
 /// Days a villager has gone without: the streak that turns a hard day
@@ -686,7 +802,10 @@ pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tic
     // the hearing's the seat's own (E7-1): the record lands on the
     // organizer, so another seat's ledger stays blind to it
     if known(world, organizer, person).contains(&r) { return None; }
-    note(world, organizer, person, r);
+    // they said it themselves, today (E7-2): the entry carries its
+    // teller, its day, and a telling's certainty
+    record(world, organizer, person, reveal_key(&r), Some(r),
+        Source::Told { speaker: person }, tick);
     let tag = issue_tag(world, person, &r);
     let org = world.get_component_mut::<Organizer>(organizer)?;
     org.heard.retain(|(_, _, day)| tick <= *day + YEAR_DAYS);
@@ -1029,6 +1148,110 @@ mod tests {
         assert!(probe_open(&w, asker, v, 0), "a new burden reopens the question");
         hear(&mut w, asker, v, Reveal::Problem(Problem::Loss), 0);
         assert!(!probe_open(&w, asker, v, 0), "heard, it's spent again");
+    }
+
+    #[test]
+    fn test_every_ledger_fact_carries_a_source() {
+        // the done-when: nothing in the seat's ledger floats free of
+        // where it came from, or when it landed
+        let mut w = World::new();
+        let org = w.create_entity();
+        w.add_component(org, Organizer::default());
+        let v = person(&mut w, &[Want::GoodFood]);
+        let carrier = person(&mut w, &[]);
+        hear(&mut w, org, v, Reveal::Want(Want::GoodFood), 42);
+        record(&mut w, org, v, "ghost:levy".into(), None,
+            Source::Gossip { speaker: carrier }, 50);
+        record(&mut w, org, v, "deed:watched_the_tithe".into(), None,
+            Source::Witnessed, 60);
+        let got = entries(&w, org, v);
+        assert_eq!(got.len(), 3);
+        assert!(got.iter().all(|en| en.confidence > 0.0));
+        for en in &got {
+            match en.source {
+                Source::Told { speaker } => assert_eq!(speaker, v),
+                Source::Gossip { .. } | Source::Witnessed => assert!(en.day > 0),
+            }
+        }
+        // a telling lands first, the day it was said
+        assert_eq!(got[0].fact, "want:good_food");
+        assert_eq!(got[0].day, 42);
+        assert_eq!(got[0].reveal, Some(Reveal::Want(Want::GoodFood)));
+    }
+
+    #[test]
+    fn test_a_telling_outweighs_hearsay() {
+        let mut w = World::new();
+        let (knower, v, carrier) = (w.create_entity(), person(&mut w, &[]), person(&mut w, &[]));
+        record(&mut w, knower, v, "problem:broke".into(),
+            Some(Reveal::Problem(Problem::Broke)),
+            Source::Told { speaker: v }, 10);
+        record(&mut w, knower, v, "deed:kept_the_gate".into(), None,
+            Source::Gossip { speaker: carrier }, 10);
+        record(&mut w, knower, v, "deed:took_the_oath".into(), None,
+            Source::Witnessed, 10);
+        let got = entries(&w, knower, v);
+        let told = got[0].confidence;
+        let gossiped = got[1].confidence;
+        let seen = got[2].confidence;
+        assert!(told > seen && seen > gossiped,
+            "told {told} should top witnessed {seen} over gossip {gossiped}");
+    }
+
+    #[test]
+    fn test_the_memory_fades() {
+        let mut w = World::new();
+        let (knower, v) = (w.create_entity(), person(&mut w, &[]));
+        record(&mut w, knower, v, "want:love".into(),
+            Some(Reveal::Want(Want::Love)), Source::Told { speaker: v }, 0);
+        let en = &entries(&w, knower, v)[0];
+        assert_eq!(confidence_of(en, 0), 0.9);
+        let old = confidence_of(en, 100);
+        assert!(old < 0.9 && old > 0.0, "a year-old telling fades: {old}");
+        // the newest hearing is the staleness clock's zero
+        assert_eq!(last_heard(&w, knower, v), Some(0));
+    }
+
+    #[test]
+    fn test_a_contradiction_flags_both_sides() {
+        let mut w = World::new();
+        let (knower, v, carrier) = (w.create_entity(), person(&mut w, &[]), person(&mut w, &[]));
+        // the carrier says the debt's paid; the bailiff's roll says owed
+        record(&mut w, knower, v, "debt:paid".into(), None,
+            Source::Gossip { speaker: carrier }, 10);
+        record(&mut w, knower, v, "!debt:paid".into(), None,
+            Source::Witnessed, 20);
+        let got = entries(&w, knower, v);
+        assert_eq!(got.len(), 2);
+        assert!(got[0].contradicted && got[1].contradicted,
+            "a claim and its opposite both flag, neither erases");
+        // same fact twice says nothing new - and keeps its first source
+        record(&mut w, knower, v, "debt:paid".into(), None,
+            Source::Witnessed, 30);
+        let got = entries(&w, knower, v);
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].source, Source::Gossip { speaker: carrier });
+    }
+
+    #[test]
+    fn test_known_still_reads_back_the_reveals() {
+        let mut w = World::new();
+        let (knower, v) = (w.create_entity(), person(&mut w, &[]));
+        note(&mut w, knower, v, Reveal::Want(Want::Drink));
+        note(&mut w, knower, v, Reveal::Problem(Problem::Taxed));
+        record(&mut w, knower, v, "ghost:levy".into(), None,
+            Source::Gossip { speaker: v }, 5);
+        assert_eq!(known(&w, knower, v),
+            vec![Reveal::Want(Want::Drink), Reveal::Problem(Problem::Taxed)],
+            "only typed reveals come back - claim facts stay out of the pool");
+        // seeded knowledge carries a telling's shape, before the days ran
+        let en = &entries(&w, knower, v)[0];
+        assert_eq!(en.source, Source::Told { speaker: v });
+        assert_eq!(en.day, 0);
+    }
+
+    #[test]
+    fn test_the_grief_clock_alone_doesnt_reopen_a_spent_probe() {
         let mut w2 = World::new();
         let v2 = person(&mut w2, &[]);
         let asker2 = w2.create_entity();

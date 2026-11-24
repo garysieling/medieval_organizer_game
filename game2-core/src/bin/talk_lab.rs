@@ -224,7 +224,7 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
     };
     if vi == usize::MAX { return; }
     let who = g.villagers[vi];
-    // --warm: the lab's heard their self-interest already (Known.revealed
+    // --warm: the lab's heard their self-interest already (Known entries
     // non-empty), which is what puts organizing asks on the talk (#1191)
     if a.warm {
         // the seat's own ledger (E7-1): warm marks what this organizer

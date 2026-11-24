@@ -159,11 +159,11 @@ impl Game {
                     .map(|cc| desires::issue_name(cc.issue.clone())).unwrap_or_default();
                 for &o in &grown {
                     let text = if crate::game::player::sympathizes(&self.world, c, o) {
-                        format!("On {}, this one's with you.", issue)
+                        format!("On {}, this one's with {{2:obj}}.", issue)
                     } else {
                         format!("{}? Not at this table.", issue)
                     };
-                    cup.push((Some(o), text, true));
+                    cup.push((Some(o), self.pair_said(o, self.seats[seat].player, &text), true));
                 }
             }
             None => {

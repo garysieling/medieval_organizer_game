@@ -15,65 +15,10 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{self, Write};
 
-use game2_core::game::conversation::{act_fit, converse, Relation, Rng, Speaker, Turn};
+use game2_core::game::conversation::{act_fit, converse, Rng, Speaker, Turn};
 use game2_core::game::dialogue_trees::{backstory, village_library};
-use game2_core::game::traits::Trait;
-use game2_core::session::NAMES;
-
-const IDEOLOGIES: [&str; 4] = ["laborer", "merchant", "clergy", "lord"];
-const STATUSES: [&str; 5] = ["well", "sick", "hungry", "grieving", "drunk"];
-const ALL_TRAITS: [Trait; 8] = [
-    Trait::Lazy,
-    Trait::Ambitious,
-    Trait::Kind,
-    Trait::Stingy,
-    Trait::Pious,
-    Trait::Hotheaded,
-    Trait::Gregarious,
-    Trait::Proud,
-];
-const RELATIONS: [Relation; 5] = [
-    Relation::Stranger,
-    Relation::Acquaintance,
-    Relation::Friend,
-    Relation::Kin,
-    Relation::Rival,
-];
-
-fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
-    let mut roster = Vec::with_capacity(n);
-    for i in 0..n {
-        let name = NAMES[i % NAMES.len()];
-        let ideology = IDEOLOGIES[rng.below(IDEOLOGIES.len())];
-
-        // 1 to 3 distinct traits
-        let num_traits = 1 + rng.below(3);
-        let mut traits = Vec::new();
-        let mut trait_indices: Vec<usize> = (0..ALL_TRAITS.len()).collect();
-        for _ in 0..num_traits {
-            let pick = rng.below(trait_indices.len());
-            let idx = trait_indices.remove(pick);
-            traits.push(ALL_TRAITS[idx]);
-        }
-
-        // Status
-        let status_pick = STATUSES[rng.below(STATUSES.len())];
-        let mut status = Vec::new();
-        if status_pick != "well" {
-            status.push(status_pick);
-        }
-
-        roster.push(Speaker {
-            name: name.to_string(),
-            traits,
-            ideology,
-            status,
-            trade: None,
-            pull: 0.8,
-        });
-    }
-    roster
-}
+use game2_core::game::talk_gen::{generate_roster, gen_conversations, kind_for,
+    RELATIONS};
 
 fn write_rubric<W: Write>(w: &mut W) -> io::Result<()> {
     writeln!(w, "# Conversation System Benchmark & AI Scoring Rubric\n")?;
@@ -161,7 +106,7 @@ fn main() -> io::Result<()> {
             for _ in 0..num_conversations {
                 let char_b = &roster[(char_idx + 1 + rng.below(num_characters - 1)) % num_characters];
                 let relation = RELATIONS[rng.below(RELATIONS.len())];
-                let t = converse(char_a, char_b, relation, &library, None, &mut rng);
+                let t = converse(char_a, char_b, relation, kind_for(&mut rng, relation), &library, None, &mut rng);
                 // the responder's turn answers the caller's immediately
                 // before it; a fresh call after a reply is a new beat,
                 // not an adjacency
@@ -206,6 +151,9 @@ fn main() -> io::Result<()> {
         writeln!(out, "- **Ideology:** {}", speaker.ideology)?;
         writeln!(out, "- **Traits:** {:?}", speaker.traits)?;
         writeln!(out, "- **Status:** {:?}", speaker.status)?;
+        if !speaker.facts.open.is_empty() {
+            writeln!(out, "- **Facts:** {}", speaker.facts.open.join(", "))?;
+        }
         writeln!(out, "- **Backstory:** {}\n", backstory(speaker))?;
     }
 
@@ -226,7 +174,7 @@ fn main() -> io::Result<()> {
 
             let relation = RELATIONS[rng.below(RELATIONS.len())];
 
-            let transcript = converse(char_a, char_b, relation, &library, None, &mut rng);
+            let transcript = converse(char_a, char_b, relation, kind_for(&mut rng, relation), &library, None, &mut rng);
 
             writeln!(out, "### Conversation #{:02}: {} and {}", conv_count, char_a.name, char_b.name)?;
             writeln!(out, "- **Speakers:** {} ({}) & {} ({})",
@@ -266,6 +214,7 @@ fn speaker_json(s: &Speaker) -> serde_json::Value {
         "ideology": s.ideology,
         "traits": s.traits.iter().map(|t| format!("{:?}", t)).collect::<Vec<_>>(),
         "status": s.status,
+        "facts": s.facts.open,
         "backstory": backstory(s),
     })
 }
@@ -291,17 +240,17 @@ fn json_conversations(
     num_characters: usize,
     num_conversations: usize,
     seed: u64,
-    rng: &mut Rng,
-    library: &[game2_core::game::conversation::DialogueTree],
+    _rng: &mut Rng,
+    _library: &[game2_core::game::conversation::DialogueTree],
 ) -> Vec<serde_json::Value> {
-    let roster = generate_roster(num_characters, rng);
     let mut out = vec![];
-    for (char_idx, char_a) in roster.iter().enumerate() {
-        for conv_idx in 0..num_conversations {
-            let other_offset = 1 + rng.below(num_characters - 1);
-            let char_b = &roster[(char_idx + other_offset) % num_characters];
-            let relation = RELATIONS[rng.below(RELATIONS.len())];
-            let t = converse(char_a, char_b, relation, library, None, rng);
+    let corpus = gen_conversations(num_characters, num_conversations, seed);
+    for (idx, gen) in corpus.talks.into_iter().enumerate() {
+        let char_idx = idx / num_conversations;
+        let conv_idx = idx % num_conversations;
+        let (relation, kind, t) = (gen.relation, gen.kind, gen.transcript);
+        let (char_a, char_b) = (&corpus.roster[gen.a], &corpus.roster[gen.b]);
+        {
             let fp = transcript_fingerprint(&t.speakers, &t.turns);
             out.push(serde_json::json!({
                 // the roster and pairings depend on the batch's shape too,
@@ -311,6 +260,7 @@ fn json_conversations(
                 "source": "generated",
                 "kind": "Chat",
                 "relation": format!("{:?}", relation),
+                "rel_kind": kind.map(|k| format!("{:?}", k)),
                 "speakers": [speaker_json(char_a), speaker_json(char_b)],
                 "trees": t.trees_walked,
                 "ending": format!("{:?}", t.ending.unwrap_or(game2_core::game::conversation::Ending::Exhausted)),

@@ -259,7 +259,7 @@ fn test_the_scribes_fair_hand() {
         let r = g.world.create_entity();
         g.world.add_component(r, crate::game::relationships::Relationship {
             from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
-            strength: 0.8, interactions: 5 });
+            strength: 0.8, interactions: 5, ..Default::default() });
         g.world.get_component_mut::<Purse>(a).unwrap().gold = 10.0;
         let model = g.ui_model();
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the scribe")),
@@ -604,7 +604,7 @@ fn test_the_news_sets_the_street_talking() {
         let bond = g.world.create_entity();
         g.world.add_component(bond, crate::game::relationships::Relationship {
             from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
-            strength: 0.5, interactions: 0 });
+            strength: 0.5, interactions: 0, ..Default::default() });
         let model = g.ui_model();
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the news-crier")),
             "the frame shows the crier on {:?}", st);
@@ -2906,7 +2906,7 @@ fn test_she_names_the_pot() {
     assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_VICTIM_TREE),
         "her talk's the naming one: {:?}", talk.opt_tree);
     let i = talk.options.iter()
-        .position(|o| o.1 == crate::game::dialogue_trees::EWE_WHOSE_POT)
+        .position(|o| o.2 == crate::game::dialogue_trees::EWE_WHOSE_POT)
         .expect("the whose-pot ask is on offer");
     g.talk_pick_at(0, Some(i));
     let tn = g.name_of(t.thief);
@@ -2929,7 +2929,7 @@ fn test_the_gift_lifts_the_lid() {
     assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_TREE),
         "his talk's the bluffing one: {:?}", talk.opt_tree);
     let i = talk.options.iter()
-        .position(|o| o.1 == crate::game::dialogue_trees::EWE_GIFT)
+        .position(|o| o.2 == crate::game::dialogue_trees::EWE_GIFT)
         .expect("the gift's on offer");
     g.talk_pick_at(0, Some(i));
     assert!(g.ewe_theft.as_ref().map(|t| t.fork_open).unwrap_or(false),
@@ -2980,7 +2980,7 @@ fn test_the_held_name_pays_out_once() {
     assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::EWE_PRICE_TREE),
         "his talk's the squeezed one: {:?}", talk.opt_tree);
     let i = talk.options.iter()
-        .position(|o| o.1 == crate::game::dialogue_trees::EWE_SQUEEZE)
+        .position(|o| o.2 == super::fixtures::said(&talk, true, crate::game::dialogue_trees::EWE_SQUEEZE))
         .expect("the squeeze is on offer");
     if g.world.get_component::<crate::game::livelihood::Purse>(t.thief).is_none() {
         g.world.add_component(t.thief, crate::game::livelihood::Purse { gold: 9.0 });
@@ -3182,7 +3182,7 @@ fn test_the_mediator_puts_the_row_out() {
     assert_eq!(talk.opt_tree, Some(crate::game::dialogue_trees::NOAH_ROW_TREE),
         "mid-row, the talk's the row's own: {:?}", talk.opt_tree);
     let i = talk.options.iter()
-        .position(|o| o.1 == crate::game::dialogue_trees::NOAH_PEACE)
+        .position(|o| o.2 == crate::game::dialogue_trees::NOAH_PEACE)
         .expect("the peace word's on offer");
     g.talk_pick_at(0, Some(i));
     assert!(g.noah_row.is_none(), "the row goes out like a lamp");
@@ -3208,7 +3208,7 @@ fn test_the_mediator_takes_a_side() {
         "raised voices out there");
     let talk = g.seats[0].talk.clone().expect("the talk's open");
     let i = talk.options.iter()
-        .position(|o| o.1 == crate::game::dialogue_trees::NOAH_SIDE_THEM)
+        .position(|o| o.2 == super::fixtures::said(&talk, true, crate::game::dialogue_trees::NOAH_SIDE_THEM))
         .expect("the side pick's on offer");
     g.talk_pick_at(0, Some(i));
     assert!(g.noah_row.is_some(),
@@ -3235,8 +3235,8 @@ fn walk_in_false_traveller(g: &mut Game) -> Entity {
 fn accuse_pick(g: &Game) -> usize {
     let t = g.seats[0].talk.as_ref().expect("the talk's open");
     t.options.iter().position(|o|
-        o.1 == crate::game::dialogue_trees::FT_ACCUSE
-        || o.1 == crate::game::dialogue_trees::FT_ACCUSE_RUN)
+        o.2 == super::fixtures::said(t, true, crate::game::dialogue_trees::FT_ACCUSE)
+        || o.2 == super::fixtures::said(t, true, crate::game::dialogue_trees::FT_ACCUSE_RUN))
         .unwrap_or_else(|| panic!("the accusation's on offer: {:?} (tree {:?})",
             t.options, t.opt_tree))
 }

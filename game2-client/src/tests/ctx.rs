@@ -9,13 +9,13 @@ fn overlap(a: &Button, b: &Button) -> bool {
 #[test]
 fn test_ctx_buttons_never_overlap() {
     let acts = [
-        CtxAct::Work, CtxAct::Errand, CtxAct::PairUp, CtxAct::Matchmake,
+        CtxAct::Errand, CtxAct::PairUp, CtxAct::Matchmake,
         CtxAct::Meet, CtxAct::Cadence, CtxAct::March, CtxAct::MendHall,
         CtxAct::Delegate, CtxAct::Strike, CtxAct::Townhall, CtxAct::Petition,
         CtxAct::Gather, CtxAct::Pact, CtxAct::PetCat,
         CtxAct::Snowballs, CtxAct::Douse, CtxAct::Flyers,
         CtxAct::PickCaps, CtxAct::ShareFindings, CtxAct::TakeCache,
-        CtxAct::Give, CtxAct::Buy, CtxAct::Tame, CtxAct::School, CtxAct::Brigade,
+        CtxAct::Give, CtxAct::Buy, CtxAct::Tame, CtxAct::School,
     ];
     let btns = ctx_buttons(&acts);
     assert_eq!(btns.len(), acts.len(), "one button per action, in order");
@@ -58,8 +58,8 @@ fn test_ctx_buttons_on_a_real_frame() {
 /// a short or absent list (an older server) falls back to `ctx_button`'s
 #[test]
 fn test_ctx_labels_override_the_static_wording() {
-    let acts = [CtxAct::Work, CtxAct::Tame];
-    let btns = ctx_buttons_labeled(&acts, &["Work".to_string(), "Pet the sheep".to_string()]);
+    let acts = [CtxAct::Errand, CtxAct::Tame];
+    let btns = ctx_buttons_labeled(&acts, &["Errand".to_string(), "Pet the sheep".to_string()]);
     assert_eq!(btns[1].label, "Pet the sheep");
     let btns = ctx_buttons_labeled(&acts, &[]);
     assert_eq!(btns[1].label, "Pet it", "the static label fills the gap");

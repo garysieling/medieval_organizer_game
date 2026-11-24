@@ -3,6 +3,7 @@ members = [
     "game2-core",
     "game2-client",
     "game2-web",
+    "game2-audio",
 ]
 resolver = "2"
 

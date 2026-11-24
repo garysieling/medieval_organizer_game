@@ -3,12 +3,13 @@
 //! opens a window, feeds input to the Game (local) or the server
 //! (--connect ws://host:port), and blits what View draws.
 
-use std::sync::{Arc, Mutex};
+use std::io::Write;
 use minifb::{Key, Window, WindowOptions, MouseMode, Scale, ScaleMode};
 use game2_core::engine::render::Buffer;
 use game2_client::{self as client, Art, EventCam, View};
+use game2_client::remote::{connect_remote, save_token};
 use game2_core::session::{
-    self, ClientKind, ClientMsg, Command, ConvoPanelV, Game, SceneCache, ServerMsg, UiModel, MAP_TILES,
+    self, ClientMsg, Command, ConvoPanelV, Game, UiModel, MAP_TILES,
 };
 
 const W: usize = session::W;
@@ -60,72 +61,6 @@ fn make_window(fullscreen: bool) -> Window {
         WindowOptions::default()
     };
     Window::new("The Wanderer - Medieval Village", W, H, options).expect("window failed")
-}
-
-/// A claim token kept on disk: relaunch and you're the same wanderer (the
-/// browser keeps it in localStorage)
-fn claim_token() -> Option<String> {
-    std::fs::read_to_string("game2.claim").ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-}
-fn save_token(t: &str) { let _ = std::fs::write("game2.claim", t); }
-
-/// A live server connection: the ws for sends, the latest scene for draws
-struct Remote {
-    ws: Mutex<tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>>,
-    latest: Mutex<Option<UiModel>>,
-    token_seen: Mutex<Option<String>>,
-    /// The server turned us away (a wrong join secret, a full village)
-    denied: Mutex<Option<String>>,
-    /// The roster the Welcome dealt, for the character picker
-    roster: Mutex<Option<Vec<session::roster::RosterCard>>>,
-    /// The seed's stage-setting facts, for the prologue card after the picker
-    intro: Mutex<Option<Vec<String>>>,
-}
-
-fn connect_remote(url: &str) -> Arc<Remote> {
-    let (mut ws, _) = tungstenite::connect(url).expect("can't reach the server");
-    ws.send(tungstenite::Message::Text(
-        serde_json::to_string(&ClientMsg::Hello { token: claim_token(), kind: ClientKind::Human, name: None,
-            secret: std::env::var("GAME2_JOIN_SECRET").ok().filter(|s| !s.is_empty()) }).unwrap().into()
-    )).ok();
-    let remote = Arc::new(Remote {
-        ws: Mutex::new(ws), latest: Mutex::new(None), token_seen: Mutex::new(None),
-        denied: Mutex::new(None), roster: Mutex::new(None), intro: Mutex::new(None),
-    });
-    {
-        let remote = remote.clone();
-        std::thread::spawn(move || {
-            // scenes arrive without the map (it's sent apart, when it
-            // changes): the cache puts the last one back in
-            let mut cache = SceneCache::new();
-            let mut welcomed = false;
-            loop {
-                let msg = remote.ws.lock().unwrap().read();
-                match msg {
-                    Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
-                        Ok(msg) => {
-                            if let ServerMsg::Welcome { token, roster, intro, .. } = &msg {
-                                *remote.token_seen.lock().unwrap() = Some(token.clone());
-                                *remote.roster.lock().unwrap() = Some(roster.clone());
-                                *remote.intro.lock().unwrap() = Some(intro.clone());
-                            }
-                            // a Denied before the Welcome is a refusal (we're not
-                            // in); after it, it's a warning ("slow down") and play goes on
-                            if let ServerMsg::Welcome { .. } = &msg { welcomed = true; }
-                            if let ServerMsg::Denied { reason } = &msg {
-                                if welcomed { eprintln!("game_ui: the server says: {reason}"); }
-                                else { *remote.denied.lock().unwrap() = Some(reason.clone()); }
-                            }
-                            if let Some(scene) = cache.apply(msg) { *remote.latest.lock().unwrap() = Some(scene); }
-                        }
-                        Err(_) => {}
-                    },
-                    _ => break,
-                }
-            }
-        });
-    }
-    remote
 }
 
 /// What the find box's keys did this frame
@@ -231,6 +166,12 @@ fn main() {
         .and_then(|v| v.parse().ok()).unwrap_or_else(session::run_seed);
     // remote play: --connect ws://host:port
     let connect: Option<String> = args.iter().position(|a| a == "--connect").and_then(|i| args.get(i + 1)).cloned();
+    // scene capture (#1493): --record-scenes path.jsonl appends each
+    // frame's UiModel, the static map on the first line only
+    let record_scenes: Option<String> = args.iter().position(|a| a == "--record-scenes")
+        .and_then(|i| args.get(i + 1)).cloned();
+    // --no-audio (#1494): never opens a device
+    let no_audio = args.iter().any(|a| a == "--no-audio");
 
     if let Some(target) = dump_at {
         let art = Art::load_fs("assets", seed);
@@ -270,15 +211,42 @@ fn main() {
                 if j.version == game2_core::session::journal::JOURNAL_VERSION {
                     let frames = j.entries.last().map(|e| e.0).unwrap_or(0);
                     Some(game2_core::session::journal::replay(&j, frames))
-                } else { Some(Game::new_seeded(seed)) }
-            } else { Some(Game::new_seeded(seed)) }
-        } else { Some(Game::new_seeded(seed)) }
+                } else { Some(Game::new_seeded_cast(seed)) }
+            } else { Some(Game::new_seeded_cast(seed)) }
+        } else { Some(Game::new_seeded_cast(seed)) }
     } else { None };
     // the prologue card stands between the picker and the game: the
     // seed's own facts, till any key lets the day begin. A remote seat's
     // facts ride the Welcome - the card shows once it lands
     let mut intro: Option<Vec<String>> = game.as_ref().map(|g| g.intro_facts()).filter(|f| !f.is_empty());
     let mut intro_wanted = remote.is_some();
+    // --record-scenes: the JSONL file and its line count
+    let mut scenes_out = record_scenes.map(|p|
+        std::io::BufWriter::new(std::fs::File::create(&p).expect("can't create the scenes file")));
+    let mut scenes_wrote = 0u64;
+    // the audio host (#1494): the sink owns the device stream so it
+    // must outlive the host; a failed probe or --no-audio goes silent
+    #[cfg(all(feature = "audio", not(target_arch = "wasm32")))]
+    let (_audio_sink, mut audio_host) = {
+        let settings = game2_audio::host::HostSettings::default();
+        let mut sink = if no_audio { None } else {
+            client::audio::CpalSink::probe().map_err(|e| {
+                eprintln!("audio: {e} - running silent");
+                e
+            }).ok()
+        };
+        let host = client::audio::open_host(no_audio, &settings,
+            sink.as_mut().map(|s| s as &mut dyn game2_audio::host::AudioSink));
+        (sink, host)
+    };
+    #[cfg(not(all(feature = "audio", not(target_arch = "wasm32"))))]
+    let mut audio_host = { let _ = no_audio; game2_audio::host::AudioHost::silent() };
+    // the persisted audio settings (#1505): game2.settings.json beside
+    // game2.claim, applied now, saved a second after a change, flushed
+    // on quit. The Sound menu lands with U2; nothing else writes yet.
+    let mut settings_store = client::audio::SettingsStore::load(
+        std::path::Path::new("game2.settings.json"));
+    audio_host.apply_settings(&settings_store.settings);
     let mut view = View::new(art);
     // the camera opens on the player, wherever this seed's village stands
     let mut cam_centered = false;
@@ -454,6 +422,28 @@ fn main() {
             (None, Some(g)) => { if !pause_menu { g.update(); } Some(g.ui_model()) }
             (None, None) => None,
         };
+        // --record-scenes: one JSON line per frame; the map (98% of a
+        // model) rides the first line only, like the wire protocol's
+        // lean scenes. sound_dump --scenes replays the file.
+        if let (Some(w), Some(m)) = (&mut scenes_out, &cur_model) {
+            let line = if scenes_wrote == 0 {
+                serde_json::to_string(m).unwrap_or_default()
+            } else {
+                let mut lean = m.clone();
+                lean.map = Default::default();
+                serde_json::to_string(&lean).unwrap_or_default()
+            };
+            let _ = writeln!(w, "{line}");
+            scenes_wrote += 1;
+        }
+        // the frame's audio intent goes down to the host; M toggles
+        // View.mute during play (never while the find box has the keys)
+        if let Some(m) = &cur_model { audio_host.push(m); }
+        audio_host.set_muted(view.mute);
+        // #1505: a blurred window fades out when the settings say so,
+        // and a pending settings write lands once the second's out
+        audio_host.set_focused(window.is_active());
+        settings_store.due(std::time::Instant::now());
         // a talk under way offers leave on either box it shows on -
         // the convo box's "x)", or the TALK panel's when a call's
         // standing over the talk
@@ -590,6 +580,10 @@ fn main() {
         if pause_menu {
             client::draw_pause_menu(&mut buf, (mx, my),
                 if remote.is_some() { "MENU" } else { "PAUSED" });
+            if view.sound_menu {
+                client::draw_sound_menu(&mut buf, (mx, my),
+                    &settings_store.settings, view.sound_row);
+            }
         }
         present(&mut window, &buf);
 
@@ -601,14 +595,68 @@ fn main() {
         // (#1324)
         let esc_now = window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No);
         if pause_menu {
-            if esc_now
-                || window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { pause_menu = false; }
-            if window.is_key_pressed(Key::Q, minifb::KeyRepeat::No) { quit = true; }
-            if clicked {
-                match client::pause_menu_click(mx, my) {
-                    Some(client::MenuPick::Resume) => pause_menu = false,
-                    Some(client::MenuPick::Quit) => quit = true,
-                    None => {}
+            // the Sound overlay rides the menu (#1506): while it's up it
+            // owns the keys, and Esc peels back to the menu rather than
+            // resuming the day. Every edit lands on the live settings,
+            // applies to the host, and marks the file dirty for the
+            // debounced write
+            if view.sound_menu {
+                use client::{SndKey, SoundAct};
+                let k = if esc_now { Some(SndKey::Esc) }
+                    else if window.is_key_pressed(Key::Up, minifb::KeyRepeat::No)
+                        || window.is_key_pressed(Key::W, minifb::KeyRepeat::No) { Some(SndKey::Up) }
+                    else if window.is_key_pressed(Key::Down, minifb::KeyRepeat::No)
+                        || window.is_key_pressed(Key::S, minifb::KeyRepeat::No) { Some(SndKey::Down) }
+                    else if window.is_key_pressed(Key::Left, minifb::KeyRepeat::No)
+                        || window.is_key_pressed(Key::A, minifb::KeyRepeat::No) { Some(SndKey::Left) }
+                    else if window.is_key_pressed(Key::Right, minifb::KeyRepeat::No)
+                        || window.is_key_pressed(Key::D, minifb::KeyRepeat::No) { Some(SndKey::Right) }
+                    else if window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { Some(SndKey::Enter) }
+                    else { None };
+                let act = k.map(|k| client::sound_menu_key(&mut settings_store.settings, view.sound_row, k))
+                    .or_else(|| if clicked {
+                        client::sound_menu_click(mx, my, &mut settings_store.settings)
+                    } else { None });
+                if let Some((row, act)) = act {
+                    view.sound_row = row;
+                    match act {
+                        SoundAct::Changed(key) => {
+                            audio_host.apply_settings(&settings_store.settings);
+                            settings_store.touch(std::time::Instant::now());
+                            // a moved Effects slider previews itself
+                            if key == "effects" {
+                                audio_host.push_frame(&game2_audio::host::AudioFrame {
+                                    cues: vec![game2_audio::host::CueKind::Bell { pan: 0.0, gain: 0.8 }],
+                                    seed: 0,
+                                });
+                            }
+                        }
+                        SoundAct::Reset => {
+                            audio_host.apply_settings(&settings_store.settings);
+                            settings_store.touch(std::time::Instant::now());
+                        }
+                        SoundAct::Close => view.sound_menu = false,
+                        SoundAct::Move => {}
+                    }
+                }
+            } else {
+                if esc_now
+                    || window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { pause_menu = false; }
+                if window.is_key_pressed(Key::Q, minifb::KeyRepeat::No) { quit = true; }
+                if window.is_key_pressed(Key::V, minifb::KeyRepeat::No) {
+                    view.sound_menu = true;
+                    view.sound_row = 0;
+                }
+                if clicked {
+                    match client::pause_menu_click(mx, my) {
+                        Some(client::MenuPick::Resume) => pause_menu = false,
+                        Some(client::MenuPick::Sound) => {
+                            view.sound_menu = true;
+                            view.sound_row = 0;
+                        }
+                        Some(client::MenuPick::Quit) => quit = true,
+                        None => {}
+                    }
                 }
             }
             view.recycle(buf);
@@ -726,6 +774,21 @@ fn main() {
         }
         if !view.search_focus && (window.is_key_pressed(Key::H, minifb::KeyRepeat::No)) { view.help_open = !view.help_open; }
         if !view.search_focus && (window.is_key_pressed(Key::F3, minifb::KeyRepeat::No)) { view.ledger_open = !view.ledger_open; }
+        // M mutes: the host reads View.mute each frame (#1494), and
+        // the press says so on the toast feed (#1505)
+        if !view.search_focus && (window.is_key_pressed(Key::M, minifb::KeyRepeat::No)) {
+            view.toggle_mute(cur_model.as_ref().map(|m| m.frame).unwrap_or(0));
+        }
+        // V opens the Sound overlay off the pause menu (#1506) - only on
+        // a bare map, where Esc itself would open the menu, so a Talk or
+        // the board keeps its own keys. The menu comes up with it so
+        // Esc still backs out to it
+        if !view.search_focus && window.is_key_pressed(Key::V, minifb::KeyRepeat::No)
+            && cur_model.as_ref().map(client::esc_route) == Some(client::EscRoute::Pause) {
+            pause_menu = true;
+            view.sound_menu = true;
+            view.sound_row = 0;
+        }
         if let Some((_, scroll_y)) = window.get_scroll_wheel() {
             // Scale multiplicatively so a wheel notch feels consistent at any zoom,
             // while trackpads can still make smaller, smooth adjustments.
@@ -764,6 +827,10 @@ fn main() {
         let spent = frame_at.elapsed();
         if spent < frame_len { std::thread::sleep(frame_len - spent); }
     }
+
+    // the settings file lands on the way out (#1505) - pending changes
+    // written, a corrupt one rewritten
+    settings_store.flush();
 
     let _ = MAP_TILES;
 }

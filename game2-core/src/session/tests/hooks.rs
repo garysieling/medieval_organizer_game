@@ -16,7 +16,7 @@ fn adults(g: &Game) -> Vec<usize> {
 }
 
 fn carry(g: &mut Game, v: Entity, id: usize) {
-    g.world.add_component(v, Hooks { carried: vec![Carried { id, laid: None, told: false }] });
+    g.world.add_component(v, Hooks { carried: vec![Carried { id, laid: None, told: false, ghost: None }] });
 }
 
 fn bond(g: &mut Game, v: Entity, s: f32) {

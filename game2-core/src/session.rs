@@ -12,6 +12,7 @@ pub mod routine;
 pub mod country;
 pub mod quests;
 pub mod mystery;
+pub mod prehistory;
 pub mod survey;
 pub mod rebels;
 pub mod roster;
@@ -159,6 +160,7 @@ fn note_story(
     tales: &mut crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
     told: &mut crate::engine::det::HashSet<usize>,
     log: &mut gamelog::GameLog,
+    names: &[&'static str],
     i: usize, tick: u64, kind: crate::sim::story::EventKind, desc: String,
 ) {
     let ev = crate::sim::story::StoryEvent { tick, kind, description: desc };
@@ -183,7 +185,7 @@ fn note_story(
             format!(
                 "t{}: the village marks it - {}'s is {}.",
                 tick,
-                vill_name(i),
+                cast_of(names, i),
                 word
             ),
             i,
@@ -361,7 +363,6 @@ pub fn action_buttons() -> [Button; 1] {
 /// The button a contextual action draws with
 pub fn ctx_button(act: CtxAct) -> Button {
     match act {
-        CtxAct::Work => Button { label: "Work".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 90, 140) },
         CtxAct::Errand => Button { label: "Errand".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 120, 90) },
         CtxAct::PairUp => Button { label: "Pair up".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (120, 90, 140) },
         CtxAct::Matchmake => Button { label: "Matchmake".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (160, 90, 110) },
@@ -371,7 +372,6 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Cadence => Button { label: "Cadence".into(), key: ' ', x: UI_X as i32 + 150, y: 470, w: 60, h: 16, color: (100, 100, 130) },
         CtxAct::March => Button { label: "March".into(), key: ' ', x: UI_X as i32 + 216, y: 486, w: 60, h: 16, color: (150, 60, 60) },
         CtxAct::MendHall => Button { label: "Mend hall".into(), key: ' ', x: UI_X as i32 + 150, y: 454, w: 60, h: 16, color: (100, 80, 120) },
-        CtxAct::Brigade => Button { label: "Fire brigade".into(), key: ' ', x: UI_X as i32 + 150, y: 454, w: 84, h: 16, color: (150, 80, 70) },
         // Delegate and Strike act on the picked member - they live on the
         // bottom edge of their inspector card
         CtxAct::Delegate => Button { label: "Seat".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (80, 80, 140) },
@@ -486,12 +486,61 @@ const NEW_NAMES: [&str; 78] = [
     "Juliana","Miles","Nicolas","Orm","Petronel","Roget",
     "Sanchia","Terrice","Vincent","Wymund","Aveline","Bricot",
 ];
+/// The same two rolls split by the body they name (E1-3, #1417): a
+/// seeded cast deals from the pool matching the persona's sex, so
+/// names and pronouns agree by construction. Tests assert the pools
+/// partition NAMES + NEW_NAMES exactly, so the rolls stay the source
+pub(crate) const MALE_NAMES: [&str; 61] = [
+    "Aldric","Bram","Corvin","Hob","Wystan","Aelfric","Osric","Fenwick",
+    "Cedric","Godric","Leofric","Anselm","Roderick","Osmund","Pip","Tom",
+    "Reeve","Dunn","Hamelin","Colle","Merrick","Sabyn","Tybalt","Peryn",
+    "Hobkin","Wymond","Oswin","Milo","Ralf","Baldwin","Drogo","Fulke",
+    "Jocelin","Wymar","Hugh","Lucan","Sturmy","Garard","Thurstan","Engelard",
+    "Conan","Warin","Aldwin","Goscelin","Bartram","Serle","Jankin","Osbert",
+    "Quintin","Tibbets","Urian","Wymark","Erk","Miles","Nicolas","Orm",
+    "Roget","Terrice","Vincent","Wymund","Bricot",
+];
+pub(crate) const FEMALE_NAMES: [&str; 48] = [
+    "Eliza","Dagny","Marga","Gisela","Tilda","Hilda","Rowena","Matilda",
+    "Edith","Bertha","Winifred","Greta","Nell","Willa","Sible","Avice",
+    "Imma","Lettice","Tansy","Godelieve","Sabine","Eglantine","Isolde","Clarice",
+    "Emeline","Petronilla","Beatrice","Agnes","Philippa","Ysolde","Denise","Rohese",
+    "Basilia","Melisende","Jocosa","Ermentrude","Mahelt","Pernel","Simone","Adeline",
+    "Hawise","Mabyn","Peronell","Rohaise","Juliana","Petronel","Sanchia","Aveline",
+];
 /// A villager's name by index - past the named roll, the second roll
 /// keeps them distinct; past that, a newcomer stands in
 pub fn vill_name(i: usize) -> &'static str {
     NAMES.get(i).copied()
         .or_else(|| NEW_NAMES.get(i - NAMES.len()).copied())
         .unwrap_or("a newcomer")
+}
+
+/// `self.names[i]` without borrowing all of self - the hot loops that
+/// already hold a part of Game mutably read names through this (#1411)
+pub(crate) fn cast_of(names: &[&'static str], i: usize) -> &'static str {
+    names.get(i).copied().unwrap_or("a newcomer")
+}
+
+/// The name a persona draws for its bearer, in a seeded cast (#1411):
+/// seeded off the person's own stream from the pool matching its sex
+/// (#1417), and never one already carried - retries step through the
+/// draws till it lands one
+pub(crate) fn deal_name(p: &crate::game::persona::Persona,
+    taken: &mut Vec<&'static str>) -> &'static str {
+    let pool: &[&'static str] = match p.sex {
+        crate::game::villager::Sex::Female => &FEMALE_NAMES,
+        crate::game::villager::Sex::Male => &MALE_NAMES,
+    };
+    for n in 0..(pool.len() + 40) {
+        let i = (p.draw(100 + n as u64) * pool.len() as f32) as usize % pool.len();
+        let name = pool[i];
+        if !taken.contains(&name) { taken.push(name); return name; }
+    }
+    // the roll must stay positional even when the pool runs dry - a
+    // skipped slot would shift every name after it
+    taken.push("a newcomer");
+    "a newcomer"
 }
 /// Which villager indices are the children, the tax collector and the herb-wife
 const KID_IDXS: [usize; 3] = [26, 27, 28];
@@ -1340,6 +1389,12 @@ pub struct Game {
     /// hard frost - fields and bones feel it while it lasts
     pub weather: Entity,
     pub died_on: Vec<Option<u64>>, // per villager, the day they died
+    /// The cast's names, dealt per villager: the fixed roll in a fixed
+    /// cast, seeded off each persona when the cast's seeded (#1411)
+    pub names: Vec<&'static str>,
+    /// Whether the cast was generated: personas, dealt names and drawn
+    /// bodies instead of the fixed roll - every later spawn asks it
+    pub seeded_cast: bool,
     /// The churchyard's plots, planned on the first burial check
     /// (None until then - and forever on a map with no church)
     pub graveyard: Option<Graveyard>,
@@ -2383,20 +2438,20 @@ impl Game {
             if let Some(h) = world.get_component::<Health>(*v) {
                 if h.condition <= 0.0 {
                     toasts.push_at(
-                        (format!("{} has died.", vill_name(i)), tick + 60),
+                        (format!("{} has died.", cast_of(&self.names, i)), tick + 60),
                         toast_spot(world, *v),
                     );
                     log.push_ev_at_who(
                         EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Major),
-                        format!("t{}: {} died.", tick, vill_name(i)),
+                        format!("t{}: {} died.", tick, cast_of(&self.names, i)),
                         toast_spot(world, *v),
                         Some(i),
                     );
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
                     died_on[i] = Some(tick);
-                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
-                        crate::sim::story::EventKind::Death, format!("{} died.", vill_name(i)));
+                    note_story(&mut self.tales, &mut self.tales_told, log, &self.names, i, tick,
+                        crate::sim::story::EventKind::Death, format!("{} died.", cast_of(&self.names, i)));
                 }
             }
         }
@@ -2418,8 +2473,8 @@ impl Game {
                 format!(
                     "t{}: {} tells {} - {}",
                     tick,
-                    vill_name(a),
-                    vill_name(b),
+                    cast_of(&self.names, a),
+                    cast_of(&self.names, b),
                     rumors[tick as usize / 40 % 5]
                 ),
             );
@@ -2430,7 +2485,7 @@ impl Game {
         if ticked && tick == FLU_DAY {
             let d = world.create_entity();
             world.add_component(d, Disease::new(DiseaseKind::Influenza, villagers[2], 0.45));
-            toasts.push_at((format!("A traveller brings la grippe - {} falls ill", vill_name(2)), tick + 40),
+            toasts.push_at((format!("A traveller brings la grippe - {} falls ill", cast_of(&self.names, 2)), tick + 40),
                 toast_spot(world, villagers[2]));
         }
         // log who falls ill and who recovers
@@ -2440,7 +2495,7 @@ impl Game {
                 (Some(name), None) => {
                     log.push_ev_at_who(
                         EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
-                        format!("t{}: {} is taken with {}", tick, vill_name(i), name),
+                        format!("t{}: {} is taken with {}", tick, cast_of(&self.names, i), name),
                         world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)),
                         Some(i),
                     );
@@ -2448,10 +2503,11 @@ impl Game {
                         &mut self.tales,
                         &mut self.tales_told,
                         log,
+                        &self.names,
                         i,
                         tick,
                         crate::sim::story::EventKind::Illness,
-                        format!("{} is taken with {}", vill_name(i), name),
+                        format!("{} is taken with {}", cast_of(&self.names, i), name),
                     );
                 }
                 (None, Some(old)) => {
@@ -2459,7 +2515,7 @@ impl Game {
                     if self.died_on.get(i).and_then(|d| *d).is_none() {
                         log.push_ev_at_who(
                             EvTag::new(Thread::Illness, Valence::Positive, Sev::Notable),
-                            format!("t{}: {} recovered from {}", tick, vill_name(i), old),
+                            format!("t{}: {} recovered from {}", tick, cast_of(&self.names, i), old),
                             world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)),
                             Some(i),
                         );
@@ -2467,10 +2523,11 @@ impl Game {
                             &mut self.tales,
                             &mut self.tales_told,
                             log,
+                            &self.names,
                             i,
                             tick,
                             crate::sim::story::EventKind::Recovery,
-                            format!("{} recovered from {}", vill_name(i), old),
+                            format!("{} recovered from {}", cast_of(&self.names, i), old),
                         );
                     }
                 }
@@ -2603,6 +2660,7 @@ impl Game {
         crate::timed!("sim.formation", self.formation_step());
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
+            self.ambient_bench_at(seat);
             self.advance_approach_at(seat);
             self.advance_buy_walk_at(seat);
             self.advance_selection_at(seat);

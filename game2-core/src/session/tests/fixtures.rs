@@ -22,3 +22,13 @@ pub(crate) fn plan_ready_meeting(game: &mut Game, host: Entity, at: (f32, f32), 
     }
     game.world.get_component_mut::<crate::game::org_skills::Organizing>(player).unwrap().turnout = 2.0;
 }
+
+/// The text a slotted template renders as inside a PlayerTalk (E4-4):
+/// tests match the talk's realized option and record strings against
+/// the authored consts, so the const goes through the same realizer
+/// the talk used. `player_side` realizes as the player's mouth (their
+/// picks and asks); false is the villager's.
+pub(crate) fn said(t: &crate::session::dialogue::PlayerTalk, player_side: bool,
+                   template: &'static str) -> String {
+    t.said(template, player_side)
+}

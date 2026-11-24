@@ -172,7 +172,7 @@ impl Game {
                         format!(
                             "t{}: the speckled monster comes to {} - the pox is in the village.",
                             tick,
-                            vill_name(i)
+                            self.cast_name(i)
                         ),
                     );
                 }

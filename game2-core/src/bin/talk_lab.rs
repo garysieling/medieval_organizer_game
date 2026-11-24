@@ -63,6 +63,7 @@ struct Args {
     out: Option<String>,
     folk: usize,
     warm: bool,
+    seeded_cast: bool,
 }
 
 fn parse_args() -> Args {
@@ -70,7 +71,7 @@ fn parse_args() -> Args {
         mode: "help".into(), seed: MAP_SEED, villager: None, name: None,
         ideology: None, rel: None, traits: vec![], statuses: vec![],
         stage: None, days: 0, n: 10, picks: VecDeque::new(), auto: false,
-        feedback: true, out: None, folk: 4, warm: false,
+        feedback: true, out: None, folk: 4, warm: false, seeded_cast: false,
     };
     let argv: Vec<String> = std::env::args().collect();
     let mut i = 1;
@@ -79,6 +80,8 @@ fn parse_args() -> Args {
         let take = |i: &mut usize| -> String { *i += 1; argv.get(*i).cloned().unwrap_or_default() };
         match argv[i].as_str() {
             "--seed" | "-s" => a.seed = take(&mut i).parse().unwrap_or(MAP_SEED),
+            // a seeded cast carries personas (E3-1): their facts print
+            "--cast" => a.seeded_cast = take(&mut i) == "seeded",
             "--villager" => a.villager = Some(take(&mut i)),
             "--name" => a.name = Some(take(&mut i)),
             "--ideology" => a.ideology = Some(take(&mut i)),
@@ -189,7 +192,8 @@ fn next_pick(opts: &[String], picks: &mut VecDeque<usize>, auto: bool, stdin: &i
 /// profile, gist, asks and all - read off the convo box each frame.
 fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::Stdin) {
     let mut pq = a.picks.clone();
-    let mut g = Game::new_seeded(a.seed);
+    let mut g = if a.seeded_cast { Game::new_seeded_cast(a.seed) }
+        else { Game::new_seeded(a.seed) };
     if let Some(s) = a.stage { stage(&mut g, s); }
     if a.days > 0 { run_days(&mut g, a.days); }
 
@@ -223,6 +227,13 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
     let vname = m0.people.iter().find(|p| p.e == who)
         .and_then(|p| p.label.clone()).unwrap_or_else(|| format!("villager {vi}"));
     out.emit(&format!("=== Talk: {vname} (villager {vi}, game seed {}) ===", a.seed));
+    // the persona's fact table (E3-1): what the talk's criteria see -
+    // open facts are voice-observable; the hidden half is theirs alone
+    let vs = game2_core::session::dialogue::speaker_of(&g.world, who, &vname, g.tick);
+    out.emit(&format!("  facts: {}", vs.facts.open.join(" ")));
+    if !vs.facts.hidden.is_empty() {
+        out.emit(&format!("  facts (self-only): {}", vs.facts.hidden.join(" ")));
+    }
 
     g.command(Command::Select(vi));
     g.command(Command::Act(0)); // Talk
@@ -294,9 +305,10 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
             }
         }
     }
-    out.emit(&format!("REPRO: talk_lab talk --seed {} --villager {} --picks {} {}",
+    out.emit(&format!("REPRO: talk_lab talk --seed {} --villager {} --picks {} {}{}",
         a.seed, a.villager.clone().unwrap_or_else(|| vi.to_string()),
         taken.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(","),
+        if a.seeded_cast { "--cast seeded " } else { "" },
         if talk_seed != 0 { format!("(talk seed {talk_seed})") } else { String::new() }));
 }
 
@@ -312,6 +324,7 @@ fn run_talk_synthetic(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &i
     let rel = a.rel.unwrap_or(Relation::Acquaintance);
     out.emit(&format!("=== Talk: {} (synthetic) vs {} - {:?} ===", them.name, you.name, rel));
     out.emit(&format!("  them: {}", backstory(&them)));
+    out.emit(&format!("  them's facts: {}", them.facts.open.join(" ")));
     out.emit(&format!("  you : {}", backstory(&you)));
     let lib = village_library();
     let mut picks: Vec<usize> = vec![];
@@ -319,7 +332,7 @@ fn run_talk_synthetic(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &i
     loop {
         let mut need: Option<Vec<(Act, String)>> = None;
         let mut used_picks = 0usize;
-        let tr = converse_with(&them, &you, rel, &lib, None, 1, &mut |ch: &[Choice]| {
+        let tr = converse_with(&them, &you, rel, None, &lib, None, 1, &mut |ch: &[Choice]| {
             if used_picks < picks.len() {
                 let p = picks[used_picks];
                 used_picks += 1;
@@ -360,6 +373,9 @@ fn synthetic_pair(a: &Args) -> (Speaker, Speaker) {
     them.traits = a.traits.clone();
     them.ideology = a.ideology.as_deref().unwrap_or("laborer").to_string().leak();
     for s in &a.statuses { let st: &'static str = s.clone().leak(); them.status.push(st); }
+    // the persona-lite profile (E3-1): archetype:* and value:* facts
+    // reach the transcript even for a flag-built speaker
+    them.facts = game2_core::game::conversation::lite_facts(&them.traits, a.seed);
     // "Voice" is what the game calls the player - keeps greetings like
     // "Morrow, Voice." reading the way they do in the UI (#1190)
     let you = Speaker::new("Voice");
@@ -556,7 +572,7 @@ fn run_batch(a: &Args, out: &mut Out) {
         // auto-pick with the run's own rng, recording the picks
         let mut prng = Rng::new(cseed);
         let mut made: Vec<usize> = vec![];
-        let tr = converse_with(&roster[x], &roster[y], rel, &lib, None, 1, &mut |ch: &[Choice]| {
+        let tr = converse_with(&roster[x], &roster[y], rel, None, &lib, None, 1, &mut |ch: &[Choice]| {
             let p = prng.below(ch.len());
             made.push(p);
             Some(p)

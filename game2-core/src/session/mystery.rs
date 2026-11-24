@@ -5,11 +5,11 @@
 //! they remember it.
 
 use crate::engine::ecs::Entity;
-use crate::game::mysteries::{Payoff, FACTS, MYSTERIES};
+use crate::game::mysteries::{Band, Dim, Mystery, Payoff, DIMS, MYSTERIES};
 use crate::session::*;
 
-/// A mystery the seat is piecing together: which one, which facts are
-/// already heard (a bit per fact), and who's been asking
+/// A mystery the seat is piecing together: which one, which clues are
+/// already heard (a bit per clue), and who's been asking
 #[derive(Debug, Clone)]
 pub struct SeatMystery {
     pub def: usize,
@@ -18,13 +18,27 @@ pub struct SeatMystery {
 }
 
 impl SeatMystery {
-    /// How many facts are already heard
+    /// The story it's working on
+    pub fn story(&self) -> &'static Mystery { &MYSTERIES[self.def] }
+    /// How many clues are already heard
     pub fn heard(&self) -> usize { self.known.count_ones() as usize }
-    /// All five in - the mystery's solved, waiting to be told
-    pub fn solved(&self) -> bool { self.heard() >= FACTS }
-    /// A fact not yet heard, picked by `roll` over what's left
+    /// How many of one direction's clues are in - the deep stories can
+    /// ask two of a kind (#1350)
+    pub fn heard_dim(&self, dim: Dim) -> usize {
+        self.story().clues.iter().enumerate()
+            .filter(|(i, c)| c.dim == dim && self.known & (1 << i) != 0)
+            .count()
+    }
+    /// Enough heard, and every direction the story wants covered - not
+    /// a flat count: a hard ask wants two of a kind (#1350)
+    pub fn solved(&self) -> bool {
+        let d = self.story();
+        self.heard() >= d.need
+            && d.dims.iter().all(|&(dim, n)| self.heard_dim(dim) >= n)
+    }
+    /// A clue not yet heard, picked by `roll` over what's left
     pub fn unheard(&self) -> Vec<usize> {
-        (0..FACTS).filter(|i| self.known & (1 << i) == 0).collect()
+        (0..self.story().clues.len()).filter(|i| self.known & (1 << i) == 0).collect()
     }
 }
 
@@ -32,8 +46,8 @@ impl SeatMystery {
 #[derive(Debug, Clone, Default)]
 pub struct MysteryTold {
     pub who: String,
-    pub wonders: &'static str,
-    pub thanks: &'static str,
+    pub wonders: String,
+    pub thanks: String,
     /// The payoff, in a line ("Ada asks you to their table.")
     pub payoff: String,
 }
@@ -106,26 +120,24 @@ impl Game {
             if tick < self.seats[seat].mystery_wait || rng.below(100) >= MYSTERY_CHANCE { continue; }
             let folk = self.mystery_folk();
             if folk.is_empty() { continue; }
-            // which mystery: any but the one just told, once there's been one
-            let n = MYSTERIES.len();
+            // which mystery: one of the seat's band (#1350) - the first
+            // asks come easy, the deep stories come round as its own
+            // solves rack up - and any but the one just told
+            let band = self.mystery_band(seat);
             let last = self.seats[seat].mystery_last;
-            let def = if n > 1 && last < n {
-                let mut d = rng.below((n - 1) as i32) as usize;
-                if d >= last { d += 1; }
-                d
-            } else {
-                rng.below(n as i32) as usize
-            };
+            let pool: Vec<usize> = (0..MYSTERIES.len())
+                .filter(|&i| MYSTERIES[i].band() == band && i != last)
+                .collect();
+            if pool.is_empty() { continue; }
+            let def = pool[rng.below(pool.len() as i32) as usize];
             let Some(asker) = self.mystery_asker(def, &folk, rng) else { continue };
             self.seats[seat].mystery_last = def;
             self.seats[seat].mystery = Some(SeatMystery { def, known: 0, asker });
             let title = MYSTERIES[def].title;
             let who = self.name_of(asker);
-            self.say(
-                asker,
-                ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize],
-                TALK_BUBBLE_SECS * 2,
-            );
+            let al = self.pair_said(asker, self.seats[seat].player,
+                ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize]);
+            self.say(asker, &al, TALK_BUBBLE_SECS * 2);
             self.log_entity_ev(
                 EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
                 asker,
@@ -160,9 +172,12 @@ impl Game {
         let i = left[self.rng.below(left.len() as i32) as usize];
         if let Some(mm) = &mut self.seats[seat].mystery { mm.known |= 1 << i; }
         let def = &MYSTERIES[m.def];
-        let text = def.facts[i].to_string();
+        let text = def.clues[i].text.to_string();
         let m2 = self.seats[seat].mystery.clone().unwrap();
         if m2.solved() {
+            // the seat's band steps up on the solve itself - carrying it
+            // back to the asker's a deed of its own, not part of the ramp
+            self.seats[seat].mystery_solved += 1;
             // name whoever's been asking - the log line's clickable, the
             // toast jumps to them (#646)
             let who = self.name_of(m2.asker);
@@ -243,18 +258,20 @@ impl Game {
         self.seats[seat].mystery = None;
         self.seats[seat].mystery_wait = tick + MYSTERY_WAIT;
         let payoff = self.mystery_payoff(seat, v, def.payoff);
+        let wonders = self.pair_said(v, self.seats[seat].player, def.wonders);
+        let thanks = self.pair_said(v, self.seats[seat].player, def.thanks);
         self.log_entity_ev(
             EvTag::new(Thread::Player, Valence::Positive, Sev::Notable),
             v,
             format!(
                 "t{}: you tell {} what you pieced together about {}. {} {}",
-                tick, who, def.title, def.thanks, payoff
+                tick, who, def.title, thanks, payoff
             ),
         );
         self.toasts.push_at((format!("Mystery told: {}", payoff), tick + 80),
             toast_spot(&self.world, v));
-        self.say(v, def.thanks, TALK_BUBBLE_SECS * 3);
-        Some(MysteryTold { who, wonders: def.wonders, thanks: def.thanks, payoff })
+        self.say(v, &thanks, TALK_BUBBLE_SECS * 3);
+        Some(MysteryTold { who, wonders, thanks, payoff })
     }
 
     /// What the telling's worth, landed: the coin, the invitation, the
@@ -315,26 +332,41 @@ impl Game {
         }
     }
 
-    /// The panel's line for the mystery under way: the question and how
-    /// much of the gossip is in, with the asker carried as data so their
-    /// name can be a button (#646)
+    /// The panel's line for the mystery under way: the question, how
+    /// much of the gossip is in, and how far each direction's come -
+    /// with the asker carried as data so their name can be a button (#646)
     pub fn mystery_panel_line(&self, seat: usize) -> Option<MysteryV> {
         let m = self.seats[seat].mystery.as_ref()?;
         let def = &MYSTERIES[m.def];
         Some(MysteryV {
             title: def.title.to_string(),
             heard: m.heard(),
-            total: FACTS,
+            total: def.clues.len(),
+            dims: DIMS.iter().map(|&d| {
+                let want = def.dims.iter().find(|&&(dd, _)| dd == d)
+                    .map(|&(_, n)| n).unwrap_or(0);
+                (d.word().to_string(), m.heard_dim(d), want)
+            }).collect(),
             asker_name: self.name_of(m.asker),
             asker: self.villagers.iter().position(|&v| v == m.asker),
             asker_at: self.world.get_component::<Pos>(m.asker).map(|p| (p.x, p.y)),
         })
     }
+
+    /// Which band of the pool the seat's next mystery draws from - its
+    /// own count of solved ones, so each seat walks its own ramp (#1350)
+    fn mystery_band(&self, seat: usize) -> Band {
+        match self.seats[seat].mystery_solved {
+            0 => Band::Easy,
+            1 | 2 => Band::Medium,
+            _ => Band::Hard,
+        }
+    }
 }
 
 /// What folk say when a mystery starts doing the rounds
 const ASK_LINES: [&str; 3] = [
-    "If anyone asks after it, I'll tell them you did.",
+    "If anyone asks after it, I'll give them {2:poss} name.",
     "It's been nagging at me something fierce.",
     "Word is it's gone quiet - too quiet.",
 ];

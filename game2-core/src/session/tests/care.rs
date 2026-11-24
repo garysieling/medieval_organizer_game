@@ -43,7 +43,7 @@ fn test_the_grave_sends_no_visitors() {
     let rel = g.world.create_entity();
     g.world.add_component(rel, relationships::Relationship {
         from: dead_friend, other: v, kind: relationships::RelKind::Friend,
-        strength: 0.9, interactions: 9 });
+        strength: 0.9, interactions: 9, ..Default::default() });
     g.world.add_component(dead_friend, villager::Dead);
     g.care_tick(2);
     let after = g.world.get_component::<relationships::Relationship>(rel).unwrap();
@@ -65,7 +65,7 @@ fn test_the_dungeon_sends_no_visitors() {
     let rel = g.world.create_entity();
     g.world.add_component(rel, relationships::Relationship {
         from: held_friend, other: v, kind: relationships::RelKind::Friend,
-        strength: 0.9, interactions: 9 });
+        strength: 0.9, interactions: 9, ..Default::default() });
     g.world.add_component(held_friend,
         crate::game::dungeon::Imprisoned { since: 0, charge: "sedition".into() });
     g.care_tick(2);

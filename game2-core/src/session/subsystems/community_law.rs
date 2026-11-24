@@ -27,7 +27,7 @@ fn bond_between(g: &Game, a: Entity, b: Entity) -> f32 {
 
 /// A name for the log
 fn named(g: &Game, v: Entity) -> &'static str {
-    g.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("someone")
+    g.villagers.iter().position(|x| *x == v).map(|i| g.cast_name(i)).unwrap_or("someone")
 }
 
 impl Game {

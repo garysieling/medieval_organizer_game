@@ -510,6 +510,26 @@ impl Game {
     pub(super) fn plan_stroll(&mut self, v: Entity, tick: u64, rng: &mut Rng) -> bool {
         let Some(from) = self.tile_of(v) else { return false };
         let mut opts = self.stroll_options(v, from);
+        // the wounds wear in the day's walk (E3-4, #1425): a habit bends
+        // where they wander, how far they drift, whether they stay home
+        let tells = self.world.get_component::<crate::game::persona::Persona>(v)
+            .map(|p| p.tells()).unwrap_or_default();
+        let mut drift_mul = 1.0f32;
+        let mut rest_odds = 0u32;
+        for t in &tells {
+            let (spots, drift, rest) = tell_bias(t);
+            for (spot, _, w) in opts.iter_mut() {
+                for &(s, num, den) in spots {
+                    if *spot == s { *w = (*w * num / den).max(0); }
+                }
+            }
+            drift_mul *= drift;
+            rest_odds = rest_odds.max(rest);
+        }
+        if rest_odds > 0 && rng.below(rest_odds as i32) == 0 {
+            self.plan_rest(v, tick);
+            return true;
+        }
         while !opts.is_empty() {
             let total: i32 = opts.iter().map(|o| o.2).sum();
             let mut roll = rng.below(total);
@@ -517,7 +537,7 @@ impl Game {
             let (spot, t, _) = opts.swap_remove(i);
             // the bank and the wood are for walking along; the notices for
             // standing at
-            let drift = match spot { Spot::Creek | Spot::Woods => 1.8, Spot::Notices | Spot::Visitor => 0.5, Spot::Tavern => 0.4, _ => 0.9 };
+            let drift = match spot { Spot::Creek | Spot::Woods => 1.8, Spot::Notices | Spot::Visitor => 0.5, Spot::Tavern => 0.4, _ => 0.9 } * drift_mul;
             let r = Routine { mode: Mode::Wandering, spot, anchor: (t.0 as f32, t.1 as f32), face: None, drift, leads: false, day: tick, reached: false };
             if self.go_keep(v, r, STROLL_REACH + 2) { return true; }
         }
@@ -1169,6 +1189,59 @@ impl Game {
     }
 }
 
+/// How a worn habit bends the day's wandering (E3-4, #1425): spot
+/// multipliers (numerator/denominator), a drift multiplier (how far
+/// they stray off their anchor) and a 1-in-n chance the stroll stays
+/// home instead. `stroll_options` builds the day's places; this reads
+/// the tell slugs `speaker_of` wears as statuses off the persona
+fn tell_bias(tell: &str) -> (&'static [(Spot, i32, i32)], f32, u32) {
+    use Spot::*;
+    match tell {
+        // buckets filled by the door - stays near the water
+        "keeps_water"      => (&[(Creek, 3, 1)], 1.0, 0),
+        // the levy came through the gate: the long way round the cross
+        "shuns_the_gate"   => (&[(Notices, 1, 3)], 1.0, 0),
+        // the dead's plot - out by the stones most days
+        "tends_the_graves" => (&[(Stones, 4, 1)], 1.0, 0),
+        // rue burning at the door - keeps to home
+        "burns_rue"        => (&[], 1.0, 3),
+        // the miller's drawer: the long way past the pond, off the bench
+        "takes_the_field_way" => (&[(Tavern, 1, 2), (Woods, 2, 1)], 1.0, 0),
+        // a promise that broke - alone places, away from the crowd
+        "walks_alone"      => (&[(Tavern, 1, 3), (Notices, 1, 3), (Visitor, 1, 3),
+                                (Creek, 2, 1), (Woods, 2, 1)], 1.0, 0),
+        // keeps the old ways - out to ring the stones
+        "rings_the_stones" => (&[(Stones, 5, 1)], 1.0, 0),
+        // put out once - the door stays in sight
+        "keeps_the_door"   => (&[], 1.0, 3),
+        // watching for the feast call
+        "counts_the_days"  => (&[(Notices, 2, 1)], 1.0, 0),
+        // the lord's men always win - makes way, keeps off the square
+        "makes_way"        => (&[(Notices, 1, 2), (Visitor, 1, 2)], 1.0, 0),
+        // blame travels - first to point at the gathering spots
+        "points_first"     => (&[(Tavern, 2, 1), (Notices, 2, 1)], 1.0, 0),
+        // the road keeps what it takes - down to the ford of an evening
+        "watches_the_road" => (&[(Creek, 2, 1)], 1.0, 0),
+        // the dead's things stay buried deep - keeps to home
+        "keeps_close"      => (&[], 1.0, 3),
+        // God sends what God sends - lets the day take them
+        "leaves_it_to_god" => (&[], 1.5, 0),
+        // the mill owns us - counts every coin at the cross
+        "counts_twice"     => (&[(Notices, 2, 1)], 1.0, 0),
+        // says only what they can keep - strays little
+        "promises_nothing" => (&[], 0.7, 0),
+        // the square has eyes - the wood's edge, never the middle
+        "keeps_to_shadow"  => (&[(Woods, 2, 1)], 0.5, 0),
+        // never cross the reeve - steps aside, avoids the crowd
+        "steps_aside"      => (&[(Notices, 1, 3)], 1.0, 0),
+        // strong together once - first where the folk gather
+        "first_to_lend"    => (&[(Tavern, 2, 1), (Visitor, 2, 1)], 1.0, 0),
+        // says it plain - right at the cross to say it
+        "says_it_plain"    => (&[(Notices, 2, 1)], 1.0, 0),
+        _                  => (&[], 1.0, 0),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1246,6 +1319,52 @@ mod tests {
         for _ in 0..30 {
             assert_ne!(g.plan_day(v, HOLY_EVERY * 3, &mut rng), DayPlan::Work);
         }
+    }
+
+    /// E3-4's first leg: every tell slug a covered fact can wear bends
+    /// the day's walk somehow - a spot pull, a tighter drift, or staying
+    /// home - or the routine tell is decoration and fails the rule
+    #[test]
+    fn test_every_tell_bends_the_walk() {
+        for c in crate::game::fact_content::FACT_CONTENTS {
+            let (spots, drift, rest) = tell_bias(c.tell);
+            assert!(!spots.is_empty() || drift != 1.0 || rest > 0,
+                "tell {} (of {}) does nothing to the walk", c.tell, c.fact);
+        }
+    }
+
+    /// The stones-keeper actually goes to the stones: the same rng sees
+    /// the ring pull far more often once the persona wears the tell
+    #[test]
+    fn test_a_wounded_walk_bends_to_the_stones() {
+        use crate::game::persona::*;
+        let mut g = Game::new();
+        let v = g.villagers[0];
+        let mut p = Persona {
+            seed: 1, sex: crate::game::villager::Sex::Male, archetype: Archetype::OldGuard,
+            temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+            story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+            hidden: Landmark::Skill("y"), contradiction: None,
+        };
+        p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::OldFaith, hook: None,
+            lie: Belief::GodSends, strength: 0.8, fear: Fear::StonesRemember, need: Need::ToBelong });
+        // two runs over the same rng draws: the same villager, the same
+        // day, once with the tell and once without
+        let count_stones = |g: &mut Game, tell: bool| -> usize {
+            if tell { g.world.add_component(v, p.clone()); }
+            let mut stones = 0;
+            for s in 0..60u64 {
+                let mut rng = Rng(s);
+                if g.plan_stroll(v, 1, &mut rng)
+                    && g.world.get_component::<Routine>(v).map(|r| r.spot == Spot::Stones).unwrap_or(false) {
+                    stones += 1;
+                }
+            }
+            stones
+        };
+        let bare = count_stones(&mut g, false);
+        let worn = count_stones(&mut g, true);
+        assert!(worn > bare, "the ring-pull should draw: bare {bare}, worn {worn}");
     }
 
     #[test]

@@ -42,8 +42,8 @@ pub fn their_answer(traits: &[Trait], refused: bool) -> Answer {
 pub fn answer_line(a: Answer) -> &'static str {
     match a {
         Answer::Warm => "Water under the bridge - think no more of it.",
-        Answer::Grudging => "I'll hear it. Mind your tongue, mind.",
-        Answer::Refused => "You've a nerve, coming with that.",
+        Answer::Grudging => "I'll hear it. Mind {2:poss} tongue, mind.",
+        Answer::Refused => "{2:subj} {2:have} a nerve, coming with that.",
     }
 }
 

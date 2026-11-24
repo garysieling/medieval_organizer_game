@@ -58,10 +58,10 @@ fn test_the_counter_is_named_only_once_they_have_signed_on() {
     let i = adult(&g);
     let v = g.villagers[i];
     let org = g.org;
-    assert!(!crate::game::organizing::ask_offers(&g.world, org, v, 0).iter()
+    assert!(!crate::game::organizing::ask_offers(&g.world, org, v, 0, g.tick).iter()
         .any(|o| o.kind == crate::game::organizing::PropKind::Inoculate), "not before they've committed");
     sign_on(&mut g, v);
-    assert!(crate::game::organizing::ask_offers(&g.world, org, v, 0).iter()
+    assert!(crate::game::organizing::ask_offers(&g.world, org, v, 0, g.tick).iter()
         .any(|o| o.kind == crate::game::organizing::PropKind::Inoculate), "offered once they're in");
 }
 
@@ -89,8 +89,9 @@ fn test_naming_the_threat_rehearses_it_and_readies_them_for_that_alone() {
     assert!(shown.iter().any(|l| l == "Let it drop"), "{shown:?}");
     pick(&mut g, "Name the steward's threat");
     let lines = record_texts(&g);
-    assert!(lines.iter().any(|l| l == inoc::fear(Counter::Threat)), "they voice the fear: {lines:?}");
-    assert!(lines.iter().any(|l| l == inoc::answer(Counter::Threat)), "you answer it: {lines:?}");
+    let pe = g.seats[0].player;
+    assert!(lines.iter().any(|l| *l == g.pair_said(v, pe, inoc::fear(Counter::Threat))), "they voice the fear: {lines:?}");
+    assert!(lines.iter().any(|l| *l == g.player_line(0, v, inoc::answer(Counter::Threat))), "you answer it: {lines:?}");
     assert!(inoc::shielded(&g.world, v, Counter::Threat));
     assert!(!inoc::shielded(&g.world, v, Counter::Plea) && !inoc::shielded(&g.world, v, Counter::Denounce),
         "only the named counter");

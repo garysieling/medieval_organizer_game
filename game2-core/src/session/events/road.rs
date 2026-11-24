@@ -73,7 +73,8 @@ impl Game {
                     });
                 if let Some(v) = poorest {
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold += 1.0; }
-                    self.say(v, "For the rags? Bless you, mister.", CHAT_BUBBLE_SECS);
+                    let bl = self.pair_said(v, self.player, "For the rags? Bless {2:obj}, mister.");
+                    self.say(v, &bl, CHAT_BUBBLE_SECS);
                 }
             }
             EventId::ChimneySweep => {
@@ -376,7 +377,8 @@ impl Game {
                     if !pays { continue; }
                     desires::satisfy(&mut self.world, v, Want::Music, tick + 15);
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
-                    self.say(v, "Did you hear?", CHAT_BUBBLE_SECS);
+                    let hl = self.pair_said(v, self.player, "{2:did} {2:subj} hear?");
+                    self.say(v, &hl, CHAT_BUBBLE_SECS);
                 }
             }
             EventId::Deserter => {
@@ -1240,7 +1242,8 @@ impl Game {
                         household::take_stock(b, &g, 1);
                     }
                     if let Some(p) = self.world.get_component_mut::<Purse>(o) { p.gold += 1.0; }
-                    self.say(o, "What have your hens done, eh?", CHAT_BUBBLE_SECS);
+                    let hl = self.pair_said(o, self.player, "What have {2:poss} hens done, eh?");
+                    self.say(o, &hl, CHAT_BUBBLE_SECS);
                     bought += 1;
                 }
             }
@@ -1275,7 +1278,7 @@ impl Game {
                     desires::satisfy(&mut self.world, v, Want::Joy, tick + 20);
                     self.say(
                         v,
-                        "A letter for you - your sister's well!",
+                        &self.pair_said(v, self.player, "A letter for {2:obj} - {2:poss} sister's well!"),
                         CHAT_BUBBLE_SECS,
                     );
                     self.log_entity_ev(
@@ -1291,7 +1294,7 @@ impl Game {
                     desires::add_grievance(&mut self.world, v, desires::Problem::Grief, tick + 30);
                     self.say(
                         v,
-                        "A letter for you - I'm sorry to carry it.",
+                        &self.pair_said(v, self.player, "A letter for {2:obj} - I'm sorry to carry it."),
                         CHAT_BUBBLE_SECS,
                     );
                     self.log_entity_ev(
@@ -1541,8 +1544,11 @@ impl Game {
                         self.world.add_component(v, Health { condition: 0.7, immunity: 0.4 });
                         self.world.add_component(v, crate::sim::community::Citizen {
                             influence: 0.1, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-                        self.world.add_component(v, crate::game::traits::personality_from_seed(trng.next()));
-                        self.world.add_component(v, crate::sim::psychology::personality_from_seed(trng.next()));
+                        let traits_roll = if self.seeded_cast { None }
+                            else { Some(crate::game::traits::personality_from_seed(trng.next())) };
+                        if !self.seeded_cast {
+                            self.world.add_component(v, crate::sim::psychology::personality_from_seed(trng.next()));
+                        }
                         self.world.add_component(v, crate::game::livelihood::Satchel::default());
                         self.world.add_component(v, desires::Known::default());
                         let voc = crate::session::roll_vocation(&mut trng);
@@ -1554,6 +1560,8 @@ impl Game {
                             grievances: vec![], satisfied: vec![] });
                         self.world.add_component(v, crate::game::vocation::craft(voc, 0.2));
                         self.world.add_component(v, Purse { gold: 0.5 });
+                        let dealt = self.deal_cast(v, Some(voc), None);
+                        self.world.add_component(v, dealt.or(traits_roll).unwrap());
                         self.villagers.push(v);
                         // a roof where there's room (the camp's behind them)
                         if let Some(h) = home {

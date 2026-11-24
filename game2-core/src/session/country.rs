@@ -623,7 +623,7 @@ impl Game {
             let Some(li) = self.villagers.iter().position(|&v| v == lord) else { continue };
             if let Some(&keep) = sites[ci].homes.first() {
                 if let Some(b) = self.world.get_component_mut::<Building>(keep) {
-                    b.name = format!("the keep of {} {} of {}", style, vill_name(li), sites[ci].name);
+                    b.name = format!("the keep of {} {} of {}", style, cast_of(&self.names, li), sites[ci].name);
                 }
             }
         }
@@ -648,11 +648,14 @@ impl Game {
         let door = self.at_the_door(hp.0, hp.1).unwrap_or(hp);
         let v = villager::spawn_villager(&mut self.world, door.0 as f32 + k as f32 * 0.4, door.1 as f32 + 0.3);
         let i = self.villagers.len();
+        let dealt = self.deal_cast(v, voc, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
-        self.world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
+        if !self.seeded_cast {
+            self.world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
+        }
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-        let traits = personality_from_seed(i as u64 * 7 + 3);
+        let traits = dealt.unwrap_or_else(|| personality_from_seed(i as u64 * 7 + 3));
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
@@ -783,7 +786,7 @@ impl Game {
         self.world.add_component(d, crate::sim::illness::Disease::new(
             crate::sim::illness::DiseaseKind::Plague, who, severity));
         let ci = self.villagers.iter().position(|&v| v == who);
-        let name = ci.map(vill_name).unwrap_or("a rider");
+        let name = ci.map(|i| cast_of(&self.names, i)).unwrap_or("a rider");
         let at = self.world.get_component::<Pos>(who).map(|p| (p.x, p.y));
         self.log.push_ev_at_who(
             EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
@@ -944,7 +947,7 @@ impl Game {
                     if self.send_far(c, pitch, Goal::Cart(si)) {
                         self.sites[si].away_until = Some(u64::MAX);
                         let ci = self.villagers.iter().position(|&x| x == c);
-                        let name = ci.map(vill_name).unwrap_or("a carter");
+                        let name = ci.map(|i| cast_of(&self.names, i)).unwrap_or("a carter");
                         self.log.push_ev_at_who(
                             EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
                             format!(
@@ -979,7 +982,7 @@ impl Game {
                     if self.send_far(c, pitch, Goal::Cart(si)) {
                         self.sites[si].away_until = Some(u64::MAX);
                         let ci = self.villagers.iter().position(|&x| x == c);
-                        let name = ci.map(vill_name).unwrap_or("a carter");
+                        let name = ci.map(|i| cast_of(&self.names, i)).unwrap_or("a carter");
                         self.log.push_ev_at_who(
                             EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
                             format!(
@@ -1001,7 +1004,7 @@ impl Game {
                     if self.send_far(c, to, Goal::Levy(si, ti)) {
                         self.sites[si].away_until = Some(u64::MAX);
                         let ci = self.villagers.iter().position(|&x| x == c);
-                        let name = ci.map(vill_name).unwrap_or("the steward");
+                        let name = ci.map(|i| cast_of(&self.names, i)).unwrap_or("the steward");
                         self.log.push_ev_at_who(
                             EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
                             format!(
@@ -1047,7 +1050,7 @@ impl Game {
             .villagers
             .iter()
             .position(|&x| x == who)
-            .map(vill_name)
+            .map(|i| cast_of(&self.names, i))
             .unwrap_or("a carter");
         self.log_entity_ev(
             EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
@@ -1166,7 +1169,7 @@ impl Game {
                     .villagers
                     .iter()
                     .position(|&x| x == runner)
-                    .map(vill_name)
+                    .map(|i| cast_of(&self.names, i))
                     .unwrap_or("the headman");
                 self.log.push_ev(
                     EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
@@ -1214,7 +1217,7 @@ impl Game {
                             && !self.travels.iter().any(|t| t.who == v))
                         .take(2).collect();
                     for g in guards { let _ = self.send_far(g, door, Goal::Escort(ci, ti)); }
-                    let name = self.villagers.iter().position(|&x| x == runner).map(vill_name).unwrap_or("the lord");
+                    let name = self.villagers.iter().position(|&x| x == runner).map(|i| cast_of(&self.names, i)).unwrap_or("the lord");
                     self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: {}'s gift train rides from {} to {} - wheat and tools for the stores.", tick, name,
                         self.sites[ci].name, self.sites[ti].name));
                 } else {

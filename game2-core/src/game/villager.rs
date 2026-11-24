@@ -418,6 +418,27 @@ pub enum Sex { Female, Male }
 /// the village can count who's new enough to be called a stranger
 pub struct Migrant { pub arrived: u64 }
 
+/// The folk a roof gave them (E2-2, #1420): whom the prehistory's
+/// household dealt them to, in entities. Empty lists are honest - an
+/// elder has no parents here, an only child no siblings
+#[derive(Debug, Clone, Default)]
+pub struct Kin {
+    /// The elders who raised them
+    pub parents: Vec<Entity>,
+    /// The household's other children - shared parents
+    pub siblings: Vec<Entity>,
+    /// The rest under the same roof, old and young
+    pub housemates: Vec<Entity>,
+}
+
+impl Kin {
+    /// Everyone the roof gives them, each once
+    pub fn all(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.parents.iter().chain(self.siblings.iter())
+            .chain(self.housemates.iter()).copied()
+    }
+}
+
 /// A country hand in for the season's work - drinks harder than the
 /// village's own, and the night takes it out of him
 pub struct Laborer { pub until: u64 }
@@ -427,16 +448,19 @@ pub struct Laborer { pub until: u64 }
 pub struct InStocks { pub until: u64 }
 
 impl Sex {
-    /// The body the spawn gives them, by the entity's own number -
-    /// deterministic, and half the world either way
-    pub fn from_id(e: Entity) -> Sex { if e % 2 == 0 { Sex::Female } else { Sex::Male } }
+    /// The body the spawn gives them, drawn off the entity's own seeded
+    /// stream (E1-3, #1417): deterministic, and no longer the id's
+    /// parity - persona villagers are re-seeded from the persona after
+    pub fn from_seed(e: Entity) -> Sex {
+        if crate::game::persona::draw(e as u64, 901) < 0.5 { Sex::Female } else { Sex::Male }
+    }
 }
 
 pub fn spawn_villager(world: &mut World, x: f32, y: f32) -> Entity {
     let e = world.create_entity();
     world.add_component(e, Pos { x, y });
     world.add_component(e, Hunger { value: 100.0 });
-    world.add_component(e, Sex::from_id(e));
+    world.add_component(e, Sex::from_seed(e));
     world.add_component(e, Villager {
         activity: Activity::Idle,
         target_food: None,

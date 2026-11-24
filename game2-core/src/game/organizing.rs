@@ -284,8 +284,8 @@ pub fn meeting_remark(world: &World, person: Entity, name: &str, round: usize) -
 /// Small talk, for someone who has already told you what's on their mind
 const SMALL_TALK: [(&str, &str); 5] = [
     ("chatted about the weather", "Looks like rain again, doesn't it?"),
-    ("passed on some village gossip", "Did you hear who was seen down by the mill?"),
-    ("asked how you were keeping", "Good to see you again."),
+    ("passed on some village gossip", "{2:did} {2:subj} hear who was seen down by the mill?"),
+    ("asked how you were keeping", "Good to see {2:obj} again."),
     ("talked about their family", "The little ones keep me on my toes."),
     ("swapped stories by the well", "Remember the winter the river froze?"),
 ];
@@ -294,12 +294,12 @@ const SMALL_TALK: [(&str, &str); 5] = [
 /// flourished word that makes a passing remark a line worth hearing
 const REGISTERS: [&str; 8] = [
     "By Saint Crispin, the hedges are full of it.",
-    "Thee's a good neighbor - there's my hand on it.",
+    "{2:subj} {2:be} a good neighbor - there's my hand on it.",
     "A pox on this weather, and that's God's truth.",
     "I swear by the well it's the driest year in memory.",
     "As I live and breathe, the miller's a knave and no mistake.",
-    "Good morrow to thee - the Lord keep thy purse fat.",
-    "There's a tale for thee, if thy ears'll take it.",
+    "Good morrow to {2:obj} - the Lord keep {2:poss} purse fat.",
+    "There's a tale for {2:obj}, if {2:poss} ears'll take it.",
     "Marry, the market's dear and the purse is thin.",
 ];
 
@@ -346,14 +346,14 @@ pub fn passing_remark(n: usize) -> &'static str {
 /// What someone who knows you says as you pass: a hello in their own
 /// voice, `{name}` being who they greet - picked by `n`
 const GREETINGS: [&str; 8] = [
-    "Well met, {name} - good to see thee.",
+    "Well met, {name} - good to see {2:obj}.",
     "{name}! Small world, isn't it?",
     "Ah, {name} - out and about?",
     "{name}, there's a fine day for walking.",
     "There's {name} - I was saying only this morning...",
     "Hello, {name} - the village feels warmer for it.",
     "{name}! We haven't crossed paths in an age.",
-    "God save thee, {name} - and thy purse.",
+    "God save {2:obj}, {name} - and {2:poss} purse.",
 ];
 
 /// The hello a friend gives in passing
@@ -366,10 +366,10 @@ pub fn passing_greeting(n: usize, name: &str) -> String {
 /// brush-off stays theirs.
 pub fn cold_gist(name: &str) -> (String, String) {
     const COLD: [(&str, &str); 4] = [
-        ("gives you a cold look", "You're back. What is it now?"),
-        ("barely nods", "Hmph. Say your piece and go."),
-        ("remembers the last words", "We left it badly last time. Say what you came for."),
-        ("folds their arms", "You've a nerve, coming back."),
+        ("gives you a cold look", "{2:subj} {2:be} back. What is it now?"),
+        ("barely nods", "Hmph. Say {2:poss} piece and go."),
+        ("remembers the last words", "We left it badly last time. Say what {2:subj} came for."),
+        ("folds their arms", "{2:subj} {2:have} a nerve, coming back."),
     ];
     let n = name.bytes().map(|b| b as usize).sum::<usize>();
     let (d, s) = COLD[n % COLD.len()];
@@ -528,7 +528,7 @@ mod tests {
             for _ in 0..n {
                 let other = w.create_entity();
                 let r = w.create_entity();
-                w.add_component(r, Relationship { from: c, other, kind, strength: 0.5, interactions: 6 });
+                w.add_component(r, Relationship { from: c, other, kind, strength: 0.5, interactions: 6, ..Default::default() });
             }
         }
         let r = one_on_one(&mut w, organizer, c, 1);
@@ -588,7 +588,7 @@ mod tests {
         for &f in &friends {
             let rel = w.create_entity();
             w.add_component(rel, Relationship {
-                from: leader, other: f, kind: RelKind::Friend, strength: 0.6, interactions: 5,
+                from: leader, other: f, kind: RelKind::Friend, strength: 0.6, interactions: 5, ..Default::default()
             });
         }
         let stranger = w.create_entity();
@@ -1123,11 +1123,43 @@ pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
     base + 5.0 * (need - at).max(0) as f32
 }
 
+/// The season a refused ask stays off the table (#1347): a "won't hear
+/// it" cools off for the season - hearts change, and the second ask can
+/// land differently
+pub const ASK_COOLDOWN_DAYS: u64 = 90;
+
+/// Asks this person refused, and when (#1347): scoped to the org the
+/// ask was put for, so another cause's asking carries no chill
+#[derive(Debug, Default)]
+pub struct DeclinedAsks {
+    pub entries: Vec<(Entity, PropKind, AskKey, u64)>,
+}
+
+/// Whether this exact ask is still cooling on a refusal (#1347)
+fn declined_cooling(world: &World, org: Entity, person: Entity, o: &AskOffer, tick: u64) -> bool {
+    world.get_component::<DeclinedAsks>(person)
+        .map(|d| d.entries.iter().any(|(g, k, key, day)|
+            *g == org && *k == o.kind && *key == o.key && tick < *day + ASK_COOLDOWN_DAYS))
+        .unwrap_or(false)
+}
+
+/// Record a refusal (#1347): the ask cools off for the season, then can
+/// be put again - hearts change
+fn note_declined(world: &mut World, org: Entity, person: Entity, o: AskOffer, tick: u64) {
+    let mut entries = world.get_component::<DeclinedAsks>(person)
+        .map(|d| d.entries.clone()).unwrap_or_default();
+    entries.retain(|(_, _, _, day)| tick <= *day + ASK_COOLDOWN_DAYS);
+    entries.retain(|(g, k, key, _)| !(*g == org && *k == o.kind && *key == o.key));
+    entries.push((org, o.kind, o.key, tick));
+    world.add_component(person, DeclinedAsks { entries });
+}
+
 /// Every ask on the table, any currency (#1225): the earned asks the
 /// bond reaches, and where the ladder locks one out, the coin's priced
 /// variant (which reaches anyone the purse can pay) and the nerve's
-/// pressed one (which needs a piece of them heard to pull on).
-pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<AskOffer> {
+/// pressed one (which needs a piece of them heard to pull on). Asks
+/// refused inside the season stay off the table (#1347).
+pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u64) -> Vec<AskOffer> {
     let heard = world.get_component::<crate::game::desires::Known>(person)
         .map(|k| !k.revealed.is_empty()).unwrap_or(false);
     let (stage, purse) = world.get_component::<Organization>(org)
@@ -1137,14 +1169,9 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
         .unwrap_or((RelStage::Stranger, 0.0));
     let reached = bumped(stage, shift);
     let mut out = vec![];
-    // the argument's earned or not at all (#1234): coin doesn't buy a
-    // hearing for your case, and you can't press one on a stranger;
-    // it leads the asks so it's never crowded off the choice list. A
-    // safe read doesn't lift it early: the case moves them by the bond
-    // they actually hold, so an acquaintance couldn't be swayed
-    if crate::game::persuasion::can_argue(stage) && crate::game::persuasion::can_argue(reached) {
-        out.push(AskOffer { kind: PropKind::Argue, key: AskKey::Earned, price: 0.0 });
-    }
+    // the argument's no ask at all now (#1348): the words carry it -
+    // an argumentative line in the ordinary picks opens the same
+    // machinery the offer once did (persuasion::ARGUMENTATIVE_LINES)
     // the scouting read (#1249): an acquaintance will tell you who the
     // room follows - the answer's the talk's yield, so it's earned or
     // not offered; you don't pay for a picture of the room
@@ -1153,7 +1180,7 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
     }
     // the probing question (#1269): the thaw move the talk shares with
     // the meeting - only while there's a want left to plant
-    if reached >= RelStage::Acquaintance && crate::game::desires::probe_open(world, person) {
+    if reached >= RelStage::Acquaintance && crate::game::desires::probe_open(world, person, tick) {
         out.push(AskOffer { kind: PropKind::Probe, key: AskKey::Earned, price: 0.0 });
     }
     for p in ask_candidates(world, org, person) {
@@ -1172,6 +1199,9 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
         && crate::game::inoculation::COUNTERS.iter().any(|&c| !crate::game::inoculation::shielded(world, person, c)) {
         out.push(AskOffer { kind: PropKind::Inoculate, key: AskKey::Earned, price: 0.0 });
     }
+    // a refused ask cools off for the season (#1347) - it re-qualifies
+    // when its days are out, not before
+    out.retain(|o| !declined_cooling(world, org, person, o, tick));
     out
 }
 
@@ -1246,7 +1276,7 @@ pub fn pull_of(world: &World, v: Entity) -> f32 {
 /// burdens gives them a real reason to say not-yet - the reeve's eye,
 /// a mourning, a purse too thin - before a trait supplies one. None
 /// means a plain no.
-fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
+pub(crate) fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
     use crate::game::desires::{Known, Problem, Reveal};
     let reason = world.get_component::<Known>(person)
         .and_then(|k| k.revealed.iter().find_map(|r| match r {
@@ -1258,7 +1288,11 @@ fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
             Reveal::Problem(Problem::SourGut) => Some("this gut's not done with me yet"),
             _ => None,
         }));
-    reason.or_else(|| world.get_component::<crate::game::traits::Personality>(person)
+    // the wound's own reason (E3-4, #1425): a ghost or its lie answers
+    // the ask in words only that fact could explain - it outranks a
+    // trait's stock excuse but not a burden you've been told
+    reason.or_else(|| crate::game::fact_content::pressure_reason(world, person))
+        .or_else(|| world.get_component::<crate::game::traits::Personality>(person)
         .and_then(|p| p.traits.iter().find_map(|t| match t {
             crate::game::traits::Trait::Lazy => Some("that's work you're asking, and I'm short of it"),
             crate::game::traits::Trait::Stingy => Some("mine's not for sharing out"),
@@ -1295,6 +1329,7 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
         if refuses {
             record_interaction(world, organizer, Interaction {
                 other: person, kind: InteractionKind::Conflict, intensity: 0.15 });
+            note_declined(world, org, person, AskOffer { kind: p, key, price }, tick);
             return (format!("{} won't be bought - and won't forget you tried.", name), None);
         }
         let gold = world.get_component::<crate::game::livelihood::Purse>(organizer)
@@ -1315,6 +1350,7 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
     if yes_chance(world, organizer, person, p) <= roll {
         record_interaction(world, organizer, Interaction {
             other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
+        note_declined(world, org, person, AskOffer { kind: p, key, price }, tick);
         return match no_reason(world, person) {
             Some(why) => (format!("{} won't hear it - \"{}\"", name, why), None),
             None => (format!("{} won't hear it - not yet.", name), None),
@@ -1500,6 +1536,10 @@ pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i3
     if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, guest, tick).is_empty() {
         p *= 0.25;
     }
+    // the wound's nerve when the word alone calls (E3-4, #1425): a
+    // ghost that fears the gate halves their showing; the feast's
+    // keeper and the truth-teller come readier
+    if invite == Invite::Word { p *= crate::game::fact_content::showing_factor(world, guest); }
     roll < p
 }
 

@@ -860,7 +860,7 @@ impl Game {
                     (
                         format!(
                             "{} is now {} {}!",
-                            vill_name(i),
+                            self.cast_name(i),
                             vocation::article(&title),
                             title
                         ),
@@ -874,7 +874,7 @@ impl Game {
                     format!(
                         "t{}: {} is now {} {}.",
                         tick,
-                        vill_name(i),
+                        self.cast_name(i),
                         vocation::article(&title),
                         title
                     ),

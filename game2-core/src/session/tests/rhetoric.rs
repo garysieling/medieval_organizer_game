@@ -148,7 +148,7 @@ fn test_their_read_moves_the_asks_a_rung() {
     assert_eq!(rhetoric::ask_shift(&g.world, kind, org), -1, "the gentle shy off");
     talk_beside(&mut g, a[0]);
     let asks = g.seats[0].talk.as_ref().unwrap().asks.clone();
-    assert_eq!(asks, crate::game::organizing::ask_offers(&g.world, g.org, hot, 1), "the open talk takes the shift");
+    assert_eq!(asks, crate::game::organizing::ask_offers(&g.world, g.org, hot, 1, g.tick), "the open talk takes the shift");
     let mut p = Game::new();
     let pa = adults(&p);
     let hot = known(&mut p, pa[0], vec![Trait::Hotheaded]);
@@ -163,11 +163,19 @@ fn test_how_you_argue_is_a_line_they_hear() {
     let i = adults(&g)[0];
     let v = known(&mut g, i, vec![]);
     talk_beside(&mut g, i);
-    pick(&mut g, "Argue a point");
+    {
+        let t = g.seats[0].talk.as_mut().unwrap();
+        t.options[0] = (crate::game::conversation::Act::PushBack,
+            crate::game::conversation::Respond::Deflect,
+            crate::game::dialogue_trees::FT_ACCUSE.into());
+    }
+    g.talk_pick_at(0, Some(0));
     pick(&mut g, "Argue the tax");
     pick(&mut g, "Argue for");
     pick(&mut g, "Press");
-    assert_eq!(weight(&g, v, Line::Firebrand), 1.0);
+    // the accusation's own words are a firebrand line too (#1348): the
+    // flag's pick witnesses one, the Press's move witnesses the other
+    assert_eq!(weight(&g, v, Line::Firebrand), 2.0);
     let other = g.villagers[adults(&g)[1]];
     assert_eq!(weight(&g, other, Line::Firebrand), 0.0, "only the one you argued with heard it");
 }
@@ -185,14 +193,14 @@ fn test_a_talk_pick_reaches_only_the_partner() {
         for _ in 0..6 {
             let Some(t) = g.seats[0].talk.as_ref() else { break };
             if t.argue.is_some() { break; }
-            if let Some(k) = t.options.iter().position(|(act, _)| *act == Act::PushBack) {
+            if let Some(k) = t.options.iter().position(|(act, _, _)| *act == Act::PushBack) {
                 let probing = t.opt_tree == Some(crate::game::conversation::PROBE_TREE);
                 g.talk_pick_at(0, Some(k));
                 if !probing { seen = Some(v); break 'outer; }
                 continue;
             }
             if t.options.is_empty() { break; }
-            let k = t.options.iter().position(|(act, _)| !matches!(act, Act::Agree | Act::Answer | Act::Greet | Act::Farewell)).unwrap_or(usize::MAX);
+            let k = t.options.iter().position(|(act, _, _)| !matches!(act, Act::Agree | Act::Answer | Act::Greet | Act::Farewell)).unwrap_or(usize::MAX);
             if k == usize::MAX { break; }
             g.talk_pick_at(0, Some(k));
         }

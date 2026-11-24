@@ -19,11 +19,11 @@
 //! Selection is pure (`walk`); state changes happen only through
 //! `apply_hook`, so a chosen line never mutates the world by itself.
 
-use crate::engine::det::HashSet;
+use crate::engine::det::{HashMap, HashSet};
 
 use crate::engine::ecs::{Entity, World};
 use crate::game::campaign::{Campaign, CampaignMeeting, DecisionRule, Framing, MeetingOutcome, Role};
-use crate::game::conversation::{Criterion, Facts, Rng};
+use crate::game::conversation::{Criterion, Facts, Relation, Rng, Speaker};
 
 pub use crate::game::campaign_arc_beats::ARC_BEATS;
 pub use crate::game::campaign_beats::SOURCE_PATTERNS;
@@ -349,6 +349,49 @@ pub fn fill(line: &str, issue: &str) -> String {
     line.replace("{issue}", issue)
 }
 
+/// The bond between two of the room's folk, in the conversation's
+/// terms (E4-4): a meeting is among neighbours, so a pair that's never
+/// formally met is acquainted, never strangers on the road
+fn pair_rel(world: &World, a: Entity, b: Entity) -> Relation {
+    use crate::game::relationships::{find_relationship, RelKind, Relationship};
+    match find_relationship(world, a, b)
+        .and_then(|r| world.get_component::<Relationship>(r)).map(|r| r.kind) {
+        Some(RelKind::Family | RelKind::Lover) => Relation::Kin,
+        Some(RelKind::Friend) => Relation::Friend,
+        Some(RelKind::Rival) => Relation::Rival,
+        _ => Relation::Acquaintance,
+    }
+}
+
+/// The line `template` speaks as from `who` toward `to` (E4-4): the
+/// pair's tv is computed the way `converse_with` computes it, so the
+/// room hears "That's thy say" from an intimate and "That's your say"
+/// from the rest. A voice with nobody behind it speaks as itself - the
+/// room together plainly, the other side as the hall's man who talks
+/// down to the folk (lord's station, the full thou-pattern).
+/// `speakers` holds the attendees' conversation `Speaker`s, built by
+/// the session caller; a missing entity falls back to a bare speaker.
+pub fn say(world: &World, speakers: &HashMap<Entity, Speaker>, template: &str,
+       issue: &str, who: Option<Entity>, voice: Voice, to: Entity, rng: &mut Rng) -> String {
+    use crate::game::text::{realize, tv_for, Cx, Referent};
+    let mut sp = match who {
+        Some(e) => speakers.get(&e).cloned().unwrap_or_else(|| Speaker::new("them")),
+        None => {
+            let mut s = Speaker::new(if voice == Voice::Opponent { "the steward" } else { "the room" });
+            if voice == Voice::Opponent { s.ideology = "lord"; s.archaism = 2; }
+            s
+        }
+    };
+    let mut lp = speakers.get(&to).cloned().unwrap_or_else(|| Speaker::new("them"));
+    let rel = pair_rel(world, who.unwrap_or(to), to);
+    sp.rel = rel;
+    lp.rel = rel;
+    sp.tv = tv_for(&sp, &lp, rel, matches!(rel, Relation::Rival));
+    let issue_ref = [Referent { slot: "issue", text: issue.to_string(),
+        sex: None, alive: true, count: 1 }];
+    realize(template, &Cx::plain(&sp, &lp, &issue_ref), rng)
+}
+
 /// The facts a campaign meeting is judged by: the campaign's rule and
 /// framing, the seats whose holders came, its history, who came - their
 /// temperaments and what they're short of - and the org around them
@@ -526,7 +569,12 @@ impl Deliberation {
 /// split meeting takes it back. Meeting moves never add resolves of their
 /// own (the audit keeps `Hook::Resolve` out of the meeting library), so a
 /// meeting is at most one resolve.
-pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutcome, tick: u64) -> Option<Deliberation> {
+///
+/// `speakers` holds the attendees' conversation `Speaker`s (E4-4): the
+/// session caller builds them with `speaker_of`; a light map, or an
+/// empty one, still walks - each voice falls back to a bare speaker.
+pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutcome, tick: u64,
+                          speakers: &HashMap<Entity, Speaker>) -> Option<Deliberation> {
     let driver = *out.attendees.first()?;
     let issue = world.get_component::<Campaign>(campaign)?.issue.clone();
     let mut rng = Rng::new(tick.wrapping_mul(0x0100_0000_01B3) ^ ((campaign as u64) << 32));
@@ -592,14 +640,21 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
         heard.push(s.beat.id);
         let beat_needs = personal_needs(s.beat.criteria);
         let caller = voice_of(s.beat.voice, &beat_needs, None, &mut rng);
-        d.said.push(Spoken { speaker: caller, voice: s.beat.voice, text: fill(s.call, &issue), beat: s.beat.id, phase: s.beat.phase });
         // a reply's own needs pick its speaker; otherwise, when the call
         // came from someone else, the reply can be the one the beat's about
         let mv_needs = personal_needs(s.mv.criteria);
         let reply_needs: &[&str] = if !mv_needs.is_empty() { &mv_needs }
             else if s.beat.voice == Voice::Member { &[] } else { &beat_needs };
         let answerer = voice_of(s.mv.voice, reply_needs, caller, &mut rng);
-        d.said.push(Spoken { speaker: answerer, voice: s.mv.voice, text: fill(s.reply, &issue), beat: s.beat.id, phase: s.beat.phase });
+        // the call's thee is the one who'll answer it; the reply's is
+        // the caller answered back - either way the line's second
+        // person lands on whoever it's actually said to (E4-4)
+        let text = say(world, speakers, s.call, &issue, caller, s.beat.voice,
+            answerer.unwrap_or(driver), &mut rng);
+        d.said.push(Spoken { speaker: caller, voice: s.beat.voice, text, beat: s.beat.id, phase: s.beat.phase });
+        let text = say(world, speakers, s.reply, &issue, answerer, s.mv.voice,
+            caller.unwrap_or(driver), &mut rng);
+        d.said.push(Spoken { speaker: answerer, voice: s.mv.voice, text, beat: s.beat.id, phase: s.beat.phase });
         if apply_hook(world, campaign, s.mv.hook, answerer) { d.applied.push(s.mv.hook); }
         if s.beat.phase == Phase::Decision && s.mv.next == Next::Phase(Phase::FollowThrough) {
             d.decided = true;
@@ -1095,8 +1150,20 @@ mod tests {
                     }
                     let lower = line.to_lowercase();
                     for w in modern { assert!(!lower.contains(w), "{}: modern diction {:?} in {:?}", b.id, w, line); }
-                    let stripped = line.replace("{issue}", "");
-                    assert!(!stripped.contains('{') && !stripped.contains('}'), "{}: stray placeholder in {:?}", b.id, line);
+                    // every placeholder is a slot the realizer owns
+                    // (E4-4): {issue}, {2:…}, {2p:…} - anything else is stray
+                    let mut rest = *line;
+                    while let Some(o) = rest.find('{') {
+                        let c = rest[o + 1..].find('}').unwrap_or_else(|| {
+                            panic!("{}: unclosed placeholder in {:?}", b.id, line)
+                        });
+                        let slot = &rest[o + 1..o + 1 + c];
+                        assert!(slot == "issue" || slot.starts_with("2:") || slot.starts_with("2p:"),
+                            "{}: stray placeholder in {:?}", b.id, line);
+                        rest = &rest[o + 1 + c + 1..];
+                    }
+                    assert!(!rest.contains('{') && !rest.contains('}'),
+                        "{}: stray placeholder in {:?}", b.id, line);
                     assert!(line.len() <= 140, "{}: overlong line {:?}", b.id, line);
                 }
             }
@@ -1252,7 +1319,7 @@ mod tests {
         let run = || {
             let (mut w, c, _) = meeting_world(DecisionRule::Majority);
             let out = hold_campaign_meeting(&mut w, c, 8).unwrap();
-            let d = deliberate_meeting(&mut w, c, &out, 8).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, 8, &Default::default()).unwrap();
             for s in &d.said {
                 if let Some(e) = s.speaker { assert!(out.attendees.contains(&e), "{:?} wasn't there", s); }
                 assert!(!s.text.contains("{issue}"));
@@ -1296,7 +1363,7 @@ mod tests {
             let before = w.get_component::<CampaignMeeting>(c).unwrap().resolves;
             let out = hold_campaign_meeting(&mut w, c, day).unwrap();
             assert!(out.noted);
-            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, day, &Default::default()).unwrap();
             let after = w.get_component::<CampaignMeeting>(c).unwrap().resolves;
             assert_eq!(after, before + d.decided as u32, "day {}: {:?}", day, d.said);
             if d.decided { decided += 1 } else { undecided += 1 }
@@ -1327,7 +1394,7 @@ mod tests {
             crate::game::desires::add_grievance(&mut w, ms[1], crate::game::desires::Problem::Grief, 10_000);
             let out = hold_campaign_meeting(&mut w, c, day).unwrap();
             assert!(meeting_facts(&w, c, &out, day).has("room:want:mourning"));
-            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, day, &Default::default()).unwrap();
             for pair in d.said.chunks(2) {
                 let b = MEETING_BEATS.iter().find(|b| b.id == pair[0].beat).unwrap();
                 if b.voice == Voice::Member && personal_needs(b.criteria).contains(&"room:want:mourning") {
@@ -1346,10 +1413,15 @@ mod tests {
             let (mut w, c, ms) = meeting_world(DecisionRule::Majority);
             let out = MeetingOutcome { attendees: vec![ms[0], ms[1]], healed: vec![],
                 drifted: false, noted: false, consent: false, splintered: false };
-            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, day, &Default::default()).unwrap();
             for pair in d.said.chunks(2) {
                 let b = MEETING_BEATS.iter().find(|b| b.id == pair[0].beat).unwrap();
-                let mv = b.moves.iter().find(|m| m.lines.iter().any(|l| fill(l, "the mill toll") == pair[1].text)).unwrap();
+                // the reply speaks back to the caller, slots and all - the
+                // match reproduces say()'s pair before it reads the text
+                let speakers: HashMap<Entity, Speaker> = Default::default();
+                let mv = b.moves.iter().find(|m| m.lines.iter().any(|l|
+                    say(&w, &speakers, l, "the mill toll", pair[1].speaker, m.voice,
+                        pair[0].speaker.unwrap_or(ms[0]), &mut Rng::new(0)) == pair[1].text)).unwrap();
                 if mv.voice == Voice::Member && pair[0].speaker.is_some() {
                     assert_ne!(pair[0].speaker, pair[1].speaker, "day {}: {} answered itself", day, b.id);
                 }
@@ -1385,7 +1457,7 @@ mod tests {
         for day in 8..408 {
             let (mut w, c, _) = meeting_world(DecisionRule::Majority);
             let out = hold_campaign_meeting(&mut w, c, day).unwrap();
-            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, day, &Default::default()).unwrap();
             let beats: Vec<&str> = d.said.iter().map(|s| s.beat).collect();
             if let Some(i) = beats.iter().position(|b| *b == "hm_testimony_foe") {
                 if d.applied.contains(&Hook::Reframe(Framing::SharedGrievance)) {
@@ -1433,7 +1505,7 @@ mod tests {
             // the healed dissenter grumbles on - someone for good counsel
             // to talk back round
             w.get_component_mut::<Campaign>(c).unwrap().dissenters.push(ms[2]);
-            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, day, &Default::default()).unwrap();
             own_floor += d.said.iter().filter(|s| s.speaker == Some(ms[3])).count();
             if d.decided {
                 let decider = d.decisive().last().and_then(|s| s.speaker);
@@ -1448,7 +1520,7 @@ mod tests {
             // the same room, the masons' matter - the baker is a misfit
             let (mut w, c, ms) = build("materials (mason)");
             let out = hold_campaign_meeting(&mut w, c, day).unwrap();
-            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, day, &Default::default()).unwrap();
             other_floor += d.said.iter().filter(|s| s.speaker == Some(ms[3])).count();
             if d.decided && d.applied.last() == Some(&Hook::Dissent)
                 && d.decisive().last().and_then(|s| s.speaker) == Some(ms[3])

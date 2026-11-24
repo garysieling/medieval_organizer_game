@@ -264,9 +264,19 @@ entry with neither is a plain line. A click on a positioned entry jumps
 the camera there; one naming a villager also selects them. Older
 servers send bare strings in `log`; those read as unclickable lines.
 
+Story lines also carry `tag`, the event's story metadata, absent on
+plain lines: `{"thread":"...","valence":N,"sev":N}`. `thread` names the
+story thread the line belongs to (`weather`, `illness`, `fire`, `law`,
+`beast`, `visitor`, `org`, `economy`, `lifecycle`, `craft`, `player`,
+`other`); `valence` is the news' sign - `1` good, `0` neutral, `-1`
+bad; `sev` is how big it is - `0` minor, `1` notable, `2` major.
+Older servers omit `tag`; read it as an untagged line. A line that has
+story metadata always sends it, so a missing `tag` means the line was
+never tagged, not that the client should infer one.
+
 ```
-{"text":"t640: Aldric died.","at":[11.0,7.5],"who":3}
-{"text":"t641: drizzle begins"}
+{"text":"t640: Aldric died.","at":[11.0,7.5],"who":3,"tag":{"thread":"lifecycle","valence":-1,"sev":2}}
+{"text":"t641: drizzle begins","tag":{"thread":"weather","valence":0,"sev":0}}
 ```
 
 `ctx_hint` says what pressing each context action does, one entry per
@@ -357,6 +367,27 @@ count toward `met` - a barter or a shared meal alone doesn't.
 
 Scenes from an older server may omit `social`; read it as all zeroes.
 
+`weather`, `calendar` and `clock` carry the sky, the village calendar
+and the frame clock for sound/music layers that can't watch the screen
+(P1): `weather` is the current weather event (`kind` one of `storm`,
+`drought`, `heat`, `frost`; `intensity` 0..1; `days_left` the days it
+still has) or `null` on a clear day; `calendar` is `holy_day`,
+`market_day`, `feast` (the feast's name today, else `null`),
+`days_to_holy` and `days_to_market`; `clock` is `day_frac` (0..1 of
+today elapsed), `frames_per_day` (1260 at normal speed) and `speed`
+(the multiplier vs normal: 1.0 normal, ~5.6 turbo, lower while a
+meeting slows the calendar).
+
+```
+"weather":{"kind":"storm","intensity":0.6,"days_left":2},
+"calendar":{"holy_day":false,"market_day":false,"feast":"May Day",
+            "days_to_holy":3,"days_to_market":11},
+"clock":{"day_frac":0.42,"frames_per_day":1260,"speed":1.0}
+```
+
+Scenes from an older server may omit all three; read them as
+"unknown" (no weather, all-zeroes calendar, `frames_per_day` 0).
+
 `panel.leader` names the org's head for the status line - `"you"` when
 the seat leads its own, a villager's name when the bond's passed to
 another. Older servers omit it or send null; a client should draw no
@@ -405,14 +436,17 @@ when nothing's on record. Older servers omit it; read it as empty.
 watch the plan fill before it calls the meeting.
 
 `panel.mystery` is the village mystery the seat is piecing together, or
-absent: `{title, heard, total, asker_name, asker?, asker_at?}` - the
-question, the count of whispers heard, and who's asking, carried as data
-so the client can make the asker's name a button (select + camera jump).
-Older servers send the whole line as a bare string instead
+absent: `{title, heard, total, dims?, asker_name, asker?, asker_at?}` -
+the question, the count of whispers heard, and who's asking, carried as
+data so the client can make the asker's name a button (select + camera
+jump). `dims` is the per-direction progress: `["who",2,2]` and friends -
+(word, heard, wanted) for each of who/what/when/where/why, `wanted` 0
+where the story doesn't ask it; a `*` mark's due when heard meets
+wanted. Older servers send the whole line as a bare string instead
 (`"Mystery: ... - 3/5 whispers (Matilda wants to know)"`); it decodes
 with an empty `title`, which the client draws verbatim with nothing
-clickable. Servers that predate the field omit it; read it as no
-mystery under way.
+clickable. Servers that predate the field omit it - and omit `dims`;
+read it as no mystery under way, and `dims` as empty.
 
 `snowballs` lists the snowballs in the air this frame, each `[x,y]` where
 it has got to - empty outside a snowball fight. Older servers omit it;

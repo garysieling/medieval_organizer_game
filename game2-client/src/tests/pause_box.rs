@@ -28,7 +28,9 @@ fn test_the_pause_menu_centres_and_its_rows_click() {
         "a row sits inside the box");
     let (rx, ry, ..) = rows[0];
     assert_eq!(pause_menu_click(rx + 2, ry + 2), Some(MenuPick::Resume));
-    let (rx, ry, rw, rh, _) = rows[1];
+    assert_eq!(pause_menu_click(rows[1].0 + 2, rows[1].1 + 2), Some(MenuPick::Sound),
+        "the middle row opens the Sound overlay (#1506)");
+    let (rx, ry, rw, rh, _) = rows[2];
     assert_eq!(pause_menu_click(rx + rw - 1, ry + rh - 1), Some(MenuPick::Quit));
     assert_eq!(pause_menu_click(x - 5, y), None, "outside the box presses nothing");
     assert_eq!(pause_menu_click(rx, ry + rh + 1), None, "between the rows presses nothing");

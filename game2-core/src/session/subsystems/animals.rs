@@ -230,7 +230,7 @@ impl Game {
                 .villagers
                 .iter()
                 .position(|x| *x == who)
-                .map(|x| vill_name(x))
+                .map(|x| self.cast_name(x))
                 .unwrap_or("someone");
             self.log_entity_ev(
                 EvTag::new(Thread::Beast, Valence::Positive, Sev::Minor),

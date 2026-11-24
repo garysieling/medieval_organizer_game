@@ -49,7 +49,7 @@ fn test_kin_are_not_paired() {
     // a and b are kin: no match between them, ever
     let rel = g.world.create_entity();
     g.world.add_component(rel, relationships::Relationship {
-        from: a, other: b, kind: relationships::RelKind::Family, strength: 0.8, interactions: 5 });
+        from: a, other: b, kind: relationships::RelKind::Family, strength: 0.8, interactions: 5, ..Default::default() });
     for t in (0..40).step_by(31) { g.match_attempt(a, t, g.matchmaker, "the heart-helper"); }
     assert_eq!(g.rel_kind(a, b), Some(relationships::RelKind::Family), "kin stay kin");
 }

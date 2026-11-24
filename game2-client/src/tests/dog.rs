@@ -14,7 +14,7 @@ fn test_dog_goes_with_its_new_owner_when_aldric_dies() {
     // Aldric is close to Eliza, so she's who takes his dog in
     let rel = game.world.create_entity();
     game.world.add_component(rel, Relationship {
-        from: aldric, other: game.villagers[1], kind: game2_core::game::relationships::RelKind::Friend, strength: 0.6, interactions: 5,
+        from: aldric, other: game.villagers[1], kind: game2_core::game::relationships::RelKind::Friend, strength: 0.6, interactions: 5, ..Default::default()
     });
     game.world.get_component_mut::<Health>(aldric).unwrap().condition = 0.0;
     let t = game.tick;

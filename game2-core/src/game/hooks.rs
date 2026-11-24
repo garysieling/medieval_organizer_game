@@ -55,6 +55,10 @@ pub struct Carried {
     pub laid: Option<(Entity, u64)>,
     /// Whether their Talk's spoken of it since
     pub told: bool,
+    /// The ghost that lent it, when the wound came off a persona's
+    /// prehistory rather than the index hash (E2-3, #1421): lie,
+    /// strength, fear and need ride beside the status
+    pub ghost: Option<crate::game::persona::Ghost>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -84,7 +88,24 @@ pub fn seed(index: u64) -> Hooks {
     for k in 0..n {
         let id = s[(mix(h.wrapping_add(k as u64 + 1)) % s.len() as u64) as usize];
         if !carried.iter().any(|c| c.id == id) {
-            carried.push(Carried { id, laid: None, told: false });
+            carried.push(Carried { id, laid: None, told: false, ghost: None });
+        }
+    }
+    Hooks { carried }
+}
+
+/// The hooks a persona's ghosts lend (E2-3, #1421): only ghosts whose
+/// event maps to a HOOKS row carry a talk status - the rest stay
+/// records on the persona until content claims them
+pub fn from_ghosts(ghosts: &[crate::game::persona::Ghost]) -> Hooks {
+    // ghosts arrive deepest-first; two wounds may claim one row, and
+    // the stronger keeps it - `open`/`tell` only ever find the first
+    let mut carried: Vec<Carried> = vec![];
+    for g in ghosts {
+        if let Some(id) = g.hook {
+            if !carried.iter().any(|c| c.id == id) {
+                carried.push(Carried { id, laid: None, told: false, ghost: Some(*g) });
+            }
         }
     }
     Hooks { carried }
@@ -111,7 +132,7 @@ pub fn lay(world: &mut World, v: Entity, by: Entity, day: u64) -> Option<usize> 
     let id = c.id;
     if let Some(next) = HOOKS[id].sequel {
         if !hooks.carried.iter().any(|c| c.id == next) {
-            hooks.carried.push(Carried { id: next, laid: None, told: false });
+            hooks.carried.push(Carried { id: next, laid: None, told: false, ghost: None });
         }
     }
     Some(id)

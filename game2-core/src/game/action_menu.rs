@@ -80,6 +80,13 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                     .map(|c| c.value).unwrap_or(0);
                 let (did, said) = super::organizing::talk_response(world, t, "They", talks_before, tick);
                 act_talk(world, player, t, tick);
+                // the text menu has no seat's Speaker pair - a bare
+                // modern register still renders the {2:} slots (E4-4)
+                let (sp, lp) = (super::conversation::Speaker::new("them"),
+                                super::conversation::Speaker::new("you"));
+                let said = crate::game::text::realize(&said,
+                    &crate::game::text::Cx::plain(&sp, &lp, &[]),
+                    &mut super::conversation::Rng::new(t as u64));
                 format!("{}: \"{}\"", did, said)
             } else { "No one to talk to.".into() }
         }
@@ -213,7 +220,8 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             match campaign::hold_campaign_meeting(world, c, tick) {
                 Some(out) => {
                     let mut msg = format!("{} meet about the campaign; consensus banks as it does.", out.attendees.len());
-                    if let Some(last) = super::campaign_dialogue::deliberate_meeting(world, c, &out, tick)
+                    if let Some(last) = super::campaign_dialogue::deliberate_meeting(world, c, &out, tick,
+                            &Default::default())
                         .and_then(|d| d.said.into_iter().last()) {
                         msg += &format!(" \"{}\"", last.text);
                     }
@@ -249,8 +257,11 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                     // the campaign talks over what the street brought - after
                     // the watchers woke and any arrest, as the graphical game
                     // does - and the exchange that settled it is told
+                    // the text game keeps no Speaker cast - the lines
+                    // realize against bare speakers (E4-4)
+                    let empty = crate::engine::det::HashMap::default();
                     if let Some(d) = super::campaign_arc::deliberate_arc(world, c,
-                        super::campaign_arc::ArcEvent::March(r.unwrap_or(super::reactions::Reaction::Ignored)), tick) {
+                        super::campaign_arc::ArcEvent::March(r.unwrap_or(super::reactions::Reaction::Ignored)), tick, &empty) {
                         let talk: Vec<String> = d.decisive().iter().map(|s| format!("\"{}\"", s.text)).collect();
                         if !talk.is_empty() { msg += &format!(" {}", talk.join(" ")); }
                     }
@@ -380,7 +391,7 @@ mod tests {
         let friend = crate::game::villager::spawn_villager(&mut w, 0.0, 0.0);
         let stranger = crate::game::villager::spawn_villager(&mut w, 1.0, 0.0);
         let rel = w.create_entity();
-        w.add_component(rel, Relationship { from: player, other: friend, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+        w.add_component(rel, Relationship { from: player, other: friend, kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
 
         let msg = execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5);
 

@@ -21,7 +21,7 @@ fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
     // Eliza already trusts the player; Bram is a stranger who's merely
     // said he'll come - the meeting is earned: Eliza lends the house
     let rel = game.world.create_entity();
-    game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+    game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut game, eliza, (17.0, 16.0), &[bram]);
 
     assert!(game.meeting.is_none());
@@ -48,7 +48,7 @@ fn test_a_meeting_takes_time_people_gather_then_talk_then_it_ends() {
         if i != 1 && i != 2 { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32, y: 3.0 }; }
     }
     let rel = game.world.create_entity();
-    game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+    game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut game, eliza, (18.0, 16.0), &[bram]);
     game.call_meeting();
     assert!(game.log.last().unwrap().contains("gather at"), "{}", game.log.last().unwrap());
@@ -319,7 +319,7 @@ fn test_the_disinterested_drift_in_thinly_not_never() {
     };
     let rel = g.world.create_entity();
     g.world.add_component(rel, relationships::Relationship {
-        from: g.player, other: w, kind: RelKind::Friend, strength: 0.8, interactions: 5 });
+        from: g.player, other: w, kind: RelKind::Friend, strength: 0.8, interactions: 5, ..Default::default() });
     assert!(shows_up(&g.world, g.player, w, at, Invite::Word, 0.4, g2),
         "a real bond counts as its own stake");
 }
@@ -340,7 +340,7 @@ fn test_the_door_counts_who_stayed_home_without_naming_them() {
     g.world.add_component(corvin, villager::Dead);
     let rel = g.world.create_entity();
     g.world.add_component(rel, Relationship { from: g.player, other: host,
-        kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+        kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram, corvin]);
     g.call_meeting();
     let last = g.log.last().unwrap();
@@ -361,7 +361,7 @@ fn test_a_called_meeting_waits_for_the_day_its_word_names() {
     }
     let rel = g.world.create_entity();
     g.world.add_component(rel, Relationship { from: g.player, other: host,
-        kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+        kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
     // the press asks the day - nothing gathers yet
     g.update_ctx_actions_at(0);
@@ -456,12 +456,13 @@ fn test_a_follower_greets_you_differently() {
     g.talk_to(1);
     let r = g.talk_log.iter().rev().find(|r| r.kind == crate::session::dialogue::TalkKind::Talk).expect("the talk record");
     let first = &r.lines[0].text;
+    let t = g.seats[0].talk.as_ref().expect("the talk's open");
     let expected: Vec<String> = [
-        "{other}! Good day - I was hoping I'd see thee about.",
-        "There thou art, {other}. Word is thou'rt still talking to folk.",
-        "A fair morning to thee, {other} - and to the work we share.",
-        "I saved thee a thought or two since last we spoke, {other}."]
-        .iter().map(|s| s.replace("{other}", "wanderer")).collect();
+        "{other}! Good day - I was hoping I'd see {2:obj} about.",
+        "There {2:subj} {2:be}, {other}. Word is {2:subj} {2:be} still talking to folk.",
+        "A fair morning to {2:obj}, {other} - and to the work we share.",
+        "I saved {2:obj} a thought or two since last we spoke, {other}."]
+        .iter().map(|s| super::fixtures::said(t, false, *s)).collect();
     assert!(expected.contains(first), "a follower greets the bond: {}", first);
 }
 
@@ -723,9 +724,9 @@ fn test_the_committed_bring_a_friend_along() {
     // the comer's strongest bond is the friend, and the friend knows
     // the player well enough to make the walk
     let r = game.world.create_entity();
-    game.world.add_component(r, Relationship { from: comer, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+    game.world.add_component(r, Relationship { from: comer, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3, ..Default::default() });
     let rf = game.world.create_entity();
-    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5, ..Default::default() });
     plan_ready_meeting(&mut game, host, (17.0, 16.0), &[]);
     // the comer gave a bare yes - no spreading promised - and still a
     // friend comes in tow
@@ -753,11 +754,11 @@ fn test_spreaders_bring_their_friends_and_nobody_twice() {
     // overlap must still mean one invite
     for s in [spreader_a, spreader_b] {
         let r = game.world.create_entity();
-        game.world.add_component(r, Relationship { from: s, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+        game.world.add_component(r, Relationship { from: s, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3, ..Default::default() });
     }
     // and the friend knows the player well enough to actually come
     let rf = game.world.create_entity();
-    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5, ..Default::default() });
     plan_ready_meeting(&mut game, host, (17.0, 16.0), &[]);
     game.world.get_component_mut::<MeetingPlan>(game.org).unwrap().spreaders = vec![spreader_a, spreader_b];
     game.call_meeting();
@@ -781,7 +782,7 @@ fn test_coin_buys_an_ask_the_bond_cant_reach() {
     // they'll take coin - nothing in them refuses the asking
     g.world.add_component(v, crate::game::traits::Personality { traits: vec![] });
     // nothing heard, nothing between you: coin's the only key that turns
-    let offers = ask_offers(&g.world, g.org, v, 0);
+    let offers = ask_offers(&g.world, g.org, v, 0, g.tick);
     assert!(offers.iter().all(|o| o.key == AskKey::Coin), "{:?}", offers);
     let o = offers.iter().find(|o| o.kind == PropKind::ComeAlong).expect("come is priced");
     assert!(ask_label(&g.world, v, o).contains("for "), "{}", ask_label(&g.world, v, o));
@@ -839,7 +840,7 @@ fn test_nerve_presses_past_the_stage_gate() {
     }
     // an acquaintance: the meeting asks are above their rung, so the
     // press - not the plain ask - is what's on the table for them
-    let offers = ask_offers(&g.world, g.org, v, 0);
+    let offers = ask_offers(&g.world, g.org, v, 0, g.tick);
     let pressed = offers.iter().find(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve);
     assert!(pressed.is_some(), "{:?}", offers);
     assert!(!offers.iter().any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Earned));
@@ -879,11 +880,41 @@ fn test_a_short_purse_offers_no_coin() {
     g.world.get_component_mut::<Purse>(pe).unwrap().gold = 0.0;
     // the stranger has nothing for you: coin's the only key that turns
     // for them, and yours is empty
-    assert!(ask_offers(&g.world, g.org, v, 0).is_empty());
+    assert!(ask_offers(&g.world, g.org, v, 0, g.tick).is_empty());
     // someone you've heard still takes the press, free of coin
     g.world.add_component(heard_v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
-    let offers = ask_offers(&g.world, g.org, heard_v, 0);
+    let offers = ask_offers(&g.world, g.org, heard_v, 0, g.tick);
     assert!(offers.iter().all(|o| o.key == AskKey::Nerve), "{:?}", offers);
+}
+
+/// A refused ask cools off for the season (#1347): the "won't hear it"
+/// takes that ask off the table till its days are out - then it can be
+/// put again, and land differently
+#[test]
+fn test_a_refused_ask_cools_off_for_the_season() {
+    use crate::game::organizing::{ask_offers, propose_keyed, AskKey, PropKind};
+    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[1]);
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    record_interaction(&mut g.world, pe, Interaction {
+        other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
+    let (oe, tick) = (g.org, g.tick);
+    assert!(ask_offers(&g.world, oe, v, 0, tick).iter()
+        .any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve),
+        "the press is on the table");
+    let (msg, _) = propose_keyed(&mut g.world, pe, oe, v, PropKind::ComeAlong,
+        "Bram", 1.0, tick, AskKey::Nerve, 0.0);
+    assert!(msg.contains("won't hear it"), "{}", msg);
+    assert!(!ask_offers(&g.world, oe, v, 0, tick).iter()
+        .any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve),
+        "the refused ask cools off");
+    // the season out, it's back - hearts change, the second ask lands
+    // on a new roll
+    assert!(ask_offers(&g.world, oe, v, 0, tick + crate::game::organizing::ASK_COOLDOWN_DAYS).iter()
+        .any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve),
+        "the ask re-qualifies when its days are out");
 }
 
 /// A purchased yes reads cheap at the reckoning (#1225): bought
@@ -915,10 +946,10 @@ fn test_bought_promises_read_cheap_at_the_meeting() {
     // the word were earned
     let r = g.world.create_entity();
     g.world.add_component(r, Relationship { from: spreader, other: friend,
-        kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+        kind: RelKind::Friend, strength: 9.0, interactions: 3, ..Default::default() });
     let rf = g.world.create_entity();
     g.world.add_component(rf, Relationship { from: pe, other: friend,
-        kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+        kind: RelKind::Friend, strength: 3.0, interactions: 5, ..Default::default() });
     g.call_meeting();
     let m = g.meeting.as_ref().expect("a meeting was called");
     // bought folk still fill their slots and walk to the door...
@@ -979,7 +1010,8 @@ fn test_a_probe_meeting_asks_what_they_want_and_who_for() {
     g.world.add_component(guarded, Known::default());
     let came = vec![deep, guarded];
     let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), true, None);
-    assert!(lines.iter().any(|(e, l)| *e == pe && l == crate::game::dialogue_trees::MEET_PROBE.text),
+    assert!(lines.iter().any(|(e, l)| *e == pe
+            && *l == g.pair_said(pe, g.player, crate::game::dialogue_trees::MEET_PROBE.text)),
         "the host asks the probe: {:?}", lines);
     let loved_name = g.name_of(loved);
     assert!(lines.iter().any(|(e, l)| *e == deep && l.contains(&loved_name)),
@@ -1203,16 +1235,16 @@ fn test_the_scout_ask_names_who_the_room_follows() {
     let mut g = Game::new();
     let (pe, talker, bellwether) = (g.player, g.villagers[1], g.villagers[2]);
     // a stranger reads no room for you; an acquaintance does
-    assert!(!ask_offers(&g.world, g.org, talker, 0).iter().any(|o| o.kind == PropKind::Scout));
+    assert!(!ask_offers(&g.world, g.org, talker, 0, g.tick).iter().any(|o| o.kind == PropKind::Scout));
     relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
         other: talker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
     assert_eq!(stage_of(&g.world, pe, talker), RelStage::Acquaintance);
-    assert!(ask_offers(&g.world, g.org, talker, 0).iter().any(|o| o.kind == PropKind::Scout));
+    assert!(ask_offers(&g.world, g.org, talker, 0, g.tick).iter().any(|o| o.kind == PropKind::Scout));
     // the bellwether holds strong family bonds - the room leans on them
     for kin in g.villagers.iter().copied().skip(3).take(6) {
         let r = g.world.create_entity();
         g.world.add_component(r, Relationship { from: bellwether, other: kin,
-            kind: RelKind::Family, strength: 0.9, interactions: 30 });
+            kind: RelKind::Family, strength: 0.9, interactions: 30, ..Default::default() });
     }
     assert!(pull_of(&g.world, bellwether) > pull_of(&g.world, talker).max(1.0),
         "bonds carry the voice: {} vs {}", pull_of(&g.world, bellwether), pull_of(&g.world, talker));
@@ -1331,4 +1363,67 @@ fn test_a_stranger_hears_no_inside_news() {
         assert!(lines.is_empty(), "a stranger hears nothing: {:?}", lines);
     }
     assert!(g.world.get_component::<crate::game::rumor::Rumor>(b).is_none());
+}
+
+/// A ghost-carrier hangs back when only the bare word calls (E3-4,
+/// #1425): the levy's wound halves their showing - and when they say
+/// no, they say it in the wound's own words
+#[test]
+fn test_a_ghost_hangs_back_from_the_bare_word() {
+    use crate::game::organizing::{no_reason, shows_up, Invite};
+    use crate::game::persona::*;
+    let mut g = Game::new();
+    // a contented guest whose roll floats near the drift-in edge
+    let v = g.villagers.iter().copied().find(|&v| {
+        if let Some(l) = g.world.get_component_mut::<crate::game::desires::InnerLife>(v) { l.wants.clear(); }
+        crate::game::desires::unrevealed(&g.world, v, g.tick).is_empty()
+    }).expect("someone content enough to have nothing to say");
+    let at = {
+        let p = *g.world.get_component::<Pos>(v).unwrap();
+        (p.x as i32, p.y as i32)
+    };
+    // the drift-in edge: this roll passes while unhurt
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.10, g.tick),
+        "the bare roll should drift them in");
+    let mut p = Persona {
+        seed: 1, sex: villager::Sex::Male, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+    };
+    p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+        lie: Belief::NeverCrossReeve, strength: 0.8, fear: Fear::BailiffKnowsMyFace,
+        need: Need::ToBeSafe });
+    g.world.add_component(v, p);
+    // the same roll now keeps them home (0.55 levy x 0.45 reeve lie)
+    assert!(!shows_up(&g.world, g.player, v, at, Invite::Word, 0.10, g.tick),
+        "the wound hangs them back");
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.02, g.tick),
+        "but a low roll still finds them");
+    // and a no lands in the wound's own words, not a trait's stock excuse
+    assert_eq!(no_reason(&g.world, v),
+        Some("You'll not see me stand under that gate. Ask another."));
+    // a warm ghost cuts the other way: the feast-keeper comes readier
+    let w = g.villagers.iter().copied().find(|&w| {
+        if let Some(l) = g.world.get_component_mut::<crate::game::desires::InnerLife>(w) { l.wants.clear(); }
+        crate::game::desires::unrevealed(&g.world, w, g.tick).is_empty()
+    }).expect("another contented one");
+    let at2 = {
+        let p = *g.world.get_component::<Pos>(w).unwrap();
+        (p.x as i32, p.y as i32)
+    };
+    assert!(!shows_up(&g.world, g.player, w, at2, Invite::Word, 0.14, g.tick),
+        "the bare drift-in stops short here");
+    let mut p2 = Persona {
+        seed: 2, sex: villager::Sex::Female, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+    };
+    p2.ghosts.push(Ghost { event: EventId(0), kind: EventKind::HarvestFeast, hook: None,
+        lie: Belief::StrongTogether, strength: 0.8, fear: Fear::AloneInIt,
+        need: Need::ToBelong });
+    g.world.add_component(w, p2);
+    assert!(shows_up(&g.world, g.player, w, at2, Invite::Word, 0.14, g.tick),
+        "the feast-keeper's year draws them out (1.15 x 1.15)");
 }

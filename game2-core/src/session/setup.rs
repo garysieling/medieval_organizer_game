@@ -14,6 +14,18 @@ impl Game {
     /// the map's grown a little townage of its own: a farm below the south
     /// gate, a woodcutter's clearing and a fisher's hut on the shore.
     pub fn new_seeded(seed: u64) -> Game {
+        Game::new_seeded_with(seed, false)
+    }
+
+    /// Same world, but the cast is generated, not the fixed roll (#1411,
+    /// E1-2): every villager carries a `persona::Persona`, a name dealt off
+    /// its own seed, and a body the persona draws. `new_seeded` stays the
+    /// fixed cast so tooling and tests keep their ground truth.
+    pub fn new_seeded_cast(seed: u64) -> Game {
+        Game::new_seeded_with(seed, true)
+    }
+
+    fn new_seeded_with(seed: u64, seeded_cast: bool) -> Game {
         let mut rng = Rng(seed ^ 0x9E3779B9);
         let mut world = World::new();
         let mut sched = Scheduler::new();
@@ -509,24 +521,131 @@ impl Game {
         gulls.truncate(4);
 
         let mut villagers = vec![];
+        // a seeded cast deals names off each persona, one per spawn -
+        // fixed keeps the whole roll pre-laid
+        let mut cast_names: Vec<&'static str> = if seeded_cast {
+            vec![]
+        } else {
+            NAMES.iter().chain(NEW_NAMES.iter()).copied().collect()
+        };
+        // E2-1 (#1419): the thirty years before play, walked once - the
+        // personas' stories cite it, and the later passes ground their
+        // households and ghosts in it
+        if seeded_cast {
+            world.insert_resource(
+                crate::session::prehistory::run(seed, NAMES.len(), &KID_IDXS));
+        }
+        // E2-2 (#1420): kin off the prehistory's households - adults
+        // generate first so each child's temperament can start at the
+        // parents' mean; the plan rides out for the roof and the bonds
+        let kin_plan: Vec<crate::session::prehistory::KinPlan> =
+            world.resource::<crate::session::prehistory::Prehistory>()
+                .map(|ph| ph.kin_plan(seed, &KID_IDXS)).unwrap_or_default();
+        let mut personas: Vec<Option<crate::game::persona::Persona>> =
+            (0..NAMES.len()).map(|_| None).collect();
+        if seeded_cast {
+            let story_of = |i: usize| world
+                .resource::<crate::session::prehistory::Prehistory>()
+                .map(|ph| ph.story_of(i)).unwrap_or_default();
+            let marks_of = |i: usize| world
+                .resource::<crate::session::prehistory::Prehistory>()
+                .map(|ph| ph.marks_of(i)).unwrap_or_default();
+            // each slot's Past outlives generation: the validator's
+            // rerolls redraw passes 3-6 over the same past (E1-5)
+            let mut pasts: Vec<crate::game::persona::Past> = (0..NAMES.len())
+                .map(|i| crate::game::persona::Past { story: story_of(i),
+                    marks: marks_of(i),
+                    vocation: adult_vocs.get(i).copied(), ..Default::default() })
+                .collect();
+            for i in 0..NAMES.len() {
+                if KID_IDXS.contains(&i) { continue; }
+                personas[i] = Some(crate::game::persona::generate_attempt(
+                    seed, i, &pasts[i], 0));
+            }
+            for &k in &KID_IDXS {
+                let parents: Vec<[f32; 5]> = kin_plan.get(k)
+                    .map(|p| p.parents.iter()
+                        .filter_map(|&s| personas[s].as_ref().map(|pp| pp.temperament))
+                        .collect())
+                    .unwrap_or_default();
+                let mean = if parents.is_empty() { None } else {
+                    let mut m = [0.0f32; 5];
+                    for t in &parents { for a in 0..5 { m[a] += t[a] / parents.len() as f32; } }
+                    Some(m)
+                };
+                pasts[k].parents = mean;
+                personas[k] = Some(crate::game::persona::generate_attempt(
+                    seed, k, &pasts[k], 0));
+            }
+            // E2-4 (#1422): the cast's caps - no wound held more than
+            // twice, the deep marks rare
+            crate::game::persona::cap_cast_ghosts(&mut personas);
+            // E1-5 (#1413): the checks a cast must pass, rerolling the
+            // later passes of whoever fails them; then signatures dealt
+            // without replacement so no landmark is shared
+            crate::game::cast_check::validate(&mut personas,
+                &mut |slot, attempt| crate::game::persona::generate_attempt(
+                    seed, slot, &pasts[slot], attempt));
+            // a rerolled parent shifts the mean a child started from -
+            // redeal the children once over the settled cast
+            for &k in &KID_IDXS {
+                let parents: Vec<[f32; 5]> = kin_plan.get(k)
+                    .map(|p| p.parents.iter()
+                        .filter_map(|&s| personas[s].as_ref().map(|pp| pp.temperament))
+                        .collect())
+                    .unwrap_or_default();
+                let mean = if parents.is_empty() { None } else {
+                    let mut m = [0.0f32; 5];
+                    for t in &parents { for a in 0..5 { m[a] += t[a] / parents.len() as f32; } }
+                    Some(m)
+                };
+                if mean != pasts[k].parents {
+                    pasts[k].parents = mean;
+                    personas[k] = Some(crate::game::persona::generate_attempt(
+                        seed, k, &pasts[k], 0));
+                }
+            }
+            crate::game::persona::cap_cast_ghosts(&mut personas);
+            crate::game::cast_check::deal_signatures(&mut personas, seed);
+        }
         // 23 vocation adults (0..23), two overseers (23,24), the trader
         // (25), three children (26..29) and the tax collector (29)
         for i in 0..NAMES.len() {
             let v = villager::spawn_villager(&mut world,
                 vx as f32 - 2.0 + (i % 6) as f32 * 0.8, vy as f32 - 2.0 + (i % 4) as f32 * 0.8);
+            // E1-4 (#1412): a persona's two personality views come off
+            // it - the fixed cast keeps its independent rolls
+            let traits = if seeded_cast {
+                let p = personas[i].take().unwrap();
+                let (big5, t) = p.personalities();
+                world.add_component(v, big5);
+                world.add_component(v, p.sex);
+                deal_name(&p, &mut cast_names);
+                world.add_component(v, p);
+                t
+            } else {
+                world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
+                personality_from_seed(i as u64 * 7 + 3)
+            };
             world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
             world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
-            world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
             world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-            let traits = personality_from_seed(i as u64 * 7 + 3);
             // their soul starts bent by the traits they carry; the life
             // does the rest (#950)
             world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
             world.add_component(v, traits);
             world.add_component(v, Satchel::default());
             world.add_component(v, Known::default());
-            // the old wounds they carry in (#1243)
-            world.add_component(v, crate::game::hooks::seed(i as u64));
+            // the old wounds they carry in (#1243); a seeded cast's
+            // come off its persona's ghosts instead (E2-3, #1421)
+            let hooks = if seeded_cast {
+                world.get_component::<crate::game::persona::Persona>(v)
+                    .map(|p| crate::game::hooks::from_ghosts(&p.ghosts))
+                    .unwrap_or_default()
+            } else {
+                crate::game::hooks::seed(i as u64)
+            };
+            world.add_component(v, hooks);
             if i < 23 {
                 // a working adult: the level roll sets the skill band
                 let skill = match rng.below(100) {
@@ -557,6 +676,36 @@ impl Game {
                 religion: "the parish".into(), devotion: 0.35 + (villagers.len() % 6) as f32 * 0.09,
                 traditions: vec![] });
             villagers.push(v);
+        }
+        // E2-2 (#1420): the roof's people as components and bonds -
+        // every pair under one roof is kin from the first day
+        if seeded_cast {
+            if let Some(hh) = world.resource::<crate::session::prehistory::Prehistory>()
+                .map(|ph| ph.households.clone())
+            {
+                for (i, &v) in villagers.iter().enumerate() {
+                    let k = kin_plan.get(i);
+                    world.add_component(v, villager::Kin {
+                        parents: k.map(|p| p.parents.iter()
+                            .map(|&s| villagers[s]).collect()).unwrap_or_default(),
+                        siblings: k.map(|p| p.siblings.iter()
+                            .map(|&s| villagers[s]).collect()).unwrap_or_default(),
+                        housemates: k.map(|p| p.housemates.iter()
+                            .map(|&s| villagers[s]).collect()).unwrap_or_default(),
+                    });
+                }
+                for i in 0..villagers.len() {
+                    for j in (i + 1)..villagers.len() {
+                        if hh[i] == hh[j] {
+                            crate::game::relationships::add_relationship(&mut world,
+                                crate::game::relationships::Relationship {
+                                    from: villagers[i], other: villagers[j],
+                                    kind: crate::game::relationships::RelKind::Family,
+                                    strength: 0.8, interactions: 0, ..Default::default() });
+                        }
+                    }
+                }
+            }
         }
         // the parish holds them all; the priest keeps the office
         let congregation = {
@@ -646,44 +795,109 @@ impl Game {
                 // the herb hut is hers alone - nobody else takes a bed in it
                 .map(|bb| bb.kind == BuildingKind::Home && bb.name != "a foreign house" && bb.name != "the herb hut").unwrap_or(false)
         }).collect();
-        for (i, &v) in villagers.iter().enumerate() {
-            if i == HERB_IDX {
-                // the herb-wife keeps her own roof, out past the wall
+        if seeded_cast {
+            // E2-2 (#1420): a family to a roof - each proto-household
+            // takes one home that can hold them all, walked from a
+            // seeded start; the herb-wife keeps her hut alone
+            if let Some(hh) = world.resource::<crate::session::prehistory::Prehistory>()
+                .map(|ph| ph.households.clone())
+            {
                 if let Some(hut) = herb_hut {
-                    world.get_component_mut::<Building>(hut).unwrap().occupants.push(v);
+                    world.get_component_mut::<Building>(hut).unwrap()
+                        .occupants.push(villagers[HERB_IDX]);
                 }
-                continue;
-            }
-            let prefer = if KID_IDXS.contains(&i) {
-                // a child lodges with the adult a few places before him
-                household::home_of(&world, villagers[(i + 20) % 23])
-            } else { None };
-            let mut placed = false;
-            if let Some(h) = prefer {
-                if world.get_component::<Building>(h).map(|b| b.occupants.len() < 4).unwrap_or(false) {
-                    world.get_component_mut::<Building>(h).unwrap().occupants.push(v);
-                    placed = true;
+                let n_roofs = hh.iter().max().map(|m| m + 1).unwrap_or(0);
+                let mut homed = vec![false; villagers.len()];
+                homed[HERB_IDX] = true;
+                for h in 0..n_roofs {
+                    let mem: Vec<usize> = (0..villagers.len())
+                        .filter(|&i| hh[i] == h && i != HERB_IDX).collect();
+                    if mem.is_empty() { continue; }
+                    let start = (crate::game::persona::draw(seed, 700 + h as u64)
+                        * homes.len().max(1) as f32) as usize % homes.len().max(1);
+                    let wants_out = country::prefers_outside(&world, villagers[mem[0]]);
+                    let mut roof = None;
+                    'scan: for pass in 0..2 {
+                        for k in 0..homes.len().max(1) {
+                            let cand = homes[(start + k) % homes.len()];
+                            let inside = world.get_component::<Pos>(cand)
+                                .map(|p| (wall.0 as f32..=wall.2 as f32).contains(&p.x)
+                                    && (wall.1 as f32..=wall.3 as f32).contains(&p.y))
+                                .unwrap_or(true);
+                            if pass == 0 && wants_out.map(|out| out == inside)
+                                .unwrap_or(false) { continue; }
+                            if world.get_component::<Building>(cand)
+                                .map(|b| b.occupants.len() + mem.len() <= 4)
+                                .unwrap_or(false)
+                            {
+                                roof = Some(cand);
+                                break 'scan;
+                            }
+                        }
+                    }
+                    if let Some(cand) = roof {
+                        for &i in &mem {
+                            world.get_component_mut::<Building>(cand).unwrap()
+                                .occupants.push(villagers[i]);
+                            homed[i] = true;
+                        }
+                    }
+                }
+                // anyone whose family roof couldn't hold them takes any
+                // bed going, like the fixed cast's leftover pass
+                for (i, &v) in villagers.iter().enumerate() {
+                    if homed[i] { continue; }
+                    for k in 0..homes.len().max(1) {
+                        let h = homes[(i * 7 + k) % homes.len()];
+                        if world.get_component::<Building>(h)
+                            .map(|b| b.occupants.len() < 4).unwrap_or(false)
+                        {
+                            world.get_component_mut::<Building>(h).unwrap().occupants.push(v);
+                            break;
+                        }
+                    }
                 }
             }
-            // farmers and herders take the cottages out by the fields, the
-            // gentry the houses inside the wall; whoever's left over
-            // (or finds their side full) takes any bed going
-            let wants_out = country::prefers_outside(&world, v);
-            for pass in 0..2 {
-                for k in 0..homes.len().max(1) {
-                    if placed { break; }
-                    let h = homes[(i * 7 + k) % homes.len()];
-                    let inside = world.get_component::<Pos>(h)
-                        .map(|p| (wall.0 as f32..=wall.2 as f32).contains(&p.x) && (wall.1 as f32..=wall.3 as f32).contains(&p.y))
-                        .unwrap_or(true);
-                    if pass == 0 && wants_out.map(|out| out == inside).unwrap_or(false) { continue; }
+        } else {
+            for (i, &v) in villagers.iter().enumerate() {
+                if i == HERB_IDX {
+                    // the herb-wife keeps her own roof, out past the wall
+                    if let Some(hut) = herb_hut {
+                        world.get_component_mut::<Building>(hut).unwrap().occupants.push(v);
+                    }
+                    continue;
+                }
+                let prefer = if KID_IDXS.contains(&i) {
+                    // a child lodges with the adult a few places before him
+                    household::home_of(&world, villagers[(i + 20) % 23])
+                } else { None };
+                let mut placed = false;
+                if let Some(h) = prefer {
                     if world.get_component::<Building>(h).map(|b| b.occupants.len() < 4).unwrap_or(false) {
                         world.get_component_mut::<Building>(h).unwrap().occupants.push(v);
                         placed = true;
                     }
                 }
+                // farmers and herders take the cottages out by the fields, the
+                // gentry the houses inside the wall; whoever's left over
+                // (or finds their side full) takes any bed going
+                let wants_out = country::prefers_outside(&world, v);
+                for pass in 0..2 {
+                    for k in 0..homes.len().max(1) {
+                        if placed { break; }
+                        let h = homes[(i * 7 + k) % homes.len()];
+                        let inside = world.get_component::<Pos>(h)
+                            .map(|p| (wall.0 as f32..=wall.2 as f32).contains(&p.x) && (wall.1 as f32..=wall.3 as f32).contains(&p.y))
+                            .unwrap_or(true);
+                        if pass == 0 && wants_out.map(|out| out == inside).unwrap_or(false) { continue; }
+                        if world.get_component::<Building>(h).map(|b| b.occupants.len() < 4).unwrap_or(false) {
+                            world.get_component_mut::<Building>(h).unwrap().occupants.push(v);
+                            placed = true;
+                        }
+                    }
+                }
+                let _ = placed;
             }
-            let _ = placed;
         }
         // the player finds a bed too, like anyone else
         for k in 0..homes.len().max(1) {
@@ -881,7 +1095,7 @@ impl Game {
             if let Some(m) = master {
                 world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
                 relationships::add_relationship(&mut world, relationships::Relationship {
-                    from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.4, interactions: 3 });
+                    from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.4, interactions: 3, ..Default::default() });
             }
         }
         // purses and inner lives now that classes are settled
@@ -914,7 +1128,7 @@ impl Game {
         // plus the stock and tools the writs can strip
         for (i, &v) in villagers.iter().enumerate() {
             if subsystems::society::is_trader(&world, v) {
-                subsystems::society::tag_trader(&mut world, v, vill_name(i));
+                subsystems::society::tag_trader(&mut world, v, cast_of(&cast_names, i));
             }
         }
         // the keeper opens with a float. His trade is the only one in the
@@ -1027,6 +1241,8 @@ impl Game {
             talk_next_id: 0,
             was_sick: vec![None; NAMES.len()],
             died_on: vec![None; NAMES.len()],
+            names: cast_names,
+            seeded_cast,
             graveyard: None,
             frame_n: 0,
             precip: None,
@@ -1061,7 +1277,7 @@ impl Game {
             hall_tile,
             lord_works: vec![],
             attended_days: vec![],
-            journal: crate::session::journal::Journal::new(seed),
+            journal: crate::session::journal::Journal::new_cast(seed, seeded_cast),
             notices: vec![],
             dilemma: None, dilemma_debts: vec![],
             ewe_theft: None,

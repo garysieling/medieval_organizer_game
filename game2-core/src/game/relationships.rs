@@ -47,15 +47,107 @@ fn lowest_matching(world: &World, matches: impl Fn(&Relationship) -> bool) -> Op
     best
 }
 
+/// The trust half of the bond, Mayer's three faces of it (E6-1, #1431):
+/// each interaction moves the face it truly touches rather than one
+/// pooled warmth - the deed done for them reads benevolent *and* able
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct Trust {
+    /// Can they get it done (competence read)
+    pub ability: f32,
+    /// Do they mean you well
+    pub benevolence: f32,
+    /// Do they keep their word
+    pub integrity: f32,
+}
+
+/// Clark's psychological-safety ladder, carried as data (E6-1, #1431) -
+/// the unlocks (a come-along, meeting roles, open dissent) and the
+/// "breaks when" demotions land with E8-1's act model; today it just
+/// records where a bond's nerve has reached
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum SafetyRung {
+    /// You're one of us
+    #[default]
+    Inclusion,
+    /// It's safe to ask and learn
+    Learner,
+    /// It's safe to offer and do
+    Contributor,
+    /// It's safe to disagree openly
+    Challenger,
+}
+
+impl SafetyRung {
+    /// a step back down the ladder - a broken bond's nerve goes before
+    /// its warmth does
+    pub fn lower(self) -> Self {
+        match self {
+            SafetyRung::Challenger => SafetyRung::Contributor,
+            SafetyRung::Contributor => SafetyRung::Learner,
+            _ => SafetyRung::Inclusion,
+        }
+    }
+}
+
 /// A relationship between two entities, stored as its own entity (like
 /// Organization or HouseMeeting) so each person can hold many of them.
-#[derive(Debug)]
+/// `strength` is the derived summary the readers know (hearts,
+/// FOLLOWER_TIE); the parts under it - intimacy, the three trusts -
+/// are what interactions actually move (E6-1, #1431)
+#[derive(Debug, Default)]
 pub struct Relationship {
     pub from: Entity,
     pub other: Entity,
     pub kind: RelKind,
     pub strength: f32,      // -1 to 1
     pub interactions: u32,  // how many times they've interacted
+    /// The bond's parts (E6-1): talks, meals and time feed intimacy;
+    /// deeds and betrayals feed the trusts; the rung marks their nerve
+    pub intimacy: f32,
+    pub trust: Trust,
+    pub safety: SafetyRung,
+    /// Times they turned your words aside instead of answering (E6-3):
+    /// the reproach beat of E8-3 reads this later
+    pub pivots: u32,
+    /// Times they stepped around you; enough and the nerve closes
+    pub deflects: u32,
+}
+
+impl Relationship {
+    /// `strength` is a summary, not a state: derived from the parts as
+    /// their weighted sum (all weights 1 - the deltas each kind pushes
+    /// are sized to land the old strength delta exactly). Reconcile
+    /// what the parts don't know about: warmth arriving from outside -
+    /// a seeded bond, a hand-set strength - parks under intimacy;
+    /// warmth above the cap is saturation, not coldness, and shaves
+    /// every part alike rather than inventing a grievance
+    fn reconcile(&mut self) {
+        let derived = self.intimacy + self.trust.ability
+            + self.trust.benevolence + self.trust.integrity;
+        let diff = self.strength - derived;
+        if diff.abs() <= 1e-6 {
+            return;
+        }
+        if diff > 0.0 || derived <= 1e-6 {
+            self.intimacy += diff;
+        } else {
+            let keep = self.strength / derived;
+            self.intimacy *= keep;
+            self.trust.ability *= keep;
+            self.trust.benevolence *= keep;
+            self.trust.integrity *= keep;
+        }
+    }
+    /// the summary the readers know, off the parts
+    fn derive(&mut self) {
+        self.strength = (self.intimacy + self.trust.ability
+            + self.trust.benevolence + self.trust.integrity).clamp(-1.0, 1.0);
+    }
+    /// reconcile what the parts don't know about, then re-derive
+    pub fn recompose(&mut self) {
+        self.reconcile();
+        self.derive();
+    }
 }
 
 /// Friendship the way the player reads it: warmth shown as hearts, in
@@ -83,8 +175,9 @@ pub struct Married {
     pub form: u8,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum RelKind {
+    #[default]
     Stranger,
     Acquaintance,
     Friend,
@@ -122,8 +215,15 @@ impl crate::engine::ecs::System for RelationshipSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Relationship>() {
             if let Some(r) = world.get_component_mut::<Relationship>(e) {
-                // Decay toward neutral if no recent interactions
-                r.strength *= 0.99;
+                // Decay toward neutral if no recent interactions - the
+                // parts drift and the summary follows (E6-1); the first
+                // recompose back-fills a seeded strength before it drifts
+                r.recompose();
+                r.intimacy *= 0.99;
+                r.trust.ability *= 0.99;
+                r.trust.benevolence *= 0.99;
+                r.trust.integrity *= 0.99;
+                r.derive();
             }
             if let Some(r) = world.get_component::<Relationship>(e) {
                 let kind = infer_kind(r);
@@ -206,6 +306,40 @@ pub fn find_relationship(world: &World, from: Entity, other: Entity) -> Option<E
     lowest_matching(world, matches)
 }
 
+/// How a reply's responsiveness lands on the bond's parts (E6-3,
+/// #1441): the reflect/validate/care/advise/deflect/pivot tags each
+/// push their own components. A deflect does nothing - but enough of
+/// them closes the nerve; a pivot costs and is remembered (`pivots`,
+/// the reproach beat of E8-3 consumes it later).
+pub fn push_respond(world: &mut World, from: Entity, other: Entity,
+                    respond: crate::game::conversation::Respond) {
+    use crate::game::conversation::Respond;
+    let e = find_relationship(world, from, other).unwrap_or_else(|| {
+        add_relationship(world, Relationship {
+            from, other, kind: RelKind::Stranger, strength: 0.0, interactions: 0,
+            ..Default::default()
+        })
+    });
+    if let Some(r) = world.get_component_mut::<Relationship>(e) {
+        r.recompose();
+        match respond {
+            Respond::Reflect => { r.intimacy += 0.06; r.trust.benevolence += 0.08; }
+            Respond::Validate => { r.intimacy += 0.04; }
+            Respond::Care => { r.trust.benevolence += 0.15; }
+            Respond::Advise => { r.intimacy += 0.05; r.trust.ability += 0.10; }
+            Respond::Deflect => {
+                r.deflects += 1;
+                if r.deflects % 3 == 0 { r.safety = r.safety.lower(); }
+            }
+            Respond::PivotAsk => {
+                r.intimacy -= 0.05; r.trust.integrity -= 0.08; r.pivots += 1;
+            }
+        }
+        r.derive();
+        r.interactions += 1;
+    }
+}
+
 /// Record an interaction - relationships evolve emergently. Finds the
 /// relationship entity between `from` and the interaction's target (or
 /// creates one), applies the interaction's effect on strength, and
@@ -213,27 +347,34 @@ pub fn find_relationship(world: &World, from: Entity, other: Entity) -> Option<E
 pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) -> Entity {
     // Gains are sized in hearts (strength*MAX_HEARTS is what's shown):
     // a talk warms a half heart, a shared table a whole one, a deed
-    // done for them two - and unkindness takes them back the same way
-    let base_delta = match interaction.kind {
-        InteractionKind::Conversation => 0.10,
-        InteractionKind::SharedMeal => 0.20,
-        InteractionKind::SharedWork => 0.25,
-        InteractionKind::Conflict => -0.20,
-        InteractionKind::Aid => 0.40,
-        InteractionKind::Betrayal => -0.40,
-        InteractionKind::Romance => 0.30,
+    // done for them two - and unkindness takes them back the same way.
+    // Each kind pushes the part(s) it truly moves (E6-1's map); the
+    // parts sum to the old delta, so strength - the derived summary -
+    // lands exactly where the pooled model put it
+    let s = interaction.intensity.clamp(0.0, 1.0);
+    let push = |r: &mut Relationship| match interaction.kind {
+        InteractionKind::Conversation => r.intimacy += 0.10 * s,
+        InteractionKind::SharedMeal => r.intimacy += 0.20 * s,
+        InteractionKind::SharedWork => { r.intimacy += 0.15 * s; r.trust.ability += 0.10 * s; }
+        InteractionKind::Conflict => { r.intimacy -= 0.10 * s; r.trust.integrity -= 0.10 * s; }
+        InteractionKind::Aid => { r.trust.benevolence += 0.25 * s; r.trust.ability += 0.15 * s; }
+        InteractionKind::Betrayal => { r.intimacy -= 0.10 * s; r.trust.benevolence -= 0.15 * s;
+            r.trust.integrity -= 0.15 * s; r.safety = r.safety.lower(); }
+        InteractionKind::Romance => { r.intimacy += 0.20 * s; r.trust.benevolence += 0.10 * s; }
     };
-    let delta = base_delta * interaction.intensity.clamp(0.0, 1.0);
     let other = interaction.other;
 
     let rel_entity = find_relationship(world, from, other).unwrap_or_else(|| {
         add_relationship(world, Relationship {
             from, other, kind: RelKind::Stranger, strength: 0.0, interactions: 0,
+            ..Default::default()
         })
     });
 
     if let Some(r) = world.get_component_mut::<Relationship>(rel_entity) {
-        r.strength = (r.strength + delta).clamp(-1.0, 1.0);
+        r.recompose();   // reconcile a seeded strength before the push lands
+        push(r);
+        r.derive();
         r.interactions += 1;
     }
     if let Some(r) = world.get_component::<Relationship>(rel_entity) {
@@ -391,12 +532,12 @@ mod tests {
         // a bond added bare - the index never sees it made
         let early = world.create_entity();
         world.add_component(early, Relationship {
-            from: a, other: b, kind: RelKind::Family, strength: 0.8, interactions: 0,
+            from: a, other: b, kind: RelKind::Family, strength: 0.8, interactions: 0, ..Default::default()
         });
         // then an indexed bond lands on the same pair - a duplicate, the
         // way a second Family or a stray record can be
         let later = add_relationship(&mut world, Relationship {
-            from: b, other: a, kind: RelKind::Acquaintance, strength: 0.1, interactions: 1,
+            from: b, other: a, kind: RelKind::Acquaintance, strength: 0.1, interactions: 1, ..Default::default()
         });
         assert_eq!(find_relationship(&world, a, b), Some(early),
             "the earliest record still wins the pair, indexed or not");
@@ -414,12 +555,12 @@ mod tests {
         let c = world.create_entity();
         let d = world.create_entity();
         let ab = add_relationship(&mut world, Relationship {
-            from: a, other: b, kind: RelKind::Friend, strength: 0.5, interactions: 3,
+            from: a, other: b, kind: RelKind::Friend, strength: 0.5, interactions: 3, ..Default::default()
         });
         world.remove_component::<Relationship>(ab);
         let cd = world.create_entity();
         world.add_component(cd, Relationship {
-            from: c, other: d, kind: RelKind::Friend, strength: 0.9, interactions: 9,
+            from: c, other: d, kind: RelKind::Friend, strength: 0.9, interactions: 9, ..Default::default()
         });
         assert_eq!(find_relationship(&world, c, d), Some(cd),
             "the bare bond resolves, so a second interaction lands on it");
@@ -461,7 +602,7 @@ mod tests {
         let b = world.create_entity();
         let e = world.create_entity();
         world.add_component(e, Relationship {
-            from: a, other: b, kind: RelKind::Stranger, strength: 0.0, interactions: 0,
+            from: a, other: b, kind: RelKind::Stranger, strength: 0.0, interactions: 0, ..Default::default()
         });
 
         let mut system = RelationshipSystem;
@@ -472,5 +613,121 @@ mod tests {
         let r = world.get_component::<Relationship>(e).unwrap();
         assert_eq!(r.interactions, 0);
         assert_eq!(r.kind, RelKind::Stranger, "a pair with zero interactions should not age into Acquaintance on its own");
+    }
+}
+
+#[cfg(test)]
+mod e6_1 {
+    use super::*;
+    use crate::engine::ecs::System;
+
+    fn strength_after(kind: InteractionKind, intensity: f32) -> (f32, Relationship) {
+        let mut w = World::new();
+        let (a, b) = (w.create_entity(), w.create_entity());
+        let e = record_interaction(&mut w, a, Interaction { other: b, kind, intensity });
+        let r = w.get_component::<Relationship>(e).unwrap();
+        (r.strength, Relationship {
+            from: r.from, other: r.other, kind: r.kind,
+            strength: r.strength, interactions: r.interactions,
+            intimacy: r.intimacy, trust: r.trust, safety: r.safety,
+            pivots: r.pivots, deflects: r.deflects,
+        })
+    }
+
+    /// the parts move what the kind truly moves, and the derived
+    /// summary lands the old pooled delta exactly
+    #[test]
+    fn interactions_move_the_parts_not_the_pool() {
+        let (s, r) = strength_after(InteractionKind::Aid, 1.0);
+        assert!((s - 0.40).abs() < 1e-6);
+        assert!((r.trust.benevolence - 0.25).abs() < 1e-6);
+        assert!((r.trust.ability - 0.15).abs() < 1e-6);
+        assert_eq!(r.intimacy, 0.0);
+
+        let (s, r) = strength_after(InteractionKind::Betrayal, 1.0);
+        assert!((s + 0.40).abs() < 1e-6);
+        assert!((r.intimacy + 0.10).abs() < 1e-6);
+        assert!((r.trust.benevolence + 0.15).abs() < 1e-6);
+        assert!((r.trust.integrity + 0.15).abs() < 1e-6);
+        assert_eq!(r.safety, SafetyRung::Inclusion, "a betrayal's nerve was never earned");
+
+        let (s, _r) = strength_after(InteractionKind::SharedWork, 1.0);
+        assert!((s - 0.25).abs() < 1e-6);
+        let (s, _r) = strength_after(InteractionKind::Romance, 1.0);
+        assert!((s - 0.30).abs() < 1e-6);
+        let (s, _) = strength_after(InteractionKind::Conversation, 1.0);
+        assert!((s - 0.10).abs() < 1e-6);
+        let (s, _) = strength_after(InteractionKind::SharedMeal, 1.0);
+        assert!((s - 0.20).abs() < 1e-6);
+        let (s, r) = strength_after(InteractionKind::Conflict, 1.0);
+        assert!((s + 0.20).abs() < 1e-6);
+        assert!((r.intimacy + 0.10).abs() < 1e-6);
+        assert!((r.trust.integrity + 0.10).abs() < 1e-6);
+    }
+
+    /// gifts past the cap saturate the trust parts; decay must shave
+    /// them alike, not invent coldness where none was given
+    #[test]
+    fn saturated_trust_does_not_drain_intimacy() {
+        let mut w = World::new();
+        let (a, b) = (w.create_entity(), w.create_entity());
+        for _ in 0..3 {
+            record_interaction(&mut w, a, Interaction {
+                other: b, kind: InteractionKind::Aid, intensity: 1.0,
+            });
+        }
+        let e = find_relationship(&w, a, b).unwrap();
+        let before = w.get_component::<Relationship>(e).unwrap();
+        assert!(before.trust.ability + before.trust.benevolence > 1.0);
+        assert_eq!(before.strength, 1.0, "the summary caps at one");
+
+        RelationshipSystem.run(&mut w);   // a day of decay
+
+        let r = w.get_component::<Relationship>(e).unwrap();
+        assert!(r.intimacy >= 0.0,
+            "saturated trust must not drain intimacy: {}", r.intimacy);
+        assert!(r.strength > 0.97 && r.strength < 1.0,
+            "decay shaved the parts, not invented a grievance: {}", r.strength);
+    }
+
+    /// a betrayal costs the bond its nerve, whatever it had reached
+    #[test]
+    fn betrayal_knocks_the_rung_down() {
+        let mut w = World::new();
+        let (a, b) = (w.create_entity(), w.create_entity());
+        let e = add_relationship(&mut w, Relationship {
+            from: a, other: b, kind: RelKind::Friend, strength: 0.6, interactions: 4,
+            safety: SafetyRung::Challenger, ..Default::default()
+        });
+        record_interaction(&mut w, a, Interaction {
+            other: b, kind: InteractionKind::Betrayal, intensity: 1.0,
+        });
+        let r = w.get_component::<Relationship>(e).unwrap();
+        assert_eq!(r.safety, SafetyRung::Contributor);
+    }
+
+    /// a bond seeded with bare strength back-fills intimacy on the
+    /// first touch, so decay and pushes read it like recorded warmth
+    #[test]
+    fn a_seeded_bond_survives_recompose() {
+        let mut w = World::new();
+        let (a, b) = (w.create_entity(), w.create_entity());
+        let e = w.create_entity();
+        w.add_component(e, Relationship {
+            from: a, other: b, kind: RelKind::Friend,
+            strength: 0.8, interactions: 5, ..Default::default()
+        });
+        // one decay tick: 0.8 * 0.99, exactly the old trajectory
+        RelationshipSystem.run(&mut w);
+        let r = w.get_component::<Relationship>(e).unwrap();
+        assert!((r.strength - 0.8 * 0.99).abs() < 1e-6);
+        assert!(r.intimacy > 0.0, "seeded warmth parked under intimacy");
+        // and a talk lands on top of it - the seeded warmth holds,
+        // the push adds on
+        record_interaction(&mut w, a, Interaction {
+            other: b, kind: InteractionKind::Conversation, intensity: 1.0 });
+        let r = w.get_component::<Relationship>(e).unwrap();
+        assert!((r.strength - (0.8 * 0.99 + 0.10)).abs() < 1e-4,
+            "strength {} kept the seed and the talk", r.strength);
     }
 }

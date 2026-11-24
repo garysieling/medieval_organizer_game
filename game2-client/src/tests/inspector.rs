@@ -63,7 +63,7 @@ fn test_the_page_keeps_its_text_inside_the_plate() {
     game.world.add_component(rel, game2_core::game::relationships::Relationship {
         from: game.player, other: game.villagers[3],
         kind: game2_core::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     let buf = view.render(&game.ui_model(), (-1, -1));
     // the bio's colour, the run-on offender, inside the card and not past it
     let bio_px = |x0: usize, x1: usize| -> usize {
@@ -91,7 +91,7 @@ fn inspector_page_frame() {
     game.world.add_component(rel, game2_core::game::relationships::Relationship {
         from: game.player, other: game.villagers[3],
         kind: game2_core::game::relationships::RelKind::Friend,
-        strength: 0.95, interactions: 5 });
+        strength: 0.95, interactions: 5, ..Default::default() });
     use game2_core::game::leadership::{mark_observed, mark_performed, Job};
     mark_observed(&mut game.world, game.villagers[3], Job::Song);
     mark_observed(&mut game.world, game.villagers[3], Job::Snacks);

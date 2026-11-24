@@ -208,7 +208,7 @@ mod tests {
         w.add_component(owner, Health { condition: 0.9, immunity: 0.5 });
         let rel = |w: &mut World, other: Entity, strength: f32| {
             let r = w.create_entity();
-            w.add_component(r, Relationship { from: owner, other, kind: RelKind::Friend, strength, interactions: 5 });
+            w.add_component(r, Relationship { from: owner, other, kind: RelKind::Friend, strength, interactions: 5, ..Default::default() });
         };
         let (friend, best_friend, rival) = (w.create_entity(), w.create_entity(), w.create_entity());
         rel(&mut w, friend, 0.4);

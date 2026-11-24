@@ -8,7 +8,7 @@ fn test_the_work_goes_on() {
     let r = g.world.create_entity();
     g.world.add_component(r, relationships::Relationship {
         from: g.player, other: succ, kind: relationships::RelKind::Friend,
-        strength: 0.9, interactions: 8 });
+        strength: 0.9, interactions: 8, ..Default::default() });
     g.world.add_component(g.player, villager::Dead);
     g.continuation_tick(1);
     assert_eq!(g.player, succ, "the deepest bond takes it up");
@@ -53,7 +53,7 @@ fn test_the_second_seats_death_passes_their_own_work_on() {
     let r = g.world.create_entity();
     g.world.add_component(r, relationships::Relationship {
         from: g.seats[s1].player, other: succ, kind: relationships::RelKind::Friend,
-        strength: 0.9, interactions: 8 });
+        strength: 0.9, interactions: 8, ..Default::default() });
     g.world.add_component(g.seats[s1].player, villager::Dead);
     g.continuation_tick(1);
     assert_eq!(g.seats[s1].player, succ, "seat 1's work goes to who knew them best");

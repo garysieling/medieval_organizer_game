@@ -10,6 +10,7 @@ pub mod sampler;
 pub mod settings;
 pub mod soundscape;
 pub mod synth;
+pub mod theory;
 pub mod wav;
 
 #[cfg(feature = "analysis")]

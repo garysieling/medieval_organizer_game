@@ -1,0 +1,30 @@
+{
+ "created_at": 1795541888,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "2990d57e-ccb3-4628-87f0-6f41e9e3b031",
+ "outputs_retained_until": 1795628189,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 57,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "seasons-cottage-4-winter-11840f90",
+ "prompt": "single isometric medieval village asset: the same small medieval cottage in winter, snow settled in layers on the roof and the ground white, fits on one ground tile",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage4.png"
+ },
+ "generated_at": "2026-11-24T12:38:08",
+ "seconds": 100.6
+}

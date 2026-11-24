@@ -1353,6 +1353,15 @@ impl Art {
         let houses = if rd_houses.is_empty() { houses } else { rd_houses };
         let mut houses_winter: Vec<Option<Sprite>> = houses.iter()
             .map(|h| h.as_ref().map(|s| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85)))).collect();
+        // a bothán's winter sprite replaces its recoloured summer self:
+        // snow loads the thatch differently than a green tint can show.
+        // Patched BEFORE the seasonal pool clones the winter set, or the
+        // real art never reaches winter's slot
+        for (i, slot) in bothan_slots {
+            if let Some(s) = at(&format!("rd/buildings/bothan-winter{}.png", i)) {
+                houses_winter[slot] = Some(s);
+            }
+        }
         // the seasonal pool (#1276): a cottage with its own seasonal
         // variant (rd/seasons/cottage<i>-<season>.png) swaps into that
         // season's slot; the base and snowed sets stand in where a
@@ -1364,13 +1373,6 @@ impl Art {
                 if let Some(s) = at(&format!("rd/seasons/cottage{}-{}.png", i + 1, season)) {
                     houses_by_season[si][i] = Some(s);
                 }
-            }
-        }
-        // a bothán's winter sprite replaces its recoloured summer self:
-        // snow loads the thatch differently than a green tint can show
-        for (i, slot) in bothan_slots {
-            if let Some(s) = at(&format!("rd/buildings/bothan-winter{}.png", i)) {
-                houses_winter[slot] = Some(s);
             }
         }
 

@@ -36,3 +36,18 @@ fn test_the_cottages_have_a_slot_for_every_season() {
     assert!(art.houses_by_season.iter().all(|s| s.len() == art.houses.len()),
         "a season's pool doesn't match the cottage pool");
 }
+
+#[test]
+fn a_landed_seasonal_variant_swaps_into_its_season() {
+    // the landed pool (#1303): cottage1's autumn file carries its own
+    // art - the season's slot doesn't share the base sprite
+    let art = Art::load_fs("../assets", 0);
+    let aut = art.house_season(0, Season::Autumn).as_ref()
+        .expect("cottage1's autumn sprite landed");
+    let base = art.house(0).as_ref().unwrap();
+    assert_ne!(aut.pixels, base.pixels, "autumn shares the base sprite");
+    // and the botháns' real winter art still stands over any variant
+    assert_eq!(art.house_season(9, Season::Winter).as_ref().map(|s| &s.pixels),
+        art.houses_winter[9].as_ref().map(|s| &s.pixels),
+        "a bothán's winter isn't the snowed sprite");
+}

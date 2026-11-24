@@ -1,0 +1,30 @@
+{
+ "created_at": 1795542452,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "d394a46d-61bd-40d3-9341-54ff111d2f9c",
+ "outputs_retained_until": 1795628767,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 55,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "seasons-cottage-7-autumn-9cec686e",
+ "prompt": "single isometric medieval village asset: the same small medieval cottage in autumn, the grass gone gold and dry leaves gathered at the door, fits on one ground tile",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage7.png"
+ },
+ "generated_at": "2026-11-24T12:47:31",
+ "seconds": 85.6
+}

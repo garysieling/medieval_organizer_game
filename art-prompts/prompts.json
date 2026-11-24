@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 185,
-  "est_total_usd": 32.42
+  "count": 182,
+  "est_total_usd": 31.88
  },
  "prompts": [
   {
@@ -317,22 +317,6 @@
    "notes": ""
   },
   {
-   "id": "ui-border-set-a4d28eae",
-   "tier": "p0",
-   "group": "icons/ui",
-   "title": "ui border set",
-   "prompt": "medieval illuminated manuscript border pieces, flat: four ornate foliate corner pieces and matching straight edge strips, dark ink, gold leaf and muted red and blue on plain parchment, each piece separate, game UI element",
-   "request": {
-    "prompt_style": "rd_pro__spritesheet",
-    "width": 256,
-    "height": 256,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "marginalia pieces for the manuscript frame (#1323); slice per cell"
-  },
-  {
    "id": "ui-button-c5bf7b01",
    "tier": "p0",
    "group": "icons/ui",
@@ -361,22 +345,6 @@
    },
    "est_cost_usd": 0.18,
    "notes": ""
-  },
-  {
-   "id": "ui-fleuron-accents-a775bb71",
-   "tier": "p0",
-   "group": "icons/ui",
-   "title": "ui fleuron accents",
-   "prompt": "small medieval illuminated manuscript line ornaments and fleurons: leaf sprigs, stars, knotwork marks, each a single muted colour, game UI element",
-   "request": {
-    "prompt_style": "rd_pro__spritesheet",
-    "width": 256,
-    "height": 256,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "marginalia pieces for the manuscript frame (#1323); slice per cell"
   },
   {
    "id": "ui-hud-bar-7a7d8edb",
@@ -482,22 +450,6 @@
    },
    "est_cost_usd": 0.18,
    "notes": "ui_panel draws a matched chrome set; slice per element"
-  },
-  {
-   "id": "ui-vine-seasons-977b26d6",
-   "tier": "p0",
-   "group": "icons/ui",
-   "title": "ui vine seasons",
-   "prompt": "medieval illuminated manuscript corner vine flourishes in four seasons: spring pink blossom, summer green leaf, autumn gold leaf, winter bare thorn, one per cell, game UI element",
-   "request": {
-    "prompt_style": "rd_pro__spritesheet",
-    "width": 256,
-    "height": 256,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.18,
-   "notes": "marginalia pieces for the manuscript frame (#1323); slice per cell"
   },
   {
    "id": "ui-window-set-b4b2586c",

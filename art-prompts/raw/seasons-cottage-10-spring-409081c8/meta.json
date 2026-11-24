@@ -1,0 +1,30 @@
+{
+ "created_at": 1795543111,
+ "credit_cost": 1,
+ "balance_cost": 0.0,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 0.01,
+ "request_id": "1aeaf519-9109-4411-81d6-5b238464e7e7",
+ "outputs_retained_until": 1795629456,
+ "billing": {
+  "source": "plan",
+  "plan_jobs_running": 0,
+  "plan_job_limit": 2,
+  "plan_usage_left_pct": 52,
+  "balance_charged": 0.0,
+  "balance_left": 0.01
+ },
+ "id": "seasons-cottage-10-spring-409081c8",
+ "prompt": "single isometric medieval village asset: the same small medieval cottage in early spring, fresh green grass and a few small spring flowers at the door, fits on one ground tile",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/bothan1.png"
+ },
+ "generated_at": "2026-11-24T12:58:30",
+ "seconds": 55.0
+}

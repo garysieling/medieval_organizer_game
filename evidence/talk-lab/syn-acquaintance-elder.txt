@@ -1,15 +1,16 @@
 === Talk: Probe (synthetic) vs Voice - Acquaintance ===
   them: Probe works the fields for a day's wage. Eighty winters of village memories are in their bones.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
-  Probe: Good morrow to thee, venerable Voice.
-    1) [Greet] Well met, child! Another day Heaven grants to watch the fields.
-  Voice: Well met, child! Another day Heaven grants to watch the fields.
-  Probe: Dost thou recall the great famine fifty winters ago, grandfather?
+  Probe: Good morrow to you, venerable Voice.
+    1) [Greet] Well met, friend, under the open sky.
+  Voice: Well met, friend, under the open sky.
+  Probe: Where did the old village boundary run before the ditch was dug?
     1) [Answer] Aye, we ate wild acorns and shared what porridge there was, and survived.
     2) [Question] Put a question to them
   Voice: Aye, we ate wild acorns and shared what porridge there was, and survived.
   Probe: Listen to the land; it was here before us and will keep our graves.
-    1) [Farewell] We will heed thy counsel at the village meeting. Good day.
-  Voice: We will heed thy counsel at the village meeting. Good day.
+    1) [Farewell] May the road be kind under your boots.
+  Voice: May the road be kind under your boots.
   -- Farewell (trees: ["elder_wisdom"])
 REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Acquaintance --picks 0,0,0

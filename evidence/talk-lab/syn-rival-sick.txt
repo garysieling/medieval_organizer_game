@@ -1,26 +1,18 @@
 === Talk: Probe (synthetic) vs Voice - Rival ===
   them: Probe works the fields for a day's wage. A cough's had them these two weeks.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: *cough* Voice. Keep to thy side - I'd not give thee even my sickness.
     1) [Agree] Even I'd not wish this on thee, Probe. Perhaps.
     2) [PushBack] Keep thy plague and thy distance both.
   Voice: Even I'd not wish this on thee, Probe. Perhaps.
   Probe: The calves won't feed themselves - and I'd not ask thee for help, Voice.
-    1) [Agree] Aye, work or starve - thou knowest it as well as I.
-    2) [Question] Put a question to them
-  Voice: Aye, work or starve - thou knowest it as well as I.
-  Probe: Thy lot still owes mine three groats, whatever lies thou tellest.
-    1) [PushBack] The whole parish knows the measure of thy word.
-    2) [PushBack] Thy pasture is mostly thistles anyway.
+    1) [Remark] Thy beasts I'll see to; thee, I'll suffer at a distance.
+    2) [Agree] Aye, work or starve - thou knowest it as well as I.
     3) [Question] Put a question to them
-  Voice: The whole parish knows the measure of thy word.
-  Probe: Come closer and say that to my beard.
-    1) [Remark] Not worth the breath or the bruise.
-    2) [PushBack] Cur! Thou'lt regret those words.
-    3) [Question] Put a question to them
-  Voice: Not worth the breath or the bruise.
-  Probe: I have looked upon thy face long enough.
-    1) [Farewell] Until we meet at the boundary ditch.
-  Voice: Until we meet at the boundary ditch.
-  -- Farewell (trees: ["the_sickness", "old_scores"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Rival --picks 0,0,0,0,0
+  Voice: Thy beasts I'll see to; thee, I'll suffer at a distance.
+  Probe: My thanks. A warm bowl does more than herbs.
+    1) [Farewell] The village stands together or it falls. Fare well.
+  Voice: The village stands together or it falls. Fare well.
+  -- Farewell (trees: ["the_sickness"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Rival --picks 0,0,0

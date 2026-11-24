@@ -1,5 +1,6 @@
 === Talk: Probe (synthetic) vs Voice - Stranger ===
   them: Probe works the fields for a day's wage. They buried one of their own last week.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Morrow, stranger. Forgive a grieving house its silence.
     1) [Agree] A loss is a loss - the saints keep their soul.
@@ -9,8 +10,24 @@
     1) [Agree] Their toil shaped this parish; their memory will outlive us.
     2) [Question] Put a question to them
   Voice: Their toil shaped this parish; their memory will outlive us.
-  Probe: It does a body good to speak their name aloud.
-    1) [Farewell] May holy angels watch over thy sleep tonight.
-  Voice: May holy angels watch over thy sleep tonight.
-  -- Farewell (trees: ["a_death_in_the_house"])
-REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Stranger --picks 0,0,0
+  Probe: The sorrow will ease as the seasons turn and heal.
+    1) [Agree] Gently does it, friend. Day by day.
+    2) [Bid] Sit a while longer - the kettle's still warm.
+    3) [Question] Put a question to them
+  Voice: Gently does it, friend. Day by day.
+  Probe: What town do you hail from, stranger?
+    1) [Evade] That's not for the telling, friend.
+    2) [Answer] The road to the cathedral town follows the river south.
+    3) [Question] Put a question to them
+  Voice: That's not for the telling, friend.
+  Probe: The parish watch keeps guard after the curfew bell.
+    1) [Worry] They say the levy rides again come spring - is it true, Probe?
+    2) [Agree] A fair road and fair talk, traveler.
+    3) [Question] Put a question to them
+  Voice: They say the levy rides again come spring - is it true, Probe?
+  Probe: True enough - the fields don't gossip.
+    1) [Farewell] Fair road to you, stranger.
+    2) [Farewell] I have no leisure to stand about, Probe.
+  Voice: Fair road to you, stranger.
+  -- Farewell (trees: ["a_death_in_the_house", "stranger_road"])
+REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Stranger --picks 0,0,0,0,0,0

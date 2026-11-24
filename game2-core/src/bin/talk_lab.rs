@@ -911,8 +911,16 @@ fn main() {
     }
 
     if let Some(path) = &a.out {
-        if std::fs::write(path, &out.buf).is_ok() {
-            out.emit(&format!("(transcript -> {path})"));
+        match std::fs::write(path, &out.buf) {
+            // the name alone: a corpus's logs diff clean whatever dir
+            // they were written to (E0-7, #1407)
+            Ok(()) => {
+                let file = std::path::Path::new(path).file_name()
+                    .and_then(|n| n.to_str()).unwrap_or(path);
+                out.emit(&format!("(transcript -> {file})"));
+            }
+            // a failed write can't pass for a written transcript (E0-7)
+            Err(e) => { eprintln!("could not write {path}: {e}"); std::process::exit(1); }
         }
     }
     if a.feedback && a.mode != "batch" && a.mode != "smoke" && a.mode != "arc" && a.mode != "metrics" {

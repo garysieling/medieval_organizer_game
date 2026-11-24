@@ -248,4 +248,9 @@ fn main() {
         100.0 * (n as usize - failing) as f32 / n as f32,
         failing
     );
+    // the band is the gate (E0-7, #1407): a metric dropping past its
+    // target fails the run, so CI can gate the build on the report
+    if failing > 0 {
+        std::process::exit(1);
+    }
 }

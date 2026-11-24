@@ -1,30 +1,63 @@
 === Talk: Dagny (villager 4, game seed 42) ===
+  facts: 
   (walking over…)
-  Dagny: Fair morning, wanderer. The pot stays empty these days.
-  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it. They keep close to the church folk.)
+  Dagny: Neighbor! Out early like the rest of us, wanderer.
+  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Their hand is heavy and their tongue heavier. The store ran out and the belly knows it. They keep close to the church folk.)
   Dagny: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Take half this barley loaf; we must look after each other.
+    1) Out and about early today.
+    2) Aye. Good day to you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Take half this barley loaf; we must look after each other.
-  Dagny: My family held this land when thine were sowing wild oats. Dost know it?
+  you: Out and about early today.
+  Dagny: My family held this land when yours were sowing wild oats. Do know it?
     1) Can't say the name reached me - I keep to my own lane.
-    2) Aye, and I've heard nothing but good of thy house.
+    2) Aye, and I've heard nothing but good of your house.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Dagny: My family held this land when thine were sowing wild oats. Dost know it?
-  you: Can't say the name reached me - I keep to my own lane.
-  Dagny: The sky can do what it likes - it's the empty pot that weighs on me.
-    1) Tell me true, Dagny - how goes it with thee?
-    2) Put a question to them
-    l) take your leave
-  you: Tell me true, Dagny - how goes it with thee?
-  Dagny: Well enough, thank thee, wanderer.
-    1) A full hearth is a blessing in hard times.
-    2) Put a question to them
-    l) take your leave
-  you: A full hearth is a blessing in hard times.
-  Dagny: The ditch along the south pasture needs clearing.
-    1) There's always another ditch to dig.
-    2) Every hand will be needed when the grain ripens.
+  Dagny: My family held this land when yours were sowing wild oats. Do know it?
+  you: We all muck the same stalls here, high or low.
+  Dagny: A fine morning - the kind the hay wishes for.
+    1) And the day's work - does it treat you kindly?
+    2) Tell me true, Dagny - how goes it with you?
     3) Put a question to them
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0 (talk seed 922746905)
+  you: And the day's work - does it treat you kindly?
+  Dagny: How goes it at the day's work, wanderer?
+    1) Honest work for honest pay at the day's work - can't complain, and wouldn't.
+    2) Well enough, aye. And how does the day's work treat you?
+    3) Put a question to them
+    l) take your leave
+  you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
+  Dagny: A rider from the castle came through before dawn.
+    1) I told the rain to stop and it came down the harder. So much for commanding the weather.
+    2) Let the miller and the rider sort their own affairs.
+    3) Put a question to them
+    l) take your leave
+  you: I told the rain to stop and it came down the harder. So much for commanding the weather.
+  Dagny: Mm.
+  Dagny: Look, the swallows are back.
+    1) Aye, so they are - I'd not have seen it.
+    2) Aye, the light's the light.
+    3) Put a question to them
+    l) take your leave
+  you: Aye, so they are - I'd not have seen it.
+  Dagny: They do say the reeve counts the sheep twice over.
+    1) Every tongue in the parish wags before sunset.
+    2) Better to tend your own hearth than watch the road.
+    3) Put a question to them
+    l) take your leave
+  you: Every tongue in the parish wags before sunset.
+  Dagny: As you say, friend.
+  Dagny: Do the crafts take on here?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    l) take your leave
+  you: I couldn't say truly.
+    1) I must walk on; fair day.
+    2) Fair day to you, Dagny - 'twas good to pass the time.
+    3) Ask who you should talk to next - for 6g
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0,0,0,0,0 (talk seed 922746905)

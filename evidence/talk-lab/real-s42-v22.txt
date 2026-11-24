@@ -1,35 +1,34 @@
 === Talk: Roderick (villager 22, game seed 42) ===
+  facts: 
   (walking over…)
-  Roderick: Fair morning to thee, wanderer.
+  Roderick: Neighbor! Out early like the rest of us, wanderer.
   (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
-  Roderick: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) And to thee.
+  Roderick: Hah! No one to learn from. I'll be a journeyman forever, or am I mistook?   [gist]
+    1) Well enough - and yours?
+    2) Aye. Good day to you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: And to thee.
-  Roderick: I'd have thumped the steward myself. Thou'd have done the same, no doubt?
-    1) Thou'lt not put words in my mouth, friend.
-    2) I'll not argue it, if it pleases thee.
+  you: Well enough - and yours?
+  Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
+    1) You will not put words in my mouth, friend.
+    2) I'll not argue it, if it pleases you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Roderick: I'd have thumped the steward myself. Thou'd have done the same, no doubt?
-  you: Thou'lt not put words in my mouth, friend.
-  Roderick: A gray dawn, but the day's work won't wait for it.
-    1) Thou seest a tempest in every puff of smoke.
+  Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
+  you: I say no such thing. The miller was half to blame and more.
+  Roderick: Your roof's holding better than mine in this wind, I'd wager.
+    1) Aye, the village turns on small things.
     2) Put a question to them
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Thou seest a tempest in every puff of smoke.
-  Roderick: Even so, we will manage as we always do.
-    1) True words; worry never baked a single loaf.
-    2) Put a question to them
+  you: Aye, the village turns on small things.
+  Roderick: As you say, friend, and that's the long of it, or am I mistook?
+    1) Go well, Roderick, and mind the mud.
+    2) Enough chatter. Good day.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: True words; worry never baked a single loaf.
-  Roderick: The peddler's cart lost a wheel at the bridge.
-    1) Aye? And what else did folk see?
-    2) Put a question to them
-    l) take your leave
-  you: Aye? And what else did folk see?
-  Roderick: Old Wulfric swore he saw an owl perched on the tavern roof.
-    1) Every tongue in the parish wags before sunset.
-    2) Better to tend thy own hearth than watch the road.
-    3) Put a question to them
-    l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 22 --picks 0,0,0,0,0,0 (talk seed 1224736781)
+REPRO: talk_lab talk --seed 42 --villager 22 --picks 0,0,0,0 (talk seed 1224736781)

@@ -83,8 +83,14 @@ fn main() {
             "gif" => "gif", "apng" => "png", "frames" => "", "avi" => "avi",
             "webm" => "webm", "mov" => "mov", _ => "mp4",
         };
-        if ext.is_empty() { format!("evidence/videos/{}s", opts.play_secs) }
-        else { format!("evidence/videos/play-{}s.{}", opts.play_secs, ext) }
+        // frame-count runs get their own stem so two --frames runs with
+        // no --out don't silently overwrite each other's clip
+        let stem = match opts.frames {
+            Some(n) => format!("{}f", n),
+            None => format!("{}s", opts.play_secs),
+        };
+        if ext.is_empty() { format!("evidence/videos/{}", stem) }
+        else { format!("evidence/videos/play-{}.{}", stem, ext) }
     });
     if opts.format == Format::Ffmpeg && opts.out.starts_with('-') {
         die("ffmpeg reads a leading '-' in --out as one of its own flags");

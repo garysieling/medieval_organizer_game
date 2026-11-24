@@ -414,11 +414,18 @@ impl Sink for FfmpegSink {
             let _ = std::fs::remove_file(&self.video_path);
             return Err(e);
         }
-        let acodec: &[&str] = if self.out.ends_with(".webm") { &["-c:a", "libopus"] }
+        let webm = self.out.ends_with(".webm");
+        let acodec: &[&str] = if webm { &["-c:a", "libopus"] }
             else { &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"] };
+        // the video pass already needs an explicit container (its temp
+        // path carries no extension of its own); the mux pass needs one
+        // too, since an extensionless --out gives ffmpeg nothing to infer
+        // the muxer from.
         let status = std::process::Command::new(&self.ffmpeg)
             .args(["-loglevel", "error", "-y", "-i", &self.video_path, "-i", &wav])
-            .args(["-c:v", "copy"]).args(acodec).args(["-shortest", &self.out])
+            .args(["-c:v", "copy"]).args(acodec)
+            .args(["-f", if webm { "webm" } else { "mp4" }])
+            .args(["-shortest", &self.out])
             .status();
         let _ = std::fs::remove_file(&wav);
         let _ = std::fs::remove_file(&self.video_path);
@@ -572,13 +579,21 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
     // Avi and Ffmpeg carry it; `--no-audio` leaves the video silent.
     let wants_audio = opts.audio && matches!(opts.format, Format::Avi | Format::Ffmpeg);
     let mut host = wants_audio.then(|| {
+        #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
         let mut h = AudioHost::offline(SAMPLE_RATE);
-        // the test runner's cwd is the crate root - look there too
-        let root = ["assets/sound", "../assets/sound"].iter()
-            .map(std::path::Path::new)
-            .find(|p| p.is_dir())
-            .unwrap_or_else(|| std::path::Path::new("assets/sound"));
-        h.set_bank(game2_audio::sampler::load_dir(root));
+        // record_video is a native-only binary (ffmpeg/avi muxing already
+        // assume a filesystem and a process to spawn); `load_dir` reads a
+        // directory from disk and isn't built for wasm32, so keep it out
+        // of the game2-web build the rest of this crate's lib target feeds.
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // the test runner's cwd is the crate root - look there too
+            let root = ["assets/sound", "../assets/sound"].iter()
+                .map(std::path::Path::new)
+                .find(|p| p.is_dir())
+                .unwrap_or_else(|| std::path::Path::new("assets/sound"));
+            h.set_bank(game2_audio::sampler::load_dir(root));
+        }
         h
     });
     let mut pcm: Vec<i16> = Vec::new();
@@ -627,6 +642,16 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
     }
     if let Some((&f, _)) = script.iter().next() {
         eprintln!("warning: script ops at frame {}+ never ran (recording ends at {})", f, total_frames - 1);
+    }
+    if wants_audio {
+        // audio renders one block per game frame (the play timeline), but
+        // the video plays out at `captured` frames / fps (the watch
+        // timeline); when speedup or fps stretches watch time past play
+        // time, the track falls short of the footage. Ffmpeg's `-shortest`
+        // mux then clips to the shorter stream, losing tail frames - pad
+        // with silence so video is never the longer of the two.
+        let need = ((captured as f64 / opts.fps.max(1) as f64) * SAMPLE_RATE as f64).ceil() as usize * 2;
+        if pcm.len() < need { pcm.resize(need, 0); }
     }
     sink.finish(if wants_audio { Some(&pcm) } else { None })?;
     if opts.format == Format::Frames {

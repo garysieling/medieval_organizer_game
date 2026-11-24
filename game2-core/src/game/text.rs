@@ -726,6 +726,9 @@ pub fn authored_lines_by_source() -> Vec<(&'static str, &'static str)> {
     for set in crate::game::conversation::worry_sets() {
         all.extend(set.iter().map(|l| ("worry", *l)));
     }
+    for set in crate::game::conversation::joke_sets() {
+        all.extend(set.iter().map(|l| ("joke", *l)));
+    }
     all
 }
 

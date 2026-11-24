@@ -166,6 +166,10 @@ pub struct Speaker {
     /// opts in; the transcript's `slips` reports what fired so the
     /// caller can mark the arc spent
     pub slips_left: u8,
+    /// Their humor (E5-6, #1437): the style draw and the grievance its
+    /// barbs lean on - `speaker_of` seeds it off the persona and
+    /// traits; hand-made speakers carry none and joke the tree's lines
+    pub joke: Option<Joke>,
     /// The ear's landmark (E4-7, #1416): a pet phrase and a habit,
     /// each unique in the village, each spent once a talk -
     /// `speaker_of` fills it off the persona
@@ -174,7 +178,7 @@ pub struct Speaker {
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, slips_left: 0, idiolect: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, slips_left: 0, joke: None, idiolect: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -299,6 +303,186 @@ pub fn slip_of(p: &crate::game::persona::Persona, dead_name: Option<String>) -> 
             trade: pick(93, DEAD_TRADES) })
     } else { None };
     Some(Slip { prone: (g.strength * (0.4 + 0.6 * nerve)).clamp(0.0, 1.0), dead })
+}
+
+/// Martin's four humor styles (E5-6, #1437): the style is how they
+/// cope, the target's what they resent
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JokeStyle {
+    /// Bonds - the laugh that includes everyone
+    Affiliative,
+    /// Copes - laughing the hardship off
+    SelfEnhancing,
+    /// At another's expense - the barb
+    Aggressive,
+    /// At their own expense - the wound worn light
+    SelfDefeating,
+}
+
+/// What a joke lands on (E5-6)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JokeTarget {
+    Lord,
+    Reeve,
+    Priest,
+    /// The speaker themselves - self-enhancing and self-defeating both
+    /// aim here, kindly or not
+    Oneself,
+    Weather,
+    /// A named feud or just "some folk" - the barb that isn't power
+    Rival,
+}
+
+impl JokeTarget {
+    /// Power's name: the targets the public channel can't carry - the
+    /// done-when's "exposure above zero" is the talk's own channel
+    pub fn power(self) -> bool {
+        matches!(self, JokeTarget::Lord | JokeTarget::Reeve | JokeTarget::Priest)
+    }
+}
+
+/// How a joke landed on its hearer (E5-6): the reply's fork - who
+/// laughs shows who's aligned
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JokeReceipt {
+    /// The open laugh - alignment said out loud
+    Laughed,
+    /// Topped it with one of their own - alignment shown, and given back
+    AddedTo,
+    /// Warned it quiet - the word's dangerous, wherever they stand
+    Warned,
+    /// Let it pass - neither aligned nor against
+    Quiet,
+}
+
+impl JokeReceipt {
+    /// The discourse move the receipt turn wears
+    fn act(self) -> Act {
+        match self {
+            JokeReceipt::Laughed => Act::Agree,
+            JokeReceipt::AddedTo => Act::Joke,
+            JokeReceipt::Warned => Act::PushBack,
+            JokeReceipt::Quiet => Act::Remark,
+        }
+    }
+    /// How the receipt receives the joke (E3-3): a warning is care for
+    /// the speaker's neck; silence steps around it
+    fn respond(self) -> Respond {
+        match self {
+            JokeReceipt::Laughed | JokeReceipt::AddedTo => Respond::Validate,
+            JokeReceipt::Warned => Respond::Care,
+            JokeReceipt::Quiet => Respond::Deflect,
+        }
+    }
+    /// The set its line draws on
+    fn lines(self) -> &'static [&'static str] {
+        match self {
+            JokeReceipt::Laughed => JOKE_LAUGHED,
+            JokeReceipt::AddedTo => JOKE_ADDED,
+            JokeReceipt::Warned => JOKE_WARNED,
+            JokeReceipt::Quiet => JOKE_QUIET,
+        }
+    }
+}
+
+/// What a speaker resents (E5-6): the strongest ghost's lie, worded
+/// for the {grievance} slot and aimed at the power it names
+#[derive(Debug, Clone, Copy)]
+pub struct Grievance {
+    /// The target their aggressive jokes strike
+    pub target: JokeTarget,
+    /// The wound's word - fills the {grievance} slot ("the lord's wars")
+    pub word: &'static str,
+    /// The lie it came off: a hearer holding the same one is aligned
+    pub lie: crate::game::persona::Belief,
+}
+
+/// A speaker's humor (E5-6): the draw weights over the four styles,
+/// off their traits and temperament until the persona's own model
+/// lands, and the grievance the barbs lean on
+#[derive(Debug, Clone)]
+pub struct Joke {
+    /// [affiliative, self-enhancing, aggressive, self-defeating]
+    pub styles: [f32; 4],
+    /// The resentment the {grievance} slot and aggressive target read;
+    /// none for the unwounded, whose barbs aim at whoever's about
+    pub grievance: Option<Grievance>,
+}
+
+/// A joke said and received this talk (E5-6): who told it, what it
+/// struck (matrix jokes only - a tree's own joke carries no target),
+/// and how the hearer took it. The session reads it for alignment
+#[derive(Debug, Clone, Copy)]
+pub struct JokeBeat {
+    pub joker: usize,
+    pub style: Option<JokeStyle>,
+    pub target: Option<JokeTarget>,
+    pub receipt: JokeReceipt,
+}
+
+/// The grievance a lie makes (E5-6): the wound's word for the joke's
+/// slot, aimed at whoever the lie blames. The true lessons - that we
+/// were strong, that truth comes out - carry no grievance
+fn grievance_of(l: crate::game::persona::Belief) -> Option<Grievance> {
+    use crate::game::persona::Belief::*;
+    use JokeTarget::*;
+    Some(Grievance { lie: l, target: match l {
+        LordAlwaysWins | WarsTakeSons | LordTakesFromDead => Lord,
+        MillOwnsUs | NeverCrossReeve => Reeve,
+        GodSends => Priest,
+        PromisesForKeepers | KeepHidden => Oneself,
+        SomeoneToBlame => Rival,
+        StrongTogether | TruthComesOut => return None,
+    }, word: match l {
+        LordAlwaysWins => "the lord's men",
+        WarsTakeSons => "the lord's wars",
+        LordTakesFromDead => "the death-duty",
+        MillOwnsUs => "the mill's take",
+        NeverCrossReeve => "the reeve's count",
+        GodSends => "God's sending",
+        PromisesForKeepers => "my own word",
+        KeepHidden => "the truth of me",
+        SomeoneToBlame => "the blame",
+        StrongTogether | TruthComesOut => return None,
+    } })
+}
+
+/// The lies a ghost teaches about the self's worth (E5-6): while one
+/// holds strong, the humor turns inward - the self-defeating joke is
+/// the wound worn where the village can see it
+fn self_worth_lie(l: crate::game::persona::Belief) -> bool {
+    matches!(l, crate::game::persona::Belief::KeepHidden
+        | crate::game::persona::Belief::PromisesForKeepers)
+}
+
+/// The humor a persona carries (E5-6, #1437): traits set the styles -
+/// the sociable bond, the proud cope, the hothead barbs - and a strong
+/// self-worth lie sharpens the self-defeating edge. `None` for nobody:
+/// everyone jokes some, so an absent persona is the only empty profile
+pub fn joke_of(p: &crate::game::persona::Persona, traits: &[Trait]) -> Joke {
+    let mut styles = [0.8f32, 0.3, 0.15, 0.15];
+    for t in traits {
+        match t {
+            Trait::Gregarious | Trait::Kind => styles[0] += 0.6,
+            Trait::Pious => styles[0] += 0.2,
+            Trait::Proud | Trait::Ambitious | Trait::Steady => styles[1] += 0.5,
+            Trait::SelfAbsorbed => styles[1] += 0.3,
+            Trait::Hotheaded | Trait::Cruel => styles[2] += 0.9,
+            Trait::Stingy => styles[2] += 0.2,
+            Trait::Lazy | Trait::Stolid => styles[3] += 0.2,
+            _ => {}
+        }
+    }
+    // the wound's weight: a self-worth lie turns the humor inward
+    for g in &p.ghosts {
+        if self_worth_lie(g.lie) { styles[3] += g.strength * 1.2; }
+    }
+    // a wary one jokes less - the whole draw thins
+    if traits.contains(&Trait::Wary) { styles.iter_mut().for_each(|s| *s *= 0.5); }
+    let grievance = p.ghosts.iter()
+        .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+        .and_then(|g| grievance_of(g.lie));
+    Joke { styles, grievance }
 }
 
 pub fn trait_name(t: Trait) -> &'static str {
@@ -917,6 +1101,10 @@ pub struct Transcript {
     /// slipped, which shape) - the caller marks its arc budget spent
     /// off this, one slip to a relationship's whole run of talks
     pub slips: Vec<(usize, SlipKind)>,
+    /// The jokes this talk told and how they landed (E5-6, #1437):
+    /// who joked, what it struck, and the hearer's receipt - who
+    /// laughs shows who's aligned
+    pub jokes: Vec<JokeBeat>,
     /// The depth of yourself the responder gave and the pair could hold
     /// (E3-3): each landed disclosure goes a step deeper; the session
     /// keeps the deepest reached so later asks find it mutual
@@ -1047,6 +1235,291 @@ const EVADE_PIVOT: &[&str] = &[
 /// Every evade set, for the text audit's authored-line census (E5-2)
 #[doc(hidden)]
 pub const EVADE_SETS: &[&[&str]] = &[DEFLECTED, EVADE_SNAP, EVADE_CHANGE, EVADE_GOD, EVADE_PIVOT];
+
+/// The authored jokes (E5-6): style by target, no generation - the
+/// choice of joke carries the personality. `{grievance}` slots fill
+/// from the speaker's own grievance word; lines without one stand for
+/// anyone. Cells the style can't voice go unwritten
+const JOKES: &[(JokeStyle, JokeTarget, &[&str])] = &[
+    // affiliative - the laugh that includes everyone
+    (JokeStyle::Affiliative, JokeTarget::Weather, &[
+        "I asked the sky for a dry week and it sent two wet ones, to be sure I meant it.",
+        "Rain again - the cabbages at least think kindly of somebody.",
+        "They say it clears by Sunday. They said the same last Sunday, and the one before.",
+        "A fine day for ducks, my mother called every day that drowned us.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Lord, &[
+        "The lord's table never wants - comforting to know somebody's fed, I always say.",
+        "I hear the great hall's roof leaks too. Even stone gets rained on.",
+        "May the lord live long and merry - a new one'd only learn the taxes fresh.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Reeve, &[
+        "The reeve counts honest, for a man whose master wrote the numbers.",
+        "I don't envy the reeve - he has to look us in the face while he does it.",
+        "Poor reeve - the only man in the village nobody invites to drink.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Priest, &[
+        "The sermon ran long again - but the bench is soft, and a body's feet are grateful.",
+        "The candles outlasted the sermon once. Once.",
+        "The church roof drips on the good people's heads the same as mine - we're level in the wet.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Oneself, &[
+        "I'm a man of simple tastes - bread, ale, and a fire somebody else paid for.",
+        "I've a gift for joining the slow line - a talent, I tell the wife.",
+        "My memory's a marvel - it forgets the work and keeps the grudges.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Rival, &[
+        "I won't hear a word against my old foe - nobody else will talk to him either.",
+        "We argue like brothers, which is to say we share nothing but the argument.",
+        "He's a good man, my rival - asks him the day he owes and he's suddenly deaf.",
+    ]),
+    // self-enhancing - laughing the hardship off
+    (JokeStyle::SelfEnhancing, JokeTarget::Weather, &[
+        "Wet feet dry. That's what I tell the wet feet.",
+        "Cold keeps the fleas down - there's a mercy hid in everything, my gran used to say.",
+        "It rains on the reeve's roof the same as mine - we're level in the wet.",
+    ]),
+    (JokeStyle::SelfEnhancing, JokeTarget::Lord, &[
+        "The lord has his hall and I've my health - I call it near even.",
+        "He can tax the grain. The jokes he can't reach.",
+        "They keep the hall warm and me honest - each to his own fire.",
+    ]),
+    (JokeStyle::SelfEnhancing, JokeTarget::Reeve, &[
+        "The reeve's count don't frighten me - I've counted worse. My own debts, mostly.",
+        "He takes the tenth. I keep the jokes - I know which weighs lighter.",
+    ]),
+    (JokeStyle::SelfEnhancing, JokeTarget::Oneself, &[
+        "Fortune owes me a debt - I keep the tally patient.",
+        "I don't lack much - just the means to fix most of it.",
+        "Thin times make a man quick. I've never been quicker.",
+    ]),
+    // aggressive - the barb. Power's names are for where power can't
+    // hear: the channel, not the courage, is the gate
+    (JokeStyle::Aggressive, JokeTarget::Lord, &[
+        "The lord's justice: a rope for the man who steals bread, a feast for the man who steals fields.",
+        "They say the lord loves us like sons - he takes from us like it too.",
+        "The lord's men win every fight they start - brave souls, against a man holding a hoe.",
+        "What's between the lord and the weather? The weather takes no thanks.",
+        "{grievance} - the lord collects even what we haven't got.",
+    ]),
+    (JokeStyle::Aggressive, JokeTarget::Reeve, &[
+        "The reeve's arithmetic: two of yours, three of his - it always balances.",
+        "Give the reeve an honest answer and he'll count it twice and charge you for one.",
+        "The reeve knows every store down to the last onion - a gift, truly. Like a rat's.",
+        "{grievance} - you'd think the counting fed him.",
+    ]),
+    (JokeStyle::Aggressive, JokeTarget::Priest, &[
+        "The priest preaches the meek inherit - convenient, since he holds his already.",
+        "He'll pray over your soul for nothing - the burial's where the bill lands.",
+        "Holy patience, he calls it - I've watched it wait a week for the tithe.",
+    ]),
+    (JokeStyle::Aggressive, JokeTarget::Rival, &[
+        "Some folk plow straight furrows. Others plow excuses.",
+        "There's a man could talk the moss off a stone - and does, instead of work.",
+        "I'd trust his word as far as I could throw his barn - and his barn's a fine size.",
+        "{grievance} - pride's the only crop that ever came up heavy.",
+    ]),
+    // self-defeating - the wound worn light
+    (JokeStyle::SelfDefeating, JokeTarget::Oneself, &[
+        "I promised the fence by winter. Kept my word - the winter after.",
+        "My word's worth what it's writ on - nothing, mostly.",
+        "I aimed high once. My aim's improved - now I aim for dinner.",
+        "They say every man has his use. I'm still asking round for mine.",
+        "{grievance} - that's the sum of me, near enough.",
+    ]),
+];
+
+/// The four ways a joke lands (E5-6): the hearer's fork. Who laughs
+/// shows who's aligned
+const JOKE_LAUGHED: &[&str] = &[
+    "Ha! True as rain, that.",
+    "Ha - I'll carry that one home with me.",
+    "Ha! Aye - and the half of it's left unsaid.",
+    "Ha! Oh, that's a good one - I'll owe {2:obj} for it.",
+];
+const JOKE_ADDED: &[&str] = &[
+    "Aye - and worse I've heard, and believed every word.",
+    "Ha - don't stop there, {2:subj} {2:be} just warming.",
+    "True - and I've one to match it, when I've drunk enough.",
+    "Aye - {2:subj} missed the best of it: it gets worse.",
+];
+const JOKE_WARNED: &[&str] = &[
+    "Careful - walls have ears, and ears have masters.",
+    "Ssh - that one's a rope's worth if it travels.",
+    "Laugh softer - the wrong mouth's always near.",
+    "Mind {2:poss} tongue - some jokes keep better indoors.",
+];
+const JOKE_QUIET: &[&str] = &[
+    "Mm. As {2:subj} {2:say}.",
+    "Hm. A man's humor's his own.",
+    "Mm.",
+    "I heard it. I'll not repeat it.",
+];
+
+/// Every joke and receipt set, for the text audit's authored-line
+/// census (E5-6)
+#[doc(hidden)]
+pub fn joke_sets() -> Vec<&'static [&'static str]> {
+    JOKES.iter().map(|(_, _, s)| *s)
+        .chain([JOKE_LAUGHED, JOKE_ADDED, JOKE_WARNED, JOKE_QUIET])
+        .collect()
+}
+
+/// Which cell a matrix line template belongs to (E5-6): the receipt's
+/// record reads the target off the line that drew it
+fn joke_cell_of(line: &'static str) -> Option<(JokeStyle, JokeTarget)> {
+    JOKES.iter().find(|(_, _, lines)| lines.contains(&line))
+        .map(|&(s, t, _)| (s, t))
+}
+
+/// How likely a hearer is to give each receipt (E5-6): aligned by the
+/// shared lie, warm by the bond, careful where the law can hear, stony
+/// where they're built that way
+fn receipt_weights(joker_grievance: Option<Grievance>, target: Option<JokeTarget>,
+                   hearer: &Speaker, channel: crate::game::setting::Channel) -> [f32; 4] {
+    let mut w = [0.35f32, 0.12, 0.10, 0.40]; // laugh, add, warn, quiet
+    let aligned = match (joker_grievance,
+        hearer.joke.as_ref().and_then(|j| j.grievance)) {
+        (Some(a), Some(b)) => a.lie == b.lie,
+        _ => false,
+    };
+    if aligned { w[0] += 0.4; w[1] += 0.25; w[3] -= 0.25; }
+    if matches!(hearer.rel, Relation::Friend | Relation::Kin) { w[0] += 0.2; }
+    if matches!(hearer.rel, Relation::Rival) { w[3] += 0.3; w[0] -= 0.15; }
+    if channel == crate::game::setting::Channel::Public
+        && target.is_some_and(JokeTarget::power) { w[2] += 0.35; }
+    if hearer.traits.contains(&Trait::Wary) || hearer.traits.contains(&Trait::Stolid) { w[3] += 0.25; }
+    w
+}
+
+/// The joke beat (E5-6, #1437): once a talk, after the talk's found its
+/// feet, a profiled caller cracks the joke their style and grievance
+/// draw - and the hearer's reply forks on how they take it. Public
+/// talk can't carry an aggressive joke at power: the draw falls back
+/// to a safer cell. Returns true when it paused on a menu
+fn joke_beat(
+    tr: &mut Transcript,
+    pair: &[Speaker; 2],
+    caller: usize,
+    responder: usize,
+    channel: crate::game::setting::Channel,
+    used: &mut HashSet<&'static str>,
+    recent: &HashSet<&'static str>,
+    player: usize,
+    cap: usize,
+    tree: &'static str,
+    choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
+    rng: &mut Rng,
+) -> bool {
+    // one joke a talk at most (the beat's beats are recorded by who
+    // told them), and it needs room for its two turns plus the
+    // exchange it delays
+    if tr.turns.len() < 4 || tr.turns.len() + 4 > cap
+        || tr.jokes.iter().any(|b| b.joker == caller) {
+        return false;
+    }
+    let Some(j) = pair[caller].joke.as_ref() else { return false };
+    // the grieving and the children don't joke
+    if pair[caller].status.contains(&"grieving") || pair[caller].status.contains(&"child")
+        || pair[responder].status.contains(&"child") { return false; }
+    // one joke a talk at most, and not every talk - a beat that fires
+    // at every sitting stops saying anything about who tells it
+    if rng.next_f32() >= 0.10 { return false; }
+    // the draw: style weighted, then the cell. Aggressive strikes the
+    // grievance's target (the reeve by default, for the unresentful
+    // hothead); the inward styles aim at the self; the rest take
+    // whatever their table holds
+    let style_names = [JokeStyle::Affiliative, JokeStyle::SelfEnhancing,
+        JokeStyle::Aggressive, JokeStyle::SelfDefeating];
+    let mut styles = j.styles;
+    for _ in 0..3 {
+        if styles.iter().all(|s| *s <= 0.0) { return false; }
+        let style = style_names[rng.weighted(&styles)];
+        let target = match style {
+            JokeStyle::Aggressive => j.grievance.map(|g| g.target)
+                .unwrap_or(JokeTarget::Reeve),
+            JokeStyle::SelfDefeating => JokeTarget::Oneself,
+            JokeStyle::Affiliative => [JokeTarget::Weather, JokeTarget::Lord,
+                JokeTarget::Reeve, JokeTarget::Priest, JokeTarget::Oneself,
+                JokeTarget::Rival][rng.below(6)],
+            JokeStyle::SelfEnhancing => [JokeTarget::Weather, JokeTarget::Lord,
+                JokeTarget::Reeve, JokeTarget::Oneself][rng.below(4)],
+        };
+        // the exposure gate (E5-6's done-when): a barb at power waits
+        // for the hidden transcript - where ears can hear, the draw
+        // goes again with the aggressive edge struck out
+        if style == JokeStyle::Aggressive && target.power()
+            && channel == crate::game::setting::Channel::Public {
+            styles[2] = 0.0;
+            continue;
+        }
+        let Some(&(_, _, lines)) = JOKES.iter()
+            .find(|&&(s, t, _)| s == style && t == target) else { continue };
+        let fitting: Vec<&'static str> = lines.iter().copied()
+            .filter(|l| !l.contains("{grievance}") || j.grievance.is_some()).collect();
+        let Some((t, _)) = fresh_line(&fitting, &pair[caller], &pair[responder], used, recent, false, rng)
+            else { return false };
+        used.insert(t);
+        // the {grievance} slot is the wound's own word, where the joke
+        // carries one - a ref like `{someone}`'s, named by the draw
+        let refs = [crate::game::text::Referent { slot: "grievance",
+            text: j.grievance.map(|g| g.word).unwrap_or("the trouble").to_string(),
+            sex: None, alive: true, count: 1 }];
+        let text = crate::game::text::realize(t,
+            &crate::game::text::Cx::plain(&pair[caller], &pair[responder], &refs), rng);
+        // the aside wears the upcoming exchange's tree - it answers
+        // inside the cascade, not off it
+        tr.turns.push(Turn { channel, speaker: caller,
+            act: Act::Joke, respond: None, text,
+            concepts: vec!["joke"], tree, line: Some(t) });
+        // the receipt: who laughs shows who's aligned. A player gets
+        // the four forks as a menu; a villager rolls them off the bond,
+        // the shared lie, and who's listening
+        let kinds = [JokeReceipt::Laughed, JokeReceipt::AddedTo,
+            JokeReceipt::Warned, JokeReceipt::Quiet];
+        let kind = if responder == player {
+            // the line each fork would say, rolled with the menu so the
+            // preview is exactly what lands (the probe's shape)
+            let mut choices: Vec<Choice> = vec![];
+            let mut forks: Vec<&'static str> = vec![];
+            for k in kinds {
+                let t = fresh_line(k.lines(), &pair[responder], &pair[caller], used, recent, false, rng)
+                    .map(|(t, _)| t).unwrap_or(k.lines()[0]);
+                forks.push(t);
+                choices.push(Choice { act: k.act(), respond: k.respond(),
+                    preview: fill(t, &pair[responder], &pair[caller], rng) });
+            }
+            match choose(&choices) {
+                None => return true,
+                Some(i) => {
+                    let t = forks[i.min(forks.len() - 1)];
+                    used.insert(t);
+                    let kind = kinds[i.min(kinds.len() - 1)];
+                    tr.turns.push(Turn { channel, speaker: responder,
+                        act: kind.act(), respond: Some(kind.respond()),
+                        text: fill(t, &pair[responder], &pair[caller], rng),
+                        concepts: vec!["joke", "joke_receipt"], tree, line: Some(t) });
+                    tr.jokes.push(JokeBeat { joker: caller, style: Some(style),
+                        target: Some(target), receipt: kind });
+                    return false;
+                }
+            }
+        } else {
+            kinds[rng.weighted(&receipt_weights(j.grievance, Some(target), &pair[responder], channel))]
+        };
+        let (t, _) = fresh_line(kind.lines(), &pair[responder], &pair[caller], used, recent, false, rng)
+            .unwrap_or((kind.lines()[0], String::new()));
+        used.insert(t);
+        tr.turns.push(Turn { channel, speaker: responder,
+            act: kind.act(), respond: Some(kind.respond()),
+            text: fill(t, &pair[responder], &pair[caller], rng),
+            concepts: vec!["joke", "joke_receipt"], tree, line: Some(t) });
+        tr.jokes.push(JokeBeat { joker: caller, style: Some(style),
+            target: Some(target), receipt: kind });
+        return false;
+    }
+    false
+}
 
 /// The tree name the doorknob worry reports as (E5-3, #1435)
 pub const WORRY_TREE: &str = "the_doorknob";
@@ -1699,6 +2172,7 @@ pub fn converse_with_at(
         evasions: vec![],
         worry_told: None,
         slips: vec![],
+        jokes: vec![],
         shared: 0,
         overshot: false,
         setting,
@@ -1755,6 +2229,12 @@ pub fn converse_with_at(
     let mut last_tree = node_tree;
     let cap = if player == usize::MAX { AMBIENT_MAX_TURNS } else { MAX_TURNS };
     for _ in 0..cap {
+        // ambient talks are bounded in turns, not just passes: beats
+        // and echoes push extra lines that can't ride free
+        if player == usize::MAX && tr.turns.len() >= cap - 1 {
+            tr.ending.get_or_insert(Ending::Exhausted);
+            break;
+        }
         if tr.turns.len() - last_advance >= DOLDRUMS {
             tr.ending = Some(Ending::Exhausted);
             break;
@@ -1811,7 +2291,44 @@ pub fn converse_with_at(
                 }
             }
         }
+        // The joke (E5-6, #1437): once the talk's found its feet, a
+        // profiled caller may crack the one their humor draws - the
+        // beat owns the hearer's fork
+        let had = tr.turns.len();
+        if joke_beat(&mut tr, &pair, caller, responder, channel, &mut used, recent, player, cap, node_tree, choose, rng) {
+            tr.ending = Some(Ending::LeavesEarly); break;
+        }
+        // a spoken joke was this pass's exchange - it costs the turn
+        // budget a call and answer would
+        if tr.turns.len() != had { continue; }
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
+        // a joke's echo (E5-6): when the reply just taken was one of
+        // the trees' own jokes (the beat forks its own receipt), the
+        // caller answers the joke before the exchange speaks - laugh,
+        // top it, warn it quiet, or let it pass
+        if let Some(jt) = tr.turns.last()
+            .filter(|t| t.act == Act::Joke && t.speaker == responder
+                && !t.concepts.contains(&"joke_receipt"))
+            .and_then(|t| t.line) {
+            let (style, target) = joke_cell_of(jt)
+                .map(|(s, t)| (Some(s), Some(t))).unwrap_or((None, None));
+            let jg = pair[responder].joke.as_ref().and_then(|j| j.grievance);
+            let kinds = [JokeReceipt::Laughed, JokeReceipt::AddedTo,
+                JokeReceipt::Warned, JokeReceipt::Quiet];
+            let kind = kinds[rng.weighted(&receipt_weights(jg, target, &pair[caller], channel))];
+            let (t, _) = fresh_line(kind.lines(), &pair[caller], &pair[responder], &used, recent, false, rng)
+                .unwrap_or((kind.lines()[0], String::new()));
+            used.insert(t);
+            // the echo wears the upcoming exchange's tree - an aside,
+            // not a step off the cascade
+            tr.turns.push(Turn { channel, speaker: caller,
+                act: kind.act(), respond: Some(kind.respond()),
+                text: fill(t, &pair[caller], &pair[responder], rng),
+                concepts: vec!["joke", "joke_receipt"], tree: node_tree, line: Some(t) });
+            tr.jokes.push(JokeBeat { joker: responder, style, target, receipt: kind });
+            // the exchange stands unconsumed - next pass speaks it
+            continue;
+        }
         // The floor-holder opens the beat, in the register their own
         // facts put them in (a lord's condescension, a rival's chill)
         let call_facts = Facts::for_roles_setting(&pair[caller], &pair[responder], rel, kind, &setting);
@@ -4394,7 +4911,7 @@ mod e3_3 {
                     text: "a".into(), concepts: vec![], tree: "t", line: None,
                     channel: crate::game::setting::Channel::Public }],
             ending: Some(Ending::Farewell), vibe: None, asked: vec![],
-            forward: 0, evasions: vec![], worry_told: None, slips: vec![], shared: 0, overshot: false,
+            forward: 0, evasions: vec![], worry_told: None, slips: vec![], jokes: vec![], shared: 0, overshot: false,
             setting: crate::game::setting::STREET };
         assert!(chat_temp(&tr(Some(Respond::Care))) > chat_temp(&tr(Some(Respond::Reflect))));
         assert!(chat_temp(&tr(Some(Respond::Deflect))) < chat_temp(&tr(None)),
@@ -4902,5 +5419,168 @@ mod e5_8 {
         let p = persona(vec![ghost(EventKind::Fever, 0.8)], 0.8);
         let s = slip_of(&p, Some("Old Nan".into())).unwrap();
         assert_eq!(s.dead.unwrap().name, "Old Nan");
+    }
+}
+
+#[cfg(test)]
+mod e5_6 {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+    use crate::game::persona::{Belief, EventId, EventKind, Fear, Ghost, Need};
+
+    fn persona(ghosts: Vec<Ghost>, traits: &[Trait]) -> crate::game::persona::Persona {
+        let _ = traits;
+        crate::game::persona::Persona {
+            seed: 7, sex: crate::game::villager::Sex::Male,
+            archetype: crate::game::persona::Archetype::Burned,
+            temperament: [0.5; 5],
+            trust_propensity: 0.5, values: [0.5; 10],
+            story: vec![], ghosts,
+            signature: crate::game::persona::Signature::Habit("x"),
+            idiolect: crate::game::idiolect::Idiolect { phrase: "x",
+                habit: crate::game::idiolect::Habit::OathSaints },
+            hidden: crate::game::persona::Landmark::Skill("x"),
+            contradiction: None,
+        }
+    }
+
+    fn ghost(lie: Belief, strength: f32) -> Ghost {
+        Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+            lie, strength, fear: Fear::BellTolls, need: Need::ToBeSeen }
+    }
+
+    fn funny(traits: &[Trait], lie: Belief) -> Speaker {
+        let mut s = Speaker::new("Hob");
+        s.traits = traits.to_vec();
+        s.joke = Some(joke_of(&persona(vec![ghost(lie, 0.8)], traits), &s.traits));
+        s
+    }
+
+    /// the done-when (E5-6): a barb at power waits for the hidden
+    /// transcript - in a public channel the draw can't strike the
+    /// lord however hot the head
+    #[test]
+    fn a_barb_at_power_waits_for_the_hidden_transcript() {
+        let mut caller = funny(&[Trait::Hotheaded, Trait::Gregarious], Belief::LordAlwaysWins);
+        // a fixed draw so the barb always wins the style roll - the
+        // gate is the only thing that can stop it
+        caller.joke.as_mut().unwrap().styles = [0.05, 0.05, 1.0, 0.05];
+        for seed in 0..80 {
+            let you = Speaker::new("Wenna");
+            let tr = converse_at(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, &crate::game::setting::STREET,
+                &mut Rng::new(seed));
+            for b in &tr.jokes {
+                assert!(!(b.style == Some(JokeStyle::Aggressive)
+                    && b.target.is_some_and(JokeTarget::power)),
+                    "a barb at power in the street: {:?}", tr.lines());
+            }
+        }
+        // backstage it can land
+        let mut struck = false;
+        for seed in 0..80 {
+            let you = Speaker::new("Wenna");
+            let tr = converse_at(&caller, &you, Relation::Friend, None,
+                &village_library(), None, &crate::game::setting::BACKSTAGE,
+                &mut Rng::new(seed));
+            if tr.jokes.iter().any(|b| b.style == Some(JokeStyle::Aggressive)
+                && b.target == Some(JokeTarget::Lord)) { struck = true; }
+        }
+        assert!(struck, "the barb never landed backstage in 80 talks");
+    }
+
+    /// the hearer's fork (E5-6): every joke draws its receipt, and the
+    /// transcript keeps who told what and how it landed
+    #[test]
+    fn a_joke_gets_its_receipt() {
+        let mut kinds_seen: Vec<JokeReceipt> = vec![];
+        for seed in 0..120 {
+            let caller = funny(&[Trait::Gregarious], Belief::LordAlwaysWins);
+            let you = Speaker::new("Wenna");
+            let tr = converse(&caller, &you, Relation::Friend, None,
+                &village_library(), None, &mut Rng::new(seed));
+            for b in tr.jokes.iter().filter(|b| b.joker == 0) {
+                assert!(b.style.is_some(), "the beat's jokes know their cell");
+                if !kinds_seen.contains(&b.receipt) { kinds_seen.push(b.receipt); }
+                // the turn after the joke is the receipt's
+                let at = tr.turns.iter().position(|t|
+                    t.act == Act::Joke && t.speaker == 0).unwrap();
+                let next = &tr.turns[at + 1];
+                assert_eq!(next.speaker, 1, "the hearer receipts");
+            }
+        }
+        assert!(kinds_seen.len() >= 2, "receipts should vary: {kinds_seen:?}");
+    }
+
+    /// who laughs shows alignment (E5-6): a hearer carrying the same
+    /// lie laughs at the barb where a stranger lets it pass
+    #[test]
+    fn the_shared_lie_laughs() {
+        let mut aligned_laughs = 0;
+        let mut plain_laughs = 0;
+        for seed in 0..160 {
+            let mut caller = funny(&[Trait::Hotheaded], Belief::LordAlwaysWins);
+            caller.joke.as_mut().unwrap().styles = [0.0, 0.0, 1.0, 0.0];
+            let mut mate = funny(&[], Belief::LordAlwaysWins);
+            let mut other = funny(&[], Belief::MillOwnsUs);
+            // backstage, so the barb can strike at all
+            for (you, tally) in [(&mut mate, &mut aligned_laughs), (&mut other, &mut plain_laughs)] {
+                let tr = converse_at(&caller, you, Relation::Friend, None,
+                    &village_library(), None, &crate::game::setting::BACKSTAGE,
+                    &mut Rng::new(seed));
+                *tally += tr.jokes.iter().filter(|b| matches!(b.receipt,
+                    JokeReceipt::Laughed | JokeReceipt::AddedTo)).count();
+            }
+        }
+        assert!(aligned_laughs > plain_laughs,
+            "the shared lie should laugh more: {aligned_laughs} vs {plain_laughs}");
+    }
+
+    /// the wound worn light (E5-6): a strong self-worth lie sharpens
+    /// the self-defeating edge - the humor turns inward
+    #[test]
+    fn a_self_worth_lie_turns_the_humor_inward() {
+        let j = joke_of(&persona(vec![ghost(Belief::KeepHidden, 0.9)], &[]), &[]);
+        assert!(j.styles[3] > 1.0, "the self-defeating edge: {:?}", j.styles);
+        assert_eq!(j.grievance.map(|g| g.target), Some(JokeTarget::Oneself),
+            "the wound's barbs aim at the self");
+        // and the talk shows it
+        let mut inward = 0;
+        let mut caller = Speaker::new("Hob");
+        caller.joke = Some(j);
+        for seed in 0..80 {
+            let you = Speaker::new("Wenna");
+            let tr = converse(&caller, &you, Relation::Friend, None,
+                &village_library(), None, &mut Rng::new(seed));
+            inward += tr.jokes.iter().filter(|b|
+                b.style == Some(JokeStyle::SelfDefeating)).count();
+        }
+        assert!(inward > 0, "the self-worth lie never showed in 80 talks");
+    }
+
+    /// the player's fork (E5-6): a joke at them offers the four
+    /// receipts as a menu, and the pick lands as the hearer's line
+    #[test]
+    fn the_player_gets_the_four_forks() {
+        let caller = funny(&[Trait::Gregarious], Belief::LordAlwaysWins);
+        let mut menus = 0;
+        let mut landed = false;
+        for seed in 0..120 {
+            let you = Speaker::new("Wanderer");
+            let mut forks_seen = 0;
+            let tr = converse_with(&caller, &you, Relation::Friend, None,
+                &village_library(), None, 1, &mut |ch: &[Choice]| {
+                    if ch.len() == 4 && ch[0].act == Act::Agree
+                        && ch[1].act == Act::Joke {
+                        forks_seen += 1;
+                        return Some(0);
+                    }
+                    Some(0)
+                }, &mut Rng::new(seed));
+            menus += forks_seen;
+            landed |= tr.jokes.iter().any(|b| b.receipt == JokeReceipt::Laughed);
+        }
+        assert!(menus > 0, "the four-fork menu never showed in 120 talks");
+        assert!(landed, "the laugh never landed");
     }
 }

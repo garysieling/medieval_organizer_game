@@ -23,6 +23,9 @@ pub enum MemKind {
     /// Their test leaked to the reeve (E5-4): the sharpest cut a
     /// confidence takes
     LeakedConfidence,
+    /// A risky laugh shared (E5-6, #1437): a barb at power taken up
+    /// where it could have been reported - who laughs is aligned
+    LaughedWithUs,
 }
 
 /// One remembered beat between a villager and a player
@@ -55,6 +58,7 @@ pub fn importance(kind: MemKind) -> f32 {
         MemKind::SharedMeal => 0.4,
         MemKind::KeptConfidence => 0.8,
         MemKind::LeakedConfidence => 0.85,
+        MemKind::LaughedWithUs => 0.5,
     }
 }
 
@@ -68,6 +72,7 @@ pub fn fact(kind: MemKind) -> &'static str {
         MemKind::SharedMeal => "mem:you_shared_meal",
         MemKind::KeptConfidence => "mem:you_kept_confidence",
         MemKind::LeakedConfidence => "mem:you_leaked_confidence",
+        MemKind::LaughedWithUs => "mem:you_laughed_with_us",
     }
 }
 
@@ -81,6 +86,7 @@ pub fn callback(kind: MemKind) -> &'static str {
         MemKind::SharedMeal => "You shared your table with me once. Small things keep.",
         MemKind::KeptConfidence => "You kept a thing to yourself for me. I've not forgotten.",
         MemKind::LeakedConfidence => "I told you a thing and it traveled. I've learned what you're worth.",
+        MemKind::LaughedWithUs => "We laughed where it wasn't safe to. I remember that.",
     }
 }
 

@@ -116,6 +116,7 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
             worry: None,
             slip: None,
             slips_left: 0,
+            joke: None,
             // a spread of habits so the corpus hears the idiolect pass
             // (E4-7, #1416): roster index deals each speaker a distinct
             // phrase and habit without replacement, like the cast deal

@@ -536,7 +536,7 @@ impl AudioHost {
     /// The score's director, seeded by the first model and re-seeded if
     /// the world under us changes.
     fn director(&mut self, model: &UiModel) -> &mut crate::director::Director {
-        if self.dir_seed != model.seed {
+        if self.director.is_none() || self.dir_seed != model.seed {
             let mut d = crate::director::Director::new(model.seed);
             d.set_presence(self.presence);
             self.director = Some(d);

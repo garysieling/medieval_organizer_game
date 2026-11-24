@@ -10,14 +10,6 @@ pub struct Approach {
     pub stuck: u32,              // frames without headway
 }
 
-/// Walking over to a clicked building's shelf to buy one of what's on
-/// offer - each Buy click is one unit, so another click walks again
-pub struct BuyWalk {
-    pub building: usize,         // index into building_entities
-    pub path: Vec<(i32, i32)>,   // tiles still to walk, the shop's tile last
-    pub stuck: u32,              // frames without headway
-}
-
 /// What a seat tells the sim: the same actions the window's keys and clicks
 /// map to, so a local loop, a remote client and a test all steer the same way.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -134,9 +126,6 @@ pub enum CtxAct {
     /// Give the picked villager something from your satchel - the meal
     /// for the hungry, the thing they're after, or the best of the bag
     Give,
-    /// Buy from a shop you're standing by - one of what it makes, at
-    /// the street's price, out of your walking purse
-    Buy,
     /// Stroke the animal you're standing by - the kind hand, again and
     /// again, until it leaves the fold and follows
     Tame,
@@ -171,7 +160,6 @@ pub struct Seat {
     pub approach: Option<Approach>,
     /// A walk-over-to-buy under way: the clicked building, its own field
     /// since Approach's `who` is a villager index
-    pub buy_walk: Option<BuyWalk>,
     /// Index into villagers[] of the villager currently selected
     pub selected_target: usize,
     /// A building the seat clicked, or None while a villager is selected
@@ -259,7 +247,7 @@ pub struct Seat {
 impl Default for Seat {
     fn default() -> Seat {
         Seat { table_invite: None, table: None, tables_laid: vec![],
-               player: 0, org: 0, picked: false, approach: None, buy_walk: None, selected_target: 0,
+               player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
                pending_founding: None, meet_offer: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
@@ -280,7 +268,7 @@ impl Game {
         match cmd {
             Command::Act(i) => self.act_at(seat, i),
             Command::CtxAct(i) => self.ctx_act_at(seat, i),
-            Command::Walk(dx, dy) => { self.rise_from_table(seat); self.seats[seat].approach = None; self.seats[seat].buy_walk = None; self.seats[seat].picked = false; self.seats[seat].pick_near = false; self.walk_at(seat, dx, dy); }
+            Command::Walk(dx, dy) => { self.rise_from_table(seat); self.seats[seat].approach = None; self.seats[seat].picked = false; self.seats[seat].pick_near = false; self.walk_at(seat, dx, dy); }
             Command::Select(i) => {
                 // an index off the list is refused, not stored - a client
                 // that sends one can't crash the next scene
@@ -292,7 +280,7 @@ impl Game {
             }
             Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map_at(seat, mx, my, cam_x, cam_y, zoom),
             Command::TogglePause => self.paused = !self.paused,
-            Command::CancelApproach => { self.seats[seat].approach = None; self.seats[seat].buy_walk = None; }
+            Command::CancelApproach => { self.seats[seat].approach = None; }
             Command::TalkPick(n) => self.talk_pick_at(seat, n),
             Command::Decide(i) => self.decide_at(seat, i),
             Command::Unselect => self.unselect_at(seat),
@@ -748,12 +736,27 @@ impl Game {
         }
         // the villager wins a shared click - they're the one in front
         let picked_b = if best_d <= best_bd { None } else { best_b };
-        if picked_b != self.seats[seat].selected_building {
-            // a new pick ends any walk to the old one's shelf
-            self.seats[seat].buy_walk = None;
-        }
         self.seats[seat].selected_building = picked_b;
-        if self.seats[seat].selected_building.is_some() { self.seats[seat].picked = false; self.seats[seat].pick_near = false; return; }
+        if self.seats[seat].selected_building.is_some() {
+            self.seats[seat].picked = false;
+            self.seats[seat].pick_near = false;
+            // a staffed building's click means business (#1339): the pick
+            // is whoever works the till and Talk walks over - their
+            // wares ride the talk's picks once you're beside them
+            if let Some(wi) = picked_b
+                .and_then(|bi| self.building_entities.get(bi).copied())
+                .and_then(|b| self.world.get_component::<crate::game::household::Building>(b)
+                    .and_then(|bb| bb.worker))
+                .filter(|&w| !crate::game::villager::is_dead(&self.world, w))
+                .and_then(|w| self.villagers.iter().position(|&v| v == w)) {
+                self.seats[seat].selected_building = None;
+                self.seats[seat].selected_target = wi;
+                self.seats[seat].picked = true;
+                self.seats[seat].pick_near = self.dist_to_at(seat, wi) <= SHOUT_DIST;
+                self.act_at(seat, 0);
+            }
+            return;
+        }
         if best_d < 4.0 {
             self.seats[seat].picked = true;
             self.seats[seat].pick_near = self.dist_to_at(seat, best) <= SHOUT_DIST;

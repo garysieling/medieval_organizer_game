@@ -723,6 +723,9 @@ pub fn authored_lines_by_source() -> Vec<(&'static str, &'static str)> {
     for set in crate::game::conversation::EVADE_SETS {
         all.extend(set.iter().map(|l| ("evade", *l)));
     }
+    for set in crate::game::conversation::worry_sets() {
+        all.extend(set.iter().map(|l| ("worry", *l)));
+    }
     all
 }
 

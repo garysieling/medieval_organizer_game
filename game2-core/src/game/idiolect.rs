@@ -467,7 +467,7 @@ mod tests {
             ending: None, vibe: None, asked: vec![], forward: 0,
             shared: 0, overshot: false,
             setting: crate::game::setting::STREET,
-            evasions: vec![],
+            evasions: vec![], worry_told: None,
         };
         apply(&mut tr, &[a, b], usize::MAX);
         assert_eq!(tr.turns[0].text, "Morrow, Tilda - as the mill grinds.");

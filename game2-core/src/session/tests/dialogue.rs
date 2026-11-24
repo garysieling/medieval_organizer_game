@@ -852,6 +852,100 @@ fn test_backing_off_mends_the_nerve_a_press_frayed() {
         "backing off paid the fray back a rung: {:?}", rung(&g));
 }
 
+/// The doorknob drive (E5-3): take the first live reply while one's on
+/// offer and the farewell once that's all that's left - true when the
+/// worry's own menu showed and `pick` was taken from it
+fn drive_to_doorknob(g: &mut Game, pick: &str) -> bool {
+    for _ in 0..80 {
+        let Some(t) = g.seats[0].talk.as_ref() else { return false };
+        if t.options.is_empty() { return false; }
+        let opts = t.options.clone();
+        if let Some(p) = opts.iter().position(|(_, _, l)| l == pick) {
+            g.talk_pick_at(0, Some(p));
+            return true;
+        }
+        match opts.iter().position(|(a, _, _)| *a == Act::Farewell) {
+            Some(p) => g.talk_pick_at(0, Some(p)),
+            None => g.talk_pick_at(0, Some(0)),
+        }
+    }
+    false
+}
+
+#[test]
+fn test_the_doorknob_carries_a_real_fear() {
+    // E5-3: the worry a talk carries is their own pressing thing -
+    // seeded off the talk's seed so every replay asks it the same
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.world.add_component(v, crate::game::desires::InnerLife {
+        wants: vec![], grievances: vec![(crate::game::desires::Problem::Taxed, 1000)],
+        satisfied: vec![] });
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.villager.worry,
+        crate::game::desires::worry_of(&g.world, v, g.tick, t.seed),
+        "the seeded worry's the live pool's pick");
+    assert!(t.villager.worry.is_some(), "a live load carries a worry");
+}
+
+#[test]
+fn test_asking_why_at_the_door_opens_the_tier() {
+    // E5-3 done-when: asking why opens the tier whenever openness
+    // allows - the fear's told and lands on the seat's ledger
+    use crate::game::desires::{Problem, Reveal};
+    let mut g = Game::new();
+    let (pe, mut fired) = (g.player, false);
+    for i in adults(&g) {
+        let v = talk_beside(&mut g, i);
+        {
+            let t = g.seats[0].talk.as_mut().unwrap();
+            t.villager.worry = Some(Reveal::Problem(Problem::Taxed));
+            t.villager.open = crate::game::conversation::Open {
+                intimacy: 0.7, benevolence: 0.7, integrity: 0.7,
+                safety: 0.8, mood: 0.0, talks: 4, earshot: false, shared: 2 };
+        }
+        if drive_to_doorknob(&mut g, "Ask why") {
+            fired = true;
+            assert!(crate::game::desires::known(&g.world, pe, v)
+                .contains(&Reveal::Problem(Problem::Taxed)),
+                "the truth landed on the ledger");
+            break;
+        }
+    }
+    assert!(fired, "no doorknob fired across the adults");
+}
+
+#[test]
+fn test_a_door_that_stays_shut_counts_the_tell() {
+    // E5-3/E5-2: the why asked past what they'll open gets turned
+    // aside - the same silhouette count a pressed ask draws
+    use crate::game::desires::{Problem, Reveal};
+    let mut g = Game::new();
+    let (pe, mut fired) = (g.player, false);
+    for i in adults(&g) {
+        let v = talk_beside(&mut g, i);
+        {
+            let t = g.seats[0].talk.as_mut().unwrap();
+            t.villager.worry = Some(Reveal::Problem(Problem::Taxed));
+            t.villager.open = crate::game::conversation::Open::default();
+        }
+        if drive_to_doorknob(&mut g, "Ask why") {
+            fired = true;
+            assert!(!crate::game::desires::known(&g.world, pe, v)
+                .contains(&Reveal::Problem(Problem::Taxed)),
+                "a shut door tells nothing");
+            let trouble = crate::game::conversation::area_name(
+                crate::game::conversation::Area::Trouble);
+            assert_eq!(crate::game::desires::evasions_of(&g.world, pe, v, trouble), 1,
+                "the turn-aside counted under its area");
+            break;
+        }
+    }
+    assert!(fired, "no doorknob fired across the adults");
+}
+
 #[test]
 fn test_the_trouble_they_told_is_an_ask() {
     // what's already shared sits on the menu as its own question
@@ -1315,7 +1409,7 @@ fn test_the_acts_say_how_the_chat_landed() {
         }).collect(),
         ending, vibe: None, asked: vec![], forward: 0, shared: 0, overshot: false,
         setting: crate::game::setting::STREET,
-        evasions: vec![],
+        evasions: vec![], worry_told: None,
     };
     // a warm exchange
     assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],
@@ -2443,3 +2537,4 @@ fn test_what_one_seat_learns_is_invisible_to_the_other() {
     assert!(desires::unrevealed(&g.world, pe1, v, g.tick).contains(&r),
         "but the other seat could still draw it out of them");
 }
+

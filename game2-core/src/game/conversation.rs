@@ -146,6 +146,10 @@ pub struct Speaker {
     pub archaism: u8,
     /// The bond to whoever they face - `{addr}`'s intimacy reads it
     pub rel: Relation,
+    /// What they'd ask at the door (E5-3, #1435): the fear or need a
+    /// doorknob worry keys off - the talk-open seeds it off the world;
+    /// hand-made speakers carry none
+    pub worry: Option<crate::game::desires::Reveal>,
     /// The ear's landmark (E4-7, #1416): a pet phrase and a habit,
     /// each unique in the village, each spent once a talk -
     /// `speaker_of` fills it off the persona
@@ -154,7 +158,7 @@ pub struct Speaker {
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, idiolect: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, idiolect: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -491,6 +495,99 @@ fn note_disclosure(tr: &mut Transcript, open: &mut Open) {
     } else { tr.overshot = true; }
 }
 
+/// The doorknob (E5-3, #1435): a goodbye's when the real question
+/// comes out - "one thing, before you go". The caller may fire one
+/// last worry question; the player answers plainly, reassures, or
+/// asks why - and the why opens the tier whenever the pair's openness
+/// allows, a door that stays shut counting as an evasion's tell
+/// (E5-2). Once a talk, and only once the talk's had its say.
+/// True when the response menu's standing - the walk pauses for it
+fn worry_beat(
+    tr: &mut Transcript,
+    pair: &mut [Speaker; 2],
+    caller: usize,
+    responder: usize,
+    channel: crate::game::setting::Channel,
+    used: &mut HashSet<&'static str>,
+    recent: &HashSet<&'static str>,
+    choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
+    rng: &mut Rng,
+) -> bool {
+    if tr.trees_walked.contains(&WORRY_TREE) || tr.turns.len() < 4 { return false; }
+    let Some(r) = pair[caller].worry else { return false };
+    let Some(w) = worry_of_reveal(r) else { return false };
+    if rng.next_f32() >= 0.55 { return false; }
+    tr.trees_walked.push(WORRY_TREE);
+    let (qt, _) = fresh_line(w.asks, &pair[caller], &pair[responder], used, recent, false, rng)
+        .unwrap_or((w.asks[0], String::new()));
+    used.insert(qt);
+    tr.turns.push(Turn { channel, speaker: caller, act: Act::Worry, respond: None,
+        text: fill(qt, &pair[caller], &pair[responder], rng),
+        concepts: vec!["worry"], tree: WORRY_TREE, line: Some(qt) });
+    let say = |set: &[&'static str], sp: usize,
+                   used: &mut HashSet<&'static str>, rng: &mut Rng| {
+        let (t, _) = fresh_line(set, &pair[sp], &pair[1 - sp], used, recent, false, rng)
+            .unwrap_or((set[0], String::new()));
+        used.insert(t);
+        t
+    };
+    match choose(&[
+        Choice { act: Act::Answer, respond: Respond::Validate,
+            preview: "Answer plainly".into() },
+        Choice { act: Act::Agree, respond: Respond::Care,
+            preview: "Reassure them".into() },
+        Choice { act: Act::Question, respond: Respond::PivotAsk,
+            preview: "Ask why".into() },
+    ]) {
+        None => return true,
+        Some(0) => {
+            let t = say(WORRY_ANSWERS, responder, used, rng);
+            tr.turns.push(Turn { channel, speaker: responder, act: Act::Answer,
+                respond: Some(Respond::Validate),
+                text: fill(t, &pair[responder], &pair[caller], rng),
+                concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+        }
+        Some(1) => {
+            let t = say(WORRY_SOOTHE, responder, used, rng);
+            tr.turns.push(Turn { channel, speaker: responder, act: Act::Agree,
+                respond: Some(Respond::Care),
+                text: fill(t, &pair[responder], &pair[caller], rng),
+                concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+        }
+        Some(2) => {
+            let t = say(WORRY_WHY, responder, used, rng);
+            tr.turns.push(Turn { channel, speaker: responder, act: Act::Question,
+                respond: Some(Respond::PivotAsk),
+                text: fill(t, &pair[responder], &pair[caller], rng),
+                concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+            let talkative = pair[caller].traits.contains(&Trait::Gregarious);
+            let guarded = pair[caller].traits.contains(&Trait::Wary);
+            if pair[caller].open.reached(w.tier, talkative, guarded, true) {
+                // the tier opens (E5-3): the fear or need's told in its
+                // own words - the session hears it onto the ledger
+                let t = say(w.truths, caller, used, rng);
+                tr.turns.push(Turn { channel, speaker: caller, act: Act::Answer,
+                    respond: Some(Respond::Reflect),
+                    text: fill(t, &pair[caller], &pair[responder], rng),
+                    concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+                tr.worry_told = Some(r);
+                note_disclosure(tr, &mut pair[caller].open);
+            } else {
+                // the door stays shut - the turn-aside's the tell
+                // (E5-2): it counts toward their silhouette
+                tr.evasions.push((caller, w.area));
+                let t = say(evade_set(&pair[caller]), caller, used, rng);
+                tr.turns.push(Turn { channel, speaker: caller, act: Act::Evade,
+                    respond: Some(Respond::Deflect),
+                    text: fill(t, &pair[caller], &pair[responder], rng),
+                    concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+            }
+        }
+        _ => {}
+    }
+    false
+}
+
 /// How a conversation closes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ending {
@@ -619,6 +716,10 @@ pub struct Transcript {
     /// (the evader's pair index, the topic's area) - the seat's ledger
     /// counts them toward a silhouette
     pub evasions: Vec<(usize, Area)>,
+    /// The doorknob worry that opened its tier (E5-3, #1435): the why
+    /// asked and the pair's openness held, so the fear or need got
+    /// told - the session hears it onto the seat's ledger
+    pub worry_told: Option<crate::game::desires::Reveal>,
     /// The depth of yourself the responder gave and the pair could hold
     /// (E3-3): each landed disclosure goes a step deeper; the session
     /// keeps the deepest reached so later asks find it mutual
@@ -749,6 +850,354 @@ const EVADE_PIVOT: &[&str] = &[
 /// Every evade set, for the text audit's authored-line census (E5-2)
 #[doc(hidden)]
 pub const EVADE_SETS: &[&[&str]] = &[DEFLECTED, EVADE_SNAP, EVADE_CHANGE, EVADE_GOD, EVADE_PIVOT];
+
+/// The tree name the doorknob worry reports as (E5-3, #1435)
+pub const WORRY_TREE: &str = "the_doorknob";
+
+/// A worry a speaker carries to the door (E5-3): the fear or need the
+/// question's built on, the closed area a turned-aside why counts
+/// under, and the openness tier the why must reach to get the truth
+#[derive(Debug, Clone, Copy)]
+pub struct Worry {
+    pub area: Area,
+    pub tier: u8,
+    /// the two-or-three questions the fear or need puts at the door
+    pub asks: &'static [&'static str],
+    /// what the truth sounds like when the pair's openness reaches
+    pub truths: &'static [&'static str],
+}
+
+/// The plain answers "answer plainly" draws on (E5-3): a truthful
+/// hedge, whichever way the question's honestly met
+const WORRY_ANSWERS: &[&str] = &[
+    "Not that I've seen, friend.",
+    "Aye - take it for so.",
+    "I couldn't say truly.",
+    "From what I've seen - aye.",
+];
+
+/// The reassurances (E5-3): a small warm word, no promise in it
+const WORRY_SOOTHE: &[&str] = &[
+    "Set {2:poss} heart easy - it'll hold.",
+    "That fear won't find {2:obj} here.",
+    "There's naught in it worth the carrying.",
+];
+
+/// Naming the why (E5-3): the marked pick - the answer's gated on how
+/// far they can open, and a door that stays shut is its own tell
+const WORRY_WHY: &[&str] = &[
+    "And why do {2:subj} ask?",
+    "What sits behind that, {other}?",
+];
+
+/// The worry a want or a problem puts at the door (E5-3): two or three
+/// questions per fear and need, each with the truth the why reaches.
+/// None when nothing here would carry a worry out loud
+pub fn worry_of_reveal(r: crate::game::desires::Reveal) -> Option<Worry> {
+    use crate::game::desires::{Problem as P, Reveal as R, Want as W};
+    use Area::*;
+    let w = Worry { area: Trouble, tier: 2, asks: &[], truths: &[] };
+    Some(match r {
+        R::Want(W::GoodFood) => Worry { area: Body, asks: &[
+            "Does the bread keep fair measure, where {2:subj} lodges?",
+            "Is a full loaf cheap enough for a working man's table?",
+        ], truths: &[
+            "My own pot's been thin a while - a body's always counting.",
+        ], ..w },
+        R::Want(W::Finery) => Worry { area: Village, asks: &[
+            "Do folk here hold a patched sleeve against a body?",
+            "Would they look twice at a secondhand cloak?",
+        ], truths: &[
+            "I've nothing fit for a church door - it shows at every gathering.",
+        ], ..w },
+        R::Want(W::Faith) => Worry { area: Heart, tier: 3, asks: &[
+            "Do the parish bells call true here?",
+            "Is the priest a man to trust a soul to?",
+        ], truths: &[
+            "My prayers run thin of late - I want a word that reaches.",
+        ], ..w },
+        R::Want(W::Shelter) => Worry { asks: &[
+            "Is there room at a hearth for one more?",
+            "Do roofs come dear in this village?",
+        ], truths: &[
+            "I've no door that's mine to shut.",
+        ], ..w },
+        R::Want(W::Security) => Worry { asks: &[
+            "Does the watch keep its rounds after dark?",
+            "Is the road safe for a lone cart?",
+        ], truths: &[
+            "A body can't sleep when the door's only wood.",
+        ], ..w },
+        R::Want(W::Mastery) => Worry { area: Work, asks: &[
+            "Does a craft rise here by merit?",
+            "Would a master take on a willing hand?",
+        ], truths: &[
+            "I'm better than my bench - it gnaws at me of a night.",
+        ], ..w },
+        R::Want(W::Music) => Worry { area: Heart, asks: &[
+            "Does anyone here play of an evening?",
+            "Is there music at the feasts?",
+        ], truths: &[
+            "It's a year since a tune lifted me.",
+        ], ..w },
+        R::Want(W::Instrument) => Worry { area: Heart, asks: &[
+            "Would a lute find a buyer in the market?",
+            "Is there a luthier nearer than the town?",
+        ], truths: &[
+            "I dream of strings of my own - daft, at my age.",
+        ], ..w },
+        R::Want(W::BetterTools) => Worry { area: Work, asks: &[
+            "Do tools come fair at the market?",
+            "Would a smith sell on trust?",
+        ], truths: &[
+            "My hands outwork my kit - blunt steel steals my hours.",
+        ], ..w },
+        R::Want(W::DifferentTrade) => Worry { area: Work, tier: 3, asks: &[
+            "Do folk mind one who'd change their trade?",
+            "Would the village forgive a hand that turned?",
+        ], truths: &[
+            "This bench was never mine - another life's been calling.",
+        ], ..w },
+        R::Want(W::Love) => Worry { area: Heart, tier: 3, asks: &[
+            "Is this a village that marries kindly?",
+            "Do folk here look kindly on a new face?",
+        ], truths: &[
+            "The evenings are the longest part of it.",
+        ], ..w },
+        R::Want(W::Joy) => Worry { area: Heart, asks: &[
+            "Do children still get their games here?",
+            "Is there any frolic left after the day's work?",
+        ], truths: &[
+            "Everything's work - I'd forgot a day could ring.",
+        ], ..w },
+        R::Want(W::Drink) => Worry { area: Heart, asks: &[
+            "Does the alehouse keep a friendly fire?",
+            "Is the ale good in this parish?",
+        ], truths: &[
+            "A cup with company does more for me than it should.",
+        ], ..w },
+        R::Problem(P::NoHome) => Worry { asks: &[
+            "Does the village let a bed to a stranger?",
+            "Are there houses to be had here?",
+        ], truths: &[
+            "I've slept under more hedges than roofs this year.",
+        ], ..w },
+        R::Problem(P::NoWorkplace) => Worry { area: Work, asks: &[
+            "Is there bench work for a new hand?",
+            "Do the crafts take on here?",
+        ], truths: &[
+            "I've a trade and nowhere to stand it.",
+        ], ..w },
+        R::Problem(P::NoMaster) => Worry { area: Work, asks: &[
+            "Are the masters here good to their 'prentices?",
+            "Does a master beat his learners much?",
+        ], truths: &[
+            "I'm bound to no one - a trade half-learned is half a life.",
+        ], ..w },
+        R::Problem(P::NoInput(_)) => Worry { area: Work, asks: &[
+            "Is there stuff to be had for honest work here?",
+            "Do materials come dear in this market?",
+        ], truths: &[
+            "My bench sits idle for want of stuff.",
+        ], ..w },
+        R::Problem(P::DerelictNearby) => Worry { area: Village, tier: 1, asks: &[
+            "Does the village see to its empty shops?",
+            "Do folk mind a shuttered house?",
+        ], truths: &[
+            "The husk next door pulls my whole street down with it.",
+        ], ..w },
+        R::Problem(P::OverseerCut) => Worry { tier: 3, asks: &[
+            "Does the overseer take his cut openly?",
+            "Would the lord hear a word against his man?",
+        ], truths: &[
+            "He skims my measure and there's none to tell.",
+        ], ..w },
+        R::Problem(P::Taxed) => Worry { tier: 3, asks: &[
+            "Do the collectors take eggs as well as coin?",
+            "Does the reeve count fair at reckoning?",
+        ], truths: &[
+            "They weighed my cupboards last Lady Day and found them light.",
+        ], ..w },
+        R::Problem(P::Broke) => Worry { asks: &[
+            "Does bread come on credit in this village?",
+            "Will a baker take a promise till market day?",
+        ], truths: &[
+            "Three coins won't stretch to Sunday.",
+        ], ..w },
+        R::Problem(P::Smelly) => Worry { area: Village, tier: 1, asks: &[
+            "Do folk hold the smell of honest work against a body?",
+            "Would they sit by me at table?",
+        ], truths: &[
+            "The work hangs on me - I've seen the looks.",
+        ], ..w },
+        R::Problem(P::Loss) => Worry { tier: 3, asks: &[
+            "Do wolves come down this far?",
+            "Are the folds safe at night?",
+        ], truths: &[
+            "The pack took half my fold one night - I heard them go.",
+        ], ..w },
+        R::Problem(P::Blamed) => Worry { area: Village, tier: 3, asks: &[
+            "Does the village still talk of the fire?",
+            "Would they let a body's name mend?",
+        ], truths: &[
+            "They say my bread lit it - it's years and the name won't wash.",
+        ], ..w },
+        R::Problem(P::SourGut) => Worry { area: Body, tier: 1, asks: &[
+            "Is the market's stock fresh here?",
+            "Would {2:subj} eat from a travelling pack?",
+        ], truths: &[
+            "Bad stock turned my gut - it's not right since.",
+        ], ..w },
+        R::Problem(P::ChildLabor) => Worry { area: Village, asks: &[
+            "Do the children get their games here?",
+            "Would the parish speak against small hands in the fields?",
+        ], truths: &[
+            "My boy's hands should hold a hoop, not a hoe - the village watches.",
+        ], ..w },
+        R::Problem(P::Rowdy) => Worry { area: Village, asks: &[
+            "Do the season hands drink rough here?",
+            "Is the street quiet of a night?",
+        ], truths: &[
+            "They'll not forget the mud I made of their green.",
+        ], ..w },
+        R::Problem(P::DeathDuty) => Worry { tier: 3, asks: &[
+            "Does the lord take his fifth kindly?",
+            "Would a widow's ask reach the castle?",
+        ], truths: &[
+            "The lord's man counted the dead one's spoons - it was owed, they said.",
+        ], ..w },
+        R::Problem(P::Bereaved) => Worry { area: Heart, tier: 3, asks: &[
+            "Do folk here sit with the grieving?",
+            "Does the village remember its dead kindly?",
+        ], truths: &[
+            "The bed's still half-made on their side.",
+        ], ..w },
+        R::Problem(P::ThinWood) => Worry { asks: &[
+            "Is firewood easy come by here?",
+            "Does the wood give out this side of the hill?",
+        ], truths: &[
+            "I walk further each year and come back lighter.",
+        ], ..w },
+        R::Problem(P::DryPit) => Worry { area: Work, asks: &[
+            "Is stone to be had for building?",
+            "Does the pit still give?",
+        ], truths: &[
+            "The pit drowned and took my living with it.",
+        ], ..w },
+        R::Problem(P::StinkingReach) => Worry { area: Village, tier: 1, asks: &[
+            "Does the reach still stink below the mill?",
+            "Would a body's washing come clean in that water?",
+        ], truths: &[
+            "My street smells before it's seen.",
+        ], ..w },
+        R::Problem(P::ShortChanged) => Worry { asks: &[
+            "Do foreign counts run honest at the fair?",
+            "Would they weigh it over if asked?",
+        ], truths: &[
+            "The foreign count came home short - I was too proud to weigh it over.",
+        ], ..w },
+        R::Problem(P::Tempted) => Worry { area: Road, asks: &[
+            "Does the road ever call {2:obj}?",
+            "Would {2:subj} go, if the circus came back?",
+        ], truths: &[
+            "The road's been singing to me - the days here run grey.",
+        ], ..w },
+        R::Problem(P::WritBorne) => Worry { tier: 3, asks: &[
+            "Does the bailiff's writ come quick here?",
+            "Would the castle hear a poor word?",
+        ], truths: &[
+            "A writ rides for me - each knock at the door could be it.",
+        ], ..w },
+        R::Problem(P::LongWinter) => Worry { asks: &[
+            "Do the stores hold this far in?",
+            "Does the village share when the winter runs long?",
+        ], truths: &[
+            "My bin'll be scraped before the thaw.",
+        ], ..w },
+        R::Problem(P::ColdHearth) => Worry { area: Body, asks: &[
+            "Is there fuel to be had for a cold hearth?",
+            "Would a neighbour share a peat?",
+        ], truths: &[
+            "The house eats cold - the children wear their coats to bed.",
+        ], ..w },
+        R::Problem(P::TheDark) => Worry { area: Heart, tier: 3, asks: &[
+            "Are the nights long for {2:obj} too?",
+            "Does the dark keep {2:obj}?",
+        ], truths: &[
+            "The dark's kept me since I can remember - the candle never lasts.",
+        ], ..w },
+        R::Problem(P::Grief) => Worry { area: Heart, tier: 3, asks: &[
+            "Does the village still speak of the hanging?",
+            "Do they let a body be, after?",
+        ], truths: &[
+            "I watched it - the rope and all - it won't leave the backs of my eyes.",
+        ], ..w },
+        R::Problem(P::Robbed) => Worry { tier: 3, asks: &[
+            "Do folk bar their cellar doors here?",
+            "Would the watch look into a walked-off stock?",
+        ], truths: &[
+            "My cellar walked off in the night - someone's eating my winter.",
+        ], ..w },
+        R::Problem(P::Hungry) => Worry { area: Body, asks: &[
+            "Does the pot fill easier here?",
+            "Is there day's work for a day's bread?",
+        ], truths: &[
+            "The pot's been bare three days - the belly knows the count.",
+        ], ..w },
+        R::Problem(P::Sick) => Worry { area: Body, asks: &[
+            "Do the fevers ride this village?",
+            "Is there a herb-wife within reach?",
+        ], truths: &[
+            "The fever won't loose me - the bed's grown into me.",
+        ], ..w },
+        R::Problem(P::Doctrine) => Worry { area: Village, asks: &[
+            "Does the parish preach one thing and live another here?",
+            "Would the green's plainer word be heard?",
+        ], truths: &[
+            "The church says wait - the green says now.",
+        ], ..w },
+    })
+}
+
+/// Every Reveal the worry table speaks to (E5-3), for the text
+/// audit's authored-line census - `NoInput` carries a standing input
+/// so the parameterized variant's covered too
+#[doc(hidden)]
+pub const WORRY_CENSUS: &[crate::game::desires::Reveal] = {
+    use crate::game::desires::{Problem::*, Reveal::*, Want::*};
+    &[
+        Want(GoodFood), Want(Finery), Want(Faith), Want(Shelter),
+        Want(Security), Want(Mastery), Want(Music), Want(Instrument),
+        Want(BetterTools), Want(DifferentTrade), Want(Love), Want(Joy),
+        Want(Drink),
+        Problem(NoHome), Problem(NoWorkplace), Problem(NoMaster),
+        Problem(NoInput("grain")), Problem(DerelictNearby),
+        Problem(OverseerCut), Problem(Taxed), Problem(Broke),
+        Problem(Smelly), Problem(Loss), Problem(Blamed),
+        Problem(SourGut), Problem(ChildLabor), Problem(Rowdy),
+        Problem(DeathDuty), Problem(Bereaved), Problem(ThinWood),
+        Problem(DryPit), Problem(StinkingReach), Problem(ShortChanged),
+        Problem(Tempted), Problem(WritBorne), Problem(LongWinter),
+        Problem(ColdHearth), Problem(TheDark), Problem(Grief),
+        Problem(Robbed), Problem(Hungry), Problem(Sick),
+        Problem(Doctrine),
+    ]
+};
+
+/// Every worry set - each fear and need's questions and truths, plus
+/// the generic moves - for the text audit's authored-line census
+/// (E5-3)
+#[doc(hidden)]
+pub fn worry_sets() -> Vec<&'static [&'static str]> {
+    let mut out = vec![WORRY_ANSWERS, WORRY_SOOTHE, WORRY_WHY];
+    for r in WORRY_CENSUS {
+        if let Some(w) = worry_of_reveal(*r) {
+            out.push(w.asks);
+            out.push(w.truths);
+        }
+    }
+    out
+}
 
 /// The set a speaker turns aside with (E5-2): their first matching
 /// temperament, the plain set when none of the four show
@@ -1051,6 +1500,7 @@ pub fn converse_with_at(
         asked: vec![],
         forward: 0,
         evasions: vec![],
+        worry_told: None,
         shared: 0,
         overshot: false,
         setting,
@@ -1263,6 +1713,16 @@ pub fn converse_with_at(
                     preview: "Put a question to them".into() })));
             }
             let choices: Vec<Choice> = pairs.iter().map(|(_, (_, c))| Choice { act: c.act, respond: c.respond, preview: c.preview.clone() }).collect();
+            // the doorknob (E5-3, #1435): when the talk's run dry and
+            // all that's left is exits, the caller's worry rides in
+            // ahead of the parting - answered, soothed, or asked why,
+            // then the farewells show
+            if pairs.iter().all(|(_, (_, c))| c.act == Act::Farewell)
+                && worry_beat(&mut tr, &mut pair, caller, responder,
+                    channel, &mut used, recent, choose, rng) {
+                tr.ending = Some(Ending::LeavesEarly);
+                break;
+            }
             match choose(&choices).and_then(|i| pairs.get(i)) {
                 Some(&(usize::MAX, _)) => {
                     // the topics open as a pick of their own - one of
@@ -3730,7 +4190,7 @@ mod e3_3 {
                     text: "a".into(), concepts: vec![], tree: "t", line: None,
                     channel: crate::game::setting::Channel::Public }],
             ending: Some(Ending::Farewell), vibe: None, asked: vec![],
-            forward: 0, evasions: vec![], shared: 0, overshot: false,
+            forward: 0, evasions: vec![], worry_told: None, shared: 0, overshot: false,
             setting: crate::game::setting::STREET };
         assert!(chat_temp(&tr(Some(Respond::Care))) > chat_temp(&tr(Some(Respond::Reflect))));
         assert!(chat_temp(&tr(Some(Respond::Deflect))) < chat_temp(&tr(None)),
@@ -3926,5 +4386,140 @@ mod e3_3 {
             if front.lines() != back.lines() { differ += 1; }
         }
         assert!(differ > 0, "the hidden transcript should read differently");
+    }
+}
+
+#[cfg(test)]
+mod e5_3 {
+    use super::*;
+    use crate::game::desires::{Problem, Reveal};
+    use crate::game::dialogue_trees::village_library;
+
+    /// Drive a player talk to its parting: take the worry menu's marked
+    /// pick when the doorknob shows, the farewell once the talk's run
+    /// dry, the first live reply otherwise
+    fn drive_to_door(caller: &Speaker, you: &Speaker, pick: &str, seed: u64) -> Transcript {
+        converse_with(caller, you, Relation::Acquaintance, None,
+            &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                ch.iter().position(|c| c.preview == pick)
+                    .or_else(|| ch.iter().position(|c| c.act == Act::Farewell))
+                    .or(Some(0))
+            }, &mut Rng::new(seed))
+    }
+
+    /// the doorknob (E5-3): as the talk heads out, the caller's worry
+    /// rides in ahead of the farewell line - one last question at the
+    /// door
+    #[test]
+    fn a_worry_rides_in_ahead_of_the_goodbye() {
+        let mut caller = Speaker::new("Hob");
+        caller.worry = Some(Reveal::Problem(Problem::Taxed));
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..30 {
+            let tr = drive_to_door(&caller, &you, "Answer plainly", seed);
+            if let Some(wi) = tr.turns.iter().position(|t| t.act == Act::Worry) {
+                saw = true;
+                assert_eq!(tr.turns[wi].speaker, 0, "the caller's worry");
+                assert_eq!(tr.turns[wi].tree, WORRY_TREE);
+                let fi = tr.turns.iter().position(|t| t.act == Act::Farewell).unwrap();
+                assert!(wi < fi, "the worry comes before the goodbye: {:?}", tr.lines());
+            }
+        }
+        assert!(saw, "the doorknob never fired in 30 seeds");
+    }
+
+    /// the done-when (E5-3): asking why opens the tier whenever the
+    /// pair's openness allows - the fear's told and lands for the
+    /// session to hear
+    #[test]
+    fn asking_why_opens_the_tier_when_openness_allows() {
+        let mut caller = Speaker::new("Hob");
+        caller.worry = Some(Reveal::Problem(Problem::Taxed));
+        caller.open = Open { intimacy: 0.7, benevolence: 0.6, integrity: 0.6,
+            safety: 0.6, mood: 0.0, talks: 4, earshot: false, shared: 2 };
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..30 {
+            let tr = drive_to_door(&caller, &you, "Ask why", seed);
+            if tr.turns.iter().any(|t| t.act == Act::Worry) {
+                saw = true;
+                assert_eq!(tr.worry_told, Some(Reveal::Problem(Problem::Taxed)),
+                    "{:?}", tr.lines());
+                assert!(tr.evasions.is_empty(), "no turn-aside: {:?}", tr.lines());
+                let why = tr.turns.iter().position(|t| t.line.map(|l| WORRY_WHY.contains(&l)).unwrap_or(false)).unwrap();
+                assert!(tr.turns[why + 1..].iter().any(|t| t.speaker == 0
+                    && t.act == Act::Answer && t.tree == WORRY_TREE),
+                    "the truth came out: {:?}", tr.lines());
+            }
+        }
+        assert!(saw, "the doorknob never fired in 30 seeds");
+    }
+
+    /// a door that stays shut is its own tell (E5-3 / E5-2): the why
+    /// asked past the pair's openness gets turned aside, and the
+    /// turn-aside counts on the ledger by the area it stood over
+    #[test]
+    fn a_shut_door_is_itself_a_tell() {
+        let mut caller = Speaker::new("Hob");
+        caller.worry = Some(Reveal::Problem(Problem::Taxed));
+        caller.open = Open::default();
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..30 {
+            let tr = drive_to_door(&caller, &you, "Ask why", seed);
+            if tr.turns.iter().any(|t| t.act == Act::Worry) {
+                saw = true;
+                assert_eq!(tr.worry_told, None, "{:?}", tr.lines());
+                assert!(tr.evasions.contains(&(0, Area::Trouble)),
+                    "the evasion counts under its area: {:?}", tr.lines());
+                assert!(tr.turns.iter().any(|t| t.act == Act::Evade
+                    && t.tree == WORRY_TREE), "{:?}", tr.lines());
+            }
+        }
+        assert!(saw, "the doorknob never fired in 30 seeds");
+    }
+
+    /// the plain answers (E5-3): answer plainly rides the talk neutral;
+    /// reassure carries the care tag the chat's warmth reads
+    #[test]
+    fn an_answer_or_a_kind_word_closes_the_door() {
+        let mut caller = Speaker::new("Hob");
+        caller.worry = Some(Reveal::Want(crate::game::desires::Want::GoodFood));
+        let you = Speaker::new("Wanderer");
+        let (mut answered, mut soothed) = (false, false);
+        for seed in 0..40 {
+            let tr = drive_to_door(&caller, &you, "Answer plainly", seed);
+            if tr.turns.iter().any(|t| t.act == Act::Worry) {
+                answered = true;
+                assert_eq!(tr.worry_told, None);
+                assert!(tr.evasions.is_empty());
+                assert!(tr.turns.iter().any(|t| t.speaker == 1
+                    && t.act == Act::Answer && t.tree == WORRY_TREE), "{:?}", tr.lines());
+            }
+            let tr = drive_to_door(&caller, &you, "Reassure them", seed);
+            if tr.turns.iter().any(|t| t.act == Act::Worry) {
+                soothed = true;
+                assert_eq!(tr.worry_told, None);
+                assert!(tr.turns.iter().any(|t| t.speaker == 1
+                    && t.act == Act::Agree && t.respond == Some(Respond::Care)),
+                    "the kind word carries the warmth tag: {:?}", tr.lines());
+            }
+        }
+        assert!(answered && soothed, "the doorknob never fired in 40 seeds");
+    }
+
+    /// nothing carried, nothing asked (E5-3): a caller with no worry
+    /// keyed parts without a doorknob
+    #[test]
+    fn nothing_carried_no_doorknob() {
+        let caller = Speaker::new("Hob");
+        let you = Speaker::new("Wanderer");
+        for seed in 0..20 {
+            let tr = drive_to_door(&caller, &you, "Answer plainly", seed);
+            assert!(tr.turns.iter().all(|t| t.act != Act::Worry), "{:?}", tr.lines());
+            assert_eq!(tr.worry_told, None);
+        }
     }
 }

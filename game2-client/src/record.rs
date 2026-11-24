@@ -23,11 +23,12 @@
 //!   750 cancel       drop a walk-over-to-act in progress
 
 use std::collections::BTreeMap;
-use std::f32::consts::PI;
 use std::io::Write;
 
+use game2_audio::host::AudioHost;
+use game2_audio::soundscape::Listener;
 use game2_core::engine::render::Buffer;
-use game2_core::session::{action_buttons, camera_on, Command, Game, FPS, MAP_TILES};
+use game2_core::session::{action_buttons, cam_tile, camera_on, Command, Game, FPS};
 use super::{Art, View};
 
 /// Which file the frames land in
@@ -88,9 +89,11 @@ pub struct RecordOpts {
     pub script: Vec<(u64, ScriptOp)>,
     /// Path to an ffmpeg binary for `Format::Ffmpeg`
     pub ffmpeg: String,
-    /// Synth the game's sfx cues into a soundtrack (Avi always has one;
-    /// for Ffmpeg this opts in)
+    /// Render the score + ambience through `game2-audio` in lockstep
+    /// with the frames (on by default; only Avi/Ffmpeg can carry it)
     pub audio: bool,
+    /// Exact game-frame count; when set, overrides `play_secs`
+    pub frames: Option<u64>,
 }
 
 impl Default for RecordOpts {
@@ -107,7 +110,8 @@ impl Default for RecordOpts {
             game_speed: 1,
             script: Vec::new(),
             ffmpeg: "ffmpeg".to_string(),
-            audio: false,
+            audio: true,
+            frames: None,
         }
     }
 }
@@ -157,80 +161,30 @@ pub fn parse_script(text: &str) -> Result<Vec<(u64, ScriptOp)>, String> {
     Ok(out)
 }
 
-/// A sound cue caught in flight: the game frame it fired on, what it was,
-/// and where on the map it happened (for stereo pan)
-#[derive(Debug, Clone)]
-pub struct AudioEvent {
-    pub frame: u64,
-    pub kind: &'static str,
-    pub pan: f32,   // 0 left .. 1 right
-    pub gain: f32,  // 0..1, the cue's intensity
+/// The soundtrack's rate: the audio engine's offline render rate, one
+/// `SAMPLE_RATE / 60`-sample stereo block per game frame - the same
+/// lockstep `sound_dump` and the soak test use.
+pub use game2_audio::wav::SAMPLE_RATE;
+
+/// Stereo i16 samples covering `pushed` frames at `fps`: the pad target
+/// a short soundtrack is grown to so the mux's `-shortest` always ends
+/// on the video's last frame rather than dropping footage
+fn footage_samples(pushed: u64, fps: u32) -> usize {
+    (pushed as f64 / fps.max(1) as f64 * SAMPLE_RATE as f64).ceil() as usize * 2
 }
 
-pub const SAMPLE_RATE: u32 = 44100;
-
-/// One cue's voice: a short synthesised something for each kind the game
-/// names. Returns interleaved stereo samples laid on the `pcm` timeline.
-fn voice(kind: &str, t: f32, x: f32) -> f32 {
-    // x is a quiet noise source reused by several voices
-    let noise = x * 2.0 - 1.0;
-    match kind {
-        // hiss under the weather: low-passed noise, mid decay
-        "rain" => noise * (-3.0 * t).exp() * 0.5,
-        // the smithy: an inharmonic clang, fast decay
-        "anvil" => ((2.0 * PI * 815.0 * t).sin() + 0.5 * (2.0 * PI * 2130.0 * t).sin())
-            * (-12.0 * t).exp() * 0.6,
-        // a fair day: a major triad, a long ring
-        "festival" => ((2.0 * PI * 392.0 * t).sin() + (2.0 * PI * 494.0 * t).sin()
-            + (2.0 * PI * 587.0 * t).sin()) / 3.0 * (-3.0 * t).exp() * 0.7,
-        // the church bell: low inharmonic partials, a long ring
-        "bell" => ((2.0 * PI * 220.0 * t).sin() + 0.6 * (2.0 * PI * 523.0 * t).sin()
-            + 0.4 * (2.0 * PI * 891.0 * t).sin()) * (-2.5 * t).exp() * 0.7,
-        // a comet or a blessing: a high tone that swells then fades
-        "wonder" => (2.0 * PI * 1175.0 * t).sin()
-            * (1.0 - (-4.0 * t).exp()) * (-3.0 * t).exp() * 0.6,
-        // the snowball fight's hubbub: warbling children shrieks, short
-        "snowballs" => ((2.0 * PI * 660.0 * t).sin() + (2.0 * PI * 880.0 * t).sin())
-            * (0.5 + 0.5 * (2.0 * PI * 9.0 * t).sin()) * (-8.0 * t).exp() * 0.5,
-        // a bucket on the flames: a short crackle of water
-        "splash" => noise.signum() * noise.abs() * (-14.0 * t).exp() * 0.5,
-        // anything else: a small blip so it isn't silent
-        _ => (2.0 * PI * 520.0 * t).sin() * (-15.0 * t).exp() * 0.4,
-    }
-}
-
-/// How long each cue's voice rings for, in seconds
-fn voice_len(kind: &str) -> f32 {
-    match kind { "rain" => 0.8, "anvil" => 0.4, "festival" => 1.4, "wonder" => 1.5, "bell" => 2.0, "snowballs" => 0.9, "splash" => 0.3, _ => 0.25 }
-}
-
-/// Render captured cues into 16-bit stereo PCM on the WATCH timeline:
-/// game frame `f` lands `f / (every * fps)` seconds into the video.
-pub fn synth_track(events: &[AudioEvent], every: u64, fps: u32, watch_secs: f64) -> Vec<i16> {
-    let rate = SAMPLE_RATE as usize;
-    let mut pcm = vec![0i16; (watch_secs * rate as f64).ceil() as usize * 2];
-    let mut rng: u32 = 0x9e3779b9;
-    for ev in events {
-        let at = (ev.frame as f64 / (every as u64 * fps.max(1) as u64) as f64 * rate as f64) as usize;
-        let pan = ev.pan.clamp(0.0, 1.0) * std::f32::consts::FRAC_PI_2;
-        let (lg, rg) = (pan.cos(), pan.sin());
-        let n = (voice_len(ev.kind) * rate as f32) as usize;
-        for i in 0..n {
-            // cheap noise for the voices that want it
-            rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
-            let x = rng as f32 / u32::MAX as f32;
-            let t = i as f32 / rate as f32;
-            // a ~15ms attack and a tail taper - hard edges click
-            let env = (1.0 - (-60.0 * t).exp()) * ((n - i).min(200) as f32 / 200.0).min(1.0);
-            let s = voice(ev.kind, t, x) * ev.gain * env;
-            let (li, ri) = ((at + i) * 2, (at + i) * 2 + 1);
-            if ri < pcm.len() {
-                pcm[li] = pcm[li].saturating_add((s * lg * i16::MAX as f32) as i16);
-                pcm[ri] = pcm[ri].saturating_add((s * rg * i16::MAX as f32) as i16);
-            }
-        }
-    }
-    pcm
+/// The output path when `--out` isn't passed: `play-10s.gif` for a
+/// --play-time run, `play-60f.avi` when --frames set the length - two
+/// --frames runs of different lengths mustn't land on the same name.
+/// `format_name` is the raw --format word (mp4/mov/ffmpeg share mp4)
+pub fn default_out(format_name: &str, frames: Option<u64>, play_secs: u64) -> String {
+    let ext = match format_name {
+        "gif" => "gif", "apng" => "png", "frames" => "", "avi" => "avi",
+        "webm" => "webm", "mov" => "mov", _ => "mp4",
+    };
+    let len = match frames { Some(f) => format!("{}f", f), None => format!("{}s", play_secs) };
+    if ext.is_empty() { format!("evidence/videos/{}", len) }
+    else { format!("evidence/videos/play-{}.{}", len, ext) }
 }
 
 /// A 16-bit PCM WAV: 44-byte header + samples. For the ffmpeg mux pass
@@ -258,12 +212,16 @@ struct FramesSink { dir: std::path::PathBuf, n: u32 }
 
 /// Raw RGBA frames piped to an ffmpeg child's stdin; when a soundtrack is
 /// coming, the video lands at `video_path` first and a second ffmpeg pass
-/// muxes it with the wav into `out`
+/// muxes it with the wav into `out`. `container` is decided once here so
+/// neither pass leans on the filename's extension.
 struct FfmpegSink {
     child: std::process::Child,
     ffmpeg: String,
     video_path: String,
     out: String,
+    container: &'static str, // "webm" or "mp4"
+    fps: u32,
+    pushed: u64,             // video frames so far - bounds the padded track
 }
 
 impl Drop for FfmpegSink {
@@ -377,20 +335,21 @@ fn open_sink(opts: &RecordOpts, w: usize, h: usize, n_frames: u64) -> std::io::R
         Format::Ffmpeg => {
             // codec follows the extension: webm gets vp9, the rest h264.
             // With audio, the video-only pass lands in a temp file first.
-            let webm = opts.out.ends_with(".webm");
-            let codec: &[&str] = if webm { &["-c:v", "libvpx-vp9", "-b:v", "2M"] }
+            let container: &'static str = if opts.out.ends_with(".webm") { "webm" } else { "mp4" };
+            let codec: &[&str] = if container == "webm" { &["-c:v", "libvpx-vp9", "-b:v", "2M"] }
                 else { &["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20"] };
             let video_path = if opts.audio { format!("{}.tmpvideo", opts.out) } else { opts.out.clone() };
             let child = std::process::Command::new(&opts.ffmpeg)
                 .args(["-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba",
                     "-s", &format!("{}x{}", w, h), "-r", &opts.fps.max(1).to_string(), "-i", "-"])
                 .args(codec)
-                .args(["-f", if webm { "webm" } else { "mp4" }])
+                .args(["-f", container])
                 .arg(&video_path)
                 .stdin(std::process::Stdio::piped())
                 .spawn()
                 .map_err(|e| other(format!("can't run {}: {} - install ffmpeg (scripts/get-ffmpeg.ps1) or pass --ffmpeg-path", opts.ffmpeg, e)))?;
-            Ok(Box::new(FfmpegSink { child, ffmpeg: opts.ffmpeg.clone(), video_path, out: opts.out.clone() }))
+            Ok(Box::new(FfmpegSink { child, ffmpeg: opts.ffmpeg.clone(), video_path,
+                out: opts.out.clone(), container, fps: opts.fps.max(1), pushed: 0 }))
         }
         Format::Avi => {
             let file = std::fs::File::create(&opts.out)?;
@@ -461,6 +420,7 @@ impl Sink for FramesSink {
 
 impl Sink for FfmpegSink {
     fn push(&mut self, buf: Buffer) -> std::io::Result<()> {
+        self.pushed += 1;
         let stdin = self.child.stdin.as_mut().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "ffmpeg stdin closed"))?;
         stdin.write_all(&buf.pixels)
     }
@@ -474,6 +434,16 @@ impl Sink for FfmpegSink {
         let Some(pcm) = audio else {
             return Ok(()); // the video landed at out directly
         };
+        // the track runs on play time while the video runs on watch
+        // time - pad to the footage's length so `-shortest` always ends
+        // at the video's last frame, never drops it
+        let need = footage_samples(self.pushed, self.fps);
+        let mut padded;
+        let pcm = if pcm.len() < need {
+            padded = pcm.to_vec();
+            padded.resize(need, 0);
+            &padded
+        } else { pcm };
         // mux pass: video stream copy + the wav as aac/opus, webm speaks
         // opus; faststart puts the mp4 header up front for browsers
         let wav = format!("{}.tmpsound.wav", self.out);
@@ -481,11 +451,12 @@ impl Sink for FfmpegSink {
             let _ = std::fs::remove_file(&self.video_path);
             return Err(e);
         }
-        let acodec: &[&str] = if self.out.ends_with(".webm") { &["-c:a", "libopus"] }
+        let acodec: &[&str] = if self.container == "webm" { &["-c:a", "libopus"] }
             else { &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"] };
         let status = std::process::Command::new(&self.ffmpeg)
             .args(["-loglevel", "error", "-y", "-i", &self.video_path, "-i", &wav])
-            .args(["-c:v", "copy"]).args(acodec).args(["-shortest", &self.out])
+            .args(["-c:v", "copy"]).args(acodec)
+            .args(["-f", self.container, "-shortest"]).arg(&self.out)
             .status();
         let _ = std::fs::remove_file(&wav);
         let _ = std::fs::remove_file(&self.video_path);
@@ -630,16 +601,54 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
     }
 
     let every = capture_every(opts.speedup, opts.fps);
-    let total_frames = opts.play_secs * FPS as u64;
+    let total_frames = opts.frames.unwrap_or(opts.play_secs * FPS as u64);
     let n_frames = total_frames.div_ceil(every);
 
+    // the soundtrack renders in lockstep with the sim: one engine block
+    // per game frame (the sound_dump/soak lockstep), so a recording's
+    // audio is what those frames would have sounded like played. Only
+    // Avi and Ffmpeg carry it; `--no-audio` leaves the video silent.
+    let wants_audio = opts.audio && matches!(opts.format, Format::Avi | Format::Ffmpeg);
+    let mut host = wants_audio.then(|| {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut h = AudioHost::offline(SAMPLE_RATE);
+            // the test runner's cwd is the crate root - look there too
+            let root = ["assets/sound", "../assets/sound"].iter()
+                .map(std::path::Path::new)
+                .find(|p| p.is_dir())
+                .unwrap_or_else(|| std::path::Path::new("assets/sound"));
+            h.set_bank(game2_audio::sampler::load_dir(root));
+            h
+        }
+        // no filesystem on wasm - an empty bank, synth stands in
+        #[cfg(target_arch = "wasm32")]
+        { AudioHost::offline(SAMPLE_RATE) }
+    });
+    let mut pcm: Vec<i16> = Vec::new();
+    let mut block: Vec<f32> = Vec::new();
+    // one frame's worth of the sim's sound, appended onto the track:
+    // the ear sits on the camera, the same place game_ui puts it
+    fn render_audio(host: &mut Option<AudioHost>, model: &game2_core::session::UiModel,
+                    view: &View, pcm: &mut Vec<i16>, block: &mut Vec<f32>) {
+        let Some(h) = host.as_mut() else { return };
+        let (tx, ty) = cam_tile(view.cam_x, view.cam_y);
+        h.push_with(model, &Listener::at(tx, ty, view.zoom));
+        let n = h.frame_samples();
+        block.clear();
+        block.resize(n * 2, 0.0);
+        h.render_block(block);
+        pcm.extend(block.iter().map(|s| (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16));
+    }
+
     // a probe frame sizes the sinks (and the scale option) before the run
-    let probe = view.render(&game.ui_model(), (-1, -1));
+    let m0 = game.ui_model();
+    let probe = view.render(&m0, (-1, -1));
     let probe = if (opts.scale - 1.0).abs() < f32::EPSILON { probe } else { probe.scaled(opts.scale) };
     let mut sink = open_sink(&opts, probe.width, probe.height, n_frames)?;
     sink.push(probe)?;
+    render_audio(&mut host, &m0, &view, &mut pcm, &mut block);
 
-    let mut events: Vec<AudioEvent> = Vec::new();
     let mut captured = 1u64;
     for f in 1..total_frames {
         if let Some(ops) = script.remove(&f) {
@@ -647,13 +656,12 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
         }
         if let Some((dx, dy)) = held_walk { game.command(Command::Walk(dx, dy)); }
         game.update();
-        // sound cues live exactly one frame; catch them on the way past
-        for c in &game.sfx {
-            events.push(AudioEvent { frame: f, kind: c.kind,
-                pan: c.x / MAP_TILES as f32, gain: c.intensity });
-        }
+        // the model builds once a frame and feeds both the ear and the eye
+        let needs_model = host.is_some() || f % every == 0;
+        let model = needs_model.then(|| game.ui_model());
+        if let Some(m) = &model { render_audio(&mut host, m, &view, &mut pcm, &mut block); }
         if f % every == 0 {
-            let buf = view.render(&game.ui_model(), (-1, -1));
+            let buf = view.render(model.as_ref().unwrap(), (-1, -1));
             sink.push(if (opts.scale - 1.0).abs() < f32::EPSILON { buf } else { buf.scaled(opts.scale) })?;
             captured += 1;
             if captured % 25 == 0 {
@@ -664,18 +672,12 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
     if let Some((&f, _)) = script.iter().next() {
         eprintln!("warning: script ops at frame {}+ never ran (recording ends at {})", f, total_frames - 1);
     }
-    // sound-capable formats get the cues synthesised on the watch timeline
-    let wants_audio = opts.format == Format::Avi || (opts.format == Format::Ffmpeg && opts.audio);
-    let pcm = wants_audio.then(|| {
-        let secs = n_frames as f64 / opts.fps.max(1) as f64;
-        synth_track(&events, every, opts.fps, secs)
-    });
-    sink.finish(pcm.as_deref())?;
+    sink.finish(if wants_audio { Some(&pcm) } else { None })?;
     if opts.format == Format::Frames {
-        sayln!("{} video frames over {} play-seconds -> {}", captured, opts.play_secs, opts.out);
+        sayln!("{} video frames over {} game frames -> {}", captured, total_frames, opts.out);
     } else {
         let size = std::fs::metadata(&opts.out).map(|m| m.len()).unwrap_or(0);
-        sayln!("{} video frames over {} play-seconds -> {} ({} bytes)", captured, opts.play_secs, opts.out, size);
+        sayln!("{} video frames over {} game frames -> {} ({} bytes)", captured, total_frames, opts.out, size);
     }
     Ok(opts.out)
 }
@@ -720,6 +722,25 @@ mod tests {
     }
 
     #[test]
+    fn test_footage_samples_pads_to_the_video_not_the_play_time() {
+        // 20 captured frames at 12fps is 1.67s of watch time - the pad
+        // covers the whole video so `-shortest` can't drop its tail
+        assert_eq!(footage_samples(20, 12), 2 * (44100 * 5 / 3));
+        assert_eq!(footage_samples(0, 12), 0);
+        // fps 0 falls back to one frame a second, never divides
+        assert_eq!(footage_samples(60, 0), 2 * 60 * 44100);
+    }
+
+    #[test]
+    fn test_default_out_names_frames_runs_by_frames() {
+        assert_eq!(default_out("avi", Some(60), 10), "evidence/videos/play-60f.avi");
+        assert_eq!(default_out("avi", Some(120), 10), "evidence/videos/play-120f.avi");
+        assert_eq!(default_out("avi", None, 10), "evidence/videos/play-10s.avi");
+        assert_eq!(default_out("frames", Some(60), 10), "evidence/videos/60f");
+        assert_eq!(default_out("mp4", None, 5), "evidence/videos/play-5s.mp4");
+    }
+
+    #[test]
     fn test_speed_presets() {
         assert_eq!(speed_preset("realtime"), Some(1.0));
         assert_eq!(speed_preset("1x"), Some(1.0));
@@ -740,15 +761,34 @@ mod tests {
     }
 
     #[test]
-    fn test_synth_puts_sound_where_the_cue_was() {
-        // a cue at game frame 600 in a 60x@12fps recording lands at 1/6s in
-        let events = vec![AudioEvent { frame: 600, kind: "anvil", pan: 0.5, gain: 0.8 }];
-        let pcm = synth_track(&events, 300, 12, 1.0);
-        assert_eq!(pcm.len(), (SAMPLE_RATE as usize) * 2, "one watch-second, stereo");
-        let hit = 600.0 / 300.0 / 12.0 * SAMPLE_RATE as f64; // = 0.166s in
-        let before = pcm[..(hit as usize - 500) * 2].iter().all(|&s| s == 0);
-        let around = pcm[(hit as usize) * 2..].iter().take(2000).any(|&s| s != 0);
-        assert!(before && around, "silence before, clang at {}", hit);
+    fn record_audio_track_is_non_silent_and_frame_aligned() {
+        let dir = std::env::temp_dir().join(format!("game2-aviau-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let out = dir.join("t.avi").to_string_lossy().to_string();
+        // 300 game frames = five play-seconds
+        run_recording(Art::load_fs("../assets", 7),
+            RecordOpts { frames: Some(300), out: out.clone(), format: Format::Avi,
+                ..Default::default() }, 7).unwrap();
+        let b = std::fs::read(&out).unwrap();
+        // idx1 is the file's last chunk: 16-byte (fourcc, flags, off, size)
+        // entries, offsets running from the 'movi' fourcc
+        let idx = b.windows(4).rposition(|w| w == b"idx1").expect("no idx1");
+        let idx_len = u32::from_le_bytes(b[idx + 4..idx + 8].try_into().unwrap()) as usize;
+        let audio = b[idx + 8..idx + 8 + idx_len].chunks_exact(16)
+            .find(|e| &e[..4] == b"01wb").expect("no audio stream in idx1");
+        let (off, size) = (u32::from_le_bytes(audio[8..12].try_into().unwrap()) as usize,
+            u32::from_le_bytes(audio[12..16].try_into().unwrap()) as usize);
+        let movi = b.windows(4).position(|w| w == b"movi").expect("no movi list");
+        let pcm: Vec<i16> = b[movi + off + 8..movi + off + 8 + size].chunks_exact(2)
+            .map(|c| i16::from_le_bytes([c[0], c[1]])).collect();
+        // one engine block per recorded frame: 300 * 735 stereo pairs,
+        // plus or minus a frame's slop
+        let frame = SAMPLE_RATE as usize / 60;
+        let expect = 300 * frame * 2;
+        assert!((pcm.len() as i64 - expect as i64).abs() <= 2 * frame as i64,
+            "{} samples on the track, expected {} (+/- a frame)", pcm.len(), expect);
+        assert!(pcm.iter().any(|&s| s != 0), "the soundtrack is silent");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

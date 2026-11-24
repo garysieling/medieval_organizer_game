@@ -602,7 +602,7 @@ fn test_the_convo_box_tiers_its_text() {
     for x in TALK_X + 6..TALK_X + 80 {
         for yy in y0..y0 + ROW_H {
             let i = (yy as usize * buf.width + x as usize) * 4;
-            if buf.pixels[i] == 110 { right = x; }
+            if buf.pixels[i] == 185 { right = x; }
         }
     }
     // plain "day 12" ends ~31px in; the tracked capitals reach past 38

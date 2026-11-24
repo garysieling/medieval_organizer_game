@@ -53,7 +53,7 @@ pub fn talk_layout(p: &TalkPanelV) -> (Vec<TalkRow>, Vec<OptionRect>) {
     let mut starts: Vec<bool> = vec![];
     for r in &p.rows {
         let before = lines.len();
-        if r.rule { lines.push((r.text.clone(), (110, 110, 135), None, true)); starts.push(true); continue; }
+        if r.rule { lines.push((r.text.clone(), (185, 185, 210), None, true)); starts.push(true); continue; }
         let body = if r.gist { (255, 215, 120) } else if r.name.is_none() { (150, 150, 170) } else { (215, 215, 200) };
         let ncol = if r.you { (255, 255, 120) } else { (150, 200, 255) };
         match &r.name {

@@ -57,6 +57,11 @@ struct Args {
     stage: Option<Stage>,
     days: u64,
     n: usize,
+    /// The arc runner's talk count (E0-4, #1405): 20, the Appendix A
+    /// arc scale
+    talks: usize,
+    /// The scripted player policy an arc runs (E0-4)
+    policy: Option<String>,
     picks: VecDeque<usize>,
     auto: bool,
     feedback: bool,
@@ -70,7 +75,8 @@ fn parse_args() -> Args {
     let mut a = Args {
         mode: "help".into(), seed: MAP_SEED, villager: None, name: None,
         ideology: None, rel: None, traits: vec![], statuses: vec![],
-        stage: None, days: 0, n: 10, picks: VecDeque::new(), auto: false,
+        stage: None, days: 0, n: 10, talks: 20, policy: None,
+        picks: VecDeque::new(), auto: false,
         feedback: true, out: None, folk: 4, warm: false, seeded_cast: false,
     };
     let argv: Vec<String> = std::env::args().collect();
@@ -97,6 +103,8 @@ fn parse_args() -> Args {
             "--stage" => a.stage = Some(stage_of(&take(&mut i))),
             "--days" => a.days = take(&mut i).parse().unwrap_or(0),
             "-n" => a.n = take(&mut i).parse().unwrap_or(10),
+            "--talks" => a.talks = take(&mut i).parse().unwrap_or(20),
+            "--policy" => a.policy = Some(take(&mut i)),
             "--picks" => {
                 for p in take(&mut i).split(',') {
                     if let Ok(n) = p.trim().parse() { a.picks.push_back(n); }
@@ -612,6 +620,76 @@ fn run_batch(a: &Args, out: &mut Out) {
     }
 }
 
+/// The arc scale (E0-4, #1405): one villager, `--talks` talks against a
+/// scripted `--policy`, the whole arc as JSON - the same seed and policy
+/// give byte-identical output. The metrics table (E0-5) reads this.
+fn run_arc_mode(a: &Args, out: &mut Out) {
+    use game2_core::game::arc::{policy_of, run_arc};
+    let policy = a.policy.as_deref().and_then(policy_of).unwrap_or_else(|| {
+        eprintln!("arc needs --policy, one of: curious responsive greedy silent");
+        std::process::exit(2);
+    });
+    let lib = village_library();
+    // the seeded roster the batch draws on: --villager picks by index or
+    // name, so a villager is reproducible across seeds and policies
+    let roster = synthetic_roster(32, &mut Rng::new(a.seed));
+    let them = a.villager.as_deref()
+        .and_then(|v| v.parse::<usize>().ok().and_then(|i| roster.get(i))
+            .or_else(|| roster.iter().find(|s| s.name.eq_ignore_ascii_case(v))))
+        .unwrap_or(&roster[0]).clone();
+    let you = Speaker::new("Wanderer");
+    let rel = a.rel.unwrap_or(Relation::Acquaintance);
+    let (them_after, arc) = run_arc(&them, &you, rel, None, a.talks, policy, &lib,
+        &game2_core::game::setting::STREET, a.seed);
+    let open_json = |o: &game2_core::game::conversation::Open| serde_json::json!({
+        "intimacy": o.intimacy, "benevolence": o.benevolence,
+        "integrity": o.integrity, "safety": o.safety,
+        "mood": o.mood, "talks": o.talks, "shared": o.shared,
+    });
+    let talks: Vec<serde_json::Value> = arc.iter().map(|t| {
+        let tr = &t.transcript;
+        serde_json::json!({
+            "i": t.index,
+            "seed": t.seed,
+            "lines": tr.turns.iter().map(|turn| serde_json::json!({
+                "speaker": tr.speakers[turn.speaker],
+                "act": format!("{:?}", turn.act),
+                "tree": turn.tree,
+                "channel": format!("{:?}", turn.channel),
+                "text": turn.text,
+            })).collect::<Vec<_>>(),
+            "picks": t.picks,
+            "choices": t.choices_made.iter().map(|(act, r, line)| serde_json::json!({
+                "act": format!("{:?}", act),
+                "respond": format!("{:?}", r),
+                "preview": line,
+            })).collect::<Vec<_>>(),
+            "ending": tr.ending.map(|e| format!("{:?}", e)),
+            "vibe": tr.vibe.map(|v| format!("{:?}", v)),
+            "asked": tr.asked,
+            "forward": tr.forward,
+            "shared": tr.shared,
+            "open_after": open_json(&t.open_after),
+        })
+    }).collect();
+    let doc = serde_json::json!({
+        "kind": "arc",
+        "seed": a.seed,
+        "policy": policy.name(),
+        "relation": format!("{:?}", rel),
+        "villager": {
+            "name": them.name,
+            "ideology": them.ideology,
+            "traits": them.traits.iter().map(|t| format!("{:?}", t)).collect::<Vec<_>>(),
+            "status": them.status,
+            "trade": them.trade,
+        },
+        "talks": talks,
+        "open_final": open_json(&them_after.open),
+    });
+    out.emit(&serde_json::to_string_pretty(&doc).unwrap());
+}
+
 // ------------------------------------------------------------ feedback
 
 /// The point of the lab: end of a run, ask what was wrong, file it.
@@ -666,6 +744,8 @@ fn usage() {
   meeting   watch a house meeting: --seed S --folk N --name organizer
   sandbox   free session shell (all picked panels live here): --seed S --stage S --days D
   batch     N auto-picked synthetic talks: -n N --seed S --out FILE
+  arc       one villager, --talks T scripted-policy talks, JSON out:
+            --villager N|name --policy curious|responsive|greedy|silent --seed S
   replay    any mode + --picks a,b,c replays the run those picks came from
   smoke     scripted non-interactive run - the test hook
 flags: --picks a,b,c | --auto | --warm | --feedback off | --out FILE | --folk N
@@ -693,6 +773,7 @@ fn main() {
         "meeting" => run_meeting_mode(&a, &mut out),
         "sandbox" => run_sandbox(&a, &mut out, &stdin),
         "batch" => run_batch(&a, &mut out),
+        "arc" => run_arc_mode(&a, &mut out),
         "smoke" => {
             out.quiet = true;
             let mut a2 = parse_args();
@@ -713,7 +794,7 @@ fn main() {
             out.emit(&format!("(transcript -> {path})"));
         }
     }
-    if a.feedback && a.mode != "batch" && a.mode != "smoke" {
+    if a.feedback && a.mode != "batch" && a.mode != "smoke" && a.mode != "arc" {
         feedback(&mut out, &stdin);
     }
 }

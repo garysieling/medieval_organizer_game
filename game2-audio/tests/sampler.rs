@@ -23,8 +23,8 @@ fn one_patch(sample: Sample, name: &str) -> SampleBank {
     bank.samples.push(sample);
     bank.patches.push((name.into(), Patch { zones: vec![Zone {
         key_lo: 0, key_hi: 127, root: 60,
-        loop_start: None, loop_end: None, sample: SampleId(0),
-    }] }));
+        tune: 0, loop_start: None, loop_end: None, sample: SampleId(0),
+    }], tone_hz: f32::INFINITY }));
     bank
 }
 
@@ -70,10 +70,10 @@ mod sampler_tests {
         // two overlapping zones: the nearer root wins the note
         let patch = Patch { zones: vec![
             Zone { key_lo: 40, key_hi: 100, root: 60,
-                   loop_start: None, loop_end: None, sample: SampleId(0) },
+                   tune: 0, loop_start: None, loop_end: None, sample: SampleId(0) },
             Zone { key_lo: 55, key_hi: 90, root: 64,
-                   loop_start: None, loop_end: None, sample: SampleId(1) },
-        ] };
+                   tune: 0, loop_start: None, loop_end: None, sample: SampleId(1) },
+        ], tone_hz: f32::INFINITY };
         assert_eq!(patch.zone_for(62).unwrap().sample, SampleId(0), "nearer 60");
         assert_eq!(patch.zone_for(65).unwrap().sample, SampleId(1), "nearer 64");
         assert_eq!(patch.zone_for(50).unwrap().sample, SampleId(0), "only 60 covers");
@@ -84,7 +84,7 @@ mod sampler_tests {
         let bank = one_patch(Sample { pcm: sine_pcm(440.0, 4410, SR), sr: SR }, "bell");
         let patch = Patch { zones: vec![Zone {
             key_lo: 58, key_hi: 62, root: 60,
-            loop_start: None, loop_end: None, sample: SampleId(0) }] };
+            tune: 0, loop_start: None, loop_end: None, sample: SampleId(0) }], tone_hz: f32::INFINITY };
         assert!(patch.zone_for(70).is_none(), "70 is outside 58..=62");
         assert!(bank.patch_id("bell").is_some());
     }
@@ -170,7 +170,10 @@ mod sampler_tests {
         let _ = std::fs::remove_dir_all(&dir);
         assert!(bank.patch_id("river").is_some(),
             "beds/river.ogg becomes the 'river' patch");
-        assert_eq!(bank.patches.len(), 1,
+        // _incoming staging and non-audio files don't load; the only
+        // extra patches are M2's instrument tables, whose zones are
+        // empty without their assets
+        assert_eq!(bank.patches.iter().filter(|(_, p)| !p.zones.is_empty()).count(), 1,
             "_incoming staging and non-audio files don't load");
     }
 }

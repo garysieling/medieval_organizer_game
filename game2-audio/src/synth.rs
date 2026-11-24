@@ -154,6 +154,154 @@ impl SynthKind {
     }
 }
 
+// ---------- instrument voices (M2/#1499) ----------
+
+/// midi note number to Hz (A4 = 69 = 440).
+pub fn midi_hz(midi: u8) -> f32 {
+    440.0 * 2f32.powf((midi as f32 - 69.0) / 12.0)
+}
+
+/// A synthesized instrument voice - the design's Instruments rows that
+/// have no CC0 recording worth taking (Decision 12 synthesizes the
+/// lute and the hurdy-gurdy). Voices are deterministic: state comes
+/// from the engine's seeded `Rng` at trigger, the rest is a pure
+/// function of `t`.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SynthPatch {
+    /// Karplus-Strong plucked string, with a one-pole body resonance
+    Pluck { body: PluckBody },
+    /// Bowed melody string over two drones, with the trompette's
+    /// buzzing bridge
+    HurdyGurdy,
+    /// 'ooh' vowel pad - soft partials swelling in and out
+    ChoirPad,
+    /// Inharmonic struck bell - the church bell until a CC0 one lands
+    Bell,
+}
+
+/// The plucked-string bodies: how fast the string's energy dies and
+/// where the body rolls the top off.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PluckBody {
+    /// Round-back lute: long ring, dark body
+    Lute,
+    /// Flat-back gittern: shorter, brighter
+    Gittern,
+}
+
+/// The pluck's Karplus-Strong delay line: `ring` is one period of the
+/// note, filled with the noise burst at trigger; each tick writes the
+/// damped average of the sample and its neighbour back (the string's
+/// own lowpass) and passes the read-out through `body_lp`. `frac`
+/// interpolates the read between adjacent taps so the period isn't
+/// quantised to whole samples - integer rings run several cents flat
+/// at the top of the gittern.
+pub struct NoteState {
+    pub ring: Vec<f32>,
+    pub pos: usize,
+    pub damp: f32,
+    pub frac: f32,
+    pub prev: f32,
+    pub body_lp: f32,
+    pub body_a: f32,
+}
+
+/// A 1-amplitude sawtooth of `phase` (in cycles) - the bowed-string
+/// shape.
+fn saw(phase: f32) -> f32 { 2.0 * (phase - phase.floor()) - 1.0 }
+
+/// Linear fade-in over `a` seconds, fade-out over the last `r` of `len`.
+fn note_env(t: f32, a: f32, len: f32, r: f32) -> f32 {
+    (t / a).min(1.0) * (1.0 - ((t - (len - r)).max(0.0) / r).min(1.0))
+}
+
+impl SynthPatch {
+    /// Seconds the voice needs before its tail has died away - the
+    /// engine frees the slot past it.
+    pub fn len(self) -> f32 {
+        match self {
+            SynthPatch::Pluck { body: PluckBody::Lute } => 3.0,
+            SynthPatch::Pluck { body: PluckBody::Gittern } => 2.0,
+            SynthPatch::HurdyGurdy => 4.0,
+            SynthPatch::ChoirPad => 4.0,
+            SynthPatch::Bell => 3.0,
+        }
+    }
+
+    /// Per-voice state at trigger. Only the plucks need memory (the
+    /// delay line); everything else is a pure function of `t`.
+    pub fn state(self, midi: u8, sr: f32, pitch: f32, rng: &mut crate::rng::Rng)
+                 -> Option<NoteState> {
+        let SynthPatch::Pluck { body } = self else { return None };
+        // the damping average adds ~half a sample of group delay, so
+        // the line runs a half-sample short to land on pitch
+        let d = (sr / (midi_hz(midi) * pitch) - 0.5).max(2.0);
+        let n = d.ceil() as usize;
+        let frac = n as f32 - d;
+        let (damp, body_hz) = match body {
+            PluckBody::Lute => (0.9965, 1400.0),
+            PluckBody::Gittern => (0.990, 3000.0),
+        };
+        Some(NoteState {
+            ring: (0..n).map(|_| rng.range(-1.0, 1.0)).collect(),
+            pos: 0, damp, frac, prev: 0.0, body_lp: 0.0,
+            body_a: 1.0 - (-2.0 * PI * body_hz / sr).exp(),
+        })
+    }
+
+    /// One output sample, `t` seconds into the note at `midi`; `noise`
+    /// is the engine's per-sample -1..1 draw, `st` the voice's
+    /// `NoteState` when it has one.
+    pub fn sample(self, midi: u8, t: f32, noise: f32, st: Option<&mut NoteState>) -> f32 {
+        match self {
+            SynthPatch::Pluck { .. } => {
+                let Some(st) = st else { return 0.0 };
+                let n = st.ring.len();
+                let a = st.ring[st.pos];
+                let b = st.ring[(st.pos + 1) % n];
+                let y = (1.0 - st.frac) * a + st.frac * b;
+                st.ring[st.pos] = st.damp * 0.5 * (y + st.prev);
+                st.prev = y;
+                st.pos = (st.pos + 1) % n;
+                st.body_lp += st.body_a * (y - st.body_lp);
+                st.body_lp * 1.6 * note_env(t, 0.002, self.len(), 0.4)
+            }
+            SynthPatch::HurdyGurdy => {
+                // melody string under a light vibrato, drones a fifth
+                // and octave below; the trompette buzz rides the bow
+                let f = midi_hz(midi);
+                let ph = f * t + 0.004 * (2.0 * PI * 5.0 * t).sin();
+                let mel = saw(ph) * 0.55 + saw(2.0 * ph) * 0.12;
+                let drone = saw(f * 0.5 * t) * 0.3 + saw(f * 0.25 * t) * 0.12;
+                let buzz = noise * 0.08 * (0.3 + 0.7 * (2.0 * PI * 43.0 * t).sin().abs());
+                (mel + drone + buzz) * note_env(t, 0.05, self.len(), 0.6) * 0.5
+            }
+            SynthPatch::ChoirPad => {
+                // 'ooh': a strong fundamental, a soft second, a second
+                // voice a shade sharp for the chorus
+                let f = midi_hz(midi);
+                let v1 = (2.0 * PI * f * t).sin() + 0.35 * (2.0 * PI * 2.0 * f * t).sin()
+                    + 0.12 * (2.0 * PI * 3.0 * f * t).sin();
+                let v2 = (2.0 * PI * f * 1.004 * t).sin()
+                    + 0.3 * (2.0 * PI * 2.008 * f * t).sin();
+                (v1 * 0.7 + v2 * 0.5) * note_env(t, 0.35, self.len(), 0.8) * 0.35
+            }
+            SynthPatch::Bell => {
+                // a bell's inharmonic partials, the higher ones dying
+                // sooner, scaled to the struck note
+                let f = midi_hz(midi);
+                let partials = [(0.56f32, 0.5f32), (1.0, 1.0), (1.19, 0.45),
+                    (1.56, 0.35), (2.01, 0.3), (2.51, 0.2)];
+                let mut y = 0.0;
+                for (i, (r, a)) in partials.iter().enumerate() {
+                    y += a * (2.0 * PI * f * r * t).sin() * (-(1.5 + i as f32) * t).exp();
+                }
+                y * note_env(t, 0.002, self.len(), 0.5) * 0.5
+            }
+        }
+    }
+}
+
 /// An ambience bed with no sampled asset of its own (A4): the design
 /// calls for own-synth noise beds for wind and rain. These play
 /// open-endedly (`Source::SynthBed` never retires) and are voiced the

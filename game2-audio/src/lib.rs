@@ -5,6 +5,7 @@
 pub mod compose;
 pub mod engine;
 pub mod host;
+pub mod instruments;
 pub mod ledger;
 pub mod palette;
 pub mod rng;

@@ -24,22 +24,29 @@ pub struct Sample {
 }
 
 /// A key range of a patch: notes `key_lo..=key_hi` play `sample`
-/// pitch-shifted from `root` by `2^((midi-root)/12)`; `loop_start`/
+/// pitch-shifted from `root` by `2^((midi-root)/12)`; `tune` nudges
+/// the rate by cents (recordings run a few cents off concert). `loop_start`/
 /// `loop_end` give a sustain loop in sample frames when present.
 #[derive(Clone, Debug)]
 pub struct Zone {
     pub key_lo: u8,
     pub key_hi: u8,
     pub root: u8,
+    /// cents offset on the playback rate: a sample measured 15 cents
+    /// sharp gets `tune: -15`
+    pub tune: i8,
     pub loop_start: Option<u32>,
     pub loop_end: Option<u32>,
     pub sample: SampleId,
 }
 
 /// A playable instrument: a set of zones the sampler picks between.
+/// `tone_hz` is a patch-level lowpass over every zone (the shawm's
+/// oboe band-limited into the middle ages); `f32::INFINITY` bypasses.
 #[derive(Clone, Debug)]
 pub struct Patch {
     pub zones: Vec<Zone>,
+    pub tone_hz: f32,
 }
 
 impl Patch {
@@ -64,9 +71,12 @@ pub enum DecodeError {
 }
 
 /// Every decoded buffer plus the patches naming them.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct SampleBank {
     pub samples: Vec<Sample>,
+    /// Sample names parallel to `samples` - the ledger id / file stem a
+    /// zone def looks its buffer up by (M2's multi-zone patches).
+    pub sample_names: Vec<String>,
     /// `(name, patch)` - the name is the ledger id / file stem callers
     /// use to find it again (`patch_id`).
     pub patches: Vec<(String, Patch)>,
@@ -86,16 +96,39 @@ impl SampleBank {
     /// Decode `bytes` (OGG or 16-bit WAV) and add a single-zone patch
     /// named `id`. The web loader calls this once per manifest entry.
     pub fn insert_bytes(&mut self, id: &str, bytes: &[u8]) -> Result<PatchId, DecodeError> {
-        let sample = decode(bytes)?;
-        let sample_id = SampleId(self.samples.len() as u32);
-        self.samples.push(sample);
+        let sample_id = self.insert_sample(id, bytes)?;
         let patch = Patch { zones: vec![Zone {
-            key_lo: 0, key_hi: 127, root: 60,
+            key_lo: 0, key_hi: 127, root: 60, tune: 0,
             loop_start: None, loop_end: None, sample: sample_id,
-        }] };
+        }], tone_hz: f32::INFINITY };
+        Ok(self.register_patch(id, patch))
+    }
+
+    /// Decode `bytes` as a bare named buffer - what a multi-zone patch's
+    /// zone defs resolve against (`register_patch`).
+    pub fn insert_sample(&mut self, name: &str, bytes: &[u8]) -> Result<SampleId, DecodeError> {
+        let sample = decode(bytes)?;
+        let id = SampleId(self.samples.len() as u32);
+        self.samples.push(sample);
+        self.sample_names.push(name.to_string());
+        Ok(id)
+    }
+
+    /// The buffer a zone def names.
+    pub fn sample_id(&self, name: &str) -> Option<SampleId> {
+        self.sample_names.iter().position(|n| n == name).map(|i| SampleId(i as u32))
+    }
+
+    /// Register an assembled patch under `name` (replaces any existing
+    /// one, so re-registering a spec is idempotent).
+    pub fn register_patch(&mut self, name: &str, patch: Patch) -> PatchId {
+        if let Some(i) = self.patches.iter().position(|(n, _)| n == name) {
+            self.patches[i].1 = patch;
+            return PatchId(i as u32);
+        }
         let pid = PatchId(self.patches.len() as u32);
-        self.patches.push((id.to_string(), patch));
-        Ok(pid)
+        self.patches.push((name.to_string(), patch));
+        pid
     }
 
     pub fn patch_id(&self, name: &str) -> Option<PatchId> {
@@ -194,10 +227,18 @@ pub fn load_dir(root: &Path) -> SampleBank {
         let Some(stem) = f.file_stem().and_then(|s| s.to_str()).map(str::to_string) else { continue };
         let ext = f.extension().and_then(|e| e.to_str()).unwrap_or("");
         if ext != "ogg" && ext != "wav" { continue; }
+        // instrument roots are buffers a zone def resolves, not
+        // one-zone patches of their own (M2)
+        let instrument = f.parent()
+            .and_then(|p| p.file_name())
+            .is_some_and(|d| d == "instruments");
         if let Ok(bytes) = std::fs::read(&f) {
-            let _ = bank.insert_bytes(&stem, &bytes); // undecodable: skipped, the gate owns loudness
+            let r = if instrument { bank.insert_sample(&stem, &bytes).map(|_| ()) }
+                else { bank.insert_bytes(&stem, &bytes).map(|_| ()) };
+            let _ = r; // undecodable: skipped, the gate owns loudness
         }
     }
+    crate::instruments::register_all(&mut bank);
     bank
 }
 

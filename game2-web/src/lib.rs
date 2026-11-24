@@ -924,9 +924,14 @@ pub mod sound_loader {
             if let Some(bytes) = fetch_bytes(&format!("{base}/assets/sound/{p}")).await {
                 let stem = p.rsplit('/').next().unwrap_or(&p)
                     .strip_suffix(".ogg").unwrap_or(&p);
-                let _ = bank.insert_bytes(stem, &bytes);
+                // instrument buffers feed zone defs, not their own patches
+                let instrument = p.split('/').next() == Some("instruments");
+                let r = if instrument { bank.insert_sample(stem, &bytes).map(|_| ()) }
+                    else { bank.insert_bytes(stem, &bytes).map(|_| ()) };
+                let _ = r;
             }
         }
+        game2_audio::instruments::register_all(&mut bank);
         bank
     }
 }

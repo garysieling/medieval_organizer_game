@@ -32,6 +32,9 @@ pub enum Source {
     /// A looping ambience bed: the patch's first zone's buffer,
     /// looped whole - the processing crossfade makes the wrap seamless.
     Bed { id: crate::sampler::PatchId },
+    /// A synthesized instrument note (M2): `patch` voices `midi` for
+    /// its own `len()` seconds, then retires.
+    NoteSynth { patch: crate::synth::SynthPatch, midi: u8 },
     /// An own-synth ambience bed (A4): wind and rain's noise beds, no
     /// asset - it plays until `stop`, like a `Bed`.
     SynthBed(crate::synth::BedKind),
@@ -81,6 +84,9 @@ struct Voice {
     /// every other source and for an unresolved (missing) asset, which
     /// plays silence.
     samp: Option<Samp>,
+    /// Note state for `Source::NoteSynth` plucks (the Karplus-Strong
+    /// delay line); `None` for stateless voices.
+    note: Option<crate::synth::NoteState>,
 }
 
 /// Where a sample voice is: its buffer, the frame position within it,
@@ -94,6 +100,10 @@ struct Samp {
     loop_start: u32,
     loop_end: u32,
     done: bool,
+    /// The patch's own lowpass (`Patch::tone_hz`): `tone_a` is the
+    /// one-pole coefficient, 0 bypasses; `tone_lp` its state.
+    tone_a: f32,
+    tone_lp: f32,
 }
 
 /// A voice on its way out: the steal's 5 ms linear fade means the slot
@@ -239,10 +249,15 @@ impl Engine {
         let id = self.next_id;
         self.next_id = self.next_id.wrapping_add(1);
         let samp = self.resolve(&src);
+        let note = match src {
+            Source::NoteSynth { patch, midi } =>
+                patch.state(midi, self.sr, params.pitch, &mut self.rng),
+            _ => None,
+        };
         self.voices.push(Voice {
             id, src, bus: bi(bus), params,
             phase: 0.0, lp: 0.0, lp2: 0.0, born: self.clock, attack: self.fade_samples,
-            samp,
+            samp, note,
         });
         VoiceId(id)
     }
@@ -270,7 +285,8 @@ impl Engine {
         };
         let rate = s.sr as f32 / self.sr;
         let step = match midi {
-            Some(m) => rate * 2f32.powf((m as f32 - z.root as f32) / 12.0),
+            Some(m) => rate
+                * 2f32.powf((m as f32 - z.root as f32) / 12.0 + z.tune as f32 / 1200.0),
             None => rate,
         };
         let len = s.pcm.len() as u32;
@@ -279,7 +295,13 @@ impl Engine {
         } else {
             (z.loop_start.unwrap_or(len), z.loop_end.unwrap_or(len))
         };
-        Some(Samp { idx: z.sample.0, pos: 0.0, step, loop_start, loop_end, done: len == 0 })
+        let tone_a = self.bank.patch(pid)
+            .map(|p| if p.tone_hz.is_finite() {
+                (1.0 - (-TAU * p.tone_hz / self.sr).exp()).min(1.0)
+            } else { 0.0 })
+            .unwrap_or(0.0);
+        Some(Samp { idx: z.sample.0, pos: 0.0, step, loop_start, loop_end,
+            done: len == 0, tone_a, tone_lp: 0.0 })
     }
 
     /// Stop a voice. Like the steal it fades over 5 ms rather than
@@ -358,6 +380,11 @@ impl Engine {
                                 + (sp.pos - sp.loop_end as f32) % (sp.loop_end - sp.loop_start) as f32;
                         } else { sp.done = true; }
                     }
+                    // the patch's own band-limit (the shawm)
+                    let y = if sp.tone_a > 0.0 {
+                        sp.tone_lp += sp.tone_a * (y - sp.tone_lp);
+                        sp.tone_lp
+                    } else { y };
                     // a one-shot fades its last 5 ms rather than ending
                     // mid-waveform - the same anti-click ramp as `stop`
                     let tail = if sp.loop_end > sp.loop_start { 1.0 } else {
@@ -367,6 +394,11 @@ impl Engine {
                     };
                     y * tail
                 }
+            }
+            Source::NoteSynth { patch, midi } => {
+                let t = age as f32 / sr;
+                if t > patch.len() { 0.0 }
+                else { patch.sample(midi, t, rng.range(-1.0, 1.0), v.note.as_mut()) }
             }
         };
         let a = 1.0 - (-TAU * v.params.lowpass_hz / sr).exp(); // 1 - e^(-2pi fc / sr)
@@ -440,6 +472,9 @@ impl Engine {
             // resolves to nothing and frees at once
             Source::Sample { .. } | Source::Bed { .. } =>
                 v.samp.as_ref().is_some_and(|s| !s.done),
+            // like `Synth`, a note voice frees its slot at its tail
+            Source::NoteSynth { patch, .. } =>
+                (clock - v.born) as f32 <= patch.len() * self.sr,
             // an own-synth bed runs until `stop`, like a sampled bed
             Source::SynthBed(_) => true,
             _ => true,

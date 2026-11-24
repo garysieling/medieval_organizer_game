@@ -121,6 +121,15 @@ pub fn camera_on(tx: f32, ty: f32) -> (i32, i32) {
     (-((tx - ty) * TILE_W as f32).round() as i32, (ZOOM_PIVOT.1 + 60.0 - (tx + ty) * TILE_H as f32).round() as i32)
 }
 
+/// The tile under the map view's centre: `camera_on`'s inverse. The
+/// cam offsets apply before the zoom, so zoom drops out - the framed
+/// tile is the same at every zoom.
+pub fn cam_tile(cam_x: i32, cam_y: i32) -> (f32, f32) {
+    let d = -(cam_x as f32) / TILE_W as f32;
+    let s = (ZOOM_PIVOT.1 + 60.0 - cam_y as f32) / TILE_H as f32;
+    ((d + s) * 0.5, (s - d) * 0.5)
+}
+
 /// How close to the map view's rim the mouse has to be before the camera
 /// starts to drift, in px
 pub const EDGE_MARGIN: i32 = 28;

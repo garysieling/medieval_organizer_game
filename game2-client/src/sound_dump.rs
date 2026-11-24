@@ -59,31 +59,14 @@ fn apply_op(op: &Op, game: &mut Game) {
     }
 }
 
-/// The ear a `Look` op last moved: resolved against each frame's model
-/// (the market, skeps, church and gate move with the seed).
-fn listener_at(look: &Option<Op>, m: &UiModel) -> Listener {
-    look.as_ref().and_then(|op| scenarios::look_spot(op, m))
-        .map(|(x, y)| Listener::at(x, y, 1.0))
-        .unwrap_or_else(|| Listener::from_model(m))
-}
-
-/// Live play: a seeded or scenario game run N frames.
-fn run_live(opts: &DumpOpts, host: &mut AudioHost, pcm: &mut Vec<f32>) -> io::Result<()> {
-    let (mut game, script) = match &opts.scenario {
-        Some(name) => {
-            let sc = scenarios::by_name(name).ok_or_else(|| io::Error::new(io::ErrorKind::Other,
-                format!("no scenario named {name}")))?;
-            let g = (sc.build)(opts.seed);
-            let mut by_frame: BTreeMap<u64, Vec<Op>> = BTreeMap::new();
-            for ScriptOp { frame, op } in sc.script { by_frame.entry(frame).or_default().push(op); }
-            (g, by_frame)
-        }
-        None => (Game::new_seeded(opts.seed), BTreeMap::new()),
-    };
-    let mut script = script;
+/// The op-scripted run loop `run` and `reel` share: ops apply on
+/// their frames, `Look*` steers the ear, one rendered block per
+/// update lands on `pcm`.
+fn run_script(game: &mut Game, script: &mut BTreeMap<u64, Vec<Op>>,
+    frames: u64, host: &mut AudioHost, pcm: &mut Vec<f32>) {
     let mut look: Option<Op> = None;
-    if let Some(s) = opts.stage { stage::stage(&mut game, s); }
-    for f in 0..opts.frames {
+    for f in 0..frames {
+        let mut lit: Option<(f32, f32)> = None;
         if let Some(ops) = script.remove(&f) {
             for op in &ops {
                 if matches!(op, Op::Look(..) | Op::LookMarket
@@ -96,14 +79,45 @@ fn run_live(opts: &DumpOpts, host: &mut AudioHost, pcm: &mut Vec<f32>) -> io::Re
                         Op::LookGate => Op::LookGate,
                         _ => unreachable!(),
                     });
-                } else { apply_op(op, &mut game); }
+                } else if matches!(op, Op::FireMarket) {
+                    lit = scenarios::ignite_at_market(game).or(lit);
+                } else { apply_op(op, game); }
             }
         }
         game.update();
+        // the cue queue clears at the frame's start, so the alarm has
+        // to land after `update` - the same frame the model shows the
+        // fire, like a natural chimney fire's emit
+        if let Some((x, y)) = lit { game.emit_sfx("alarm", x, y, 1.0); }
         let m = game.ui_model();
         let l = listener_at(&look, &m);
         render_frame(host, &m, &l, pcm);
     }
+}
+
+/// The ear a `Look` op last moved: resolved against each frame's model
+/// (the market, skeps, church and gate move with the seed).
+fn listener_at(look: &Option<Op>, m: &UiModel) -> Listener {
+    look.as_ref().and_then(|op| scenarios::look_spot(op, m))
+        .map(|(x, y)| Listener::at(x, y, 1.0))
+        .unwrap_or_else(|| Listener::from_model(m))
+}
+
+/// Live play: a seeded or scenario game run N frames.
+fn run_live(opts: &DumpOpts, host: &mut AudioHost, pcm: &mut Vec<f32>) -> io::Result<()> {
+    let (mut game, mut script) = match &opts.scenario {
+        Some(name) => {
+            let sc = scenarios::by_name(name).ok_or_else(|| io::Error::new(io::ErrorKind::Other,
+                format!("no scenario named {name}")))?;
+            let g = (sc.build)(opts.seed);
+            let mut by_frame: BTreeMap<u64, Vec<Op>> = BTreeMap::new();
+            for ScriptOp { frame, op } in sc.script { by_frame.entry(frame).or_default().push(op); }
+            (g, by_frame)
+        }
+        None => (Game::new_seeded(opts.seed), BTreeMap::new()),
+    };
+    if let Some(s) = opts.stage { stage::stage(&mut game, s); }
+    run_script(&mut game, &mut script, opts.frames, host, pcm);
     Ok(())
 }
 
@@ -212,7 +226,11 @@ pub fn write_outputs(out: &str, pcm: &[f32], voices_peak: usize, render_ms: f64,
     wav::write_wav(&format!("{out}.wav"), &pcm16, 2)?;
     let mut tw = io::BufWriter::new(
         std::fs::File::create(format!("{out}.trace.json"))?);
-    game2_audio::trace::write_trace(&mut tw, traces)?;
+    // the trace schedules a whole phrase ahead - clip the bars that
+    // start past the audio so the artifacts describe what was played
+    let end_s = pcm.len() as f64 / 2.0 / SAMPLE_RATE as f64;
+    let played: Vec<_> = traces.iter().filter(|b| b.at_s < end_s).cloned().collect();
+    game2_audio::trace::write_trace(&mut tw, &played)?;
     let loud = analysis::loudness(pcm, SAMPLE_RATE);
     let m = analysis::Metrics {
         lufs_integrated: loud.integrated_lufs,
@@ -225,8 +243,78 @@ pub fn write_outputs(out: &str, pcm: &[f32], voices_peak: usize, render_ms: f64,
     std::fs::write(format!("{out}.metrics.json"),
         format!("{}\n", serde_json::to_string_pretty(&m).map_err(io_err)?))?;
     analysis::spectrogram_png(pcm, SAMPLE_RATE, &format!("{out}.spectrogram.png"))?;
-    analysis::piano_roll_png(&roll_input(traces, notes), &format!("{out}.roll.png"))?;
-    analysis::timeline_png(&timeline_input(traces), &format!("{out}.timeline.png"))?;
+    analysis::piano_roll_png(&roll_input(&played, notes), &format!("{out}.roll.png"))?;
+    analysis::timeline_png(&timeline_input(&played, end_s), &format!("{out}.timeline.png"))?;
+    Ok(())
+}
+
+/// I5's reel (#1509): every scenario rendered back to back into one
+/// WAV, ten 30 s segments. Writes `<out>.wav`, `<out>.md` (the
+/// checklist index Gary listens against) and `<out>.<name>.{roll,
+/// timeline}.png` per segment so each stretch can be looked at alone.
+/// The reel runs each segment on its own game+host: the WAV is the
+/// concatenation, not a bleed of one village's score into the next.
+pub fn reel(out: &str, seconds_per_scenario: u64) -> io::Result<()> {
+    let frames = seconds_per_scenario * 60;
+    if let Some(dir) = std::path::Path::new(out).parent() {
+        std::fs::create_dir_all(dir).ok();
+    }
+    let stem = std::path::Path::new(out).file_name()
+        .map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| out.to_string());
+    let mut wav_pcm: Vec<i16> = vec![];
+    let mut index = String::new();
+    index.push_str("# sound reel\n\n");
+    index.push_str("| # | scenario | segment | mix | trace | roll | timeline |\n");
+    index.push_str("|---|----------|---------|-----|-------|------|----------|\n");
+    for (i, sc) in scenarios::registry().into_iter().enumerate() {
+        let mut game = (sc.build)(MAP_SEED);
+        let mut script: BTreeMap<u64, Vec<Op>> = BTreeMap::new();
+        for ScriptOp { frame, op } in sc.script {
+            script.entry(frame).or_default().push(op);
+        }
+        let mut host = AudioHost::offline(SAMPLE_RATE);
+        #[cfg(not(target_arch = "wasm32"))]
+        host.set_bank(game2_audio::sampler::load_dir(std::path::Path::new("assets/sound")));
+        let t0 = std::time::Instant::now();
+        let mut pcm = vec![];
+        run_script(&mut game, &mut script, frames, &mut host, &mut pcm);
+        let render_s = t0.elapsed().as_secs_f64();
+        wav_pcm.extend(pcm.iter()
+            .map(|s| (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16));
+        let traces = host.drain_trace();
+        let notes = host.drain_notes();
+        let seg_out = format!("{out}.{}", sc.name);
+        // clip the scheduled-ahead tail: bars that start past the
+        // segment's audio never played in it
+        let end_s = pcm.len() as f64 / 2.0 / SAMPLE_RATE as f64;
+        let played: Vec<_> = traces.iter().filter(|b| b.at_s < end_s).cloned().collect();
+        let mut tw = io::BufWriter::new(
+            std::fs::File::create(format!("{seg_out}.trace.json"))?);
+        game2_audio::trace::write_trace(&mut tw, &played)?;
+        analysis::piano_roll_png(&roll_input(&played, &notes),
+            &format!("{seg_out}.roll.png"))?;
+        analysis::timeline_png(&timeline_input(&played, end_s),
+            &format!("{seg_out}.timeline.png"))?;
+        let loud = analysis::loudness(&pcm, SAMPLE_RATE);
+        index.push_str(&format!(
+            "| {} | {} | {}:{:02}-{}:{:02} | {:.1} LUFS, tp {:.1} | [trace]({}.{}.trace.json) | [roll]({}.{}.roll.png) | [timeline]({}.{}.timeline.png) |\n",
+            i + 1, sc.name,
+            i * seconds_per_scenario as usize / 60,
+            i * seconds_per_scenario as usize % 60,
+            (i + 1) * seconds_per_scenario as usize / 60,
+            (i + 1) * seconds_per_scenario as usize % 60,
+            loud.integrated_lufs, loud.true_peak_dbtp,
+            stem, sc.name, stem, sc.name, stem, sc.name));
+        eprintln!("reel: {} rendered ({:.0}s render, {:.1} LUFS)",
+            sc.name, render_s, loud.integrated_lufs);
+    }
+    wav::write_wav(&format!("{out}.wav"), &wav_pcm, 2)?;
+    index.push_str("\nListen checklist: bell on holy day, fire crackle + \
+        alarm stinger on fire_alarm, lament falls on fever_lament, \
+        march cadence on march_crackdown, build layers accrete on \
+        assembly_build, feast is bright and busy, silence budget lets \
+        the score rest without the beds ever stopping.\n");
+    std::fs::write(format!("{out}.md"), index)?;
     Ok(())
 }
 
@@ -281,11 +369,11 @@ fn roll_input(traces: &[game2_audio::trace::BarTrace],
 }
 
 /// The timeline's input: tension per second, section bands, the mode
-/// strip, per-voice lanes and the stinger markers.
-fn timeline_input(traces: &[game2_audio::trace::BarTrace]) -> analysis::TimelineInput {
+/// strip, per-voice lanes and the stinger markers. `end_s` is the clip
+/// boundary - the audio's length, not a bar's guess.
+fn timeline_input(traces: &[game2_audio::trace::BarTrace], end_s: f64) -> analysis::TimelineInput {
     const VOICES: [&str; 8] =
         ["Drone", "Pulse", "Ground", "Harmony", "Melody", "Counter", "Color", "Choir"];
-    let end_s = traces.last().map(|b| b.at_s + 2.0).unwrap_or(0.0);
     let mut tension = vec![0.0f32; end_s.ceil() as usize + 1];
     let mut sections: Vec<analysis::Section> = vec![];
     let mut mode_lane: Vec<(f32, String)> = vec![];

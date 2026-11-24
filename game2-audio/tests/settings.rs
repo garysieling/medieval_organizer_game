@@ -135,7 +135,7 @@ fn night_mode_reduces_peaks_of_a_hot_mix() {
         let mut s = AudioSettings::default();
         s.night_mode = night;
         h.apply_settings(&s);
-        h.push_frame(&bell(2.0)); // a hot cue, over the -24 dBFS threshold
+        h.push_frame(&bell(4.0)); // a hot cue, over the -24 dBFS threshold
         block(&mut h, 2048).iter().fold(0.0f32, |m, x| m.max(x.abs()))
     };
     let day = peak(false);

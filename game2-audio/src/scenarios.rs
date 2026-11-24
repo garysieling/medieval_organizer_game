@@ -24,6 +24,8 @@ pub enum Op {
     LookChurch,
     /// Centre the listener on the wall's first gate (A4)
     LookGate,
+    /// Set something alight near the market cross (the alarm's call)
+    FireMarket,
     /// Force a rare event now
     ForceEvent(EventId),
     /// Send the cause's column to site `si`
@@ -67,6 +69,30 @@ pub fn look_spot(op: &Op, m: &UiModel) -> Option<(f32, f32)> {
             .map(|(t, _)| (t.0 as f32 + 0.5, t.1 as f32 + 0.5)),
         _ => None,
     }
+}
+
+/// Ignite the flammable tile nearest the market cross, spiralling
+/// out - wheat, a thatched roof, a hay cart. Returns the lit tile's
+/// centre when something caught (the square itself is paved, so the
+/// flame is a tile or two off the middle). The caller raises the
+/// `alarm` cue itself - `emit_sfx` only lives to the next frame, so
+/// it has to land after `update`, not here.
+pub fn ignite_at_market(g: &mut Game) -> Option<(f32, f32)> {
+    let (cx, cy) = g.ui_model().market?;
+    let (cx, cy) = (cx.round() as i32, cy.round() as i32);
+    for r in 0i32..24 {
+        for dy in -r..=r {
+            for dx in -r..=r {
+                if dx.abs().max(dy.abs()) != r { continue; }
+                let (x, y) = (cx + dx, cy + dy);
+                if game2_core::game::fire::Fire::flammable(&g.map, x, y)
+                    && g.fire.ignite(&g.map, x, y, g.tick) {
+                    return Some((x as f32 + 0.5, y as f32 + 0.5));
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Run the sim until `cond` holds (bounded, so a dead schedule can't
@@ -157,20 +183,22 @@ fn fever_lament(seed: u64) -> Game {
     g
 }
 
-/// Every scenario by name. `quiet_village` is S3's; A4's four play to
-/// the place-based soundscape's strengths; M5's four play the score's
-/// arcs (build, march, feast, lament).
+/// A thatch fire off the market square (I1): the alarm, the crackle,
+/// the bucket line - and the tension the `burning` list feeds the
+/// score. The script lights it on frame 0 (so the alarm cue lands on
+/// the first rendered frame) and re-lights mid-run in case the first
+/// flame burnt out early.
+fn fire_alarm(seed: u64) -> Game { quiet_village(seed) }
+
+/// Every scenario by name, in the reel's order (I1): the quiet
+/// baseline, the four place scenes, the alarm, the lament, then the
+/// three arcs (build, march, feast).
 pub fn registry() -> Vec<Scenario> {
     vec![
         Scenario {
             name: "quiet_village",
             build: quiet_village,
             script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
-        },
-        Scenario {
-            name: "apiary_spring",
-            build: apiary_spring,
-            script: vec![ScriptOp { frame: 0, op: Op::LookSkeps }],
         },
         Scenario {
             name: "holy_day_church",
@@ -183,9 +211,28 @@ pub fn registry() -> Vec<Scenario> {
             script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
         },
         Scenario {
+            name: "apiary_spring",
+            build: apiary_spring,
+            script: vec![ScriptOp { frame: 0, op: Op::LookSkeps }],
+        },
+        Scenario {
             name: "winter_gate",
             build: winter_gate,
             script: vec![ScriptOp { frame: 0, op: Op::LookGate }],
+        },
+        Scenario {
+            name: "fire_alarm",
+            build: fire_alarm,
+            script: vec![
+                ScriptOp { frame: 0, op: Op::LookMarket },
+                ScriptOp { frame: 0, op: Op::FireMarket },
+                ScriptOp { frame: 1200, op: Op::FireMarket },
+            ],
+        },
+        Scenario {
+            name: "fever_lament",
+            build: fever_lament,
+            script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
         },
         Scenario {
             name: "assembly_build",
@@ -202,11 +249,6 @@ pub fn registry() -> Vec<Scenario> {
         Scenario {
             name: "feast_day",
             build: feast_day,
-            script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
-        },
-        Scenario {
-            name: "fever_lament",
-            build: fever_lament,
             script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
         },
     ]

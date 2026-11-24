@@ -314,17 +314,23 @@ pub enum BedKind {
     Wind,
     /// Falling water: brighter noise with a faint patter wobble.
     Rain,
+    /// A column on the road: boots in step over a low chant - a
+    /// tramping pulse of dark noise with a trailing scuff over the
+    /// crowd's rumble.
+    March,
 }
 
 impl BedKind {
     /// The integrator constant the engine band-limits this bed's
-    /// noise draw with - wind is darker than rain's brighter patter.
+    /// noise draw with - wind is darker than rain's brighter patter,
+    /// boots darker still.
     pub fn smooth(self) -> f32 {
-        match self { BedKind::Wind => 0.30, BedKind::Rain => 0.55 }
+        match self { BedKind::Wind => 0.30, BedKind::Rain => 0.55,
+            BedKind::March => 0.22 }
     }
 
     /// One sample of the bed at `t` seconds, `noise` a -1..1 draw.
-    /// Both beds keep their headroom low (the mixer's emitter gain
+    /// The beds keep their headroom low (the mixer's emitter gain
     /// and the duck own the level).
     pub fn sample(self, t: f32, noise: f32) -> f32 {
         match self {
@@ -335,6 +341,15 @@ impl BedKind {
                 * 0.35,
             // steady hiss with a soft patter at ~11 Hz
             BedKind::Rain => noise * (0.85 + 0.15 * (2.0 * PI * 11.0 * t).sin()) * 0.30,
+            // ~2.4 steps a second: a hard attack decaying over ~90 ms,
+            // a faint scuff half a beat behind, and the column's low
+            // chant murmuring under the boots
+            BedKind::March => {
+                let step = (1.0 - (t * 2.4).fract() / 0.09).max(0.0);
+                let scuff = (1.0 - ((t * 2.4) + 0.55).fract() / 0.05).max(0.0) * 0.3;
+                let chant = 0.38 + 0.08 * (2.0 * PI * 0.31 * t + 0.4).sin();
+                noise * ((step + scuff) * 0.5 + chant)
+            }
         }
     }
 }

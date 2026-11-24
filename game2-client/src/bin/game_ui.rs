@@ -445,9 +445,15 @@ fn main() {
             let _ = writeln!(w, "{line}");
             scenes_wrote += 1;
         }
-        // the frame's audio intent goes down to the host; M toggles
-        // View.mute during play (never while the find box has the keys)
-        if let Some(m) = &cur_model { audio_host.push(m); }
+        // the frame's audio intent goes down to the host at the real
+        // camera - manual pans and the event cam's holds steer the ear
+        // the same way they steer the view. M toggles View.mute during
+        // play (never while the find box has the keys)
+        if let Some(m) = &cur_model {
+            let (tx, ty) = session::cam_tile(view.cam_x, view.cam_y);
+            audio_host.push_with(m,
+                &game2_audio::soundscape::Listener::at(tx, ty, view.zoom));
+        }
         audio_host.set_muted(view.mute);
         // #1505: a blurred window fades out when the settings say so,
         // and a pending settings write lands once the second's out

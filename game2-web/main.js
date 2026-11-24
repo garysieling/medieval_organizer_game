@@ -117,12 +117,23 @@ const wasm = await init();
 // starts the village it names. The remote seat asks the server, not
 // the shelf.
 let g;
+// a record the replay refused stays on the shelf untouched - writes
+// resume only if they choose to replace it
+let keep_old = false;
 if (remote) {
   g = new WasmClient();
 } else {
   const named = params.get('seed') || params.get('staged') || params.get('fresh') !== null;
   const record = named ? null : await db_load('village');
-  g = record ? WasmGame.load(record) : null;
+  try {
+    g = record ? WasmGame.load(record) : null;
+  } catch (e) {
+    keep_old = !confirm(
+      "The saved village can't be resumed by this build (" + e + ").\n\n" +
+      "OK starts a new one and lets it save over.\n" +
+      "Cancel keeps the old record on the shelf.");
+    g = null;
+  }
   if (!g) {
     g = params.get('seed') ? WasmGame.with_seed(+params.get('seed'))
       : (params.get('staged') ? WasmGame.staged(params.get('staged')) : new WasmGame());
@@ -247,7 +258,7 @@ addEventListener('keyup', e => { held[e.code] = false; });
 // the harness journals its village to IndexedDB, so a closed tab isn't
 // a lost village: every ten seconds, and again as the page goes away
 if (!remote) {
-  const persist = () => db_save('village', g.save_json());
+  const persist = () => { if (!keep_old) db_save('village', g.save_json()); };
   setInterval(persist, 10000);
   addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
   addEventListener('pagehide', persist);

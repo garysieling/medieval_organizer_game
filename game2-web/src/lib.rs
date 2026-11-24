@@ -573,18 +573,24 @@ impl WasmGame {
     }
 
     /// Rebuild a saved village: replay its record to the saved frame and
-    /// check the fingerprint. `undefined` on a bad string or a drifted
-    /// replay - the page starts a fresh village instead
-    pub fn load(text: &str) -> Option<WasmGame> {
+    /// check the fingerprint. Throws "unreadable" on a bad string,
+    /// "incompatible" on a journal another version wrote, "drifted" on a
+    /// replay that missed its fingerprint - a refused record is the
+    /// page's to keep or replace, never silently started over
+    pub fn load(text: &str) -> Result<WasmGame, String> {
         #[derive(serde::Deserialize)]
         struct Doc {
             journal: journal::Journal,
             frame: u64,
             digest: u64,
         }
-        let doc: Doc = serde_json::from_str(text).ok()?;
+        let doc: Doc = serde_json::from_str(text).map_err(|_| "unreadable".to_string())?;
+        if doc.journal.version != journal::JOURNAL_VERSION {
+            return Err("incompatible".into());
+        }
         let g = journal::replay(&doc.journal, doc.frame);
-        (g.state_digest() == doc.digest).then(|| Self::built(g))
+        if g.state_digest() == doc.digest { Ok(Self::built(g)) }
+        else { Err("drifted".into()) }
     }
 }
 
@@ -1127,13 +1133,13 @@ mod tests {
             "the reloaded village drifted from the played one"
         );
 
-        assert!(WasmGame::load("not json").is_none(), "gibberish refuses");
+        assert!(WasmGame::load("not json").is_err(), "gibberish refuses");
         // a record that runs longer than it played fails the fingerprint
         let tampered = saved.replace("\"frame\":8", "\"frame\":40");
-        assert!(
-            WasmGame::load(&tampered).is_none(),
-            "a drifted replay refuses"
-        );
+        match WasmGame::load(&tampered) {
+            Err(e) => assert_eq!(e, "drifted", "a drifted replay refuses by name"),
+            Ok(_) => panic!("a drifted replay must not load"),
+        }
     }
 
     /// A context that won't open leaves the page silent, not crashed -
@@ -1214,5 +1220,27 @@ mod tests {
         assert!(!host.set_audio_setting_json("presence", serde_json::json!("lots")));
         // a good set still lands after the misses
         assert!(host.set_audio_setting_json("music", serde_json::json!(60)));
+    }
+
+    /// A same-version record replays home; a journal another version
+    /// wrote is refused by name, so the page can keep its record rather
+    /// than start over it (review on #1560)
+    #[test]
+    fn test_an_old_journal_is_refused_apart_from_a_lost_one() {
+        let saved = WasmGame::new().save_json();
+        // the day's own record comes back whole
+        assert!(WasmGame::load(&saved).is_ok(), "the record comes home");
+        // a journal a version behind is refused, and named as such
+        let mut doc: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        doc["journal"]["version"] = serde_json::json!(journal::JOURNAL_VERSION - 1);
+        match WasmGame::load(&doc.to_string()) {
+            Err(e) => assert_eq!(e, "incompatible"),
+            Ok(_) => panic!("an older journal must not replay"),
+        }
+        // and a mangled record is a different refusal still
+        match WasmGame::load("not a record") {
+            Err(e) => assert_eq!(e, "unreadable"),
+            Ok(_) => panic!("a bad string must not load"),
+        }
     }
 }

@@ -947,6 +947,44 @@ fn test_a_door_that_stays_shut_counts_the_tell() {
 }
 
 #[test]
+fn test_a_slip_comes_out_once_to_a_relationship() {
+    // E5-8: a marked soul's leak is a landmark - one to a
+    // relationship. Heard, the budget spends: the next sit-down with
+    // the same ear opens with nothing left to leak
+    let mut g = Game::new();
+    let pe = g.player;
+    let mut heard = None;
+    for i in adults(&g) {
+        let v = talk_beside(&mut g, i);
+        {
+            let t = g.seats[0].talk.as_mut().unwrap();
+            t.villager.slip = Some(crate::game::conversation::Slip {
+                prone: 1.0,
+                dead: Some(crate::game::conversation::Dead {
+                    kin: "brother", name: "Corvin".into(), trade: "carter" }) });
+            t.villager.slips_left = 1;
+        }
+        let mut picks = 0;
+        while g.seats[0].talk.is_some() && picks < 40 { g.talk_pick_at(0, Some(0)); picks += 1; }
+        if g.world.get_component::<SlipMemory>(v)
+            .map(|m| m.of.contains(&pe)).unwrap_or(false) {
+            heard = Some((i, v));
+            break;
+        }
+    }
+    let (i, v) = heard.expect("no slip fired across the adults");
+    // and the next sit-down with the same ear carries no budget
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.villager.slips_left, 0, "the arc's one slip is spent");
+    let mut picks = 0;
+    while g.seats[0].talk.is_some() && picks < 40 { g.talk_pick_at(0, Some(0)); picks += 1; }
+    assert!(g.world.get_component::<SlipMemory>(v)
+        .map(|m| m.of.len() == 1 && m.of.contains(&pe)).unwrap_or(false),
+        "one slip to a relationship, marked once");
+}
+
+#[test]
 fn test_the_trouble_they_told_is_an_ask() {
     // what's already shared sits on the menu as its own question
     // (#1189) - asking after it is following up, not prying anew
@@ -1409,7 +1447,7 @@ fn test_the_acts_say_how_the_chat_landed() {
         }).collect(),
         ending, vibe: None, asked: vec![], forward: 0, shared: 0, overshot: false,
         setting: crate::game::setting::STREET,
-        evasions: vec![], worry_told: None,
+        evasions: vec![], worry_told: None, slips: vec![],
     };
     // a warm exchange
     assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],

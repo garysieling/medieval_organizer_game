@@ -121,6 +121,14 @@ pub struct TalkMemory {
     pub tick: u64,
 }
 
+/// Who the bearer's already slipped in front of (E5-8, #1439): the
+/// once-per-relationship budget lives here - a slip heard is a
+/// landmark that doesn't repeat to the same ear
+#[derive(Debug, Default)]
+pub struct SlipMemory {
+    pub of: crate::engine::det::HashSet<Entity>,
+}
+
 /// What one seat's told them that landed (E3-3, #1428): keyed by the
 /// seat's player entity -> (deepest disclosure reached, day it did) -
 /// per-player, fading on the same clock as TalkMemory. A second seat
@@ -251,6 +259,9 @@ pub struct PlayerTalk {
     /// The doorknob worry's truth already heard onto the ledger
     /// (E5-3, #1435): the replay yields `worry_told` every refresh
     pub worry_told_seen: bool,
+    /// The leaks already marked on the pair's memory (E5-8, #1439):
+    /// the replay yields `slips` every refresh once one's fired
+    pub slips_seen: usize,
     /// An easier ask already mended the nerve a press frayed (E5-2):
     /// backing off pays once a talk
     pub backed_off: bool,
@@ -523,6 +534,10 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
         // deep asks but wears no area of its own: the wound's own tell
         // slugs mark only the areas it actually hides behind
         if !p.ghosts.is_empty() { s.status.push("keeps_wound"); }
+        // the leak a strong ghost under a high-strung temperament can
+        // make (E5-8, #1439): seeded here, the budget's patched per
+        // pair - who they've already slipped in front of
+        s.slip = crate::game::conversation::slip_of(p, None);
         // the ear's landmark (E4-7, #1416): their phrase and habit
         s.idiolect = Some(p.idiolect);
     }
@@ -651,7 +666,7 @@ pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: R
         &mut crate::game::conversation::Rng::new(0))
 }
 
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>, Option<crate::game::desires::Reveal>) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>, Option<crate::game::desires::Reveal>, Vec<(usize, crate::game::conversation::SlipKind)>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
     let tr = converse_with_at(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &t.setting, &mut |ch: &[Choice]| {
@@ -669,7 +684,7 @@ fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static s
     // for a pick, the last turn is their call - a bid's met or missed
     // against it
     let call = if offered.is_some() { tr.turns.last().map(|t| t.act) } else { None };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call, tr.evasions, tr.worry_told)
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call, tr.evasions, tr.worry_told, tr.slips)
 }
 
 impl Game {
@@ -988,8 +1003,22 @@ impl Game {
                 (None, None) => (0.0, 0.0),
             }
         };
+        // the slip's once-a-relationship budget (E5-8, #1439): each
+        // side may still leak to this hearer, or not - and the ghost's
+        // dead get a real name where the churchyard has one
+        sa.slips_left = if self.slipped_to(a, b) { 0 } else { 1 };
+        sb.slips_left = if self.slipped_to(b, a) { 0 } else { 1 };
+        self.lend_dead_name(&mut sa, a as u64);
+        self.lend_dead_name(&mut sb, b as u64);
         let setting = self.talk_setting_at(at, a, b);
         let tr = converse_at(&sa, &sb, rel, self.rel_kind(a, b), library(), Some(&recent), &setting, &mut TalkRng::new(seed));
+        for &(i, _) in &tr.slips {
+            let (sp, hr) = if i == 0 { (a, b) } else { (b, a) };
+            let mut of = self.world.get_component::<SlipMemory>(sp)
+                .map(|m| m.of.clone()).unwrap_or_default();
+            of.insert(hr);
+            self.world.add_component(sp, SlipMemory { of });
+        }
         self.note_said_lines(tr.turns.iter().filter_map(|t| t.line));
         // the exchange types what it does to the bond (#1230): the acts
         // and the close read warm or cold before the lines go on record
@@ -1426,6 +1455,10 @@ impl Game {
         if rare.is_none() {
             villager.worry = crate::game::desires::worry_of(&self.world, v, self.tick, seed);
         }
+        // the leak they could still make to you (E5-8, #1439): once a
+        // relationship - spent, the budget reads zero for this seat
+        villager.slips_left = if self.slipped_to(v, pe) { 0 } else { 1 };
+        self.lend_dead_name(&mut villager, seed);
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
         // a visitor's standing is the road's own blurb, not a villager
         // backstory built off statuses it doesn't have (#1168)
@@ -1445,7 +1478,7 @@ impl Game {
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
             asks_taken: vec![], asked_seen: 0, forward_seen: 0,
             evasions_seen: 0, blurted: false, backed_off: false,
-            worry_told_seen: false, shared: 0,
+            worry_told_seen: false, slips_seen: 0, shared: 0,
             // a villager who once heard this seat's testimony opens a
             // rung warmer - they heard the story, they know the teller (#1333)
             mood: if crate::sim::psychology::heard_testimony(&self.world, v, pe) {
@@ -1470,7 +1503,7 @@ impl Game {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
         let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions, worry_told) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions, worry_told, slips) = replay(&t, Some(&recent));
         if shared > t.shared {
             // the deepest telling so far this talk (E3-3): the running
             // gate already lives in the replay - this only carries the
@@ -1547,6 +1580,20 @@ impl Game {
                 }
             }
             if let Some(cur) = self.seats[seat].talk.as_mut() { cur.evasions_seen = evasions.len(); }
+        }
+        // a leak that landed (E5-8, #1439): once to a relationship -
+        // the memory marks so the same ear doesn't hear one twice
+        if slips.len() > t.slips_seen {
+            let who = t.who;
+            for &(i, _) in &slips[t.slips_seen..] {
+                if i == 0 {
+                    let mut of = self.world.get_component::<SlipMemory>(who)
+                        .map(|m| m.of.clone()).unwrap_or_default();
+                    of.insert(pe);
+                    self.world.add_component(who, SlipMemory { of });
+                }
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.slips_seen = slips.len(); }
         }
         // the doorknob worry that opened its tier (E5-3, #1435): the
         // why's answer is the fear or need itself - it lands on the
@@ -1969,6 +2016,25 @@ impl Game {
             place: self.place_at(at),
             law_earshot: self.law_near(at),
             invited: self.backstage_invited(a, b),
+        }
+    }
+
+    /// Whether they've already slipped in front of `hearer` (E5-8,
+    /// #1439): the once-a-relationship budget reads it
+    fn slipped_to(&self, who: Entity, hearer: Entity) -> bool {
+        self.world.get_component::<SlipMemory>(who)
+            .map(|m| m.of.contains(&hearer)).unwrap_or(false)
+    }
+
+    /// A real dead name for the slip's referent, where the churchyard
+    /// has one to lend (E5-8): a slip that names the living isn't the
+    /// same mistake. `salt` keeps a speaker naming the same dead
+    fn lend_dead_name(&self, s: &mut Speaker, salt: u64) {
+        let Some(d) = s.slip.as_mut().and_then(|sl| sl.dead.as_mut()) else { return };
+        let dead: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| villager::is_dead(&self.world, v)).collect();
+        if let Some(&v) = dead.get(salt as usize % dead.len().max(1)) {
+            d.name = self.name_of(v);
         }
     }
 

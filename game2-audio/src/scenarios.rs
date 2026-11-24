@@ -5,7 +5,7 @@
 //! itself still sees only `UiModel`.
 use game2_core::session::{Command, Game, UiModel};
 use game2_core::session::events::EventId;
-use game2_core::session::stage::Stage;
+use game2_core::session::stage::{self, Stage};
 use game2_core::sim::climate::{Climate, Season};
 
 /// What a scenario does to its game on one frame: the same verbs
@@ -115,8 +115,51 @@ fn winter_gate(seed: u64) -> Game {
     g
 }
 
+/// The build's arc (M5): a strong org whose campaign publishes its
+/// next event, staged close enough to it that the phrases climb. The
+/// `drama.next` feed comes from the campaign's own cadence - the same
+/// `PlannedV` an announced assembly produces.
+fn assembly_build(seed: u64) -> Game {
+    let mut g = quiet_village(seed);
+    stage::stage(&mut g, Stage::StrongOrg);
+    // the campaign publishes its next event, then we wait until it's
+    // ~3.5 days out - inside the build's 4-phrase window (~80 s) at the
+    // dump's start, so the score climbs the whole run
+    run_until(&mut g, |g| g.ui_model().panel.drama.next.is_some(), 40);
+    run_until(&mut g, |g| {
+        g.ui_model().panel.drama.next.as_ref()
+            .is_some_and(|n| n.in_days <= 3.5)
+    }, 40);
+    g
+}
+
+/// A march on the castle, then the answer (M5): the column sets out
+/// early in the run so the Peak has somewhere to resolve - a crackdown
+/// drops the mode two rungs when the powers reply.
+fn march_crackdown(seed: u64) -> Game {
+    let mut g = quiet_village(seed);
+    stage::stage(&mut g, Stage::StrongOrg);
+    g
+}
+
+/// A feast at the cross (M5): estampie in triple time, the feast motif.
+fn feast_day(seed: u64) -> Game {
+    let mut g = quiet_village(seed);
+    run_until(&mut g, |g| g.ui_model().feast, 45);
+    g
+}
+
+/// The lament (M5): scarlet fever took beds the seat knew - grief
+/// slows the score and holds it in Aeolian.
+fn fever_lament(seed: u64) -> Game {
+    let mut g = quiet_village(seed);
+    stage::stage(&mut g, Stage::Bereft);
+    g
+}
+
 /// Every scenario by name. `quiet_village` is S3's; A4's four play to
-/// the place-based soundscape's strengths.
+/// the place-based soundscape's strengths; M5's four play the score's
+/// arcs (build, march, feast, lament).
 pub fn registry() -> Vec<Scenario> {
     vec![
         Scenario {
@@ -143,6 +186,28 @@ pub fn registry() -> Vec<Scenario> {
             name: "winter_gate",
             build: winter_gate,
             script: vec![ScriptOp { frame: 0, op: Op::LookGate }],
+        },
+        Scenario {
+            name: "assembly_build",
+            build: assembly_build,
+            script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
+        },
+        Scenario {
+            name: "march_crackdown",
+            build: march_crackdown,
+            script: vec![
+                ScriptOp { frame: 60, op: Op::RoadMarch(0) },
+            ],
+        },
+        Scenario {
+            name: "feast_day",
+            build: feast_day,
+            script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
+        },
+        Scenario {
+            name: "fever_lament",
+            build: fever_lament,
+            script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
         },
     ]
 }

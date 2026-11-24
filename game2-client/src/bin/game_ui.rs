@@ -638,6 +638,8 @@ fn main() {
                                     cues: vec![game2_audio::host::CueKind::Bell { pan: 0.0, gain: 0.8 }],
                                     emitters: vec![],
                                     seed: 0,
+                                    listener: game2_audio::soundscape::Listener::at(0.0, 0.0, 1.0),
+                                    intent: game2_audio::director::Intent::default(),
                                 });
                             }
                         }

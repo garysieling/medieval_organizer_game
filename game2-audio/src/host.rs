@@ -90,6 +90,20 @@ pub struct AudioFrame {
     pub cues: Vec<CueKind>,
     pub emitters: Vec<Emitter>,
     pub seed: u64,
+    /// The ear the emitters were scanned from (M5's trace needs it).
+    pub listener: Listener,
+    /// The score's intent for the frame (M5): `push` fills it from the
+    /// host's `Director`; frames built for scene replay carry the
+    /// ambient default.
+    pub intent: crate::director::Intent,
+}
+
+impl Default for AudioFrame {
+    fn default() -> Self {
+        AudioFrame { cues: vec![], emitters: vec![], seed: 0,
+            listener: Listener::at(0.0, 0.0, 1.0),
+            intent: crate::director::Intent::default() }
+    }
 }
 
 impl AudioFrame {
@@ -113,6 +127,8 @@ impl AudioFrame {
                 .collect(),
             emitters: crate::soundscape::scan(model, listener),
             seed: model.seed,
+            listener: listener.clone(),
+            intent: crate::director::Intent::default(),
         }
     }
 }
@@ -216,7 +232,128 @@ pub struct AudioHost {
     /// render block on the same pushed frame mustn't re-draw its
     /// Poisson fires
     amb_frame: u64,
+    /// M5: the director, seeded on the first pushed model. Lives on
+    /// the game-side host (and the offline one); the device half only
+    /// ever sees the `Intent`s frames carry.
+    director: Option<crate::director::Director>,
+    dir_seed: u64,
+    /// The score state: kept in its own struct so the render loop can
+    /// borrow it beside the `engine` living inside `link`.
+    score: Score,
     link: Link,
+}
+
+/// The score's runtime state (M5): the intent the last frame carried,
+/// M4's composer writing phrases on boundaries, the song clock the
+/// schedule runs on, and the ledger the dump drains.
+struct Score {
+    intent: crate::director::Intent,
+    composer: crate::compose::Composer,
+    /// Rendered-samples clock the score schedules against
+    song_pos: u64,
+    /// The sample the next phrase starts on
+    phrase_next: u64,
+    /// Composed phrases so far - `bar_index` = `phrase_idx * 8`
+    phrase_idx: u64,
+    /// Notes waiting on their onset sample, earliest first
+    pending_notes: std::collections::VecDeque<(u64, crate::compose::NoteEvent)>,
+    /// Per-bar records for `sound_dump`'s `.trace.json`
+    traces: Vec<crate::trace::BarTrace>,
+    /// Every note fired, for the dump's piano roll
+    note_log: Vec<(u64, crate::compose::NoteEvent)>,
+}
+
+impl Score {
+    fn new() -> Self {
+        Score {
+            intent: crate::director::Intent::default(),
+            composer: crate::compose::Composer::new(),
+            song_pos: 0, phrase_next: 0, phrase_idx: 0,
+            pending_notes: std::collections::VecDeque::new(),
+            traces: vec![], note_log: vec![],
+        }
+    }
+
+    /// The intent's duck on the two buses it owns, on top of the
+    /// settings mix.
+    fn apply_duck(&self, mix: &Mix, engine: &mut Engine) {
+        engine.set_bus_gain(Bus::Music,
+            mix.gains[Bus::Music as usize] * db_amp(self.intent.duck.music_db));
+        engine.set_bus_gain(Bus::Ambience,
+            mix.gains[Bus::Ambience as usize] * db_amp(self.intent.duck.ambience_db));
+    }
+
+    /// Notes whose onset the song clock has reached enter the engine on
+    /// the Music bus; a reached phrase boundary composes the next one.
+    /// The score plays well under the bus (the mix bar sits the scene
+    /// near -20 LUFS; 8 voices at velocity would eat the whole bar).
+    fn fire_due(&mut self, engine: &mut Engine, seed: u64,
+        emitters: &[Emitter], sr: u32) {
+        const NOTE_GAIN: f32 = 0.15;
+        while let Some((t, _)) = self.pending_notes.front() {
+            if *t > self.song_pos { break; }
+            let (_, n) = self.pending_notes.pop_front().unwrap();
+            let src = crate::instruments::source(n.patch, engine.bank(), n.midi as u8);
+            engine.play(src, Bus::Music,
+                VoiceParams { gain: n.vel * NOTE_GAIN, ..Default::default() });
+            self.note_log.push((self.song_pos, n));
+        }
+        if self.song_pos >= self.phrase_next {
+            self.compose_next(engine, seed, emitters, sr);
+        }
+    }
+
+    /// Write the next 8 bars from the current intent: the composer's
+    /// phrase becomes scheduled notes, its bars join the trace, and a
+    /// queued stinger fires right on the downbeat.
+    fn compose_next(&mut self, engine: &mut Engine, seed: u64,
+        emitters: &[Emitter], sr: u32) {
+        use crate::compose::{PhraseSpec, Voice};
+        let i = self.intent.clone();
+        let meter = i.meter;
+        let phrase_s = crate::director::BARS_PER_PHRASE as f64
+            * meter.num as f64 * (4.0 / meter.den as f64)
+            * 60.0 / i.tempo_bpm.max(30.0);
+        let phrase_samples = (phrase_s * sr as f64) as u64;
+        let spec = PhraseSpec {
+            seed,
+            bar_index: self.phrase_idx * crate::director::BARS_PER_PHRASE,
+            tonic: i.tonic, mode: i.mode, section: i.section, meter,
+            tempo_bpm: i.tempo_bpm, density: i.density, motif: i.motif,
+            resolved: i.resolved,
+        };
+        let stingers = i.stinger.map(|s| vec![format!("{s:?}")]).unwrap_or_default();
+        let (mut phrase, bars) = crate::trace::trace_phrase(
+            &mut self.composer, &spec, &i.mood,
+            self.phrase_idx * crate::director::BARS_PER_PHRASE,
+            self.song_pos as f64 / sr as f64,
+            emitters, stingers);
+        // the build's one-bar rest: the last bar before the event
+        // drops its melody so the arrival lands clean
+        if i.rest_bar {
+            let cut = phrase_samples - phrase_samples / crate::director::BARS_PER_PHRASE;
+            phrase.notes.retain(|n| !(n.voice == Voice::Melody && n.at_sample >= cut));
+        }
+        for n in phrase.notes {
+            self.pending_notes.push_back((self.phrase_next + n.at_sample, n));
+        }
+        if let Some(s) = i.stinger {
+            use crate::director::Stinger;
+            use crate::instruments::PatchId;
+            let (patch, midi) = match s {
+                Stinger::BellsPeal | Stinger::CauseClose => (PatchId::TubularBells, 72),
+                Stinger::HalfCadence => (PatchId::HandBells, 60),
+                Stinger::LowDrum => (PatchId::BassDrum, 40),
+                Stinger::Alarm => (PatchId::TubularBells, 84),
+            };
+            let src = crate::instruments::source(patch, engine.bank(), midi);
+            engine.play(src, Bus::Music,
+                VoiceParams { gain: 0.3, ..Default::default() });
+        }
+        self.traces.extend(bars);
+        self.phrase_next += phrase_samples;
+        self.phrase_idx += 1;
+    }
 }
 
 /// The device half of a live host: the sink calls `pump` in its audio
@@ -264,6 +401,8 @@ impl AudioHost {
             cur_emitters: vec![],
             cur_seed: 0,
             frames_in: 0, amb_frame: 0,
+            director: None, dir_seed: u64::MAX,
+            score: Score::new(),
             link: Link::Offline { engine: Engine::new(sample_rate, 0) },
         }
     }
@@ -274,6 +413,8 @@ impl AudioHost {
             voices_peak: 0, mix: Mix::default(), muted: false,
             focused: true, focus_gain: 1.0, ambience: Ambience::new(),
             cur_emitters: vec![], cur_seed: 0, frames_in: 0, amb_frame: 0,
+            director: None, dir_seed: u64::MAX,
+            score: Score::new(),
             link: Link::Silent }
     }
 
@@ -307,6 +448,8 @@ impl AudioHost {
                 focus_gain: 1.0,
                 ambience: Ambience::new(),
                 cur_emitters: vec![], cur_seed: 0, frames_in: 0, amb_frame: 0,
+                director: None, dir_seed: u64::MAX,
+                score: Score::new(),
                 link: Link::Live { frames, muted, mix, focused, pending_bank },
             },
             Err(e) => {
@@ -335,9 +478,30 @@ impl AudioHost {
         match &self.link { Link::Live { frames, .. } => Some(frames.clone()), _ => None }
     }
 
+    /// The score's director, seeded by the first model and re-seeded if
+    /// the world under us changes.
+    fn director(&mut self, model: &UiModel) -> &mut crate::director::Director {
+        if self.dir_seed != model.seed {
+            self.director = Some(crate::director::Director::new(model.seed));
+            self.dir_seed = model.seed;
+        }
+        self.director.as_mut().unwrap()
+    }
+
     /// A frame arrived: file its audio intent for the next block.
+    /// `soundscape::scan` and `Director::update` run here, on the game
+    /// thread - the audio side only composes what the frame asked for.
     pub fn push(&mut self, model: &UiModel) {
-        self.push_frame(&AudioFrame::from_model(model));
+        let listener = Listener::from_model(model);
+        self.push_with(model, &listener);
+    }
+
+    /// The same push at a caller's own ear (a scenario's `Look`).
+    pub fn push_with(&mut self, model: &UiModel, listener: &Listener) {
+        let intent = self.director(model).update(model);
+        let mut frame = AudioFrame::from_model_with(model, listener);
+        frame.intent = intent;
+        self.push_frame(&frame);
     }
 
     /// The frame's intent straight in (scene replay builds frames
@@ -349,6 +513,7 @@ impl AudioHost {
                 self.pending.extend_from_slice(&frame.cues);
                 self.cur_emitters.clone_from(&frame.emitters);
                 self.cur_seed = frame.seed;
+                self.score.intent = frame.intent.clone();
                 self.frames_in += 1;
             }
             Link::Live { frames, .. } => {
@@ -408,8 +573,10 @@ impl AudioHost {
         if let Link::Offline { engine } = &mut self.link {
             engine.set_bus_gain(Bus::Master,
                 if self.muted { 0.0 } else { self.mix.gains[Bus::Master as usize] });
-            engine.set_bus_gain(Bus::Music, self.mix.gains[Bus::Music as usize]);
-            engine.set_bus_gain(Bus::Ambience, self.mix.gains[Bus::Ambience as usize]);
+            engine.set_bus_gain(Bus::Music,
+                self.mix.gains[Bus::Music as usize] * db_amp(self.score.intent.duck.music_db));
+            engine.set_bus_gain(Bus::Ambience,
+                self.mix.gains[Bus::Ambience as usize] * db_amp(self.score.intent.duck.ambience_db));
             engine.set_bus_gain(Bus::Sfx, self.mix.gains[Bus::Sfx as usize]);
             engine.set_bus_gain(Bus::Ui, self.mix.gains[Bus::Ui as usize]);
             engine.set_mono(self.mix.mono);
@@ -453,7 +620,28 @@ impl AudioHost {
                     self.ambience.update(&self.cur_emitters, self.cur_seed,
                         self.frames_in, engine);
                 }
-                engine.render(out);
+                // the score (M5): the music and ambience buses take the
+                // intent's duck on top of the settings mix, then the
+                // block renders in chunks so phrase boundaries and note
+                // onsets land on their samples.
+                self.score.apply_duck(&self.mix, engine);
+                let mut done = 0usize;
+                while done * 2 < out.len() {
+                    let rem = (out.len() / 2 - done) as u64;
+                    let next = self.score.pending_notes.front().map(|(t, _)| *t)
+                        .unwrap_or(u64::MAX).min(self.score.phrase_next);
+                    let gap = if next <= self.score.song_pos { 0 }
+                        else if next == u64::MAX { rem }
+                        else { (next - self.score.song_pos).min(rem) };
+                    if gap == 0 {
+                        self.score.fire_due(engine, self.cur_seed,
+                            &self.cur_emitters, self.sr);
+                        continue;
+                    }
+                    engine.render(&mut out[done * 2..(done + gap as usize) * 2]);
+                    self.score.song_pos += gap;
+                    done += gap as usize;
+                }
                 self.voices_peak = self.voices_peak.max(engine.live_voices());
                 // the background fade (#1505): unfocused with
                 // mute_in_background ramps the block toward silence
@@ -479,4 +667,20 @@ impl AudioHost {
 
     /// The most voices the engine held at once, for `metrics.json`.
     pub fn voices_peak(&self) -> usize { self.voices_peak }
+
+    /// The per-bar records the score has written so far (M5) -
+    /// `sound_dump` drains them into `.trace.json`.
+    pub fn drain_trace(&mut self) -> Vec<crate::trace::BarTrace> {
+        std::mem::take(&mut self.score.traces)
+    }
+
+    /// Every note the score fired, in onset order - the dump's piano
+    /// roll reads these.
+    pub fn drain_notes(&mut self) -> Vec<(u64, crate::compose::NoteEvent)> {
+        std::mem::take(&mut self.score.note_log)
+    }
+
 }
+
+/// dB to amplitude, for the duck multipliers.
+fn db_amp(db: f32) -> f32 { 10f32.powf(db / 20.0) }

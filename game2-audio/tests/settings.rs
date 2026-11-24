@@ -13,7 +13,8 @@ fn block(host: &mut AudioHost, n: usize) -> Vec<f32> {
 }
 
 fn bell(gain: f32) -> AudioFrame {
-    AudioFrame { cues: vec![CueKind::Bell { pan: 0.0, gain }], emitters: vec![], seed: 7 }
+    AudioFrame { cues: vec![CueKind::Bell { pan: 0.0, gain }], emitters: vec![], seed: 7,
+        ..Default::default() }
 }
 
 #[test]
@@ -152,7 +153,8 @@ fn mono_setting_sums() {
         s.mono = mono;
         h.apply_settings(&s);
         h.push_frame(&AudioFrame {
-            cues: vec![CueKind::Bell { pan: 1.0, gain: 1.0 }], emitters: vec![], seed: 7 });
+            cues: vec![CueKind::Bell { pan: 1.0, gain: 1.0 }], emitters: vec![], seed: 7,
+            ..Default::default() });
         block(&mut h, 1024)
     };
     let stereo = render(false);

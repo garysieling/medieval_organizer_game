@@ -5,7 +5,7 @@
 //! with no `Game` at all; `--connect` records one off a live server.
 use crate::remote;
 use game2_audio::analysis;
-use game2_audio::host::{AudioFrame, AudioHost};
+use game2_audio::host::AudioHost;
 use game2_audio::scenarios::{self, Op, ScriptOp};
 use game2_audio::soundscape::Listener;
 use game2_audio::wav::{self, SAMPLE_RATE};
@@ -39,7 +39,7 @@ impl Default for DumpOpts {
 /// render one 60 fps frame of stereo onto `pcm`.
 fn render_frame(host: &mut AudioHost, model: &UiModel, listener: &Listener,
                 pcm: &mut Vec<f32>) {
-    host.push_frame(&AudioFrame::from_model_with(model, listener));
+    host.push_with(model, listener);
     let n = host.frame_samples();
     let start = pcm.len();
     pcm.resize(start + n * 2, 0.0);
@@ -193,21 +193,26 @@ pub fn run(opts: &DumpOpts) -> io::Result<()> {
         run_live(opts, &mut host, &mut pcm)?;
     }
     let render_ms = t0.elapsed().as_secs_f64() * 1000.0;
-    write_outputs(&opts.out, &pcm, host.voices_peak(), render_ms)
+    let traces = host.drain_trace();
+    let notes = host.drain_notes();
+    write_outputs(&opts.out, &pcm, host.voices_peak(), render_ms, &traces, &notes)
 }
 
 /// `<out>.wav`, `.trace.json`, `.metrics.json`, `.spectrogram.png`,
-/// `.roll.png`, `.timeline.png` - the roll and timeline are empty-but-
-/// valid until the composer exists to fill them.
-pub fn write_outputs(out: &str, pcm: &[f32], voices_peak: usize, render_ms: f64) -> io::Result<()> {
+/// `.roll.png`, `.timeline.png` - the trace is one JSON line per bar
+/// the director wrote; the roll and timeline draw from it.
+pub fn write_outputs(out: &str, pcm: &[f32], voices_peak: usize, render_ms: f64,
+    traces: &[game2_audio::trace::BarTrace],
+    notes: &[(u64, game2_audio::compose::NoteEvent)]) -> io::Result<()> {
     if let Some(dir) = std::path::Path::new(out).parent() {
         std::fs::create_dir_all(dir).ok();
     }
     let pcm16: Vec<i16> = pcm.iter()
         .map(|s| (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16).collect();
     wav::write_wav(&format!("{out}.wav"), &pcm16, 2)?;
-    // per-bar records: the sequencer (M3) owns bars; S3 writes the shape
-    std::fs::write(format!("{out}.trace.json"), "{\"bars\":[]}\n")?;
+    let mut tw = io::BufWriter::new(
+        std::fs::File::create(format!("{out}.trace.json"))?);
+    game2_audio::trace::write_trace(&mut tw, traces)?;
     let loud = analysis::loudness(pcm, SAMPLE_RATE);
     let m = analysis::Metrics {
         lufs_integrated: loud.integrated_lufs,
@@ -220,12 +225,95 @@ pub fn write_outputs(out: &str, pcm: &[f32], voices_peak: usize, render_ms: f64)
     std::fs::write(format!("{out}.metrics.json"),
         format!("{}\n", serde_json::to_string_pretty(&m).map_err(io_err)?))?;
     analysis::spectrogram_png(pcm, SAMPLE_RATE, &format!("{out}.spectrogram.png"))?;
-    analysis::piano_roll_png(
-        &analysis::RollInput { notes: vec![], mode_pitch_classes: [false; 12] },
-        &format!("{out}.roll.png"))?;
-    analysis::timeline_png(
-        &analysis::TimelineInput { tension: vec![], sections: vec![],
-            mode_lane: vec![], layers: vec![], markers: vec![] },
-        &format!("{out}.timeline.png"))?;
+    analysis::piano_roll_png(&roll_input(traces, notes), &format!("{out}.roll.png"))?;
+    analysis::timeline_png(&timeline_input(traces), &format!("{out}.timeline.png"))?;
     Ok(())
+}
+
+/// A mode name's pitch classes on the fixed tonic D (62).
+fn mode_pcs(mode: &str) -> [bool; 12] {
+    use game2_audio::theory::Mode;
+    let m = match mode {
+        "Lydian" => Mode::Lydian,
+        "Ionian" => Mode::Ionian,
+        "Mixolydian" => Mode::Mixolydian,
+        "Aeolian" => Mode::Aeolian,
+        "Phrygian" => Mode::Phrygian,
+        _ => Mode::Dorian,
+    };
+    let mut pcs = [false; 12];
+    for i in m.intervals() {
+        pcs[((2 + i) % 12) as usize] = true; // tonic D
+    }
+    pcs
+}
+
+/// The piano roll's input: every fired note against the mode its bar
+/// traced, red-flagging anything off the ladder.
+fn roll_input(traces: &[game2_audio::trace::BarTrace],
+    notes: &[(u64, game2_audio::compose::NoteEvent)]) -> analysis::RollInput {
+    // per-bar pitch-class tables, in bar order
+    let bar_mode: Vec<([bool; 12], f64, f64)> = traces.iter()
+        .map(|b| {
+            let end = traces.iter().find(|n| n.bar == b.bar + 1)
+                .map(|n| n.at_s).unwrap_or(b.at_s + 2.0);
+            (mode_pcs(&b.mode), b.at_s, end)
+        }).collect();
+    let mut out = [false; 12];
+    if let Some((pcs, ..)) = bar_mode.last() { out = *pcs; }
+    analysis::RollInput {
+        notes: notes.iter().map(|(at, n)| {
+            let t = *at as f64 / SAMPLE_RATE as f64;
+            let in_mode = bar_mode.iter()
+                .find(|(.., lo, hi)| t >= *lo && t < *hi)
+                .map(|(pcs, ..)| pcs[(n.midi as usize) % 12])
+                .unwrap_or(true);
+            analysis::RollNote {
+                start_s: t as f32,
+                dur_s: n.dur_samples as f32 / SAMPLE_RATE as f32,
+                midi: n.midi as u8,
+                voice: n.voice as u8,
+                in_mode,
+            }
+        }).collect(),
+        mode_pitch_classes: out,
+    }
+}
+
+/// The timeline's input: tension per second, section bands, the mode
+/// strip, per-voice lanes and the stinger markers.
+fn timeline_input(traces: &[game2_audio::trace::BarTrace]) -> analysis::TimelineInput {
+    const VOICES: [&str; 8] =
+        ["Drone", "Pulse", "Ground", "Harmony", "Melody", "Counter", "Color", "Choir"];
+    let end_s = traces.last().map(|b| b.at_s + 2.0).unwrap_or(0.0);
+    let mut tension = vec![0.0f32; end_s.ceil() as usize + 1];
+    let mut sections: Vec<analysis::Section> = vec![];
+    let mut mode_lane: Vec<(f32, String)> = vec![];
+    let mut lanes: Vec<analysis::Lane> = VOICES.iter()
+        .map(|n| analysis::Lane { name: n.to_string(), density: vec![] }).collect();
+    let mut markers: Vec<analysis::Marker> = vec![];
+    for b in traces {
+        let t0 = b.at_s;
+        let t1 = traces.iter().find(|n| n.bar == b.bar + 1)
+            .map(|n| n.at_s).unwrap_or(end_s);
+        for s in t0.floor() as usize..(t1.ceil() as usize).min(tension.len()) {
+            tension[s] = b.mood[0];
+        }
+        if sections.last().map(|s| s.label.as_str()) != Some(b.section.as_str()) {
+            sections.push(analysis::Section {
+                start_s: t0 as f32, end_s: t1 as f32, label: b.section.clone() });
+        } else if let Some(s) = sections.last_mut() {
+            s.end_s = t1 as f32;
+        }
+        if mode_lane.last().map(|(_, m)| m.as_str()) != Some(b.mode.as_str()) {
+            mode_lane.push((t0 as f32, b.mode.clone()));
+        }
+        for (i, l) in lanes.iter_mut().enumerate() {
+            l.density.push(b.layers_density[i]);
+        }
+        for st in &b.stingers {
+            markers.push(analysis::Marker { t_s: t0 as f32, label: st.clone() });
+        }
+    }
+    analysis::TimelineInput { tension, sections, mode_lane, layers: lanes, markers }
 }

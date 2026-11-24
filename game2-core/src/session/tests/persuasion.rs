@@ -92,7 +92,10 @@ fn test_the_argument_waits_on_knowing_them() {
     // an acquaintance (one piece heard) gets no hearing for your case:
     // a quarrel's opening needs them to know you
     let __pe = g.player; g.world.get_component_mut::<crate::game::desires::Known>(__pe).unwrap()
-        .revealed.insert(v, vec![Reveal::Problem(Problem::Taxed)]);
+        .entries.insert(v, vec![crate::game::desires::LedgerEntry {
+            fact: "problem:taxed".into(), reveal: Some(Reveal::Problem(Problem::Taxed)),
+            source: crate::game::desires::Source::Told { speaker: v }, day: 0,
+            confidence: 0.9, contradicted: false }]);
     assert_eq!(stage_of(&g.world, g.player, v), RelStage::Acquaintance);
     assert!(!persuasion::can_argue(stage_of(&g.world, g.player, v)));
     assert_eq!(persuasion::magnitude(&g.world, g.player, v, &"the taxes".to_string(), ArgueMove::HearOut, g.tick), 0.0);

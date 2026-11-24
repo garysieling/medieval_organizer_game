@@ -955,7 +955,10 @@ impl Game {
         self.names.get(i).copied().unwrap_or("a newcomer")
     }
 
-    pub(in crate::session) fn name_of(&self, e: Entity) -> String {
+    /// A villager's name - public for the offline tooling (`dialogue_gen
+    /// --real` speaks it; the map's `label` carries role and cause marks
+    /// that aren't for a mouth)
+    pub fn name_of(&self, e: Entity) -> String {
         self.villagers.iter().position(|&x| x == e).map(|i| self.cast_name(i).to_string())
             .unwrap_or_else(|| "someone".into())
     }

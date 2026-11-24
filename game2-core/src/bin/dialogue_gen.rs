@@ -114,12 +114,9 @@ fn main() -> io::Result<()> {
         // catch cast-level problems like nine villagers sharing the
         // soldier brother
         let g = game2_core::session::Game::new_seeded_cast(seed);
-        let m0 = g.ui_model();
         let roster: Vec<Speaker> = g.villagers.iter().map(|&v| {
-            let name = m0.people.iter().find(|p| p.e == v)
-                .and_then(|p| p.label.clone())
-                .unwrap_or_else(|| "villager".into());
-            game2_core::session::dialogue::speaker_of(&g.world, v, &name, g.tick)
+            game2_core::session::dialogue::speaker_of(&g.world, v,
+                &g.name_of(v), g.tick)
         }).collect();
         let cov = cover_branches(&roster, BRANCH_TARGET, MAX_ATTEMPTS,
             &library, &mut rng);

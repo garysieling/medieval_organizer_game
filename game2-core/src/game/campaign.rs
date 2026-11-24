@@ -514,6 +514,9 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
         if drifted && attendees.len() >= 2 { m.driven_by = Some(driver); }
         if noted { m.resolves += 1; }
     }
+    // the resolve only proves "a room that decides" once deliberation
+    // actually settles - deliberate_meeting hands it back when nothing
+    // did, and the callers test the lies on the settled outcome (E8-2)
     // Participation teaches: the room learns meeting craft, the seats
     // learn theirs
     crate::game::org_skills::learn_from_meeting(world, campaign, &attendees);
@@ -1862,6 +1865,37 @@ mod tests {
         w.get_component_mut::<Campaign>(c).unwrap().decision_rule = DecisionRule::Consensus;
         let out = hold_campaign_meeting(&mut w, c, 15).unwrap();
         assert!(out.consent);
+    }
+
+    /// The lies aren't tested when the room gathers - only the settled
+    /// resolve the callers gate on counts (E8-2, #1444 review)
+    #[test]
+    fn test_a_gathered_room_leaves_the_lies_until_it_decides() {
+        use crate::game::persona::*;
+        let mut w = World::new();
+        let (a, b) = (member(&mut w), member(&mut w));
+        bond(&mut w, a, b);
+        let (_, c) = campaign_with(&mut w, &[a, b]);
+        set_cadence(&mut w, c, 7, 1);
+        delegate_role(&mut w, c, Role::TurnoutCoordinator, a);
+        delegate_role(&mut w, c, Role::NoteTaker, b);
+        let mut p = Persona {
+            seed: 1, sex: crate::game::villager::Sex::Male, archetype: Archetype::OldGuard,
+            temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+            story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+            hidden: Landmark::Skill("y"), contradiction: None,
+            idiolect: crate::game::idiolect::Idiolect {
+                phrase: "x", habit: crate::game::idiolect::Habit::Echo },
+        };
+        p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+            lie: Belief::TruthComesOut, strength: 0.5, fear: Fear::BailiffKnowsMyFace,
+            need: Need::ToBeSafe, turned: false });
+        w.add_component(b, p);
+        let out = hold_campaign_meeting(&mut w, c, 8).unwrap();
+        assert!(out.noted);
+        let g = &w.get_component::<Persona>(b).unwrap().ghosts[0];
+        assert_eq!(g.strength, 0.5, "the gathering alone tests nothing");
+        assert!(!g.turned);
     }
 
     #[test]

@@ -614,6 +614,10 @@ pub struct Meeting {
     pub probe: bool,
     /// The organizer opens with testimony: the event they tell (#1248)
     pub testimony: Option<String>,
+    /// Everyone the calling plan held a promise from (E8-2, #1444):
+    /// snapshotted at call_meeting_at because the plan itself is
+    /// consumed there - a keeper's arrival is checked against this
+    pub promised: Vec<Entity>,
 }
 
 impl Meeting {

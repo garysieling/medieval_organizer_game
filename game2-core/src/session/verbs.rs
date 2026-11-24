@@ -3779,7 +3779,7 @@ impl Game {
                     self.lord_strength = (self.lord_strength - 0.06).max(0.0);
                     // a carried demand walks the streets: the
                     // village takes the win out in the open
-                    self.victory_parade();
+                    self.victory_parade(Some(self.seats[seat].player));
                     format!("{} face the Reeve - and he says the king will hear of this.", out.turnout.len())
                 }
                 TargetResponse::Concedes => {

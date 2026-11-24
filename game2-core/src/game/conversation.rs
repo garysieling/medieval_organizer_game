@@ -5385,7 +5385,7 @@ mod e5_8 {
         let ghost = |kind, strength| Ghost {
             event: EventId(0), kind, hook: None,
             lie: Belief::LordAlwaysWins, strength,
-            fear: Fear::BellTolls, need: Need::ToBeSeen };
+            fear: Fear::BellTolls, need: Need::ToBeSeen, turned: false };
         let persona = |ghosts: Vec<Ghost>, n: f32| {
             crate::game::persona::Persona {
                 seed: 7, sex: crate::game::villager::Sex::Male,
@@ -5446,7 +5446,7 @@ mod e5_6 {
 
     fn ghost(lie: Belief, strength: f32) -> Ghost {
         Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
-            lie, strength, fear: Fear::BellTolls, need: Need::ToBeSeen }
+            lie, strength, fear: Fear::BellTolls, need: Need::ToBeSeen, turned: false }
     }
 
     fn funny(traits: &[Trait], lie: Belief) -> Speaker {

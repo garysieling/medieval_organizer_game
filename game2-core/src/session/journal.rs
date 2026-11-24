@@ -89,8 +89,10 @@ impl Game {
 /// draw different streams now that ghosts shape them (#1438), so an old
 /// journal's return-trip replay would land on different work; and the
 /// asks' odds themselves moved to the act model (#1442), so an old
-/// journal's rolls land differently still)
-pub const JOURNAL_VERSION: u32 = 6;
+/// journal's rolls land differently still; campaign outcomes now test
+/// ghost lies (#1444), so an old journal's writs, parades, pleas and
+/// resolves land on different ghost strengths)
+pub const JOURNAL_VERSION: u32 = 7;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

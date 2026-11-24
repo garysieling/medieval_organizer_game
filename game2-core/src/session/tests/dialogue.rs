@@ -55,7 +55,7 @@ fn test_a_speakers_persona_wears_the_tells() {
     };
     p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
         lie: Belief::PromisesForKeepers, strength: 0.8, fear: Fear::BailiffKnowsMyFace,
-        need: Need::ToBeSafe });
+        need: Need::ToBeSafe, turned: false });
     g.world.add_component(v, p);
     let s = speaker_of(&g.world, v, "Eliza", g.tick);
     assert!(s.status.contains(&"shuns_the_gate") && s.status.contains(&"promises_nothing"),

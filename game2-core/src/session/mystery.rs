@@ -253,8 +253,9 @@ impl Game {
             if friend { break; }
         }
         // a question answered is a deed done them: they read as known,
-        // and tell you a thing of their own the way a job's giver does
-        self.quest_bond(seat, v);
+        // and tell you a thing of their own the way a job's giver does -
+        // the Ask's face, a question settled reading competence (E5-7)
+        self.quest_bond(seat, v, crate::session::quests::QuestKind::Ask);
         self.seats[seat].mystery = None;
         self.seats[seat].mystery_wait = tick + MYSTERY_WAIT;
         let payoff = self.mystery_payoff(seat, v, def.payoff);
@@ -307,7 +308,7 @@ impl Game {
                 self.pending_quests.push(crate::session::quests::PendingQuest {
                     giver: v, kind: crate::session::quests::QuestKind::Note,
                     target: crate::session::quests::QuestTarget::Villager(t),
-                    pickup: None, expires: tick + LEAD_DAYS,
+                    pickup: None, expires: tick + LEAD_DAYS, errand: None,
                 });
                 let to = self.name_of(t);
                 if self.seats[seat].quest.is_none() {

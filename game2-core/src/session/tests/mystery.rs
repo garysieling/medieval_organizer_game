@@ -315,7 +315,7 @@ fn test_the_mill_wheel_leads_on_to_a_job() {
         g.seats[0].quest = Some(crate::session::quests::PlayerQuest {
             giver: askers(&g)[1], kind: crate::session::quests::QuestKind::Egg,
             target: crate::session::quests::QuestTarget::Villager(askers(&g)[1]),
-            stage: crate::session::quests::QuestStage::ToFetch, pickup: Some((1.0, 1.0)), expires: 100 });
+            stage: crate::session::quests::QuestStage::ToFetch, pickup: Some((1.0, 1.0)), expires: 100, errand: None });
     }
     solved(&mut g, def, asker);
     talk_to(&mut g, asker);

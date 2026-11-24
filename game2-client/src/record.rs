@@ -166,6 +166,27 @@ pub fn parse_script(text: &str) -> Result<Vec<(u64, ScriptOp)>, String> {
 /// lockstep `sound_dump` and the soak test use.
 pub use game2_audio::wav::SAMPLE_RATE;
 
+/// Stereo i16 samples covering `pushed` frames at `fps`: the pad target
+/// a short soundtrack is grown to so the mux's `-shortest` always ends
+/// on the video's last frame rather than dropping footage
+fn footage_samples(pushed: u64, fps: u32) -> usize {
+    (pushed as f64 / fps.max(1) as f64 * SAMPLE_RATE as f64).ceil() as usize * 2
+}
+
+/// The output path when `--out` isn't passed: `play-10s.gif` for a
+/// --play-time run, `play-60f.avi` when --frames set the length - two
+/// --frames runs of different lengths mustn't land on the same name.
+/// `format_name` is the raw --format word (mp4/mov/ffmpeg share mp4)
+pub fn default_out(format_name: &str, frames: Option<u64>, play_secs: u64) -> String {
+    let ext = match format_name {
+        "gif" => "gif", "apng" => "png", "frames" => "", "avi" => "avi",
+        "webm" => "webm", "mov" => "mov", _ => "mp4",
+    };
+    let len = match frames { Some(f) => format!("{}f", f), None => format!("{}s", play_secs) };
+    if ext.is_empty() { format!("evidence/videos/{}", len) }
+    else { format!("evidence/videos/play-{}.{}", len, ext) }
+}
+
 /// A 16-bit PCM WAV: 44-byte header + samples. For the ffmpeg mux pass
 /// and for anyone wanting the soundtrack on its own.
 /// The audio crate owns the WAV container now (#1486): this stays so
@@ -191,12 +212,16 @@ struct FramesSink { dir: std::path::PathBuf, n: u32 }
 
 /// Raw RGBA frames piped to an ffmpeg child's stdin; when a soundtrack is
 /// coming, the video lands at `video_path` first and a second ffmpeg pass
-/// muxes it with the wav into `out`
+/// muxes it with the wav into `out`. `container` is decided once here so
+/// neither pass leans on the filename's extension.
 struct FfmpegSink {
     child: std::process::Child,
     ffmpeg: String,
     video_path: String,
     out: String,
+    container: &'static str, // "webm" or "mp4"
+    fps: u32,
+    pushed: u64,             // video frames so far - bounds the padded track
 }
 
 impl Drop for FfmpegSink {
@@ -310,20 +335,21 @@ fn open_sink(opts: &RecordOpts, w: usize, h: usize, n_frames: u64) -> std::io::R
         Format::Ffmpeg => {
             // codec follows the extension: webm gets vp9, the rest h264.
             // With audio, the video-only pass lands in a temp file first.
-            let webm = opts.out.ends_with(".webm");
-            let codec: &[&str] = if webm { &["-c:v", "libvpx-vp9", "-b:v", "2M"] }
+            let container: &'static str = if opts.out.ends_with(".webm") { "webm" } else { "mp4" };
+            let codec: &[&str] = if container == "webm" { &["-c:v", "libvpx-vp9", "-b:v", "2M"] }
                 else { &["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20"] };
             let video_path = if opts.audio { format!("{}.tmpvideo", opts.out) } else { opts.out.clone() };
             let child = std::process::Command::new(&opts.ffmpeg)
                 .args(["-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba",
                     "-s", &format!("{}x{}", w, h), "-r", &opts.fps.max(1).to_string(), "-i", "-"])
                 .args(codec)
-                .args(["-f", if webm { "webm" } else { "mp4" }])
+                .args(["-f", container])
                 .arg(&video_path)
                 .stdin(std::process::Stdio::piped())
                 .spawn()
                 .map_err(|e| other(format!("can't run {}: {} - install ffmpeg (scripts/get-ffmpeg.ps1) or pass --ffmpeg-path", opts.ffmpeg, e)))?;
-            Ok(Box::new(FfmpegSink { child, ffmpeg: opts.ffmpeg.clone(), video_path, out: opts.out.clone() }))
+            Ok(Box::new(FfmpegSink { child, ffmpeg: opts.ffmpeg.clone(), video_path,
+                out: opts.out.clone(), container, fps: opts.fps.max(1), pushed: 0 }))
         }
         Format::Avi => {
             let file = std::fs::File::create(&opts.out)?;
@@ -394,6 +420,7 @@ impl Sink for FramesSink {
 
 impl Sink for FfmpegSink {
     fn push(&mut self, buf: Buffer) -> std::io::Result<()> {
+        self.pushed += 1;
         let stdin = self.child.stdin.as_mut().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "ffmpeg stdin closed"))?;
         stdin.write_all(&buf.pixels)
     }
@@ -407,6 +434,16 @@ impl Sink for FfmpegSink {
         let Some(pcm) = audio else {
             return Ok(()); // the video landed at out directly
         };
+        // the track runs on play time while the video runs on watch
+        // time - pad to the footage's length so `-shortest` always ends
+        // at the video's last frame, never drops it
+        let need = footage_samples(self.pushed, self.fps);
+        let mut padded;
+        let pcm = if pcm.len() < need {
+            padded = pcm.to_vec();
+            padded.resize(need, 0);
+            &padded
+        } else { pcm };
         // mux pass: video stream copy + the wav as aac/opus, webm speaks
         // opus; faststart puts the mp4 header up front for browsers
         let wav = format!("{}.tmpsound.wav", self.out);
@@ -414,11 +451,12 @@ impl Sink for FfmpegSink {
             let _ = std::fs::remove_file(&self.video_path);
             return Err(e);
         }
-        let acodec: &[&str] = if self.out.ends_with(".webm") { &["-c:a", "libopus"] }
+        let acodec: &[&str] = if self.container == "webm" { &["-c:a", "libopus"] }
             else { &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"] };
         let status = std::process::Command::new(&self.ffmpeg)
             .args(["-loglevel", "error", "-y", "-i", &self.video_path, "-i", &wav])
-            .args(["-c:v", "copy"]).args(acodec).args(["-shortest", &self.out])
+            .args(["-c:v", "copy"]).args(acodec)
+            .args(["-f", self.container, "-shortest"]).arg(&self.out)
             .status();
         let _ = std::fs::remove_file(&wav);
         let _ = std::fs::remove_file(&self.video_path);
@@ -681,6 +719,25 @@ mod tests {
         let ops = parse_script("300 act 0\n10 pause\n").unwrap();
         assert_eq!(ops[0].0, 10);
         assert_eq!(ops[1].0, 300);
+    }
+
+    #[test]
+    fn test_footage_samples_pads_to_the_video_not_the_play_time() {
+        // 20 captured frames at 12fps is 1.67s of watch time - the pad
+        // covers the whole video so `-shortest` can't drop its tail
+        assert_eq!(footage_samples(20, 12), 2 * (44100 * 5 / 3));
+        assert_eq!(footage_samples(0, 12), 0);
+        // fps 0 falls back to one frame a second, never divides
+        assert_eq!(footage_samples(60, 0), 2 * 60 * 44100);
+    }
+
+    #[test]
+    fn test_default_out_names_frames_runs_by_frames() {
+        assert_eq!(default_out("avi", Some(60), 10), "evidence/videos/play-60f.avi");
+        assert_eq!(default_out("avi", Some(120), 10), "evidence/videos/play-120f.avi");
+        assert_eq!(default_out("avi", None, 10), "evidence/videos/play-10s.avi");
+        assert_eq!(default_out("frames", Some(60), 10), "evidence/videos/60f");
+        assert_eq!(default_out("mp4", None, 5), "evidence/videos/play-5s.mp4");
     }
 
     #[test]

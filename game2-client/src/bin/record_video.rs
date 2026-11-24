@@ -77,15 +77,8 @@ fn main() {
         }
     }
     let seed: u64 = arg(&args, "--seed").and_then(|v| v.parse().ok()).unwrap_or_else(session::run_seed);
-    opts.out = arg(&args, "--out").map(|s| s.to_string()).unwrap_or_else(|| {
-        // the ffmpeg formats keep the extension the user asked for
-        let ext = match arg(&args, "--format").unwrap_or("gif") {
-            "gif" => "gif", "apng" => "png", "frames" => "", "avi" => "avi",
-            "webm" => "webm", "mov" => "mov", _ => "mp4",
-        };
-        if ext.is_empty() { format!("evidence/videos/{}s", opts.play_secs) }
-        else { format!("evidence/videos/play-{}s.{}", opts.play_secs, ext) }
-    });
+    opts.out = arg(&args, "--out").map(|s| s.to_string()).unwrap_or_else(||
+        client::default_out(arg(&args, "--format").unwrap_or("gif"), opts.frames, opts.play_secs));
     if opts.format == Format::Ffmpeg && opts.out.starts_with('-') {
         die("ffmpeg reads a leading '-' in --out as one of its own flags");
     }

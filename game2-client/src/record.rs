@@ -572,14 +572,20 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
     // Avi and Ffmpeg carry it; `--no-audio` leaves the video silent.
     let wants_audio = opts.audio && matches!(opts.format, Format::Avi | Format::Ffmpeg);
     let mut host = wants_audio.then(|| {
-        let mut h = AudioHost::offline(SAMPLE_RATE);
-        // the test runner's cwd is the crate root - look there too
-        let root = ["assets/sound", "../assets/sound"].iter()
-            .map(std::path::Path::new)
-            .find(|p| p.is_dir())
-            .unwrap_or_else(|| std::path::Path::new("assets/sound"));
-        h.set_bank(game2_audio::sampler::load_dir(root));
-        h
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut h = AudioHost::offline(SAMPLE_RATE);
+            // the test runner's cwd is the crate root - look there too
+            let root = ["assets/sound", "../assets/sound"].iter()
+                .map(std::path::Path::new)
+                .find(|p| p.is_dir())
+                .unwrap_or_else(|| std::path::Path::new("assets/sound"));
+            h.set_bank(game2_audio::sampler::load_dir(root));
+            h
+        }
+        // no filesystem on wasm - an empty bank, synth stands in
+        #[cfg(target_arch = "wasm32")]
+        { AudioHost::offline(SAMPLE_RATE) }
     });
     let mut pcm: Vec<i16> = Vec::new();
     let mut block: Vec<f32> = Vec::new();

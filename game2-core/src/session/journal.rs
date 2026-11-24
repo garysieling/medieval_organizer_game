@@ -84,8 +84,9 @@ impl Game {
 /// changes - a journal from before the bump would replay it differently
 /// (a dropped button's Act(n) would silently no-op; a TalkPick after a
 /// landed come-along now answers the invite's when/where, not the
-/// replies it meant (#1337))
-pub const JOURNAL_VERSION: u32 = 3;
+/// replies it meant; the floor's slate carries more motions now, so a
+/// Decide(n) can land on a different row (#1337))
+pub const JOURNAL_VERSION: u32 = 4;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -135,7 +135,19 @@ impl Game {
             crate::sim::organized_power::ActionQuality::Transactional
         } else { crate::sim::organized_power::ActionQuality::Overreach });
         let founded = self.meeting_call(seat, record, invited).map(|s| format!(" {}", s)).unwrap_or_default();
-        format!("House meeting - {} came. {}{}{}", invited.len(), outcome, found, founded)
+        // the called meeting IS the cadence (#1337): a cause come due
+        // takes its floor on the resolve - the day's own tick stood
+        // down for the gathering, so the slate opens here instead
+        let floor = if let Some(c) = crate::game::campaign::campaign_of(&self.world, oe) {
+            let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+                .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
+            if due && self.seats[seat].pending_agenda.is_none() {
+                self.seats[seat].pending_agenda = Some((self.agenda_motions(seat, c), self.tick));
+                true
+            } else { false }
+        } else { false };
+        format!("House meeting - {} came. {}{}{}{}", invited.len(), outcome, found, founded,
+            if floor { " The cause's business sits - the floor's yours." } else { "" })
     }
 
     /// The founding vote, when the org can take one: enough living
@@ -316,6 +328,16 @@ impl Game {
             // itself - the floor's deciding, the day doesn't pre-empt
             // the vote with a meeting of its own (#1157)
             if seat.map(|s| s.pending_agenda.is_some()).unwrap_or(false) { continue; }
+            // a called meeting under way for this org holds the cadence
+            // itself (#1337): the gathering's the meeting - the tick
+            // doesn't run a shadow one beside it. Checked against the
+            // live gathering, not the plan's `for_day`: calling it
+            // consumes that date before the gathering resolves, so a
+            // stale-date check would miss it and double up the meeting
+            let org = self.world.get_component::<crate::game::campaign::Campaign>(c).map(|cc| cc.org);
+            let gathering = self.meeting.as_ref()
+                .map(|m| Some(self.seats[m.seat].org) == org).unwrap_or(false);
+            if gathering { continue; }
             let player = seat.map(|s| s.player);
             if let Some((msg, attendees)) = self.hold_and_note_campaign_meeting(player, c, tick) {
                 // the cause met on its own day, without you (E6-2):

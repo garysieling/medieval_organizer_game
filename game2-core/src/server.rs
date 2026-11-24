@@ -121,8 +121,10 @@ struct SaveFile {
 }
 
 // bumped past 2: the Build button is gone, so an old save's Act(2) journal
-// entry would replay as a no-op and the world would diverge from its digest
-const SAVE_VERSION: u32 = 3;
+// entry would replay as a no-op and the world would diverge from its digest.
+// Bumped past 3: the floor's slate carries more motions now (#1337), so an
+// old save's Decide(n) could land on a different row on replay
+const SAVE_VERSION: u32 = 4;
 
 impl ServerHandle {
     /// Stop the world loop and the listeners; connections close as their
@@ -382,6 +384,16 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
             if f.version != SAVE_VERSION {
                 return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
                     format!("save file {} is version {}, this server reads {}", p.display(), f.version, SAVE_VERSION)));
+            }
+            // the outer save version tracks the journal's own by
+            // convention, not by construction - check the embedded one
+            // too, so a bump to one without the other still rejects an
+            // incompatible journal instead of silently replaying it
+            // under rules it was never recorded against
+            if f.journal.version != journal::JOURNAL_VERSION {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
+                    format!("save file {} carries a journal of version {}, this server reads {}",
+                        p.display(), f.journal.version, journal::JOURNAL_VERSION)));
             }
             Some(f)
         }

@@ -149,8 +149,11 @@ impl Relationship {
             self.trust.integrity *= keep;
         }
     }
-    /// the summary the readers know, off the parts
-    fn derive(&mut self) {
+    /// the summary the readers know, off the parts. Called after a
+    /// part was pressed directly (a quest's trust press): reconcile
+    /// would read the press as overshoot and scale the parts back to
+    /// the old strength, so the press re-derives instead
+    pub fn derive(&mut self) {
         self.strength = (self.intimacy + self.trust.ability
             + self.trust.benevolence + self.trust.integrity).clamp(-1.0, 1.0);
     }

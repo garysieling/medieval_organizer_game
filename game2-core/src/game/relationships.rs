@@ -388,6 +388,26 @@ pub fn push_bid(world: &mut World, from: Entity, other: Entity, turn: BidTurn) {
     }
 }
 
+/// The kept word, paid out (E5-5, #1443): each owner's confidence the
+/// seat held through its test of time raises their read of the seat's
+/// integrity - you kept your tongue, and they saw
+pub fn push_kept_word(world: &mut World, owners: &[Entity], other: Entity) {
+    for &owner in owners {
+        let e = find_relationship(world, owner, other).unwrap_or_else(|| {
+            add_relationship(world, Relationship {
+                from: owner, other, kind: RelKind::Stranger, strength: 0.0, interactions: 0,
+                ..Default::default()
+            })
+        });
+        if let Some(r) = world.get_component_mut::<Relationship>(e) {
+            r.recompose();
+            r.trust.integrity += 0.08;
+            r.derive();
+            r.interactions += 1;
+        }
+    }
+}
+
 /// Record an interaction - relationships evolve emergently. Finds the
 /// relationship entity between `from` and the interaction's target (or
 /// creates one), applies the interaction's effect on strength, and

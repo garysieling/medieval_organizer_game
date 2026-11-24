@@ -311,6 +311,9 @@ pub enum InviteStep {
 pub struct SafetyBid {
     pub kind: SafetyBidKind,
     pub reveal: crate::game::desires::Reveal,
+    /// The probe's true subject (E5-5): the third party whose lesser
+    /// secret the bidder carried - so a leak lands on the right ledger
+    pub probe: Option<(Entity, crate::game::desires::Reveal)>,
 }
 
 /// The three tests: the hypothetical asks after "a man", the
@@ -1546,10 +1549,10 @@ impl Game {
                             // a fresh secret tests the bond's nerve first
                             // (E5-4): the bid asks, the telling holds until
                             // the player's answered it
-                            let (line, kind) = self.safety_bid_line(seat, &t, r, pick);
+                            let (line, bid) = self.safety_bid_line(seat, &t, r, pick);
                             drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: line, gist: false });
                             if let Some(cur) = self.seats[seat].talk.as_mut() {
-                                cur.safety_bid = Some(SafetyBid { kind, reveal: r });
+                                cur.safety_bid = Some(bid);
                             }
                             bid_pending = true;
                             continue;
@@ -1836,6 +1839,32 @@ impl Game {
         })
     }
 
+    /// The named power a deep trouble binds its word against (E5-5):
+    /// "not the collector", "not the priest" - the one the telling
+    /// would feed. None where no power answers for it
+    fn power_for(&self, r: &crate::game::desires::Reveal) -> Option<Entity> {
+        use crate::game::desires::{Problem, Reveal};
+        use crate::game::vocation::{Craft, TownRole, Vocation};
+        let Reveal::Problem(p) = r else { return None };
+        let hunt = match p {
+            Problem::Taxed => 1,
+            Problem::OverseerCut => 2,
+            Problem::WritBorne | Problem::Grief => 3,
+            Problem::Doctrine | Problem::Blamed => 4,
+            _ => return None,
+        };
+        self.villagers.iter().copied().find(|&v| {
+            if villager::is_dead(&self.world, v) { return false; }
+            match hunt {
+                1 => crate::game::livelihood::has_role(&self.world, v, TownRole::TaxCollector),
+                2 => crate::game::livelihood::has_role(&self.world, v, TownRole::Overseer),
+                _ => self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == if hunt == 3 { Vocation::Knight } else { Vocation::Priest })
+                    .unwrap_or(false),
+            }
+        })
+    }
+
     /// The bond's backstage invitation (E5-9): a bond that's stood the
     /// safety test all the way to Challenger has already heard the
     /// hidden transcript - the engine still lets a warm friend-or-kin
@@ -2011,10 +2040,10 @@ impl Game {
                                 // nerve first (E5-4): the ask's spent,
                                 // the secret holds for the answer
                                 let t2 = self.seats[seat].talk.clone().unwrap();
-                                let (line, kind) = self.safety_bid_line(seat, &t2, r, pick);
+                                let (line, bid) = self.safety_bid_line(seat, &t2, r, pick);
                                 self.argue_line(seat, Some(who), line);
                                 if let Some(cur) = self.seats[seat].talk.as_mut() {
-                                    cur.safety_bid = Some(SafetyBid { kind, reveal: r });
+                                    cur.safety_bid = Some(bid);
                                 }
                                 self.refresh_player_talk(seat);
                                 return;
@@ -2491,9 +2520,10 @@ impl Game {
     /// the tongue, the hypothetical hides the telling behind "a man"
     pub(in crate::session) fn safety_bid_line(&mut self, seat: usize, t: &PlayerTalk,
                       r: crate::game::desires::Reveal, pick: u64)
-                      -> (String, SafetyBidKind) {
+                      -> (String, SafetyBid) {
         let (who, pe) = (t.who, self.seats[seat].player);
         use crate::game::desires::{self, Reveal};
+        let bare = |k| SafetyBid { kind: k, reveal: r, probe: None };
         // the probe tells you someone else's lesser secret and watches:
         // a live trouble on a third party, told through the real system
         if pick % 3 == 2 {
@@ -2504,18 +2534,23 @@ impl Game {
                 let dr = desires::next_reveal(&self.world, pe, v3, self.tick, pick).unwrap();
                 let n3 = self.name_of(v3);
                 let (did, _said) = desires::reveal_speech(&n3, &dr);
-                desires::hear(&mut self.world, pe, v3, dr, self.tick);
+                // the bidder carried it - hearsay to the seat, never a
+                // telling from `v3`'s own mouth (E5-5)
+                desires::hear_via(&mut self.world, pe, v3, dr, self.tick,
+                    desires::Source::Gossip { speaker: who });
                 let line = format!("Word is, {} - but it wasn't from me {{2:subj}} heard it.", did);
-                return (self.pair_said(who, pe, &line), SafetyBidKind::Probe);
+                let mut bid = bare(SafetyBidKind::Probe);
+                bid.probe = Some((v3, dr));
+                return (self.pair_said(who, pe, &line), bid);
             }
         }
         // the check, or "a man" - wants get the tongue asked, troubles
         // come in disguise
         match r {
             Reveal::Want(_) => (t.said("{2:can} {2:subj} hold {2:poss} tongue? There's a thing I'd near have said.",
-                false), SafetyBidKind::Confidence),
+                false), bare(SafetyBidKind::Confidence)),
             Reveal::Problem(_) => (t.said("Say a man kept back a sack from the tithe - what should be done with him, {2:think} {2:subj}?",
-                false), SafetyBidKind::Hypothetical),
+                false), bare(SafetyBidKind::Hypothetical)),
         }
     }
 
@@ -2555,6 +2590,12 @@ impl Game {
                     self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
                         pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                 }
+                // the deep tells name the power they fear (E5-5): a
+                // trouble against the law comes bound "not the reeve"
+                if let Some(power) = self.power_for(&bid.reveal) {
+                    crate::game::desires::restrict(&mut self.world, pe, who,
+                        &crate::game::desires::reveal_key(&bid.reveal), power);
+                }
             }
             BidTurn::Pivot => {
                 self.argue_line(seat, Some(who),
@@ -2567,6 +2608,21 @@ impl Game {
                 if turn == BidTurn::Against {
                     crate::game::episodes::file(&mut self.world, who, pe,
                         crate::game::episodes::MemKind::LeakedConfidence, self.tick, &["trust", "secret"]);
+                    // and it's a real breach when the fact was already
+                    // held in confidence (E5-5): the probe's word on a
+                    // third party, or the bidder's own earlier telling
+                    let (owner, fact) = bid.probe
+                        .map(|(v3, dr)| (v3, crate::game::desires::reveal_key(&dr)))
+                        .unwrap_or((who, crate::game::desires::reveal_key(&bid.reveal)));
+                    if crate::game::desires::leak(&mut self.world, pe, owner, &fact) {
+                        self.log_entity_ev(
+                            crate::session::gamelog::EvTag::new(
+                                crate::session::gamelog::Thread::Org,
+                                crate::session::gamelog::Valence::Negative,
+                                crate::session::gamelog::Sev::Minor),
+                            pe, format!("t{}: word of the telling got back to {}", self.tick,
+                                self.name_of(owner)));
+                    }
                     self.argue_line(seat, Some(who),
                         self.pair_said(who, pe, "Then forget I spoke. {2:subj} {2:be} not the one I took {2:obj} for."));
                 } else {

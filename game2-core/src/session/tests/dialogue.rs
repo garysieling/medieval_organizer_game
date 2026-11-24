@@ -2311,14 +2311,14 @@ fn test_the_probe_bid_tells_someone_elses_secret_first() {
     let before = told(&g);
     let t = g.seats[0].talk.as_ref().unwrap().clone();
     let r = crate::game::desires::Reveal::Problem(Problem::Taxed);
-    let (line, kind) = g.safety_bid_line(0, &t, r, 2);
-    assert_eq!(kind, SafetyBidKind::Probe, "the third shape probes");
+    let (line, bid) = g.safety_bid_line(0, &t, r, 2);
+    assert_eq!(bid.kind, SafetyBidKind::Probe, "the third shape probes");
     assert!(line.contains("Word is,"), "the decoy told: {}", line);
     assert!(!line.contains(&t.villager.name),
         "it isn't their own secret: {}", line);
     assert!(told(&g) > before, "the lesser secret filed on its owner");
+    assert!(bid.probe.is_some(), "the probe names its third party");
     // and the watch answers are keep / question / leak
-    let bid = SafetyBid { kind, reveal: r };
     assert_eq!(bid.labels().len(), 3);
 }
 

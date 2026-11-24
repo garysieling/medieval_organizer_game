@@ -35,9 +35,13 @@ fn campaign_talk_frame() {
     g.seats[0].picked = true;
     g.seats[0].ctx_actions.push(CtxAct::Townhall);
     g.ctx_act_at(0, 0);
-    g.seats[0].ctx_actions.clear();
-    g.seats[0].ctx_actions.push(CtxAct::March);
-    g.ctx_act_at(0, 0);
+    // the floor sits on the cadence's own date now (#1337): open the
+    // slate and vote the first line it carries
+    let c = game2_core::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<game2_core::game::campaign::CampaignMeeting>(c)
+        .unwrap().last_held = 0;
+    g.campaign_meeting_tick(g.tick);
+    g.decide_at(0, 0);
     g.seats[0].picked = false; // your own talk on the panel
     let view = View::new(Art::load_fs("../assets", 0));
     let buf = view.render(&g.ui_model(), (-1, -1));

@@ -38,11 +38,12 @@ fn brigade_ready(g: &mut Game, fire: bool) {
     g.world.get_component_mut::<Organization>(oe).unwrap().resources = 50.0;
 }
 
-/// The floor's slate after a Meet: picks the charter's spot if offered
+/// The floor's slate after the cadence's day sits it (#1337): picks
+/// the charter's spot if offered - a slate still sitting from the last
+/// call clears first, the way the week's own lapse does
 fn brigade_pick(g: &mut Game) -> Option<usize> {
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    let mi = g.seats[0].ctx_actions.len() - 1;
-    g.ctx_act_at(0, mi);
+    g.seats[0].pending_agenda = None;
+    super::sit_floor(g, 0);
     g.seats[0].pending_agenda.as_ref().map(|(slate, _)| {
         slate.iter().position(|&m| m == crate::game::campaign::Motion::Brigade)
     }).flatten()

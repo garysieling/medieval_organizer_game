@@ -29,8 +29,7 @@ fn test_the_seat_s_events_reach_the_camera() {
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
-    g.seats[0].ctx_actions = vec![CtxAct::March];
-    g.ctx_act_at(0, 0);
+    g.march_at(0);
     assert!(g.formation.is_some(), "no column formed");
     let ev = g.ui_model().player_event.expect("the march is the event");
     assert_eq!(ev.kind, 0, "a march");

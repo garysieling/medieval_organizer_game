@@ -41,18 +41,16 @@ fn test_the_debrief_settles_the_next_step() {
     let members: Vec<Entity> = g.world.get_component::<Organization>(org)
         .map(|o| o.members.iter().copied().take(3).collect()).unwrap_or_default();
     if let Some(p) = pp {
-        for m in members {
+        for &m in &members {
             if let Some(mp) = g.world.get_component_mut::<Pos>(m) {
                 mp.x = p.x + 1.0; mp.y = p.y;
             }
         }
     }
-    // the debrief fires and the directive lands
-    g.ctx_act_at(0, g.seats[0].ctx_actions.iter().position(|a| *a == crate::session::seat::CtxAct::Debrief)
-        .unwrap_or(0));
-    // whether the button fired or the mandate's direct: the campaign
-    // knows its next step after the debrief
+    // the debrief fires and the directive lands - a floor motion now,
+    // the room standing there is the tally (#1337)
+    g.debrief_at(0, &members);
     let d = g.world.get_component::<crate::game::campaign::Campaign>(c)
         .and_then(|cc| cc.directive.clone());
-    assert!(d.is_some() || g.seats[0].ctx_actions.is_empty(), "the room never settled");
+    assert!(d.is_some(), "the room never settled");
 }

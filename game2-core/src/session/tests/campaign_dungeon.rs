@@ -24,8 +24,7 @@ fn test_the_knights_take_the_loudest_and_the_letters_bring_them_home() {
         }
     }
     // a real crowd draws the knights, and they take the loudest
-    g.seats[0].ctx_actions.push(CtxAct::March);
-    g.ctx_act_at(0, 1);
+    g.march_at(0);
     for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
     assert!(g.log.iter().any(|l| l.contains("knights come out") && l.contains("is taken")), "{:?}", g.log);
     // then the letters bring him home
@@ -89,8 +88,7 @@ fn test_the_taken_get_a_release_campaign_and_their_friends_sign_on() {
             crate::game::relationships::Interaction {
                 other: g.villagers[0], kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
     }
-    g.seats[0].ctx_actions.push(CtxAct::March);
-    g.ctx_act_at(0, 0);
+    g.march_at(0);
     for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
     let prisoner = g.villagers.iter().copied()
         .find(|&v| g.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some())

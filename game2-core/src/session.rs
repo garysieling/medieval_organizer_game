@@ -366,12 +366,9 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Errand => Button { label: "Errand".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 120, 90) },
         CtxAct::PairUp => Button { label: "Pair up".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (120, 90, 140) },
         CtxAct::Matchmake => Button { label: "Matchmake".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (160, 90, 110) },
-        // Meet lives on the campaign's FIGHT line in the org section - the
-        // 278 slot would run into the inspector; March beside it
-        CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 150, y: 486, w: 60, h: 16, color: (140, 80, 80) },
-        CtxAct::Cadence => Button { label: "Cadence".into(), key: ' ', x: UI_X as i32 + 150, y: 470, w: 60, h: 16, color: (100, 100, 130) },
-        CtxAct::March => Button { label: "March".into(), key: ' ', x: UI_X as i32 + 216, y: 486, w: 60, h: 16, color: (150, 60, 60) },
-        CtxAct::MendHall => Button { label: "Mend hall".into(), key: ' ', x: UI_X as i32 + 150, y: 454, w: 60, h: 16, color: (100, 80, 120) },
+        // the cause's verbs went to the floor (#1337): Meet, March,
+        // Cadence, Assembly, Debrief, MendHall, School and Flyers are
+        // motions the agenda slate votes now - no button draws for them
         // Delegate and Strike act on the picked member - they live on the
         // bottom edge of their inspector card
         CtxAct::Delegate => Button { label: "Seat".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (80, 80, 140) },
@@ -381,11 +378,8 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // prisoner's petition sits where the seat button would
         CtxAct::Townhall => Button { label: "Demands".into(), key: ' ', x: UI_X as i32 + 146, y: 422, w: 62, h: 16, color: (150, 60, 60) },
         CtxAct::Petition => Button { label: "Petition".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (140, 80, 80) },
-        // the target's card gets the interview; the debrief sits beside
-        // the meeting it reports to
+        // the target's card gets the interview
         CtxAct::Interview => Button { label: "Interview".into(), key: ' ', x: UI_X as i32 + 146, y: 406, w: 62, h: 16, color: (90, 100, 140) },
-        CtxAct::Debrief => Button { label: "Debrief".into(), key: ' ', x: UI_X as i32 + 216, y: 470, w: 62, h: 16, color: (100, 100, 130) },
-        CtxAct::Assembly => Button { label: "Assembly".into(), key: ' ', x: UI_X as i32 + 216, y: 454, w: 62, h: 16, color: (110, 90, 130) },
         CtxAct::Attend => Button { label: "Attend".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 62, h: 16, color: (140, 110, 60) },
         CtxAct::Board => Button { label: "Board".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
         CtxAct::Disembark => Button { label: "Disembark".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
@@ -401,8 +395,6 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // and shares it again with the fire - pushed last of all, a blaze
         // near enough to throw on outranks a cat or a snowball
         CtxAct::Douse => Button { label: "Throw water".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (70, 120, 170) },
-        // shares the card's bottom-left corner with Seat/Strike on the right
-        CtxAct::Flyers => Button { label: "Flyers".into(), key: ' ', x: UI_X as i32 + 10, y: 438, w: 130, h: 16, color: (120, 100, 40) },
         CtxAct::PickCaps => Button { label: "Pick caps".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (110, 90, 50) },
         CtxAct::TakeCache => Button { label: "Take the cache".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (120, 100, 60) },
         // the delivery sits in the clear below the log box
@@ -419,7 +411,6 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // the kind hand shares Pet her's slot on the big row's right half -
         // the wire's ctx_labels names the animal it reaches for (#1056)
         CtxAct::Tame => Button { label: "Pet it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
-        CtxAct::School => Button { label: "The school".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (90, 110, 70) },
     }
 }
 

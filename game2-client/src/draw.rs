@@ -430,8 +430,7 @@ pub(crate) const ACTION_ICONS: [&str; 1] = ["icon-talk"];
 pub(crate) fn ctx_icon(act: game2_core::session::CtxAct) -> &'static str {
     use game2_core::session::CtxAct::*;
     match act {
-        Gather | Meet | March => "icon-organize",
-        MendHall | School => "icon-build",
+        Gather => "icon-organize",
         _ => "",
     }
 }

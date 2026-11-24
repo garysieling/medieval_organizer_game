@@ -1,0 +1,5 @@
+{
+ "model": "gemma3:4b",
+ "endpoint": "http://localhost:11434",
+ "temperature": 0
+}

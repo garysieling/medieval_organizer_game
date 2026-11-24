@@ -60,3 +60,25 @@ Edit titles and bodies, untick any you don't want, then **Create selected on Git
 (click twice to confirm). Issues get the `enhancement` and `conversation-review` labels, and
 the conversations are marked as ticketed so they don't get filed twice. Conversations tagged
 `good` or rated 5 aren't ticketed.
+
+## The judge
+
+`judge.py` is the offline LLM judge (E0-6): a local Ollama model compares
+two transcripts side by side and says which does better on the three
+dimensions code can't check - **voice fit**, **flatness** and
+**implication** - and nothing else. Order is randomized per pair against
+position bias, the model is pinned in `judge.config.json`, and approved
+`good` transcripts anchor the rubric.
+
+```bash
+python3 tools/convo-review/judge.py keepers                  # propose anchors from 'good' marks
+python3 tools/convo-review/judge.py pair <idA> <idB>         # judge one pair
+python3 tools/convo-review/judge.py agreement [--both]       # judge vs your review marks
+```
+
+`agreement` pairs each transcript you tagged down on a dim
+(`out-of-character`, `wrong-tone` -> voice; `flat`, `repetitive` ->
+flatness) with a clean or `good` one, and reports how often the judge
+sides with you - the number to set the trust threshold against.
+Implication has no user tag and is reported separately. `--both` runs
+each pair in both orders as a position-bias check.

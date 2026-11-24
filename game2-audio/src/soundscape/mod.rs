@@ -9,6 +9,7 @@
 //! `scan` below.
 #[cfg(test)]
 mod tests;
+pub mod ambience;
 
 use game2_core::game::tilemap::{Tile, WallPiece};
 use game2_core::session::model::{guard_pose, pose};

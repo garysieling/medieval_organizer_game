@@ -23,8 +23,9 @@ lewton = "0.10"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [features]
-# analysis is on by default: tests and S3's sound_dump always want it;
-# scenarios ships empty until S3 fills it
-default = ["analysis"]
+# analysis and scenarios are on by default: tests and S3's sound_dump
+# always want them; the scenario library is a harness-only test rig
+# (the layering test allowlists it)
+default = ["analysis", "scenarios"]
 analysis = []
 scenarios = []

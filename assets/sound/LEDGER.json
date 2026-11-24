@@ -1,1 +1,62 @@
-[]
+[
+  {
+    "id": "church_bell",
+    "path": "oneshots/church_bell.ogg",
+    "source_url": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "c1de3c5e27aa728e994c1e7e85fffacb1113582dbed7e1b14c4ae465fdfc7aa2",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "anvil_hit",
+    "path": "oneshots/anvil_hit.ogg",
+    "source_url": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "e58180115bf669ff639e2f85cb583183af6cc7ab951b3032b39970c0886486ab",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "door_creak",
+    "path": "oneshots/door_creak.ogg",
+    "source_url": "https://kenney.nl/assets/rpg-audio",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "40a2f8647f2840b31ac2d6cb381f7da477f9a4619f9dcd486ab04c4186b05fbb",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "cart_wheel",
+    "path": "oneshots/cart_wheel.ogg",
+    "source_url": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "974e5157da2dceb56360bc5d9385fe7332c3826a5f823d6b4920b8de4d4a1612",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hoofbeat",
+    "path": "oneshots/hoofbeat.ogg",
+    "source_url": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "9060c038a709b6a874b3bc287161e1ac58bff808cece3fa5621b54ac4f97e997",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "gate_creak",
+    "path": "oneshots/gate_creak.ogg",
+    "source_url": "https://kenney.nl/assets/rpg-audio",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "ce02f51440a7dad69543a2114f52a5429a658feebcb2616bc7e4291855ad3b62",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  }
+]

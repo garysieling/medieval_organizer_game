@@ -39,7 +39,7 @@ fn frame_with(cue: &str, seed: u64) -> AudioFrame {
         "rain" => CueKind::Rain { pan: 0.0, gain: 0.8 },
         _ => CueKind::Mood { pan: 0.0, gain: 0.8 },
     };
-    AudioFrame { cues: vec![cue], seed }
+    AudioFrame { cues: vec![cue], emitters: vec![], seed }
 }
 
 #[test]

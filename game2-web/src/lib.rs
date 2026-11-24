@@ -1185,6 +1185,9 @@ mod tests {
             CueKind::Snowballs { .. } => "snowballs",
             CueKind::Splash { .. } => "splash",
             CueKind::Mood { .. } => "mood",
+            // the A5 scene cues (alarm, toll, cheer, ...) - the legacy
+            // list this test builds never produces them
+            _ => "other",
         }).collect();
         assert_eq!(kinds, ["rain", "anvil", "festival", "wonder", "bell",
                            "snowballs", "splash", "mood", "mood"]);

@@ -92,7 +92,7 @@ impl Game {
 /// journal's rolls land differently still; campaign outcomes now test
 /// ghost lies (#1444), so an old journal's writs, parades, pleas and
 /// resolves land on different ghost strengths)
-pub const JOURNAL_VERSION: u32 = 7;
+pub const JOURNAL_VERSION: u32 = 8;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

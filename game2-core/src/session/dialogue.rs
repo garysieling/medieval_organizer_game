@@ -1359,6 +1359,52 @@ impl Game {
                     villager.status.push("rowing");
                 }
             }
+            // the tale they'd tell (E4-8, #1426): their deepest mark's
+            // event off the thirty years' record - whom else it touched,
+            // named now while the world can resolve them - and the frame
+            // their stake sets on it. The "old days" ask gates on the
+            // status it carries. The slot comes off the persona's seed:
+            // the roster's index shifts home under departures, a
+            // road-brought newcomer wasn't here for the thirty years
+            let persona = self.world
+                .get_component::<crate::game::persona::Persona>(v);
+            let slot = persona.and_then(|p|
+                crate::game::persona::cast_slot(self.seed, p));
+            let ph = self.world
+                .resource::<crate::session::prehistory::Prehistory>();
+            if let (Some(slot), Some(ph), true) = (slot, ph,
+                self.world.get_component::<crate::game::villager::Migrant>(v)
+                    .is_none()) {
+                let mark = ph.marks_of(slot).into_iter()
+                    .max_by(|a, b| a.severity.partial_cmp(&b.severity).unwrap());
+                if let Some(mark) = mark.and_then(|m|
+                    ph.events.get(m.id.0 as usize).map(|ev| (m, ev))) {
+                    // the record's slots are the cast's own - a
+                    // departure shifted the roster, so each soul is
+                    // found by its seed, not its seat
+                    let by_slot = |s: usize| self.villagers.iter().copied()
+                        .find(|&e| self.world
+                            .get_component::<crate::game::persona::Persona>(e)
+                            .and_then(|p| crate::game::persona::cast_slot(self.seed, p))
+                            == Some(s));
+                    let others = mark.1.touched.iter().filter_map(|t| match t.who {
+                        crate::session::prehistory::Who::Cast(s) if s != slot =>
+                            by_slot(s).map(|e| (self.name_of(e), t.part)),
+                        crate::session::prehistory::Who::Ephemeral(n) =>
+                            Some((n.to_string(), t.part)),
+                        _ => None,
+                    }).collect::<Vec<_>>();
+                    let traits = self.world
+                        .get_component::<crate::game::traits::Personality>(v)
+                        .map(|p| p.traits.clone()).unwrap_or_default();
+                    villager.story = Some(crate::game::storytelling::StorySeed {
+                        kind: mark.1.kind, years_ago: mark.1.years_ago, part: mark.0.part,
+                        others, frame: crate::game::storytelling::frame_of(mark.0.part,
+                            persona.map(|p| (p, traits.as_slice()))),
+                    });
+                    villager.status.push("has_a_past");
+                }
+            }
         }
         // how well they know you colours the talk - the trees key on the
         // stage as a status fact
@@ -1700,7 +1746,9 @@ impl Game {
             let draw = crate::game::dialogue_trees::ASK_TOPICS.iter()
                 .find(|tp| tp.label == *label).map(|tp| tp.draws).unwrap_or(Draw::No);
             match draw {
-                Draw::No => {}
+                // the tale rides the ask's own answer turn (E4-8):
+                // nothing extra draws after it
+                Draw::No | Draw::Story => {}
                 Draw::Secret if bid_pending => {}
                 Draw::Secret => {
                     let pick = self.rng.next();

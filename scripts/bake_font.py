@@ -5,9 +5,11 @@ scripts/fonts/JacquardaBastarda9.ttf, licence in scripts/fonts/OFL.txt).
 Jacquarda is a pixel blackletter on a 13px grid - its nominal raster is
 13px tall and renders crisply only at that size. At the game's old 5x7
 metric blackletter is illegible, so the face is baked at its native
-size, condensed 20% horizontally (BOX resample + hard threshold - at
-0.8x the gothic texture survives and the face still reads), into 10x13
-monospace cells at an 11px advance. Output is game2-core/src/ui/glyphs.rs.
+size, condensed 20% horizontally, into 10x13 monospace cells at an 11px
+advance. The resample matters: BOX averages thin strokes away under a
+hard threshold, fragmenting glyphs like g, s and w; LANCZOS at a lower
+cutoff keeps the gothic texture so prose still reads at 1x.
+Output is game2-core/src/ui/glyphs.rs.
 """
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -18,6 +20,7 @@ OUT = os.path.join(ROOT, "game2-core", "src", "ui", "glyphs.rs")
 
 SIZE = 13          # the face's native crisp raster
 SQUASH = 0.8       # horizontal condensation
+THRESHOLD = 100    # LANCZOS keeps a soft edge; a lower cutoff keeps thin strokes
 Y0, Y1 = 4, 17     # global ink band (measured across ASCII 32-126)
 CW = Y1 - Y0       # 13 rows
 GW = 10            # cell columns
@@ -28,8 +31,8 @@ def bake():
     for c in range(32, 127):
         im = Image.new("L", (48, 40), 0)
         ImageDraw.Draw(im).text((8, 0), chr(c), font=font, fill=255)
-        im = im.resize((int(48 * SQUASH), 40), Image.BOX)
-        im = im.point(lambda p: 255 if p >= 140 else 0)
+        im = im.resize((int(48 * SQUASH), 40), Image.LANCZOS)
+        im = im.point(lambda p: 255 if p >= THRESHOLD else 0)
         b = im.getbbox()
         rows = [0] * CW
         if b:

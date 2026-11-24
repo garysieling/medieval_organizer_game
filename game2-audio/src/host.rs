@@ -11,6 +11,7 @@ use crate::engine::{Bus, Engine, Source, VoiceParams};
 use crate::settings::AudioSettings;
 use crate::soundscape::ambience::Ambience;
 use crate::soundscape::{Emitter, Listener};
+use game2_core::infra::perf;
 use game2_core::session::{UiModel, MAP_TILES};
 use std::collections::VecDeque;
 use std::io;
@@ -118,6 +119,8 @@ impl AudioFrame {
     /// The same intent at a caller's own ear - a client with a real
     /// camera (or a scenario's `Look` op) passes its `Listener` in.
     pub fn from_model_with(model: &UiModel, listener: &Listener) -> Self {
+        let emitters = { let _s = perf::scope("audio.scan");
+            crate::soundscape::scan(model, listener) };
         AudioFrame {
             cues: model.sfx_v.iter()
                 .map(|(kind, x, _y, intensity)| {
@@ -125,7 +128,7 @@ impl AudioFrame {
                     CueKind::from_name(kind, pan, *intensity)
                 })
                 .collect(),
-            emitters: crate::soundscape::scan(model, listener),
+            emitters,
             seed: model.seed,
             listener: listener.clone(),
             intent: crate::director::Intent::default(),
@@ -338,6 +341,9 @@ impl Score {
     /// near -20 LUFS; 8 voices at velocity would eat the whole bar).
     fn fire_due(&mut self, engine: &mut Engine, seed: u64,
         emitters: &[Emitter], sr: u32) {
+        // the score's per-block work: firing due notes, and the phrase
+        // compose when a boundary lands mid-block (the rare spike)
+        let _s = perf::scope("audio.compose");
         const NOTE_GAIN: f32 = 0.15;
         while let Some((t, _)) = self.pending_notes.front() {
             if *t > self.song_pos { break; }
@@ -549,7 +555,8 @@ impl AudioHost {
 
     /// The same push at a caller's own ear (a scenario's `Look`).
     pub fn push_with(&mut self, model: &UiModel, listener: &Listener) {
-        let intent = self.director(model).update(model);
+        let intent = { let _s = perf::scope("audio.director");
+            self.director(model).update(model) };
         let mut frame = AudioFrame::from_model_with(model, listener);
         frame.intent = intent;
         self.push_frame(&frame);
@@ -677,6 +684,7 @@ impl AudioHost {
                 }
                 if self.frames_in != self.amb_frame {
                     self.amb_frame = self.frames_in;
+                    let _s = perf::scope("audio.ambience");
                     self.ambience.update(&self.cur_emitters, self.cur_seed,
                         self.frames_in, engine);
                 }
@@ -685,7 +693,8 @@ impl AudioHost {
                 // stingers ring, then the block renders in chunks so
                 // phrase boundaries and note onsets land on samples.
                 self.score.apply_duck(&self.mix, engine);
-                self.score.fire_stingers(engine, self.sr);
+                { let _s = perf::scope("audio.compose");
+                    self.score.fire_stingers(engine, self.sr); }
                 let mut done = 0usize;
                 while done * 2 < out.len() {
                     let rem = (out.len() / 2 - done) as u64;
@@ -699,7 +708,8 @@ impl AudioHost {
                             &self.cur_emitters, self.sr);
                         continue;
                     }
-                    engine.render(&mut out[done * 2..(done + gap as usize) * 2]);
+                    { let _s = perf::scope("audio.mix");
+                        engine.render(&mut out[done * 2..(done + gap as usize) * 2]); }
                     self.score.song_pos += gap;
                     done += gap as usize;
                 }

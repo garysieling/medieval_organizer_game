@@ -230,6 +230,11 @@ pub struct Confidence {
 /// proof (E5-5)
 pub const CONFIDENCE_MARK_DAYS: u64 = 20;
 
+/// How many turned-aside asks draw the shape (E5-2, #1434): the first
+/// refusals read as manners; three in one area and the seat can see the
+/// outline - "something about the lord"
+pub const SILHOUETTE_AT: u32 = 3;
+
 /// What they dodge on (E5-2 counts these up later; the record's kept
 /// now): the shape a villager shows a seat that asks where they won't
 /// go - a form without a name
@@ -341,6 +346,33 @@ pub fn known(world: &World, knower: Entity, e: Entity) -> Vec<Reveal> {
 /// knowledge take this road
 pub fn note(world: &mut World, knower: Entity, e: Entity, r: Reveal) {
     record(world, knower, e, reveal_key(&r), Some(r), Source::Told { speaker: e }, 0);
+}
+
+/// A turned-aside ask lands on the seat's ledger (E5-2, #1434): each
+/// evasion counts against the area that was closed - a real one, named
+/// by the topic that asked past it. Returns the count in that area; at
+/// `SILHOUETTE_AT` the shape's visible
+pub fn note_evasion(world: &mut World, knower: Entity, e: Entity, area: &str, day: u64) -> u32 {
+    if world.get_component::<Known>(knower).is_none() {
+        world.add_component(knower, Known::default());
+    }
+    let k = world.get_component_mut::<Known>(knower).unwrap();
+    match k.silhouettes.iter_mut().find(|s| s.who == e && s.area == area) {
+        Some(s) => { s.evasions += 1; s.last_day = day; s.evasions }
+        None => {
+            k.silhouettes.push(Silhouette {
+                who: e, area: area.into(), evasions: 1, last_day: day });
+            1
+        }
+    }
+}
+
+/// The count of their turn-asides in `area` the seat's marked (E5-2)
+pub fn evasions_of(world: &World, knower: Entity, e: Entity, area: &str) -> u32 {
+    world.get_component::<Known>(knower)
+        .map(|k| k.silhouettes.iter()
+            .filter(|s| s.who == e && s.area == area).map(|s| s.evasions).sum())
+        .unwrap_or(0)
 }
 
 /// The confidences a seat holds on `e` (E5-5)
@@ -1495,6 +1527,32 @@ mod tests {
             Source::Told { speaker: other }, 5);
         leak(&mut w, knower, other, "problem:broke");
         assert_eq!(honor_confidences(&mut w, knower, 999), 0);
+    }
+
+    #[test]
+    fn test_turned_asides_count_into_a_shape() {
+        let mut w = World::new();
+        let (knower, who) = (w.create_entity(), person(&mut w, &[]));
+        assert_eq!(note_evasion(&mut w, knower, who, "their dead", 5), 1);
+        assert_eq!(note_evasion(&mut w, knower, who, "their dead", 6), 2);
+        // a shape draws at three (E5-2 done-when)
+        assert_eq!(note_evasion(&mut w, knower, who, "their dead", 7), SILHOUETTE_AT);
+        assert_eq!(evasions_of(&w, knower, who, "their dead"), 3);
+        // another area counts its own ledger
+        assert_eq!(note_evasion(&mut w, knower, who, "the lord", 7), 1);
+        assert_eq!(evasions_of(&w, knower, who, "the lord"), 1);
+        // the last day moves with the latest turn-aside
+        let s = &w.get_component::<Known>(knower).unwrap().silhouettes;
+        assert_eq!(s.iter().find(|x| x.area == "their dead").unwrap().last_day, 7);
+    }
+
+    #[test]
+    fn test_a_turn_aside_on_another_villager_is_theirs_not_yours() {
+        let mut w = World::new();
+        let (knower, a, b) = (w.create_entity(), person(&mut w, &[]), person(&mut w, &[]));
+        note_evasion(&mut w, knower, a, "the lord", 3);
+        assert_eq!(evasions_of(&w, knower, b, "the lord"), 0);
+        assert_eq!(evasions_of(&w, a, a, "the lord"), 0);
     }
 }
 

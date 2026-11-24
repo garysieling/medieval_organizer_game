@@ -1431,8 +1431,12 @@ impl Game {
             use crate::game::desires::{self, LedgerEntry, Source};
             let pe = self.seats[seat].player;
             let ledger = desires::entries(world, pe, v);
+            // the shape only draws once it's stood a few refusals
+            // (E5-2): the odd turn aside reads as manners, not a pattern
             let sils: Vec<desires::Silhouette> = world.get_component::<desires::Known>(pe)
-                .map(|k| k.silhouettes.iter().filter(|s| s.who == v).cloned().collect())
+                .map(|k| k.silhouettes.iter()
+                    .filter(|s| s.who == v && s.evasions >= desires::SILHOUETTE_AT)
+                    .cloned().collect())
                 .unwrap_or_default();
             let held = desires::confidences(world, pe, v);
             let read = crate::game::organizing::read_of(world, pe, v);

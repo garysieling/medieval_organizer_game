@@ -759,6 +759,99 @@ fn test_a_too_deep_ask_costs_them_nerve() {
     assert_eq!(t.forward_seen, 1);
 }
 
+/// Stranger with a worn secret: each "Ask about what weighs on them"
+/// turns aside; returns the villager
+fn press_recipe(g: &mut Game) -> Entity {
+    use crate::game::desires::{InnerLife, Problem};
+    use crate::game::relationships::{SafetyRung, add_relationship};
+    let i = adults(g)[0];
+    let v = g.villagers[i];
+    let pe = g.player;
+    add_relationship(&mut g.world, crate::game::relationships::Relationship {
+        from: pe, other: v, kind: RelKind::Acquaintance,
+        strength: 0.1, interactions: 1,
+        safety: SafetyRung::Contributor, ..Default::default() });
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    talk_beside(g, i);
+    v
+}
+
+/// Press the worn secret's deep ask once - it's spent as it's put; the
+/// press (E5-2) is the same ask re-put across talks
+fn press_on(g: &mut Game) {
+    let menu = open_ask_menu(g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .unwrap_or_else(|| panic!("the worn secret's ask lists: {menu:?}"));
+    g.talk_pick_at(0, Some(p));
+}
+
+#[test]
+fn test_pressing_where_they_wont_go_draws_its_shape() {
+    // E5-2 done-when: pressing where they won't go draws the shape -
+    // "something about the lord", here "something about the trouble" -
+    // and the seat's told they see it. Earlier presses this seat's
+    // already made (the ledger keeps them across talks)
+    let mut g = Game::new();
+    let v = press_recipe(&mut g);
+    let trouble = crate::game::conversation::area_name(crate::game::conversation::Area::Trouble);
+    let (pe, t0) = (g.player, g.tick);
+    crate::game::desires::note_evasion(&mut g.world, pe, v, trouble, t0);
+    crate::game::desires::note_evasion(&mut g.world, pe, v, trouble, t0);
+    press_on(&mut g);
+    assert_eq!(crate::game::desires::evasions_of(&g.world, g.player, v, trouble),
+        crate::game::desires::SILHOUETTE_AT, "the third press draws the shape");
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.notes.iter().any(|n| n.contains("shape of it")),
+        "the seat's told what they see: {:?}", t.notes);
+}
+
+#[test]
+fn test_a_hothead_pressed_past_the_shape_blurts_it_out() {
+    // E5-2: a hothead pressed past the shape tells the thing anyway -
+    // in temper, as a real telling on the seat's ledger - and the bond
+    // pays for the heat
+    use crate::game::desires;
+    use crate::game::relationships::{find_relationship, Relationship};
+    let mut g = Game::new();
+    let v = press_recipe(&mut g);
+    g.world.add_component(v, Personality { traits: vec![Trait::Hotheaded] });
+    let trouble = crate::game::conversation::area_name(crate::game::conversation::Area::Trouble);
+    let (pe, t0) = (g.player, g.tick);
+    crate::game::desires::note_evasion(&mut g.world, pe, v, trouble, t0);
+    crate::game::desires::note_evasion(&mut g.world, pe, v, trouble, t0);
+    press_on(&mut g);
+    let heard = desires::known(&g.world, g.player, v);
+    assert!(!heard.is_empty(), "the blurt told something: {:?}", heard);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.blurted, "the temper spent itself");
+    assert!(t.argued.iter().any(|(_, l)| l.text.contains("Is that what you wanted")),
+        "it came out in heat: {:?}", t.argued.iter().map(|x| &x.1.text).collect::<Vec<_>>());
+    let integ = find_relationship(&g.world, g.player, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e).map(|r| r.trust.integrity))
+        .unwrap_or(0.0);
+    assert!(integ < 0.0, "the telling cost the bond's keeping: {integ}");
+}
+
+#[test]
+fn test_backing_off_mends_the_nerve_a_press_frayed() {
+    // E5-2: after a press frays the rung, taking an easier ask - one
+    // they answer - raises it back a step
+    use crate::game::relationships::{find_relationship, Relationship, SafetyRung};
+    let mut g = Game::new();
+    let v = press_recipe(&mut g);
+    press_on(&mut g);
+    let rung = |g: &Game| find_relationship(&g.world, g.player, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e).map(|r| r.safety));
+    assert_eq!(rung(&g), Some(SafetyRung::Learner), "the press frayed it");
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about the village")
+        .expect("the easy ask's on the table");
+    g.talk_pick_at(0, Some(p));
+    assert_eq!(rung(&g), Some(SafetyRung::Contributor),
+        "backing off paid the fray back a rung: {:?}", rung(&g));
+}
+
 #[test]
 fn test_the_trouble_they_told_is_an_ask() {
     // what's already shared sits on the menu as its own question
@@ -1222,6 +1315,7 @@ fn test_the_acts_say_how_the_chat_landed() {
         }).collect(),
         ending, vibe: None, asked: vec![], forward: 0, shared: 0, overshot: false,
         setting: crate::game::setting::STREET,
+        evasions: vec![],
     };
     // a warm exchange
     assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],

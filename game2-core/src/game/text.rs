@@ -720,6 +720,9 @@ pub fn authored_lines_by_source() -> Vec<(&'static str, &'static str)> {
     for h in crate::game::idiolect::HABITS {
         all.extend(h.lines().iter().map(|l| ("idiolect", *l)));
     }
+    for set in crate::game::conversation::EVADE_SETS {
+        all.extend(set.iter().map(|l| ("evade", *l)));
+    }
     all
 }
 

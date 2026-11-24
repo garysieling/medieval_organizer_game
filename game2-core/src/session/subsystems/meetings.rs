@@ -964,6 +964,7 @@ impl Game {
                     // the room (#1442): the efficacy credit lands on the
                     // showing, not the saying - against the plan the
                     // call snapshotted, the live one's already spent
+                    let mut departed: Vec<Entity> = vec![];
                     for &v in &m.invited {
                         if m.promised.contains(&v) {
                             crate::game::act_model::ask_kept(&mut self.world, v);
@@ -972,6 +973,36 @@ impl Game {
                                 crate::game::beliefs::Tested::PromiseKept,
                                 Some(self.seats[m.seat].player), self.tick);
                         }
+                        // the org's ask over a bare house: a member who
+                        // comes with their own problem still live strains
+                        // against their own interest (E8-4, #1454) - the
+                        // cause is the calling seat's, not the first's
+                        if self.world
+                            .get_component::<crate::sim::community::Organization>(self.seats[m.seat].org)
+                            .map(|o| o.members.contains(&v)).unwrap_or(false) {
+                            use crate::game::desires::Problem;
+                            let bare = crate::game::desires::problems_of(&self.world, v, self.tick)
+                                .iter().any(|p| matches!(p,
+                                    Problem::Broke | Problem::NoHome | Problem::NoWorkplace));
+                            if bare {
+                                crate::game::tension::strained(&mut self.world, v,
+                                    crate::game::tension::Axis::Interest, 0.05);
+                            } else {
+                                crate::game::tension::eased(&mut self.world, v,
+                                    crate::game::tension::Axis::Interest, 0.02);
+                            }
+                            if let Some(a) = crate::game::tension::giving(&self.world, v) {
+                                if self.tension_flip(v, a, self.tick, self.seats[m.seat].org) {
+                                    departed.push(v);
+                                }
+                            }
+                        }
+                    }
+                    // a soul the strain broke walked out on the gather -
+                    // the talk's join pass mustn't seat them back before
+                    // the end
+                    if !departed.is_empty() {
+                        m.invited.retain(|v| !departed.contains(v));
                     }
                     m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());
                     self.meeting_beats(&mut m);

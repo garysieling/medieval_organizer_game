@@ -196,6 +196,136 @@ pub fn shaped(ops: &[Op], line: &str, account: Option<&str>, stance: &Stance, rn
     out
 }
 
+/// The six style markers a speaker's temperament sets (E4-6, #1433;
+/// PERSONAGE's parameters ported lightly): which of them a line rolls
+/// is the speaker's own signature. Hard cap two a line; most lines
+/// stay plain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Marker {
+    /// "and that's the long of it" - the line runs on past its need
+    Verbose,
+    /// "or so I hear" - the edge off a plain statement
+    Hedge,
+    /// a hot line ends on the bang of it
+    Exclaim,
+    /// "or am I mistook?" - the question flung back at the room
+    AskBack,
+    /// "for my part" - the self held up beside the matter
+    SelfTalk,
+    /// "saints keep us" - the oath that opens their mouth
+    Oath,
+}
+const MARKERS: [Marker; 6] = [Marker::Verbose, Marker::Hedge,
+    Marker::Exclaim, Marker::AskBack, Marker::SelfTalk, Marker::Oath];
+
+/// The six marker strengths a speaker's traits imply (E4-6 reads the
+/// trait layer, not the Big Five floats - those integrate when E1-4's
+/// persona-derived values land). Stolid damps every marker.
+fn style_strengths(speaker: &Speaker) -> [f32; 6] {
+    use crate::game::traits::Trait;
+    let mut s = [0.0f32; 6];
+    for t in &speaker.traits {
+        match t {
+            Trait::Gregarious => { s[0] += 0.30; s[2] += 0.15; s[3] += 0.20; }
+            Trait::Kind => { s[0] += 0.15; s[1] += 0.10; }
+            Trait::Wary => { s[1] += 0.35; }
+            Trait::Stolid => for v in s.iter_mut() { *v -= 0.30; }
+            Trait::Hotheaded => { s[2] += 0.40; }
+            Trait::Cruel => { s[2] += 0.15; }
+            Trait::SelfAbsorbed => { s[3] += 0.30; s[4] += 0.45; }
+            Trait::Proud => { s[3] += 0.15; s[4] += 0.20; }
+            Trait::Ambitious => { s[0] += 0.10; s[4] += 0.15; }
+            Trait::Pious => { s[5] += 0.50; }
+            Trait::Steady => { s[1] += 0.10; s[5] += 0.10; }
+            Trait::Lazy => { s[0] -= 0.10; }
+            Trait::Stingy => { s[4] += 0.10; }
+        }
+    }
+    s.map(|v| v.clamp(0.0, 1.0))
+}
+
+/// The seed a marker pass runs on: the line and whose mouth it's in -
+/// so a line renders the same markers wherever it's met (a preview and
+/// its saying agree), and no draw is owed the walk's own stream.
+fn marker_seed(template: &str, speaker: &Speaker) -> u64 {
+    let hash = |s: &str| {
+        let mut h = 0xcbf2_9ce4_8422_2325u64;
+        for b in s.bytes() { h = (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3); }
+        h
+    };
+    hash(template) ^ hash(&speaker.name)
+}
+
+const OATH_OPENERS: [&str; 3] = ["Saints keep us. ", "By the rood. ", "God witness. "];
+const EXCLAIM_OPENERS: [&str; 2] = ["Hah! ", "Why, "];
+const VERBOSE_TAILS: [&str; 3] = [", and that's the long of it.", ", and more besides.", ", as I've cause to say."];
+const HEDGE_TAILS: [&str; 3] = [", or so I hear.", ", as like as not.", ", by my reckoning."];
+const ASKBACK_TAILS: [&str; 3] = [", or am I mistook?", ", or is that not the way of it?", ", or do I hear wrong?"];
+const SELFTALK_TAILS: [&str; 3] = [", for my part.", ", as I see it.", ", or so I make it."];
+
+/// The line with the speaker's markers on it: each fires as its
+/// strength asks, two at most, so a pious mouth swears and the
+/// self-absorbed one can't leave themselves out of it. Runs inside
+/// `realize`, so a guarded no still wears them under its shape (E4-5's
+/// ops wrap the marked line).
+fn marked(text: &str, template: &str, speaker: &Speaker) -> String {
+    let strengths = style_strengths(speaker);
+    let max_s = strengths.iter().copied().fold(0.0f32, f32::max);
+    if max_s <= 0.0 { return text.to_string(); }
+    // one gate per line - the strongest signature decides whether the
+    // line is signed at all; even the fullest mouth stays plain on
+    // most of what it says
+    let mut r = Rng::new(marker_seed(template, speaker));
+    if r.next_f32() >= max_s * 0.6 { return text.to_string(); }
+    let first = r.weighted(&strengths);
+    let mut fired = vec![MARKERS[first]];
+    // a second marker rides along only as the rest of the style is hot
+    let mut rest = strengths;
+    rest[first] = 0.0;
+    let max2 = rest.iter().copied().fold(0.0f32, f32::max);
+    if max2 > 0.0 && r.next_f32() < max2 * 0.5 {
+        fired.push(MARKERS[r.weighted(&rest)]);
+    }
+    apply_marks(text, &fired, &mut r)
+}
+
+/// The marks land in an order that keeps every pick visible: the
+/// comma-tails chain while a '.' stands, the question-back last of
+/// them since its '?' takes no follower; then the bang settles the
+/// stop that's left, and the oath fronts it all.
+fn apply_marks(text: &str, fired: &[Marker], r: &mut Rng) -> String {
+    let mut out = text.to_string();
+    let tail = |out: &mut String, set: &[&'static str], r: &mut Rng| {
+        // a tail joins on a comma; a line without its stop is left be
+        if out.ends_with('.') {
+            out.replace_range(out.len() - 1.., set[r.below(set.len())]);
+        }
+    };
+    for m in [Marker::Verbose, Marker::Hedge, Marker::SelfTalk, Marker::AskBack] {
+        if !fired.contains(&m) { continue; }
+        match m {
+            Marker::Verbose => tail(&mut out, &VERBOSE_TAILS, r),
+            Marker::Hedge => tail(&mut out, &HEDGE_TAILS, r),
+            Marker::AskBack => tail(&mut out, &ASKBACK_TAILS, r),
+            Marker::SelfTalk => tail(&mut out, &SELFTALK_TAILS, r),
+            _ => {}
+        }
+    }
+    // the bang settles the line once the tails have had theirs; a
+    // question keeps its own mark and wears the cry up front instead
+    if fired.contains(&Marker::Exclaim) {
+        if out.ends_with('.') {
+            out.replace_range(out.len() - 1.., "!");
+        } else {
+            out = format!("{}{}", EXCLAIM_OPENERS[r.below(EXCLAIM_OPENERS.len())], out);
+        }
+    }
+    if fired.contains(&Marker::Oath) {
+        out = format!("{}{}", OATH_OPENERS[r.below(OATH_OPENERS.len())], out);
+    }
+    out
+}
+
 /// Render a template for the pair. One pass over the text: each `{slot}`
 /// resolves against the pair or the refs, and a slot nobody owns stays
 /// literal, so the fills that still own theirs (the campaign's
@@ -203,7 +333,9 @@ pub fn shaped(ops: &[Op], line: &str, account: Option<&str>, stance: &Stance, rn
 ///
 /// The rng is the talk's own stream - the grammar layers draw choices
 /// (thou or you, a hedge or none) from it so a replayed talk re-says
-/// the same words. E4-1 makes no draws yet.
+/// the same words. The style markers (E4-6) seed off the line and the
+/// speaker instead: no draw comes out of the walk's stream, and a
+/// preview shows the marks the saying wears.
 pub fn realize(template: &str, cx: &Cx, _rng: &mut Rng) -> String {
     let mut out = String::with_capacity(template.len() + 8);
     let mut rest = template;
@@ -222,7 +354,7 @@ pub fn realize(template: &str, cx: &Cx, _rng: &mut Rng) -> String {
         }
     }
     out.push_str(rest);
-    out
+    marked(&out, template, cx.speaker)
 }
 
 /// One slot's words: the pair's own names and trades, the second-person
@@ -1161,5 +1293,152 @@ mod tests {
         warm.open.safety = 0.9;
         let sg = stance_of(&warm, &alys);
         assert!(shape(crate::game::conversation::Act::Agree, &sg, None).is_empty());
+    }
+
+    // E4-6 (#1433): the style markers a temperament sets - a line rolls
+    // which fire, two at most, most lines plain; the done-when is the
+    // marker rate tracking its trait, identifiability over the baseline
+    mod e4_6 {
+        use super::*;
+        use crate::game::traits::Trait;
+
+        fn speaker(name: &str, traits: &[Trait]) -> Speaker {
+            let mut s = Speaker::new(name);
+            s.traits = traits.to_vec();
+            s
+        }
+
+        /// The fragments a fired marker can leave - one per kind, so a
+        /// line's marks can be counted from the text alone
+        fn marker_fragments(line: &str) -> usize {
+            let mut n = 0;
+            for w in OATH_OPENERS { if line.starts_with(w.trim_end()) { n += 1; } }
+            for w in EXCLAIM_OPENERS { if line.starts_with(w.trim_end()) { n += 1; } }
+            if line.ends_with('!') { n += 1; }
+            for set in [&VERBOSE_TAILS[..], &HEDGE_TAILS[..],
+                        &ASKBACK_TAILS[..], &SELFTALK_TAILS[..]] {
+                for w in set {
+                    if line.contains(w.trim_matches(|c: char| ",.?! ".contains(c))) { n += 1; }
+                }
+            }
+            n
+        }
+
+        #[test]
+        fn test_the_trait_loads_its_markers() {
+            let pious = style_strengths(&speaker("Maud", &[Trait::Pious]));
+            assert!(pious[5] >= 0.4, "pious should carry the oath: {pious:?}");
+            let hog = style_strengths(&speaker("Nun", &[Trait::SelfAbsorbed]));
+            assert!(hog[4] >= 0.4 && hog[3] >= 0.2, "self-absorbed: {hog:?}");
+            let wary = style_strengths(&speaker("Wat", &[Trait::Wary]));
+            assert!(wary[1] >= 0.3, "wary should carry the hedge: {wary:?}");
+            // the quiet one damps what the others raise
+            let stolid = style_strengths(&speaker("Cobb",
+                &[Trait::Stolid, Trait::Pious, Trait::Gregarious]));
+            assert!(stolid.iter().all(|&v| v < 0.3), "stolid should damp: {stolid:?}");
+            // no traits, no voice to sign
+            assert!(style_strengths(&speaker("Plain", &[])).iter().all(|&v| v == 0.0));
+        }
+
+        #[test]
+        fn test_the_markers_lean_on_their_trait() {
+            // the done-when: over a wide line pool the marker rate tracks
+            // the trait - a pious speaker's oaths and a self-absorbed
+            // one's self-reference rise over the plain baseline
+            let (alys, corvin) = pair();
+            let lines = authored_lines();
+            let count = |s: &Speaker, frag: fn(&str) -> bool| {
+                let cx = Cx::plain(s, &corvin, &[]);
+                let mut rng = Rng::new(5);
+                lines.iter().filter(|&&t| frag(&realize(t, &cx, &mut rng))).count()
+            };
+            let plain = speaker("Hob", &[]);
+            let pious = speaker("Hob", &[Trait::Pious]);
+            let oathed = |l: &str| OATH_OPENERS.iter().any(|w| l.starts_with(w.trim_end()));
+            assert!(count(&pious, oathed) > count(&plain, oathed) + 20,
+                "pious vs plain oaths: {} vs {}",
+                count(&pious, oathed), count(&plain, oathed));
+            let hog = speaker("Hob", &[Trait::SelfAbsorbed]);
+            let selfish = |l: &str| SELFTALK_TAILS.iter()
+                .any(|w| l.ends_with(w.trim_start_matches(',')))
+                || ASKBACK_TAILS.iter().any(|w| l.ends_with(w.trim_start_matches(',')));
+            assert!(count(&hog, selfish) > count(&plain, selfish) + 40,
+                "self-absorbed vs plain: {} vs {}",
+                count(&hog, selfish), count(&plain, selfish));
+            let _ = alys;
+        }
+
+        #[test]
+        fn test_two_markers_cap_a_line_and_most_stay_plain() {
+            let (alys, _) = pair();
+            // the fullest mouth in the village: five strong traits
+            let loud = speaker("Hob", &[Trait::Pious, Trait::Hotheaded,
+                Trait::SelfAbsorbed, Trait::Gregarious, Trait::Wary]);
+            let cx = Cx::plain(&loud, &alys, &[]);
+            let mut rng = Rng::new(9);
+            let mut marked_lines = 0;
+            for t in authored_lines() {
+                let got = realize(t, &cx, &mut rng);
+                let n = marker_fragments(&got);
+                assert!(n <= 2, "three marks on one line: {got} <- {t}");
+                if n > 0 { marked_lines += 1; }
+            }
+            // even the fullest mouth leaves most of its lines alone
+            assert!(marked_lines * 2 < authored_lines().len(),
+                "{marked_lines} of {} lines marked", authored_lines().len());
+        }
+
+        #[test]
+        fn test_a_marked_pair_shows_both_marks() {
+            let mut r = Rng::new(1);
+            // the bang can't starve a tail: it settles the tail's own stop
+            let out = apply_marks("The field wants sowing.",
+                &[Marker::Exclaim, Marker::SelfTalk], &mut r);
+            assert!(out.ends_with('!') && out.starts_with("The field wants sowing,"),
+                "exclaim + tail: {out}");
+            // and the question-back lands last, so a fellow tail still
+            // has its '.' to join on
+            let out = apply_marks("The field wants sowing.",
+                &[Marker::AskBack, Marker::SelfTalk], &mut r);
+            assert!(out.ends_with('?') && out.matches(',').count() >= 2,
+                "askback + tail: {out}");
+        }
+
+        #[test]
+        fn test_the_same_line_marks_the_same_way() {
+            let (alys, _) = pair();
+            let pious = speaker("Tobias", &[Trait::Pious]);
+            let cx = Cx::plain(&pious, &alys, &[]);
+            // two different streams, one rendering: a preview shows the
+            // marks the saying wears
+            let a = realize("The well's gone foul, {other}.", &cx, &mut Rng::new(1));
+            let b = realize("The well's gone foul, {other}.", &cx, &mut Rng::new(999));
+            assert_eq!(a, b);
+            // and a trait-less mouth leaves the words alone
+            let hob = speaker("Hob", &[]);
+            let plain = Cx::plain(&hob, &alys, &[]);
+            assert_eq!(realize("The well's gone foul, {other}.", &plain, &mut Rng::new(1)),
+                "The well's gone foul, Alys.");
+        }
+
+        #[test]
+        fn test_the_marker_and_the_shape_compose() {
+            let (alys, _) = pair();
+            // a guarded, wary speaker's padded no still signs itself:
+            // the shape wraps the marked line, one pass through the two
+            let guarded = speaker("Wat", &[Trait::Wary, Trait::Pious]);
+            let st = stance_of(&guarded, &alys);
+            let ops = shape(crate::game::conversation::Act::PushBack, &st, None);
+            let marked_line = marked("Not this week.", "Not this week.", &guarded);
+            let mut rng = Rng::new(4);
+            let out = shaped(&ops, &marked_line, None, &st, &mut rng);
+            for frag in ["Oh…", "Well…", "Hm…", "Ah…", "It isn't that I wouldn't.",
+                         "I hear you.", "There's that to think on.",
+                         "Saints keep us.", "By the rood.", "God witness.",
+                         "or so I hear", "as like as not", "by my reckoning"] {
+                if out.contains(frag) { return; }
+            }
+            panic!("no mark and no shape survived: {out}");
+        }
     }
 }

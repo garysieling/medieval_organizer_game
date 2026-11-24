@@ -492,7 +492,9 @@ fn test_a_talked_back_answer_is_remembered_next_time() {
     talk_beside(&mut g, i);
     let t = g.seats[0].talk.as_ref().unwrap();
     // ...but what's on their mind now is you, and no proposition lands
-    assert!(cold_lines().contains(&t.gist.as_str()), "the gist is the cold shoulder: {:?}", t.gist);
+    // a style marker may sign the line (E4-6): match the base words
+    assert!(cold_lines().iter().any(|l| t.gist.contains(l.trim_end_matches('.'))),
+        "the gist is the cold shoulder: {:?}", t.gist);
     assert!(t.asks.is_empty(), "a cold ending closes the asks: {:?}", t.asks);
     // the icon's mark holds the slight while the amends are on offer -
     // a warm bond doesn't paper it over (#1320, review find)
@@ -1967,11 +1969,13 @@ fn test_a_neighbor_asked_for_a_hand_comes_by_or_stings() {
             let asker = rec.lines[ai].who.unwrap();
             let answer = &rec.lines[ai + 1];
             let asked = answer.who.unwrap();
-            if HELP_YES.contains(&answer.text.as_str())
+            // a style marker may sign the line (E4-6): match its base words
+            let said = |set: &[&str]| set.iter().any(|l| answer.text.contains(l.trim_end_matches('.')));
+            if said(HELP_YES)
                 || FAVOR_YES.iter().any(|h| answer.text == g.vv_said(asked, asker, h)) {
                 yes = Some((asker, asked));
             } else {
-                assert!(HELP_NO.contains(&answer.text.as_str()),
+                assert!(said(HELP_NO),
                     "the answer's a yes or a no: {:?}", answer.text);
                 let after = rel_of(&g, a, b).map(|(i, _)| i).unwrap_or(0);
                 assert_eq!(after - before, 2,
@@ -2262,7 +2266,8 @@ fn test_a_favor_ask_names_their_trade() {
         if r.lines.iter().any(|l| l.text.contains("spare a fat trout")) {
             let texts: Vec<&str> = r.lines.iter().map(|l| l.text.as_str()).collect();
             assert!(texts.iter().any(|t| t.contains("bring it by") || t.contains("set it aside")
-                    || t.contains("at thy door") || HELP_NO.iter().any(|n| t.contains(n))),
+                    || t.contains("at thy door")
+                    || HELP_NO.iter().any(|n| t.contains(n.trim_end_matches('.')))),
                 "the ask never got its answer: {texts:?}");
             found = true;
             break;
@@ -2608,4 +2613,38 @@ fn test_a_shared_laugh_over_power_files_alignment() {
         }
     }
     assert!(heard.is_some(), "no laugh over a power joke across the adults");
+}
+
+#[test]
+fn test_a_villagers_temperament_signs_their_lines() {
+    // E4-6 (#1433): the style markers ride the session's own speaker
+    // build - a pious mouth swears where a plain one stays unmarked,
+    // and the signing lands inside the realized line, cap two a line
+    use crate::game::conversation::{fill, Rng};
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    g.world.add_component(v, Personality { traits: vec![Trait::Pious] });
+    let s = speaker_of(&g.world, v, &g.name_of(v), g.tick);
+    let p = g.player_speaker(g.player);
+    let oaths = crate::game::text::authored_lines().iter()
+        .filter(|&&t| {
+            let got = fill(t, &s, &p, &mut Rng::new(0));
+            got.starts_with("Saints keep us.") || got.starts_with("By the rood.")
+                || got.starts_with("God witness.")
+        }).count();
+    assert!(oaths > 50, "a pious mouth should sign its lines: {oaths}");
+    // the player's own un-traited voice stays plain
+    let marked = crate::game::text::authored_lines().iter()
+        .filter(|&&t| {
+            let got = fill(t, &p, &s, &mut Rng::new(0));
+            ["Saints keep us.", "By the rood.", "God witness."].iter()
+                .any(|w| got.starts_with(w))
+                || ["and that's the long of it.", "and more besides.",
+                    "as I've cause to say.", "or so I hear.", "as like as not.",
+                    "by my reckoning.", "or am I mistook?",
+                    "or is that not the way of it?", "or do I hear wrong?",
+                    "for my part.", "as I see it.", "or so I make it."]
+                    .iter().any(|w| got.ends_with(w))
+        }).count();
+    assert_eq!(marked, 0, "a trait-less speaker marks nothing: {marked}");
 }

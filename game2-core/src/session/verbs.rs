@@ -336,15 +336,9 @@ impl Game {
                     .or_else(|| hog.then(|| {
                         let gists = crate::game::conversation::HOG_GISTS;
                         let g = gists[(self.rng.next() as usize) % gists.len()];
-                        // the monologue runs in the pair's register too
-                        // (E4-4): the hog holds forth at *you*, or thee
-                        let pe = self.seats[seat].player;
-                        let rel = dialogue::relation_with_wanderer(self.rel_kind(pe, v));
-                        (format!("{} holds forth", self.cast_name(who)),
-                            dialogue::talk_said(
-                                &dialogue::speaker_of(&self.world, v,
-                                    &self.cast_name(who), self.tick),
-                                &self.player_speaker(pe), rel, g, false))
+                        // raw on its way out: pair_said below puts it in
+                        // the pair's register and signs it once
+                        (format!("{} holds forth", self.cast_name(who)), g.to_string())
                     }))
                     .unwrap_or_else(|| talk_response(&self.world, v, self.cast_name(who), talks_before, self.tick)),
             },

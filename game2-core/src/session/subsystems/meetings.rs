@@ -518,11 +518,15 @@ impl Game {
         if came.is_empty() { return vec![]; }
         // the probe replaces the host's question (#1267)
         let ask = if probe { crate::game::dialogue_trees::MEET_PROBE.text } else { MEETING_PROMPTS[0] };
-        let mut lines = vec![(host_e, ask.to_string())];
+        // each line carries whether run_meeting already rendered it -
+        // the floor's replies come out realized (their own slots, their
+        // own marks), and a second pass through pair_said would sign
+        // them twice
+        let mut lines = vec![(host_e, ask.to_string(), false)];
         // testimony opens ahead of the ask: Self, Us, Now (#1248)
         if let Some(ev) = testimony {
             let arc = self.testimony_arc(ev, came);
-            lines.splice(0..0, arc.into_iter().map(|l| (host_e, l)));
+            lines.splice(0..0, arc.into_iter().map(|l| (host_e, l, false)));
             self.testify(seat, came);
         }
         self.voiced.clear();
@@ -589,7 +593,7 @@ impl Game {
                 // the probe's first round: each answers as deep as they trust
                 if probe && round == 0 {
                     if let Some(line) = self.probe_answer(host_e, v, came) {
-                        lines.push((v, line));
+                        lines.push((v, line, false));
                         continue;
                     }
                 }
@@ -626,18 +630,18 @@ impl Game {
                                 format!("t{}: Organizer discovers issue {}", self.tick, issue),
                             );
                         }
-                        lines.push((v, said));
+                        lines.push((v, said, false));
                         shared = true;
                     }
                 }
                 if !shared {
                     let ready = said[ci].iter().position(|(_, to, _)| to.map_or(true, |t| aired.contains(&t)));
-                    let line = match ready {
+                    let (line, done) = match ready {
                         Some(j) => { let (k, _, text) = said[ci].remove(j);
-                            aired.insert(k); reached = reached.max(k); text }
-                        None => meeting_remark(&self.world, v, self.cast_name(i), round),
+                            aired.insert(k); reached = reached.max(k); (text, true) }
+                        None => (meeting_remark(&self.world, v, self.cast_name(i), round), false),
                     };
-                    lines.push((v, line));
+                    lines.push((v, line, done));
                 }
             }
             // when the room drifted, the host calls it back to the
@@ -645,19 +649,19 @@ impl Game {
             while let Some(j) = host_q.iter().position(|(k, _)| *k <= reached) {
                 let (k, text) = host_q.remove(j);
                 aired.insert(k);
-                lines.push((host_e, text));
+                lines.push((host_e, text, true));
             }
-            lines.push((host_e, MEETING_PROMPTS[round + 1].to_string()));
+            lines.push((host_e, MEETING_PROMPTS[round + 1].to_string(), false));
         }
         // a pull-back past the furthest aired statement still lands
         // before the meeting's out - the room drifted on its way
         for (_, text) in host_q.drain(..) {
-            lines.push((host_e, text));
+            lines.push((host_e, text, true));
         }
         // the rite opens it, ahead of the host's question; the send-off
         // is the last word of the night (#1185)
-        lines.insert(0, rite);
-        lines.push(send_off);
+        lines.insert(0, (rite.0, rite.1, true));
+        lines.push((send_off.0, send_off.1, true));
         // the question stays with them: each who heard it goes home with
         // a want they didn't carry, ripening in its own time (#1267)
         if probe {
@@ -667,7 +671,7 @@ impl Game {
             }
         }
         lines.into_iter()
-            .map(|(e, t)| (e, self.pair_said(e, self.seats[seat].player, &t)))
+            .map(|(e, t, done)| (e, if done { t } else { self.pair_said(e, self.seats[seat].player, &t) }))
             .collect()
     }
 

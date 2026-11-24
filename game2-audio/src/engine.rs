@@ -159,12 +159,14 @@ impl Reverb {
 }
 
 /// The soft clipper on Master: transparent under the knee, then a tanh
-/// shoulder that asymptotes at the -1.5 dBFS ceiling and can never
-/// pass it - a -1 dBFS digital ceiling still overshoots -1 dBTP on the
-/// oversampled true-peak read. A plain `tanh` would bend quiet
-/// material and fail the RMS test.
-const CEILING: f32 = 0.841_395_14; // 10^(-1.5/20)
-const KNEE: f32 = 0.7;
+/// shoulder that asymptotes at the -2.5 dBFS ceiling and can never
+/// pass it. The bar is -1 dBTP, not -1 dBFS: the oversampled
+/// true-peak read overshoots the digital peak (a dense feast measured
+/// +1.1 dB), so the ceiling carries that margin plus headroom. The
+/// wide knee keeps the shoulder a shoulder, not a wall. A plain
+/// `tanh` would bend quiet material and fail the RMS test.
+const CEILING: f32 = 0.749_894_2; // 10^(-2.5/20)
+const KNEE: f32 = 0.55;
 fn limit(x: f32) -> f32 {
     let a = x.abs();
     if a <= KNEE { return x; }
@@ -457,9 +459,13 @@ impl Engine {
                 let s = (m[0] + m[1]) * 0.5;
                 m = [s, s];
             }
+            // the limiter is the safety net, the night tamer is the
+            // deliberate reduction - it runs last so its squash isn't
+            // bent back up toward the ceiling
+            m[0] = limit(m[0]); m[1] = limit(m[1]);
             if self.night { m[0] = night_comp(m[0]); m[1] = night_comp(m[1]); }
-            out[i] = limit(m[0]);
-            out[i + 1] = limit(m[1]);
+            out[i] = m[0];
+            out[i + 1] = m[1];
         }
         self.dying.retain(|d| d.left > 0);
         self.clock += (out.len() / 2) as u64;

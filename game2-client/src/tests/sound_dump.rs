@@ -65,6 +65,36 @@ fn render_twice_identical() {
     assert_eq!(a, b, "the same village rendered twice differs");
 }
 
+/// I5's reel (#1509): `--reel` concatenates every scenario into one
+/// wav with a checklist index - run at 1 s a segment so the test
+/// renders seconds, not five minutes.
+#[test]
+fn reel_has_ten_segments_and_index() {
+    let dir = std::env::temp_dir().join("game2-i1-reel");
+    std::fs::create_dir_all(&dir).unwrap();
+    let out = dir.join("reel").to_str().unwrap().to_string();
+    sound_dump::reel(&out, 1).unwrap();
+    // ten 1 s stereo segments back to back
+    let wav = std::fs::read(format!("{out}.wav")).unwrap();
+    let want = 44 + 10 * game2_audio::wav::SAMPLE_RATE as usize * 2 * 2;
+    assert_eq!(wav.len(), want,
+        "the reel should be ten 1s stereo segments ({} vs {})", wav.len(), want);
+    // the index names every scenario in order and carries the checklist
+    let md = std::fs::read_to_string(format!("{out}.md")).unwrap();
+    let mut at = 0;
+    for sc in scenarios::registry() {
+        let i = md.find(sc.name).unwrap_or_else(|| panic!("reel.md lacks {}", sc.name));
+        assert!(i >= at, "{} is out of the reel's order", sc.name);
+        at = i;
+        for ext in ["trace.json", "roll.png", "timeline.png"] {
+            let p = format!("{out}.{}.{ext}", sc.name);
+            assert!(std::path::Path::new(&p).metadata()
+                .map(|m| m.len() > 0).unwrap_or(false), "{p} missing or empty");
+        }
+    }
+    assert!(md.contains("checklist"), "reel.md lacks the listen checklist");
+}
+
 #[test]
 fn scenes_roundtrip_serde() {
     let models = quiet_models(3);

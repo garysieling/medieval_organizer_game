@@ -56,6 +56,7 @@ const fn synth_bed(kind: EmitterKind) -> Option<BedKind> {
     match kind {
         EmitterKind::Wind | EmitterKind::StandingStones => Some(BedKind::Wind),
         EmitterKind::Rain => Some(BedKind::Rain),
+        EmitterKind::March => Some(BedKind::March),
         _ => None,
     }
 }
@@ -135,7 +136,7 @@ impl Ambience {
     /// The source a bed-path emitter voices: its sampled asset when the
     /// bank knows it, else its own-synth bed, else nothing (a kind the
     /// first batch doesn't cover - tavern, chant, mill, castle, cave,
-    /// boats, march - is quiet by design until its ticket lands).
+    /// boats - is quiet by design until its ticket lands).
     fn bed_source(&self, kind: EmitterKind, engine: &Engine) -> Option<Source> {
         if let Some(name) = bed_asset(kind) {
             if let Some(id) = engine.bank().patch_id(name) {

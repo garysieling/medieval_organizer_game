@@ -35,10 +35,15 @@ pub fn radius_at(zoom: f32) -> f32 { (10.0 / zoom).clamp(5.0, 20.0) }
 
 impl Listener {
     /// The model's own ear. `UiModel` doesn't carry the camera - the
-    /// client owns it - so this hears where the camera follows: the
-    /// seat's player, at the default zoom. Clients with a real camera
-    /// build `Listener::at`; fields are public for that.
+    /// client owns it - so this hears where the camera follows: an
+    /// event the seat's part of owns the camera while it runs
+    /// (`EventCam` tracks `player_event` in game_ui), else the seat's
+    /// player, at the default zoom. Clients with a real camera build
+    /// `Listener::at`; fields are public for that.
     pub fn from_model(m: &UiModel) -> Self {
+        if let Some(ev) = m.player_event {
+            return Listener::at(ev.pos.0, ev.pos.1, 1.0);
+        }
         let at = m.people.iter().find(|p| p.kind == PKind::Player)
             .map(|p| p.pos)
             .unwrap_or((m.map.width as f32 / 2.0, m.map.height as f32 / 2.0));

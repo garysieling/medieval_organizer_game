@@ -271,6 +271,10 @@ pub struct Ghost {
     pub lie: Belief,
     /// How hard they hold it, 0 to 1
     pub strength: f32,
+    /// The lie's been disproved enough to let go (E8-2, #1444): set by
+    /// `beliefs::tested_by` crossing TURN_FLOOR; tells and showing stops
+    /// counting it
+    pub turned: bool,
     /// What it leaves them watching for
     pub fear: Fear,
     /// What the campaign can give
@@ -704,7 +708,7 @@ pub fn generate_attempt(world_seed: u64, slot: usize, past: &Past, attempt: u32)
     let ghosts: Vec<Ghost> = scored.into_iter().take(2)
         .map(|(s, m)| {
             let (hook, lie, fear, need) = rationalize(m.kind, disp, m.part);
-            Ghost { event: m.id, kind: m.kind, hook, lie, strength: s.min(1.0), fear, need }
+            Ghost { event: m.id, kind: m.kind, hook, lie, strength: s.min(1.0), fear, need, turned: false }
         }).collect();
 
     // the body (pass 0, E1-3): drawn off the person's own stream so
@@ -1030,7 +1034,7 @@ mod tests {
         // the severe ghosts stay near one in eight
         let ghost = |event: u32, lie: Belief, strength: f32| Ghost {
             event: EventId(event), kind: EventKind::Fire, hook: None, lie, strength,
-            fear: Fear::BuriedLikeHim, need: Need::ToBelong,
+            fear: Fear::BuriedLikeHim, need: Need::ToBelong, turned: false,
         };
         let mut cast: Vec<Option<Persona>> = (0..16).map(|s| {
             let mut p = generate(3, s, &Past::default());

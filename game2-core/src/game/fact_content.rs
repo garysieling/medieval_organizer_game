@@ -208,7 +208,11 @@ pub fn showing_factor(world: &crate::engine::ecs::World, who: crate::engine::ecs
     let mut f = 1.0f32;
     for g in &p.ghosts {
         if let Some(c) = content_for_fact(&format!("ghost:{}", g.kind.tag())) { f *= c.showing; }
-        if let Some(c) = content_for_fact(&format!("lie:{}", g.lie.tag())) { f *= c.showing; }
+        // a turned ghost's lie stopped holding them back (E8-2) - the
+        // wound's drag stays, the lesson's goes
+        if !g.turned {
+            if let Some(c) = content_for_fact(&format!("lie:{}", g.lie.tag())) { f *= c.showing; }
+        }
     }
     f.clamp(0.3, 1.4)
 }
@@ -226,7 +230,12 @@ pub fn pressure_reason(world: &crate::engine::ecs::World, who: crate::engine::ec
 pub fn tells_of(p: &crate::game::persona::Persona) -> Vec<&'static str> {
     let mut v: Vec<&'static str> = vec![];
     for g in &p.ghosts {
-        for fact in [format!("ghost:{}", g.kind.tag()), format!("lie:{}", g.lie.tag())] {
+        // a turned ghost sheds the lie's tell - the wound's habit stays
+        // (E8-2): they still keep water by the door, they've stopped
+        // saying the lord's men always win
+        let mut facts = vec![format!("ghost:{}", g.kind.tag())];
+        if !g.turned { facts.push(format!("lie:{}", g.lie.tag())); }
+        for fact in facts {
             if let Some(c) = content_for_fact(&fact) {
                 if !v.contains(&c.tell) { v.push(c.tell); }
             }
@@ -339,7 +348,7 @@ mod tests {
                 phrase: "x", habit: crate::game::idiolect::Habit::Echo },
         };
         p.ghosts.push(Ghost { event: EventId(0), kind, hook: None,
-            lie, strength: 0.8, fear: Fear::WhispersTurn, need: Need::ToBeSafe });
+            lie, strength: 0.8, fear: Fear::WhispersTurn, need: Need::ToBeSafe, turned: false });
         p
     }
 

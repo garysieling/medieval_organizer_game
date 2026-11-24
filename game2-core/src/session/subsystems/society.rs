@@ -738,6 +738,10 @@ impl Game {
                         format!("t{}: mercy moves even the bailiff - {cn} goes to the castle's cells, not the rope.", tick));
                 }
             }
+            // mercy moved the crowd: the cause stood with its own and
+            // the standing held - a test every listening lie heard (#1444)
+            let all = self.villagers.clone();
+            self.test_lies(&all, crate::game::beliefs::Tested::StoodTogether, tick);
             // a plea that lands warms the beggar toward the voice that
             // carried it
             if spoke_for {
@@ -796,6 +800,9 @@ impl Game {
         self.repression_debt = 0;
         self.log_entity_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Major), m,
             format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
+        // everyone saw it - the lies that predicted this end harden (#1444)
+        let all = self.villagers.clone();
+        self.test_lies(&all, crate::game::beliefs::Tested::MemberLost, tick);
         // mass grief: everyone saw it
         for v in self.villagers.iter().take(8).copied().collect::<Vec<_>>() {
             if !villager::is_dead(&self.world, v) {
@@ -981,6 +988,10 @@ impl Game {
                     } else if member && self.lord_esteem > 0.7 {
                         self.repression_debt += 1;
                         self.log_entity_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Major), m, format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));
+                        // the whole village watched it - every lie
+                        // about the lord's men just took the test (#1444)
+                        let all = self.villagers.clone();
+                        self.test_lies(&all, crate::game::beliefs::Tested::WritDefied, tick);
                     } else {
                         self.log_entity_ev(
                             EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
@@ -1736,6 +1747,21 @@ impl Game {
         }
     }
 
+    /// A campaign outcome reaches the ghosts that listen (E8-2, #1444):
+    /// each lie that hears it moves, and a ghost that turns says so in
+    /// the moment - the line is theirs, the log carries it
+    pub(in crate::session) fn test_lies(&mut self, scope: &[Entity],
+        t: crate::game::beliefs::Tested, tick: u64) {
+        let pe = self.seats.first().map(|s| s.player);
+        for &v in scope {
+            if let Some(lie) = crate::game::beliefs::tested_by(&mut self.world, v, t, pe, tick) {
+                let n = self.name_of(v);
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                    format!("t{}: {n} - \"{}\"", tick, crate::game::beliefs::turn_line(lie)));
+            }
+        }
+    }
+
     /// A carried demand sends the village out in the open: the column
     /// walks the streets and breaks up at the cross. Nothing else it
     /// could be doing is more worth the day
@@ -1760,6 +1786,8 @@ impl Game {
         // the carried demand is the campaign's best argument for hope
         // (#1442): everyone who walks it believes a little more
         for &v in &folk { crate::game::act_model::win_witnessed(&mut self.world, v); }
+        // a walked win tests the listening lies (#1444)
+        self.test_lies(&folk, crate::game::beliefs::Tested::VictoryWalked, self.tick);
         self.start_parade(folk, route, None);
         self.log.push_ev(
             EvTag::new(Thread::Org, Valence::Positive, Sev::Major),

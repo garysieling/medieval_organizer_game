@@ -1393,7 +1393,7 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
     };
     p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
         lie: Belief::NeverCrossReeve, strength: 0.8, fear: Fear::BailiffKnowsMyFace,
-        need: Need::ToBeSafe });
+        need: Need::ToBeSafe, turned: false });
     g.world.add_component(v, p);
     // the same roll now keeps them home (0.55 levy x 0.45 reeve lie)
     assert!(!shows_up(&g.world, g.player, v, at, Invite::Word, 0.10, g.tick),
@@ -1424,7 +1424,7 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
     };
     p2.ghosts.push(Ghost { event: EventId(0), kind: EventKind::HarvestFeast, hook: None,
         lie: Belief::StrongTogether, strength: 0.8, fear: Fear::AloneInIt,
-        need: Need::ToBelong });
+        need: Need::ToBelong, turned: false });
     g.world.add_component(w, p2);
     assert!(shows_up(&g.world, g.player, w, at2, Invite::Word, 0.05, g.tick),
         "the feast-keeper's year draws them out (1.15 x 1.15)");
@@ -1593,4 +1593,42 @@ fn test_the_models_calls_track_the_ledger() {
         let yes = (0..400).filter(|_| p > &((rng.next() % 1000) as f32 / 1000.0)).count() as f32 / 400.0;
         assert!((yes - p).abs() < 0.1, "realized {yes:.2} vs model {p:.2}");
     }
+}
+
+/// E8-2 (#1444) done-when: a campaign outcome the lie listens to moves
+/// the ghost's strength; under the floor the ghost turns once, the core
+/// memory files toward the player, and the villager says so out loud
+#[test]
+fn a_lie_weakens_after_a_campaign_win_and_the_villager_says_so() {
+    use crate::game::beliefs::{tested_by, Tested, TURN_FLOOR};
+    use crate::game::persona::*;
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    let mut p = Persona {
+        seed: 3, sex: villager::Sex::Male, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+        idiolect: crate::game::idiolect::Idiolect {
+            phrase: "x", habit: crate::game::idiolect::Habit::Echo },
+    };
+    p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+        lie: Belief::NeverCrossReeve, strength: 0.5, fear: Fear::BailiffKnowsMyFace,
+        need: Need::ToBeSafe, turned: false });
+    g.world.add_component(v, p);
+    // the first writ sent home empty weakens the rule; it still holds
+    let (pe, tick) = (g.player, g.tick);
+    assert_eq!(tested_by(&mut g.world, v, Tested::WritDefied, Some(pe), tick), None);
+    let s = g.world.get_component::<Persona>(v).unwrap().ghosts[0].strength;
+    assert!((s - 0.34).abs() < 0.001, "s={s}");
+    // the second breaks it: the ghost turns and the words reach the log
+    g.test_lies(&[v], Tested::WritDefied, g.tick);
+    let ghost = &g.world.get_component::<Persona>(v).unwrap().ghosts[0];
+    assert!(ghost.turned && ghost.strength < TURN_FLOOR);
+    assert!(g.log.iter().any(|l| l.contains("the sky held")),
+        "the villager says so: {:?}", g.log.last());
+    // and the turn sits in their memory of the organizer
+    let mem = g.world.get_component::<crate::game::episodes::PairMemory>(v).unwrap();
+    assert!(mem.eps.iter().any(|e| e.kind == crate::game::episodes::MemKind::Turned
+        && e.concepts.contains(&"never_cross_reeve")));
 }

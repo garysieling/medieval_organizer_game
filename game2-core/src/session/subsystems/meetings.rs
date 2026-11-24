@@ -947,6 +947,10 @@ impl Game {
                     for &v in &m.invited {
                         if holders.contains(&v) {
                             crate::game::act_model::ask_kept(&mut self.world, v);
+                            // the keeper heard their own keeping (E8-2)
+                            crate::game::beliefs::tested_by(&mut self.world, v,
+                                crate::game::beliefs::Tested::PromiseKept,
+                                Some(self.seats[m.seat].player), self.tick);
                         }
                     }
                     m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());

@@ -514,6 +514,16 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
         if drifted && attendees.len() >= 2 { m.driven_by = Some(driver); }
         if noted { m.resolves += 1; }
     }
+    // a resolve kept on the record is a decided thing - the room's lies
+    // about rooms deciding take the test (E8-2, #1444)
+    if noted {
+        let leader = world.get_component::<crate::sim::community::Organization>(org)
+            .map(|o| o.leader);
+        for &a in &attendees {
+            crate::game::beliefs::tested_by(world, a, crate::game::beliefs::Tested::Decided,
+                leader, tick);
+        }
+    }
     // Participation teaches: the room learns meeting craft, the seats
     // learn theirs
     crate::game::org_skills::learn_from_meeting(world, campaign, &attendees);

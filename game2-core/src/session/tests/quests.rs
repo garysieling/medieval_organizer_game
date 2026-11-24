@@ -296,7 +296,7 @@ fn test_the_ghost_picks_the_errands_shape() {
         };
         p.ghosts.push(Ghost { event: EventId(0), kind, hook: None,
             lie: Belief::LordAlwaysWins, strength, fear: Fear::BailiffKnowsMyFace,
-            need: Need::ToBeSafe });
+            need: Need::ToBeSafe, turned: false });
         p
     };
     let cases = [
@@ -318,7 +318,7 @@ fn test_the_ghost_picks_the_errands_shape() {
     let mut p = persona(EventKind::Fire, 0.4);
     p.ghosts.push(Ghost { event: EventId(1), kind: EventKind::MillerDebt, hook: None,
         lie: Belief::LordAlwaysWins, strength: 0.9, fear: Fear::CollectorAtTheDoor,
-        need: Need::ToSetItRight });
+        need: Need::ToSetItRight, turned: false });
     g.world.add_component(folk[7], p);
     assert_eq!(g.errand_offer(folk[7]).map(|(k, _, _)| k), Some(QuestKind::Ask),
         "the stronger ghost asks");
@@ -495,7 +495,7 @@ fn test_the_roll_question_skips_the_dead() {
     };
     p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::MillerDebt,
         hook: None, lie: Belief::LordAlwaysWins, strength: 0.9,
-        fear: Fear::BailiffKnowsMyFace, need: Need::ToBeSafe });
+        fear: Fear::BailiffKnowsMyFace, need: Need::ToBeSafe, turned: false });
     g.world.add_component(giver, p);
     // the collector's gone - whoever the ask lands on must be answerable
     if let Some(dead) = g.villagers.iter().copied().find(|&v|

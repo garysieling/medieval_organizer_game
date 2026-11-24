@@ -87,8 +87,11 @@ impl Game {
 /// replies it meant; the floor's slate carries more motions now, so a
 /// Decide(n) can land on a different row (#1337); the dawn's job offers
 /// draw different streams now that ghosts shape them (#1438), so an old
-/// journal's return-trip replay would land on different work)
-pub const JOURNAL_VERSION: u32 = 5;
+/// journal's return-trip replay would land on different work; the act
+/// model (#1442) reads `yes_chance`/`shows_up`/`house_meeting`'s
+/// recruit off nine weighed tensions instead of a flat stage number, so
+/// the same roll can now land a different yes or no on replay)
+pub const JOURNAL_VERSION: u32 = 6;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

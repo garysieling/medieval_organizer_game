@@ -860,6 +860,9 @@ impl Game {
         for (i, job) in [Job::Snacks, Job::Notes, Job::Opener, Job::Song, Job::Closer].iter().enumerate() {
             if let (true, Some(holder)) = (kept[i], m.role_people[i]) {
                 mark_performed(&mut self.world, holder, *job);
+                // the role's efficacy credit lands only once they've
+                // actually turned up to keep it (#1442)
+                crate::game::act_model::ask_kept(&mut self.world, holder);
                 for &a in &m.invited {
                     if a != holder { mark_observed(&mut self.world, a, *job); }
                 }

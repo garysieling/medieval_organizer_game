@@ -78,8 +78,8 @@ fn base_tensions(world: &World, organizer: Entity, v: Entity, tick: u64) -> Pres
     let has = |t: crate::game::traits::Trait| traits
         .map(|p| p.traits.contains(&t)).unwrap_or(false);
     // the bond the ask rides on: a stranger's voice weighs nothing
-    let bond = find_relationship(world, organizer, v)
-        .and_then(|r| world.get_component::<Relationship>(r))
+    let rel = find_relationship(world, organizer, v);
+    let bond = rel.and_then(|r| world.get_component::<Relationship>(r))
         .map(|r| r.strength).unwrap_or(0.0);
     // who else stands with them: a full bench cuts the alone of it
     let close = bonds_of(world, v).iter().filter(|&&b|
@@ -89,7 +89,7 @@ fn base_tensions(world: &World, organizer: Entity, v: Entity, tick: u64) -> Pres
                     if r.from == v { r.other } else { r.from }))
             .unwrap_or(false)).count() as f32;
     let problems = crate::game::desires::problems_of(world, v, tick).len() as f32;
-    let deeds = world.get_component::<crate::game::organizing::Deeds>(v)
+    let deeds = rel.and_then(|r| world.get_component::<crate::game::organizing::Deeds>(r))
         .map(|d| d.n).unwrap_or(0) as f32;
     Pressure {
         urgency: (0.1 + problems * 0.15 + ghost * 0.2).min(0.8),

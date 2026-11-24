@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-185 prompts, est. $32.42 USD at list prices.
+182 prompts, est. $31.88 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -32,10 +32,8 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| ui-border-set-a4d28eae | medieval illuminated manuscript border pieces, flat: four ornate foliate corner pieces and matching straight edge strips, dark ink, gold leaf and muted red and blue on plain parchment, each piece separate, game UI element | rd_pro__spritesheet | 256x256 | 1 | 0.18 | marginalia pieces for the manuscript frame (#1323); slice per cell |
 | ui-button-c5bf7b01 | wooden game button, unpressed, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 | ui-end-screen-c3c99989 | quiet dusk view of a medieval village, lamps lit, end-of-game mood | rd_pro__painterly | 256x256 | 1 | 0.18 |  |
-| ui-fleuron-accents-a775bb71 | small medieval illuminated manuscript line ornaments and fleurons: leaf sprigs, stars, knotwork marks, each a single muted colour, game UI element | rd_pro__spritesheet | 256x256 | 1 | 0.18 | marginalia pieces for the manuscript frame (#1323); slice per cell |
 | ui-hud-bar-7a7d8edb | game HUD strip: resource counters with icon slots, meter frames, season and date display, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 | ui-inventory-grid-ccb897f8 | empty inventory grid panel with item slots and a character paper-doll frame, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 | ui-log-box-637d32e2 | long thin parchment scroll log box, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
@@ -43,7 +41,6 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | ui-title-keyart-8651a36f | sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art | rd_pro__painterly | 256x256 | 1 | 0.18 |  |
 | ui-ui-kit-8349cf27 | complete medieval game UI kit: buttons, sliders, panels, knobs, checkboxes, scroll bars, matching carved wood and parchment, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 | ui-villager-card-c74542c4 | character card panel with portrait frame and stat rows, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
-| ui-vine-seasons-977b26d6 | medieval illuminated manuscript corner vine flourishes in four seasons: spring pink blossom, summer green leaf, autumn gold leaf, winter bare thorn, one per cell, game UI element | rd_pro__spritesheet | 256x256 | 1 | 0.18 | marginalia pieces for the manuscript frame (#1323); slice per cell |
 | ui-window-set-b4b2586c | set of matching medieval game windows: title bar, dialog box, tooltip, modal frame, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 
 ## P2 - future features and cultures / cultures/african

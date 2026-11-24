@@ -447,6 +447,31 @@ for slug, ref in BOTHAN_WINTER:
         w=64, h=64, n=1, ref=ref,
         notes="winter of a summer bothán; reference image keeps the design (#708)")
 
+# Seasonal cottage pool (#1303): one call per slot per season, the slot's
+# own sprite as the reference so a home's design survives the turn. The
+# landed file (assets/rd/seasons/cottage<i>-<season>.png, i = slot+1)
+# swaps into that season's slot only; summer's look is the base sprite.
+# Bothán winter is real art already (bothans-winter-* above).
+SEASONAL_SLOTS = (
+    [(i, f"assets/rd/buildings/cottage{i}.png") for i in range(1, 10)] +
+    [(9 + i, f"assets/rd/buildings/bothan{i}.png") for i in range(1, 4)]
+)
+SEASON_DETAIL = [
+    ("spring", "in early spring, fresh green grass and a few small spring flowers at the door"),
+    ("autumn", "in autumn, the grass gone gold and dry leaves gathered at the door"),
+    ("winter", "in winter, snow settled in layers on the roof and the ground white"),
+]
+for slot, ref in SEASONAL_SLOTS:
+    for season, detail in SEASON_DETAIL:
+        if slot >= 10 and season == "winter":
+            continue
+        add("buildings", f"seasons-cottage-{slot}-{season}",
+            f"{ISO}: the same small medieval cottage {detail}, "
+            "fits on one ground tile",
+            w=64, h=64, n=1, ref=ref, tier="p1",
+            notes="seasonal swap for the cottage pool (#1303); "
+                  "lands at assets/rd/seasons/ and overrides one season only")
+
 SHOPS = [
     ("bakery", "bakery with brick oven chimney and bread sign"),
     ("smithy", "blacksmith smithy with forge, anvil outside, smoke"),

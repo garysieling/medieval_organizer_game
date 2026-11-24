@@ -690,6 +690,118 @@ fn run_arc_mode(a: &Args, out: &mut Out) {
     out.emit(&serde_json::to_string_pretty(&doc).unwrap());
 }
 
+/// The Appendix A metrics table (E0-5, #1409): arcs over the real
+/// cast, all four policies - own-voice share, distinct word pairs and
+/// Self-BLEU across talks and across villagers, the rule-of-three
+/// catalog's coverage, and callback truth read off live talks.
+/// `--folk` sizes the cast sample, `--talks` the arc's length.
+fn run_metrics_mode(a: &Args, out: &mut Out) {
+    use game2_core::game::arc::POLICIES;
+    use game2_core::game::arc_metrics::{self, measure_arc, LATE_FROM};
+    use game2_core::game::episodes::{self, PairMemory};
+    use game2_core::session::dialogue::speaker_of;
+
+    let lib = village_library();
+    let mut g = Game::new_seeded_cast(a.seed);
+    let n = a.folk.max(2).min(g.villagers.len());
+    let cast: Vec<Speaker> = g.villagers.iter().take(n)
+        .map(|&v| speaker_of(&g.world, v, &g.name_of(v), g.tick)).collect();
+    let you = Speaker::new("Wanderer");
+    let rel = Relation::Acquaintance;
+    let setting = &game2_core::game::setting::STREET;
+
+    // the arc rows: each (villager, policy) arc measured; the villager's
+    // line corpora kept for the cast-level Self-BLEU
+    let mut sums: Vec<(f64, f64, f64, f64)> = vec![(0.0, 0.0, 0.0, 0.0); POLICIES.len()];
+    let mut corpora: Vec<Vec<Vec<String>>> = vec![vec![]; POLICIES.len()];
+    for them in &cast {
+        for (pi, &policy) in POLICIES.iter().enumerate() {
+            let seed = a.seed.wrapping_mul(97).wrapping_add(pi as u64)
+                .wrapping_add(them.name.bytes().map(|b| b as u64).sum::<u64>());
+            let m = measure_arc(them, &you, rel, None, a.talks, policy, &lib, setting, seed);
+            let s = &mut sums[pi];
+            s.0 += m.own_early; s.1 += m.own_late;
+            s.2 += m.word_pairs as f64; s.3 += m.bleu;
+            corpora[pi].push(m.corpora.into_iter().flatten().collect());
+        }
+    }
+    let cn = cast.len() as f64;
+    let cast_bleu: Vec<f64> = corpora.iter().map(|cs| arc_metrics::self_bleu(cs)).collect();
+    let early: Vec<f64> = sums.iter().map(|s| s.0 / cn).collect();
+    let late: Vec<f64> = sums.iter().map(|s| s.1 / cn).collect();
+    let pairs: Vec<f64> = sums.iter().map(|s| s.2 / cn).collect();
+    let bleu: Vec<f64> = sums.iter().map(|s| s.3 / cn).collect();
+
+    // rule of three: the shipped fact types carrying tell+line+choice
+    let (covered, shipped, missing) = arc_metrics::rule_of_three();
+
+    // callback truth: file an episode per villager, open their talk,
+    // and every `mem:*` fact on the speaker must trace to a filed one -
+    // two villagers go unfiled so "nothing remembered from nothing"
+    // shows in the count too
+    let pe = g.seats[0].player;
+    let probe = (n + 2).min(g.villagers.len());
+    for (i, &v) in g.villagers.iter().take(probe).enumerate() {
+        if i < n {
+            episodes::file(&mut g.world, v, pe,
+                episodes::MEM_KINDS[i % episodes::MEM_KINDS.len()], g.tick, &["metric"]);
+        }
+    }
+    let (mut traced, mut total) = (0usize, 0usize);
+    let probed: Vec<game2_core::engine::ecs::Entity> =
+        g.villagers.iter().take(probe).copied().collect();
+    for v in probed {
+        g.open_player_talk(0, v, Relation::Acquaintance, "the day's work");
+        let t = g.seats[0].talk.as_ref().expect("a talk under way");
+        let eps: Vec<episodes::PairEp> = g.world.get_component::<PairMemory>(v)
+            .filter(|m| m.pe == pe).map(|m| m.eps.clone()).unwrap_or_default();
+        for f in t.villager.facts.open.iter().filter(|f| f.starts_with("mem:")) {
+            total += 1;
+            if episodes::mem_kind(f)
+                .map(|k| eps.iter().any(|e| e.kind == k)).unwrap_or(false) {
+                traced += 1;
+            }
+        }
+        g.seats[0].talk = None;
+        g.world.remove_component::<game2_core::game::villager::InPlayerTalk>(v);
+    }
+
+    out.emit(&format!("=== Appendix A metrics (E0-5) - seed {}, {} villagers x {} policies x {} talks ===",
+        a.seed, n, POLICIES.len(), a.talks));
+    out.emit("");
+    out.emit("| metric | value | target |");
+    out.emit("| --- | --- | --- |");
+    out.emit(&format!("| own-voice share, talks {}+ | {:.2} | >= 0.30 |",
+        LATE_FROM, late.iter().sum::<f64>() / late.len() as f64));
+    out.emit(&format!("| own-voice share, talks 0-{} | {:.2} | (deepening signal) |",
+        LATE_FROM, early.iter().sum::<f64>() / POLICIES.len() as f64));
+    out.emit(&format!("| distinct word pairs, 20 talks | {:.0} | baseline |",
+        pairs.iter().sum::<f64>() / POLICIES.len() as f64));
+    out.emit(&format!("| Self-BLEU, within arc | {:.3} | baseline, must not rise |",
+        bleu.iter().sum::<f64>() / POLICIES.len() as f64));
+    out.emit(&format!("| Self-BLEU, across villagers | {:.3} | baseline, must not rise |",
+        cast_bleu.iter().sum::<f64>() / cast_bleu.len() as f64));
+    out.emit(&format!("| rule-of-three coverage | {}/{} ({:.0}%) | 100% of shipped fact types |",
+        covered, shipped, 100.0 * covered as f64 / shipped.max(1) as f64));
+    out.emit(&format!("| callback truth | {}/{} ({:.0}%) | 100% |",
+        traced, total, if total == 0 { 100.0 } else { 100.0 * traced as f64 / total as f64 }));
+    out.emit("");
+    out.emit(&format!("per-policy own-voice share (talks {}+):", LATE_FROM));
+    for (pi, &policy) in POLICIES.iter().enumerate() {
+        out.emit(&format!("  {:<10} {:.2}", policy.name(), sums[pi].1 / cn));
+    }
+    out.emit("per-policy Self-BLEU (arc / cast):");
+    for (pi, &policy) in POLICIES.iter().enumerate() {
+        out.emit(&format!("  {:<10} {:.3} / {:.3}", policy.name(),
+            sums[pi].3 / cn, cast_bleu[pi]));
+    }
+    if !missing.is_empty() {
+        out.emit(&format!("uncovered fact types: {}", missing.join(", ")));
+    }
+    out.emit(&format!("REPRO: talk_lab metrics --seed {} --folk {} --talks {}",
+        a.seed, n, a.talks));
+}
+
 // ------------------------------------------------------------ feedback
 
 /// The point of the lab: end of a run, ask what was wrong, file it.
@@ -746,6 +858,7 @@ fn usage() {
   batch     N auto-picked synthetic talks: -n N --seed S --out FILE
   arc       one villager, --talks T scripted-policy talks, JSON out:
             --villager N|name --policy curious|responsive|greedy|silent --seed S
+  metrics   the Appendix A table over the real cast: --folk N --talks T --seed S
   replay    any mode + --picks a,b,c replays the run those picks came from
   smoke     scripted non-interactive run - the test hook
 flags: --picks a,b,c | --auto | --warm | --feedback off | --out FILE | --folk N
@@ -774,6 +887,7 @@ fn main() {
         "sandbox" => run_sandbox(&a, &mut out, &stdin),
         "batch" => run_batch(&a, &mut out),
         "arc" => run_arc_mode(&a, &mut out),
+        "metrics" => run_metrics_mode(&a, &mut out),
         "smoke" => {
             out.quiet = true;
             let mut a2 = parse_args();
@@ -794,7 +908,7 @@ fn main() {
             out.emit(&format!("(transcript -> {path})"));
         }
     }
-    if a.feedback && a.mode != "batch" && a.mode != "smoke" && a.mode != "arc" {
+    if a.feedback && a.mode != "batch" && a.mode != "smoke" && a.mode != "arc" && a.mode != "metrics" {
         feedback(&mut out, &stdin);
     }
 }

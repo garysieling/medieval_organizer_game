@@ -35,6 +35,34 @@ fn test_no_episode_no_callback() {
         "a callback spoke of nothing: {:?}", t.notes);
 }
 
+/// E0-5's callback-truth row, exercised over the whole catalog: a
+/// filed episode of each kind surfaces as its `mem:*` fact and nothing
+/// unfiled fires - the metric's invariant at the talk surface
+#[test]
+fn test_every_memory_kind_speaks_true() {
+    let kinds = [MemKind::KeptPromise, MemKind::MissedMeeting, MemKind::StoodWithUs,
+        MemKind::AskedTooSoon, MemKind::SharedMeal, MemKind::KeptConfidence,
+        MemKind::LeakedConfidence, MemKind::LaughedWithUs, MemKind::Turned];
+    let mut g = Game::new();
+    let pe = g.seats[0].player;
+    for (i, k) in kinds.into_iter().enumerate() {
+        let v = g.villagers[i];
+        episodes::file(&mut g.world, v, pe, k, g.tick, &["test"]);
+        g.open_player_talk(0, v, crate::game::conversation::Relation::Acquaintance, "the day's work");
+        let t = g.seats[0].talk.as_ref().expect("a talk under way");
+        let facts: Vec<&String> = t.villager.facts.open.iter()
+            .filter(|f| f.starts_with("mem:")).collect();
+        assert!(facts.iter().any(|f| f.as_str() == episodes::fact(k)),
+            "{:?} filed, no mem fact spoke: {:?}", k, t.villager.facts.open);
+        for f in facts {
+            assert_eq!(episodes::mem_kind(f), Some(k),
+                "villager {} remembered an unfiled kind: {f}", i);
+        }
+        g.seats[0].talk = None;
+        g.world.remove_component::<crate::game::villager::InPlayerTalk>(v);
+    }
+}
+
 /// Seat-scoped: an episode filed against a different seat's player is
 /// not this seat's memory
 #[test]

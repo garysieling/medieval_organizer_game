@@ -73,3 +73,4 @@ pub mod talk_gen;
 pub mod idiolect;
 pub mod setting;
 pub mod arc;
+pub mod arc_metrics;

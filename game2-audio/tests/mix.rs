@@ -55,3 +55,14 @@ fn mix_all_ten_scenarios() {
         }
     }
 }
+
+/// The fire scenario lights the market on frames 0 and 1200 - each
+/// light carries the "alarm" cue on its model, like a natural
+/// chimney fire's emit (the cue queue clears at the frame's start,
+/// so this is the harness's job, not the op's).
+#[test]
+fn fire_alarm_cries_on_both_lights() {
+    let r = common::render_scenario("fire_alarm", 1500);
+    assert_eq!(r.alarms, vec![0, 1200],
+        "each scripted light should raise one alarm cue: {:?}", r.alarms);
+}

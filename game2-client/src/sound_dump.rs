@@ -55,7 +55,6 @@ fn apply_op(op: &Op, game: &mut Game) {
         Op::ForceEvent(id) => game.force_event(*id),
         Op::RoadMarch(si) => { let _ = game.force_road_march(0, *si); }
         Op::Stage(s) => stage::stage(game, *s),
-        Op::FireMarket => { scenarios::ignite_at_market(game); }
         _ => {}
     }
 }
@@ -67,6 +66,7 @@ fn run_script(game: &mut Game, script: &mut BTreeMap<u64, Vec<Op>>,
     frames: u64, host: &mut AudioHost, pcm: &mut Vec<f32>) {
     let mut look: Option<Op> = None;
     for f in 0..frames {
+        let mut lit: Option<(f32, f32)> = None;
         if let Some(ops) = script.remove(&f) {
             for op in &ops {
                 if matches!(op, Op::Look(..) | Op::LookMarket
@@ -79,10 +79,16 @@ fn run_script(game: &mut Game, script: &mut BTreeMap<u64, Vec<Op>>,
                         Op::LookGate => Op::LookGate,
                         _ => unreachable!(),
                     });
+                } else if matches!(op, Op::FireMarket) {
+                    lit = scenarios::ignite_at_market(game).or(lit);
                 } else { apply_op(op, game); }
             }
         }
         game.update();
+        // the cue queue clears at the frame's start, so the alarm has
+        // to land after `update` - the same frame the model shows the
+        // fire, like a natural chimney fire's emit
+        if let Some((x, y)) = lit { game.emit_sfx("alarm", x, y, 1.0); }
         let m = game.ui_model();
         let l = listener_at(&look, &m);
         render_frame(host, &m, &l, pcm);
@@ -220,7 +226,11 @@ pub fn write_outputs(out: &str, pcm: &[f32], voices_peak: usize, render_ms: f64,
     wav::write_wav(&format!("{out}.wav"), &pcm16, 2)?;
     let mut tw = io::BufWriter::new(
         std::fs::File::create(format!("{out}.trace.json"))?);
-    game2_audio::trace::write_trace(&mut tw, traces)?;
+    // the trace schedules a whole phrase ahead - clip the bars that
+    // start past the audio so the artifacts describe what was played
+    let end_s = pcm.len() as f64 / 2.0 / SAMPLE_RATE as f64;
+    let played: Vec<_> = traces.iter().filter(|b| b.at_s < end_s).cloned().collect();
+    game2_audio::trace::write_trace(&mut tw, &played)?;
     let loud = analysis::loudness(pcm, SAMPLE_RATE);
     let m = analysis::Metrics {
         lufs_integrated: loud.integrated_lufs,
@@ -233,8 +243,8 @@ pub fn write_outputs(out: &str, pcm: &[f32], voices_peak: usize, render_ms: f64,
     std::fs::write(format!("{out}.metrics.json"),
         format!("{}\n", serde_json::to_string_pretty(&m).map_err(io_err)?))?;
     analysis::spectrogram_png(pcm, SAMPLE_RATE, &format!("{out}.spectrogram.png"))?;
-    analysis::piano_roll_png(&roll_input(traces, notes), &format!("{out}.roll.png"))?;
-    analysis::timeline_png(&timeline_input(traces), &format!("{out}.timeline.png"))?;
+    analysis::piano_roll_png(&roll_input(&played, notes), &format!("{out}.roll.png"))?;
+    analysis::timeline_png(&timeline_input(&played, end_s), &format!("{out}.timeline.png"))?;
     Ok(())
 }
 
@@ -274,12 +284,16 @@ pub fn reel(out: &str, seconds_per_scenario: u64) -> io::Result<()> {
         let traces = host.drain_trace();
         let notes = host.drain_notes();
         let seg_out = format!("{out}.{}", sc.name);
+        // clip the scheduled-ahead tail: bars that start past the
+        // segment's audio never played in it
+        let end_s = pcm.len() as f64 / 2.0 / SAMPLE_RATE as f64;
+        let played: Vec<_> = traces.iter().filter(|b| b.at_s < end_s).cloned().collect();
         let mut tw = io::BufWriter::new(
             std::fs::File::create(format!("{seg_out}.trace.json"))?);
-        game2_audio::trace::write_trace(&mut tw, &traces)?;
-        analysis::piano_roll_png(&roll_input(&traces, &notes),
+        game2_audio::trace::write_trace(&mut tw, &played)?;
+        analysis::piano_roll_png(&roll_input(&played, &notes),
             &format!("{seg_out}.roll.png"))?;
-        analysis::timeline_png(&timeline_input(&traces),
+        analysis::timeline_png(&timeline_input(&played, end_s),
             &format!("{seg_out}.timeline.png"))?;
         let loud = analysis::loudness(&pcm, SAMPLE_RATE);
         index.push_str(&format!(
@@ -355,11 +369,11 @@ fn roll_input(traces: &[game2_audio::trace::BarTrace],
 }
 
 /// The timeline's input: tension per second, section bands, the mode
-/// strip, per-voice lanes and the stinger markers.
-fn timeline_input(traces: &[game2_audio::trace::BarTrace]) -> analysis::TimelineInput {
+/// strip, per-voice lanes and the stinger markers. `end_s` is the clip
+/// boundary - the audio's length, not a bar's guess.
+fn timeline_input(traces: &[game2_audio::trace::BarTrace], end_s: f64) -> analysis::TimelineInput {
     const VOICES: [&str; 8] =
         ["Drone", "Pulse", "Ground", "Harmony", "Melody", "Counter", "Color", "Choir"];
-    let end_s = traces.last().map(|b| b.at_s + 2.0).unwrap_or(0.0);
     let mut tension = vec![0.0f32; end_s.ceil() as usize + 1];
     let mut sections: Vec<analysis::Section> = vec![];
     let mut mode_lane: Vec<(f32, String)> = vec![];

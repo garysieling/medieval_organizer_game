@@ -72,11 +72,13 @@ pub fn look_spot(op: &Op, m: &UiModel) -> Option<(f32, f32)> {
 }
 
 /// Ignite the flammable tile nearest the market cross, spiralling
-/// out - wheat, a thatched roof, a hay cart. Returns whether anything
-/// caught (the square itself is paved, so the flame is a tile or two
-/// off the middle). The `Op::FireMarket` verb and `fire_alarm` share it.
-pub fn ignite_at_market(g: &mut Game) -> bool {
-    let Some((cx, cy)) = g.ui_model().market else { return false };
+/// out - wheat, a thatched roof, a hay cart. Returns the lit tile's
+/// centre when something caught (the square itself is paved, so the
+/// flame is a tile or two off the middle). The caller raises the
+/// `alarm` cue itself - `emit_sfx` only lives to the next frame, so
+/// it has to land after `update`, not here.
+pub fn ignite_at_market(g: &mut Game) -> Option<(f32, f32)> {
+    let (cx, cy) = g.ui_model().market?;
     let (cx, cy) = (cx.round() as i32, cy.round() as i32);
     for r in 0i32..24 {
         for dy in -r..=r {
@@ -85,12 +87,12 @@ pub fn ignite_at_market(g: &mut Game) -> bool {
                 let (x, y) = (cx + dx, cy + dy);
                 if game2_core::game::fire::Fire::flammable(&g.map, x, y)
                     && g.fire.ignite(&g.map, x, y, g.tick) {
-                    return true;
+                    return Some((x as f32 + 0.5, y as f32 + 0.5));
                 }
             }
         }
     }
-    false
+    None
 }
 
 /// Run the sim until `cond` holds (bounded, so a dead schedule can't
@@ -183,13 +185,10 @@ fn fever_lament(seed: u64) -> Game {
 
 /// A thatch fire off the market square (I1): the alarm, the crackle,
 /// the bucket line - and the tension the `burning` list feeds the
-/// score. The script re-lights near the cross mid-run in case the
-/// first flame burnt out early.
-fn fire_alarm(seed: u64) -> Game {
-    let mut g = quiet_village(seed);
-    ignite_at_market(&mut g);
-    g
-}
+/// score. The script lights it on frame 0 (so the alarm cue lands on
+/// the first rendered frame) and re-lights mid-run in case the first
+/// flame burnt out early.
+fn fire_alarm(seed: u64) -> Game { quiet_village(seed) }
 
 /// Every scenario by name, in the reel's order (I1): the quiet
 /// baseline, the four place scenes, the alarm, the lament, then the
@@ -226,6 +225,7 @@ pub fn registry() -> Vec<Scenario> {
             build: fire_alarm,
             script: vec![
                 ScriptOp { frame: 0, op: Op::LookMarket },
+                ScriptOp { frame: 0, op: Op::FireMarket },
                 ScriptOp { frame: 1200, op: Op::FireMarket },
             ],
         },

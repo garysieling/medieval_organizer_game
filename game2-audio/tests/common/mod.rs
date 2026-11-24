@@ -102,12 +102,15 @@ pub fn test_bank() -> SampleBank {
 /// What one scenario render produced: the stereo signal, the voices
 /// the engine peaked at, wall time, and the score's ledgers (bar
 /// trace and note log - the golden file and gap checks read these).
+/// `alarms` is the frames whose model carried an "alarm" sfx cue -
+/// the fire scenario's regression reads it.
 pub struct Render {
     pub pcm: Vec<f32>,
     pub voices_peak: usize,
     pub render_secs: f32,
     pub traces: Vec<BarTrace>,
     pub notes: Vec<(u64, NoteEvent)>,
+    pub alarms: Vec<u64>,
 }
 
 /// A scenario rendered through the host like `sound_dump` does: ops
@@ -123,8 +126,10 @@ pub fn render_scenario(name: &str, frames: u64) -> Render {
     let mut host = AudioHost::offline(SAMPLE_RATE);
     host.set_bank(test_bank());
     let mut pcm = vec![];
+    let mut alarms = vec![];
     let mut render_secs = 0.0f32;
     for f in 0..frames {
+        let mut lit: Option<(f32, f32)> = None;
         if let Some(ops) = by_frame.remove(&f) {
             for op in &ops {
                 match op {
@@ -132,7 +137,7 @@ pub fn render_scenario(name: &str, frames: u64) -> Render {
                     Op::ForceEvent(id) => g.force_event(*id),
                     Op::RoadMarch(si) => { let _ = g.force_road_march(0, *si); }
                     Op::Stage(s) => game2_core::session::stage::stage(&mut g, *s),
-                    Op::FireMarket => { scenarios::ignite_at_market(&mut g); }
+                    Op::FireMarket => { lit = scenarios::ignite_at_market(&mut g).or(lit); }
                     _ => look = Some(match op {
                         Op::Look(x, y) => Op::Look(*x, *y),
                         Op::LookMarket => Op::LookMarket,
@@ -145,7 +150,11 @@ pub fn render_scenario(name: &str, frames: u64) -> Render {
             }
         }
         g.update();
+        // sfx cues live exactly one frame - the alarm lands after
+        // `update`, on the same model that first shows the fire
+        if let Some((x, y)) = lit { g.emit_sfx("alarm", x, y, 1.0); }
         let m = g.ui_model();
+        if m.sfx_v.iter().any(|(k, ..)| k == "alarm") { alarms.push(f); }
         let l = look.as_ref().and_then(|op| look_spot(op, &m))
             .map(|(x, y)| Listener::at(x, y, 1.0))
             .unwrap_or_else(|| Listener::from_model(&m));
@@ -163,5 +172,6 @@ pub fn render_scenario(name: &str, frames: u64) -> Render {
         render_secs,
         traces: host.drain_trace(),
         notes: host.drain_notes(),
+        alarms,
     }
 }

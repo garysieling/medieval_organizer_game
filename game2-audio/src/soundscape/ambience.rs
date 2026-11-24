@@ -72,6 +72,9 @@ const fn shot_assets(kind: EmitterKind) -> &'static [&'static str] {
         EmitterKind::Cart => &["cart_wheel", "hoofbeat"],
         EmitterKind::Gate => &["gate_creak"],
         EmitterKind::Graveyard => &["crow"],
+        // the scan's own wording: while something burns the parish
+        // bell tolls the alarm
+        EmitterKind::Fire => &["church_bell"],
         _ => &[],
     }
 }

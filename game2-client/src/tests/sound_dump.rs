@@ -91,6 +91,14 @@ fn reel_has_ten_segments_and_index() {
             assert!(std::path::Path::new(&p).metadata()
                 .map(|m| m.len() > 0).unwrap_or(false), "{p} missing or empty");
         }
+        // every exported bar started inside the segment - a phrase
+        // schedules ahead, but unplayed bars aren't in the wav
+        let trace = std::fs::read_to_string(format!("{out}.{}.trace.json", sc.name)).unwrap();
+        for line in trace.lines() {
+            let at = serde_json::from_str::<serde_json::Value>(line).unwrap()["at_s"]
+                .as_f64().unwrap();
+            assert!(at < 1.0, "{}: a bar starts at {at}s, past the 1s segment", sc.name);
+        }
     }
     assert!(md.contains("checklist"), "reel.md lacks the listen checklist");
 }

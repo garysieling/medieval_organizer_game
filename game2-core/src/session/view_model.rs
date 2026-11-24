@@ -1423,6 +1423,118 @@ impl Game {
             card_head(&mut lines, &mut y, "ISSUES");
             for (t, rgb) in issues { card_bullet(&mut lines, &mut y, t, rgb); }
         }
+        // the ledger's page on them (E7-3, #1432): what the seat knows
+        // and where it heard it, what others say - flagged where it cuts
+        // against what the seat saw - the shapes never opened, the words
+        // held in trust, and its own read of where they stand
+        {
+            use crate::game::desires::{self, LedgerEntry, Source};
+            let pe = self.seats[seat].player;
+            let ledger = desires::entries(world, pe, v);
+            let sils: Vec<desires::Silhouette> = world.get_component::<desires::Known>(pe)
+                .map(|k| k.silhouettes.iter().filter(|s| s.who == v).cloned().collect())
+                .unwrap_or_default();
+            let held = desires::confidences(world, pe, v);
+            let read = crate::game::organizing::read_of(world, pe, v);
+            if !ledger.is_empty() || !sils.is_empty() || !held.is_empty() || read.is_some() {
+                use crate::game::organizing::{band_label, read_label};
+                card_head(&mut lines, &mut y, "THE LEDGER");
+                // the facts, counted by area: each carries how it was
+                // heard and how fresh the word is
+                let src_word = |e: &LedgerEntry| -> String { match e.source {
+                    Source::Told { .. } => "their own telling".into(),
+                    Source::Gossip { speaker } =>
+                        format!("word carried by {}", self.name_of(speaker)),
+                    Source::Witnessed => "what you saw".into(),
+                } };
+                for (area, is_want) in [("wants", true), ("troubles", false)] {
+                    let mine: Vec<&LedgerEntry> = ledger.iter().filter(|e| match e.reveal {
+                        Some(desires::Reveal::Want(_)) => is_want,
+                        Some(desires::Reveal::Problem(_)) => !is_want,
+                        None => false,
+                    }).collect();
+                    if mine.is_empty() { continue; }
+                    let mut srcs: Vec<String> = mine.iter().map(|e| src_word(e)).collect();
+                    srcs.sort(); srcs.dedup();
+                    let newest = mine.iter().map(|e| e.day).max().unwrap_or(0);
+                    let age = self.tick.saturating_sub(newest);
+                    let age_word = if age == 0 { "today".into() }
+                        else { format!("{} days back", age) };
+                    card_bullet(&mut lines, &mut y,
+                        format!("{}: {} \u{b7} {} \u{b7} newest {}", area, mine.len(),
+                            srcs.join(" + "), age_word), (210, 190, 150));
+                }
+                // the village's talk about them, flagged where it cuts
+                // against what the seat saw - a claim and its negation
+                // read as the one story
+                let mut seen: Vec<String> = vec![];
+                let mut talk: Vec<&LedgerEntry> = vec![];
+                for e in ledger.iter().filter(|e| e.reveal.is_none()) {
+                    let base = e.fact.trim_start_matches('!').to_string();
+                    if !seen.contains(&base) {
+                        seen.push(base);
+                        talk.push(e);
+                    }
+                }
+                for e in talk.iter().take(3) {
+                    let flag = if e.contradicted { " \u{b7} cuts against what you saw" } else { "" };
+                    let rgb = if e.contradicted { (230, 140, 110) } else { (200, 180, 160) };
+                    card_bullet(&mut lines, &mut y,
+                        format!("the talk: {}{}",
+                            e.fact.trim_start_matches('!').replace(['_', ':'], " "), flag), rgb);
+                }
+                if talk.len() > 3 {
+                    card_bullet(&mut lines, &mut y,
+                        format!("+{} more of the talk", talk.len() - 3), (200, 180, 160));
+                }
+                // a typed fact heard both ways flags too
+                for e in ledger.iter().filter(|e| e.contradicted && e.reveal.is_some()) {
+                    let label = match e.reveal.unwrap() {
+                        desires::Reveal::Want(w) => desires::want_label(w).to_string(),
+                        desires::Reveal::Problem(p) => desires::problem_label(&p),
+                    };
+                    card_bullet(&mut lines, &mut y,
+                        format!("heard it both ways: {}", label), (230, 140, 110));
+                }
+                // the shapes that show without ever being told
+                for s in &sils {
+                    let evaded = if s.evasions > 1 {
+                        format!(" \u{b7} turned aside {} times", s.evasions) } else { String::new() };
+                    card_bullet(&mut lines, &mut y,
+                        format!("something about {}{}", s.area, evaded), (170, 170, 200));
+                }
+                // the words they gave you to hold
+                let kept = held.iter().filter(|c| c.kept).count();
+                let lost = held.len() - kept;
+                if kept > 0 {
+                    card_bullet(&mut lines, &mut y,
+                        if kept == 1 { "their word is yours to keep".into() }
+                        else { format!("their word is yours to keep \u{b7} {}", kept) },
+                        (150, 210, 150));
+                }
+                if lost > 0 {
+                    card_bullet(&mut lines, &mut y,
+                        if lost == 1 { "their word's out now".into() }
+                        else { format!("their word's out now \u{b7} {}", lost) },
+                        (230, 140, 110));
+                }
+                // staleness: the newest hearing dates the whole page
+                if let Some(day) = desires::last_heard(world, pe, v) {
+                    let age = self.tick.saturating_sub(day);
+                    if age > 0 {
+                        let stale = if age > 30 { " \u{b7} the wants may have shifted" } else { "" };
+                        card_bullet(&mut lines, &mut y,
+                            format!("last spoke {} days back{}", age, stale), (150, 150, 170));
+                    }
+                }
+                // and the read - a guess at their stance, never the truth
+                if let Some((n, band)) = read {
+                    card_prop(&mut lines, &mut y, "Your read",
+                        &format!("{} of 5 \u{b7} {} \u{b7} {}", n, read_label(n), band_label(band)),
+                        (190, 200, 170));
+                }
+            }
+        }
         // the biography the seat knows: years and build are public, but
         // temperament and kin take a bond close enough to have been told
         // the tale the days are writing: once a theme takes shape the

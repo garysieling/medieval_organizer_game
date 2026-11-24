@@ -2380,6 +2380,36 @@ impl Game {
             .unwrap_or_default()
     }
 
+    /// The word goes out, `days` from now at the plan's venue (#1337):
+    /// the same landing the call panel's day pick makes, whether the
+    /// panel put it or an invitation's when/where did - the question
+    /// the call opens with still waits its answer (#1267)
+    pub(in crate::session) fn the_words_out(&mut self, seat: usize, days: u64) {
+        let oe = self.seats[seat].org;
+        let for_day = self.tick + days;
+        let label = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
+            .and_then(|p| p.venue).map(|v| self.venue_label(v))
+            .unwrap_or_else(|| "the square".into());
+        if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+            p.for_day = Some(for_day);
+        }
+        self.seats[seat].frame_offer = Some(self.tick);
+        self.notices.push((
+            "meet".into(),
+            format!("the word's out - folk gather at {} in {} days", label, days),
+            for_day,
+        ));
+        self.toasts
+            .push(("a meeting's called - the word's out".into(), self.tick + 40));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+            format!(
+                "t{}: the word's out - they gather at {} in {} days.",
+                self.tick, label, days
+            ),
+        );
+    }
+
     /// The organizer's answer to the founding call on the conversation
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
@@ -2951,30 +2981,7 @@ impl Game {
         // keeps taking yeses and roles until the door
         if self.seats[seat].meet_offer.take().is_some() {
             let n = [2u64, 4, 7][pick.min(2)];
-            let oe = self.seats[seat].org;
-            let for_day = self.tick + n;
-            let label = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
-                .and_then(|p| p.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h)))
-                .map(|i| format!("{}'s house", self.cast_name(i))).unwrap_or_else(|| "the square".into());
-            if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
-                p.for_day = Some(for_day);
-            }
-            // and then what's asked when they're in (#1267)
-            self.seats[seat].frame_offer = Some(self.tick);
-            self.notices.push((
-                "meet".into(),
-                format!("the word's out - folk gather at {} in {} days", label, n),
-                for_day,
-            ));
-            self.toasts
-                .push(("a meeting's called - the word's out".into(), self.tick + 40));
-            self.log.push_ev(
-                EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
-                format!(
-                    "t{}: the word's out - they gather at {} in {} days.",
-                    self.tick, label, n
-                ),
-            );
+            self.the_words_out(seat, n);
             return;
         }
         // the agenda a campaign Meet left open: the room votes the pick

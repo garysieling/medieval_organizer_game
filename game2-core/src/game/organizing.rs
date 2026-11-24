@@ -782,10 +782,50 @@ pub fn stage_label(s: RelStage) -> &'static str {
 /// Days before the organizer can testify again: testimony repeated is a speech (#1248)
 pub const TESTIMONY_COOLDOWN_DAYS: u64 = 90;
 
+/// Where the call gathers (#1337): a lent home, or one of the
+/// village's public spots - the invitation's where-pick names it
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Venue {
+    /// A villager's house: the host and the home they lent
+    House(Entity, Entity),
+    /// The market cross - folk can gather there on the word alone
+    Square,
+    /// The church steps
+    Church,
+    /// The tavern on the green
+    Tavern,
+}
+
+impl Venue {
+    /// Who lent it, when it's a house - a public spot keeps no promise
+    pub fn host(self) -> Option<Entity> {
+        match self { Venue::House(h, _) => Some(h), _ => None }
+    }
+}
+
+/// The homes the org's learned it can meet in (#1337): a lent door
+/// stays known past the meeting it was lent for - the plan resets
+/// every call, so the learning lives here. Venues are learned, not
+/// given.
+#[derive(Debug, Default)]
+pub struct KnownVenues {
+    /// (host, their house)
+    pub homes: Vec<(Entity, Entity)>,
+}
+
+/// Their door stays open past the one meeting it was lent for: the org
+/// learns the house as a place it can gather (#1337)
+pub fn learn_venue(world: &mut World, org: Entity, host: Entity, home: Entity) {
+    let mut kv = world.get_component::<KnownVenues>(org)
+        .map(|k| KnownVenues { homes: k.homes.clone() }).unwrap_or_default();
+    if !kv.homes.contains(&(host, home)) { kv.homes.push((host, home)); }
+    world.add_component(org, kv);
+}
+
 #[derive(Debug, Default)]
 pub struct MeetingPlan {
-    /// Who said we could meet at their house, and the house they meant
-    pub venue: Option<(Entity, Entity)>,
+    /// Where the coming meet gathers - a lent home or a public spot
+    pub venue: Option<Venue>,
     /// Who said they'd bring something for the table
     pub snacks: Option<Entity>,
     /// Who said they'd keep the notes
@@ -818,7 +858,7 @@ pub struct MeetingPlan {
 impl MeetingPlan {
     /// Everyone holding a promise on the plan
     pub fn holders(&self) -> Vec<Entity> {
-        let mut v: Vec<Entity> = [self.venue.map(|(h, _)| h), self.snacks, self.notes,
+        let mut v: Vec<Entity> = [self.venue.and_then(|v| v.host()), self.snacks, self.notes,
             self.opener, self.song, self.closer].into_iter().flatten().collect();
         v.extend(self.coming.iter().copied());
         v.extend(self.spreaders.iter().copied());
@@ -1376,6 +1416,11 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
 /// own referral path.
 fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &str) -> String {
     let home = if p == PropKind::LendVenue { crate::game::household::home_of(world, person) } else { None };
+    // the door they open stays known (#1337): learn the house before
+    // the plan borrow begins, whichever call this venue's picked for
+    if p == PropKind::LendVenue {
+        if let Some(h) = home { learn_venue(world, org, person, h); }
+    }
     let plan = plan_for(world, org);
     match p {
         PropKind::ComeAlong => {
@@ -1383,7 +1428,7 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
             format!("{} says they'll come.", name)
         }
         PropKind::LendVenue => {
-            if let Some(h) = home { plan.venue = Some((person, h)); }
+            if let Some(h) = home { plan.venue = Some(Venue::House(person, h)); }
             format!("{} says you can meet at their house.", name)
         }
         PropKind::BringSnacks => { plan.snacks = Some(person); format!("{} will bring something for the table.", name) }

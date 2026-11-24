@@ -265,6 +265,23 @@ pub struct PlayerTalk {
     /// first choice and their opening names it. Latched at open - a
     /// mid-talk lapse refuses on the pick, never shifts the numbers
     pub job: bool,
+    /// The meeting invite's follow-up (#1337): while it's open the
+    /// choices are the call's - when they gather, then where
+    pub inviting: Option<InviteStep>,
+}
+
+/// The invitation's follow-up under way (#1337): they said they'd come
+/// to a meeting and asked the call's own questions back - when, then
+/// where. While one's open its picks are the talk's choices.
+#[derive(Debug, Clone)]
+pub enum InviteStep {
+    /// "When are we gathering, then?" - the day picks, the same three
+    /// the call panel offers
+    When,
+    /// "And where d'you want us?" - the day's picked (`days` out); the
+    /// venue list's already resolved with its labels: the public
+    /// spots, the org's learned homes, and "their call" riding last
+    Where { days: u64, venues: Vec<(crate::game::organizing::Venue, String)> },
 }
 
 /// The one-on-one argument as it stands (#1234): which issue, then
@@ -335,6 +352,18 @@ impl PlayerTalk {
     /// under way, else the replies then the asks that fit
     pub fn choice_labels(&self, world: &World) -> Vec<String> {
         if let Some(a) = &self.argue { return a.labels(); }
+        // the invite's questions are the picks while it's open (#1337)
+        if let Some(step) = &self.inviting {
+            return match step {
+                InviteStep::When => vec![
+                    "Two days out - a quick word round".into(),
+                    "Four days out - the word gets round".into(),
+                    "A week out - the far ones can come".into(),
+                ],
+                InviteStep::Where { venues, .. } => venues.iter().map(|(_, l)| l.clone())
+                    .chain(std::iter::once("Their call - they'll pick where".into())).collect(),
+            };
+        }
         if self.inoculating {
             return crate::game::inoculation::COUNTERS.iter().map(|&c| crate::game::inoculation::label(c).to_string())
                 .chain(std::iter::once("Let it drop".to_string())).collect();
@@ -1291,7 +1320,7 @@ impl Game {
             let_run: self.world.get_component::<crate::game::traits::Personality>(v)
                 .map(|p| p.traits.contains(&crate::game::traits::Trait::SelfAbsorbed))
                 .unwrap_or(false),
-            job,
+            job, inviting: None,
         });
         self.refresh_player_talk(seat);
     }
@@ -1669,6 +1698,7 @@ impl Game {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
         if let (Some(_), Some(i)) = (&t.argue, pick) { self.argue_pick_at(seat, i); return; }
         if let (true, Some(i)) = (t.inoculating, pick) { self.inoculate_pick_at(seat, i); return; }
+        if let (Some(_), Some(i)) = (&t.inviting, pick) { self.invite_pick_at(seat, i); return; }
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let extra = t.inoculation_beyond();
         let probe_extra = t.probe_beyond();
@@ -1800,6 +1830,21 @@ impl Game {
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 cur.asks.retain(|a| *a != o);
                 cur.asks_taken.push(o);
+            }
+            // the first invitation to an un-called meet earns the
+            // follow-up (#1337): they'll come - then "when are we
+            // gathering?" The call panel's day pick stays the way when
+            // no invite asks it first
+            if o.kind == crate::game::organizing::PropKind::ComeAlong {
+                let came = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
+                    .map(|p| p.coming.contains(&who) && p.for_day.is_none())
+                    .unwrap_or(false);
+                if came {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.inviting = Some(InviteStep::When);
+                    }
+                    self.argue_line(seat, Some(who), "I'll come. When are we gathering, then?".into());
+                }
             }
             self.refresh_player_talk(seat);
             return;
@@ -2300,6 +2345,87 @@ impl Game {
         self.argue_line(seat, None, "You let it drop.".into());
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.argue = None; }
         self.refresh_player_talk(seat);
+    }
+
+    /// The venues a where-pick can name (#1337): the square, then the
+    /// church steps and the tavern when they stand, then the homes the
+    /// org's learned - the invited's own door isn't listed twice, it's
+    /// what "their call" means
+    fn invite_venues(&self, seat: usize) -> Vec<(crate::game::organizing::Venue, String)> {
+        use crate::game::organizing::Venue;
+        let oe = self.seats[seat].org;
+        let mut out = vec![(Venue::Square, self.venue_label(Venue::Square))];
+        if self.church.is_some() { out.push((Venue::Church, self.venue_label(Venue::Church))); }
+        if self.tavern.is_some() { out.push((Venue::Tavern, self.venue_label(Venue::Tavern))); }
+        if let Some(kv) = self.world.get_component::<crate::game::organizing::KnownVenues>(oe) {
+            for &(h, b) in &kv.homes {
+                if crate::game::villager::is_dead(&self.world, h)
+                    || self.world.get_component::<villager::Pos>(b).is_none() { continue; }
+                out.push((Venue::House(h, b), self.venue_label(Venue::House(h, b))));
+            }
+        }
+        out
+    }
+
+    /// A pick inside the invitation's follow-up (#1337): the when, then
+    /// the where - and the word goes out with both settled, the same
+    /// landing the call panel's day pick makes
+    fn invite_pick_at(&mut self, seat: usize, i: usize) {
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let Some(step) = t.inviting.clone() else { return };
+        let (who, pe, oe) = (t.who, self.seats[seat].player, self.seats[seat].org);
+        match step {
+            InviteStep::When => {
+                let Some(&days) = [2u64, 4, 7].get(i) else { return };
+                let day_line = match days {
+                    2 => "Two days' time - spread the word quick.",
+                    4 => "Four days - let the word get round.",
+                    _ => "A week - the far ones can come.",
+                };
+                self.argue_line(seat, Some(pe), day_line.into());
+                // a venue already promised (a lent house, a pick that
+                // ran ahead) settles the where itself - the call just
+                // wants its day
+                let set = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
+                    .map(|p| p.venue.is_some()).unwrap_or(false);
+                if set {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() { cur.inviting = None; }
+                    self.the_words_out(seat, days);
+                    self.argue_line(seat, Some(who), "I'll be there.".into());
+                } else {
+                    let venues = self.invite_venues(seat);
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.inviting = Some(InviteStep::Where { days, venues });
+                    }
+                    self.argue_line(seat, Some(who), "And where d'you want us?".into());
+                }
+                self.refresh_player_talk(seat);
+            }
+            InviteStep::Where { days, venues } => {
+                let home = crate::game::household::home_of(&self.world, who);
+                let pick_venue = if i == venues.len() {
+                    // "their call": their own door if they have one -
+                    // and the org learns it - else the square
+                    home.map(|b| crate::game::organizing::Venue::House(who, b))
+                        .unwrap_or(crate::game::organizing::Venue::Square)
+                } else {
+                    let Some(&(v, _)) = venues.get(i) else { return };
+                    v
+                };
+                if let crate::game::organizing::Venue::House(h, b) = pick_venue {
+                    crate::game::organizing::learn_venue(&mut self.world, oe, h, b);
+                }
+                if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+                    p.venue = Some(pick_venue);
+                }
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.inviting = None; }
+                let label = self.venue_label(pick_venue);
+                self.argue_line(seat, Some(pe), format!("At {}.", label));
+                self.the_words_out(seat, days);
+                self.argue_line(seat, Some(who), "I'll be there.".into());
+                self.refresh_player_talk(seat);
+            }
+        }
     }
 
     /// "I'll take it" with a road visitor: the purse pays or gains, the

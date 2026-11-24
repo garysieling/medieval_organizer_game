@@ -94,8 +94,14 @@ impl Game {
             let Some(plan) = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe) else { continue };
             let Some(day) = plan.for_day else { continue };
             if tick < day { continue; }
-            let lost = plan.venue.map(|(h, b)| crate::game::villager::is_dead(&self.world, h)
-                || self.world.get_component::<Pos>(b).is_none()).unwrap_or(false);
+            // a lost house calls the meeting off; a public spot can't
+            // be lost the same way - it falls back at the door instead
+            let lost = match plan.venue {
+                Some(crate::game::organizing::Venue::House(h, b)) =>
+                    crate::game::villager::is_dead(&self.world, h)
+                    || self.world.get_component::<Pos>(b).is_none(),
+                _ => false,
+            };
             if lost {
                 self.world
                     .remove_component::<crate::game::organizing::MeetingPlan>(oe);

@@ -360,6 +360,35 @@ impl Game {
         true
     }
 
+    /// The tile a venue gathers on (#1337): a lent house's door, the
+    /// church steps, the tavern - the square when it's a spot the map
+    /// can't reach any more, and when there's no venue at all
+    pub(in crate::session) fn venue_tile(&self, v: crate::game::organizing::Venue) -> (i32, i32) {
+        use crate::game::organizing::Venue;
+        let at = |b: Option<Entity>| b.and_then(|e| self.world.get_component::<Pos>(e))
+            .map(|p| (p.x.round() as i32, p.y.round() as i32));
+        match v {
+            Venue::House(_, b) => at(Some(b)).unwrap_or(self.village),
+            Venue::Square => self.village,
+            Venue::Church => at(self.church).unwrap_or(self.village),
+            Venue::Tavern => at(self.tavern).unwrap_or(self.village),
+        }
+    }
+
+    /// How the word names the place (#1337): "Bram's house" when it's
+    /// lent, else the spot - the square, the church steps, the tavern
+    pub(in crate::session) fn venue_label(&self, v: crate::game::organizing::Venue) -> String {
+        use crate::game::organizing::Venue;
+        match v {
+            Venue::House(h, _) => self.villagers.iter().position(|&v| v == h)
+                .map(|i| format!("{}'s house", self.cast_name(i)))
+                .unwrap_or_else(|| "a friend's house".into()),
+            Venue::Square => "the square".into(),
+            Venue::Church => "the church steps".into(),
+            Venue::Tavern => "the tavern".into(),
+        }
+    }
+
     /// Organize: call a house meeting at the venue named on the org's
     /// MeetingPlan - or the square, when nobody's lent a house and the
     /// word alone brings them out (#1065) - for everyone the plan's
@@ -379,13 +408,10 @@ impl Game {
             return format!("No meeting to call yet - {}.", missing);
         }
         let plan: MeetingPlan = std::mem::take(self.world.get_component_mut::<MeetingPlan>(oe).unwrap());
-        // no house lent: the cross is the standing ground for a meeting
+        // no venue named: the cross is the standing ground for a meeting
         // the word alone convened
-        let venue = plan.venue.map(|(_, b)| self.world.get_component::<Pos>(b)
-            .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0)))
-            .unwrap_or(self.village);
-        let label = plan.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h))
-            .map(|i| format!("{}'s house", self.cast_name(i))).unwrap_or_else(|| "the square".into());
+        let venue = plan.venue.map(|v| self.venue_tile(v)).unwrap_or(self.village);
+        let label = plan.venue.map(|v| self.venue_label(v)).unwrap_or_else(|| "the square".into());
         // the invited: those who said they'd come, those who said
         // they'd bring friends (and the friends they bring), every
         // promise-keeper - and a plus-one for each of the committed,

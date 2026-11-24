@@ -24,7 +24,7 @@ fn test_the_panel_shows_the_meeting_plans_yeses() {
     let home = crate::game::household::home_of(&g.world, host)
         .unwrap_or_else(|| { let e = g.world.create_entity(); g.world.add_component(e, Pos { x: 16.0, y: 16.0 }); e });
     g.world.add_component(g.org, MeetingPlan {
-        venue: Some((host, home)), coming: vec![coming], spreaders: vec![spreader],
+        venue: Some(crate::game::organizing::Venue::House(host, home)), coming: vec![coming], spreaders: vec![spreader],
         snacks: Some(host), ..Default::default()
     });
     let mp = g.ui_model().panel.meeting.expect("the plan's yeses");

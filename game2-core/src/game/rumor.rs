@@ -65,11 +65,16 @@ pub fn news_of(world: &World, org: Entity, tick: u64, name: &dyn Fn(Entity) -> S
     let Some(o) = world.get_component::<Organization>(org) else { return out };
     if let Some(p) = world.get_component::<MeetingPlan>(o.leader) {
         if let Some(day) = p.for_day.filter(|&d| d > tick) {
-            let at = p.venue.map(|(h, _)| name(h)).unwrap_or_else(|| "the square".into());
+            let at = match p.venue {
+                Some(crate::game::organizing::Venue::House(h, _)) => name(h),
+                Some(crate::game::organizing::Venue::Church) => "the church steps".into(),
+                Some(crate::game::organizing::Venue::Tavern) => "the tavern".into(),
+                _ => "the square".into(),
+            };
             out.push(News::MeetOn { days: day - tick, at });
         }
         for (who, what) in [
-            (p.venue.map(|(h, _)| h), "to host us"),
+            (p.venue.and_then(|v| v.host()), "to host us"),
             (p.snacks, "to bring for the table"),
             (p.notes, "to keep the notes"),
             (p.opener, "to open us with a word"),

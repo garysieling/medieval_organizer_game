@@ -82,8 +82,10 @@ impl Game {
 
 /// The journal format a binary reads. Bumped when an input's meaning
 /// changes - a journal from before the bump would replay it differently
-/// (a dropped button's Act(n) would silently no-op)
-pub const JOURNAL_VERSION: u32 = 2;
+/// (a dropped button's Act(n) would silently no-op; a TalkPick after a
+/// landed come-along now answers the invite's when/where, not the
+/// replies it meant (#1337))
+pub const JOURNAL_VERSION: u32 = 3;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

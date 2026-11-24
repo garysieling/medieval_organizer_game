@@ -1,5 +1,6 @@
 use super::clock::*;
-use super::{Meter, NoteEvent, PatchId, Quantize, Voice};
+use super::{Meter, NoteEvent, Quantize, Voice};
+use crate::instruments::PatchId;
 
 fn ev(at: u64, voice: Voice) -> NoteEvent {
     NoteEvent {
@@ -8,7 +9,7 @@ fn ev(at: u64, voice: Voice) -> NoteEvent {
         voice,
         midi: 62.0,
         vel: 0.8,
-        patch: PatchId(0),
+        patch: PatchId::Lute,
     }
 }
 

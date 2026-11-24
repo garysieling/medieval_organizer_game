@@ -1,13 +1,18 @@
 //! Musical composition: the clock that counts time in samples (M3),
-//! and later the phrase grammar and composer (M4). Everything is
+//! the phrase grammar, motif library and composer (M4). Everything is
 //! deterministic - a bar index is a count of boundaries, a note time is
 //! a sample index, and offline renders are bit-exact.
 
 pub mod clock;
+pub mod motifs;
+mod phrase;
 #[cfg(test)]
 mod clock_tests;
 
 pub use clock::{Clock, Tick};
+pub use motifs::MotifId;
+pub use phrase::{free_step, notes_hash, tempo_band, Composer, Ending, Phrase, PhraseSpec,
+    Section, TEMPO_AMBIENT, TEMPO_BUILD, TEMPO_FEAST, TEMPO_THEME};
 
 /// The eight voices a phrase is arranged over, in the design's order.
 /// Density arrays (`[f32; 8]` in M4's spec) index by this order.
@@ -34,7 +39,7 @@ pub enum Voice {
 /// A scheduled note: sample-exact onset, duration in samples, the
 /// voice that owns it, a fractional midi pitch (fractional cents carry
 /// detune for sampled patches; composition writes whole semitones),
-/// velocity, and the patch it plays on.
+/// velocity, and the patch it plays on (M2's `instruments::PatchId`).
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct NoteEvent {
     pub at_sample: u64,
@@ -43,14 +48,8 @@ pub struct NoteEvent {
     pub midi: f32,
     /// 0.0..1.0
     pub vel: f32,
-    pub patch: PatchId,
+    pub patch: crate::instruments::PatchId,
 }
-
-/// Which instrument patch a note plays. Placeholder for M2's real
-/// `PatchId` (sampled and synth patches); M3 only needs the field, so
-/// this is a small newtype - whichever ticket lands second unifies it.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct PatchId(pub u16);
 
 /// Time signature: `num` beats of `den`-note length per bar. The
 /// composer supports 4/4, 3/4, 6/8 and 2/4 - in 6/8 the clock counts

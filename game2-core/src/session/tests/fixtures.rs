@@ -14,7 +14,7 @@ pub(crate) fn plan_ready_meeting(game: &mut Game, host: Entity, at: (f32, f32), 
     let venue = game.world.create_entity();
     game.world.add_component(venue, Pos { x: at.0, y: at.1 });
     game.world.add_component(game.org, crate::game::organizing::MeetingPlan {
-        venue: Some((host, venue)), coming: coming.to_vec(), ..Default::default()
+        venue: Some(crate::game::organizing::Venue::House(host, venue)), coming: coming.to_vec(), ..Default::default()
     });
     let player = game.player;
     if game.world.get_component::<crate::game::org_skills::Organizing>(player).is_none() {

@@ -568,7 +568,7 @@ impl Game {
             .map(|p| {
                 let who = |e: Entity| name_of(e);
                 let mut roles: Vec<String> = vec![];
-                if let Some((host, _)) = p.venue { roles.push(format!("house: {}", who(host))); }
+                if let Some(host) = p.venue.and_then(|v| v.host()) { roles.push(format!("house: {}", who(host))); }
                 for (slot, label) in [(p.snacks, "snacks"), (p.notes, "notes"), (p.opener, "opener"),
                     (p.song, "song"), (p.closer, "closer")] {
                     if let Some(e) = slot { roles.push(format!("{}: {}", label, who(e))); }

@@ -250,7 +250,7 @@ fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
     // the host lends their house, the guest says they'll come (roll 0 = yes)
     let home = crate::game::household::home_of(&g.world, host);
     let home = home.unwrap_or_else(|| { let e = g.world.create_entity(); g.world.add_component(e, Pos { x: 16.0, y: 16.0 }); e });
-    g.world.add_component(g.org, MeetingPlan { venue: Some((host, home)), ..Default::default() });
+    g.world.add_component(g.org, MeetingPlan { venue: Some(crate::game::organizing::Venue::House(host, home)), ..Default::default() });
     let (oe, tick) = (g.org, g.tick); let _ = propose(&mut g.world, pe, oe, guest, PropKind::ComeAlong, "Bram", 0.0, tick);
     assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().ready());
     g.update_ctx_actions();
@@ -1275,7 +1275,7 @@ fn test_the_scout_ask_names_who_the_room_follows() {
 fn plan_news(g: &mut Game) {
     let (host, home) = (g.villagers[0], g.world.create_entity());
     g.world.add_component(g.player, MeetingPlan {
-        venue: Some((host, home)), notes: Some(g.villagers[1]),
+        venue: Some(crate::game::organizing::Venue::House(host, home)), notes: Some(g.villagers[1]),
         for_day: Some(g.tick + 4), ..Default::default() });
 }
 
@@ -1426,4 +1426,133 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
     g.world.add_component(w, p2);
     assert!(shows_up(&g.world, g.player, w, at2, Invite::Word, 0.14, g.tick),
         "the feast-keeper's year draws them out (1.15 x 1.15)");
+}
+
+/// Make `v` a follower of the player's org who's let one trouble out -
+/// the earned asks are on the table
+fn follower_with_a_grievance(g: &mut Game, v: Entity) {
+    use crate::game::desires::{Known, Problem, Reveal};
+    let pe = g.player;
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    crate::game::relationships::find_relationship(&g.world, g.player, v)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+}
+
+/// Talk to villager `vi` and keep offering the come-along until a yes
+/// lands the invitation's follow-up - a refusal's just asked again on
+/// the next walk over
+fn invite_until_asking(g: &mut Game, vi: usize) {
+    use crate::game::organizing::PropKind;
+    let who = g.villagers[vi];
+    let p = *g.world.get_component::<Pos>(who).unwrap();
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+    for _ in 0..80 {
+        if g.seats[0].talk.is_none() {
+            g.seats[0].selected_target = vi;
+            g.seats[0].picked = true;
+            g.act_at(0, 0);
+        }
+        let Some(t) = g.seats[0].talk.as_ref() else { return };
+        if t.inviting.is_some() { return; }
+        let (n, shown) = (t.options.len(), t.asks_shown());
+        match t.asks.iter().take(shown).position(|a| a.kind == PropKind::ComeAlong) {
+            Some(k) => g.talk_pick_at(0, Some(n + k)),
+            None => g.talk_pick_at(0, Some(if shown > 0 { n } else { 0 })),
+        }
+    }
+}
+
+/// The first "come to a meeting" that lands asks the call's own
+/// questions back - when, then where - and the picks put the word
+/// out themselves (#1337)
+#[test]
+fn test_an_invite_asks_when_and_where() {
+    use crate::game::organizing::Venue;
+    use crate::session::dialogue::InviteStep;
+    let mut g = Game::new();
+    let v = g.villagers[1];
+    follower_with_a_grievance(&mut g, v);
+    invite_until_asking(&mut g, 1);
+    let t = g.seats[0].talk.as_ref().expect("the talk's still open");
+    assert!(matches!(t.inviting, Some(InviteStep::When)),
+        "the yes asks the when back: {:?}", t.inviting);
+    // the picks are the call's own days, not the talk's replies
+    let labels = t.choice_labels(&g.world);
+    assert_eq!(labels.len(), 3, "{labels:?}");
+    assert!(labels[2].contains("week"), "{labels:?}");
+    g.talk_pick_at(0, Some(0)); // two days out
+    let t = g.seats[0].talk.as_ref().unwrap();
+    let (days, _) = match &t.inviting {
+        Some(InviteStep::Where { days, venues }) => (*days, venues),
+        s => panic!("the where follows the when: {s:?}"),
+    };
+    assert_eq!(days, 2);
+    // the where's the public spots and "their call", last
+    let labels = t.choice_labels(&g.world);
+    assert_eq!(labels[0], "the square", "{labels:?}");
+    assert!(labels.iter().any(|l| l == "the tavern"), "{labels:?}");
+    assert!(labels.last().unwrap().contains("Their call"), "{labels:?}");
+    g.talk_pick_at(0, Some(0)); // the square
+    let plan = g.world.get_component::<MeetingPlan>(g.org).expect("the plan");
+    assert_eq!(plan.for_day, Some(g.tick + 2), "the word's out two days on");
+    assert_eq!(plan.venue, Some(Venue::Square));
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.inviting.is_none(), "the follow-up's done");
+    // and the word's out: the day fires the call on its own, no panel
+    g.livelihood_tick(g.tick + 2);
+    assert!(g.meeting.is_some(), "the day fires the call: {:?}", g.log.last());
+    assert!(g.log.iter().any(|l| l.contains("the word's out")), "the word went out");
+}
+
+/// A lent house stays learned past the call it was lent for (#1337):
+/// the where-pick can name it again the next time a meet's uncalled
+#[test]
+fn test_a_lent_house_stays_learned() {
+    use crate::game::organizing::{propose, KnownVenues, PropKind, Venue};
+    let mut g = Game::new();
+    let (pe, host, guest) = (g.player, g.villagers[1], g.villagers[2]);
+    let home = crate::game::household::home_of(&g.world, host)
+        .expect("the host has a house to lend");
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, _) = propose(&mut g.world, pe, oe, host, PropKind::LendVenue, "Eliza", 0.0, tick);
+    assert!(msg.contains("house"), "{msg}");
+    assert!(g.world.get_component::<KnownVenues>(oe)
+        .map(|k| k.homes.contains(&(host, home))).unwrap_or(false), "the door's learned");
+    // the call spends the plan: the learning's what stays
+    g.world.add_component(oe, MeetingPlan::default());
+    follower_with_a_grievance(&mut g, guest);
+    invite_until_asking(&mut g, 2);
+    g.talk_pick_at(0, Some(0)); // two days out
+    let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
+    let door = format!("{}'s house", g.cast_name(1));
+    assert!(labels.iter().any(|l| *l == door),
+        "the learned door's a pick again: {labels:?}");
+    let pick = labels.iter().position(|l| *l == door).unwrap();
+    g.talk_pick_at(0, Some(pick));
+    let plan = g.world.get_component::<MeetingPlan>(g.org).unwrap();
+    assert_eq!(plan.venue, Some(Venue::House(host, home)));
+}
+
+/// "Their call" names their own door when they have one (#1337): the
+/// invitee lends the house with the answer, and the org learns it
+#[test]
+fn test_their_call_names_their_house() {
+    use crate::game::organizing::{KnownVenues, Venue};
+    let mut g = Game::new();
+    let v = g.villagers[1];
+    let home = crate::game::household::home_of(&g.world, v)
+        .expect("they've a house to offer");
+    follower_with_a_grievance(&mut g, v);
+    invite_until_asking(&mut g, 1);
+    g.talk_pick_at(0, Some(0)); // two days out
+    let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
+    let last = labels.len() - 1;
+    assert!(labels[last].contains("Their call"), "{labels:?}");
+    g.talk_pick_at(0, Some(last));
+    let plan = g.world.get_component::<MeetingPlan>(g.org).unwrap();
+    assert_eq!(plan.venue, Some(Venue::House(v, home)), "their door's the venue");
+    assert!(g.world.get_component::<KnownVenues>(g.org)
+        .map(|k| k.homes.contains(&(v, home))).unwrap_or(false), "and it's learned");
 }

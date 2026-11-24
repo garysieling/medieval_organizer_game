@@ -192,6 +192,10 @@ Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to
 share. Three voices on one trouble inside a year and the organizer sees
 the issue - shown on the panel's ISSUES line.
+The first "come to a meeting" that lands asks the call's own questions
+back - when they gather, then where: the square, the church steps, the
+tavern, or a door you've been lent (lent houses stay known, call to
+call). The picks themselves put the word out.
 Once a meeting's day is picked, the call asks what you'll ask: put the
 matter, or **probe** - what do you actually want, and who are you doing
 it for? Followers name who they do it for (and if the lord's man is in

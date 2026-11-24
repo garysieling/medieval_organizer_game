@@ -13,8 +13,8 @@ pub const TALK_Y: i32 = 848;
 pub const TALK_W: i32 = 320;
 pub const TALK_H: i32 = 108;
 pub(crate) const ROW_H: i32 = LINE_H;
-/// Characters to a row: the box less its padding
-pub const TALK_CHARS: usize = ((TALK_W - 12) / GLYPH_W) as usize;
+/// Pixels to a row: the box less its padding
+pub const TALK_PX: i32 = TALK_W - 12;
 /// Rows the box holds under its title
 pub(crate) const TALK_ROWS: usize = ((TALK_H - 18) / ROW_H) as usize;
 /// An option takes at most this many rows; a longer one is cut with "..."
@@ -28,11 +28,11 @@ pub type TalkRow = (i32, String, (u8, u8, u8), Option<(String, (u8, u8, u8))>, b
 
 /// Word-wrap a reply as "1) text", at most OPTION_ROWS rows
 pub(crate) fn option_rows(n: usize, text: &str) -> Vec<String> {
-    let mut rows = super::wrap_text(&format!("{}) {}", n + 1, text), TALK_CHARS - 1);
+    let mut rows = super::wrap_px(&format!("{}) {}", n + 1, text), TALK_PX - 8);
     if rows.len() > OPTION_ROWS {
         rows.truncate(OPTION_ROWS);
         let last = rows.last_mut().unwrap();
-        while last.len() + 3 > TALK_CHARS - 1 { last.pop(); }
+        while game2_core::ui::font::measure(&format!("{}...", last)) > TALK_PX - 8 { last.pop(); }
         last.push_str("...");
     }
     rows
@@ -59,14 +59,14 @@ pub fn talk_layout(p: &TalkPanelV) -> (Vec<TalkRow>, Vec<OptionRect>) {
         match &r.name {
             Some(n) => {
                 let lead = format!("{}: ", n.to_uppercase());
-                for (k, w) in super::wrap_text(&format!("{}{}", lead, r.text), TALK_CHARS).into_iter().enumerate() {
+                for (k, w) in super::wrap_px(&format!("{}{}", lead, r.text), TALK_PX).into_iter().enumerate() {
                     match w.strip_prefix(lead.trim_end()) {
                         Some(rest) if k == 0 => lines.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)), false)),
                         _ => lines.push((w, body, None, false)),
                     }
                 }
             }
-            None => for w in super::wrap_text(&r.text, TALK_CHARS) { lines.push((w, body, None, false)); },
+            None => for w in super::wrap_px(&r.text, TALK_PX) { lines.push((w, body, None, false)); },
         }
         starts.extend((before..lines.len()).map(|k| k == before));
     }
@@ -127,8 +127,8 @@ pub fn talk_click(p: &TalkPanelV, mx: i32, my: i32) -> Option<Option<usize>> {
 pub const CONVO_X: i32 = MAP_W as i32 - 344;
 pub const CONVO_Y: i32 = 46;
 pub const CONVO_W: i32 = 336;
-/// Characters to a row inside a button: the box less its padding
-pub(crate) const CONVO_CHARS: usize = ((CONVO_W - 24) / GLYPH_W) as usize;
+/// Pixels to a row inside a button: the box less its padding
+pub(crate) const CONVO_PX: i32 = CONVO_W - 24;
 pub(crate) const CONVO_ROW_H: i32 = LINE_H;
 /// The tallest the box gets before the oldest lines drop off the top:
 /// most of the window's height (#1317)
@@ -139,14 +139,14 @@ pub(crate) const CONVO_FADE: u32 = 10;
 /// the rest a gap before the words (#1319); the mood mark #1320 hangs
 /// on this slot
 pub(crate) const CONVO_PORT: i32 = 16;
-/// `CONVO_PORT` in glyphs, off a speaker row's wrap width
-pub(crate) const CONVO_PORT_CHARS: usize = (CONVO_PORT as usize) / GLYPH_W as usize;
+/// `CONVO_PORT` in pixels, off a speaker row's wrap width
+pub(crate) const CONVO_PORT_PX: i32 = CONVO_PORT + 4;
 /// The drop cap's decorated box, opening a talk or meeting (#1321)
 pub(crate) const CONVO_CAP: i32 = 28;
 /// Rows that sit beside the cap before the text takes the full width
 pub(crate) const CONVO_CAP_ROWS: usize = 2;
 /// `CONVO_CAP` plus its gap, in glyphs off the opener's wrap width
-pub(crate) const CAP_CHARS: usize = (CONVO_CAP as usize + 4) / GLYPH_W as usize;
+pub(crate) const CAP_PX: i32 = CONVO_CAP + 6;
 
 /// The conversation box's scroll pin (#1317): which panel the anchor
 /// belongs to and the first line still shown, so a line keeps the y it
@@ -233,7 +233,7 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
     let opt_count = p.options.len() + p.leave as usize;
     for (i, o) in p.options.iter().enumerate() {
         let label = format!("{}) {}", i + 1, o);
-        let mut ws = super::wrap_text(&label, CONVO_CHARS);
+        let mut ws = super::wrap_px(&label, CONVO_PX);
         ws.truncate(3);
         opts.push(ws);
     }
@@ -255,8 +255,8 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
         let ncol = if r.you { (255, 255, 120) } else { (150, 200, 255) };
         // a speaker's words leave room for their head beside the lead;
         // the opener leaves the cap's width beside it too
-        let width = CONVO_CHARS - r.who.is_some() as usize * CONVO_PORT_CHARS
-            - cap.is_some() as usize * CAP_CHARS;
+        let width = CONVO_PX - r.who.is_some() as i32 * CONVO_PORT_PX
+            - cap.is_some() as i32 * CAP_PX;
         // a named line's cap comes off its lead ("ELIZA: Good morrow"
         // reads whole); an unowned line's comes off its first word
         let text = cap.filter(|_| r.name.is_none())
@@ -266,14 +266,14 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
             Some(n) => {
                 let capped: String = if cap.is_some() { n.chars().skip(1).collect() } else { n.clone() };
                 let lead = format!("{}: ", capped.to_uppercase());
-                for (k, w) in super::wrap_text(&format!("{}{}", lead, text), width).into_iter().enumerate() {
+                for (k, w) in super::wrap_px(&format!("{}{}", lead, text), width).into_iter().enumerate() {
                     match w.strip_prefix(lead.trim_end()) {
                         Some(rest) if k == 0 => ws.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)), false)),
                         _ => ws.push((w, body, None, false)),
                     }
                 }
             }
-            None => for w in super::wrap_text(text, width) { ws.push((w, body, None, r.rule)) },
+            None => for w in super::wrap_px(text, width) { ws.push((w, body, None, r.rule)) },
         }
         ws
     };
@@ -361,7 +361,7 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
     }
     // the doubled title; a long call's name falls back to 1x rather
     // than spilling into the sidebar
-    if p.title.len() as i32 * (2 * GLYPH_W) <= CONVO_W - 12 {
+    if measure_rubric(&p.title) * 2 <= CONVO_W - 12 {
         draw_tier(buf, CONVO_X + 6, CONVO_Y + 3, &p.title, TextTier::H1, 150, 150, 180);
     } else {
         draw_text(buf, CONVO_X + 6, CONVO_Y + 10, &p.title, 150, 150, 180);

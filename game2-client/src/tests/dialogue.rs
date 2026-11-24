@@ -7,6 +7,7 @@ use game2_core::game::villager;
 use game2_core::game::vocation::Kid;
 use game2_core::session::model::{ConvoPanelV, TalkPanelV, TalkRowV};
 use crate::talk::*;
+use game2_core::ui::font::measure;
 use crate::UiFrame;
 use game2_core::sim::climate::Season;
 use game2_core::game::villager::Pos;
@@ -39,8 +40,8 @@ fn test_long_lines_wrap_inside_the_talk_box_and_replies_click() {
     };
     let (rows, rects) = talk_layout(&p);
     for (y, text, _, name, _) in &rows {
-        let n = name.as_ref().map(|n| n.0.len()).unwrap_or(0);
-        assert!(n + text.len() <= TALK_CHARS, "row overflows: {:?}", text);
+        let n = name.as_ref().map(|n| measure(&n.0)).unwrap_or(0);
+        assert!(n + measure(text) <= TALK_PX, "row overflows: {:?}", text);
         assert!(*y >= TALK_Y + 14 && *y + GLYPH_H <= TALK_Y + TALK_H, "row at {} outside the box", y);
     }
     assert!(rows[0].3.is_some(), "the view opens on a speaker's line, not the tail of one");
@@ -404,7 +405,7 @@ fn test_a_speaker_line_carries_their_portrait() {
     }
     // the speaker's row wraps a touch narrower for the slot: the lead's
     // rest can't outrun the shrunken width
-    assert!(said.rows[0].1.len() <= CONVO_CHARS - CONVO_PORT_CHARS - "Eliza: ".len(),
+    assert!(measure(&said.rows[0].1) <= CONVO_PX - CONVO_PORT_PX - measure("Eliza: "),
         "the speaker's lead didn't narrow for the head: {:?}", said.rows[0].1);
     // a line nobody owns keeps the plain lead: identical pixels
     let plain = boxes.iter().find(|b| b.click.is_none() && !b.choice).expect("an unowned line");
@@ -531,7 +532,7 @@ fn test_the_opener_carries_a_drop_cap() {
     // the box stands taller than one row for the cap's span
     assert!(opener.h >= CONVO_CAP + 8, "the cap's span didn't raise the box: {}", opener.h);
     // and it wraps narrower beside it
-    assert!(opener.rows[0].1.len() <= CONVO_CHARS - CONVO_PORT_CHARS - CAP_CHARS,
+    assert!(measure(&opener.rows[0].1) <= CONVO_PX - CONVO_PORT_PX - CAP_PX,
         "the opener didn't narrow for the cap: {:?}", opener.rows[0].1);
     // an unowned opener caps its first word instead
     let q = ConvoPanelV { title: "talk".into(),

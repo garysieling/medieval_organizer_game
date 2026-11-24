@@ -1141,8 +1141,8 @@ impl Game {
             g, if goods::tier(g) == goods::Tier::Luxury { "*" } else { "" }, q))
             .collect::<Vec<_>>().join(" \u{00b7} ");
         y += CARD_ROW;
-        for w in wrap_text(&if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
-            card_chars(18)) {
+        for w in wrap_px(&if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
+            card_px(18)) {
             lines.push(Line { x: 18, y, text: w, rgb: (180, 190, 210) });
             y += CARD_ROW;
         }
@@ -1154,7 +1154,7 @@ impl Game {
                 else if *pr < base * 0.9 { " \u{00b7} cheap" } else { "" };
             // a luxury reads so - the street knows silk from salt
             let kind = if goods::tier(g) == goods::Tier::Luxury { " \u{00b7} a luxury (* = luxury)" } else { "" };
-            for w in wrap_text(&format!("for offer: {} {} @ {:.0}g{}{}", q, g, pr, lean, kind), card_chars(18)) {
+            for w in wrap_px(&format!("for offer: {} {} @ {:.0}g{}{}", q, g, pr, lean, kind), card_px(18)) {
                 lines.push(Line { x: 18, y, text: w, rgb: (150, 210, 150) });
                 y += CARD_ROW;
             }
@@ -1218,7 +1218,7 @@ impl Game {
                 n => format!(" - {}, +{}", drank[..2].join(", "), n - 2),
             };
             y += CARD_ROW;
-            for w in wrap_text(&format!("the table's company{}", company), card_chars(18)) {
+            for w in wrap_px(&format!("the table's company{}", company), card_px(18)) {
                 lines.push(Line { x: 18, y, text: w, rgb: (220, 180, 140) });
                 y += CARD_ROW;
             }
@@ -1237,7 +1237,7 @@ impl Game {
                 n => format!(" - lately: {}, +{}", callers[..2].join(", "), n - 2),
             };
             y += CARD_ROW;
-            for w in wrap_text(&format!("her tally: {} cures{}", self.cured, late), card_chars(18)) {
+            for w in wrap_px(&format!("her tally: {} cures{}", self.cured, late), card_px(18)) {
                 lines.push(Line { x: 18, y, text: w, rgb: (190, 210, 150) });
                 y += CARD_ROW;
             }
@@ -1342,7 +1342,7 @@ impl Game {
             let what = if on_shelf.is_empty() { String::new() }
                 else { format!(" \u{00b7} {}", on_shelf.join(", ")) };
             y += CARD_ROW;
-            for w in wrap_text(&format!("knows the cures \u{00b7} {} remedies{}", n, what), card_chars(60)) {
+            for w in wrap_px(&format!("knows the cures \u{00b7} {} remedies{}", n, what), card_px(60)) {
                 lines.push(Line { x: 60, y, text: w, rgb: (150, 210, 150) });
                 y += CARD_ROW;
             }
@@ -2151,33 +2151,36 @@ const CARD_ROW: i32 = LINE_H;
 /// "..." rather than a card that swallows the map
 const LIFE_LINES: usize = 6;
 
-/// How many glyphs fit on a card row from `x` to the card's edge
-fn card_chars(x: i32) -> usize { ((CARD_RX - x) / GLYPH_W).max(10) as usize }
+/// How much room a card row has from `x` to the card's edge, in pixels
+fn card_px(x: i32) -> i32 { (CARD_RX - x).max(90) }
 
 /// A labelled property row: the label dim, its value in the row's
 /// colour, a long value wrapping with the continuation hanging under
 /// the value
 fn card_prop(lines: &mut Vec<Line>, y: &mut i32, label: &str, value: &str, rgb: (u8, u8, u8)) {
     if value.is_empty() { return; }
-    let vx = CARD_X + (label.len() as i32 + 2) * GLYPH_W;
+    let vx = CARD_X + crate::ui::font::measure(&format!("{}:  ", label)) + 4;
     lines.push(Line { x: CARD_X, y: *y, text: format!("{}:", label), rgb: (150, 150, 170) });
-    for w in wrap_text(value, card_chars(vx)) {
+    for w in wrap_px(value, card_px(vx)) {
         lines.push(Line { x: vx, y: *y, text: w, rgb });
         *y += CARD_ROW;
     }
 }
 
-/// A section heading, set off a little from the rows above it
+/// A section heading, set off a little from the rows above it. A
+/// sentinel byte marks it for the client, which draws heads in the
+/// rubric hand (the meter row rides its own sentinel already)
 fn card_head(lines: &mut Vec<Line>, y: &mut i32, head: &str) {
     *y += 5;
-    lines.push(Line { x: CARD_X, y: *y, text: head.into(), rgb: (255, 215, 0) });
+    lines.push(Line { x: CARD_X, y: *y,
+        text: format!("\u{3}{}", head), rgb: (255, 215, 0) });
     *y += CARD_ROW + 2;
 }
 
 /// One of a section's items: "- ..." hung so a wrapped point still
 /// reads as one
 fn card_bullet(lines: &mut Vec<Line>, y: &mut i32, text: String, rgb: (u8, u8, u8)) {
-    for (n, w) in wrap_text(&text, card_chars(CARD_X + 12)).into_iter().enumerate() {
+    for (n, w) in wrap_px(&text, card_px(CARD_X + 12)).into_iter().enumerate() {
         lines.push(Line { x: CARD_X, y: *y,
             text: format!("{}{}", if n == 0 { "- " } else { "  " }, w), rgb });
         *y += CARD_ROW;
@@ -2187,7 +2190,7 @@ fn card_bullet(lines: &mut Vec<Line>, y: &mut i32, text: String, rgb: (u8, u8, u
 /// A wrapped paragraph row block (the LIFE section), capped at
 /// `max` lines with a trailing "..." when the telling runs longer
 fn card_para(lines: &mut Vec<Line>, y: &mut i32, text: &str, rgb: (u8, u8, u8), max: usize) {
-    let mut ws = wrap_text(text, card_chars(CARD_X + 8));
+    let mut ws = wrap_px(text, card_px(CARD_X + 8));
     let more = ws.len() > max;
     ws.truncate(max);
     if more {

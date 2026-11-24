@@ -166,7 +166,8 @@ fn test_the_card_renders_the_ledgers_five_views() {
     let text: Vec<&str> = insp.lines.iter().map(|l| l.text.as_str()).collect();
     let joined = text.join(" ").split_whitespace().collect::<Vec<_>>().join(" ");
     let has = |needle: &str| joined.contains(needle);
-    assert!(text.contains(&"THE LEDGER"), "no ledger head: {:?}", text);
+    assert!(text.iter().any(|t| t.trim_start_matches('\u{3}') == "THE LEDGER"),
+        "no ledger head: {:?}", text);
     assert!(has("wants: 1"), "facts by area, one want: {:?}", text);
     assert!(has("troubles: 2"), "the two problems: {:?}", text);
     assert!(has("their own telling"), "the source rides the area: {:?}", text);

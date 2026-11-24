@@ -34,7 +34,8 @@ const TOAST_PITCH: i32 = 30;
 /// The LOG panel's wrap width in glyphs ((box width - padding) / glyph
 /// width) and its row count - shared by the draw pass and log_hit's
 /// row math so a click lands on the line that's drawn there (#645)
-const LOG_CHARS: usize = 28;
+/// The log box's text width - a row wraps inside it
+const LOG_PX: i32 = 300;
 const LOG_ROWS: usize = 6;
 /// The LOG box's screen rect: x, y, w, h - hit-testing reads the same
 const LOG_BOX: (i32, i32, i32, i32) = (UI_X as i32 + 10, 512, 320, 110);
@@ -131,7 +132,7 @@ pub(crate) fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
     if mz.title.is_empty() || mz.asker_name.is_empty() { return None; }
     let line = mystery_line(mz);
     let prefix = line[..line.find("(")?].to_string() + "(";
-    let lines = wrap_text(&format!("{}{}", prefix, mz.asker_name), 16);
+    let lines = wrap_px(&format!("{}{}", prefix, mz.asker_name), 170);
     let (row, last) = lines.iter().enumerate().last()?;
     if row >= 4 { return None; }
     let byte = last.find(&format!("({}", mz.asker_name))?;
@@ -144,7 +145,7 @@ pub(crate) fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
 /// highlighting the name measures the wrapped line's prefix (#1562)
 pub(crate) fn mystery_name_span(mz: &MysteryV) -> Option<(usize, i32, i32)> {
     let (row, c0, c1) = mystery_name_col(mz)?;
-    let line = wrap_text(&mystery_line(mz), 16).get(row)?.clone();
+    let line = wrap_px(&mystery_line(mz), 170).get(row)?.clone();
     let x_at = |n: usize| UI_X as i32 + 150
         + measure(&line.chars().take(n).collect::<String>());
     Some((row, x_at(c0), x_at(c1)))
@@ -251,7 +252,7 @@ impl View {
     /// Which LOG-panel entry the mouse is over, as an index into `m.log` -
     /// only entries that carry a position or a villager answer; plain
     /// lines and the "earlier lines" marker are inert. The row math
-    /// mirrors the draw pass: word-wrapped to LOG_CHARS, capped at
+    /// mirrors the draw pass: word-wrapped to LOG_PX, capped at
     /// log_rows, a click on any wrapped row of an entry counting (#645)
     pub fn log_hit(&self, m: &UiModel, mx: i32, my: i32) -> Option<usize> {
         let (lx, ly, lw, lh) = LOG_BOX;
@@ -261,7 +262,7 @@ impl View {
         for (i, entry) in m.log.iter().enumerate() {
             let (day, msg) = log_parts(&entry.text);
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
-            for _ in wrap_text(&text, LOG_CHARS) {
+            for _ in wrap_px(&text, LOG_PX) {
                 if row == log_rows { return None; }
                 let y = 530 + row as i32 * LINE_H;
                 if my >= y && my < y + LINE_H {
@@ -1232,7 +1233,13 @@ impl View {
             Some(f) => f.blit(&mut buf, UI_X as i32 + 4, 4),
             None => gilt_rule(&mut buf, UI_X as i32 + 4, 4, W as i32 - UI_X as i32 - 8, H as i32 - 8),
         }
-        draw_text_scaled(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 2, 255, 220, 130);
+        // the title centres inside the sidebar's manuscript frame, clear
+        // of the top scrollwork (it sat on the frame's gilt rule)
+        {
+            let tw = measure_rubric("THE WANDERER") * 2;
+            draw_text_scaled(&mut buf, UI_X as i32 + (W as i32 - UI_X as i32 - tw) / 2, 14,
+                "THE WANDERER", 2, 255, 220, 130);
+        }
 
         // status: members, season, tick
         let p = &m.panel;
@@ -1249,7 +1256,7 @@ impl View {
         if let Some(mz) = &m.panel.mystery {
             let line = mystery_line(mz);
             let name_col = mystery_name_col(mz);
-            for (n, l) in wrap_text(&line, 16).iter().take(4).enumerate() {
+            for (n, l) in wrap_px(&line, 170).iter().take(4).enumerate() {
                 let y = 90 + n as i32 * LINE_H;
                 // the name's cells draw bright - and brighter still under
                 // the mouse, the way the log's clickable lines do
@@ -1273,7 +1280,7 @@ impl View {
             // the directions' marks ride the last rows, always the same
             // spot however long the question runs
             if let Some(marks) = mystery_marks(mz) {
-                for (n, l) in wrap_text(&marks, 16).iter().take(3).enumerate() {
+                for (n, l) in wrap_px(&marks, 170).iter().take(3).enumerate() {
                     draw_text(&mut buf, UI_X as i32 + 150, 90 + (4 + n) as i32 * LINE_H, l, 200, 180, 235);
                 }
             }
@@ -1281,7 +1288,7 @@ impl View {
         // the powers' standing words on the org - one line, so a
         // stack of them can't run under the buttons
         if !m.panel.org_status.is_empty() {
-            for (n, l) in wrap_text(&org_status_line(&m.panel.org_status), 29).iter().take(2).enumerate() {
+            for (n, l) in wrap_px(&org_status_line(&m.panel.org_status), 300).iter().take(2).enumerate() {
                 draw_text(&mut buf, UI_X as i32 + 10, 84 + n as i32 * LINE_H, l, 200, 150, 150);
             }
         }
@@ -1304,9 +1311,9 @@ impl View {
         // the house-meeting plan filling in: who's said yes, by name -
         // it sits right of the BONDS block, clear of the ctx band below
         if let Some(mp) = &m.panel.meeting {
-            draw_text(&mut buf, UI_X as i32 + 190, 240, "MEETING", 255, 215, 0);
+            draw_rubric(&mut buf, UI_X as i32 + 190, 240, "MEETING", 255, 215, 0);
             let lines: Vec<String> = meeting_lines(mp).iter()
-                .flat_map(|l| wrap_text(l, 13)).collect();
+                .flat_map(|l| wrap_px(l, 140)).collect();
             for (n, line) in lines.iter().take(3).enumerate() {
                 draw_text(&mut buf, UI_X as i32 + 190, 255 + n as i32 * LINE_H, line, 220, 220, 180);
             }
@@ -1336,7 +1343,11 @@ impl View {
                 fig.blit_scaled(&mut buf, lx(6), ly(322), 2);
             }
             for line in &insp.lines {
-                if line.text.starts_with('\u{1}') {
+                if line.text.starts_with('\u{3}') {
+                    // a section head: the rubric hand, capital
+                    draw_tier(&mut buf, lx(line.x), ly(line.y), &line.text[3..],
+                        TextTier::H3, line.rgb.0, line.rgb.1, line.rgb.2);
+                } else if line.text.starts_with('\u{1}') {
                     // "METER:name:frac:note" sentinel from the sim
                     let mut it = line.text[1..].split('\u{2}');
                     let (name, rest) = (it.next().unwrap_or(""), it.next().unwrap_or(""));
@@ -1387,7 +1398,7 @@ impl View {
         // between the Build button (ends 184) and the Gather ctx button
         // (starts 236), so the block can't outgrow three lines
         let s = &m.panel.social;
-        draw_text(&mut buf, UI_X as i32 + 18, 240, "BONDS", 255, 215, 0);
+        draw_rubric(&mut buf, UI_X as i32 + 18, 240, "BONDS", 255, 215, 0);
         for (n, line) in bond_lines(s).iter().enumerate() {
             draw_text(&mut buf, UI_X as i32 + 18, 255 + n as i32 * LINE_H, line, 215, 215, 195);
         }
@@ -1407,7 +1418,7 @@ impl View {
         // org's own sign)
         if org_started(m) {
             let member_names: Vec<&str> = m.panel.members.iter().map(|s| s.as_str()).collect();
-            draw_text(&mut buf, UI_X as i32 + 18, oy, MEMBERS_LABEL, 255, 215, 0);
+            draw_rubric(&mut buf, UI_X as i32 + 18, oy, MEMBERS_LABEL, 255, 215, 0);
             oy += LINE_H;
             draw_text(&mut buf, UI_X as i32 + 18, oy, &members_line(&member_names), 220, 220, 180);
             oy += LINE_H;
@@ -1417,10 +1428,10 @@ impl View {
         // own ledger, drawn once a cause exists (the members' or the
         // issues' own non-empty's the sign)
         if org_started(m) || !m.panel.issues.is_empty() {
-            draw_text(&mut buf, UI_X as i32 + 18, oy, "ISSUES", 255, 215, 0);
+            draw_rubric(&mut buf, UI_X as i32 + 18, oy, "ISSUES", 255, 215, 0);
             oy += LINE_H;
         let issue_line = if m.panel.issues.is_empty() { "none heard yet".to_string() } else { m.panel.issues.join("; ") };
-        for line in wrap_text(&issue_line, 26).iter().take(if m.panel.campaign.is_some() { 1 } else { 2 }) {
+        for line in wrap_px(&issue_line, 300).iter().take(if m.panel.campaign.is_some() { 1 } else { 2 }) {
             draw_text(&mut buf, UI_X as i32 + 18, oy, line, 220, 190, 140);
             oy += LINE_H;
         }
@@ -1452,7 +1463,7 @@ impl View {
         // event log
         let (lx, ly, lw, lh) = LOG_BOX;
         draw_rect(&mut buf, lx, ly, lw, lh, 25, 25, 40);
-        draw_text(&mut buf, lx + 4, ly + 4, "LOG", 150, 150, 180);
+        draw_rubric(&mut buf, lx + 4, ly + 4, "LOG", 150, 150, 180);
         // newest first, word-wrapped to the box instead of cut off mid-word;
         // an entry that knows where it happened or who it's about brightens
         // under the mouse - it's a button (log_hit knows the same rows)
@@ -1468,7 +1479,7 @@ impl View {
             // "day 120" in dim grey, then the message in its colour
             let (day, msg) = log_parts(&entry.text);
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
-            for (n, line) in wrap_text(&text, LOG_CHARS).iter().enumerate() {
+            for (n, line) in wrap_px(&text, LOG_PX).iter().enumerate() {
                 if row == log_rows { break 'log; }
                 let y = 530 + row as i32 * LINE_H;
                 let hovered = clickable && mx >= lx && mx < lx + lw && my >= y && my < y + LINE_H;
@@ -1676,7 +1687,7 @@ impl View {
                             buf.rect(bx, by, bw, BUBBLE_H, 240, 240, 220);        // cream bubble
                             buf.rect(tail_x, by + BUBBLE_H - 2, 8, 6, 240, 240, 220); // tail, under the speaker
                         }
-                        draw_text(&mut buf, bx + 6, by + 5, text, 40, 30, 20);
+                        draw_rubric(&mut buf, bx + 6, by + 5, text, 40, 30, 20);
                     }
                 }
             }
@@ -1732,8 +1743,8 @@ impl View {
             let good_tok = |g: &str| format!("good-{}", g.to_lowercase());
             let rich = m.player_satchel.iter().any(|(g, _)| art.icon(&good_tok(g)).is_some());
             if !rich {
-                buf.rect(4, 20, text_width(&strip, 1) + 12, GLYPH_H + 8, 20, 20, 32);
-                draw_text_outlined(&mut buf, 10, 24, &strip, 200, 190, 170);
+                buf.rect(4, 26, text_width(&strip, 1) + 12, GLYPH_H + 8, 20, 20, 32);
+                draw_text_outlined(&mut buf, 10, 30, &strip, 200, 190, 170);
             } else {
                 // the strip's content width, so the backing rect lands first
                 let mut cw = measure("satchel: ");
@@ -1744,26 +1755,26 @@ impl View {
                 if m.player_hunger < 40.0 {
                     cw += measure("| ") + if art.icon("icon-hungry").is_some() { 16 } else { measure("hungry") };
                 }
-                buf.rect(4, 20, cw + 12, GLYPH_H + 8, 20, 20, 32);
+                buf.rect(4, 26, cw + 12, GLYPH_H + 8, 20, 20, 32);
                 let mut sx = 10;
-                draw_text_outlined(&mut buf, sx, 24, "satchel: ", 200, 190, 170);
+                draw_text_outlined(&mut buf, sx, 30, "satchel: ", 200, 190, 170);
                 sx += measure("satchel: ");
                 for (g, n) in &m.player_satchel {
-                    if draw_icon(&mut buf, art.icon(&good_tok(g)), sx, 22, 14) {
+                    if draw_icon(&mut buf, art.icon(&good_tok(g)), sx, 28, 14) {
                         sx += 16;
                     } else {
-                        draw_text_outlined(&mut buf, sx, 24, g, 200, 190, 170);
+                        draw_text_outlined(&mut buf, sx, 30, g, 200, 190, 170);
                         sx += measure(g);
                     }
                     let ntxt = format!("x{}", n);
-                    draw_text_outlined(&mut buf, sx, 24, &ntxt, 200, 190, 170);
+                    draw_text_outlined(&mut buf, sx, 30, &ntxt, 200, 190, 170);
                     sx += measure(&format!("{} ", ntxt));
                 }
                 if m.player_hunger < 40.0 {
-                    draw_text_outlined(&mut buf, sx, 24, "| ", 200, 190, 170);
+                    draw_text_outlined(&mut buf, sx, 30, "| ", 200, 190, 170);
                     sx += measure("| ");
-                    if !draw_icon(&mut buf, art.icon("icon-hungry"), sx, 22, 14) {
-                        draw_text_outlined(&mut buf, sx, 24, "hungry", 200, 190, 170);
+                    if !draw_icon(&mut buf, art.icon("icon-hungry"), sx, 28, 14) {
+                        draw_text_outlined(&mut buf, sx, 30, "hungry", 200, 190, 170);
                     }
                 }
             }

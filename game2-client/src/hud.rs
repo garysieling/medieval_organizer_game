@@ -85,16 +85,17 @@ pub(crate) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8
     buf.rect(x, y, w, h, 20, 20, 35);
     buf.rect(x, y, w, 2, 200, 200, 220);
     draw_centered_at(buf, cx, y + 15, title, 2, title_rgb);
-    // the block of lines is centred as a whole, left-aligned within it
-    let block = lines.iter().map(|l| text_width(l, 1)).max().unwrap_or(0);
+    // the block of lines is centred as a whole, left-aligned within
+    // it - explanatory text draws in the rubric hand
+    let block = lines.iter().map(|l| measure_rubric(l)).max().unwrap_or(0);
     for (i, l) in lines.iter().enumerate() {
-        draw_text(buf, cx - block / 2, y + 55 + i as i32 * row, l, 210, 210, 210);
+        draw_rubric(buf, cx - block / 2, y + 55 + i as i32 * row, l, 210, 210, 210);
     }
     if let Some(f) = footer { draw_centered_at(buf, cx, y + h - 22, f, 1, (150, 150, 170)); }
 }
 
-/// A posting wraps inside the 480px board box (~41 glyphs leave the frame)
-pub(crate) const NOTICE_CHARS: usize = 41;
+/// A posting wraps inside the 480px board box, its frame's margin off
+pub(crate) const NOTICE_PX: i32 = 450;
 
 /// As many wrapped rows as the box holds before a "+n more" tail: 24
 /// rows at NOTICE_ROW is a ~420px box, well inside the map view (#1349)
@@ -110,7 +111,7 @@ pub(crate) const NOTICE_ROW: i32 = LINE_H;
 pub(crate) fn notice_lines(notices: &[(String, String)]) -> Vec<String> {
     let mut lines: Vec<String> = vec![];
     for (k, t) in notices {
-        for (i, w) in wrap_text(&format!("[{}] {}", k, t), NOTICE_CHARS).into_iter().enumerate() {
+        for (i, w) in wrap_px(&format!("[{}] {}", k, t), NOTICE_PX).into_iter().enumerate() {
             lines.push(if i == 0 { w } else { format!("   {}", w) });
         }
     }
@@ -129,12 +130,18 @@ pub(crate) fn notice_lines(notices: &[(String, String)]) -> Vec<String> {
 /// when one's named - the wider face gives the row ~29 glyphs, so a
 /// long leader's name clips rather than run off the panel
 pub(crate) fn org_line(org: &str, leader: Option<&str>, members: usize) -> String {
+    const ROW_PX: i32 = 300;
     let lead = format!("{} {}", org.trim_start_matches("The "), members);
-    let room = 29i32 - lead.len() as i32;
+    let room = ROW_PX - measure(&lead);
     let head = leader.map(|l| {
-        if l.len() + 8 <= room.max(0) as usize { format!(" led by {}", l) }
-        else if room >= 11 { format!(" led by {}", &l[..room.max(0) as usize - 8]) }
-        else { String::new() }
+        let whole = format!(" led by {}", l);
+        if measure(&whole) <= room { whole }
+        else {
+            // cut the name where it stops fitting, at a whole char
+            let mut n = l.chars().count();
+            while n > 1 && measure(&format!(" led by {}", l.chars().take(n).collect::<String>())) > room { n -= 1; }
+            if n >= 4 { format!(" led by {}", l.chars().take(n).collect::<String>()) } else { String::new() }
+        }
     }).unwrap_or_default();
     format!("{}{}", lead, head)
 }
@@ -155,8 +162,8 @@ pub(crate) fn org_status_line(words: &[String]) -> String {
 /// said which, and the status line calls it the Harvesters)
 pub(crate) const MEMBERS_LABEL: &str = "Joined";
 
-/// Characters that fit after the label, inside the villager card
-pub(crate) const MEMBERS_CHARS: usize = 28;
+/// Pixels the member list gets after its label, inside the panel
+pub(crate) const MEMBERS_PX: i32 = 190;
 
 /// The card's member list, cut at a whole name with ".." when it won't fit
 /// The cause's own sign: the org's blocks only make sense once the
@@ -166,11 +173,11 @@ pub(crate) fn org_started(m: &crate::UiModel) -> bool { !m.panel.members.is_empt
 pub(crate) fn members_line(names: &[&str]) -> String {
     if names.is_empty() { return "nobody yet - recruit!".into(); }
     let all = names.join(", ");
-    if all.len() <= MEMBERS_CHARS { return all; }
+    if measure(&all) <= MEMBERS_PX { return all; }
     let mut line = names[0].to_string();
     for n in &names[1..] {
         let next = format!("{}, {}", line, n);
-        if next.len() + 3 > MEMBERS_CHARS { break; }
+        if measure(&format!("{} ..", next)) > MEMBERS_PX { break; }
         line = next;
     }
     format!("{} ..", line)
@@ -204,14 +211,14 @@ pub(crate) fn bond_lines(s: &SocialV) -> Vec<String> {
 
 /// A yeses list cut to one sidebar row: names joined `sep`, whatever
 /// won't fit counted as "+n" - so a long crowd can't push the roles off
-fn capped_list(label: &str, items: &[String], sep: &str, cap: usize) -> String {
+fn capped_list(label: &str, items: &[String], sep: &str, cap_px: i32) -> String {
     let head = if label.is_empty() { String::new() } else { format!("{}: ", label) };
     let mut kept = items.len();
     loop {
         let rest = items.len() - kept;
         let mut s = format!("{}{}", head, items[..kept].join(sep));
         if rest > 0 { s.push_str(&format!(" +{}", rest)); }
-        if s.len() <= cap || kept == 0 { return s; }
+        if measure(&s) <= cap_px || kept == 0 { return s; }
         kept -= 1;
     }
 }
@@ -221,16 +228,22 @@ fn capped_list(label: &str, items: &[String], sep: &str, cap: usize) -> String {
 /// already filled - capped so the roles always show
 pub(crate) fn meeting_lines(m: &MeetingPlanV) -> Vec<String> {
     let mut out = vec![];
-    if !m.coming.is_empty() { out.push(capped_list("coming", &m.coming, ", ", 40)); }
-    if !m.spreaders.is_empty() { out.push(capped_list("bringing friends", &m.spreaders, ", ", 40)); }
-    if !m.roles.is_empty() { out.push(capped_list("", &m.roles, " · ", 40)); }
+    if !m.coming.is_empty() { out.push(capped_list("coming", &m.coming, ", ", 300)); }
+    if !m.spreaders.is_empty() { out.push(capped_list("bringing friends", &m.spreaders, ", ", 300)); }
+    if !m.roles.is_empty() { out.push(capped_list("", &m.roles, " · ", 300)); }
     out
 }
 
-/// Width in pixels of `text` at `scale`: the per-glyph advance less
-/// the last glyph's pixel of air
+/// Width in pixels of `text` at `scale` in the book hand: the per-glyph
+/// advance less the last glyph's pixel of air
 pub(crate) fn text_width(text: &str, scale: usize) -> i32 {
     measure(text) * scale as i32 - scale as i32
+}
+
+/// The same for the rubric hand - centred titles and heads draw in
+/// blackletter, so they centre on blackletter pixels
+pub(crate) fn rubric_width(text: &str, scale: usize) -> i32 {
+    measure_rubric(text) * scale as i32 - scale as i32
 }
 
 /// How wide the muted-speaker glyph's box is - the HUD strip grows by
@@ -241,7 +254,7 @@ pub(crate) const MUTE_GLYPH_W: i32 = 16;
 /// right after the season line's text, on the icon row. Render and
 /// the draw test agree through here.
 pub(crate) fn mute_glyph_x(hud: &str, icon_w: i32) -> i32 {
-    10 + icon_w + text_width(hud, 1) + 4
+    10 + icon_w + measure(hud) + 4
 }
 
 /// The muted-speaker mark (#1505): a little horn crossed out, drawn at
@@ -260,7 +273,7 @@ pub(crate) fn draw_mute_glyph(buf: &mut Buffer, x: i32, y: i32) {
 
 /// Draw `text` horizontally centred on x = `cx` at row `y`
 pub(crate) fn draw_centered_at(buf: &mut Buffer, cx: i32, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
-    draw_text_scaled(buf, cx - text_width(text, scale) / 2, y, text, scale, r, g, b);
+    draw_text_scaled(buf, cx - rubric_width(text, scale) / 2, y, text, scale, r, g, b);
 }
 
 /// Draw `text` horizontally centred on the screen at row `y`
@@ -378,7 +391,7 @@ pub fn render_intro(facts: &[String]) -> Buffer {
     draw_centered(&mut buf, 160, "the village you're come to", 2, (200, 200, 200));
     let mut y = 240;
     for f in facts {
-        for line in wrap_text(f, 80) {
+        for line in wrap_px(f, 640) {
             draw_centered(&mut buf, y, &line, 1, (190, 190, 205));
             y += LINE_H;
         }

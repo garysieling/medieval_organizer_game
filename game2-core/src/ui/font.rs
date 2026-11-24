@@ -1,40 +1,63 @@
 //! Bitmap font renderer - draws text into pixel buffers.
-//! Jacquarda Bastarda 9 blackletter, baked to 14x13 cells by
-//! scripts/bake_font.py (table in glyphs.rs). No runtime font dep.
+//! Two hands, baked to the same 14x13 cells by scripts/bake_font.py and
+//! scripts/bake_book_font.py (tables in glyphs.rs / glyphs_book.rs), so a
+//! face swap never moves a layout. No runtime font dep.
 //!
-//! Each glyph carries its own advance - the blackletter reads tracked
-//! tight, the way the face was drawn, rather than monospaced.
+//! - `Face::Rubric` - Jacquarda Bastarda 9 blackletter, the manuscript's
+//!   rubric hand: titles, section heads, quotes, the explanatory words a
+//!   reader doesn't lean on.
+//! - `Face::Book` - IM Fell English, the book hand: names, lists, the log,
+//!   everything read often. `draw_text` and `measure` are this face; ask
+//!   for the rubric by name.
+//!
+//! Each glyph carries its own advance - both faces read tracked the way
+//! they were drawn rather than monospaced.
 
 use crate::engine::render::Buffer;
 use crate::ui::glyphs::{ADVANCES, GLYPHS};
+use crate::ui::glyphs_book::{BOOK_ADVANCES, BOOK_GLYPHS};
 
 /// Cell columns / rows, matching layout's GLYPH_H (the width's per
 /// glyph now - `measure` gives a string's true pixels)
 const COLS: usize = 14;
 
-/// Fix glyph table - entry 106 was a slice hack, normalize
-fn glyph_for(c: u8) -> [u16; 13] {
-    if c < 32 || c > 126 { return [0;13]; }
-    GLYPHS[(c - 32) as usize]
+/// Which hand a string draws in - the book face (body text, the default)
+/// or the blackletter rubric (titles, heads, quotes)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Face { Rubric, Book }
+
+fn tables(face: Face) -> (&'static [[u16; 13]; 95], &'static [u8; 95]) {
+    match face {
+        Face::Rubric => (&GLYPHS, &ADVANCES),
+        Face::Book => (&BOOK_GLYPHS, &BOOK_ADVANCES),
+    }
 }
 
 /// The glyph's own advance: its ink plus a pixel of air. Unsupported
 /// codes take the space advance.
-fn advance_for(c: u8) -> i32 {
-    if c < 32 || c > 126 { return ADVANCES[0] as i32; }
-    ADVANCES[(c - 32) as usize] as i32
+fn advance_for(c: u8, face: Face) -> i32 {
+    let (_, advs) = tables(face);
+    if c < 32 || c > 126 { return advs[0] as i32; }
+    advs[(c - 32) as usize] as i32
 }
 
-/// The string's true drawn width in pixels - what `draw_text` would
-/// return, without a buffer. Centering and bubble sizing should ask
-/// this, not count chars times a fixed width.
+/// The string's true drawn width in pixels - what `draw_text` (the book
+/// face) would return, without a buffer. Centering and bubble sizing
+/// should ask this, not count chars times a fixed width.
 pub fn measure(text: &str) -> i32 {
-    text.chars().map(|c| advance_for(c as u8)).sum()
+    text.chars().map(|c| advance_for(c as u8, Face::Book)).sum()
 }
 
-/// Draw a single char at (x,y). Returns advance width.
-pub fn draw_char(buf: &mut Buffer, x: i32, y: i32, c: char, r: u8, g: u8, b: u8) -> i32 {
-    let glyph = glyph_for(c as u8);
+/// The string's width in the rubric hand - for centering titles and
+/// heads, which draw in blackletter
+pub fn measure_rubric(text: &str) -> i32 {
+    text.chars().map(|c| advance_for(c as u8, Face::Rubric)).sum()
+}
+
+/// Draw a single char at (x,y) in `face`. Returns advance width.
+pub fn draw_char(buf: &mut Buffer, x: i32, y: i32, c: char, face: Face, r: u8, g: u8, b: u8) -> i32 {
+    let (glyphs, _) = tables(face);
+    let glyph = if (c as u8) < 32 || (c as u8) > 126 { [0u16; 13] } else { glyphs[(c as u8 - 32) as usize] };
     for (row, bits) in glyph.iter().enumerate() {
         for col in 0..COLS {
             if bits & (1 << (COLS - 1 - col)) != 0 {
@@ -46,33 +69,52 @@ pub fn draw_char(buf: &mut Buffer, x: i32, y: i32, c: char, r: u8, g: u8, b: u8)
             }
         }
     }
-    advance_for(c as u8)
+    advance_for(c as u8, face)
 }
 
-/// Draw a string at (x,y). Returns total width drawn.
+/// Draw a string at (x,y) in the book hand. Returns total width drawn.
 pub fn draw_text(buf: &mut Buffer, x: i32, y: i32, text: &str, r: u8, g: u8, b: u8) -> i32 {
+    draw_text_face(buf, x, y, text, Face::Book, r, g, b)
+}
+
+/// Draw a string at (x,y) in the blackletter rubric. Returns width drawn.
+pub fn draw_rubric(buf: &mut Buffer, x: i32, y: i32, text: &str, r: u8, g: u8, b: u8) -> i32 {
+    draw_text_face(buf, x, y, text, Face::Rubric, r, g, b)
+}
+
+/// Draw a string at (x,y) in `face`. Returns total width drawn.
+pub fn draw_text_face(buf: &mut Buffer, x: i32, y: i32, text: &str, face: Face, r: u8, g: u8, b: u8) -> i32 {
     let mut cx = x;
     for c in text.chars() {
-        cx += draw_char(buf, cx, y, c, r, g, b);
+        cx += draw_char(buf, cx, y, c, face, r, g, b);
     }
     cx - x
 }
 
-/// Draw a string with a 1px dark outline, so it stays readable over busy
-/// art (map labels over roofs, fields and sprites). Returns width drawn.
+/// Draw a string with a 1px dark outline in the book hand, so it stays
+/// readable over busy art (map labels over roofs, fields and sprites).
+/// Returns width drawn.
 pub fn draw_text_outlined(buf: &mut Buffer, x: i32, y: i32, text: &str, r: u8, g: u8, b: u8) -> i32 {
-    for (dx, dy) in [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)] {
-        draw_text(buf, x + dx, y + dy, text, 12, 12, 18);
-    }
-    draw_text(buf, x, y, text, r, g, b)
+    draw_text_outlined_face(buf, x, y, text, Face::Book, r, g, b)
 }
 
-/// Draw text with a scale factor (2 = double size)
+/// Outlined text in `face` - the rubric takes the same dark ring
+pub fn draw_text_outlined_face(buf: &mut Buffer, x: i32, y: i32, text: &str, face: Face, r: u8, g: u8, b: u8) -> i32 {
+    for (dx, dy) in [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)] {
+        draw_text_face(buf, x + dx, y + dy, text, face, 12, 12, 18);
+    }
+    draw_text_face(buf, x, y, text, face, r, g, b)
+}
+
+/// Draw text with a scale factor in the rubric hand - titles and heads
+/// are the blackletter's home, and scale-1 callers get it too (2 =
+/// double size)
 pub fn draw_text_scaled(buf: &mut Buffer, x: i32, y: i32, text: &str, scale: usize, r: u8, g: u8, b: u8) -> i32 {
-    if scale <= 1 { return draw_text(buf, x, y, text, r, g, b); }
+    if scale <= 1 { return draw_rubric(buf, x, y, text, r, g, b); }
     let mut cx = x;
     for c in text.chars() {
-        let glyph = glyph_for(c as u8);
+        let (glyphs, _) = tables(Face::Rubric);
+        let glyph = if (c as u8) < 32 || (c as u8) > 126 { [0u16; 13] } else { glyphs[(c as u8 - 32) as usize] };
         for (row, bits) in glyph.iter().enumerate() {
             for col in 0..COLS {
                 if bits & (1 << (COLS - 1 - col)) != 0 {
@@ -86,24 +128,24 @@ pub fn draw_text_scaled(buf: &mut Buffer, x: i32, y: i32, text: &str, scale: usi
                 }
             }
         }
-        cx += advance_for(c as u8) * scale as i32;
+        cx += advance_for(c as u8, Face::Rubric) * scale as i32;
     }
     cx - x
 }
 
-/// Draw text tracked out: a pixel of air between glyphs, the way a
-/// rubric reads in a manuscript (#1321). Returns width drawn.
+/// Draw text tracked out in the rubric: a pixel of air between glyphs,
+/// the way a rubric reads in a manuscript (#1321). Returns width drawn.
 pub fn draw_text_tracked(buf: &mut Buffer, x: i32, y: i32, text: &str, r: u8, g: u8, b: u8) -> i32 {
     let mut cx = x;
     for c in text.chars() {
-        cx += draw_char(buf, cx, y, c, r, g, b) + 1;
+        cx += draw_char(buf, cx, y, c, Face::Rubric, r, g, b) + 1;
     }
     cx - x
 }
 
 /// The conversation box's text tiers (#1321): roles, not pixels, so a
 /// face swap slots underneath - H1 the panel title, H2 the day rules,
-/// H3 a speaker's name lead
+/// H3 a speaker's name lead. All three draw in the rubric hand
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextTier { H1, H2, H3 }
 
@@ -113,7 +155,7 @@ pub fn draw_tier(buf: &mut Buffer, x: i32, y: i32, text: &str, tier: TextTier, r
     match tier {
         TextTier::H1 => draw_text_scaled(buf, x, y, text, 2, r, g, b),
         TextTier::H2 => draw_text_tracked(buf, x, y, &text.to_uppercase(), r, g, b),
-        TextTier::H3 => draw_text(buf, x, y, &text.to_uppercase(), r, g, b),
+        TextTier::H3 => draw_rubric(buf, x, y, &text.to_uppercase(), r, g, b),
     }
 }
 
@@ -121,16 +163,27 @@ pub fn draw_tier(buf: &mut Buffer, x: i32, y: i32, text: &str, tier: TextTier, r
 mod tests {
     use super::*;
 
+    fn ink_of(c: u8, face: Face) -> u32 {
+        let (glyphs, _) = tables(face);
+        if c < 32 || c > 126 { return 0; }
+        glyphs[(c - 32) as usize].iter().map(|r| r.count_ones()).sum()
+    }
+
     #[test]
     fn every_ascii_glyph_draws() {
-        // the whole printable band must put ink down - a hole in the
-        // baked table would silently drop a character's shape (#1322)
-        for c in 33u8..=126 {
-            let ink: u32 = glyph_for(c).iter().map(|r| r.count_ones()).sum();
-            assert!(ink > 0, "'{}' (ascii {}) draws nothing", c as char, c);
+        // the whole printable band must put ink down in BOTH hands - a
+        // hole in a baked table would silently drop a character's shape
+        // (#1322)
+        for face in [Face::Rubric, Face::Book] {
+            for c in 33u8..=126 {
+                assert!(ink_of(c, face) > 0,
+                    "'{}' (ascii {}) draws nothing in {:?}", c as char, c, face);
+            }
         }
-        assert_eq!(glyph_for(b' '), [0; 13], "space stays empty");
-        assert_eq!(glyph_for(127), [0; 13], "unsupported codes draw nothing");
+        let (glyphs, _) = tables(Face::Book);
+        assert_eq!(glyphs[0], [0; 13], "space stays empty");
+        let (glyphs, _) = tables(Face::Rubric);
+        assert_eq!(glyphs[0], [0; 13], "space stays empty");
     }
 
     #[test]
@@ -138,17 +191,34 @@ mod tests {
         let mut buf = Buffer::new(200, 20);
         for s in ["ill", "www", "the taxes", "MW", "a"] {
             assert_eq!(measure(s), draw_text(&mut buf, 0, 0, s, 255, 255, 255),
-                "measure should agree with the pen for {s:?}");
+                "measure should agree with the book pen for {s:?}");
+            assert_eq!(measure_rubric(s), draw_rubric(&mut buf, 0, 0, s, 255, 255, 255),
+                "measure_rubric should agree with the rubric pen for {s:?}");
         }
     }
 
     #[test]
     fn thin_letters_track_tighter_than_wide() {
         // the whole point of per-glyph advance: "i" shouldn't take an
-        // m's room
+        // m's room, in either hand
         assert!(measure("i") < measure("m"), "thin letters advance less");
+        assert!(measure_rubric("i") < measure_rubric("m"), "thin letters advance less");
         assert!(measure("illicit") < "illicit".len() as i32 * 8,
-            "the face reads tight, not monospaced");
+            "the book face reads tight, not monospaced");
+    }
+
+    #[test]
+    fn the_book_hand_reads_plainer_than_the_rubric() {
+        // the readability fix's check: a lowercase word's book letters
+        // carry conventional Latin shapes - its 'o' is an open ring of
+        // ink, where the blackletter's is a closed loom. The book 'o'
+        // must be wider than it is ornate: more columns of ink than the
+        // rubric's (which packs its bowl into fewer, denser columns)
+        let book_w = advance_for(b'o', Face::Book);
+        assert!(book_w >= 6 && book_w <= 10,
+            "the book 'o' should be a normal-width letter, got {book_w}");
+        assert!(measure("organize the harvest") < measure_rubric("organize the harvest"),
+            "the book hand runs tighter than the blackletter");
     }
 
     #[test]
@@ -177,14 +247,14 @@ mod tests {
 
     #[test]
     fn the_tiers_draw_at_their_weights() {
-        // H1 doubles the advance; H2 tracks a pixel of air a glyph; H3
-        // capitalizes at plain width
+        // H1 doubles the rubric's advance; H2 tracks a pixel of air a
+        // glyph; H3 capitalizes at plain rubric width
         let mut buf = Buffer::new(80, 30);
         let w1 = draw_tier(&mut buf, 0, 0, "AB", TextTier::H1, 255, 255, 255);
         let w3 = draw_tier(&mut buf, 0, 0, "ab", TextTier::H3, 255, 255, 255);
         assert_eq!(w1, w3 * 2, "H1 doubles the advance");
         let mut buf = Buffer::new(80, 30);
-        let plain = draw_text(&mut buf, 0, 0, "AB", 255, 255, 255);
+        let plain = draw_rubric(&mut buf, 0, 0, "AB", 255, 255, 255);
         let tracked = draw_tier(&mut buf, 40, 0, "ab", TextTier::H2, 255, 255, 255);
         assert_eq!(tracked, plain + 2, "a tracked row takes a px a glyph");
     }

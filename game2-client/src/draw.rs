@@ -171,7 +171,7 @@ pub(crate) const BUBBLE_H: i32 = 18;
 /// nudges crowded labels upward, and the bubble must clear the nudged one
 pub(crate) fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str, label_y: Option<i32>) -> Option<(i32, i32, i32)> {
     if sx < 0 || sx >= MAP_W as i32 || sy < 0 || sy >= H as i32 + 60 { return None; }
-    let bw = (measure(text) + 12).max(60).min(MAP_W as i32 - 8);
+    let bw = (measure_rubric(text) + 12).max(60).min(MAP_W as i32 - 8);
     let bx = (sx - bw / 2).clamp(4, MAP_W as i32 - 4 - bw);
     let label_top = (head_y(sy, zoom) - GLYPH_H - LABEL_GAP).min(label_y.map(|y| y - 4).unwrap_or(i32::MAX));
     let by = (label_top - BUBBLE_H - 8).max(4);
@@ -505,25 +505,53 @@ pub(crate) fn draw_meter(buf: &mut Buffer, x: i32, y: i32, icon: Option<&Sprite>
     const BAR_W: i32 = 70;
     let label_x = x + if draw_icon(buf, icon, x, y - 3, 12) { 14 } else { 0 };
     draw_text(buf, label_x, y, label, 200, 200, 200);
-    buf.rect(x + BAR_X, y, BAR_W, 6, 30, 30, 45);
+    // the bar rides the text's mid-line, not its top
+    buf.rect(x + BAR_X, y + 3, BAR_W, 6, 30, 30, 45);
     let (r, g, b) = meter_colour(frac);
-    buf.rect(x + BAR_X, y, (frac.clamp(0.0, 1.0) * BAR_W as f32) as i32, 6, r, g, b);
+    buf.rect(x + BAR_X, y + 3, (frac.clamp(0.0, 1.0) * BAR_W as f32) as i32, 6, r, g, b);
     draw_text(buf, x + BAR_X + BAR_W + 6, y, note, r, g, b);
 }
 
+/// A button drawn as a little wooden plaque, gilt-edged like the
+/// manuscript frame round the panels: chamfered corners, a dark hairline
+/// inside the gilt, the label set in the rubric hand. `b.color` no longer
+/// paints the face - the wood does; the action's own tint survives only
+/// in a washed-out disabled read (a hover polishes the wood up)
 pub(crate) fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
-    let (mut r, mut g, mut bl) = b.color;
-    if disabled { r = 50; g = 50; bl = 55; }
-    else if hover { r = r.saturating_add(40); g = g.saturating_add(40); bl = bl.saturating_add(40); }
+    // wood face: warm oak; a hover polishes it, disabled goes to slate
+    let (r, g, bl) = if disabled { (38, 40, 46) }
+        else if hover { (92, 64, 44) } else { (66, 46, 32) };
     draw_rect(buf, b.x, b.y, b.w, b.h, r, g, bl);
-    draw_rect(buf, b.x, b.y, b.w, 1, 255, 255, 255);
-    draw_rect(buf, b.x, b.y + b.h - 1, b.w, 1, 20, 20, 20);
-    // label centered
-    let tw = measure(&b.label);
-    draw_text(buf, b.x + (b.w - tw) / 2, b.y + (b.h - GLYPH_H) / 2, &b.label, 255, 255, 255);
-    // key hint
+    // chamfered corners so it reads carved, not stamped
+    for (dx, dy) in [(0, 0), (1, 0), (0, 1), (b.w - 1, 0), (b.w - 2, 0), (b.w - 1, 1),
+                     (0, b.h - 1), (1, b.h - 1), (0, b.h - 2),
+                     (b.w - 1, b.h - 1), (b.w - 2, b.h - 1), (b.w - 1, b.h - 2)] {
+        buf.set(b.x + dx, b.y + dy, 20, 20, 32);
+    }
+    // the gilt rule, then the dark hairline that keeps it off the face
+    let gilt = if disabled { (90, 88, 78) } else if hover { (225, 185, 105) } else { (186, 148, 82) };
+    draw_rect(buf, b.x + 1, b.y, b.w - 2, 1, gilt.0, gilt.1, gilt.2);
+    draw_rect(buf, b.x + 1, b.y + b.h - 1, b.w - 2, 1, gilt.0, gilt.1, gilt.2);
+    draw_rect(buf, b.x, b.y + 1, 1, b.h - 2, gilt.0, gilt.1, gilt.2);
+    draw_rect(buf, b.x + b.w - 1, b.y + 1, 1, b.h - 2, gilt.0, gilt.1, gilt.2);
+    draw_rect(buf, b.x + 2, b.y + 1, b.w - 4, 1, 26, 20, 16);
+    draw_rect(buf, b.x + 2, b.y + b.h - 2, b.w - 4, 1, 26, 20, 16);
+    draw_rect(buf, b.x + 1, b.y + 2, 1, b.h - 4, 26, 20, 16);
+    draw_rect(buf, b.x + b.w - 2, b.y + 2, 1, b.h - 4, 26, 20, 16);
+    // a top sheen and a bottom shadow give the wood its plane
+    if !disabled {
+        draw_rect(buf, b.x + 2, b.y + 2, b.w - 4, 1, r + 22, g + 18, bl + 12);
+        draw_rect(buf, b.x + 2, b.y + b.h - 3, b.w - 4, 1, r - 18, g - 14, bl - 10);
+    }
+    // label in the rubric hand, centred in the plaque's face
+    let tw = measure_rubric(&b.label);
+    let (lr, lg, lb) = if disabled { (120, 118, 112) } else { (242, 228, 198) };
+    draw_rubric(buf, b.x + (b.w - tw) / 2, b.y + (b.h - GLYPH_H) / 2, &b.label, lr, lg, lb);
+    // key hint rides the right edge, small and dim, inside the gilt
     let key = format!("{}", b.key);
-    draw_text(buf, b.x + b.w - 10, b.y + 2, &key, 180, 180, 200);
+    let dim = |c: u8| (c as u16 * 3 / 4) as u8;
+    draw_text(buf, b.x + b.w - 3 - measure(&key), b.y + 3, &key,
+        dim(gilt.0), dim(gilt.1), dim(gilt.2));
 }
 
 /// The pack's ground blocks are 94px wide; the top face inside its outline

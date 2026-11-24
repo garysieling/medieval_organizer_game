@@ -1769,15 +1769,19 @@ impl Game {
     pub(in crate::session) fn test_lies(&mut self, scope: &[Entity],
         t: crate::game::beliefs::Tested, pe: Option<Entity>, tick: u64) {
         use crate::game::tension::{self, Axis};
+        // the acting seat's cause - `pe` is the organizer the event's
+        // memory already files toward; a seat-less call is the first
+        let org = pe.and_then(|p| self.seats.iter()
+            .find(|s| s.player == p).map(|s| s.org)).unwrap_or(self.org);
         let members: Vec<Entity> = self.world
-            .get_component::<crate::sim::community::Organization>(self.org)
+            .get_component::<crate::sim::community::Organization>(org)
             .map(|o| o.members.clone()).unwrap_or_default();
         // the issue the cause stands on - the watcher's stake in it is
         // what the issue strain hangs on
         let cause_issue = self.world.query::<crate::game::campaign::Campaign>().iter()
             .copied()
             .find(|&c| self.world.get_component::<crate::game::campaign::Campaign>(c)
-                .map(|cc| cc.org == self.org).unwrap_or(false))
+                .map(|cc| cc.org == org).unwrap_or(false))
             .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
             .map(|c| c.issue.clone());
         for &v in scope {
@@ -1815,16 +1819,17 @@ impl Game {
             }
             // whatever's pulled past its floor, the softer side yields
             if let Some(a) = tension::giving(&self.world, v) {
-                self.tension_flip(v, a, tick);
+                self.tension_flip(v, a, tick, org);
             }
         }
     }
 
     /// A strain past `FLIP_AT` resolves as its flip (E8-4, #1454): the
     /// softer side gives - they drift out of the cause, or come in off
-    /// the edge of it - and the log says which pull won
+    /// the edge of it - and the log says which pull won. `org` is the
+    /// acting seat's cause; returns whether the membership changed
     pub(in crate::session) fn tension_flip(&mut self, v: Entity,
-        axis: crate::game::tension::Axis, tick: u64) {
+        axis: crate::game::tension::Axis, tick: u64, org: Entity) -> bool {
         use crate::game::tension::Axis::*;
         let n = self.name_of(v);
         let (line, valence) = match axis {
@@ -1837,19 +1842,30 @@ impl Game {
             Issue => (format!("t{tick}: {n} stands with the cause - it lifted what weighed on them."),
                 Valence::Positive),
         };
+        let mut acted = false;
         if let Some(o) = self.world
-            .get_component_mut::<crate::sim::community::Organization>(self.org) {
+            .get_component_mut::<crate::sim::community::Organization>(org) {
             match axis {
-                Issue => { if !o.members.contains(&v) { o.members.push(v); } }
+                Issue => { if !o.members.contains(&v) { o.members.push(v); acted = true; } }
                 _ => {
-                    if !o.members.contains(&v) { return; }
+                    if !o.members.contains(&v) { return false; }
                     o.members.retain(|&m| m != v);
                     o.successors.retain(|&m| m != v);
+                    acted = true;
                 }
+            }
+        }
+        if !acted { return false; }
+        // a delegated seat doesn't outlive the membership it stood on
+        if let Some(c) = crate::game::campaign::campaign_of(&self.world, org) {
+            if let Some(cc) = self.world
+                .get_component_mut::<crate::game::campaign::Campaign>(c) {
+                cc.seats.retain(|s| s.holder != v);
             }
         }
         crate::game::tension::resolved(&mut self.world, v, axis);
         self.log.push_ev(EvTag::new(Thread::Org, valence, Sev::Minor), line);
+        true
     }
 
     /// A carried demand sends the village out in the open: the column

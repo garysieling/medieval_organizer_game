@@ -1743,6 +1743,11 @@ fn the_orgs_ask_over_a_bare_house_calls_them_home() {
         .any(|p| matches!(p, Problem::NoWorkplace | Problem::NoHome | Problem::Broke)),
         "the house must be bare for the strain to bite");
     tension::strained(&mut g.world, member, Axis::Interest, FLIP_AT - 0.02);
+    // warm to the player: without the walked-out exclusion the resolve's
+    // join pass would seat them right back
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, Relationship { from: g.player, other: member,
+        kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     *g.world.get_component_mut::<Pos>(member).unwrap() = Pos { x: 17.0, y: 16.0 };
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[member]);
     let msg = g.call_meeting_at(0);
@@ -1750,7 +1755,57 @@ fn the_orgs_ask_over_a_bare_house_calls_them_home() {
     finish_meeting(&mut g);
     let o = g.world.get_component::<crate::sim::community::Organization>(g.org).unwrap();
     assert!(!o.members.contains(&member),
-        "arriving tipped the strain - they drift out");
+        "arriving tipped the strain - they drift out and stay out");
     assert!(g.log.iter().any(|l| l.contains("the belly called them home")),
         "{:?}", g.log.last());
+}
+
+/// E8-4 (#1454): a delegated seat doesn't outlive the membership it
+/// stood on - the flip takes the role with it
+#[test]
+fn a_flip_takes_their_delegated_seat_with_it() {
+    use crate::game::tension::{self, Axis, FLIP_AT};
+    let mut g = Game::new();
+    let (v, pe, tick) = (g.villagers[0], g.player, g.tick);
+    for &w in &g.villagers[..3] {
+        crate::game::desires::add_grievance(&mut g.world, w,
+            crate::game::desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org)
+        .unwrap().members = g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    assert!(crate::game::campaign::delegate_role(&mut g.world, c,
+        crate::game::campaign::Role::NoteTaker, v));
+    tension::strained(&mut g.world, v, Axis::Interest, FLIP_AT);
+    g.test_lies(&[v], crate::game::beliefs::Tested::WritDefied, Some(pe), tick);
+    let o = g.world.get_component::<crate::sim::community::Organization>(g.org).unwrap();
+    assert!(!o.members.contains(&v), "they drift out");
+    assert!(g.world.get_component::<crate::game::campaign::Campaign>(c).unwrap()
+        .seats.iter().all(|s| s.holder != v), "the seat goes with the leaving");
+}
+
+/// E8-4 (#1454): tension answers to the acting seat's cause - a second
+/// seat's event strains its own org, never the first's
+#[test]
+fn the_strain_lands_on_the_acting_seats_cause() {
+    use crate::game::tension::{self, Axis, FLIP_AT};
+    let mut g = Game::new();
+    let seat1 = g.add_seat();
+    let (o1, p1) = (g.seats[seat1].org, g.seats[seat1].player);
+    let v = g.villagers[0];
+    // on both rolls: only the acting seat's loses them
+    g.world.get_component_mut::<crate::sim::community::Organization>(o1)
+        .unwrap().members.push(v);
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org)
+        .unwrap().members.push(v);
+    tension::strained(&mut g.world, v, Axis::Interest, FLIP_AT);
+    let tick = g.tick;
+    g.test_lies(&[v], crate::game::beliefs::Tested::WritDefied, Some(p1), tick);
+    assert!(!g.world.get_component::<Organization>(o1).unwrap().members.contains(&v),
+        "the acting seat's cause loses them");
+    assert!(g.world.get_component::<crate::sim::community::Organization>(g.org)
+        .unwrap().members.contains(&v), "the first seat's roll is untouched");
 }

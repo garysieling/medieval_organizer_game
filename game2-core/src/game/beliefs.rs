@@ -112,8 +112,15 @@ pub fn tested_by(world: &mut World, v: Entity, t: Tested, pe: Option<Entity>, da
     }
     world.add_component(v, p);
     if let (Some(lie), Some(pe)) = (turned, pe) {
-        crate::game::episodes::file(world, v, pe, crate::game::episodes::MemKind::Turned,
-            day, &["turned", lie.tag()]);
+        // the memory is seat-scoped: filing over another player's slot
+        // would erase their history with this villager - the turn and
+        // the spoken line still land, only the record waits
+        let foreign = world.get_component::<crate::game::episodes::PairMemory>(v)
+            .map(|m| m.pe != pe).unwrap_or(false);
+        if !foreign {
+            crate::game::episodes::file(world, v, pe, crate::game::episodes::MemKind::Turned,
+                day, &["turned", lie.tag()]);
+        }
     }
     turned
 }
@@ -254,6 +261,29 @@ mod tests {
         // lie row's showing factor drops; the wound's stays
         let f = crate::game::fact_content::showing_factor(&w, v);
         assert!((f - 0.55).abs() < 0.001, "f={f}");
+    }
+
+    /// The memory slot is seat-scoped: a turn earned by one seat's
+    /// campaign doesn't erase another player's record - the ghost still
+    /// turns and still speaks, only the filing waits
+    #[test]
+    fn a_foreign_seats_memory_isnt_clobbered() {
+        let (mut w, pe, v) = world_with(ghosted(Belief::LordAlwaysWins, 0.4));
+        let other = w.create_entity();
+        crate::game::episodes::file(&mut w, v, other,
+            crate::game::episodes::MemKind::KeptPromise, 1, &["promise"]);
+        assert_eq!(tested_by(&mut w, v, Tested::WritDefied, Some(pe), 10),
+            Some(Belief::LordAlwaysWins));
+        let mem = w.get_component::<crate::game::episodes::PairMemory>(v).unwrap();
+        assert_eq!(mem.pe, other, "the other seat's record stands");
+        assert_eq!(mem.eps.len(), 1);
+        // the same seat's own win files the turn like always
+        let (mut w2, pe2, v2) = world_with(ghosted(Belief::LordAlwaysWins, 0.4));
+        crate::game::episodes::file(&mut w2, v2, pe2,
+            crate::game::episodes::MemKind::SharedMeal, 1, &["meal"]);
+        tested_by(&mut w2, v2, Tested::WritDefied, Some(pe2), 10);
+        assert_eq!(w2.get_component::<crate::game::episodes::PairMemory>(v2)
+            .unwrap().eps.len(), 2);
     }
 
     /// Every lie owns an authored admission and at least one listener

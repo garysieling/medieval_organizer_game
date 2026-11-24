@@ -741,7 +741,8 @@ impl Game {
             // mercy moved the crowd: the cause stood with its own and
             // the standing held - a test every listening lie heard (#1444)
             let all = self.villagers.clone();
-            self.test_lies(&all, crate::game::beliefs::Tested::StoodTogether, tick);
+            let pe = self.org_player(self.org);
+            self.test_lies(&all, crate::game::beliefs::Tested::StoodTogether, pe, tick);
             // a plea that lands warms the beggar toward the voice that
             // carried it
             if spoke_for {
@@ -802,7 +803,8 @@ impl Game {
             format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
         // everyone saw it - the lies that predicted this end harden (#1444)
         let all = self.villagers.clone();
-        self.test_lies(&all, crate::game::beliefs::Tested::MemberLost, tick);
+        let pe = self.org_player(self.org);
+        self.test_lies(&all, crate::game::beliefs::Tested::MemberLost, pe, tick);
         // mass grief: everyone saw it
         for v in self.villagers.iter().take(8).copied().collect::<Vec<_>>() {
             if !villager::is_dead(&self.world, v) {
@@ -991,7 +993,8 @@ impl Game {
                         // the whole village watched it - every lie
                         // about the lord's men just took the test (#1444)
                         let all = self.villagers.clone();
-                        self.test_lies(&all, crate::game::beliefs::Tested::WritDefied, tick);
+                        let pe = self.org_player(self.org);
+                        self.test_lies(&all, crate::game::beliefs::Tested::WritDefied, pe, tick);
                     } else {
                         self.log_entity_ev(
                             EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
@@ -1747,12 +1750,19 @@ impl Game {
         }
     }
 
+    /// The seat that owns an org's wins and losses (E8-2): turn
+    /// memories file toward the player who organized them - an org
+    /// nobody's seat holds answers to no one
+    fn org_player(&self, oe: Entity) -> Option<Entity> {
+        self.seats.iter().find(|s| s.org == oe).map(|s| s.player)
+    }
+
     /// A campaign outcome reaches the ghosts that listen (E8-2, #1444):
     /// each lie that hears it moves, and a ghost that turns says so in
-    /// the moment - the line is theirs, the log carries it
+    /// the moment - the line is theirs, the log carries it. `pe` is the
+    /// organizer the memory files toward
     pub(in crate::session) fn test_lies(&mut self, scope: &[Entity],
-        t: crate::game::beliefs::Tested, tick: u64) {
-        let pe = self.seats.first().map(|s| s.player);
+        t: crate::game::beliefs::Tested, pe: Option<Entity>, tick: u64) {
         for &v in scope {
             if let Some(lie) = crate::game::beliefs::tested_by(&mut self.world, v, t, pe, tick) {
                 let n = self.name_of(v);
@@ -1765,7 +1775,7 @@ impl Game {
     /// A carried demand sends the village out in the open: the column
     /// walks the streets and breaks up at the cross. Nothing else it
     /// could be doing is more worth the day
-    pub(in crate::session) fn victory_parade(&mut self) {
+    pub(in crate::session) fn victory_parade(&mut self, pe: Option<Entity>) {
         if self.formation.is_some() { return; }
         let mut folk: Vec<Entity> = self.villagers.iter().copied()
             .filter(|&v| !villager::is_dead(&self.world, v)
@@ -1787,7 +1797,7 @@ impl Game {
         // (#1442): everyone who walks it believes a little more
         for &v in &folk { crate::game::act_model::win_witnessed(&mut self.world, v); }
         // a walked win tests the listening lies (#1444)
-        self.test_lies(&folk, crate::game::beliefs::Tested::VictoryWalked, self.tick);
+        self.test_lies(&folk, crate::game::beliefs::Tested::VictoryWalked, pe, self.tick);
         self.start_parade(folk, route, None);
         self.log.push_ev(
             EvTag::new(Thread::Org, Valence::Positive, Sev::Major),

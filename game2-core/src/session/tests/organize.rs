@@ -1622,7 +1622,7 @@ fn a_lie_weakens_after_a_campaign_win_and_the_villager_says_so() {
     let s = g.world.get_component::<Persona>(v).unwrap().ghosts[0].strength;
     assert!((s - 0.34).abs() < 0.001, "s={s}");
     // the second breaks it: the ghost turns and the words reach the log
-    g.test_lies(&[v], Tested::WritDefied, g.tick);
+    g.test_lies(&[v], Tested::WritDefied, Some(pe), tick);
     let ghost = &g.world.get_component::<Persona>(v).unwrap().ghosts[0];
     assert!(ghost.turned && ghost.strength < TURN_FLOOR);
     assert!(g.log.iter().any(|l| l.contains("the sky held")),
@@ -1631,4 +1631,42 @@ fn a_lie_weakens_after_a_campaign_win_and_the_villager_says_so() {
     let mem = g.world.get_component::<crate::game::episodes::PairMemory>(v).unwrap();
     assert!(mem.eps.iter().any(|e| e.kind == crate::game::episodes::MemKind::Turned
         && e.concepts.contains(&"never_cross_reeve")));
+}
+
+/// The kept promise credits on arrival against the snapshot the call
+/// took - the live plan was already spent by then (#1444)
+#[test]
+fn a_keeper_who_walks_in_tests_their_own_keeping() {
+    use crate::game::persona::*;
+    let mut g = Game::new();
+    let (host, keeper) = (g.villagers[1], g.villagers[2]);
+    let mut p = Persona {
+        seed: 4, sex: villager::Sex::Female, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+        idiolect: crate::game::idiolect::Idiolect {
+            phrase: "x", habit: crate::game::idiolect::Habit::Echo },
+    };
+    p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+        lie: Belief::PromisesForKeepers, strength: 0.3, fear: Fear::BailiffKnowsMyFace,
+        need: Need::ToBeSafe, turned: false });
+    g.world.add_component(keeper, p);
+    *g.world.get_component_mut::<Pos>(keeper).unwrap() = Pos { x: 17.0, y: 16.0 };
+    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[keeper]);
+    let msg = g.call_meeting_at(0);
+    assert!(msg.contains("gather"), "{msg}");
+    // the call snapshotted the promise-holders; the live plan's spent
+    assert!(g.meeting.as_ref().unwrap().promised.contains(&keeper));
+    assert!(g.world.get_component::<MeetingPlan>(g.org)
+        .map(|p| !p.ready()).unwrap_or(true), "the call consumed the plan");
+    finish_meeting(&mut g);
+    // arrival tested the lie: under the floor it turns, and the
+    // efficacy credit the act model reads landed on the showing
+    let g0 = g.world.get_component::<Persona>(keeper).unwrap().ghosts[0];
+    assert!(g0.turned && g0.strength < crate::game::beliefs::TURN_FLOOR,
+        "the kept promise broke the rule: {g0:?}");
+    assert!(g.world.get_component::<crate::game::act_model::Pressure>(keeper)
+        .map(|p| p.efficacy > 0.0).unwrap_or(false),
+        "the keeping itself credits the keeper");
 }

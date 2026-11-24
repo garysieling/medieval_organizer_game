@@ -5,8 +5,12 @@
 # Default output: evidence/talk-lab/. Re-running regenerates the corpus
 # deterministically (everything's seeded) - diff the files to review a
 # conversation-system change's effect on output.
-set -uo pipefail
+set -euo pipefail
 cd "$(dirname "$0")/.."
+
+# a failed sample stops the run and prints its log - a missing transcript
+# must not pass for a written one (E0-7, #1407)
+trap 'f=$(ls -t "${OUT:-.}"/*.log 2>/dev/null | head -1); [ -n "$f" ] && { echo "== the failed sample says:"; tail -30 "$f"; }' ERR
 
 OUT=${1:-evidence/talk-lab}
 mkdir -p "$OUT"

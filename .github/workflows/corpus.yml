@@ -36,15 +36,17 @@ jobs:
 
       - name: Regenerate the corpus and diff it
         run: |
-          RUN="./target/release/talk_lab" bash scripts/talk_lab_corpus.sh
-          git status --porcelain evidence/talk-lab/ | tee /tmp/corpus.status
-          # the drift itself, for the review
-          git diff --stat evidence/talk-lab/
-          git diff evidence/talk-lab/ | head -100
-          if [ -s /tmp/corpus.status ]; then
+          FRESH=$(mktemp -d)
+          RUN="./target/release/talk_lab" bash scripts/talk_lab_corpus.sh "$FRESH"
+          # the file list AND the contents: a missing or changed
+          # transcript fails, an extra one does too (redirect first -
+          # piping to head would mask diff's exit code)
+          if ! diff -r "$FRESH" evidence/talk-lab > /tmp/corpus.diff; then
+            head -200 /tmp/corpus.diff
             echo "::error::the corpus drifted - regenerate with scripts/talk_lab_corpus.sh and commit evidence/talk-lab/"
             exit 1
           fi
+          echo "corpus identical"
 
       - name: Cast report within bands
         run: ./target/release/cast_report 100 both

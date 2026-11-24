@@ -222,7 +222,6 @@ pub enum AgentAction {
     TakeJob,
     Douse,
     Tame,
-    Recruit,
     Matchmake,
     Errand,
     PairUp,
@@ -264,7 +263,7 @@ pub enum AgentCmd {
     /// villager's own errand - send a kid, or go to where it's had
     FetchInput,
     /// Take an available contextual action. `target` is a nearby villager
-    /// for actions such as TakeJob, Recruit, Errand, or PairUp; actions that
+    /// for actions such as TakeJob, Errand, or PairUp; actions that
     /// use the agent's own position can leave it empty.
     Context { action: AgentAction, target: Option<Entity> },
     /// Take the board's oldest posted job - a quest advertised on the

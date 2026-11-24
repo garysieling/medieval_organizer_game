@@ -59,52 +59,15 @@ fn test_talk_on_a_picked_villager_walks_over_then_talks() {
 }
 
 #[test]
-fn test_recruit_on_a_picked_villager_walks_over_then_recruits() {
+fn test_a_stale_action_index_is_ignored() {
+    // the dropped Recruit button's index mustn't panic or act: a client
+    // or recording still sending Act(1) gets nothing (#1340)
     let mut game = Game::new();
     while game.tick < 3 { game.update(); }
-    let who = walkable_villager(&game);
-    game.selected_target = who;
-    game.picked = true;
-    let org = game.org;
-    crate::game::campaign::found_for_test(&mut game.world, org);
-    game.world.add_component(game.villagers[who], crate::game::player::Rapport::for_player(game.player, 1.0));
-    // and a bond deep enough to say yes to
-    let rel = game.world.create_entity();
-    game.world.add_component(rel, crate::game::relationships::Relationship {
-        from: game.player, other: game.villagers[who],
-        kind: crate::game::relationships::RelKind::Friend, strength: 0.7, interactions: 8, ..Default::default() });
-    assert_eq!(game.disabled_reason(1), None, "Recruit walks over, so distance doesn't grey it out");
-
+    let logged = game.log.len();
     game.act(1);
-    assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", vill_name(who))), "{}", game.log.last().unwrap());
-    assert!(game.approach.as_ref().map(|a| a.action) == Some(1));
-
-    for _ in 0..(30 * FPS) {
-        if game.approach.is_none() { break; }
-        game.update();
-    }
-    assert!(game.approach.is_none(), "still walking to {}", vill_name(who));
-    assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), vill_name(who));
-    // the recruit attempt happened on arrival (joined or turned the player down)
-    let line = game.log.last().unwrap();
-    assert!(line.contains(vill_name(who)) && !line.contains("walk over") && !line.contains("Can't"), "{}", line);
-}
-
-#[test]
-fn test_recruit_is_hidden_until_a_campaign_exists() {
-    let mut game = Game::new();
-    while game.tick < 3 { game.update(); }
-    let who = game.reach_target();
-    game.selected_target = who;
-    assert!(!action_shown(&game.ui_model(), 1), "no Recruit button before a campaign");
-    assert_eq!(game.disabled_reason(1).as_deref(), Some("no campaign to join"));
-    let org = game.org;
-    crate::game::campaign::found_for_test(&mut game.world, org);
-    assert!(action_shown(&game.ui_model(), 1), "Recruit appears once there's a campaign");
-    // and even then it takes a few real conversations with them
-    assert_eq!(game.disabled_reason(1).as_deref(), Some("talk with them more"));
-    game.world.add_component(game.villagers[who], crate::game::player::Rapport::for_player(game.player, 1.0));
-    assert_eq!(game.disabled_reason(1), None);
+    assert_eq!(game.log.len(), logged, "Act(1) did something: {:?}", game.log.last());
+    assert!(game.approach.is_none(), "Act(1) started a walk-over");
 }
 
 /// Somewhere the player can walk to, just past shouting distance: the

@@ -39,7 +39,7 @@ pub(crate) const HELP_LINES: [&str; 10] = [
     "click villager: select + inspect",
     "bright name: close enough to talk",
     "1-8: select villager",
-    "T talk  R recruit  I invest",
+    "T talk",
     "O organize",
     "WASD: move   arrows: pan   +/-: zoom",
     "Space: pause   0: speed 4x",
@@ -364,7 +364,7 @@ pub fn render_title() -> Buffer {
     draw_centered(&mut tbuf, 230, "an outsider builds power", 2, (200, 200, 200));
     draw_centered(&mut tbuf, 290, "Talk with the villagers, win their trust, organize.", 1, (190, 190, 205));
     draw_centered(&mut tbuf, 306, "Win them over, then found a campaign at a house meeting.", 1, (190, 190, 205));
-    draw_centered(&mut tbuf, 340, "WASD move   T talk   R recruit   O organize   H help", 1, (140, 140, 160));
+    draw_centered(&mut tbuf, 340, "WASD move   T talk   O organize   H help", 1, (140, 140, 160));
     draw_centered(&mut tbuf, 400, "press ENTER to begin", 2, (255, 220, 130));
     tbuf
 }

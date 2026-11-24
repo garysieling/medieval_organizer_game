@@ -2,10 +2,10 @@
 
 use crate::session::*;
 
-/// Walking over to someone to talk to or recruit them
+/// Walking over to someone to talk to them
 pub struct Approach {
     pub who: usize,              // villager index
-    pub action: usize,           // the action button to take on arrival (Talk or Recruit)
+    pub action: usize,           // the action button to take on arrival (Talk)
     pub path: Vec<(i32, i32)>,   // tiles still to walk, their tile last
     pub stuck: u32,              // frames without headway
 }
@@ -22,7 +22,7 @@ pub struct BuyWalk {
 /// map to, so a local loop, a remote client and a test all steer the same way.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Command {
-    /// One of the action buttons (Talk, Recruit)
+    /// One of the action buttons (Talk)
     Act(usize),
     /// A contextual action (Pair up, Errand)
     CtxAct(usize),
@@ -107,8 +107,6 @@ pub enum CtxAct {
     /// Pass the hat, buy pamphlets off the print shop and post them
     /// around the streets for the cause
     Flyers,
-    /// Win the picked villager to the cause - it takes real trust first
-    Recruit,
     /// Pick a cap off the patch you're standing by - the wood feeds,
     /// and teaches its lessons the hard way
     PickCaps,
@@ -155,7 +153,7 @@ pub struct Seat {
     /// The seat's organization entity
     pub org: Entity,
     /// They picked the selected villager themselves and haven't walked off
-    /// since: Talk and Recruit go to them, however far
+    /// since: Talk goes to them, however far
     pub picked: bool,
     /// The picked one was within a shout when picked, or has come within
     /// one since: a pick that drifts past a shout lets go. A pick made
@@ -381,7 +379,7 @@ impl Game {
         let who = self.seats.get(seat).map(|s| s.player)
             .ok_or_else(|| "no such seat".to_string())?;
         if target.is_none() && matches!(action,
-            AgentAction::TakeJob | AgentAction::Recruit | AgentAction::Matchmake
+            AgentAction::TakeJob | AgentAction::Matchmake
                 | AgentAction::Errand | AgentAction::PairUp | AgentAction::ShareFindings | AgentAction::Pact) {
             return Err("that action needs a target".into());
         }
@@ -412,7 +410,6 @@ impl Game {
             AgentAction::TakeJob => unreachable!("handled above"),
             AgentAction::Douse => CtxAct::Douse,
             AgentAction::Tame => CtxAct::Tame,
-            AgentAction::Recruit => CtxAct::Recruit,
             AgentAction::Matchmake => CtxAct::Matchmake,
             AgentAction::Errand => CtxAct::Errand,
             AgentAction::PairUp => CtxAct::PairUp,

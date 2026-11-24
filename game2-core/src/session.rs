@@ -43,7 +43,7 @@ use crate::game::terrain::Terrain;
 use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
-use crate::game::player::{PlayerCharacter, act_talk, act_recruit, TalkCount};
+use crate::game::player::{PlayerCharacter, act_talk, TalkCount};
 use crate::game::guilds::{GuildFormationSystem, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
@@ -208,8 +208,8 @@ pub struct Button {
 }
 
 
-/// How close (in tiles) a villager must be to the player to talk, recruit,
-/// or come to a house meeting
+/// How close (in tiles) a villager must be to the player to talk to
+/// them or come to a house meeting
 const MEETING_REACH: f32 = 8.0;
 /// Shouting distance (tiles): a pick made within this lets go once
 /// they've drifted past it - too far to talk (#944)
@@ -260,8 +260,8 @@ pub const FPS: u32 = 60;
 /// How long a reply to Talk, and a remark in passing, stay up (seconds)
 const TALK_BUBBLE_SECS: u32 = 5;
 
-/// How close the player stands to someone to talk to them (tiles). Talk or
-/// Recruit on someone farther off walks the player over first.
+/// How close the player stands to someone to talk to them (tiles). Talk
+/// on someone farther off walks the player over first.
 const TALK_DIST: f32 = 1.5;
 
 /// Frames the player can make no headway before a walk over to talk gives up
@@ -346,24 +346,18 @@ const BUILD_SEARCH: i32 = 8;
 /// Day a traveller brings la grippe to the village
 const FLU_DAY: u64 = 120;
 
-/// Keyboard shortcut for each action button, in button order (Talk,
-/// Recruit). The input loop and the buttons' key hints
+/// Keyboard shortcut for each action button, in button order (Talk).
+/// The input loop and the buttons' key hints
 /// both come from here so they can't disagree. W/A/S/D move the player, so
 /// no action may use them.
-const ACTION_KEYS: [char; 2] = ['T', 'R'];
-/// Whether action button `i` is shown at all: Recruit only appears once
-/// there's a campaign to recruit into (founded at a house meeting)
-pub fn action_shown(m: &UiModel, i: usize) -> bool {
-    i != 1 || m.panel.campaign.is_some()
-}
+const ACTION_KEYS: [char; 1] = ['T'];
 
 /// The action panel's buttons, in ACTION_KEYS order
-pub const ACTION_LABELS: [&str; 2] = ["Talk", "Recruit"];
+pub const ACTION_LABELS: [&str; 1] = ["Talk"];
 /// The action panel's buttons, laid out the same for every player
-pub fn action_buttons() -> [Button; 2] {
+pub fn action_buttons() -> [Button; 1] {
     [
         Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 116,  w: 130, h: 36, color: (60,60,120) },
-        Button { label: ACTION_LABELS[1].into(), key: ACTION_KEYS[1], x: UI_X as i32 + 10, y: 158, w: 130, h: 36, color: (60,120,60) },
     ]
 }
 /// The button a contextual action draws with
@@ -409,7 +403,6 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Douse => Button { label: "Throw water".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (70, 120, 170) },
         // shares the card's bottom-left corner with Seat/Strike on the right
         CtxAct::Flyers => Button { label: "Flyers".into(), key: ' ', x: UI_X as i32 + 10, y: 438, w: 130, h: 16, color: (120, 100, 40) },
-        CtxAct::Recruit => Button { label: "Win them".into(), key: ' ', x: UI_X as i32 + 212, y: 470, w: 62, h: 16, color: (90, 110, 150) },
         CtxAct::PickCaps => Button { label: "Pick caps".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (110, 90, 50) },
         CtxAct::TakeCache => Button { label: "Take the cache".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (120, 100, 60) },
         // the delivery sits in the clear below the log box

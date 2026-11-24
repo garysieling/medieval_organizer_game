@@ -172,17 +172,15 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
     // writes "Can't X" to the log, spam that isn't the village talking
     let ready: Vec<usize> = cands.iter().filter(|(_, s)| *s >= RECRUIT_MIN_TRUST).map(|(i, _)| *i).collect();
     // a meeting is earned, and the first one is what founds the cause -
-    // it can't wait on the Recruit button it itself unlocks
+    // it can't wait on the intake it itself sets up
     if ready.len() >= 2 && game.meeting.is_none() && call_meeting_if_earned(game, seat, &ready, last_meeting_ask_day) {
         return;
     }
-    if game.action_blocker_at(seat, 1).is_none() {
-        if let Some(&i) = ready.first() {
-            game.seats[seat].selected_target = i;
-            game.seats[seat].picked = true;
-            game.command_at(seat, Command::Act(1));
-            return;
-        }
+    // no Recruit button anymore (#1340): the bot presses the same
+    // helper the talk asks and the meetings resolve through
+    if let Some(&i) = ready.first() {
+        let (pe, oe, te) = (game.seats[seat].player, game.seats[seat].org, game.villagers[i]);
+        if game2_core::game::player::act_recruit(&mut game.world, pe, oe, te).success { return; }
     }
     // ties cool ~1%/day: to bank trust you have to court the same soul
     // until they sign on - work whoever's closest to ready, and when

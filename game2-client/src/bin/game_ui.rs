@@ -111,7 +111,7 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
     }
     // a click or a held key between the presses breaks the double-tap
     if !cmds.is_empty() { *talk_armed = None; }
-    const KEYS: [Key; 2] = [Key::T, Key::R];
+    const KEYS: [Key; 1] = [Key::T];
     for (i, k) in KEYS.iter().enumerate() {
         if window.is_key_pressed(*k, minifb::KeyRepeat::No) {
             if i == 0 && talk_armed.map(|t| t.elapsed() < TALK_DBL).unwrap_or(false) {
@@ -691,8 +691,6 @@ fn main() {
         // the board's Esc: a set, not a toggle - the seat's panel state
         // can't desync from what the frame showed
         if let Some(c) = esc_cmd { cmds.push(c); }
-        // a hidden button (Recruit, before there's a campaign) can't be pressed
-        if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
         if clicked && !on_minimap && !swallow_click {
             if let Some(m) = &cur_model {
                 // a toast that happened somewhere: the click jumps there

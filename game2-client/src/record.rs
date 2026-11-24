@@ -13,7 +13,7 @@
 //! line, `<frame> <verb> [args]` -
 //!   120 walk 1 0     held walk until `stop` (like WASD held)
 //!   340 stop         stop walking
-//!   360 act 0        press action button i, 0-based (0 Talk .. 4 Build)
+//!   360 act 0        press action button i, 0-based (0 Talk)
 //!   400 select 3     the 1-8 keys
 //!   420 ctx 0        a contextual action (Work, Pair up, ...)
 //!   440 click 700 400   click the map through the camera
@@ -695,12 +695,12 @@ mod tests {
 
     #[test]
     fn test_parse_script_commands() {
-        let s = "# a comment\n\n120 walk 1 0\n340 stop\n360 act 1\n400 select 3\n420 ctx 0\n440 click 700 400\n500 pause\n700 look 40 60\n750 cancel\n";
+        let s = "# a comment\n\n120 walk 1 0\n340 stop\n360 act 0\n400 select 3\n420 ctx 0\n440 click 700 400\n500 pause\n700 look 40 60\n750 cancel\n";
         let ops = parse_script(s).unwrap();
         assert_eq!(ops.len(), 9);
         assert!(matches!(ops[0], (120, ScriptOp::Cmd(Command::Walk(dx, dy))) if dx == 1.0 && dy == 0.0));
         assert!(matches!(ops[1], (340, ScriptOp::Cmd(Command::Walk(0.0, 0.0)))));
-        assert!(matches!(ops[2], (360, ScriptOp::Cmd(Command::Act(1)))));
+        assert!(matches!(ops[2], (360, ScriptOp::Cmd(Command::Act(0)))));
         assert!(matches!(ops[3], (400, ScriptOp::Cmd(Command::Select(3)))));
         assert!(matches!(ops[4], (420, ScriptOp::Cmd(Command::CtxAct(0)))));
         assert!(matches!(ops[5], (440, ScriptOp::Cmd(Command::ClickMap { mx: 700, my: 400, .. }))));
@@ -709,6 +709,7 @@ mod tests {
         assert!(matches!(ops[8], (750, ScriptOp::Cmd(Command::CancelApproach))));
         assert!(parse_script("oops").is_err());
         assert!(parse_script("10 frobnicate").is_err());
+        assert!(parse_script("360 act 1").is_err(), "no second action button anymore");
     }
 
     #[test]

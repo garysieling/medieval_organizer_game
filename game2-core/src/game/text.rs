@@ -286,10 +286,33 @@ fn marked(text: &str, template: &str, speaker: &Speaker) -> String {
     if max2 > 0.0 && r.next_f32() < max2 * 0.5 {
         fired.push(MARKERS[r.weighted(&rest)]);
     }
+    apply_marks(text, &fired, &mut r)
+}
+
+/// The marks land in an order that keeps every pick visible: the
+/// comma-tails chain while a '.' stands, the question-back last of
+/// them since its '?' takes no follower; then the bang settles the
+/// stop that's left, and the oath fronts it all.
+fn apply_marks(text: &str, fired: &[Marker], r: &mut Rng) -> String {
     let mut out = text.to_string();
-    if fired.contains(&Marker::Oath) {
-        out = format!("{}{}", OATH_OPENERS[r.below(OATH_OPENERS.len())], out);
+    let tail = |out: &mut String, set: &[&'static str], r: &mut Rng| {
+        // a tail joins on a comma; a line without its stop is left be
+        if out.ends_with('.') {
+            out.replace_range(out.len() - 1.., set[r.below(set.len())]);
+        }
+    };
+    for m in [Marker::Verbose, Marker::Hedge, Marker::SelfTalk, Marker::AskBack] {
+        if !fired.contains(&m) { continue; }
+        match m {
+            Marker::Verbose => tail(&mut out, &VERBOSE_TAILS, r),
+            Marker::Hedge => tail(&mut out, &HEDGE_TAILS, r),
+            Marker::AskBack => tail(&mut out, &ASKBACK_TAILS, r),
+            Marker::SelfTalk => tail(&mut out, &SELFTALK_TAILS, r),
+            _ => {}
+        }
     }
+    // the bang settles the line once the tails have had theirs; a
+    // question keeps its own mark and wears the cry up front instead
     if fired.contains(&Marker::Exclaim) {
         if out.ends_with('.') {
             out.replace_range(out.len() - 1.., "!");
@@ -297,20 +320,8 @@ fn marked(text: &str, template: &str, speaker: &Speaker) -> String {
             out = format!("{}{}", EXCLAIM_OPENERS[r.below(EXCLAIM_OPENERS.len())], out);
         }
     }
-    let tail = |out: &mut String, set: &[&'static str], r: &mut Rng| {
-        // a tail joins on a comma; a line without its stop is left be
-        if out.ends_with('.') {
-            out.replace_range(out.len() - 1.., set[r.below(set.len())]);
-        }
-    };
-    for m in &fired {
-        match m {
-            Marker::Verbose => tail(&mut out, &VERBOSE_TAILS, &mut r),
-            Marker::Hedge => tail(&mut out, &HEDGE_TAILS, &mut r),
-            Marker::AskBack => tail(&mut out, &ASKBACK_TAILS, &mut r),
-            Marker::SelfTalk => tail(&mut out, &SELFTALK_TAILS, &mut r),
-            _ => {}
-        }
+    if fired.contains(&Marker::Oath) {
+        out = format!("{}{}", OATH_OPENERS[r.below(OATH_OPENERS.len())], out);
     }
     out
 }
@@ -1306,7 +1317,9 @@ mod tests {
             if line.ends_with('!') { n += 1; }
             for set in [&VERBOSE_TAILS[..], &HEDGE_TAILS[..],
                         &ASKBACK_TAILS[..], &SELFTALK_TAILS[..]] {
-                for w in set { if line.ends_with(w.trim_start_matches(',')) { n += 1; } }
+                for w in set {
+                    if line.contains(w.trim_matches(|c: char| ",.?! ".contains(c))) { n += 1; }
+                }
             }
             n
         }
@@ -1373,6 +1386,22 @@ mod tests {
             // even the fullest mouth leaves most of its lines alone
             assert!(marked_lines * 2 < authored_lines().len(),
                 "{marked_lines} of {} lines marked", authored_lines().len());
+        }
+
+        #[test]
+        fn test_a_marked_pair_shows_both_marks() {
+            let mut r = Rng::new(1);
+            // the bang can't starve a tail: it settles the tail's own stop
+            let out = apply_marks("The field wants sowing.",
+                &[Marker::Exclaim, Marker::SelfTalk], &mut r);
+            assert!(out.ends_with('!') && out.starts_with("The field wants sowing,"),
+                "exclaim + tail: {out}");
+            // and the question-back lands last, so a fellow tail still
+            // has its '.' to join on
+            let out = apply_marks("The field wants sowing.",
+                &[Marker::AskBack, Marker::SelfTalk], &mut r);
+            assert!(out.ends_with('?') && out.matches(',').count() >= 2,
+                "askback + tail: {out}");
         }
 
         #[test]

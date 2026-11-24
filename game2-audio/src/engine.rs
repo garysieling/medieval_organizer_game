@@ -325,7 +325,13 @@ impl Engine {
             Source::Noise => rng.range(-1.0, 1.0),
             Source::Synth(kind) => {
                 let t = age as f32 / sr;
-                if t > kind.len() { 0.0 } else { kind.sample(t, rng.range(-1.0, 1.0)) }
+                if t > kind.len() { 0.0 } else {
+                    // the noise voices (rain hiss, splash, cheer, cart,
+                    // quill) crackle past the click bar on raw white
+                    // draws - band-limit like the synth beds do
+                    v.lp2 += 0.4 * (rng.range(-1.0, 1.0) - v.lp2);
+                    kind.sample(t, v.lp2)
+                }
             }
             Source::SynthBed(kind) => {
                 let t = age as f32 / sr;

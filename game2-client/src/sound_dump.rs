@@ -180,6 +180,9 @@ pub fn render_models<'a, I: Iterator<Item = &'a UiModel>>(models: I) -> (Vec<f32
 pub fn run(opts: &DumpOpts) -> io::Result<()> {
     let t0 = std::time::Instant::now();
     let mut host = AudioHost::offline(SAMPLE_RATE);
+    // the dump's bank comes off the disk like game_ui's; the web
+    // loader fetches its bank instead, and sound_dump is a native tool
+    #[cfg(not(target_arch = "wasm32"))]
     host.set_bank(game2_audio::sampler::load_dir(std::path::Path::new("assets/sound")));
     let mut pcm = vec![];
     if let Some(path) = &opts.scenes {

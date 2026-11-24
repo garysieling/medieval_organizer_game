@@ -507,3 +507,14 @@ fn presence_off_plays_no_score() {
     assert!(host.drain_trace().iter().all(|r| r.section == "Silence"),
         "presence Off left the Silence section");
 }
+
+/// A model seeded `u64::MAX` used to slip past the director's
+/// seed-changed check (its "unset" sentinel) and unwrap a `None` -
+/// `game_ui --seed 18446744073709551615` reached it through the bench.
+#[test]
+fn max_seed_model_still_gets_a_director() {
+    let mut m = model();
+    m.seed = u64::MAX;
+    let mut host = AudioHost::offline(SAMPLE_RATE);
+    render(&mut host, &m, 30); // panicked here before the is_none check
+}

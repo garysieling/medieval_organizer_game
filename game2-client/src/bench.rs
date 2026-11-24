@@ -14,6 +14,26 @@ pub fn run_headless(art: Art, target_tick: u64, out: Option<String>, zoom: f32, 
 /// recorded only while a bench runs
 pub(crate) type Prof = game2_core::infra::perf::Marks;
 
+/// The bench's audio host (I4): the deterministic offline renderer -
+/// the same `render_block` the live pump's core runs, so its cost is
+/// the device half's cost. A missing assets dir leaves the bank empty
+/// and synthesis stands in.
+fn bench_audio_host() -> game2_audio::host::AudioHost {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut h = game2_audio::host::AudioHost::offline(game2_audio::wav::SAMPLE_RATE);
+        let root = ["assets/sound", "../assets/sound"].iter()
+            .map(std::path::Path::new)
+            .find(|p| p.is_dir())
+            .unwrap_or_else(|| std::path::Path::new("assets/sound"));
+        h.set_bank(game2_audio::sampler::load_dir(root));
+        h
+    }
+    // no filesystem on wasm - an empty bank, synth stands in
+    #[cfg(target_arch = "wasm32")]
+    { game2_audio::host::AudioHost::offline(game2_audio::wav::SAMPLE_RATE) }
+}
+
 /// Time `n` frames of what the window does each frame: update the game,
 /// build the model, render it. Prints the stage means and p95/max, the
 /// render passes, and the slowest sections across sim, ECS and render.
@@ -31,6 +51,12 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
     let held = (game.precip, game.rainbow_from);
     // this run's sections only, and off again after (see the end)
     perf::start();
+    // the audio side of a frame (I4): an offline host runs the same
+    // scan/director/compose/render the live pump does, on this thread,
+    // so the audio.* sections join the table wherever a bench runs -
+    // no device needed. The ear sits on the camera like game_ui's.
+    let mut audio = bench_audio_host();
+    let mut ablock: Vec<f32> = vec![];
     use std::time::Instant;
     let (mut tu, mut tm, mut tr) = (vec![], vec![], vec![]);
     for _ in 0..n.max(1) {
@@ -46,6 +72,15 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
         let t3 = Instant::now();
         std::hint::black_box(&buf);
         view.recycle(buf);
+        {
+            let (tx, ty) = cam_tile(view.cam_x, view.cam_y);
+            audio.push_with(&m, &game2_audio::soundscape::Listener::at(tx, ty, view.zoom));
+            let n = audio.frame_samples();
+            ablock.clear();
+            ablock.resize(n * 2, 0.0);
+            audio.render_block(&mut ablock);
+            std::hint::black_box(&ablock);
+        }
         tu.push((t1 - t0).as_secs_f64() * 1e3);
         tm.push((t2 - t1).as_secs_f64() * 1e3);
         tr.push((t3 - t2).as_secs_f64() * 1e3);
@@ -56,6 +91,11 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
     let line: Vec<String> = summary.layer("render.")
         .map(|s| format!("{} {:.1}", &s.name["render.".len()..], s.mean_per_frame)).collect();
     sayln!("render sections (ms/frame): {}", line.join(", "));
+    // audio is a per-block worker beside the frame - always name all
+    // five sections so the table's top-N can't hide a cheap one
+    let aline: Vec<String> = summary.layer("audio.")
+        .map(|s| format!("{} {:.2}", &s.name["audio.".len()..], s.mean_per_frame)).collect();
+    sayln!("audio sections (ms/frame): {}", aline.join(", "));
     let (su, sm, sr) = (perf::stats("update", &tu, frames), perf::stats("model", &tm, frames), perf::stats("render", &tr, frames));
     let (precip, rainbow) = if hold_weather { held } else { (game.precip, game.rainbow_from) };
     sayln!("bench weather: precip {:?}, rainbow {:?}, season {:?}", precip, rainbow.map(|f| game.frame_n.saturating_sub(f)), game.ui_model().season);
@@ -65,7 +105,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
     sayln!("bench p50/p95: update {:.2}/{:.2}, model {:.2}/{:.2}, render {:.2}/{:.2} ms (ticks {}..{})",
         su.p50, su.p95, sm.p50, sm.p95, sr.p50, sr.p95, start_tick, game.tick);
     // total.* hold their sim.*/ecs.* children, so they don't add up with them
-    sayln!("{}", summary.table(25));
+    sayln!("{}", summary.table(30));
     if let Some(path) = std::env::var("GAME2_BENCH_JSON").ok().filter(|p| !p.is_empty()) {
         let json = serde_json::json!({
             "frames": frames, "ticks": [start_tick, game.tick], "zoom": view.zoom, "pan": pan, "zooming": zooming,

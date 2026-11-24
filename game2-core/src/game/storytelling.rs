@@ -48,9 +48,11 @@ pub fn frame_of(part: &'static str, p: Option<(&Persona, &[Trait])>) -> Frame {
         "buried their own" | "remembers one the levy took" | "was promised"
         | "burned out" | "watched it burn" => Frame::Loss,
         "paid the death duty" | "served and came home" | "took the strip" => Frame::Duty,
-        "blamed" | "put out for arrears" | "owes the miller" | "broke the troth" => Frame::Wrong,
+        "blamed" | "put out for arrears" | "owes the miller" | "broke the troth"
+        | "was made to spit on them" => Frame::Wrong,
         "took a side" | "taken" => Frame::Fight,
         "feasted" => Frame::Warm,
+        "still keeps the stones" => Frame::Fate,
         _ => Frame::Duty,
     };
     if let Some((p, traits)) = p {
@@ -76,18 +78,26 @@ pub fn order_of(f: Frame) -> &'static [Part] {
     }
 }
 
-/// The fact-clause a record part renders as, in the teller's mouth
-fn clause(name: &str, part: &str, own: bool) -> String {
+/// The fact-clause a record part renders as, in the teller's mouth -
+/// the part strings are the record's own (`prehistory::record`); the
+/// kind says which "taken" it was
+fn clause(kind: EventKind, name: &str, part: &str, own: bool) -> String {
     let who = if own { "I".into() } else { name.to_string() };
+    let own_of = |s: &str| if own { s.replace("their", "my") } else { s.to_string() };
     match part {
-        "taken" => format!("{who} went in the levy"),
+        "taken" => match kind {
+            EventKind::Fever => if own { "the sickness took mine".into() }
+                else { format!("the sickness took {name}") },
+            _ => format!("{who} went in the levy"),
+        },
         "burned out" => format!("{who} lost the roof to the fire"),
         "watched it burn" => format!("{who} stood and watched it burn"),
         "blamed" => format!("{who} took the blame for it"),
         "paid the death duty" => format!("{who} paid the toll on the dead"),
         "died" => format!("{who} died of it"),
-        "buried their own" => format!("{who} buried their own"),
-        "owes the miller" => format!("{who} still owes the miller"),
+        "buried their own" => own_of(&format!("{who} buried their own")),
+        "owes the miller" => if own { "I still owe the miller".into() }
+            else { format!("{who} still owes the miller") },
         "broke the troth" => format!("{who} broke the troth"),
         "was promised" => format!("{who} was promised once"),
         "took a side" => format!("{who} took a side"),
@@ -95,7 +105,12 @@ fn clause(name: &str, part: &str, own: bool) -> String {
         "took the strip" => format!("{who} took the strip off the family"),
         "feasted" => format!("{who} danced the ring till the moon quit"),
         "served and came home" => format!("{who} served and came home"),
-        "remembers one the levy took" => format!("{who} remembers one the levy took"),
+        "remembers one the levy took" => if own {
+            "I remember one the levy took".into() }
+            else { format!("{who} remembers one the levy took") },
+        "still keeps the stones" => if own { "I still keep the stones".into() }
+            else { format!("{who} still keeps the stones") },
+        "was made to spit on them" => format!("{who} was made to spit on the stones"),
         _ => format!("{who} was there"),
     }
 }
@@ -104,8 +119,8 @@ fn clause(name: &str, part: &str, own: bool) -> String {
 /// first: two tellings of one event agree on these because they render
 /// the same touched list, in the same words
 pub fn facts_of(seed: &StorySeed) -> Vec<String> {
-    let mut v = vec![clause("", seed.part, true)];
-    for (n, part) in &seed.others { v.push(clause(n, part, false)); }
+    let mut v = vec![clause(seed.kind, "", seed.part, true)];
+    for (n, part) in &seed.others { v.push(clause(seed.kind, n, part, false)); }
     v
 }
 
@@ -265,5 +280,45 @@ mod tests {
         let (fl, t) = tell(&seed);
         assert_eq!(fl, Frame::Loss);
         assert!(!t.contains("Odo"), "loss trims what it can't carry");
+    }
+
+    /// The part string is the record's own word, read under the kind:
+    /// a fever "taken" is not a levy "taken" (review finding)
+    #[test]
+    fn a_fever_taken_is_no_levy_taken() {
+        let seed = StorySeed { kind: EventKind::Fever, years_ago: 9,
+            part: "buried their own",
+            others: vec![("the little one".into(), "taken")],
+            frame: frame_of("buried their own", None) };
+        let (_, t) = tell(&seed);
+        assert!(t.contains("the sickness took the little one"), "{}", t);
+        assert!(!t.contains("levy"), "{}", t);
+    }
+
+    /// Old-faith souls keep or lose the stones - the telling names
+    /// which, in the record's own words
+    #[test]
+    fn the_stones_are_kept_or_spat_on() {
+        let kept = StorySeed { kind: EventKind::OldFaith, years_ago: 22,
+            part: "still keeps the stones", others: vec![],
+            frame: frame_of("still keeps the stones", None) };
+        let (fk, t) = tell(&kept);
+        assert_eq!(fk, Frame::Fate);
+        assert!(t.contains("I still keep the stones"), "{}", t);
+        let spat = StorySeed { kind: EventKind::OldFaith, years_ago: 22,
+            part: "was made to spit on them", others: vec![],
+            frame: frame_of("was made to spit on them", None) };
+        let (fs, t) = tell(&spat);
+        assert_eq!(fs, Frame::Wrong);
+        assert!(t.contains("I was made to spit on the stones"), "{}", t);
+    }
+
+    /// The teller's own part speaks first person - the record's
+    /// "their" becomes "my" in their mouth
+    #[test]
+    fn the_tellers_own_part_speaks_first_person() {
+        let seed = shared_seed("buried their own");
+        let (_, t) = tell(&seed);
+        assert!(t.contains("I buried my own"), "{}", t);
     }
 }

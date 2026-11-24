@@ -582,6 +582,15 @@ fn mix(mut x: u64) -> u64 {
     x ^= x >> 31; x
 }
 
+/// The cast slot a persona's seed was generated from - the roster's
+/// index shifts home under departures but the seed never does (E4-8,
+/// #1426). Newcomers generated past the founding cast land above the
+/// scan and come back None
+pub(crate) fn cast_slot(world_seed: u64, p: &Persona) -> Option<usize> {
+    (0..64).find(|&slot| p.seed == mix(world_seed ^ (slot as u64)
+        .wrapping_add(1).wrapping_mul(0x9E37_79B9_7F4A_7C15)))
+}
+
 /// The n-th draw off a seed, as a 0..1 fraction
 pub(crate) fn draw(seed: u64, n: u64) -> f32 {
     (mix(seed ^ n.wrapping_mul(0x9E37_79B9_7F4A_7C15)) % 10_000) as f32 / 10_000.0
@@ -900,6 +909,19 @@ mod tests {
         let a = generate(42, 7, &Past::default());
         let b = generate(42, 7, &Past::default());
         assert_eq!(a, b);
+    }
+
+    /// A departure shifts the roster's seats, never the seed's slot
+    /// (E4-8, #1426): the story pass finds each soul by it
+    #[test]
+    fn the_seed_gives_back_the_slot() {
+        for slot in 0..39 {
+            let p = generate(77, slot, &Past::default());
+            assert_eq!(cast_slot(77, &p), Some(slot));
+        }
+        // another world's seed claims no slot here
+        let p = generate(78, 7, &Past::default());
+        assert_eq!(cast_slot(77, &p), None);
     }
 
     #[test]

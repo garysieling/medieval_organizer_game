@@ -388,7 +388,11 @@ pub fn apply(tr: &mut Transcript, pair: &[Speaker; 2], player: usize) {
     for (n, t) in tr.turns.iter_mut().enumerate() {
         if t.speaker == player { continue; }
         let Some(id) = pair.get(t.speaker).and_then(|s| s.idiolect) else { continue };
-        if !habit_done[t.speaker] && id.habit.acts().contains(&t.act) {
+        // a composed line carries no template to erase - a whole-line
+        // habit skips it and lands on the next slot it fits (E4-8,
+        // #1426: the tale you asked for keeps its words)
+        if !habit_done[t.speaker] && id.habit.acts().contains(&t.act)
+            && !(t.line.is_none() && matches!(id.habit.how(), How::Whole)) {
             let lines = id.habit.lines();
             let v = lines[n % lines.len()];
             let mut rng = conversation::Rng::new(n as u64 + 1);
@@ -476,5 +480,38 @@ mod tests {
             "{:?}", tr.turns[2].text);
         // once a talk, not every line
         assert_eq!(tr.turns[3].text, "And the roof wants thatch.");
+    }
+
+    /// A composed line (E4-8's story answer) carries no template - a
+    /// whole-line habit skips it and lands on the next slot it fits
+    #[test]
+    fn a_whole_line_habit_leaves_a_composed_line_alone() {
+        let mut a = Speaker::new("Bram");
+        a.idiolect = Some(Idiolect {
+            phrase: "as the mill grinds", habit: Habit::QuestionBack });
+        let b = Speaker::new("Tilda");
+        let mut tr = Transcript {
+            speakers: ["Bram".into(), "Tilda".into()], trees_walked: vec![],
+            turns: vec![
+                Turn { speaker: 0, act: Act::Answer, respond: None,
+                    text: "It took what it took, and I've not stopped counting it.".into(),
+                    concepts: vec![], tree: "t", line: None,
+                    channel: crate::game::setting::Channel::Public },
+                Turn { speaker: 0, act: Act::Answer, respond: None,
+                    text: "The ditch wants digging.".into(),
+                    concepts: vec![], tree: "t", line: Some("x"),
+                    channel: crate::game::setting::Channel::Public },
+            ],
+            ending: None, vibe: None, asked: vec![], forward: 0,
+            shared: 0, overshot: false,
+            setting: crate::game::setting::STREET,
+            evasions: vec![], worry_told: None, slips: vec![], jokes: vec![],
+        };
+        apply(&mut tr, &[a, b], usize::MAX);
+        assert_eq!(tr.turns[0].text,
+            "It took what it took, and I've not stopped counting it.");
+        // the habit still fires once - on the next line it fits
+        assert!(tr.turns[1].text.ends_with('?'),
+            "QuestionBack answers with a question: {:?}", tr.turns[1].text);
     }
 }

@@ -859,6 +859,11 @@ pub fn resolve_pledges(world: &mut World, campaign: Entity, tick: u64) -> Vec<Pl
             question: p.question.clone(), answer: p.answer, kept }));
     }
     if results.is_empty() { return vec![]; }
+    // the day's verdict is the arc's last public outcome (P3): a
+    // broken word outranks a kept one on the same day
+    let any_broken_at_all = results.iter().any(|(_, _, v)| !v.kept);
+    crate::game::campaign_arc::record_outcome(world, campaign,
+        crate::game::campaign_arc::OutcomeKind::Pledge { kept: !any_broken_at_all }, tick);
     let musterered = world.get_component::<Assembly>(campaign)
         .map(|a| a.musterered.clone()).unwrap_or_default();
     if let Some(a) = world.get_component_mut::<Assembly>(campaign) {

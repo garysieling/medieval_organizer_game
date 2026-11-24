@@ -48,7 +48,14 @@ pub fn arrest(world: &mut World, campaign: Entity, tick: u64) -> Option<Entity> 
             let bm = campaign::tie_mass(world, b, &members);
             am.partial_cmp(&bm).unwrap_or(std::cmp::Ordering::Equal)
         })?;
+    let org = c.org;
     world.add_component(loudest, Imprisoned { since: tick, charge: "sedition".into() });
+    // the taking's a public outcome (P3): when it's the head the arc's
+    // last word is a crackdown, stamped so it outlives the release
+    if world.get_component::<Organization>(org).map(|o| o.leader) == Some(loudest) {
+        crate::game::campaign_arc::record_outcome(world, campaign,
+            crate::game::campaign_arc::OutcomeKind::LeaderTaken, tick);
+    }
     Some(loudest)
 }
 

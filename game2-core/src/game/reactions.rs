@@ -306,7 +306,14 @@ pub fn hollow_if_unguarded(world: &mut World, campaign: Entity, tick: u64) -> bo
         .map(|m| tick.saturating_sub(m.last_held.max(since)) > m.cadence_days * campaign::LAPSE_CADENCES)
         .unwrap_or(false);
     match world.get_component_mut::<LordGrant>(org) {
-        Some(g) if g.active(tick) && !g.hollow && unguarded => { g.hollow = true; true }
+        Some(g) if g.active(tick) && !g.hollow && unguarded => {
+            g.hollow = true;
+            // a diluted grant is a public outcome (P3): the wire's
+            // verdict table counts it a loss
+            crate::game::campaign_arc::record_outcome(world, campaign,
+                crate::game::campaign_arc::OutcomeKind::GrantHollowed, tick);
+            true
+        }
         _ => false,
     }
 }

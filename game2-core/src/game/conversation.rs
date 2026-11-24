@@ -615,6 +615,10 @@ pub struct Transcript {
     /// How many questions went in above the pair's openness and came
     /// back turned aside (E3-2): each costs the bond a rung of nerve
     pub forward: u8,
+    /// Which closed area each turn-aside stood over (E5-2, #1434):
+    /// (the evader's pair index, the topic's area) - the seat's ledger
+    /// counts them toward a silhouette
+    pub evasions: Vec<(usize, Area)>,
     /// The depth of yourself the responder gave and the pair could hold
     /// (E3-3): each landed disclosure goes a step deeper; the session
     /// keeps the deepest reached so later asks find it mutual
@@ -717,6 +721,45 @@ pub const DEFLECTED: &[&str] = &[
     "Ask me another.",
     "Some things keep.",
 ];
+
+/// How a temperament turns the same ask aside (E5-2, #1434): the
+/// hothead snaps, the sociable change the subject, the pious hand it
+/// to God, the proud answer the question you didn't put
+const EVADE_SNAP: &[&str] = &[
+    "That's a nose where it doesn't belong.",
+    "Keep {2:poss} questions to {2:self}.",
+    "Ask the wind - it'll tell {2:obj} as much.",
+];
+const EVADE_CHANGE: &[&str] = &[
+    "Now that reminds me - there's a thing I meant to say.",
+    "Ha! Never mind that - how's {2:poss} own day gone?",
+    "We'll talk of happier things, {2:subj} and I.",
+];
+const EVADE_GOD: &[&str] = &[
+    "That's God's business, not ours.",
+    "The good Lord keeps some books to Himself.",
+    "Let it lie - what's hid is hid for a reason.",
+];
+const EVADE_PIVOT: &[&str] = &[
+    "What {2:subj} ought to ask is a different matter.",
+    "I'll tell {2:obj} a worthier thing than that.",
+    "That's no question for the likes of me.",
+];
+
+/// Every evade set, for the text audit's authored-line census (E5-2)
+#[doc(hidden)]
+pub const EVADE_SETS: &[&[&str]] = &[DEFLECTED, EVADE_SNAP, EVADE_CHANGE, EVADE_GOD, EVADE_PIVOT];
+
+/// The set a speaker turns aside with (E5-2): their first matching
+/// temperament, the plain set when none of the four show
+fn evade_set(s: &Speaker) -> &'static [&'static str] {
+    use crate::game::traits::Trait;
+    if s.traits.contains(&Trait::Hotheaded) { EVADE_SNAP }
+    else if s.traits.contains(&Trait::Gregarious) { EVADE_CHANGE }
+    else if s.traits.contains(&Trait::Pious) { EVADE_GOD }
+    else if s.traits.contains(&Trait::Proud) { EVADE_PIVOT }
+    else { DEFLECTED }
+}
 
 /// Whether a topic's on the table for this asked-about speaker: every
 /// `needs` carried (or `any` one of the alternates when needs is
@@ -1007,6 +1050,7 @@ pub fn converse_with_at(
         vibe: None,
         asked: vec![],
         forward: 0,
+        evasions: vec![],
         shared: 0,
         overshot: false,
         setting,
@@ -1252,8 +1296,14 @@ pub fn converse_with_at(
                                     // a visible turn-aside, talk goes on
                                     tr.vibe = Some(Vibe::Mismatch);
                                     tr.forward += 1;
-                                    let (dt, _) = fresh_line(DEFLECTED, &pair[caller], &pair[responder], &used, recent, false, rng)
-                                        .unwrap_or((DEFLECTED[0], String::new()));
+                                    // the turn-aside counts on the seat's
+                                    // ledger by the area it stood over
+                                    // (E5-2): enough of them and the
+                                    // shape names itself
+                                    tr.evasions.push((caller, tp.area));
+                                    let set = evade_set(&pair[caller]);
+                                    let (dt, _) = fresh_line(set, &pair[caller], &pair[responder], &used, recent, false, rng)
+                                        .unwrap_or((set[0], String::new()));
                                     used.insert(dt);
                                     tr.turns.push(Turn { channel,  speaker: caller, act: Act::Evade,
                                         respond: Some(Respond::Deflect),
@@ -3680,7 +3730,7 @@ mod e3_3 {
                     text: "a".into(), concepts: vec![], tree: "t", line: None,
                     channel: crate::game::setting::Channel::Public }],
             ending: Some(Ending::Farewell), vibe: None, asked: vec![],
-            forward: 0, shared: 0, overshot: false,
+            forward: 0, evasions: vec![], shared: 0, overshot: false,
             setting: crate::game::setting::STREET };
         assert!(chat_temp(&tr(Some(Respond::Care))) > chat_temp(&tr(Some(Respond::Reflect))));
         assert!(chat_temp(&tr(Some(Respond::Deflect))) < chat_temp(&tr(None)),

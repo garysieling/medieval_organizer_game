@@ -158,7 +158,7 @@ fn test_the_card_renders_the_ledgers_five_views() {
     desires::leak(&mut game.world, pe, v, "problem:broke");
     // the shape that shows without ever being told
     game.world.get_component_mut::<desires::Known>(pe).unwrap()
-        .silhouettes.push(Silhouette { who: v, area: "the lord".into(), evasions: 2, last_day: 8 });
+        .silhouettes.push(Silhouette { who: v, area: "the lord".into(), evasions: desires::SILHOUETTE_AT, last_day: 8 });
     // the page dates itself off the newest hearing
     game.tick = 40;
     let m = game.ui_model();

@@ -242,6 +242,15 @@ pub struct PlayerTalk {
     /// Too-deep asks already paid for (E3-2): each one the replay
     /// reports anew costs the bond a rung of nerve
     pub forward_seen: u8,
+    /// Turn-asides already counted to the ledger (E5-2, #1434): the
+    /// replay's `evasions` list keeps them; the watermark diffs them
+    pub evasions_seen: usize,
+    /// A hothead pressed past the shape already blurted this talk
+    /// (E5-2): the telling's spent once, the temper doesn't pour twice
+    pub blurted: bool,
+    /// An easier ask already mended the nerve a press frayed (E5-2):
+    /// backing off pays once a talk
+    pub backed_off: bool,
     /// The deepest disclosure the seat's given them this talk (E3-3) -
     /// lands on their TalkMemory when the talk closes
     pub shared: u8,
@@ -639,7 +648,7 @@ pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: R
         &mut crate::game::conversation::Rng::new(0))
 }
 
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
     let tr = converse_with_at(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &t.setting, &mut |ch: &[Choice]| {
@@ -657,7 +666,7 @@ fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static s
     // for a pick, the last turn is their call - a bid's met or missed
     // against it
     let call = if offered.is_some() { tr.turns.last().map(|t| t.act) } else { None };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call)
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call, tr.evasions)
 }
 
 impl Game {
@@ -1425,7 +1434,8 @@ impl Game {
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
-            asks_taken: vec![], asked_seen: 0, forward_seen: 0, shared: 0,
+            asks_taken: vec![], asked_seen: 0, forward_seen: 0,
+            evasions_seen: 0, blurted: false, backed_off: false, shared: 0,
             // a villager who once heard this seat's testimony opens a
             // rung warmer - they heard the story, they know the teller (#1333)
             mood: if crate::sim::psychology::heard_testimony(&self.world, v, pe) {
@@ -1450,7 +1460,7 @@ impl Game {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
         let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions) = replay(&t, Some(&recent));
         if shared > t.shared {
             // the deepest telling so far this talk (E3-3): the running
             // gate already lives in the replay - this only carries the
@@ -1481,6 +1491,52 @@ impl Game {
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asks = asks; }
             }
             if let Some(cur) = self.seats[seat].talk.as_mut() { cur.forward_seen = forward; }
+        }
+        // each turn-aside counts on the seat's ledger by the real closed
+        // area it stood over (E5-2): three and the shape names itself -
+        // and a hothead pressed past the shape may blurt the thing out,
+        // telling and temper at once
+        if evasions.len() > t.evasions_seen {
+            use crate::game::desires;
+            use crate::game::conversation::area_name;
+            let mut blurted = t.blurted;
+            for &(sp, area) in evasions.iter().skip(t.evasions_seen) {
+                if sp != 0 { continue; }
+                let who = t.who;
+                let an = area_name(area);
+                let n = desires::note_evasion(&mut self.world, pe, who, an, self.tick);
+                if n == desires::SILHOUETTE_AT {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.notes.push(format!(
+                            "You see the shape of it now: {} always finds a way around {}.",
+                            t.villager.name, an));
+                    }
+                }
+                let hot = self.world.get_component::<crate::game::traits::Personality>(who)
+                    .map(|p| p.traits.contains(&crate::game::traits::Trait::Hotheaded))
+                    .unwrap_or(false);
+                if n >= desires::SILHOUETTE_AT && hot && !blurted {
+                    let pick = self.rng.next();
+                    if let Some(r) = desires::next_reveal(&self.world, pe, who, self.tick, pick) {
+                        // it comes out in heat (E5-2): a real telling,
+                        // priced in the bond's warmth
+                        let (_did, said_line) = desires::reveal_speech(&t.villager.name, &r);
+                        desires::hear(&mut self.world, pe, who, r, self.tick);
+                        crate::game::relationships::record_interaction(&mut self.world, who,
+                            Interaction { other: pe, kind: InteractionKind::Conflict, intensity: 0.6 });
+                        let at = said.len().max(1);
+                        if let Some(cur) = self.seats[seat].talk.as_mut() {
+                            cur.argued.push((at, TalkLine {
+                                who: Some(who), name: t.villager.name.clone(),
+                                text: format!("There, then - {} Is that what you wanted?", said_line),
+                                gist: false }));
+                            cur.blurted = true;
+                            blurted = true;
+                        }
+                    }
+                }
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.evasions_seen = evasions.len(); }
         }
         self.note_said_lines(said.iter().filter_map(|x| x.2));
         let vname = t.villager.name.clone();
@@ -1599,6 +1655,16 @@ impl Game {
                 for l in drawn.iter() { cur.argued.push((at, l.clone())); }
             }
             if let Some(rec) = self.talk_record_mut(t.id) { rec.lines.extend(drawn); }
+        }
+        // backing off mends what pressing frayed (E5-2): an answered ask
+        // after a turned-aside one - the easier topic taken - raises the
+        // rung back a step, once a talk
+        if t.forward_seen > 0 && !t.backed_off && asked.len() > t.asked_seen {
+            if let Some(re) = crate::game::relationships::find_relationship(&self.world, pe, t.who)
+                .and_then(|e| self.world.get_component_mut::<crate::game::relationships::Relationship>(e)) {
+                re.safety = re.safety.raise();
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.backed_off = true; }
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asked_seen = asked.len(); }
         self.warm_exchange(t.id);

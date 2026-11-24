@@ -1,15 +1,16 @@
 === Talk: Probe (synthetic) vs Voice - Friend ===
   them: Probe works the fields for a day's wage. Eighty winters of village memories are in their bones.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Greetings, old comrade! How goes the day's labor?
-    1) [Greet] Well met indeed, friend. The chores are lighter for thy smile.
-  Voice: Well met indeed, friend. The chores are lighter for thy smile.
-  Probe: Dost thou recall the summer the mill dam broke?
+    1) [Greet] Well met, friend, under the open sky.
+  Voice: Well met, friend, under the open sky.
+  Probe: Can I count on thy team when we haul the heavy timber?
     1) [Answer] Aye, we were waist-deep in mud until midnight saving the sacks!
     2) [Question] Put a question to them
   Voice: Aye, we were waist-deep in mud until midnight saving the sacks!
   Probe: We have shared crusts and sweat for twenty years now.
-    1) [Farewell] Fair day, Probe - peace on thy household.
-  Voice: Fair day, Probe - peace on thy household.
+    1) [Farewell] May the road be kind under thy boots.
+  Voice: May the road be kind under thy boots.
   -- Farewell (trees: ["friendship_bonds"])
 REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Friend --picks 0,0,0

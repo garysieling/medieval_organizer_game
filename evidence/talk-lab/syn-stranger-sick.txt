@@ -1,20 +1,18 @@
 === Talk: Probe (synthetic) vs Voice - Stranger ===
   them: Probe works the fields for a day's wage. A cough's had them these two weeks.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: *cough* Morrow, traveler. Best keep to the far side of the path.
-    1) [Agree] Keep thy strength - and thy distance.
-    2) [PushBack] Keep thy distance, stranger - I want no new sickness.
-  Voice: Keep thy strength - and thy distance.
+    1) [Agree] Keep your strength - and your distance.
+    2) [PushBack] Keep your distance, stranger - I want no new sickness.
+  Voice: Keep your strength - and your distance.
   Probe: There is no one else to fetch water from the river, stranger.
-    1) [Agree] A poor man's bed is a luxury he can rarely afford.
-    2) [Question] Put a question to them
-  Voice: A poor man's bed is a luxury he can rarely afford.
-  Probe: What town dost thou hail from, stranger?
-    1) [Answer] I come from the valley beyond the high moors.
-    2) [Question] Put a question to them
-  Voice: I come from the valley beyond the high moors.
-  Probe: The alehouse by the bridge offers straw beds if thou hast coin.
-    1) [Farewell] God's peace be upon thy cottage, Probe.
-  Voice: God's peace be upon thy cottage, Probe.
-  -- Farewell (trees: ["the_sickness", "stranger_road"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Stranger --picks 0,0,0,0
+    1) [Remark] Aye, words have weight in a small village.
+    2) [Agree] A poor man's bed is a luxury he can rarely afford.
+    3) [Question] Put a question to them
+  Voice: Aye, words have weight in a small village.
+  Probe: My thanks. A warm bowl does more than herbs.
+    1) [Farewell] The village stands together or it falls. Fare well.
+  Voice: The village stands together or it falls. Fare well.
+  -- Farewell (trees: ["the_sickness"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Stranger --picks 0,0,0

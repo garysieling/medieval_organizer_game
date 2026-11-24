@@ -1,31 +1,41 @@
 === Talk: Corvin (villager 3, game seed 42) ===
+  facts: 
   (walking over…)
-  Corvin: Fair morning to thee, wanderer.
+  Corvin: Neighbor! Out early like the rest of us, wanderer.
   (Corvin works the fields for a day's wage. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
   Corvin: No bench, no hearth - I work in the street.   [gist]
-    1) And to thee.
-    2) Aye, words have weight in a small village.
+    1) Out and about early today.
+    2) Aye. Good day to you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: And to thee.
-  Corvin: I say a body earns their rest. Thou'lt not disagree?
+  you: Out and about early today.
+  Corvin: I say a body earns their rest. You will not disagree?
     1) The field'll keep till tomorrow, say I.
     2) The saints gave us six days for a reason.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Corvin: I say a body earns their rest. Thou'lt not disagree?
-  you: The field'll keep till tomorrow, say I.
-  Corvin: A gray dawn, but the day's work won't wait for it.
-    1) Good for the barley, but bad for the road.
-    2) Has thy brother returned from the market town?
-    3) Put a question to them
-    l) take your leave
-  you: Good for the barley, but bad for the road.
-  Corvin: Even so, we will manage as we always do.
-    1) True words; worry never baked a single loaf.
+  Corvin: I say a body earns their rest. You will not disagree?
+  you: Rest's a harvest too, of a kind.
+  Corvin: The lane's quieter since the rain, thank goodness.
+    1) As do we all, neighbor.
     2) Put a question to them
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: True words; worry never baked a single loaf.
-  Corvin: A rider from the castle came through before dawn.
-    1) I'll not repeat marketplace whispers.
-    2) Put a question to them
+  you: As do we all, neighbor.
+  Corvin: True enough - the fields don't gossip.
+  Corvin: Is there bench work for a new hand?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    4) Ask what they actually want
+    l) take your leave
+  you: From what I've seen - aye.
+    1) I take my leave.
+    2) Fair day to you, Corvin - 'twas good to pass the time.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
 REPRO: talk_lab talk --seed 42 --villager 3 --picks 0,0,0,0,0 (talk seed 905969676)

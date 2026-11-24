@@ -1,37 +1,27 @@
 === Talk: Wystan (villager 8, game seed 13) ===
+  facts: 
   (walking over…)
-  Wystan: A peaceful day to thee, wanderer.
+  Wystan: Saints keep us. Neighbor! Out early like the rest of us, wanderer.
   (Wystan serves the village church. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They keep close to the church folk.)
   Wystan: Not a song in the village for a year.   [gist]
-    1) Morrow, father.
-    2) Blessings on thy holy house as well.
+    1) Morrow. I'd best keep moving.
+    2) Well enough - and yours?
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Morrow, father.
-  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
-    1) Charity begins at home, and mostly stays there.
-    2) An open hand finds open doors, say I.
+  you: Well… Morrow. I'd best keep moving.
+  Wystan: They say a free hand makes warm neighbors. What's thy mind on it?
+    1) An open hand finds open doors, say I.
+    2) A wise purse keeps its own counsel, say I.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
-  you: Charity begins at home, and mostly stays there.
-  Wystan: Looks like rain again, doesn't it?
-    1) It will be a wet week, mark me.
-    2) That is not the way the elders told it.
-    3) Put a question to them
+  Wystan: They say a free hand makes warm neighbors. What's thy mind on it?
+  you: What's spent on neighbors comes back doubled in the end.
+  Wystan: God witness. As thou sayest, friend.
+    1) Fair day to you, Wystan - 'twas good to pass the time.
+    2) I take my leave.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: It will be a wet week, mark me.
-  Wystan: Aye, the year will turn and bring what it brings.
-    1) True words; worry never baked a single loaf.
-    2) Put a question to them
-    l) take your leave
-  you: True words; worry never baked a single loaf.
-  Wystan: The peddler's cart lost a wheel at the bridge.
-    1) Aye? And what else did folk see?
-    2) Put a question to them
-    l) take your leave
-  you: Aye? And what else did folk see?
-  Wystan: The herb-wife was seen out past the abbey wall at dusk.
-    1) Tavern tales grow taller with each ale drawn.
-    2) Nay, I see it differently, mark me.
-    3) Put a question to them
-    l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 8 --picks 0,0,0,0,0,0 (talk seed 1090519054)
+REPRO: talk_lab talk --seed 13 --villager 8 --picks 0,0,0 (talk seed 1090519054)

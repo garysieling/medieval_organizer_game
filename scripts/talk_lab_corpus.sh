@@ -10,7 +10,8 @@ cd "$(dirname "$0")/.."
 
 OUT=${1:-evidence/talk-lab}
 mkdir -p "$OUT"
-RUN="cargo run -q -p game2-core --bin talk_lab --"
+# overridable so CI and devs can run the release build for speed
+RUN=${RUN:-"cargo run -q -p game2-core --bin talk_lab --"}
 
 echo "== batch sweeps: auto-picked synthetic talks, 5 seeds =="
 for seed in 1 7 42 101 777; do

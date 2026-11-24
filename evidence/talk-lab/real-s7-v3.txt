@@ -1,20 +1,27 @@
 === Talk: Corvin (villager 3, game seed 7) ===
+  facts: 
   (walking over…)
-  Corvin: Aye, goodman - out with the dawn, I see.
+  Corvin: wanderer - good to see a familiar face about.
   (Corvin holds the manor's leases. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
   Corvin: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Aye, m'lord - good morrow to the manor.
+    1) Aye. Good day to you.
+    2) Well enough - and yours?
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Aye, m'lord - good morrow to the manor.
-  Corvin: I say a body earns their rest. Thou'lt not disagree?
+  you: Well… Aye. Good day to you.
+  Corvin: I say a body earns their rest. You will not disagree?
     1) The field'll keep till tomorrow, say I.
     2) Idle hands, friend. The frost doesn't wait.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Corvin: I say a body earns their rest. Thou'lt not disagree?
-  you: The field'll keep till tomorrow, say I.
-  Corvin: A good tenant pays his boon-days without the tally being read twice.
-    1) The rents bite deeper than the frost, begging m'lord's pardon.
-    2) As thou sayest, m'lord.
-    3) Put a question to them
+  Corvin: I say a body earns their rest. You will not disagree?
+  you: A wise back knows when to unbend.
+  Corvin: As you say, friend.
+    1) Your servant, m'lady. Good day.
+    2) I take my leave.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
 REPRO: talk_lab talk --seed 7 --villager 3 --picks 0,0,0 (talk seed 956301334)

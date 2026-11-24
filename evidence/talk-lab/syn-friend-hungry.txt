@@ -1,13 +1,23 @@
 === Talk: Probe (synthetic) vs Voice - Friend ===
   them: Probe works the fields for a day's wage. The store ran out and the belly knows it.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Morrow, Voice - a hollow belly, but glad company.
-    1) [Answer] Crumbs at our house too - come share what little there is.
-  Voice: Crumbs at our house too - come share what little there is.
-  Probe: We boiled a pot of turnip tops and barley chaff this noon.
-    1) [PushBack] Everyone's bin is empty; don't look to my door for bread.
-    2) [Agree] We have a sack of roots in the cellar. Let us divide it.
+    1) [Answer] Thin porridge for us both, Probe - but half my loaf is thine.
+  Voice: Thin porridge for us both, Probe - but half my loaf is thine.
+  Probe: My store bin has nothing but dust and two dried apples.
+    1) [Agree] Take half my loaf, neighbor. No child should hunger in this village.
+    2) [PushBack] We each must stretch our own store as best we can.
     3) [Question] Put a question to them
-  Voice: Everyone's bin is empty; don't look to my door for bread.
-  -- WalksOff (trees: ["hunger_lean_times"])
-REPRO: talk_lab talk --name Probe --status hungry --seed 11 --rel Friend --picks 0,0
+  Voice: Take half my loaf, neighbor. No child should hunger in this village.
+  Probe: A shared loaf tastes twice as sweet in hard times.
+    1) [Agree] Here's to a fat harvest, neighbor.
+    2) [Joke] The reeve's horse eats better than my children. Mind, it works harder.
+    3) [Question] Put a question to them
+  Voice: Here's to a fat harvest, neighbor.
+  Probe: True enough - the fields don't gossip.
+    1) [Farewell] I have no leisure to stand about, Probe.
+    2) [Farewell] Go well, my friend - come by the house when thou canst.
+  Voice: I have no leisure to stand about, Probe.
+  -- Farewell (trees: ["hunger_lean_times"])
+REPRO: talk_lab talk --name Probe --status hungry --seed 11 --rel Friend --picks 0,0,0,0

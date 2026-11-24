@@ -1,32 +1,50 @@
 === Talk: Rowena (villager 15, game seed 13) ===
+  facts: 
   (walking over…)
-  Rowena: Morrow, wanderer.
+  Rowena: Well met, wanderer - how does the morning find you?
   (Rowena works the fields for a day's wage. They never miss a service. They keep close to the church folk.)
   Rowena: No bench, no hearth - I work in the street.   [gist]
-    1) And to thee.
-    2) Time will tell what comes of this.
+    1) Out and about early today.
+    2) Aye. Good day to you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: And to thee.
-  Rowena: Some say the old prayers are only words. And thou?
+  you: Out and about early today.
+  Rowena: Some say the old prayers are only words. And you?
     1) I bow when the neighbors bow. It keeps the peace.
     2) The Word's a lamp in dark times - I'd not put it out.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Rowena: Some say the old prayers are only words. And thou?
-  you: I bow when the neighbors bow. It keeps the peace.
-  Rowena: Cold wind off the moor this morning.
-    1) And how fares thy folk in this cold snap?
-    2) Aye, and the mud will take thy boots right off.
+  Rowena: Some say the old prayers are only words. And you?
+  you: The saints help them as help themselves, I've heard.
+  Rowena: Bright enough for drying, thank God.
+    1) And the day's work - does it treat you kindly?
+    2) And how fares your folk in this cold snap?
     3) Put a question to them
     l) take your leave
-  you: And how fares thy folk in this cold snap?
-  Rowena: We rub along as ever, by the saints' mercy.
-    1) Good to hear it - long may health stay under thy roof.
-    2) Put a question to them
-    l) take your leave
-  you: Good to hear it - long may health stay under thy roof.
-  Rowena: The ditch along the south pasture needs clearing.
-    1) Let the rain fall; my bones need a day's rest.
-    2) Every hand will be needed when the grain ripens.
+  you: And the day's work - does it treat you kindly?
+  Rowena: I hear the work keeps you busy at the day's work.
+    1) Honest work for honest pay at the day's work - can't complain, and wouldn't.
+    2) Ask the reeve about the day's work, not me. I keep my own count.
     3) Put a question to them
     l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 15 --picks 0,0,0,0,0 (talk seed 1207959566)
+  you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
+  Rowena: God witness. A rider from the castle came through before dawn.
+    1) Let the miller and the rider sort their own affairs.
+    2) The reeve's hard but the law's the law - keeps us all honest.
+    3) Put a question to them
+    l) take your leave
+  you: Oh… Let the miller and the rider sort their own affairs.
+  Rowena: Saints keep us. As you say, friend.
+  Rowena: Does the bread keep fair measure, where you lodges?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    l) take your leave
+  you: From what I've seen - aye.
+    1) The saints keep your roof whole.
+    2) My day is waiting.
+    3) Ask them to come to a meeting - for 18g
+    l) take your leave
+REPRO: talk_lab talk --seed 13 --villager 15 --picks 0,0,0,0,0,0,0 (talk seed 1207959566)

@@ -12,7 +12,7 @@
   #6 Eliza [Remark/BuildOn] (re #4): Our ancient right of turbary and gathering brushwood must be defended.
   #7 Reeve [Question/Framing] (re #1): Back to the matter at hand, friends.
   #8 Bram [Remark/Answer] (re #1): A shared threshing floor makes the work three times swifter.
-  #9 Corvin [Remark/Answer] (re #1): The bell tower timbers are weathered and need fresh oak beams.
-  #10 Bram [Remark/BuildOn] (re #7): We need faith and fellowship to hold our spirits upright.
-  #11 Bram [Farewell/Framing]: God go with you all, and bring you back next time.
+  #9 Corvin [Remark/Answer] (re #1): The bell tower timbers are weathered and need fresh oak beams, for my part.
+  #10 Bram [Remark/BuildOn] (re #7): The church roof leaks over the altar; rain drips on the holy books!
+  #11 Bram [Farewell/Framing]: God go with {2:obj} all, and bring {2:obj} back next time.
 REPRO: talk_lab meeting --seed 3 --folk 4 --name Reeve

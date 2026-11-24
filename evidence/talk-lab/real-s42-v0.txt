@@ -1,37 +1,50 @@
 === Talk: Aldric (villager 0, game seed 42) ===
+  facts: 
   (walking over…)
-  Aldric: Fair morning to thee, wanderer.
+  Aldric: wanderer - good to see a familiar face about.
   (Aldric is the village baker. Their purse strings are knotted tight. They tend the communal bread oven. They keep close to the church folk. They keep close to the market folk.)
   Aldric: That boarded shop on the corner. It sits there like a sore.   [gist]
-    1) And to thee.
-    2) Time will tell what comes of this.
+    1) Well enough - and yours?
+    2) Aye. Good day to you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: And to thee.
-  Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
+  you: Well enough - and yours?
+  Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and you?
     1) Charity begins at home, and mostly stays there.
     2) A loaf shared is a friend made - I'd not grudge it.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
-  you: Charity begins at home, and mostly stays there.
-  Aldric: The morning dew was heavy on the clover.
-    1) Good for the barley, but bad for the road.
-    2) Put a question to them
-    l) take your leave
-  you: Good for the barley, but bad for the road.
-  Aldric: Aye, the year will turn and bring what it brings.
-    1) That it will - the store is not empty yet.
-    2) Put a question to them
-    l) take your leave
-  you: That it will - the store is not empty yet.
-  Aldric: A rider from the castle came through before dawn.
-    1) Tell on, neighbor - my ears are open.
-    2) Nay, I see it differently, mark me.
+  Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and you?
+  you: A wise purse keeps its own counsel, say I.
+  Aldric: Aye, the dew lay heavy on the clover this morning, or so I make it.
+    1) Enough sky-talk - how goes the work these days?
+    2) And how fares your folk in this cold snap?
     3) Put a question to them
     l) take your leave
-  you: Tell on, neighbor - my ears are open.
+  you: Enough sky-talk - how goes the work these days?
+  Aldric: Hard at it down at the day's work, are we?
+    1) Honest work for honest pay at the day's work - can't complain, and wouldn't.
+    2) Well enough, aye. And how does the oven treat you?
+    3) Put a question to them
+    l) take your leave
+  you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
+  Aldric: A rider from the castle came through before dawn.
+    1) Aye, the tithe's the tithe. It was ever so, and ever will be.
+    2) The cat catches nothing and eats like a deacon. We've a prior in the house.
+    3) Put a question to them
+    l) take your leave
+  you: Aye, the tithe's the tithe. It was ever so, and ever will be.
   Aldric: They do say the reeve counts the sheep twice over.
     1) Tavern tales grow taller with each ale drawn.
-    2) Folk will invent dragons where there's only sheep.
+    2) Better to tend your own hearth than watch the road.
     3) Put a question to them
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 0 --picks 0,0,0,0,0,0 (talk seed 855638027)
+  you: Tavern tales grow taller with each ale drawn.
+  Aldric: True enough - the fields don't gossip.
+    1) Fair day to you, Aldric - 'twas good to pass the time.
+    2) My day is waiting.
+    3) Ask who you should talk to next - for 6g
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 0 --picks 0,0,0,0,0,0,0 (talk seed 855638027)

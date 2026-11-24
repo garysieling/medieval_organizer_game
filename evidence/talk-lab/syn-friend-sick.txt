@@ -1,20 +1,18 @@
 === Talk: Probe (synthetic) vs Voice - Friend ===
   them: Probe works the fields for a day's wage. A cough's had them these two weeks.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: *cough* Ah, Voice - forgive the croak. Stand off, mind; I'd not share this with a friend.
     1) [Agree] Poor soul. Tell me what thy house needs and it's done.
     2) [PushBack] Keep thy distance, neighbor. I have no wish to catch it.
   Voice: Poor soul. Tell me what thy house needs and it's done.
-  Probe: I'd rest, Voice, but the chores won't do themselves - though I know thou'dst lend a hand.
-    1) [Agree] Aye, and I'd carry half thy load if thou'dst let me.
-    2) [Question] Put a question to them
-  Voice: Aye, and I'd carry half thy load if thou'dst let me.
-  Probe: Can I count on thy team when we haul the heavy timber?
-    1) [Answer] My oxen are thine whenever thou needest them, friend.
-    2) [Question] Put a question to them
-  Voice: My oxen are thine whenever thou needest them, friend.
-  Probe: We have shared crusts and sweat for twenty years now.
-    1) [Farewell] God's peace be upon thy cottage, Probe.
-  Voice: God's peace be upon thy cottage, Probe.
-  -- Farewell (trees: ["the_sickness", "friendship_bonds"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Friend --picks 0,0,0,0
+  Probe: I'd rest, Voice, but the chores won't do themselves - though I know thou wouldst lend a hand.
+    1) [Remark] I'll see to thy beasts this evening; rest easy.
+    2) [Agree] Aye, and I'd carry half thy load if thou wouldst let me.
+    3) [Question] Put a question to them
+  Voice: I'll see to thy beasts this evening; rest easy.
+  Probe: My thanks. A warm bowl does more than herbs.
+    1) [Farewell] The village stands together or it falls. Fare well.
+  Voice: The village stands together or it falls. Fare well.
+  -- Farewell (trees: ["the_sickness"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Friend --picks 0,0,0

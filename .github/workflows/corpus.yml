@@ -1,0 +1,50 @@
+# Dialogue corpus + cast-report bands (E0-7, #1407).
+#
+# The corpus is a snapshot: `scripts/talk_lab_corpus.sh` regenerates the
+# checked-in transcripts under `evidence/talk-lab/` deterministically, so
+# this job re-runs it and fails on any drift the PR didn't commit. A PR
+# that changes conversation output on purpose regenerates the corpus and
+# commits the diff with it - the diff is the review of what changed.
+#
+# `cast_report` prints the cast's distinctiveness metrics against their
+# target bands and exits 1 when a metric drops past its band, so a cast
+# regression fails the build.
+
+name: Corpus
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  corpus:
+    name: corpus diff + cast-report bands
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build the lab tools
+        run: cargo build --release -p game2-core --bin talk_lab --bin cast_report
+
+      - name: Regenerate the corpus and diff it
+        run: |
+          RUN="./target/release/talk_lab" bash scripts/talk_lab_corpus.sh
+          git status --porcelain evidence/talk-lab/ | tee /tmp/corpus.status
+          # the drift itself, for the review
+          git diff --stat evidence/talk-lab/
+          git diff evidence/talk-lab/ | head -100
+          if [ -s /tmp/corpus.status ]; then
+            echo "::error::the corpus drifted - regenerate with scripts/talk_lab_corpus.sh and commit evidence/talk-lab/"
+            exit 1
+          fi
+
+      - name: Cast report within bands
+        run: ./target/release/cast_report 100 both

@@ -1,23 +1,21 @@
 === Talk: Voice (synthetic) vs Voice - Acquaintance ===
   them: Voice trades on the road between villages. They bow to no one.
+  them's facts: archetype:climber value:freedom value:standing
   you : Voice works the fields for a day's wage.
   Voice: Fair day! Prices move like the river these weeks.
-    1) [Greet] Well met, trader - the village watches the road for thy pack.
-  Voice: Well met, trader - the village watches the road for thy pack.
-  Voice: My family held this land when thine were sowing wild oats. Dost know it?
-    1) [Agree] I've heard, and I mind my manners accordingly.
+    1) [Greet] Morrow - what does market day ask of us this season?
+  Voice: Morrow - what does market day ask of us this season?
+  Voice: Folk here know to speak fair to me. You will have heard as much?
+    1) [Agree] An old name's worth the hearing, say I.
     2) [Remark] Can't say the name reached me - I keep to my own lane.
-  Voice: I've heard, and I mind my manners accordingly.
-  Voice: What exchange does the village offer for good salt this season?
+  Voice: An old name's worth the hearing, say I.
+  Voice: Have you goods to trade, or only gossip?
     1) [Answer] Salt fetches well here; the winter salting never fails to call for it.
     2) [Question] Put a question to them
   Voice: Salt fetches well here; the winter salting never fails to call for it.
-  Voice: Coin talks where the tongue falls short, Voice.
+  Voice: Coin talks where the tongue falls short, Voice, or do I hear wrong?
     1) [Agree] Aye, and debt is a chain that rattles at night.
     2) [Question] Put a question to them
   Voice: Aye, and debt is a chain that rattles at night.
-  Voice: The road is long, but fair trade makes every mile worthwhile.
-    1) [Farewell] Until the spring fair, merchant. Fare well.
-  Voice: Until the spring fair, merchant. Fare well.
-  -- Farewell (trees: ["the_merchants_ledger", "the_audition"], vibe: Safe)
-REPRO: talk_lab talk --name Voice --ideology merchant --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0
+  -- Exhausted (trees: ["the_merchants_ledger", "the_audition"], vibe: Safe)
+REPRO: talk_lab talk --name Voice --ideology merchant --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0

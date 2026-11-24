@@ -186,7 +186,7 @@ impl Speaker {
         Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, slips_left: 0, joke: None, idiolect: None, story: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
-    fn own_facts(&self) -> Vec<String> {
+    pub(crate) fn own_facts(&self) -> Vec<String> {
         let mut v: Vec<String> = self.traits.iter().map(|t| format!("trait:{}", trait_name(*t))).collect();
         v.push(format!("ideology:{}", self.ideology));
         v.extend(self.status.iter().map(|s| format!("status:{}", s)));

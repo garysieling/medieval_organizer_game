@@ -28,6 +28,14 @@ pub enum EventKind {
     HarvestFeast,
 }
 
+/// All ghost kinds, in a fixed order - the shipped `ghost:*` fact types
+/// the rule-of-three coverage metric walks (E0-5)
+pub const EVENT_KINDS: [EventKind; 9] = [
+    EventKind::Fire, EventKind::Levy, EventKind::DeathDuty,
+    EventKind::Fever, EventKind::MillerDebt, EventKind::BrokenBetrothal,
+    EventKind::OldFaith, EventKind::Eviction, EventKind::HarvestFeast,
+];
+
 impl EventKind {
     /// The event's slug for the fact table ("ghost:levy")
     pub fn tag(self) -> &'static str {

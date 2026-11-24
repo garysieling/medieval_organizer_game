@@ -18,7 +18,7 @@
 //! a child), and the bond between the two.
 
 use crate::engine::ecs::{Entity, World};
-use crate::game::conversation::{converse, converse_with, Act, Choice, DialogueTree, Ending, Relation, Rng as TalkRng, Speaker, Vibe};
+use crate::game::conversation::{converse_at, converse_with_at, Act, Choice, DialogueTree, Ending, Relation, Rng as TalkRng, Speaker, Vibe};
 use crate::game::dialogue_trees::village_library;
 use crate::game::lifecycle::{Age, LifeStage};
 use crate::game::relationships::{self, Interaction, InteractionKind, RelKind};
@@ -182,6 +182,9 @@ pub struct TalkRecord {
     /// Everyone in it (the player too, for a Talk or a meeting)
     pub with: Vec<Entity>,
     pub lines: Vec<TalkLine>,
+    /// Where the talk stood (E5-9, #1446): the place and the ears that
+    /// picked which transcript its lines were said in
+    pub setting: crate::game::setting::Setting,
     /// The warmth beat was counted - a record only warms once
     pub warmed: bool,
     /// A kind answer landed - a Talk warms on those, not push-backs
@@ -246,6 +249,9 @@ pub struct PlayerTalk {
     pub mood: TalkMood,
     /// How their audition of you read, once it's been answered (#1187)
     pub vibe: Option<crate::game::conversation::Vibe>,
+    /// Where the talk stands (E5-9, #1446): latched at open so the
+    /// replay walks the same transcript the first frame did
+    pub setting: crate::game::setting::Setting,
     /// An argument under way (#1234): while it is, the choices are its
     pub argue: Option<Argument>,
     /// What the argument put on the record, each after the replay line
@@ -375,6 +381,16 @@ impl Argument {
 /// The most choices a Talk offers at once - the replies plus however
 /// many asks still fit. The list stops at three.
 pub const TALK_MAX_CHOICES: usize = 3;
+
+/// A talk under the household's own roof (E5-9, #1446): the kitchen
+/// table, the host's hall - the hidden transcript's own room, where an
+/// invitation to sit is the bond's way in
+pub(in crate::session) const HOUSE_SETTING: crate::game::setting::Setting =
+    crate::game::setting::Setting {
+        place: crate::game::setting::Place::Kitchen,
+        law_earshot: false,
+        invited: true,
+    };
 
 impl PlayerTalk {
     /// How many asks fit beside the picks on offer now: the choice
@@ -623,7 +639,7 @@ pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: R
 fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
-    let tr = converse_with(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &mut |ch: &[Choice]| {
+    let tr = converse_with_at(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &t.setting, &mut |ch: &[Choice]| {
         if n < t.picks.len() {
             n += 1;
             Some(t.picks[n - 1].min(ch.len().saturating_sub(1)))
@@ -666,7 +682,9 @@ impl Game {
     pub(in crate::session) fn push_talk_cold(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>, cold: bool) -> u64 {
         self.talk_next_id += 1;
         let id = self.talk_next_id;
-        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines, warmed: false, positive: false, cold });
+        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines,
+            setting: crate::game::setting::STREET,
+            warmed: false, positive: false, cold });
         if self.talk_log.len() > TALK_LOG_MAX {
             let extra = self.talk_log.len() - TALK_LOG_MAX;
             self.talk_log.drain(..extra);
@@ -734,7 +752,11 @@ impl Game {
     pub fn open_meeting_record(&mut self, host: Entity, came: &[Entity]) -> u64 {
         let mut with = vec![host];
         with.extend_from_slice(came);
-        self.push_talk(TalkKind::Meeting, with, vec![])
+        let id = self.push_talk(TalkKind::Meeting, with, vec![]);
+        // a house meeting's the hidden transcript's own room (E5-9):
+        // the host's hall, the cause's own ears
+        if let Some(r) = self.talk_record_mut(id) { r.setting = HOUSE_SETTING; }
+        id
     }
 
     /// A meeting already talked through (a campaign meeting): put the
@@ -743,7 +765,8 @@ impl Game {
     pub fn record_meeting(&mut self, with: Vec<Entity>, said: Vec<(Option<Entity>, String, String)>) {
         if said.is_empty() { return; }
         let lines = said.into_iter().map(|(who, name, text)| TalkLine { who, name, text, gist: false }).collect();
-        self.push_talk(TalkKind::Meeting, with, lines);
+        let id = self.push_talk(TalkKind::Meeting, with, lines);
+        if let Some(r) = self.talk_record_mut(id) { r.setting = HOUSE_SETTING; }
     }
 
     /// A campaign's talk - a meeting's deliberation, or the arc that
@@ -939,7 +962,19 @@ impl Game {
         let seed = self.tick.wrapping_mul(0x9E37_79B9)
             ^ ((a as u64) << 32) ^ (b as u64) ^ self.last_chat.len() as u64;
         let recent = self.fresh_lines();
-        let tr = converse(&sa, &sb, rel, self.rel_kind(a, b), library(), Some(&recent), &mut TalkRng::new(seed));
+        // the two transcripts (E5-9, #1446): where they stand picks the
+        // voice - the alehouse corner bites where the market defers
+        let at = {
+            let pa = self.world.get_component::<villager::Pos>(a).map(|p| (p.x, p.y));
+            let pb = self.world.get_component::<villager::Pos>(b).map(|p| (p.x, p.y));
+            match (pa, pb) {
+                (Some(pa), Some(pb)) => ((pa.0 + pb.0) / 2.0, (pa.1 + pb.1) / 2.0),
+                (Some(p), None) | (None, Some(p)) => p,
+                (None, None) => (0.0, 0.0),
+            }
+        };
+        let setting = self.talk_setting_at(at, a, b);
+        let tr = converse_at(&sa, &sb, rel, self.rel_kind(a, b), library(), Some(&recent), &setting, &mut TalkRng::new(seed));
         self.note_said_lines(tr.turns.iter().filter_map(|t| t.line));
         // the exchange types what it does to the bond (#1230): the acts
         // and the close read warm or cold before the lines go on record
@@ -1023,7 +1058,10 @@ impl Game {
                 }
             }
         }
-        self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, temp <= super::SPAT_TEMP);
+        let tid = self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, temp <= super::SPAT_TEMP);
+        // the record keeps where the talk stood (E5-9): which transcript
+        // its lines were said in
+        if let Some(r) = self.talk_record_mut(tid) { r.setting = tr.setting; }
         self.chat_lands(a, b, temp, spat_by);
         true
     }
@@ -1373,8 +1411,14 @@ impl Game {
         let profile = rare.map(|i| super::events::visitor_blurb(i).to_string())
             .unwrap_or_else(|| crate::game::dialogue_trees::backstory(&villager));
         let kind = self.rel_kind(pe, v);
+        // the two transcripts (E5-9, #1446): where they stand picks the
+        // voice - latched now so the replay walks the same setting
+        let setting = self.world.get_component::<villager::Pos>(v)
+            .map(|p| self.talk_setting_at((p.x, p.y), v, pe))
+            .unwrap_or(crate::game::setting::STREET);
         self.seats[seat].talk = Some(PlayerTalk {
             id, who: v, knower: pe, villager, player, rel, kind, seed, picks: vec![],
+            setting,
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
@@ -1738,6 +1782,79 @@ impl Game {
             && self.world.get_component::<villager::Pos>(v)
                 .map(|p| ((p.x - wp.0).powi(2) + (p.y - wp.1).powi(2)).sqrt() <= EARSHOT)
                 .unwrap_or(false))
+    }
+
+    /// The named place a spot counts as (E5-9, #1446): the building it's
+    /// in front of names it - the alehouse door, the church door, a
+    /// kitchen table - else a worked field, else the street, which is
+    /// public by default
+    fn place_at(&self, at: (f32, f32)) -> crate::game::setting::Place {
+        use crate::game::household::BuildingKind;
+        use crate::game::setting::Place;
+        const ON_THE_STEP: f32 = 5.0;
+        let mut best: Option<(f32, BuildingKind)> = None;
+        for &b in &self.building_entities {
+            let (Some(bp), Some(bb)) = (self.world.get_component::<villager::Pos>(b),
+                self.world.get_component::<crate::game::household::Building>(b))
+            else { continue };
+            let d = (bp.x - at.0).powi(2) + (bp.y - at.1).powi(2);
+            if d <= ON_THE_STEP * ON_THE_STEP && best.map(|(bd, _)| d < bd).unwrap_or(true) {
+                best = Some((d, bb.kind));
+            }
+        }
+        match best {
+            Some((_, BuildingKind::Church)) => Place::ChurchDoor,
+            Some((_, BuildingKind::Shop(Vocation::Taverner))) => Place::Alehouse,
+            Some((_, BuildingKind::Home)) => Place::Kitchen,
+            Some((_, BuildingKind::TraderStall)) => Place::Market,
+            _ => {
+                let (x, y) = (at.0.round() as i32, at.1.round() as i32);
+                if matches!(self.map.get(x, y),
+                    Some(crate::game::tilemap::Tile::Wheat | crate::game::tilemap::Tile::Corn)) {
+                    Place::Field
+                } else {
+                    Place::Street
+                }
+            }
+        }
+    }
+
+    /// The law's ear on a spot (E5-9): an overseer about, the tax man in
+    /// the room, the watch walking past - their presence turns a
+    /// backstage place public again
+    fn law_near(&self, at: (f32, f32)) -> bool {
+        const EARSHOT: f32 = 6.0;
+        self.villagers.iter().any(|&v| {
+            if villager::is_dead(&self.world, v) { return false; }
+            let law = crate::game::livelihood::has_role(&self.world, v, TownRole::Overseer)
+                || crate::game::livelihood::has_role(&self.world, v, TownRole::TaxCollector)
+                || self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == Vocation::Knight).unwrap_or(false);
+            law && self.world.get_component::<villager::Pos>(v)
+                .map(|p| ((p.x - at.0).powi(2) + (p.y - at.1).powi(2)).sqrt() <= EARSHOT)
+                .unwrap_or(false)
+        })
+    }
+
+    /// The bond's backstage invitation (E5-9): a bond that's stood the
+    /// safety test all the way to Challenger has already heard the
+    /// hidden transcript - the engine still lets a warm friend-or-kin
+    /// relation in on its own
+    fn backstage_invited(&self, a: Entity, b: Entity) -> bool {
+        crate::game::relationships::find_relationship(&self.world, a, b)
+            .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| r.safety == crate::game::relationships::SafetyRung::Challenger)
+            .unwrap_or(false)
+    }
+
+    /// The setting a talk at `at` between `a` and `b` carries (E5-9):
+    /// the place, the law's ear, and the bond's way backstage
+    fn talk_setting_at(&self, at: (f32, f32), a: Entity, b: Entity) -> crate::game::setting::Setting {
+        crate::game::setting::Setting {
+            place: self.place_at(at),
+            law_earshot: self.law_near(at),
+            invited: self.backstage_invited(a, b),
+        }
     }
 
     /// How the last sit-down with them ended, while it's still fresh

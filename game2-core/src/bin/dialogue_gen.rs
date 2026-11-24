@@ -261,6 +261,13 @@ fn json_conversations(
                 "kind": "Chat",
                 "relation": format!("{:?}", relation),
                 "rel_kind": kind.map(|k| format!("{:?}", k)),
+                // E5-9 (#1446): where the talk stood, and which
+                // transcript each line was said in - the corpus review
+                // reads the stance off the channel tag
+                "setting": format!("{}{}{}",
+                    gen.setting.place.slug(),
+                    if gen.setting.law_earshot { "+law" } else { "" },
+                    if gen.setting.invited { "+invited" } else { "" }),
                 "speakers": [speaker_json(char_a), speaker_json(char_b)],
                 "trees": t.trees_walked,
                 "ending": format!("{:?}", t.ending.unwrap_or(game2_core::game::conversation::Ending::Exhausted)),
@@ -268,6 +275,7 @@ fn json_conversations(
                     "speaker": t.speakers[turn.speaker],
                     "act": format!("{:?}", turn.act),
                     "tree": turn.tree,
+                    "channel": format!("{:?}", turn.channel),
                     "text": turn.text,
                 })).collect::<Vec<_>>(),
             }));

@@ -382,6 +382,15 @@ impl Facts {
         f
     }
 
+    /// `for_roles_kind`, plus the talk's setting as `pair:place:*` /
+    /// `pair:channel:*` (E5-9, #1446): trees and lines read which
+    /// transcript the room asks for
+    pub fn for_roles_setting(speaker: &Speaker, other: &Speaker, rel: Relation, kind: Option<RelKind>, setting: &crate::game::setting::Setting) -> Facts {
+        let mut f = Facts::for_roles_kind(speaker, other, rel, kind);
+        for fact in setting.facts() { f.set.insert(fact); }
+        f
+    }
+
     pub fn has(&self, fact: &str) -> bool { self.set.contains(fact) }
 
     /// Add a fact by hand - for a query built from something other than
@@ -583,6 +592,9 @@ pub struct Turn {
     /// The template the text was filled from, when one was - the village's
     /// freshness memory (#1369) counts templates, not rendered words
     pub line: Option<&'static str>,
+    /// Which transcript the line was said in (E5-9, #1446): the public
+    /// one or the backstage one, off the talk's setting
+    pub channel: crate::game::setting::Channel,
 }
 
 /// The full record of a two-person conversation
@@ -610,6 +622,9 @@ pub struct Transcript {
     /// A disclosure went in past what the pair could hold (E3-3): a
     /// tier-3 confession to a stranger reads as strange
     pub overshot: bool,
+    /// Where the talk stood and who could hear (E5-9, #1446): the
+    /// setting every turn's channel tag came off
+    pub setting: crate::game::setting::Setting,
 }
 
 /// What the trust-probe read off the answer (#1187)
@@ -912,7 +927,25 @@ pub fn converse(
     recent: Option<&HashSet<&'static str>>,
     rng: &mut Rng,
 ) -> Transcript {
-    converse_with(a, b, rel, kind, library, recent, usize::MAX, &mut |_| Some(0), rng)
+    converse_at(a, b, rel, kind, library, recent, &crate::game::setting::STREET, rng)
+}
+
+/// As `converse`, in a named setting (E5-9, #1446): the place and the
+/// ears pick the transcript. A warm bond (friend or kin) is itself the
+/// invitation backstage - callers pass the place and whether the law's
+/// ear is on it, and the bond does the rest
+pub fn converse_at(
+    a: &Speaker,
+    b: &Speaker,
+    rel: Relation,
+    kind: Option<RelKind>,
+    library: &[DialogueTree],
+    recent: Option<&HashSet<&'static str>>,
+    setting: &crate::game::setting::Setting,
+    rng: &mut Rng,
+) -> Transcript {
+    converse_with_at(a, b, rel, kind, library, recent, usize::MAX, setting,
+        &mut |_| Some(0), rng)
 }
 
 /// As `converse`, but speaker `player`'s response turns go through
@@ -930,6 +963,29 @@ pub fn converse_with(
     choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
     rng: &mut Rng,
 ) -> Transcript {
+    converse_with_at(a, b, rel, kind, library, recent, player,
+        &crate::game::setting::STREET, choose, rng)
+}
+
+/// `converse_with`, in a named setting (E5-9, #1446): as `converse_at`,
+/// a warm bond is itself the invitation backstage
+pub fn converse_with_at(
+    a: &Speaker,
+    b: &Speaker,
+    rel: Relation,
+    kind: Option<RelKind>,
+    library: &[DialogueTree],
+    recent: Option<&HashSet<&'static str>>,
+    player: usize,
+    setting: &crate::game::setting::Setting,
+    choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
+    rng: &mut Rng,
+) -> Transcript {
+    // the invitation the bond buys (E5-9): friend and kin hear the
+    // hidden transcript at a backstage place; a stranger gets the
+    // street voice even at the kitchen table
+    let mut setting = *setting;
+    setting.invited |= matches!(rel, Relation::Friend | Relation::Kin);
     // no village memory (synthetic talks): nothing reads as a repeat
     let no_recent = HashSet::default();
     let recent = recent.unwrap_or(&no_recent);
@@ -953,11 +1009,17 @@ pub fn converse_with(
         forward: 0,
         shared: 0,
         overshot: false,
+        setting,
     };
     let mut used: HashSet<&'static str> = HashSet::default();
     // topics already asked this talk - each one's a beat, once
     let mut asked: HashSet<usize> = HashSet::default();
-    let trees = cascade(library, &Facts::for_roles_kind(a, b, rel, kind));
+    // the transcript tag (E5-9, #1446): every line this walk pushes
+    // carries the channel the setting speaks - the beat scheduler
+    // (#1445) flips single lines later, when the hidden transcript's
+    // said aloud to power
+    let channel = setting.channel();
+    let trees = cascade(library, &Facts::for_roles_setting(a, b, rel, kind, &setting));
     let mut trees = trees.iter().peekable();
     let mut node: Option<&Exchange> = trees.next().map(|t| {
         tr.trees_walked.push(t.name);
@@ -1005,7 +1067,7 @@ pub fn converse_with(
                 if let Some((ct, call)) = fresh_line(p.calls, &pair[caller], &pair[responder], &used, recent, matches!(p.act, Act::Greet | Act::Farewell), rng) {
                     used.insert(ct);
                     tr.trees_walked.push(PROBE_TREE);
-                    tr.turns.push(Turn { speaker: caller, act: p.act, respond: None, text: call,
+                    tr.turns.push(Turn { channel,  speaker: caller, act: p.act, respond: None, text: call,
                         concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(ct) });
                     // the tested side gets the two forks the probe
                     // holds - the answer that lands and the wrong note
@@ -1024,7 +1086,7 @@ pub fn converse_with(
                             let (t, vibe) = forks[i];
                             used.insert(t);
                             let tag = respond_of(choices[i].act);
-                            tr.turns.push(Turn { speaker: responder, act: choices[i].act,
+                            tr.turns.push(Turn { channel,  speaker: responder, act: choices[i].act,
                                 respond: Some(tag),
                                 text: fill(t, &pair[responder], &pair[caller], rng),
                                 concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(t) });
@@ -1054,7 +1116,7 @@ pub fn converse_with(
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
         // The floor-holder opens the beat, in the register their own
         // facts put them in (a lord's condescension, a rival's chill)
-        let call_facts = Facts::for_roles_kind(&pair[caller], &pair[responder], rel, kind);
+        let call_facts = Facts::for_roles_setting(&pair[caller], &pair[responder], rel, kind, &setting);
         let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, &pair[caller], &pair[responder], &used, recent, matches!(ex.act, Act::Greet | Act::Farewell), rng) else {
             // Nothing fresh to call with: fall through to the next rejoinable tree,
             // or dry up entirely at the generic tail
@@ -1065,11 +1127,11 @@ pub fn converse_with(
             continue;
         };
         used.insert(call_t);
-        tr.turns.push(Turn { speaker: caller, act: ex.act, respond: None, text: call,
+        tr.turns.push(Turn { channel,  speaker: caller, act: ex.act, respond: None, text: call,
             concepts: ex.concepts.to_vec(), tree: node_tree, line: Some(call_t) });
 
         // The other side picks a fork
-        let facts = Facts::for_roles_kind(&pair[responder], &pair[caller], rel, kind);
+        let facts = Facts::for_roles_setting(&pair[responder], &pair[caller], rel, kind, &setting);
         let pool = eligible(ex.replies, &facts, &used);
         // the reply has to follow what was just said (#1367): the pool
         // keeps only the best-fitting acts on offer, and when nothing
@@ -1177,7 +1239,7 @@ pub fn converse_with(
                             let (qt, _) = fresh_line(tp.ask, &pair[responder], &pair[caller], &used, recent, false, rng)
                                 .unwrap_or((tp.ask[0], String::new()));
                             used.insert(qt);
-                            tr.turns.push(Turn { speaker: responder, act: Act::Question,
+                            tr.turns.push(Turn { channel,  speaker: responder, act: Act::Question,
                                 respond: Some(Respond::PivotAsk),
                                 text: fill(qt, &pair[responder], &pair[caller], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(qt) });
@@ -1193,7 +1255,7 @@ pub fn converse_with(
                                     let (dt, _) = fresh_line(DEFLECTED, &pair[caller], &pair[responder], &used, recent, false, rng)
                                         .unwrap_or((DEFLECTED[0], String::new()));
                                     used.insert(dt);
-                                    tr.turns.push(Turn { speaker: caller, act: Act::Evade,
+                                    tr.turns.push(Turn { channel,  speaker: caller, act: Act::Evade,
                                         respond: Some(Respond::Deflect),
                                         text: fill(dt, &pair[caller], &pair[responder], rng),
                                         concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(dt) });
@@ -1220,7 +1282,7 @@ pub fn converse_with(
                                     .unwrap_or((tp.tell[0], String::new()))
                             };
                             used.insert(at);
-                            tr.turns.push(Turn { speaker: caller, act: Act::Answer,
+                            tr.turns.push(Turn { channel,  speaker: caller, act: Act::Answer,
                                 respond: Some(Respond::Reflect),
                                 text: fill(at, &pair[caller], &pair[responder], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(at) });
@@ -1251,7 +1313,7 @@ pub fn converse_with(
         let ops = crate::game::text::shape(reply.act, &st, None);
         let text = crate::game::text::shaped(&ops,
             &fill(line_t, &pair[responder], &pair[caller], rng), None, &st, rng);
-        tr.turns.push(Turn { speaker: responder, act: reply.act, respond: Some(tag),
+        tr.turns.push(Turn { channel,  speaker: responder, act: reply.act, respond: Some(tag),
             text,
             concepts: reply.concepts.to_vec(), tree: node_tree, line: Some(line_t) });
         // telling of yourself (E3-3): a substantive answer is a
@@ -3612,11 +3674,14 @@ mod e3_3 {
         let tr = |tag: Option<Respond>| Transcript {
             speakers: ["A".into(), "B".into()], trees_walked: vec![],
             turns: vec![Turn { speaker: 0, act: Act::Question, respond: None,
-                    text: "q".into(), concepts: vec![], tree: "t", line: None },
+                    text: "q".into(), concepts: vec![], tree: "t", line: None,
+                    channel: crate::game::setting::Channel::Public },
                 Turn { speaker: 1, act: Act::Answer, respond: tag,
-                    text: "a".into(), concepts: vec![], tree: "t", line: None }],
+                    text: "a".into(), concepts: vec![], tree: "t", line: None,
+                    channel: crate::game::setting::Channel::Public }],
             ending: Some(Ending::Farewell), vibe: None, asked: vec![],
-            forward: 0, shared: 0, overshot: false };
+            forward: 0, shared: 0, overshot: false,
+            setting: crate::game::setting::STREET };
         assert!(chat_temp(&tr(Some(Respond::Care))) > chat_temp(&tr(Some(Respond::Reflect))));
         assert!(chat_temp(&tr(Some(Respond::Deflect))) < chat_temp(&tr(None)),
             "a deflection reads colder than a bare answer");
@@ -3734,5 +3799,82 @@ mod e3_3 {
         let tr = converse(&a, &b, Relation::Kin, Some(RelKind::Family),
             &village_library(), None, &mut Rng::new(11));
         assert_eq!(tr.trees_walked[0], "blood_kin", "{:?}", tr.trees_walked);
+    }
+
+    /// the two transcripts (E5-9, #1446): the setting rides the facts -
+    /// `pair:place:*` always, `pair:channel:*` picked by the place, the
+    /// law's ear, and the bond's way in
+    #[test]
+    fn the_setting_rides_the_facts() {
+        use crate::game::setting::{Place, Setting};
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        // the law's ear flips an invited backstage room public again
+        let heard = Facts::for_roles_setting(&a, &b, Relation::Friend, None,
+            &Setting { place: Place::Alehouse, law_earshot: true, invited: true });
+        assert!(heard.has("pair:place:alehouse"));
+        assert!(heard.has("pair:channel:public"), "the ear turns it public");
+        assert!(heard.has("pair:earshot:law"));
+        // the same room, no ear, the bond's bought the way in
+        let hushed = Facts::for_roles_setting(&a, &b, Relation::Friend, None,
+            &Setting { place: Place::Alehouse, law_earshot: false, invited: true });
+        assert!(hushed.has("pair:channel:backstage"));
+        // a stranger at the same table still hears the street voice
+        let cold = Facts::for_roles_setting(&a, &b, Relation::Stranger, None,
+            &Setting { place: Place::Alehouse, law_earshot: false, invited: false });
+        assert!(cold.has("pair:channel:public"), "the invitation's the gate");
+        // and the market's public whatever the bond
+        let square = Facts::for_roles_setting(&a, &b, Relation::Kin, None,
+            &Setting { place: Place::Market, law_earshot: false, invited: true });
+        assert!(square.has("pair:place:market"));
+        assert!(square.has("pair:channel:public"));
+    }
+
+    /// the bond itself is the invitation (E5-9, #1446): friends and kin
+    /// are let backstage without the caller asking - the same alehouse
+    /// keeps a stranger at the street voice
+    #[test]
+    fn the_bond_is_the_invitation() {
+        use crate::game::setting::{Channel, Place, Setting};
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        let lib = village_library();
+        let corner = Setting { place: Place::Alehouse, law_earshot: false, invited: false };
+        let warm = converse_at(&a, &b, Relation::Friend, None, &lib, None,
+            &corner, &mut Rng::new(3));
+        assert_eq!(warm.setting.channel(), Channel::Backstage);
+        assert!(warm.turns.iter().all(|t| t.channel == Channel::Backstage));
+        let cold = converse_at(&a, &b, Relation::Stranger, None, &lib, None,
+            &corner, &mut Rng::new(3));
+        assert_eq!(cold.setting.channel(), Channel::Public,
+            "a stranger gets the street voice even at the table");
+    }
+
+    /// the same pair, the same seed (E5-9, #1446): in the market the
+    /// talk defers; invited backstage it bites - the hidden transcript
+    /// reads differently and the turns carry which face each was said in
+    #[test]
+    fn the_place_picks_the_transcript() {
+        use crate::game::setting::{Channel, Place, Setting};
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        let lib = village_library();
+        let square = Setting { place: Place::Market, law_earshot: false, invited: false };
+        // an acquaintance let backstage the other way - the safety
+        // rung's Challenger, which the engine can't see from the rel
+        let corner = Setting { place: Place::Alehouse, law_earshot: false, invited: true };
+        let mut differ = 0;
+        for seed in 1..10 {
+            let front = converse_at(&a, &b, Relation::Acquaintance, None, &lib, None,
+                &square, &mut Rng::new(seed));
+            let back = converse_at(&a, &b, Relation::Acquaintance, None, &lib, None,
+                &corner, &mut Rng::new(seed));
+            assert_eq!(front.setting.channel(), Channel::Public);
+            assert_eq!(back.setting.channel(), Channel::Backstage);
+            assert!(front.turns.iter().all(|t| t.channel == Channel::Public));
+            assert!(back.turns.iter().all(|t| t.channel == Channel::Backstage));
+            if front.lines() != back.lines() { differ += 1; }
+        }
+        assert!(differ > 0, "the hidden transcript should read differently");
     }
 }

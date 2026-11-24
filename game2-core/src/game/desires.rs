@@ -316,6 +316,34 @@ pub fn record(world: &mut World, knower: Entity, e: Entity, fact: String,
     }
 }
 
+/// An errand's answer settles what the seat heard (E5-7, #1438): a
+/// fact held as word-of-mouth becomes the thing the seat saw proven -
+/// witnessed source, the confidence of a seen thing, the day refreshed,
+/// the contradiction cleared. Absent, the answer writes the fact fresh
+/// as witnessed. Returns whether the ledger holds it now
+pub fn confirm(world: &mut World, knower: Entity, subject: Entity, fact: &str, day: u64) -> bool {
+    let held = world.get_component::<Known>(knower)
+        .and_then(|k| k.entries.get(&subject))
+        .map(|v| v.iter().any(|en| en.fact == fact)).unwrap_or(false);
+    if !held {
+        record(world, knower, subject, fact.to_string(), None, Source::Witnessed, day);
+        return true;
+    }
+    if let Some(k) = world.get_component_mut::<Known>(knower) {
+        if let Some(v) = k.entries.get_mut(&subject) {
+            for en in v.iter_mut() {
+                if en.fact == fact {
+                    en.source = Source::Witnessed;
+                    en.confidence = source_confidence(&Source::Witnessed).max(0.95);
+                    en.day = day;
+                    en.contradicted = false;
+                }
+            }
+        }
+    }
+    true
+}
+
 /// The seat's ledger on `e`: every fact held, sourced and dated
 pub fn entries(world: &World, knower: Entity, e: Entity) -> Vec<LedgerEntry> {
     world.get_component::<Known>(knower)
@@ -1437,6 +1465,33 @@ mod tests {
         for x in PROBE_WANTS.iter() { note(&mut w2, asker2, v2, Reveal::Want(*x)); }
         add_grievance(&mut w2, v2, Problem::Loss, 60);
         assert!(!probe_open(&w2, asker2, v2, 70), "the grief's run out");
+    }
+
+    #[test]
+    fn test_an_errands_answer_confirms_what_was_carried() {
+        // E5-7's done-when: the manor roll's answer turns hearsay into
+        // a seen thing - confidence to the witnessed level, the day
+        // refreshed, a contradiction settled
+        let mut w = World::new();
+        let (knower, v, carrier) = (person(&mut w, &[]), person(&mut w, &[]), person(&mut w, &[]));
+        record(&mut w, knower, v, "ghost:miller_debt".into(), None,
+            Source::Gossip { speaker: carrier }, 10);
+        record(&mut w, knower, v, "!ghost:miller_debt".into(), None,
+            Source::Gossip { speaker: carrier }, 20);
+        // the contradiction stands before the answer
+        assert!(entries(&w, knower, v).iter().all(|en| en.contradicted));
+        confirm(&mut w, knower, v, "ghost:miller_debt", 60);
+        let en = entries(&w, knower, v).into_iter()
+            .find(|e| e.fact == "ghost:miller_debt").unwrap();
+        assert_eq!(en.source, Source::Witnessed, "the roll was seen");
+        assert_eq!(en.day, 60, "the sight refreshes the clock");
+        assert!(en.confidence >= 0.9, "a seen thing sits high: {}", en.confidence);
+        assert!(!en.contradicted, "the answer settles the doubt");
+        // and what was never heard lands as witnessed, fresh
+        confirm(&mut w, knower, v, "ghost:eviction", 60);
+        let en2 = entries(&w, knower, v).into_iter()
+            .find(|e| e.fact == "ghost:eviction").unwrap();
+        assert_eq!(en2.source, Source::Witnessed);
     }
 
     #[test]

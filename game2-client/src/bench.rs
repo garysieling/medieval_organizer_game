@@ -153,6 +153,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
                     stage: QuestStage::ToCarry,
                     pickup: None,
                     expires: game.tick + 10,
+                    errand: None,
                 });
                 let c = game.sites[i].centre;
                 let cam = cam_centred_on(c.0 as f32, c.1 as f32);

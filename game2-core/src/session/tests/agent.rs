@@ -206,7 +206,7 @@ fn an_agent_can_take_a_nearby_job_offer() {
     let giver = g.villagers[1];
     g.pending_quests.push(PendingQuest {
         giver, kind: QuestKind::Note, target: QuestTarget::Villager(g.villagers[2]),
-        pickup: None, expires: g.tick + 10,
+        pickup: None, expires: g.tick + 10, errand: None,
     });
     let at = *g.world.get_component::<Pos>(giver).unwrap();
     *g.world.get_component_mut::<Pos>(who).unwrap() = at;
@@ -346,7 +346,7 @@ fn an_agent_reads_the_board_and_takes_its_oldest_posting() {
     // a posting on the board: a note somebody's asked about
     g.pending_quests.push(PendingQuest {
         giver, kind: QuestKind::Note, target: QuestTarget::Villager(g.villagers[2]),
-        pickup: None, expires: g.tick + 10,
+        pickup: None, expires: g.tick + 10, errand: None,
     });
     g.notices.push(("quest".into(), "someone asks for help - the board carries it".into(), g.tick + 14));
     let seat = g.add_agent_seat(who);

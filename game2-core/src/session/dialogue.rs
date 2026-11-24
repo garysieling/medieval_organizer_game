@@ -268,6 +268,16 @@ pub struct PlayerTalk {
     /// The meeting invite's follow-up (#1337): while it's open the
     /// choices are the call's - when they gather, then where
     pub inviting: Option<InviteStep>,
+    /// The safety test a disclosure's waiting on (E5-4, #1436): while
+    /// it rides, the choices are its answers - the secret holds until
+    /// one's picked
+    pub safety_bid: Option<SafetyBid>,
+    /// A passed test this talk (#1436): the next secrets come out
+    /// without asking again
+    pub bid_passed: bool,
+    /// The act the offered replies answer (E5-4): a pick read against
+    /// it is what a bid met, missed or refused moves
+    pub call_act: Option<Act>,
 }
 
 /// The invitation's follow-up under way (#1337): they said they'd come
@@ -282,6 +292,55 @@ pub enum InviteStep {
     /// venue list's already resolved with its labels: the public
     /// spots, the org's learned homes, and "their call" riding last
     Where { days: u64, venues: Vec<(crate::game::organizing::Venue, String)> },
+}
+
+/// A bid for safety (E5-4, #1436): the test a villager runs before a
+/// real telling - Afifi & Steuber's three shapes. `reveal` is the
+/// secret it was holding; passing buys it back out
+#[derive(Debug, Clone, Copy)]
+pub struct SafetyBid {
+    pub kind: SafetyBidKind,
+    pub reveal: crate::game::desires::Reveal,
+}
+
+/// The three tests: the hypothetical asks after "a man", the
+/// confidentiality check asks for your tongue, the probe tells someone
+/// else's lesser secret and watches what you do with it
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SafetyBidKind { Hypothetical, Confidence, Probe }
+
+impl SafetyBid {
+    /// The answers on offer while the test stands: the turn toward,
+    /// the sidestep, and the turn away or leak
+    pub fn labels(&self) -> Vec<String> {
+        match self.kind {
+            SafetyBidKind::Hypothetical => vec![
+                "Hear him out - every house has its reasons.".into(),
+                "That's no business of mine.".into(),
+                "The reeve should know of it.".into()],
+            SafetyBidKind::Confidence => vec![
+                "My tongue holds - say on.".into(),
+                "That depends what's said.".into(),
+                "I make no promises.".into()],
+            SafetyBidKind::Probe => vec![
+                "That's between you and me.".into(),
+                "Why tell me this at all?".into(),
+                "The reeve should hear it.".into()],
+        }
+    }
+
+    /// Which turn answer `i` reads as for this shape: the last option
+    /// leaks what was held (against) for the hypothetical and probe -
+    /// the confidence check's cold end is only a miss
+    fn turn_of(&self, i: usize) -> crate::game::relationships::BidTurn {
+        use crate::game::relationships::BidTurn;
+        match (self.kind, i) {
+            (_, 0) => BidTurn::Toward,
+            (SafetyBidKind::Hypothetical, 2) | (SafetyBidKind::Probe, 2) => BidTurn::Against,
+            (SafetyBidKind::Confidence, 1) | (SafetyBidKind::Probe, 1) => BidTurn::Pivot,
+            _ => BidTurn::Away,
+        }
+    }
 }
 
 /// The one-on-one argument as it stands (#1234): which issue, then
@@ -364,6 +423,9 @@ impl PlayerTalk {
                     .chain(std::iter::once("Their call - they'll pick where".into())).collect(),
             };
         }
+        // the safety test's answers, while it stands (E5-4): the
+        // transcript's replies wait underneath until it's settled
+        if let Some(b) = &self.safety_bid { return b.labels(); }
         if self.inoculating {
             return crate::game::inoculation::COUNTERS.iter().map(|&c| crate::game::inoculation::label(c).to_string())
                 .chain(std::iter::once("Let it drop".to_string())).collect();
@@ -552,7 +614,7 @@ pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: R
         &mut crate::game::conversation::Rng::new(0))
 }
 
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
     let tr = converse_with(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &mut |ch: &[Choice]| {
@@ -566,7 +628,11 @@ fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static s
     }, &mut TalkRng::new(t.seed));
     let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone(), x.line)).collect();
     let ending = if offered.is_some() { None } else { tr.ending };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared)
+    // the act the offered replies answer (E5-4): when the walk stopped
+    // for a pick, the last turn is their call - a bid's met or missed
+    // against it
+    let call = if offered.is_some() { tr.turns.last().map(|t| t.act) } else { None };
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call)
 }
 
 impl Game {
@@ -1321,6 +1387,7 @@ impl Game {
                 .map(|p| p.traits.contains(&crate::game::traits::Trait::SelfAbsorbed))
                 .unwrap_or(false),
             job, inviting: None,
+            safety_bid: None, bid_passed: false, call_act: None,
         });
         self.refresh_player_talk(seat);
     }
@@ -1331,7 +1398,7 @@ impl Game {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
         let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked, forward, shared) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act) = replay(&t, Some(&recent));
         if shared > t.shared {
             // the deepest telling so far this talk (E3-3): the running
             // gate already lives in the replay - this only carries the
@@ -1413,15 +1480,31 @@ impl Game {
         // opening rolls for; and asking after the whisper pulls a piece
         // of the mystery, the way the gossip line does
         let mut drawn: Vec<TalkLine> = vec![];
+        // a test standing holds every telling for its answer (E5-4):
+        // the ask's spent either way - the secret just doesn't move
+        let mut bid_pending = t.safety_bid.is_some();
         for label in asked.iter().skip(t.asked_seen) {
             use crate::game::dialogue_trees::Draw;
             let draw = crate::game::dialogue_trees::ASK_TOPICS.iter()
                 .find(|tp| tp.label == *label).map(|tp| tp.draws).unwrap_or(Draw::No);
             match draw {
                 Draw::No => {}
+                Draw::Secret if bid_pending => {}
                 Draw::Secret => {
                     let pick = self.rng.next();
                     if let Some(r) = crate::game::desires::next_reveal(&self.world, t.who, self.tick, pick) {
+                        if self.reveal_gated(seat, &t) {
+                            // a fresh secret tests the bond's nerve first
+                            // (E5-4): the bid asks, the telling holds until
+                            // the player's answered it
+                            let (line, kind) = self.safety_bid_line(seat, &t, r, pick);
+                            drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: line, gist: false });
+                            if let Some(cur) = self.seats[seat].talk.as_mut() {
+                                cur.safety_bid = Some(SafetyBid { kind, reveal: r });
+                            }
+                            bid_pending = true;
+                            continue;
+                        }
                         let (did, said_line) = crate::game::desires::reveal_speech(&vname, &r);
                         if let Some(issue) = crate::game::desires::hear(&mut self.world, pe, t.who, r, self.tick) {
                             use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
@@ -1472,6 +1555,7 @@ impl Game {
         // so close on a mutual parting rather than an exit menu
         if let Some(opts) = &offered {
             if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating && t.tell.is_none()
+                && !bid_pending
                 && opts.iter().all(|(a, _, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");
                 // a spent talk parts kindly - unless the last word chosen
@@ -1498,7 +1582,7 @@ impl Game {
                 // a pressed talk comes one word at a time (#1226): the
                 // flat of the day shows as a shorter list, not new lines
                 let opts = if t.tired >= 2 { opts.into_iter().take(1).collect() } else { opts };
-                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.options = opts; cur.opt_tree = tree; }
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.options = opts; cur.opt_tree = tree; cur.call_act = call_act; }
             }
             _ => {
                 // a fresh talk that opens with no replies on offer would
@@ -1509,6 +1593,7 @@ impl Game {
                     if let Some(cur) = self.seats[seat].talk.as_mut() {
                         cur.options = vec![(Act::Farewell, crate::game::conversation::Respond::Validate, "I take my leave.".into())];
                         cur.opt_tree = tree;
+                        cur.call_act = call_act;
                     }
                     return;
                 }
@@ -1614,7 +1699,7 @@ impl Game {
                 from: r.from, other: r.other, kind: r.kind, strength: r.strength,
                 interactions: r.interactions, intimacy: r.intimacy,
                 trust: r.trust, safety: r.safety,
-                pivots: r.pivots, deflects: r.deflects };
+                pivots: r.pivots, deflects: r.deflects, bids_met: r.bids_met };
             r2.recompose();
             o.intimacy = r2.intimacy;
             o.benevolence = r2.trust.benevolence;
@@ -1699,6 +1784,17 @@ impl Game {
         if let (Some(_), Some(i)) = (&t.argue, pick) { self.argue_pick_at(seat, i); return; }
         if let (true, Some(i)) = (t.inoculating, pick) { self.inoculate_pick_at(seat, i); return; }
         if let (Some(_), Some(i)) = (&t.inviting, pick) { self.invite_pick_at(seat, i); return; }
+        // a safety test standing takes its own answers (E5-4, #1436)
+        if let (Some(b), Some(i)) = (t.safety_bid, pick) { self.safety_bid_pick_at(seat, i, b); return; }
+        // and walking out on one is the miss itself: they reached and
+        // were left standing - the rung pays it as a turn away, spent
+        // beat or no, the way a too-deep ask's drop lands
+        if let (Some(_), None) = (t.safety_bid, pick) {
+            let (who, pe) = (t.who, self.seats[seat].player);
+            relationships::push_bid(&mut self.world, pe, who, relationships::BidTurn::Away);
+            self.close_player_talk(seat, Some("You take your leave."));
+            return;
+        }
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let extra = t.inoculation_beyond();
         let probe_extra = t.probe_beyond();
@@ -1788,6 +1884,19 @@ impl Game {
                         let pick = self.rng.next();
                         let name = self.name_of(who);
                         if let Some(r) = crate::game::desires::next_reveal(&self.world, who, self.tick, pick) {
+                            if self.reveal_gated(seat, self.seats[seat].talk.as_ref().unwrap()) {
+                                // the asked-for telling still tests the
+                                // nerve first (E5-4): the ask's spent,
+                                // the secret holds for the answer
+                                let t2 = self.seats[seat].talk.clone().unwrap();
+                                let (line, kind) = self.safety_bid_line(seat, &t2, r, pick);
+                                self.argue_line(seat, Some(who), line);
+                                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                                    cur.safety_bid = Some(SafetyBid { kind, reveal: r });
+                                }
+                                self.refresh_player_talk(seat);
+                                return;
+                            }
                             let (_did, said) = crate::game::desires::reveal_speech(&name, &r);
                             self.argue_line(seat, Some(who), said);
                             if let Some(issue) = crate::game::desires::hear(&mut self.world, pe, who, r, self.tick) {
@@ -1856,8 +1965,8 @@ impl Game {
         let (said_v, said_p, said_rel) =
             (t.villager.clone(), t.player.clone(), t.rel);
         let pe = self.seats[seat].player;
-        let (tid, twho, old_scores, opt_tree) =
-            (t.id, t.who, t.opt_tree == Some("old_scores"), t.opt_tree);
+        let (tid, twho, old_scores, opt_tree, call_act) =
+            (t.id, t.who, t.opt_tree == Some("old_scores"), t.opt_tree, t.call_act);
         // an audition pick isn't read by its act - standing up to a
         // hothead is the right answer, not a slight; the vibe read it
         // sets is the whole effect (#1187)
@@ -1903,6 +2012,24 @@ impl Game {
         } || !matches!(pick_respond, crate::game::conversation::Respond::Validate));
         if bond_moving && !spent {
             relationships::push_respond(&mut self.world, pe, who, pick_respond);
+        }
+        // a reach met, half-met, missed or refused (E5-4, #1436): when
+        // their call was a bid, the pick's act is the turn it reads -
+        // engaging warms and builds the nerve under the day's beat;
+        // the miss and the refusal are costs, and costs land whenever
+        // they're dealt, the way a too-deep ask's rung drop does
+        if call_act == Some(Act::Bid) && !probing {
+            let turn = match act {
+                Act::Agree | Act::Answer | Act::Question => relationships::BidTurn::Toward,
+                Act::PushBack => relationships::BidTurn::Against,
+                Act::Farewell => relationships::BidTurn::Away,
+                _ => relationships::BidTurn::Pivot,
+            };
+            let gain = matches!(turn, relationships::BidTurn::Toward
+                | relationships::BidTurn::Pivot);
+            if !gain || !spent {
+                relationships::push_bid(&mut self.world, pe, who, turn);
+            }
         }
         // the line you take is heard by the one you're talking to - the
         // day's first pick with them, like the bond (#1236)
@@ -2221,6 +2348,112 @@ impl Game {
         if let Some(cur) = self.seats[seat].talk.as_mut() {
             cur.argued.push((at, TalkLine { who, name, text, gist: false }));
         }
+    }
+
+    /// Is this telling earned yet (E5-4, #1436)? Below the learner
+    /// rung a fresh secret tests the bond's nerve first - a passed bid
+    /// this talk already cleared it, and a bond that's climbed holds it
+    fn reveal_gated(&self, seat: usize, t: &PlayerTalk) -> bool {
+        use crate::game::relationships::SafetyRung;
+        if t.bid_passed { return false; }
+        let pe = self.seats[seat].player;
+        let rung = crate::game::relationships::find_relationship(&self.world, pe, t.who)
+            .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| r.safety).unwrap_or_default();
+        rung == SafetyRung::Inclusion
+    }
+
+    /// The safety test's words and shape for a held secret (E5-4): the
+    /// probe tells someone else's lesser secret (real content - it
+    /// files on the third party through `hear`), the check asks for
+    /// the tongue, the hypothetical hides the telling behind "a man"
+    pub(in crate::session) fn safety_bid_line(&mut self, seat: usize, t: &PlayerTalk,
+                      r: crate::game::desires::Reveal, pick: u64)
+                      -> (String, SafetyBidKind) {
+        let (who, pe) = (t.who, self.seats[seat].player);
+        use crate::game::desires::{self, Reveal};
+        // the probe tells you someone else's lesser secret and watches:
+        // a live trouble on a third party, told through the real system
+        if pick % 3 == 2 {
+            let third = self.villagers.iter().copied()
+                .filter(|&v| v != who && !villager::is_dead(&self.world, v))
+                .find(|&v| desires::next_reveal(&self.world, v, self.tick, pick).is_some());
+            if let Some(v3) = third {
+                let dr = desires::next_reveal(&self.world, v3, self.tick, pick).unwrap();
+                let n3 = self.name_of(v3);
+                let (did, _said) = desires::reveal_speech(&n3, &dr);
+                desires::hear(&mut self.world, pe, v3, dr, self.tick);
+                let line = format!("Word is, {} - but it wasn't from me {{2:subj}} heard it.", did);
+                return (self.pair_said(who, pe, &line), SafetyBidKind::Probe);
+            }
+        }
+        // the check, or "a man" - wants get the tongue asked, troubles
+        // come in disguise
+        match r {
+            Reveal::Want(_) => (t.said("{2:can} {2:subj} hold {2:poss} tongue? There's a thing I'd near have said.",
+                false), SafetyBidKind::Confidence),
+            Reveal::Problem(_) => (t.said("Say a man kept back a sack from the tithe - what should be done with him, {2:think} {2:subj}?",
+                false), SafetyBidKind::Hypothetical),
+        }
+    }
+
+    /// The test answered (E5-4, #1436): a turn toward brings the held
+    /// telling out and the nerve earns a mark; the sidestep keeps it
+    /// held for another day; the miss or the leak costs - and the leak
+    /// leaves the confidence's record behind it
+    fn safety_bid_pick_at(&mut self, seat: usize, i: usize, bid: SafetyBid) {
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let (who, vname, pe) = (t.who, t.villager.name.clone(), self.seats[seat].player);
+        let turn = bid.turn_of(i);
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.safety_bid = None; }
+        // the answer's heard as your line first, the way any pick is
+        if let Some(l) = bid.labels().get(i).cloned() {
+            self.argue_line(seat, Some(pe), l);
+        }
+        use crate::game::relationships::BidTurn;
+        // the test's answer always counts (E5-4): a kept reach earns,
+        // a miss or a leak costs - the answer's a discrete event, not a
+        // grindable pick, so it sits outside the day's beat
+        relationships::push_bid(&mut self.world, pe, who, turn);
+        match turn {
+            BidTurn::Toward => {
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.bid_passed = true; cur.mood = TalkMood::Warmed; }
+                // the kept word is a memory too (E6-2's file; E5-4's
+                // kind): #1443's ledger reads it as the confidence held
+                crate::game::episodes::file(&mut self.world, who, pe,
+                    crate::game::episodes::MemKind::KeptConfidence, self.tick, &["trust", "secret"]);
+                let (did, said) = crate::game::desires::reveal_speech(&vname, &bid.reveal);
+                self.argue_line(seat, None, did.clone());
+                self.argue_line(seat, Some(who), said);
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
+                if let Some(issue) = crate::game::desires::hear(&mut self.world, pe, who, bid.reveal, self.tick) {
+                    use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
+                    self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                    self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                        pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                }
+            }
+            BidTurn::Pivot => {
+                self.argue_line(seat, Some(who),
+                    self.pair_said(who, pe, "Then never mind me. Another hour for it, maybe."));
+            }
+            _ => {
+                // the leak is the sharpest cut: a confidence taken to
+                // the reeve is a memory they carry (its record is what
+                // #1443's confidence ledger reads back)
+                if turn == BidTurn::Against {
+                    crate::game::episodes::file(&mut self.world, who, pe,
+                        crate::game::episodes::MemKind::LeakedConfidence, self.tick, &["trust", "secret"]);
+                    self.argue_line(seat, Some(who),
+                        self.pair_said(who, pe, "Then forget I spoke. {2:subj} {2:be} not the one I took {2:obj} for."));
+                } else {
+                    self.argue_line(seat, Some(who),
+                        self.pair_said(who, pe, "Forget I spoke of it. It was nothing to say."));
+                }
+            }
+        }
+        self.refresh_player_talk(seat);
     }
 
     /// "Hear me out on something" (#1234): the argument opens on the live

@@ -177,7 +177,9 @@ const SMALL_GOSSIP: Exchange = Exchange {
                 Voice { criteria: &[Has("pair:relation:kin")], lines: &["The lord's feast had more ale than harvest - I'll say it to {2:obj} and no further.", "The reeve counts our sheep twice over - practices, I hear, on his own children."] },
                 Voice { criteria: &[Has("self:status:drunk")], lines: &["Ale's the only thing that listens to me - and even it makes me pay."] },
             ],
-            then: Some(SMALL_GOSSIP_MORE), end: None,
+            // a laugh earned a reach (E5-4): the bid asks the answerer
+            // to turn toward, away or against
+            then: Some(SMALL_BID), end: None,
         },
         // a visible turn-aside (E5-1): the refused reach reads as a
         // wall, not a silence - temperament flavors it in E5-2
@@ -196,6 +198,52 @@ const SMALL_GOSSIP: Exchange = Exchange {
             lines: &["A tale for another hour - I must away.", "The sun climbs high; I have chores to finish.", "Walk with God, {other}, I cannot linger.", "May the road be kind under {2:poss} boots.", "God's peace be upon {2:poss} cottage, {other}."],
             voice: &[],
             then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+/// A reach for attention mid-tail (E5-4, #1436): they reach rather
+/// than remark, and the answer is the turn toward, away or against the
+/// design's table weighs - the engaged reply takes it up, the flat
+/// remark's the half-turn, the walk-off's the miss, the snap's the
+/// refusal
+const SMALL_BID: Exchange = Exchange {
+    act: Act::Bid,
+    concepts: &["bid", "smalltalk"],
+    calls: &["Look, the swallows are back.", "Walk with me a moment, {other} - the light's good this hour.", "{2:can} {2:subj} keep a thing quiet, just between us?", "Mind how the mist sits on the lower field. I never tire of it."],
+    voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 0.60, bias: &[(Kind, 1.5), (Gregarious, 1.4)],
+            act: Act::Agree, concepts: &["bid"],
+            respond: None,
+            lines: &["Aye, so they are - I'd not have seen it.", "Walk with {2:obj} a moment, gladly.", "That's a fine sight to be shown, {other}."],
+            voice: &[],
+            then: Some(SMALL_GOSSIP_MORE), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.45, bias: &[],
+            act: Act::Remark, concepts: &["bid"],
+            respond: None,
+            lines: &["They come back every year, swallows.", "Hm. There's work waiting yet.", "Aye, the light's the light."],
+            voice: &[],
+            then: Some(SMALL_GOSSIP_MORE), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.25, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["I've other things to tend, {other}.", "Another day, friend - the day's not waiting."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+        Reply {
+            criteria: &[], weight: 0.15, bias: &[(Hotheaded, 2.0), (Proud, 1.5)],
+            act: Act::PushBack, concepts: &["bid"],
+            respond: None,
+            lines: &["Birds and idle talk - I've a day's work in me yet.", "Keep {2:poss} swallows. I've troubles enough."],
+            voice: &[],
+            then: Some(SMALL_FADE), end: None,
         },
     ],
 };

@@ -17,6 +17,12 @@ pub enum MemKind {
     StoodWithUs,
     AskedTooSoon,
     SharedMeal,
+    /// A safety test answered true (E5-4, #1436): their confidence
+    /// stayed confidence - the record E5-5's ledger reads back
+    KeptConfidence,
+    /// Their test leaked to the reeve (E5-4): the sharpest cut a
+    /// confidence takes
+    LeakedConfidence,
 }
 
 /// One remembered beat between a villager and a player
@@ -47,6 +53,8 @@ pub fn importance(kind: MemKind) -> f32 {
         MemKind::MissedMeeting => 0.7,
         MemKind::AskedTooSoon => 0.6,
         MemKind::SharedMeal => 0.4,
+        MemKind::KeptConfidence => 0.8,
+        MemKind::LeakedConfidence => 0.85,
     }
 }
 
@@ -58,6 +66,8 @@ pub fn fact(kind: MemKind) -> &'static str {
         MemKind::StoodWithUs => "mem:you_stood_with_us",
         MemKind::AskedTooSoon => "mem:you_asked_too_soon",
         MemKind::SharedMeal => "mem:you_shared_meal",
+        MemKind::KeptConfidence => "mem:you_kept_confidence",
+        MemKind::LeakedConfidence => "mem:you_leaked_confidence",
     }
 }
 
@@ -69,6 +79,8 @@ pub fn callback(kind: MemKind) -> &'static str {
         MemKind::StoodWithUs => "You stood with us when it counted. I don't forget that.",
         MemKind::AskedTooSoon => "You ask deep, too soon. I've learned to watch it.",
         MemKind::SharedMeal => "You shared your table with me once. Small things keep.",
+        MemKind::KeptConfidence => "You kept a thing to yourself for me. I've not forgotten.",
+        MemKind::LeakedConfidence => "I told you a thing and it traveled. I've learned what you're worth.",
     }
 }
 

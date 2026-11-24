@@ -87,6 +87,14 @@ impl SafetyRung {
             _ => SafetyRung::Inclusion,
         }
     }
+    /// a step up the ladder - nerve kept is nerve earned (E5-4, #1436)
+    pub fn raise(self) -> Self {
+        match self {
+            SafetyRung::Inclusion => SafetyRung::Learner,
+            SafetyRung::Learner => SafetyRung::Contributor,
+            _ => SafetyRung::Challenger,
+        }
+    }
 }
 
 /// A relationship between two entities, stored as its own entity (like
@@ -111,6 +119,9 @@ pub struct Relationship {
     pub pivots: u32,
     /// Times they stepped around you; enough and the nerve closes
     pub deflects: u32,
+    /// Bids met with a turn toward (E5-4, #1436): kept reaches build
+    /// the nerve rung by rung - the count itself is the pace
+    pub bids_met: u32,
 }
 
 impl Relationship {
@@ -334,6 +345,43 @@ pub fn push_respond(world: &mut World, from: Entity, other: Entity,
             Respond::PivotAsk => {
                 r.intimacy -= 0.05; r.trust.integrity -= 0.08; r.pivots += 1;
             }
+        }
+        r.derive();
+        r.interactions += 1;
+    }
+}
+
+/// How an answer meets a bid (E5-4, #1436): Gottman's three turns plus
+/// the half-answer between - toward engages, the pivot answers without
+/// taking it up, away misses it, against refuses it outright
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BidTurn { Toward, Pivot, Away, Against }
+
+/// A bid answered (E5-4, #1436): a turn toward warms them and - kept
+/// up - grows the nerve, since a passed reach is what a deeper telling
+/// trusts. The miss costs the rung, deliberately more than the
+/// refusal's mark: Gottman's couples read a bid missed as a hurt a
+/// refused one doesn't carry
+pub fn push_bid(world: &mut World, from: Entity, other: Entity, turn: BidTurn) {
+    let e = find_relationship(world, from, other).unwrap_or_else(|| {
+        add_relationship(world, Relationship {
+            from, other, kind: RelKind::Stranger, strength: 0.0, interactions: 0,
+            ..Default::default()
+        })
+    });
+    if let Some(r) = world.get_component_mut::<Relationship>(e) {
+        r.recompose();
+        match turn {
+            BidTurn::Toward => {
+                r.intimacy += 0.08; r.trust.benevolence += 0.06; r.bids_met += 1;
+                // two kept reaches earn a rung - the nerve builds slow
+                if r.bids_met % 2 == 0 { r.safety = r.safety.raise(); }
+            }
+            BidTurn::Pivot => { r.intimacy += 0.03; }
+            // the miss is the heavier cut: they reached and weren't seen
+            BidTurn::Away => { r.safety = r.safety.lower(); r.intimacy -= 0.03; }
+            // the refusal at least saw them - warmth and the mark it leaves
+            BidTurn::Against => { r.intimacy -= 0.08; r.trust.integrity -= 0.06; }
         }
         r.derive();
         r.interactions += 1;
@@ -630,7 +678,7 @@ mod e6_1 {
             from: r.from, other: r.other, kind: r.kind,
             strength: r.strength, interactions: r.interactions,
             intimacy: r.intimacy, trust: r.trust, safety: r.safety,
-            pivots: r.pivots, deflects: r.deflects,
+            pivots: r.pivots, deflects: r.deflects, bids_met: r.bids_met,
         })
     }
 

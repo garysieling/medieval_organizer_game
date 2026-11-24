@@ -801,6 +801,9 @@ pub fn act_fit(call: Act, reply: Act) -> u8 {
             Act::Farewell | Act::Remark => 2,
             _ => 0,
         },
+        // a reach is answered by the turn (E5-4): engaging it, the
+        // half-turn, the miss or the refusal are all its shapes
+        Act::Bid => 2,
         // a statement leaves the floor open; the exit only rides once
         // the talk's run dry - the rule player options already use
         _ => match reply {

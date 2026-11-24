@@ -1,18 +1,35 @@
 //! Bitmap font renderer - draws text into pixel buffers.
-//! Jacquarda Bastarda 9 blackletter, baked to 10x13 cells by
+//! Jacquarda Bastarda 9 blackletter, baked to 14x13 cells by
 //! scripts/bake_font.py (table in glyphs.rs). No runtime font dep.
+//!
+//! Each glyph carries its own advance - the blackletter reads tracked
+//! tight, the way the face was drawn, rather than monospaced.
 
 use crate::engine::render::Buffer;
-use crate::ui::glyphs::GLYPHS;
+use crate::ui::glyphs::{ADVANCES, GLYPHS};
 
-/// Cell columns / rows and the advance, matching layout's GLYPH_W/GLYPH_H
-const COLS: usize = 10;
-const ADV: i32 = 11;
+/// Cell columns / rows, matching layout's GLYPH_H (the width's per
+/// glyph now - `measure` gives a string's true pixels)
+const COLS: usize = 14;
 
 /// Fix glyph table - entry 106 was a slice hack, normalize
 fn glyph_for(c: u8) -> [u16; 13] {
     if c < 32 || c > 126 { return [0;13]; }
     GLYPHS[(c - 32) as usize]
+}
+
+/// The glyph's own advance: its ink plus a pixel of air. Unsupported
+/// codes take the space advance.
+fn advance_for(c: u8) -> i32 {
+    if c < 32 || c > 126 { return ADVANCES[0] as i32; }
+    ADVANCES[(c - 32) as usize] as i32
+}
+
+/// The string's true drawn width in pixels - what `draw_text` would
+/// return, without a buffer. Centering and bubble sizing should ask
+/// this, not count chars times a fixed width.
+pub fn measure(text: &str) -> i32 {
+    text.chars().map(|c| advance_for(c as u8)).sum()
 }
 
 /// Draw a single char at (x,y). Returns advance width.
@@ -29,7 +46,7 @@ pub fn draw_char(buf: &mut Buffer, x: i32, y: i32, c: char, r: u8, g: u8, b: u8)
             }
         }
     }
-    ADV // advance = 10px cell + 1px space
+    advance_for(c as u8)
 }
 
 /// Draw a string at (x,y). Returns total width drawn.
@@ -69,7 +86,7 @@ pub fn draw_text_scaled(buf: &mut Buffer, x: i32, y: i32, text: &str, scale: usi
                 }
             }
         }
-        cx += ADV * scale as i32;
+        cx += advance_for(c as u8) * scale as i32;
     }
     cx - x
 }
@@ -117,6 +134,24 @@ mod tests {
     }
 
     #[test]
+    fn measure_matches_the_drawn_width() {
+        let mut buf = Buffer::new(200, 20);
+        for s in ["ill", "www", "the taxes", "MW", "a"] {
+            assert_eq!(measure(s), draw_text(&mut buf, 0, 0, s, 255, 255, 255),
+                "measure should agree with the pen for {s:?}");
+        }
+    }
+
+    #[test]
+    fn thin_letters_track_tighter_than_wide() {
+        // the whole point of per-glyph advance: "i" shouldn't take an
+        // m's room
+        assert!(measure("i") < measure("m"), "thin letters advance less");
+        assert!(measure("illicit") < "illicit".len() as i32 * 8,
+            "the face reads tight, not monospaced");
+    }
+
+    #[test]
     fn test_outlined_text_has_a_dark_border_and_coloured_glyph() {
         let mut buf = Buffer::new(40, 24);
         buf.rect(0, 0, 40, 24, 250, 250, 250); // white background, like a roof
@@ -149,7 +184,7 @@ mod tests {
         let w3 = draw_tier(&mut buf, 0, 0, "ab", TextTier::H3, 255, 255, 255);
         assert_eq!(w1, w3 * 2, "H1 doubles the advance");
         let mut buf = Buffer::new(80, 30);
-        let plain = draw_text(&mut buf, 0, 0, "ab", 255, 255, 255);
+        let plain = draw_text(&mut buf, 0, 0, "AB", 255, 255, 255);
         let tracked = draw_tier(&mut buf, 40, 0, "ab", TextTier::H2, 255, 255, 255);
         assert_eq!(tracked, plain + 2, "a tracked row takes a px a glyph");
     }

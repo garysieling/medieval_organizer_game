@@ -227,10 +227,10 @@ pub(crate) fn meeting_lines(m: &MeetingPlanV) -> Vec<String> {
     out
 }
 
-/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
-/// spacing, and the last space doesn't count
+/// Width in pixels of `text` at `scale`: the per-glyph advance less
+/// the last glyph's pixel of air
 pub(crate) fn text_width(text: &str, scale: usize) -> i32 {
-    (text.chars().count() * GLYPH_W as usize * scale) as i32 - scale as i32
+    measure(text) * scale as i32 - scale as i32
 }
 
 /// How wide the muted-speaker glyph's box is - the HUD strip grows by

@@ -16,17 +16,15 @@ fn test_only_the_askers_name_is_a_button() {
         asker_name: "Matilda".into(), asker: Some(7), asker_at: Some((10.0, 20.0)),
     };
     let m = mystery_model(Some(mz.clone()));
-    // the name's own cells answer - mystery_hit reads the same
-    // (row, cols) the draw wraps them to, on a 15px pitch from y 90
-    let (row, c0, c1) = crate::view::mystery_name_col(&mz).unwrap();
-    let x = UI_X as i32 + 150;
-    let name_x = x + c0 as i32 * GLYPH_W;
+    // the name's own pixels answer - mystery_hit reads the same span the
+    // draw measures, on a LINE_H pitch from y 90
+    let (row, x0, x1) = crate::view::mystery_name_span(&mz).unwrap();
     let y = 90 + row as i32 * LINE_H + 2;
-    assert_eq!(view.mystery_hit(&m, name_x + 2, y), Some(7), "the name answers");
-    assert_eq!(view.mystery_hit(&m, x + (c1 - 1) as i32 * GLYPH_W, y), Some(7),
-        "its last cell too");
-    assert_eq!(view.mystery_hit(&m, x, y), None, "the rest of the line is inert");
-    assert_eq!(view.mystery_hit(&m, name_x + 2, 90 + 3 * LINE_H + 2), None,
+    assert_eq!(view.mystery_hit(&m, x0 + 2, y), Some(7), "the name answers");
+    assert_eq!(view.mystery_hit(&m, x1 - 1, y), Some(7), "its last cell too");
+    assert_eq!(view.mystery_hit(&m, UI_X as i32 + 150, y), None,
+        "the rest of the line is inert");
+    assert_eq!(view.mystery_hit(&m, x0 + 2, 90 + 3 * LINE_H + 2), None,
         "a nameless row hits nothing");
     assert_eq!(view.mystery_hit(&m, 40, y), None, "off the panel hits nothing");
 }

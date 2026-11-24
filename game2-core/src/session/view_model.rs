@@ -2159,7 +2159,7 @@ fn card_chars(x: i32) -> usize { ((CARD_RX - x) / GLYPH_W).max(10) as usize }
 /// the value
 fn card_prop(lines: &mut Vec<Line>, y: &mut i32, label: &str, value: &str, rgb: (u8, u8, u8)) {
     if value.is_empty() { return; }
-    let vx = CARD_X + (label.chars().count() as i32 + 2) * GLYPH_W;
+    let vx = CARD_X + crate::ui::font::measure(&format!("{}:  ", label));
     lines.push(Line { x: CARD_X, y: *y, text: format!("{}:", label), rgb: (150, 150, 170) });
     for w in wrap_text(value, card_chars(vx)) {
         lines.push(Line { x: vx, y: *y, text: w, rgb });

@@ -228,9 +228,17 @@ fn a_seeded_cast_passes_the_checks() {
                 .unwrap().clone())
             .collect();
         let mut sigs = HashSet::default();
+        let mut habits = HashSet::default();
+        let mut phrases = HashSet::default();
         for p in &personas {
             assert!(sigs.insert(p.signature.text()),
                 "seed {seed}: {} dealt twice", p.signature.text());
+            // E4-7 (#1416): the ear's landmark - no two villagers
+            // share a habit or a pet phrase
+            assert!(habits.insert(p.idiolect.habit),
+                "seed {seed}: {:?} dealt twice", p.idiolect.habit);
+            assert!(phrases.insert(p.idiolect.phrase),
+                "seed {seed}: {} dealt twice", p.idiolect.phrase);
         }
         let refs: Vec<&crate::game::persona::Persona> = personas.iter().collect();
         let c = crate::game::cast_check::measure(&refs);

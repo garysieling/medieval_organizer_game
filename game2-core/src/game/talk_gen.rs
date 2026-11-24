@@ -110,6 +110,13 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
             tv: crate::game::text::Tv::You,
             archaism: 1,
             rel: Relation::Stranger,
+            // a spread of habits so the corpus hears the idiolect pass
+            // (E4-7, #1416): roster index deals each speaker a distinct
+            // phrase and habit without replacement, like the cast deal
+            idiolect: Some(crate::game::idiolect::Idiolect {
+                phrase: crate::game::idiolect::PHRASES[i % crate::game::idiolect::PHRASES.len()],
+                habit: crate::game::idiolect::HABITS[(i * 7 + 3) % crate::game::idiolect::HABITS.len()],
+            }),
         });
     }
     roster

@@ -248,6 +248,7 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
         // after a full stop would render "The mill" where the old
         // chain left "the mill"
         "other" => out.push_str(&cx.listener.name),
+        "self" => out.push_str(&cx.speaker.name),
         "trade" => out.push_str(&trade_noun(cx.speaker)),
         "other_trade" => out.push_str(&trade_noun(cx.listener)),
         // E4-2: the address a relation earns - "m'lord", "goodwife Maud"
@@ -716,6 +717,9 @@ pub fn authored_lines_by_source() -> Vec<(&'static str, &'static str)> {
     all.extend(crate::game::conversation::HOG_RUN.iter().map(|l| ("hog", *l)));
     all.extend(crate::game::conversation::HOG_GISTS.iter().map(|l| ("hog", *l)));
     all.extend(crate::game::conversation::HOG_FLOOR.iter().map(|l| ("hog", *l)));
+    for h in crate::game::idiolect::HABITS {
+        all.extend(h.lines().iter().map(|l| ("idiolect", *l)));
+    }
     all
 }
 
@@ -814,13 +818,15 @@ mod tests {
         let mut n = 0;
         let mut migrated = 0;
         for t in all_library_lines() {
-            if t.contains("{2:") || t.contains("{2p:") || t.contains("{addr}") {
-                // E4-2/E4-4 migrated this line - the old fills never
+            if t.contains("{2:") || t.contains("{2p:") || t.contains("{addr}")
+                || t.contains("{self}") || t.contains(":self}") {
+                // E4-2/E4-4/E4-7 migrated this line - the old fills never
                 // owned these slots, so there is no old render to
                 // match; it must only resolve every owned slot
                 migrated += 1;
                 let got = realize(t, &Cx::plain(&alys, &corvin, &[]), &mut rng);
-                assert!(!got.contains("{2:") && !got.contains("{2p:") && !got.contains("{addr}"), "line: {t}");
+                assert!(!got.contains("{2:") && !got.contains("{2p:") && !got.contains("{addr}")
+                    && !got.contains("{self}") && !got.contains(":self}"), "line: {t}");
                 continue;
             }
             let want = t.replace("{other}", "Corvin")

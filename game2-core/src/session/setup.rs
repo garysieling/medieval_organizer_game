@@ -607,6 +607,7 @@ impl Game {
             }
             crate::game::persona::cap_cast_ghosts(&mut personas);
             crate::game::cast_check::deal_signatures(&mut personas, seed);
+            crate::game::cast_check::deal_idiolects(&mut personas, seed);
         }
         // 23 vocation adults (0..23), two overseers (23,24), the trader
         // (25), three children (26..29) and the tax collector (29)

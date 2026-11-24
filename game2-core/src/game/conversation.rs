@@ -146,11 +146,15 @@ pub struct Speaker {
     pub archaism: u8,
     /// The bond to whoever they face - `{addr}`'s intimacy reads it
     pub rel: Relation,
+    /// The ear's landmark (E4-7, #1416): a pet phrase and a habit,
+    /// each unique in the village, each spent once a talk -
+    /// `speaker_of` fills it off the persona
+    pub idiolect: Option<crate::game::idiolect::Idiolect>,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, idiolect: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -837,7 +841,7 @@ pub const HOG_RUN: &[&str] = &[
 /// #1403): `{other}` is the listener's name, `{trade}`/`{other_trade}`
 /// each side's work-noun (#1181); the talk's rng backs any draws the
 /// grammar layers add
-fn fill(t: &str, speaker: &Speaker, other: &Speaker, rng: &mut Rng) -> String {
+pub(crate) fn fill(t: &str, speaker: &Speaker, other: &Speaker, rng: &mut Rng) -> String {
     crate::game::text::realize(t, &crate::game::text::Cx::plain(speaker, other, &[]), rng)
 }
 
@@ -1281,6 +1285,10 @@ pub fn converse_with(
     if tr.ending.is_none() {
         tr.ending = Some(Ending::Exhausted);
     }
+    // the ear's landmark (E4-7, #1416): each speaker's phrase and habit
+    // land once, on the first slots they fit - deterministic per turn,
+    // so the replay this builds from keeps its prefix
+    crate::game::idiolect::apply(&mut tr, &pair, player);
     tr
 }
 

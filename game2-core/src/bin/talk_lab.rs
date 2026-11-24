@@ -437,6 +437,12 @@ fn synthetic_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
         }
         let st = STATUSES[rng.below(STATUSES.len())];
         if st != "well" { s.status.push(st); }
+        // the ear's landmark (E4-7, #1416): the index deal, distinct
+        // per speaker like the cast's
+        s.idiolect = Some(game2_core::game::idiolect::Idiolect {
+            phrase: game2_core::game::idiolect::PHRASES[i % game2_core::game::idiolect::PHRASES.len()],
+            habit: game2_core::game::idiolect::HABITS[(i * 7 + 3) % game2_core::game::idiolect::HABITS.len()],
+        });
         s
     }).collect()
 }

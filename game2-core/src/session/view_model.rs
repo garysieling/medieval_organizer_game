@@ -709,6 +709,7 @@ impl Game {
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
                 mystery: self.mystery_panel_line(seat),
                 social, meeting,
+                drama: self.drama_at(seat),
             },
             quest_target: self.seats[seat].quest.as_ref()
                 .and_then(|q| self.quest_target_pos(q)),
@@ -852,6 +853,151 @@ impl Game {
     }
 
     /// The civic event this seat's player is part of, for the camera:
+    /// The campaign arc as structured public data (P3, #1489): the
+    /// phase, the soonest publicly-planned event, what's live, the last
+    /// outcome and the pressure - every field is something the panel,
+    /// the camera or the log already shows, so the director's score
+    /// learns nothing the seat can't see.
+    fn drama_at(&self, seat: usize) -> DramaV {
+        use crate::game::campaign_arc::{ArcRecord, OutcomeKind};
+        use crate::game::actions::TargetResponse;
+        use crate::game::reactions::Reaction;
+        let world = &self.world;
+        let oe = self.seats[seat].org;
+        let campaign = crate::game::campaign::campaign_of(world, oe);
+        let get = |e| world.get_component::<crate::game::campaign::Campaign>(e);
+        let phase = match campaign.and_then(get).map(|c| c.phase) {
+            Some(crate::game::campaign::CampaignPhase::IssueCut) => CampaignPhaseV::IssueCut,
+            Some(crate::game::campaign::CampaignPhase::Research) => CampaignPhaseV::Research,
+            Some(crate::game::campaign::CampaignPhase::Action) => CampaignPhaseV::Action,
+            Some(crate::game::campaign::CampaignPhase::Evaluate) => CampaignPhaseV::Evaluate,
+            _ => CampaignPhaseV::Listening,
+        };
+        // pressure: the same component reads `org_status` strings by -
+        // held means the powers have them, not that they've died
+        let org = world.get_component::<Organization>(oe);
+        let held = |e| world.get_component::<crate::game::dungeon::Imprisoned>(e).is_some()
+            || world.get_component::<crate::game::dungeon::CastleHeld>(e).is_some();
+        let pressure = PressureV {
+            guards_posted: world.get_component::<crate::game::reactions::GuardsPosted>(oe).is_some(),
+            assembly_ban: world.get_component::<crate::game::reactions::AssemblyBan>(oe).is_some(),
+            members_held: org.map(|o| o.members.iter().filter(|&&m| held(m)).count() as u32).unwrap_or(0),
+            leader_taken: org.map(|o| held(o.leader)).unwrap_or(false),
+        };
+        // next: the soonest publicly-planned thing
+        let mut next: Option<PlannedV> = None;
+        {
+            let mut offer = |kind: &str, at: u64| {
+                if next.as_ref().map(|n| at < n.at as u64).unwrap_or(true) {
+                    next = Some(PlannedV { kind: kind.into(),
+                        in_days: (at as i64 - self.tick as i64) as f32,
+                        at: at.min(u32::MAX as u64) as u32 });
+                }
+            };
+            if let Some(a) = campaign.and_then(|e| world.get_component::<crate::game::campaign::Assembly>(e)) {
+                if let Some(ann) = a.announced {
+                    offer("assembly", ann + crate::game::campaign::PUBLISH_GAP);
+                }
+                for p in &a.pledges {
+                    if p.kept.is_none() { offer("pledge", p.deadline); }
+                }
+            }
+            if let Some(m) = campaign.and_then(|e| world.get_component::<crate::game::campaign::CampaignMeeting>(e)) {
+                offer("campaign meeting", m.last_held + m.cadence_days);
+            }
+            for k in 1..=365 {
+                if let Some(f) = subsystems::society::feast_of(self.tick + k) {
+                    offer(f, self.tick + k); break;
+                }
+            }
+            let holy = self.tick - self.tick % routine::HOLY_EVERY + routine::HOLY_EVERY;
+            offer("holy day", holy.max(1));
+        }
+        // live: the column, the gathering, the celebration - same
+        // precedence the camera uses (march over meeting over rite);
+        // the day's set pieces (an assembly sitting, a townhall, a
+        // ballot, a campaign meeting) stamp the day they ran
+        let live = if let Some(f) = &self.formation {
+            let total = f.route.len().max(1) as f32;
+            Some(LiveV {
+                kind: match &f.kind {
+                    formation::FormationKind::March => "march",
+                    formation::FormationKind::Funeral(_) => "funeral",
+                    formation::FormationKind::Parade { feast } =>
+                        if feast.is_some() { "feast" } else { "parade" },
+                }.into(),
+                progress: (f.at as f32 / total).min(1.0),
+            })
+        } else if self.meeting.is_some() {
+            Some(LiveV { kind: "house meeting".into(), progress: 0.0 })
+        } else if campaign
+            .and_then(|e| world.get_component::<crate::game::campaign::Assembly>(e))
+            .map(|a| a.last_held == self.tick && a.held > 0).unwrap_or(false) {
+            Some(LiveV { kind: "assembly".into(), progress: 0.0 })
+        } else if campaign
+            .and_then(|e| world.get_component::<crate::game::campaign::CampaignMeeting>(e))
+            .map(|m| m.last_held == self.tick && m.held > 0).unwrap_or(false) {
+            Some(LiveV { kind: "campaign meeting".into(), progress: 0.0 })
+        } else if self.townhall_day == self.tick {
+            Some(LiveV { kind: "townhall".into(), progress: 0.0 })
+        } else if campaign
+            .and_then(|e| world.get_component::<ArcRecord>(e))
+            .and_then(|r| r.last_outcome)
+            .map(|o| o.day == self.tick
+                && matches!(o.kind, OutcomeKind::Strike { .. })).unwrap_or(false) {
+            Some(LiveV { kind: "strike vote".into(), progress: 0.0 })
+        } else if self.celebrating.is_some() {
+            Some(LiveV { kind: "feast".into(), progress: 0.0 })
+        } else { None };
+        // last: the newest public answer - the arc record's stamp, a
+        // live grant (won at `since`, lapsed at `until`), or a leader
+        // the keep took (their writ day)
+        let mut last: Option<OutcomeV> = None;
+        {
+            let mut offer = |kind: &str, verdict: Verdict, day: u64| {
+                if last.as_ref().map(|o| day > o.day as u64).unwrap_or(true) {
+                    last = Some(OutcomeV { kind: kind.into(), verdict,
+                        day: day.min(u32::MAX as u64) as u32 });
+                }
+            };
+            if let Some(rec) = campaign.and_then(|e| world.get_component::<ArcRecord>(e))
+                .and_then(|r| r.last_outcome) {
+                let (k, v) = match rec.kind {
+                    OutcomeKind::Townhall(TargetResponse::Carries) => ("townhall", Verdict::Win),
+                    OutcomeKind::Townhall(TargetResponse::Concedes) => ("townhall", Verdict::Partial),
+                    OutcomeKind::Townhall(TargetResponse::Deflects) => ("townhall", Verdict::Stall),
+                    OutcomeKind::Townhall(TargetResponse::Refuses) => ("townhall", Verdict::Loss),
+                    OutcomeKind::March(Reaction::Ignored) => ("march", Verdict::Stall),
+                    OutcomeKind::March(Reaction::Watched) => ("march", Verdict::Loss),
+                    OutcomeKind::March(Reaction::Crackdown) => ("march", Verdict::Crackdown),
+                    OutcomeKind::Strike { called: true } => ("strike", Verdict::Partial),
+                    OutcomeKind::Strike { called: false } => ("strike", Verdict::Loss),
+                    OutcomeKind::Pledge { kept: true } => ("pledge", Verdict::Partial),
+                    OutcomeKind::Pledge { kept: false } => ("pledge", Verdict::Loss),
+                    OutcomeKind::GrantHollowed => ("grant diluted", Verdict::Loss),
+                    OutcomeKind::LeaderTaken => ("leader taken", Verdict::Crackdown),
+                };
+                offer(k, v, rec.day);
+            }
+            if let Some(g) = world.get_component::<crate::game::reactions::LordGrant>(oe) {
+                if g.hollow && g.active(self.tick) {
+                    offer("grant diluted", Verdict::Loss, g.since);
+                } else if !g.active(self.tick) {
+                    offer("grant expired", Verdict::Loss, g.until);
+                } else if g.partial {
+                    offer("part grant", Verdict::Partial, g.since);
+                } else {
+                    offer("lord's grant", Verdict::Win, g.since);
+                }
+            }
+            if let Some(imp) = org.map(|o| o.leader)
+                .and_then(|l| world.get_component::<crate::game::dungeon::Imprisoned>(l)) {
+                offer("leader taken", Verdict::Crackdown, imp.since);
+            }
+        }
+        DramaV { phase, next, live, last, pressure }
+    }
+
     /// a march the seat called (the column's live head), a house
     /// meeting it called (its venue), or the village's own gathering:
     /// a rite walking folk to the church door or the stones, and the
@@ -2013,7 +2159,7 @@ fn card_chars(x: i32) -> usize { ((CARD_RX - x) / GLYPH_W).max(10) as usize }
 /// the value
 fn card_prop(lines: &mut Vec<Line>, y: &mut i32, label: &str, value: &str, rgb: (u8, u8, u8)) {
     if value.is_empty() { return; }
-    let vx = CARD_X + (label.chars().count() as i32 + 2) * GLYPH_W;
+    let vx = CARD_X + crate::ui::font::measure(&format!("{}:  ", label));
     lines.push(Line { x: CARD_X, y: *y, text: format!("{}:", label), rgb: (150, 150, 170) });
     for w in wrap_text(value, card_chars(vx)) {
         lines.push(Line { x: vx, y: *y, text: w, rgb });

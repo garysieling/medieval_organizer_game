@@ -414,8 +414,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::ReportMasterless => Button { label: "Report them masterless".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
         // a gift rides the card's bottom row between Seat and Strike
         CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
-        // the sale shares the big row's left half with Gather's
-        CtxAct::Buy => Button { label: "Buy".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (140, 120, 60) },
+
         // the kind hand shares Pet her's slot on the big row's right half -
         // the wire's ctx_labels names the animal it reaches for (#1056)
         CtxAct::Tame => Button { label: "Pet it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
@@ -614,6 +613,10 @@ pub struct Meeting {
     pub probe: bool,
     /// The organizer opens with testimony: the event they tell (#1248)
     pub testimony: Option<String>,
+    /// Everyone the calling plan held a promise from (E8-2, #1444):
+    /// snapshotted at call_meeting_at because the plan itself is
+    /// consumed there - a keeper's arrival is checked against this
+    pub promised: Vec<Entity>,
 }
 
 impl Meeting {
@@ -2662,7 +2665,6 @@ impl Game {
             self.update_ctx_actions_at(seat);
             self.ambient_bench_at(seat);
             self.advance_approach_at(seat);
-            self.advance_buy_walk_at(seat);
             self.advance_selection_at(seat);
         }
         let frame = self.frame_n;

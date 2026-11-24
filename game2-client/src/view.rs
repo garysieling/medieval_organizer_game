@@ -139,6 +139,17 @@ pub(crate) fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
     Some((row, col, col + mz.asker_name.chars().count()))
 }
 
+/// The asker-name span as drawn, in pixels: (row, x0, x1). Char columns
+/// aren't a fixed pitch under per-glyph advance, so anything clicking or
+/// highlighting the name measures the wrapped line's prefix (#1562)
+pub(crate) fn mystery_name_span(mz: &MysteryV) -> Option<(usize, i32, i32)> {
+    let (row, c0, c1) = mystery_name_col(mz)?;
+    let line = wrap_text(&mystery_line(mz), 16).get(row)?.clone();
+    let x_at = |n: usize| UI_X as i32 + 150
+        + measure(&line.chars().take(n).collect::<String>());
+    Some((row, x_at(c0), x_at(c1)))
+}
+
 impl View {
     /// A view of the game drawn with `art`, looking at the market to start
     pub fn new(art: Art) -> View {
@@ -210,7 +221,7 @@ impl View {
             }).collect();
         live.iter().enumerate().map(|(slot, &(i, age))| {
             let t = &toasts[i];
-            let tw = t.text.len() as i32 * GLYPH_W + 16;
+            let tw = measure(&t.text) + 16;
             let rise = age as f32 / TOAST_LIFE as f32 * TOAST_RISE;
             let fade = ((TOAST_LIFE - age) as f32 / TOAST_FADE as f32).min(1.0);
             (i, MAP_W as i32 / 2 - tw / 2, TOAST_TOP + slot as i32 * TOAST_PITCH - rise as i32, tw, fade)
@@ -268,10 +279,8 @@ impl View {
     pub fn mystery_hit(&self, m: &UiModel, mx: i32, my: i32) -> Option<usize> {
         let mz = m.panel.mystery.as_ref()?;
         let asker = mz.asker?;
-        let (row, c0, c1) = mystery_name_col(mz)?;
+        let (row, x0, x1) = mystery_name_span(mz)?;
         let y = 90 + row as i32 * LINE_H;
-        let x0 = UI_X as i32 + 150 + c0 as i32 * GLYPH_W;
-        let x1 = UI_X as i32 + 150 + c1 as i32 * GLYPH_W;
         (mx >= x0 && mx < x1 && my >= y && my < y + LINE_H).then_some(asker)
     }
 
@@ -1141,14 +1150,14 @@ impl View {
             // it in the collision box so a neighbour can't ride over it
             .map(|(t, x, y, _, hungry, _, tgt, _, hearts, member)| {
                 let zone = heart_zone(*hearts);
-                let text_w = t.len() as i32 * GLYPH_W
+                let text_w = measure(t)
                     + if *hungry { GLYPH_W + 2 } else { 0 }
                     + if *member && *hearts > 0.0 { GLYPH_W + 2 } else { 0 }
                     + if *tgt { GLYPH_W + 2 } else { 0 };
                 let x0 = if *tgt { *x - GLYPH_W - 2 } else { *x };
                 let (bx, bw) = if zone > 0 {
                     // the strip centres on the name; widen the box to it
-                    let hx = *x + (t.len() as i32 * GLYPH_W - strip_w) / 2;
+                    let hx = *x + (measure(t) - strip_w) / 2;
                     (x0.min(hx), (x0 + text_w).max(hx + strip_w) - x0.min(hx))
                 } else { (x0, text_w) };
                 (bx, *y - zone, bw, GLYPH_H + 3 + zone)
@@ -1163,7 +1172,7 @@ impl View {
             // warmth floats over the name: the five-heart strip, centred
             // on it - a stranger's name carries none
             if *hearts > 0.0 {
-                draw_hearts(&mut buf, x + (text.len() as i32 * GLYPH_W - strip_w) / 2, y, *hearts, 5);
+                draw_hearts(&mut buf, x + (measure(text) - strip_w) / 2, y, *hearts, 5);
             }
             // the ask's target leads its name: bright when they'd hear it
             // now, dim when the picked one's a walk away
@@ -1173,11 +1182,11 @@ impl View {
             }
             draw_text_outlined(&mut buf, *x, ty, text, *r, *g, *b);
             // hunger indicator, right after the name
-            if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_mark(&mut buf, art.icon(MARK_ICONS[0]), m, (r, g, b), x + text.len() as i32 * GLYPH_W + 2, ty); }
+            if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_mark(&mut buf, art.icon(MARK_ICONS[0]), m, (r, g, b), x + measure(text) + 2, ty); }
             // an org mate's gold pip trails the name, where the warmth
             // that shows it rides over the head
             if *member && *hearts > 0.0 {
-                let mx = x + text.len() as i32 * GLYPH_W + 2
+                let mx = x + measure(text) + 2
                     + if *hungry { GLYPH_W + 2 } else { 0 };
                 let (r2, g2, b2) = ORG_GOLD;
                 draw_rect(&mut buf, mx + 1, ty + 2, 1, 1, r2, g2, b2);
@@ -1185,7 +1194,7 @@ impl View {
                 draw_rect(&mut buf, mx + 1, ty + 4, 1, 1, r2, g2, b2);
             }
             // selection: underline the selected villager's name
-            if *selected { draw_rect(&mut buf, x - 1, ty + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
+            if *selected { draw_rect(&mut buf, x - 1, ty + GLYPH_H + 1, measure(text) + 1, 2, 255, 255, 0); }
         }
         // a grave's hover card: the name and how they went, beside the cursor
         if let Some((name, epi)) = grave_tip {
@@ -1246,15 +1255,17 @@ impl View {
                 // the mouse, the way the log's clickable lines do
                 let span = name_col.and_then(|(row, c0, c1)| (row == n).then_some((c0, c1)));
                 let hovered = span.map(|(c0, c1)| {
-                    mx >= UI_X as i32 + 150 + c0 as i32 * GLYPH_W
-                        && mx < UI_X as i32 + 150 + c1 as i32 * GLYPH_W
+                    let x_at = |n: usize| UI_X as i32 + 150
+                        + measure(&l.chars().take(n).collect::<String>());
+                    mx >= x_at(c0) && mx < x_at(c1)
                         && my >= y && my < y + LINE_H
                 }).unwrap_or(false);
                 draw_text(&mut buf, UI_X as i32 + 150, y, l, 200, 180, 235);
                 if let Some((c0, c1)) = span {
                     let chars: Vec<char> = l.chars().collect();
                     let name: String = chars[c0..c1.min(chars.len())].iter().collect();
-                    let x = UI_X as i32 + 150 + c0 as i32 * GLYPH_W;
+                    let x = UI_X as i32 + 150
+                        + measure(&l.chars().take(c0).collect::<String>());
                     let (r, g, b) = if hovered { (255, 240, 160) } else { (255, 220, 120) };
                     draw_text(&mut buf, x, y, &name, r, g, b);
                 }
@@ -1472,7 +1483,7 @@ impl View {
                 match &day {
                     Some(d) if n == 0 && line.starts_with(d.as_str()) => {
                         draw_text(&mut buf, lx + 4 + dx, y, d, 120, 120, 145);
-                        draw_text(&mut buf, lx + 4 + dx + (d.len() as i32 + 1) * GLYPH_W, y, line[d.len()..].trim_start(), r, g, b);
+                        draw_text(&mut buf, lx + 4 + dx + measure(&format!("{} ", d)), y, line[d.len()..].trim_start(), r, g, b);
                     }
                     _ => { draw_text(&mut buf, lx + 4 + dx, y, line, r, g, b); }
                 }
@@ -1519,7 +1530,7 @@ impl View {
                 mx += 16;
             } else {
                 draw_text(&mut buf, mx, ly, *m, *r, *g, *b);
-                mx += (m.len() as i32 + 1) * GLYPH_W;
+                mx += measure(&format!("{} ", m));
             }
             draw_text(&mut buf, mx, ly, *word, 150, 150, 170);
         }
@@ -1528,7 +1539,7 @@ impl View {
         if tick > 10 && tick % 90 < 3 {
             let sname = match season { Season::Spring => "Spring", Season::Summer => "Summer", Season::Autumn => "Autumn", Season::Winter => "Winter" };
             let banner = format!("{} arrives", sname);
-            let bw = banner.len() as i32 * GLYPH_W + 16;
+            let bw = measure(&banner) + 16;
             buf.rect(MAP_W as i32 / 2 - bw / 2, 56, bw, 16, 20, 20, 35);
             draw_text(&mut buf, MAP_W as i32 / 2 - bw / 2 + 8, 60, &banner, 255, 220, 130);
         }
@@ -1540,7 +1551,7 @@ impl View {
             if let Some(card) = art.feast_card(name) {
                 let cw = (card.width / 3).min(120) as i32;
                 let ch = card.height as i32 * cw / card.width as i32;
-                let nw = name.len() as i32 * GLYPH_W + 12;
+                let nw = measure(name) + 12;
                 let w = cw.max(nw) + 8;
                 let cx = MAP_W as i32 / 2 - w / 2;
                 buf.rect(cx, 52, w, ch + 24, 20, 20, 35);
@@ -1605,7 +1616,7 @@ impl View {
             };
             // the name rides the dot's right, pulled back left when it
             // would run off the panel's edge
-            let lx = (x as i32 + 4).min(W as i32 - 4 - label.len() as i32 * GLYPH_W);
+            let lx = (x as i32 + 4).min(W as i32 - 4 - measure(&label));
             draw_text(&mut buf, lx, y as i32 - 3, &label, r, g, b);
         }
         // graves go down last: a crowd at the graveside mustn't hide one
@@ -1725,32 +1736,32 @@ impl View {
                 draw_text_outlined(&mut buf, 10, 24, &strip, 200, 190, 170);
             } else {
                 // the strip's content width, so the backing rect lands first
-                let mut cw = 9 * GLYPH_W;
+                let mut cw = measure("satchel: ");
                 for (g, n) in &m.player_satchel {
-                    cw += if art.icon(&good_tok(g)).is_some() { 16 } else { g.len() as i32 * GLYPH_W }
-                        + (format!("x{}", n).len() as i32 + 1) * GLYPH_W;
+                    cw += if art.icon(&good_tok(g)).is_some() { 16 } else { measure(g) }
+                        + measure(&format!("x{} ", n));
                 }
                 if m.player_hunger < 40.0 {
-                    cw += 2 * GLYPH_W + if art.icon("icon-hungry").is_some() { 16 } else { 6 * GLYPH_W };
+                    cw += measure("| ") + if art.icon("icon-hungry").is_some() { 16 } else { measure("hungry") };
                 }
                 buf.rect(4, 20, cw + 12, GLYPH_H + 8, 20, 20, 32);
                 let mut sx = 10;
                 draw_text_outlined(&mut buf, sx, 24, "satchel: ", 200, 190, 170);
-                sx += 9 * GLYPH_W;
+                sx += measure("satchel: ");
                 for (g, n) in &m.player_satchel {
                     if draw_icon(&mut buf, art.icon(&good_tok(g)), sx, 22, 14) {
                         sx += 16;
                     } else {
                         draw_text_outlined(&mut buf, sx, 24, g, 200, 190, 170);
-                        sx += g.len() as i32 * GLYPH_W;
+                        sx += measure(g);
                     }
                     let ntxt = format!("x{}", n);
                     draw_text_outlined(&mut buf, sx, 24, &ntxt, 200, 190, 170);
-                    sx += (ntxt.len() as i32 + 1) * GLYPH_W;
+                    sx += measure(&format!("{} ", ntxt));
                 }
                 if m.player_hunger < 40.0 {
                     draw_text_outlined(&mut buf, sx, 24, "| ", 200, 190, 170);
-                    sx += 2 * GLYPH_W;
+                    sx += measure("| ");
                     if !draw_icon(&mut buf, art.icon("icon-hungry"), sx, 22, 14) {
                         draw_text_outlined(&mut buf, sx, 24, "hungry", 200, 190, 170);
                     }
@@ -2028,11 +2039,11 @@ pub fn draw_search_box(buf: &mut Buffer, query: &str, hits: usize, focused: bool
     let status = if query.is_empty() { String::new() }
         else if hits == 0 { "no one by that name".into() }
         else { format!("{} found", hits) };
-    let sw = status.len() as i32 * GLYPH_W;
+    let sw = measure(&status);
     draw_text(buf, SRCH_X + SRCH_W - sw - 6, SRCH_Y + 8, &status, 150, 150, 170);
     if focused {
         // a caret after the typed text so it's plain the box has the keys
-        let cx = SRCH_X + 40 + query.len() as i32 * GLYPH_W + 1;
+        let cx = SRCH_X + 40 + measure(query) + 1;
         buf.rect(cx, SRCH_Y + 6, 1, 10, 220, 220, 235);
     }
 }

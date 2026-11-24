@@ -18,7 +18,7 @@ fn test_the_log_draws_the_day_dim_and_the_message_in_colour() {
         (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == rgb
     }));
     let x = UI_X as i32 + 14;
-    let msg_x = x + 6 * GLYPH_W; // after "day 5 "
+    let msg_x = x + measure("day 5 ");
     assert!(row(x, msg_x - GLYPH_W, (120, 120, 145)), "the day stamp should be dim");
     assert!(!row(x, msg_x - GLYPH_W, (255, 215, 0)), "the day stamp shouldn't take the message colour");
     assert!(row(msg_x, msg_x + 10 * GLYPH_W, (255, 215, 0)), "the guild message keeps its gold");

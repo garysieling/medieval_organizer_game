@@ -17,8 +17,16 @@ use std::io::{self, Write};
 
 use game2_core::game::conversation::{act_fit, converse, Rng, Speaker, Turn};
 use game2_core::game::dialogue_trees::{backstory, village_library};
-use game2_core::game::talk_gen::{generate_roster, gen_conversations, kind_for,
-    RELATIONS};
+use game2_core::game::talk_gen::{cover_branches, generate_roster,
+    gen_conversations, kind_for, RELATIONS};
+
+/// Stratification target (E0-8, #1410): each branch's lines reach
+/// this many samples - 300 would resolve failure rates to ~1% by the
+/// rule of three, 100 is the report's bar
+const BRANCH_TARGET: usize = 100;
+/// The rejection cap: a branch no speaker can reach stops here and is
+/// reported uncovered instead of hanging the run
+const MAX_ATTEMPTS: usize = 40_000;
 
 fn write_rubric<W: Write>(w: &mut W) -> io::Result<()> {
     writeln!(w, "# Conversation System Benchmark & AI Scoring Rubric\n")?;
@@ -53,6 +61,7 @@ fn main() -> io::Result<()> {
     let mut out_path = None;
     let mut json = false;
     let mut coherence = false;
+    let mut real = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -77,6 +86,10 @@ fn main() -> io::Result<()> {
                 json = true;
                 i += 1;
             }
+            "--real" => {
+                real = true;
+                i += 1;
+            }
             "--coherence" => {
                 coherence = true;
                 i += 1;
@@ -94,6 +107,21 @@ fn main() -> io::Result<()> {
 
     let mut rng = Rng::new(seed);
     let library = village_library();
+
+    if real {
+        // the actual cast through setup (E0-8, #1410): personas, marks
+        // and weather ride the speaker table - synthetic traits can't
+        // catch cast-level problems like nine villagers sharing the
+        // soldier brother
+        let g = game2_core::session::Game::new_seeded_cast(seed);
+        let roster: Vec<Speaker> = g.villagers.iter().map(|&v| {
+            game2_core::session::dialogue::speaker_of(&g.world, v,
+                &g.name_of(v), g.tick)
+        }).collect();
+        let cov = cover_branches(&roster, BRANCH_TARGET, MAX_ATTEMPTS,
+            &library, &mut rng);
+        return write_real(&mut out_path, json, seed, &roster, &cov);
+    }
 
     if coherence {
         // score the reply adjacencies that never follow the call (#1367):
@@ -204,6 +232,92 @@ fn main() -> io::Result<()> {
         println!("Generated {} characters and {} conversations -> {}", num_characters, total_conversations, path);
     }
 
+    Ok(())
+}
+
+/// The --real report: JSON carries the coverage map plus the corpus
+/// that earned it; Markdown prints the per-branch coverage table and
+/// the conversations
+fn write_real(out_path: &Option<String>, json: bool, seed: u64,
+    roster: &[Speaker], cov: &game2_core::game::talk_gen::Coverage) -> io::Result<()> {
+    if json {
+        let convs: Vec<serde_json::Value> = cov.talks.iter().enumerate().map(|(i, g)| {
+            let (char_a, char_b) = (&roster[g.a], &roster[g.b]);
+            let t = &g.transcript;
+            let fp = transcript_fingerprint(&t.speakers, &t.turns);
+            serde_json::json!({
+                "id": format!("real-s{}-{}-{:x}", seed, i, fp),
+                "source": "real-cast",
+                "kind": "Chat",
+                "relation": format!("{:?}", g.relation),
+                "rel_kind": g.kind.map(|k| format!("{:?}", k)),
+                "setting": format!("{}{}{}",
+                    g.setting.place.slug(),
+                    if g.setting.law_earshot { "+law" } else { "" },
+                    if g.setting.invited { "+invited" } else { "" }),
+                "speakers": [speaker_json(char_a), speaker_json(char_b)],
+                "trees": t.trees_walked,
+                "ending": format!("{:?}", t.ending.unwrap_or(game2_core::game::conversation::Ending::Exhausted)),
+                "lines": t.turns.iter().map(|turn| serde_json::json!({
+                    "speaker": t.speakers[turn.speaker],
+                    "act": format!("{:?}", turn.act),
+                    "tree": turn.tree,
+                    "channel": format!("{:?}", turn.channel),
+                    "text": turn.text,
+                })).collect::<Vec<_>>(),
+            })
+        }).collect();
+        let coverage: serde_json::Map<String, serde_json::Value> = cov.counts.iter()
+            .map(|(n, c)| (n.to_string(), serde_json::json!(c))).collect();
+        let text = serde_json::to_string(&serde_json::json!({
+            "source": "real-cast",
+            "seed": seed,
+            "target": BRANCH_TARGET,
+            "attempts": cov.attempts,
+            "coverage": coverage,
+            "uncovered": cov.uncovered,
+            "conversations": convs,
+        })).expect("coverage serializes");
+        return match out_path {
+            Some(p) => std::fs::write(p, text),
+            None => writeln!(io::stdout(), "{}", text),
+        };
+    }
+
+    let mut out: Box<dyn Write> = if let Some(path) = out_path {
+        Box::new(File::create(path)?)
+    } else {
+        Box::new(io::stdout())
+    };
+    writeln!(out, "# Real-Cast Branch Coverage (seed {})\n", seed)?;
+    writeln!(out, "Each conversation samples the actual cast through `speaker_of`; the \
+        count is how many of a branch's lines were said. Target {} per branch; \
+        {} pairings rolled.\n", BRANCH_TARGET, cov.attempts)?;
+    writeln!(out, "| Branch | Samples |")?;
+    writeln!(out, "| :--- | ---: |")?;
+    for (name, count) in &cov.counts {
+        let mark = if cov.uncovered.contains(name) { " (uncovered)" } else { "" };
+        writeln!(out, "| {}{} | {} |", name, mark, count)?;
+    }
+    writeln!(out, "\n## Conversations kept ({} of {} added coverage)\n",
+        cov.talks.len(), cov.attempts)?;
+    for (i, g) in cov.talks.iter().enumerate() {
+        let (char_a, char_b) = (&roster[g.a], &roster[g.b]);
+        let t = &g.transcript;
+        writeln!(out, "### Conversation #{:02}: {} and {}", i + 1, char_a.name, char_b.name)?;
+        writeln!(out, "- **Relation:** {:?} | **Trees:** {:?} | **Ending:** {:?}",
+            g.relation, t.trees_walked, t.ending)?;
+        writeln!(out, "\n```text")?;
+        for turn in &t.turns {
+            writeln!(out, "{:10} [{:?} in {:<18}]: \"{}\"",
+                t.speakers[turn.speaker], turn.act, turn.tree, turn.text)?;
+        }
+        writeln!(out, "```\n")?;
+    }
+    if let Some(path) = out_path {
+        println!("Wrote real-cast coverage ({} branches, {} uncovered, {} convs) -> {}",
+            cov.counts.len(), cov.uncovered.len(), cov.talks.len(), path);
+    }
     Ok(())
 }
 

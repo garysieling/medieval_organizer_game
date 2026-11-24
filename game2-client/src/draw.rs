@@ -171,7 +171,7 @@ pub(crate) const BUBBLE_H: i32 = 18;
 /// nudges crowded labels upward, and the bubble must clear the nudged one
 pub(crate) fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str, label_y: Option<i32>) -> Option<(i32, i32, i32)> {
     if sx < 0 || sx >= MAP_W as i32 || sy < 0 || sy >= H as i32 + 60 { return None; }
-    let bw = (text.len() as i32 * GLYPH_W + 12).max(60).min(MAP_W as i32 - 8);
+    let bw = (measure(text) + 12).max(60).min(MAP_W as i32 - 8);
     let bx = (sx - bw / 2).clamp(4, MAP_W as i32 - 4 - bw);
     let label_top = (head_y(sy, zoom) - GLYPH_H - LABEL_GAP).min(label_y.map(|y| y - 4).unwrap_or(i32::MAX));
     let by = (label_top - BUBBLE_H - 8).max(4);
@@ -189,7 +189,7 @@ pub(crate) const SPRITE_HEAD: i32 = -24;
 pub(crate) const LABEL_GAP: i32 = 1;
 
 pub(crate) fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
-    (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - LABEL_GAP)
+    (sx - measure(text) / 2, sy + SPRITE_HEAD - GLYPH_H - LABEL_GAP)
 }
 
 /// The bobbing gold dart over the player's head - the one mark that says
@@ -520,7 +520,7 @@ pub(crate) fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: b
     draw_rect(buf, b.x, b.y, b.w, 1, 255, 255, 255);
     draw_rect(buf, b.x, b.y + b.h - 1, b.w, 1, 20, 20, 20);
     // label centered
-    let tw = b.label.len() as i32 * GLYPH_W;
+    let tw = measure(&b.label);
     draw_text(buf, b.x + (b.w - tw) / 2, b.y + (b.h - GLYPH_H) / 2, &b.label, 255, 255, 255);
     // key hint
     let key = format!("{}", b.key);

@@ -14,7 +14,7 @@ use game2_core::game::pets::Species;
 use game2_core::game::tilemap::{Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use game2_core::sim::climate::Season;
 use game2_core::sim::precipitation::PrecipKind;
-use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled,
+use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled, measure,
     draw_tier, TextTier};
 use game2_core::ui::weather_fx;
 

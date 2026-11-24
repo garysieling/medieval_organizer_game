@@ -37,10 +37,21 @@ pub enum Instrument {
     /// Hand bells, tubular bells, finger cymbals, sleigh bells.
     Bells,
     HurdyGurdy,
+    // The rest of the design's Instruments table (M2): harmony strings
+    // the theory didn't need yet, the pulse section (unpitched - the
+    // ranges are a play band, not a compass), and the choir pad.
+    Strumstick,
+    FrameDrum,
+    Tabor,
+    Timpani,
+    BassDrum,
+    Tambourine,
+    FingerCymbals,
+    ChoirPad,
 }
 
 impl Instrument {
-    pub const ALL: [Instrument; 16] = [
+    pub const ALL: [Instrument; 24] = [
         Instrument::RecorderSoprano,
         Instrument::RecorderAlto,
         Instrument::RecorderTenor,
@@ -57,6 +68,14 @@ impl Instrument {
         Instrument::Organ,
         Instrument::Bells,
         Instrument::HurdyGurdy,
+        Instrument::Strumstick,
+        Instrument::FrameDrum,
+        Instrument::Tabor,
+        Instrument::Timpani,
+        Instrument::BassDrum,
+        Instrument::Tambourine,
+        Instrument::FingerCymbals,
+        Instrument::ChoirPad,
     ];
 
     /// Sounding range as inclusive midi notes (low, high).
@@ -78,6 +97,15 @@ impl Instrument {
             Instrument::Organ => (36, 84),           // C2-C6
             Instrument::Bells => (72, 96),           // C5-C8
             Instrument::HurdyGurdy => (43, 74),      // G2-D5
+            Instrument::Strumstick => (50, 79),      // D3-G5, the three strings
+            // unpitched: the band the arranger writes their hits in
+            Instrument::FrameDrum => (36, 48),
+            Instrument::Tabor => (48, 60),
+            Instrument::Timpani => (38, 55),         // D2-G3 orchestral set
+            Instrument::BassDrum => (24, 48),
+            Instrument::Tambourine => (60, 84),
+            Instrument::FingerCymbals => (84, 108),
+            Instrument::ChoirPad => (48, 72),        // C3-C5 'ooh'
         }
     }
 

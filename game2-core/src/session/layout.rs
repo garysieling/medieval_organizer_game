@@ -145,9 +145,11 @@ pub fn edge_scroll(mx: i32, my: i32) -> (f32, f32) {
     (push(mx, MAP_W as i32), push(my, H as i32))
 }
 
-/// Font glyph width and height (ui::font): the Jacquarda blackletter's
-/// 10x13 cell at an 11px advance (#1322)
-pub const GLYPH_W: i32 = 11;
+/// Font glyph budget and height (ui::font): the Jacquarda blackletter
+/// draws per-glyph now - advances run ~4-12px, so this is the
+/// chars-per-line budget only; a real string width comes from
+/// `font::measure` (#1322, #1562)
+pub const GLYPH_W: i32 = 9;
 
 pub const GLYPH_H: i32 = 13;
 

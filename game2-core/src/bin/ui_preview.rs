@@ -4,8 +4,8 @@
 use game2_core::engine::ecs::World;
 use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::{Sprite, Assets};
-use game2_core::ui::font::{draw_text, draw_text_scaled};
-use game2_core::session::layout::{GLYPH_W, GLYPH_H};
+use game2_core::ui::font::{draw_text, draw_text_scaled, measure};
+use game2_core::session::layout::GLYPH_H;
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Pos};
 use game2_core::game::player::PlayerCharacter;
@@ -31,7 +31,7 @@ fn draw_button(buf: &mut Buffer, b: &Button) {
     buf.rect(b.x, b.y, b.w, b.h, b.color.0, b.color.1, b.color.2);
     buf.rect(b.x, b.y, b.w, 1, 255, 255, 255);
     buf.rect(b.x, b.y + b.h - 1, b.w, 1, 20, 20, 20);
-    let tw = b.label.len() as i32 * GLYPH_W;
+    let tw = measure(&b.label);
     draw_text(buf, b.x + (b.w - tw) / 2, b.y + (b.h - GLYPH_H) / 2, b.label, 255, 255, 255);
     let key = format!("{}", b.key);
     draw_text(buf, b.x + b.w - 10, b.y + 2, &key, 180, 180, 200);
@@ -222,7 +222,7 @@ fn main() {
 
     // toast
     let msg = "The Merchant Guild forms!";
-    let tw = msg.len() as i32 * GLYPH_W + 16;
+    let tw = measure(msg) + 16;
     buf.rect(MAP_W as i32 / 2 - tw / 2, 40, tw, 20, 20, 20, 35);
     buf.rect(MAP_W as i32 / 2 - tw / 2, 40, tw, 1, 255, 215, 0);
     draw_text(&mut buf, MAP_W as i32 / 2 - tw / 2 + 8, 46, msg, 255, 220, 130);

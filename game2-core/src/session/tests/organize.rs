@@ -782,7 +782,7 @@ fn test_coin_buys_an_ask_the_bond_cant_reach() {
     // they'll take coin - nothing in them refuses the asking
     g.world.add_component(v, crate::game::traits::Personality { traits: vec![] });
     // nothing heard, nothing between you: coin's the only key that turns
-    let offers = ask_offers(&g.world, g.org, v, 0, g.tick);
+    let offers = ask_offers(&g.world, g.player, g.org, v, 0, g.tick);
     assert!(offers.iter().all(|o| o.key == AskKey::Coin), "{:?}", offers);
     let o = offers.iter().find(|o| o.kind == PropKind::ComeAlong).expect("come is priced");
     assert!(ask_label(&g.world, g.player, v, o).contains("for "), "{}", ask_label(&g.world, g.player, v, o));
@@ -840,7 +840,7 @@ fn test_nerve_presses_past_the_stage_gate() {
     }
     // an acquaintance: the meeting asks are above their rung, so the
     // press - not the plain ask - is what's on the table for them
-    let offers = ask_offers(&g.world, g.org, v, 0, g.tick);
+    let offers = ask_offers(&g.world, g.player, g.org, v, 0, g.tick);
     let pressed = offers.iter().find(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve);
     assert!(pressed.is_some(), "{:?}", offers);
     assert!(!offers.iter().any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Earned));
@@ -880,10 +880,10 @@ fn test_a_short_purse_offers_no_coin() {
     g.world.get_component_mut::<Purse>(pe).unwrap().gold = 0.0;
     // the stranger has nothing for you: coin's the only key that turns
     // for them, and yours is empty
-    assert!(ask_offers(&g.world, g.org, v, 0, g.tick).is_empty());
+    assert!(ask_offers(&g.world, g.player, g.org, v, 0, g.tick).is_empty());
     // someone you've heard still takes the press, free of coin
     let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, heard_v, __r); }
-    let offers = ask_offers(&g.world, g.org, heard_v, 0, g.tick);
+    let offers = ask_offers(&g.world, g.player, g.org, heard_v, 0, g.tick);
     assert!(offers.iter().all(|o| o.key == AskKey::Nerve), "{:?}", offers);
 }
 
@@ -901,20 +901,45 @@ fn test_a_refused_ask_cools_off_for_the_season() {
     record_interaction(&mut g.world, pe, Interaction {
         other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
     let (oe, tick) = (g.org, g.tick);
-    assert!(ask_offers(&g.world, oe, v, 0, tick).iter()
+    assert!(ask_offers(&g.world, pe, oe, v, 0, tick).iter()
         .any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve),
         "the press is on the table");
     let (msg, _) = propose_keyed(&mut g.world, pe, oe, v, PropKind::ComeAlong,
         "Bram", 1.0, tick, AskKey::Nerve, 0.0);
     assert!(msg.contains("won't hear it"), "{}", msg);
-    assert!(!ask_offers(&g.world, oe, v, 0, tick).iter()
+    assert!(!ask_offers(&g.world, pe, oe, v, 0, tick).iter()
         .any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve),
         "the refused ask cools off");
     // the season out, it's back - hearts change, the second ask lands
     // on a new roll
-    assert!(ask_offers(&g.world, oe, v, 0, tick + crate::game::organizing::ASK_COOLDOWN_DAYS).iter()
+    assert!(ask_offers(&g.world, pe, oe, v, 0, tick + crate::game::organizing::ASK_COOLDOWN_DAYS).iter()
         .any(|o| o.kind == PropKind::ComeAlong && o.key == AskKey::Nerve),
         "the ask re-qualifies when its days are out");
+}
+
+/// A successor's own hearing and bond unlock the ask, not the org's
+/// nominal leader's (#1404): succession can split the two - the seat
+/// that talks is the seat that's asked against
+#[test]
+fn test_asks_unlock_on_the_speaking_player_not_a_divergent_leader() {
+    use crate::game::organizing::{ask_offers, AskKey, PropKind};
+    use crate::game::desires::{note, Problem, Reveal, Want};
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    let mut g = Game::new();
+    let (pe, v, other_leader) = (g.player, g.villagers[1], g.villagers[2]);
+    // the org's recorded leader has drifted from this seat's own player -
+    // they've heard nothing of v and share no bond with them
+    g.world.get_component_mut::<Organization>(g.org).unwrap().leader = other_leader;
+    // the seat's own player is who actually talked to v: bonded, and
+    // heard enough to count as known
+    record_interaction(&mut g.world, pe, Interaction {
+        other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
+    for r in [Reveal::Problem(Problem::Taxed), Reveal::Want(Want::Love), Reveal::Want(Want::Music)] {
+        note(&mut g.world, pe, v, r);
+    }
+    let offers = ask_offers(&g.world, pe, g.org, v, 0, g.tick);
+    assert!(offers.iter().any(|o| o.kind == PropKind::InviteFriends && o.key == AskKey::Earned),
+        "{:?} - the speaking player's own bond and hearing unlock the ask", offers);
 }
 
 /// A purchased yes reads cheap at the reckoning (#1225): bought
@@ -1233,11 +1258,11 @@ fn test_the_scout_ask_names_who_the_room_follows() {
     let mut g = Game::new();
     let (pe, talker, bellwether) = (g.player, g.villagers[1], g.villagers[2]);
     // a stranger reads no room for you; an acquaintance does
-    assert!(!ask_offers(&g.world, g.org, talker, 0, g.tick).iter().any(|o| o.kind == PropKind::Scout));
+    assert!(!ask_offers(&g.world, g.player, g.org, talker, 0, g.tick).iter().any(|o| o.kind == PropKind::Scout));
     relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
         other: talker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
     assert_eq!(stage_of(&g.world, pe, talker), RelStage::Acquaintance);
-    assert!(ask_offers(&g.world, g.org, talker, 0, g.tick).iter().any(|o| o.kind == PropKind::Scout));
+    assert!(ask_offers(&g.world, g.player, g.org, talker, 0, g.tick).iter().any(|o| o.kind == PropKind::Scout));
     // the bellwether holds strong family bonds - the room leans on them
     for kin in g.villagers.iter().copied().skip(3).take(6) {
         let r = g.world.create_entity();

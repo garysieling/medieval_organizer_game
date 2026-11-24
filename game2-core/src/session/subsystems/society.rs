@@ -1386,6 +1386,9 @@ impl Game {
                 name: self.name_of(succ),
                 resources: res,
             });
+            // the seat's hearing is the successor's now - it lived on the
+            // dying player's entity, not the organization (#1404)
+            desires::transfer_known(&mut self.world, dead, succ);
             let name = self.name_of(succ);
             self.seats[seat].player = succ;
             self.log_entity_ev(

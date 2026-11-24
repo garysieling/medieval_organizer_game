@@ -58,10 +58,10 @@ fn test_the_counter_is_named_only_once_they_have_signed_on() {
     let i = adult(&g);
     let v = g.villagers[i];
     let org = g.org;
-    assert!(!crate::game::organizing::ask_offers(&g.world, org, v, 0, g.tick).iter()
+    assert!(!crate::game::organizing::ask_offers(&g.world, g.player, org, v, 0, g.tick).iter()
         .any(|o| o.kind == crate::game::organizing::PropKind::Inoculate), "not before they've committed");
     sign_on(&mut g, v);
-    assert!(crate::game::organizing::ask_offers(&g.world, org, v, 0, g.tick).iter()
+    assert!(crate::game::organizing::ask_offers(&g.world, g.player, org, v, 0, g.tick).iter()
         .any(|o| o.kind == crate::game::organizing::PropKind::Inoculate), "offered once they're in");
 }
 

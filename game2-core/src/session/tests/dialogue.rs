@@ -1590,7 +1590,7 @@ fn test_the_probe_leaves_the_offer_when_theres_nothing_left_to_hear() {
     let all = crate::game::desires::unrevealed(&g.world, g.player, v, g.tick);
     let __pe = g.player; for __r in all { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     assert!(!crate::game::desires::probe_open(&g.world, g.player, v, g.tick));
-    let offers = crate::game::organizing::ask_offers(&g.world, g.org, v, 0, g.tick);
+    let offers = crate::game::organizing::ask_offers(&g.world, g.player, g.org, v, 0, g.tick);
     assert!(!offers.iter().any(|o| o.kind == crate::game::organizing::PropKind::Probe),
         "nothing left to plant or hear, no probe on offer");
 }

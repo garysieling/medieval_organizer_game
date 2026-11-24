@@ -1280,7 +1280,8 @@ impl Game {
             villager.status.push("cause_member");
         }
         // the line they read you by moves what they'll hear a rung (#1236)
-        let mut asks = crate::game::organizing::ask_offers(&self.world, self.seats[seat].org, v,
+        let mut asks = crate::game::organizing::ask_offers(&self.world,
+            self.seats[seat].player, self.seats[seat].org, v,
             crate::game::rhetoric::ask_shift(&self.world, v, self.seats[seat].org), self.tick);
         // pressing is the act (#1226): the tally counts this talk the
         // moment it opens, whoever's seat asked - and it lifts at dawn
@@ -1425,7 +1426,7 @@ impl Game {
                 crate::game::episodes::MemKind::AskedTooSoon, self.tick, &["ask"]);
             if t.vibe == Some(Vibe::Safe) {
                 let mut asks = crate::game::organizing::ask_offers(
-                    &self.world, self.seats[seat].org, t.who,
+                    &self.world, self.seats[seat].player, self.seats[seat].org, t.who,
                     -1 + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org),
                     self.tick);
                 asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
@@ -1449,7 +1450,7 @@ impl Game {
             // you as safe hears a deeper ask early; a miss keeps what
             // they offer slow - anything already put stays spent
             let mut asks = crate::game::organizing::ask_offers(
-                &self.world, self.seats[seat].org, t.who,
+                &self.world, self.seats[seat].player, self.seats[seat].org, t.who,
                 if safe { 1 } else { -1 } + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org), self.tick);
             asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
             if let Some(cur) = self.seats[seat].talk.as_mut() {
@@ -2220,7 +2221,7 @@ impl Game {
             // repair reopens the ask path: the asks a slight cleared
             // come back on the table - the work isn't over, it's heard
             let mut asks = crate::game::organizing::ask_offers(
-                &self.world, oe, who, crate::game::rhetoric::ask_shift(&self.world, who, oe), self.tick);
+                &self.world, pe, oe, who, crate::game::rhetoric::ask_shift(&self.world, who, oe), self.tick);
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 asks.retain(|o| !cur.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
                 cur.asks = asks;

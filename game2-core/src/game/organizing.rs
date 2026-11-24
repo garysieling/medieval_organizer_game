@@ -1198,17 +1198,15 @@ fn note_declined(world: &mut World, org: Entity, person: Entity, o: AskOffer, ti
 /// bond reaches, and where the ladder locks one out, the coin's priced
 /// variant (which reaches anyone the purse can pay) and the nerve's
 /// pressed one (which needs a piece of them heard to pull on). Asks
-/// refused inside the season stay off the table (#1347).
-pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u64) -> Vec<AskOffer> {
-    // the ledger's the org leader's own: asks ride on what this seat
-    // heard, not what some other seat did
-    let (stage, purse, leader) = world.get_component::<Organization>(org)
-        .map(|o| (stage_of(world, o.leader, person),
-            world.get_component::<crate::game::livelihood::Purse>(o.leader)
-                .map(|p| p.gold).unwrap_or(0.0), Some(o.leader)))
-        .unwrap_or((RelStage::Stranger, 0.0, None));
-    let heard = leader.map(|l| !crate::game::desires::known(world, l, person).is_empty())
-        .unwrap_or(false);
+/// refused inside the season stay off the table (#1347). `organizer`
+/// is the speaking player, not the org's nominal leader (#1404): a
+/// successor who split from the leader still asks on their own hearing,
+/// stage, and purse - the same seat `propose_keyed` resolves against.
+pub fn ask_offers(world: &World, organizer: Entity, org: Entity, person: Entity, shift: i8, tick: u64) -> Vec<AskOffer> {
+    let stage = stage_of(world, organizer, person);
+    let purse = world.get_component::<crate::game::livelihood::Purse>(organizer)
+        .map(|p| p.gold).unwrap_or(0.0);
+    let heard = !crate::game::desires::known(world, organizer, person).is_empty();
     let reached = bumped(stage, shift);
     let mut out = vec![];
     // the argument's no ask at all now (#1348): the words carry it -
@@ -1223,7 +1221,7 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u
     // the probing question (#1269): the thaw move the talk shares with
     // the meeting - only while there's a want left to plant
     if reached >= RelStage::Acquaintance
-        && leader.map(|l| crate::game::desires::probe_open(world, l, person, tick)).unwrap_or(false) {
+        && crate::game::desires::probe_open(world, organizer, person, tick) {
         out.push(AskOffer { kind: PropKind::Probe, key: AskKey::Earned, price: 0.0 });
     }
     for p in ask_candidates(world, org, person) {

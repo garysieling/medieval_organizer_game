@@ -151,9 +151,19 @@ pub struct Domination {
 /// the seat's own ledger of who told them what (E7-1, #1404). It lives
 /// on the seat's player entity - one seat's hearing is invisible to
 /// another
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Known {
     pub revealed: crate::engine::det::HashMap<Entity, Vec<Reveal>>,
+}
+
+/// Carry `from`'s ledger to `to` (succession, #1404): the dying seat's
+/// hearing becomes the successor's, replacing anything `to` already had
+/// rather than merging with it (a fresh player has nothing to merge)
+pub fn transfer_known(world: &mut World, from: Entity, to: Entity) {
+    if let Some(k) = world.get_component::<Known>(from).cloned() {
+        world.remove_component::<Known>(from);
+        world.add_component(to, k);
+    }
 }
 
 /// The seat's record of `e`: what `knower` has already heard them tell

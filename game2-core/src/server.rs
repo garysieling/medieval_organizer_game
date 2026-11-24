@@ -121,8 +121,10 @@ struct SaveFile {
 }
 
 // bumped past 2: the Build button is gone, so an old save's Act(2) journal
-// entry would replay as a no-op and the world would diverge from its digest
-const SAVE_VERSION: u32 = 3;
+// entry would replay as a no-op and the world would diverge from its digest.
+// Bumped past 3: Known moved from the villager to the seat (#1404), so an
+// old save's TalkPick could resolve a different menu entry on replay
+const SAVE_VERSION: u32 = 4;
 
 impl ServerHandle {
     /// Stop the world loop and the listeners; connections close as their

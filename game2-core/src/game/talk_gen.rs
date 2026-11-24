@@ -205,14 +205,17 @@ pub fn cover_branches(roster: &[Speaker], target: usize, max_attempts: usize,
         let setting = spread_setting(rng);
         let t = converse_at(&roster[a], &roster[b], relation, kind,
             library, None, &setting, rng);
-        let mut added = false;
-        for turn in &t.turns {
-            if let Some(c) = counts.iter_mut().find(|(n, _)| *n == turn.tree) {
-                c.1 += 1;
-                if c.1 <= target { added = true; }
+        let added = t.turns.iter().any(|turn| {
+            counts.iter().any(|&(name, count)| name == turn.tree && count < target)
+        });
+        if added {
+            for turn in &t.turns {
+                if let Some(c) = counts.iter_mut().find(|(n, _)| *n == turn.tree) {
+                    c.1 += 1;
+                }
             }
+            talks.push(GenTalk { a, b, relation, kind, setting, transcript: t });
         }
-        if added { talks.push(GenTalk { a, b, relation, kind, setting, transcript: t }); }
     }
     let uncovered = counts.iter().filter(|&&(_, c)| c < target)
         .map(|&(n, _)| n).collect();

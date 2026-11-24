@@ -960,6 +960,13 @@ impl Game {
             .unwrap_or_else(|| "someone".into())
     }
 
+    /// The same undecorated cast name gameplay speaks with (`name_of`),
+    /// for callers outside `session` building a `Speaker` from the real
+    /// cast - never the map-label text, which carries role/campaign tags
+    pub fn villager_name(&self, e: Entity) -> String {
+        self.name_of(e)
+    }
+
     /// Try to kindle something between `a` and another lonely heart.
     /// `broker` pockets the fee if a match catches; `who` is who the log
     /// credits - "the heart-helper", or "you" when the player brokers it

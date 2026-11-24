@@ -3378,9 +3378,15 @@ impl Game {
     }
 
     /// The carried roof-mending, on the button or the floor (#1337):
-    /// the purse meets the carpenter's bill or the motion fails on it
+    /// the purse meets the carpenter's bill or the motion fails on it.
+    /// A hall already mended by the other path doesn't bill twice -
+    /// the slate can still offer it stale, picked after the button beat
+    /// it to the repair
     fn mend_hall_at(&mut self, seat: usize) -> String {
         let oe = self.seats[seat].org;
+        if self.world.get_component::<crate::game::organizing::HallDamaged>(oe).is_none() {
+            return "The hall doesn't need mending.".into();
+        }
         let purse = self.world.get_component::<Organization>(oe)
             .map(|o| o.resources).unwrap_or(0.0);
         if purse < crate::game::organizing::HALL_REPAIR_COST {

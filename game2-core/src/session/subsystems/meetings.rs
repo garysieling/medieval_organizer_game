@@ -328,13 +328,15 @@ impl Game {
             // itself - the floor's deciding, the day doesn't pre-empt
             // the vote with a meeting of its own (#1157)
             if seat.map(|s| s.pending_agenda.is_some()).unwrap_or(false) { continue; }
-            // a called meeting landing today holds the cadence itself
-            // (#1337): the gathering's the meeting - the tick doesn't
-            // run a shadow one beside it
-            let gathering = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                .map(|cc| cc.org).and_then(|org|
-                    self.world.get_component::<crate::game::organizing::MeetingPlan>(org)
-                        .map(|p| p.for_day == Some(tick))).unwrap_or(false);
+            // a called meeting under way for this org holds the cadence
+            // itself (#1337): the gathering's the meeting - the tick
+            // doesn't run a shadow one beside it. Checked against the
+            // live gathering, not the plan's `for_day`: calling it
+            // consumes that date before the gathering resolves, so a
+            // stale-date check would miss it and double up the meeting
+            let org = self.world.get_component::<crate::game::campaign::Campaign>(c).map(|cc| cc.org);
+            let gathering = self.meeting.as_ref()
+                .map(|m| Some(self.seats[m.seat].org) == org).unwrap_or(false);
             if gathering { continue; }
             let player = seat.map(|s| s.player);
             if let Some((msg, attendees)) = self.hold_and_note_campaign_meeting(player, c, tick) {

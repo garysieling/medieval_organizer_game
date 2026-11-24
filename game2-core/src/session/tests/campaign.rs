@@ -974,6 +974,7 @@ fn test_the_raising_turns_the_village_out() {
 /// resolve - and the day's own tick stands down for it
 #[test]
 fn test_the_gathered_meeting_holds_the_cadence() {
+    use super::fixtures::plan_ready_meeting;
     let mut g = Game::new();
     for &v in &g.villagers[..3] {
         desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
@@ -989,13 +990,24 @@ fn test_the_gathered_meeting_holds_the_cadence() {
     // meeting beside it
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
+    let host = g.villagers[4];
+    let coming: Vec<Entity> = g.villagers[..3].to_vec();
+    plan_ready_meeting(&mut g, host, (16.0, 16.0), &coming);
     let (oe, today) = (g.org, g.tick);
     crate::game::organizing::plan_for(&mut g.world, oe).for_day = Some(today);
-    g.campaign_meeting_tick(g.tick);
+    // the day's own tick fires the call before it runs the campaign's
+    // (#1547 review) - a real gathering is already under way by the
+    // time campaign_meeting_tick sees it, not just a dated plan that's
+    // already been consumed
+    g.livelihood_tick(today);
+    assert!(g.meeting.is_some(), "the day fires the call: {:?}", g.log.last());
     assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap().held, 0,
         "the tick held a meeting beside the gathering");
     // the gathering resolves: the room's own call shows first, the
-    // cause's floor sits behind it
+    // cause's floor sits behind it. The resolve itself is modeled
+    // through the same record/resolve pair the rest of this file uses
+    // rather than walking frames to the live gathering's own finish
+    g.meeting = None;
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
     let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
@@ -1070,6 +1082,43 @@ fn test_the_floor_mends_the_hall() {
     // the hat can pass at the same sitting - the bill's still bigger
     // than the dues, so the chest ends lighter than it started
     assert!(purse_after < purse_before, "the purse never paid the bill: {purse_before} -> {purse_after}");
+}
+
+/// A hall the button already mended doesn't bill the floor's pick too
+/// (#1337 review): a slate drawn before the repair can still offer
+/// MendHall - carrying it once the roof's already fixed costs nothing
+#[test]
+fn test_a_mended_hall_is_not_billed_twice() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.add_component(g.org, crate::game::organizing::HallDamaged);
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources =
+        crate::game::organizing::HALL_REPAIR_COST + 5.0;
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 0;
+    g.seats[0].ctx_actions.push(CtxAct::Meet);
+    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|m| matches!(m, crate::game::campaign::Motion::MendHall))
+        .expect("a roofless hall puts the mending on the slate: {slate:?}");
+    // the other path beat the slate to it: the roof's already fixed
+    g.world.remove_component::<crate::game::organizing::HallDamaged>(g.org);
+    let purse_before = g.world.get_component::<Organization>(g.org).unwrap().resources;
+    g.decide_at(0, pick);
+    let purse_after = g.world.get_component::<Organization>(g.org).unwrap().resources;
+    // the sitting's own dues can still nudge the purse up a little (as
+    // the sibling test notes) - the repair's bill is what must not
+    // land twice, and that bill dwarfs any dues this sitting collects
+    assert!(purse_after >= purse_before,
+        "a stale pick on an already-mended hall still billed: {purse_before} -> {purse_after}");
 }
 
 /// The room's tally rides the slate once the cause has met (#1337):

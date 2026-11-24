@@ -383,6 +383,31 @@ fn an_unwritable_save_fails_the_start_and_a_tmp_named_save_is_safe() {
 }
 
 #[test]
+fn a_save_whose_journal_predates_this_build_is_rejected() {
+    // the outer save version and the journal's own can drift apart - one
+    // bumped without the other (#1547 review) - so a stale journal must
+    // be caught on its own version, not just the save file's
+    let dir = std::env::temp_dir().join(format!("game2-stale-journal-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let save = dir.join("village.json");
+    let _ = std::fs::remove_file(&save);
+    let cfg = || ServerConfig { save: Some(save.clone()), save_every: Duration::from_secs(3600), ..fast() };
+    let server = start_with(cfg());
+    std::thread::sleep(Duration::from_millis(200));
+    server.stop(); // writes a legitimately current save
+    assert!(save.exists());
+
+    let mut doc: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&save).unwrap()).unwrap();
+    let v = doc["journal"]["version"].as_u64().unwrap();
+    assert!(v > 0, "a fresh save's journal carries this build's version");
+    doc["journal"]["version"] = serde_json::Value::from(v - 1);
+    std::fs::write(&save, serde_json::to_string(&doc).unwrap()).unwrap();
+
+    assert!(serve(cfg()).is_err(), "a save whose journal predates this build's version started anyway");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn a_flooding_client_is_told_to_slow_down_and_others_play_on() {
     let server = start(None);
     let mut flood = connect(server.addr);

@@ -39,7 +39,7 @@ pub(crate) const HELP_LINES: [&str; 10] = [
     "click villager: select + inspect",
     "bright name: close enough to talk",
     "1-8: select villager",
-    "T talk  R recruit  I invest",
+    "T talk",
     "O organize",
     "WASD: move   arrows: pan   +/-: zoom",
     "Space: pause   0: speed 4x",
@@ -233,6 +233,31 @@ pub(crate) fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * GLYPH_W as usize * scale) as i32 - scale as i32
 }
 
+/// How wide the muted-speaker glyph's box is - the HUD strip grows by
+/// this much while `View.mute` is on (#1505)
+pub(crate) const MUTE_GLYPH_W: i32 = 16;
+
+/// Where the muted-speaker glyph starts in the HUD strip (#1505):
+/// right after the season line's text, on the icon row. Render and
+/// the draw test agree through here.
+pub(crate) fn mute_glyph_x(hud: &str, icon_w: i32) -> i32 {
+    10 + icon_w + text_width(hud, 1) + 4
+}
+
+/// The muted-speaker mark (#1505): a little horn crossed out, drawn at
+/// the end of the HUD strip while `View.mute` is on. 12 px wide on the
+/// icon row, in the strip's own palette.
+pub(crate) fn draw_mute_glyph(buf: &mut Buffer, x: i32, y: i32) {
+    // the horn: a speaker box with a wedge opening right
+    buf.rect(x, y + 4, 3, 6, 255, 232, 160);
+    for i in 0..4 { buf.rect(x + 3 + i, y + 3 - i, 1, 8 + i * 2, 255, 232, 160); }
+    // the slash, two px wide so it reads at this size
+    for i in 0..12 {
+        buf.set(x + i, y + 11 - i, 220, 90, 70);
+        buf.set(x + i, y + 10 - i, 220, 90, 70);
+    }
+}
+
 /// Draw `text` horizontally centred on x = `cx` at row `y`
 pub(crate) fn draw_centered_at(buf: &mut Buffer, cx: i32, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
     draw_text_scaled(buf, cx - text_width(text, scale) / 2, y, text, scale, r, g, b);
@@ -248,6 +273,8 @@ pub(crate) fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, 
 pub enum MenuPick {
     /// Close the menu and go on with the day
     Resume,
+    /// Open the Sound overlay over the menu (#1506)
+    Sound,
     /// Leave the day entirely - the window closes clean
     Quit,
 }
@@ -255,25 +282,26 @@ pub enum MenuPick {
 pub(crate) const MENU_W: i32 = 220;
 pub(crate) const MENU_ROW: i32 = 24;
 
-/// The pause menu's box and its two rows, centred on the map view
+/// The pause menu's box and its three rows, centred on the map view
 #[cfg(test)]
 pub(crate) fn pause_menu_box() -> (i32, i32, i32, i32) {
-    overlay_rect(MENU_W, 2, MENU_ROW, false)
+    overlay_rect(MENU_W, 3, MENU_ROW, false)
 }
 
-/// The pause menu's row rects, in draw order: Resume then Quit
-pub fn pause_menu_rows() -> [(i32, i32, i32, i32, MenuPick); 2] {
-    let (x, y, w, _) = overlay_rect(MENU_W, 2, MENU_ROW, false);
+/// The pause menu's row rects, in draw order: Resume, Sound, Quit
+pub fn pause_menu_rows() -> [(i32, i32, i32, i32, MenuPick); 3] {
+    let (x, y, w, _) = overlay_rect(MENU_W, 3, MENU_ROW, false);
     [
         (x + 8, y + 52, w - 16, MENU_ROW, MenuPick::Resume),
-        (x + 8, y + 52 + MENU_ROW + 2, w - 16, MENU_ROW, MenuPick::Quit),
+        (x + 8, y + 52 + MENU_ROW + 2, w - 16, MENU_ROW, MenuPick::Sound),
+        (x + 8, y + 52 + (MENU_ROW + 2) * 2, w - 16, MENU_ROW, MenuPick::Quit),
     ]
 }
 
-/// Draw the pause menu over the day's frame: two bordered rows like the
+/// Draw the pause menu over the day's frame: three bordered rows like the
 /// conversation box's choices, a hover lighting the one under the mouse
 pub fn draw_pause_menu(buf: &mut Buffer, mouse: (i32, i32), title: &str) {
-    let (x, y, w, h) = overlay_rect(MENU_W, 2, MENU_ROW, false);
+    let (x, y, w, h) = overlay_rect(MENU_W, 3, MENU_ROW, false);
     buf.rect(x, y, w, h, 20, 20, 35);
     buf.rect(x, y, w, 2, 200, 200, 220);
     draw_centered_at(buf, x + w / 2, y + 15, title, 2, (255, 220, 130));
@@ -288,6 +316,7 @@ pub fn draw_pause_menu(buf: &mut Buffer, mouse: (i32, i32), title: &str) {
         buf.rect(rx + rw - 1, ry, 1, rh, edge.0, edge.1, edge.2);
         let (label, lr, lg, lb) = match pick {
             MenuPick::Resume => ("Resume  (Esc)", 210, 230, 210),
+            MenuPick::Sound => ("Sound...  (V)", 215, 200, 150),
             MenuPick::Quit => ("Quit the day  (Q)", 220, 160, 140),
         };
         draw_centered_at(buf, rx + rw / 2, ry + 8, label, 1, (lr, lg, lb));
@@ -335,7 +364,7 @@ pub fn render_title() -> Buffer {
     draw_centered(&mut tbuf, 230, "an outsider builds power", 2, (200, 200, 200));
     draw_centered(&mut tbuf, 290, "Talk with the villagers, win their trust, organize.", 1, (190, 190, 205));
     draw_centered(&mut tbuf, 306, "Win them over, then found a campaign at a house meeting.", 1, (190, 190, 205));
-    draw_centered(&mut tbuf, 340, "WASD move   T talk   R recruit   O organize   H help", 1, (140, 140, 160));
+    draw_centered(&mut tbuf, 340, "WASD move   T talk   O organize   H help", 1, (140, 140, 160));
     draw_centered(&mut tbuf, 400, "press ENTER to begin", 2, (255, 220, 130));
     tbuf
 }

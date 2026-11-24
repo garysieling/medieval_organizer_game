@@ -153,6 +153,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
                     stage: QuestStage::ToCarry,
                     pickup: None,
                     expires: game.tick + 10,
+                    errand: None,
                 });
                 let c = game.sites[i].centre;
                 let cam = cam_centred_on(c.0 as f32, c.1 as f32);
@@ -198,6 +199,19 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
             Some(si) => { let name = game.sites[si].name;
                 sayln!("road march on {}: {}", name, game.force_road_march(0, si)); }
             None => eprintln!("GAME2_DUMP_MARCH: no {:?} in this seed's country", want),
+        }
+    }
+    // GAME2_DUMP_MYSTERY=N[:K]: set mystery N doing the rounds with K
+    // clues heard (default half), so the panel's dim marks can be shot
+    if let Some(spec) = std::env::var("GAME2_DUMP_MYSTERY").ok().filter(|v| !v.is_empty()) {
+        let mut parts = spec.split(':');
+        if let Some(def) = parts.next().and_then(|v| v.parse::<usize>().ok()) {
+            use game2_core::session::mystery::SeatMystery;
+            let heard: u32 = parts.next().and_then(|v| v.parse().ok())
+                .unwrap_or((game2_core::game::mysteries::MYSTERIES[def].clues.len() / 2) as u32);
+            let mut known = 0u32;
+            for i in 0..heard { known |= 1 << i; }
+            game.seats[0].mystery = Some(SeatMystery { def, known, asker: game.villagers[0] });
         }
     }
     // GAME2_DUMP_FRAMES=N: play N more frames into the day, so a dump shows
@@ -352,7 +366,15 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     if let Some(n) = std::env::var("GAME2_BENCH").ok().and_then(|v| v.parse::<u32>().ok()) {
         bench_frames(&mut game, &mut view, n, weather.is_some());
     }
-    let buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
+    let mut buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
+    // GAME2_DUMP_MENU=sound: draw the pause menu with the Sound overlay
+    // over it (#1506) - screenshot checks for the panel land on the
+    // dump, no window needed
+    if std::env::var("GAME2_DUMP_MENU").ok().as_deref() == Some("sound") {
+        draw_pause_menu(&mut buf, (-1, -1), "PAUSED");
+        let s = game2_audio::settings::AudioSettings::default();
+        draw_sound_menu(&mut buf, (-1, -1), &s, 0);
+    }
     let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
     buf.save_bmp(&path).unwrap();
     sayln!("frame {} saved to {}", target_tick, path);

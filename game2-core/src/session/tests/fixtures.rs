@@ -14,11 +14,21 @@ pub(crate) fn plan_ready_meeting(game: &mut Game, host: Entity, at: (f32, f32), 
     let venue = game.world.create_entity();
     game.world.add_component(venue, Pos { x: at.0, y: at.1 });
     game.world.add_component(game.org, crate::game::organizing::MeetingPlan {
-        venue: Some((host, venue)), coming: coming.to_vec(), ..Default::default()
+        venue: Some(crate::game::organizing::Venue::House(host, venue)), coming: coming.to_vec(), ..Default::default()
     });
     let player = game.player;
     if game.world.get_component::<crate::game::org_skills::Organizing>(player).is_none() {
         game.world.add_component(player, crate::game::org_skills::Organizing::default());
     }
     game.world.get_component_mut::<crate::game::org_skills::Organizing>(player).unwrap().turnout = 2.0;
+}
+
+/// The text a slotted template renders as inside a PlayerTalk (E4-4):
+/// tests match the talk's realized option and record strings against
+/// the authored consts, so the const goes through the same realizer
+/// the talk used. `player_side` realizes as the player's mouth (their
+/// picks and asks); false is the villager's.
+pub(crate) fn said(t: &crate::session::dialogue::PlayerTalk, player_side: bool,
+                   template: &'static str) -> String {
+    t.said(template, player_side)
 }

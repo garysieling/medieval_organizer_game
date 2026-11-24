@@ -79,7 +79,7 @@ impl Game {
                     self.rep_apply(offender, RepAction::BadDeed);
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
-                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
+                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names, i, tick,
                                 crate::sim::story::EventKind::Conflict, format!("{} - bad blood burns", offense));
                         }
                     }
@@ -112,7 +112,7 @@ impl Game {
                     );
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
-                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
+                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names, i, tick,
                                 crate::sim::story::EventKind::Peace, "the bad blood is settled".into());
                         }
                     }
@@ -352,9 +352,12 @@ impl Game {
         }
         let orth = self.world.get_component::<Congregation>(self.congregation)
             .map(|c| c.orthodoxy).unwrap_or(0.0);
-        // a member readied for the denouncement shrugs off the shame (#1246)
-        if orth >= 0.7 && !crate::game::inoculation::take(&mut self.world, v, crate::game::inoculation::Counter::Denounce) {
-            self.apply_sanction(v, Sanction::Gossip, tick);
+        // a member readied for the denouncement shrugs off the shame (#1246);
+        // readied or raw, the move lands on their fear (#1442)
+        if orth >= 0.7 {
+            let ready = crate::game::inoculation::take(&mut self.world, v, crate::game::inoculation::Counter::Denounce);
+            crate::game::act_model::counter_lands(&mut self.world, v, ready);
+            if !ready { self.apply_sanction(v, Sanction::Gossip, tick); }
         }
     }
 
@@ -407,7 +410,7 @@ impl Game {
             && self.try_plea(v, crate::game::sanctions::PleaSentence::Sanction(s)) {
             return;
         }
-        let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("someone");
+        let name = self.villagers.iter().position(|x| *x == v).map(|i| cast_of(&self.names, i)).unwrap_or("someone");
         // a bad word travels ahead of every rung
         self.rep_apply(v, RepAction::BadDeed);
         self.sanctioned.push((v, s, tick + 60));
@@ -460,7 +463,7 @@ impl Game {
                     // a sentence never served is no rung at all
                     self.sanctioned.retain(|(e, s, _)| !(*e == v && *s == Sanction::Stocks));
                     self.log_entity_ev(EvTag::new(Thread::Law, Valence::Positive, Sev::Notable), v, format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
-                    self.say(v, "They wronged me, and you all saw it.", TALK_BUBBLE_SECS);
+                    self.say(v, &self.pair_said(v, self.player, "They wronged me, and {2p:subj} all saw it."), TALK_BUBBLE_SECS);
                 } else {
                     self.rep_apply(v, RepAction::Betrayal);
                     self.log_entity_ev(
@@ -821,7 +824,7 @@ impl Game {
         for (i, &v) in self.villagers.iter().enumerate().collect::<Vec<_>>() {
             if self.world.get_component::<crate::game::guilds::Merchant>(v).is_none()
                 && is_trader(&self.world, v) {
-                tag_trader(&mut self.world, v, vill_name(i));
+                tag_trader(&mut self.world, v, cast_of(&self.names, i));
             }
         }
     }
@@ -1754,6 +1757,9 @@ impl Game {
             .map(|p| (p.x, p.y)).unwrap_or((self.village.0 as f32, self.village.1 as f32));
         let route = self.street_route(head, 30);
         if route.len() < 4 { return; }
+        // the carried demand is the campaign's best argument for hope
+        // (#1442): everyone who walks it believes a little more
+        for &v in &folk { crate::game::act_model::win_witnessed(&mut self.world, v); }
         self.start_parade(folk, route, None);
         self.log.push_ev(
             EvTag::new(Thread::Org, Valence::Positive, Sev::Major),
@@ -3423,7 +3429,9 @@ impl Game {
                 // not one readied for the soft plea (#1246)
                 let n = members.len() / 10;
                 for &m in members.iter().rev().take(n) {
-                    if crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Plea) { continue; }
+                    let ready = crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Plea);
+                    crate::game::act_model::counter_lands(&mut self.world, m, ready);
+                    if ready { continue; }
                     if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
                         o.members.retain(|&x| x != m);
                     }
@@ -3482,6 +3490,11 @@ impl Game {
             .map(|o| o.members.iter().any(|&m| self.literate(m))).unwrap_or(false);
         let need = if literate { crate::game::organizing::PETITION_NAMES - 1 } else { crate::game::organizing::PETITION_NAMES };
         if count >= need {
+            let (demand, protected): (String, Vec<Entity>) =
+                self.world.get_component::<crate::game::organizing::Petition>(org)
+                    .map(|p| (p.demand.clone(),
+                        p.spokesmen.iter().chain(p.signatories.iter()).copied().collect()))
+                    .unwrap_or_default();
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::Petition>(org) {
                 p.presented = Some(tick);
             }
@@ -3490,6 +3503,44 @@ impl Game {
                 format!("t{}: the petition's presented - the names stand under the demand, protected in form.", tick),
             );
             self.toasts.push(("The petition's presented.".into(), tick + 80));
+            // a member's confided trouble gone to the lord in ink
+            // (E5-5): if they never put their own name to it, the
+            // petition leaked their confidence to the opposition
+            let members = self.world.get_component::<crate::sim::community::Organization>(org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            for m in members {
+                if protected.contains(&m) { continue; }
+                let wrongs: Vec<crate::game::desires::Problem> =
+                    self.world.get_component::<crate::game::desires::InnerLife>(m)
+                        .map(|l| l.grievances.iter()
+                            .filter(|(_, u)| tick < *u).map(|(p, _)| *p).collect())
+                        .unwrap_or_default();
+                for w in wrongs {
+                    if crate::game::desires::wrong_phrase(w) == demand {
+                        let key = crate::game::desires::reveal_key(
+                            &crate::game::desires::Reveal::Problem(w));
+                        for seat in 0..self.seats.len() {
+                            let pe = self.seats[seat].player;
+                            if crate::game::desires::leak(&mut self.world, pe, m, &key) {
+                                let name = self.name_of(m);
+                                self.log.push_ev(
+                                    EvTag::new(Thread::Law, Valence::Negative, Sev::Minor),
+                                    format!("t{}: the petition names {}'s trouble in the open - word of the telling got back to them.", tick, name),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The keeping's wage (E5-5): a confidence that's stood its time
+    /// pays out once in the owner's read of the seat's integrity
+    pub(in crate::session) fn confidences_tick(&mut self, tick: u64) {
+        for seat in 0..self.seats.len() {
+            let pe = self.seats[seat].player;
+            crate::game::desires::honor_confidences(&mut self.world, pe, tick);
         }
     }
 
@@ -3679,9 +3730,12 @@ impl Game {
             if villager::is_dead(&self.world, m) { continue; }
             if self.penetration < 0.1 { break; }
             let caught = self.rng.next() % 1000 < (self.penetration * 120.0) as u64;
-            // readied for the denouncement, it doesn't take (#1246)
-            if caught && !crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Denounce) {
-                self.apply_penalty(0, m, "combining", tick);
+            // readied for the denouncement, it doesn't take (#1246) -
+            // though the attempt still lands on their fear (#1442)
+            if caught {
+                let ready = crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Denounce);
+                crate::game::act_model::counter_lands(&mut self.world, m, ready);
+                if !ready { self.apply_penalty(0, m, "combining", tick); }
             }
         }
     }
@@ -3758,8 +3812,11 @@ impl Game {
         self.oath_intensity = self.oath_intensity.saturating_sub(1);
         let damage = if self.front { 0.02 } else { 0.05 };
         for m in members {
-            // a member readied for the threat feels it at half (#1246)
-            let hit = if crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Threat) { damage / 2.0 } else { damage };
+            // a member readied for the threat feels it at half (#1246) -
+            // the fear push lands either way, lighter readied (#1442)
+            let ready = crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Threat);
+            crate::game::act_model::counter_lands(&mut self.world, m, ready);
+            let hit = if ready { damage / 2.0 } else { damage };
             if let Some(b) = self.world.get_component_mut::<crate::sim::psychology::Bond>(m) {
                 b.security = (b.security - hit).max(0.0);
             }

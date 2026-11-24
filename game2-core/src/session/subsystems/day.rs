@@ -94,8 +94,14 @@ impl Game {
             let Some(plan) = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe) else { continue };
             let Some(day) = plan.for_day else { continue };
             if tick < day { continue; }
-            let lost = plan.venue.map(|(h, b)| crate::game::villager::is_dead(&self.world, h)
-                || self.world.get_component::<Pos>(b).is_none()).unwrap_or(false);
+            // a lost house calls the meeting off; a public spot can't
+            // be lost the same way - it falls back at the door instead
+            let lost = match plan.venue {
+                Some(crate::game::organizing::Venue::House(h, b)) =>
+                    crate::game::villager::is_dead(&self.world, h)
+                    || self.world.get_component::<Pos>(b).is_none(),
+                _ => false,
+            };
             if lost {
                 self.world
                     .remove_component::<crate::game::organizing::MeetingPlan>(oe);
@@ -607,6 +613,8 @@ impl Game {
         crate::timed!("sim.wage_edict", self.wage_edict_tick(tick));
         crate::timed!("sim.pass", self.pass_tick(tick));
         crate::timed!("sim.petition_law", self.petition_law_tick(tick));
+        // and a held confidence pays its keeping out in integrity
+        crate::timed!("sim.confidences", self.confidences_tick(tick));
         crate::timed!("sim.kind", self.kind_tick(tick));
         // and every other winter runs long and tests the village
         crate::timed!("sim.winter", self.winter_tick(tick));
@@ -860,7 +868,7 @@ impl Game {
                     (
                         format!(
                             "{} is now {} {}!",
-                            vill_name(i),
+                            self.cast_name(i),
                             vocation::article(&title),
                             title
                         ),
@@ -874,7 +882,7 @@ impl Game {
                     format!(
                         "t{}: {} is now {} {}.",
                         tick,
-                        vill_name(i),
+                        self.cast_name(i),
                         vocation::article(&title),
                         title
                     ),

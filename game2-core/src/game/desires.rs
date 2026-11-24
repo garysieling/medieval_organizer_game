@@ -147,10 +147,342 @@ pub struct Domination {
     pub experience: f32,
 }
 
-/// What the organizer has learned about this person, piece by piece
+/// Where a ledger fact came from (E7-2, #1427): who put it in the
+/// seat's ear, or whether the seat saw it themselves. Every entry
+/// carries one - a fact with no source is a fact the ledger can't
+/// trust
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Source {
+    /// They said it to this seat themselves
+    Told { speaker: Entity },
+    /// A third party carried it - hearsay, and hearsay can be wrong
+    Gossip { speaker: Entity },
+    /// The seat saw it happen
+    Witnessed,
+}
+
+/// Certainty at the hearing by source: a telling straight from the
+/// horse's mouth sits highest, a seen thing a little under (eyes
+/// misread), a carried word lowest of all
+fn source_confidence(s: &Source) -> f32 {
+    match s {
+        Source::Told { .. } => 0.9,
+        Source::Witnessed => 0.7,
+        Source::Gossip { .. } => 0.5,
+    }
+}
+
+/// The fog-of-war clock a memory fades on (E7-2): each unrefreshed day
+/// shaves a little off what the seat was once sure of
+pub const LEDGER_FADE: f32 = 0.99;
+
+/// One line in the seat's ledger (E7-2, #1427): a fact held about a
+/// villager, who it came from, the day it landed, and how sure it still
+/// is. `reveal` is the typed read when the fact's a want or a problem;
+/// `fact` is its canonical id (`want:good_food`, `problem:no_input:*`,
+/// or a fact-table key like `ghost:levy`) - the space gossip beliefs
+/// and witnessed deeds write into
+#[derive(Debug, Clone)]
+pub struct LedgerEntry {
+    pub fact: String,
+    pub reveal: Option<Reveal>,
+    pub source: Source,
+    /// The day it landed - staleness derives off this
+    pub day: u64,
+    /// Certainty at the hearing; `confidence_of` fades it with age
+    pub confidence: f32,
+    /// A later entry said the opposite - both stay, both flag
+    pub contradicted: bool,
+}
+
+/// The bounds a confidence travels under (E5-5, #1443): what the
+/// owner asked of the seat when they told. A closed set - the
+/// design's two shapes, nothing freer
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Rule {
+    /// To no one: the whole world's out of bounds
+    TellNoOne,
+    /// Anywhere but there: "not the priest", "not the reeve" - the
+    /// deep tells name the power they fear
+    NotTo(Entity),
+}
+
+/// A disclosure held as an obligation (E5-5, #1443): what's told in
+/// trust makes the seat a co-owner of it, bound by its rule until
+/// it's broken. The keeping has a wage: a confidence stood long
+/// enough proves the seat's integrity to the owner
+#[derive(Debug, Clone)]
+pub struct Confidence {
+    /// The ledger fact it binds
+    pub fact: String,
+    /// Whose telling it was - the drop lands on their bond
+    pub owner: Entity,
+    pub rule: Rule,
+    /// Held so far; a leak turns it false
+    pub kept: bool,
+    /// The day it was taken on
+    pub day: u64,
+    /// The keeping already paid its integrity out once
+    pub honored: bool,
+}
+
+/// Days a kept confidence must stand before the holding itself is
+/// proof (E5-5)
+pub const CONFIDENCE_MARK_DAYS: u64 = 20;
+
+/// How many turned-aside asks draw the shape (E5-2, #1434): the first
+/// refusals read as manners; three in one area and the seat can see the
+/// outline - "something about the lord"
+pub const SILHOUETTE_AT: u32 = 3;
+
+/// What they dodge on (E5-2 counts these up later; the record's kept
+/// now): the shape a villager shows a seat that asks where they won't
+/// go - a form without a name
+#[derive(Debug, Clone)]
+pub struct Silhouette {
+    pub who: Entity,
+    /// The ground they keep stepping around
+    pub area: String,
+    /// Times they've turned a question aside
+    pub evasions: u32,
+    /// The day they last did
+    pub last_day: u64,
+}
+
+/// What an organizer has learned about the village, piece by piece:
+/// the seat's own ledger of who told them what (E7-1, #1404), each
+/// fact sourced and dated (E7-2, #1427). It lives on the seat's player
+/// entity - one seat's hearing is invisible to another
 #[derive(Debug, Default)]
 pub struct Known {
-    pub revealed: Vec<Reveal>,
+    /// subject -> the seat's entries about them, oldest first
+    pub entries: crate::engine::det::HashMap<Entity, Vec<LedgerEntry>>,
+    /// The shapes that show without ever being told
+    pub silhouettes: Vec<Silhouette>,
+    /// The tellings the seat's bound to keep (E5-5)
+    pub confidences: Vec<Confidence>,
+}
+
+/// The fact-table id a Reveal writes under in the ledger (E7-2):
+/// `want:*` / `problem:*`, with NoInput carrying its input
+pub fn reveal_key(r: &Reveal) -> String {
+    fn snake(s: &str) -> String {
+        s.chars().enumerate().flat_map(|(i, c)| {
+            if c.is_uppercase() && i > 0 { vec!['_', c.to_ascii_lowercase()] }
+            else { vec![c.to_ascii_lowercase()] }
+        }).collect()
+    }
+    match r {
+        Reveal::Want(w) => format!("want:{}", snake(&format!("{w:?}"))),
+        Reveal::Problem(Problem::NoInput(input)) => format!("problem:no_input:{input}"),
+        Reveal::Problem(p) => format!("problem:{}", snake(&format!("{p:?}"))),
+    }
+}
+
+/// Write `fact` into `knower`'s ledger about `e`: sourced and dated
+/// (E7-2). Dedups on the fact id - what the seat already knows says
+/// nothing new. A claim and its negation (`x` against a held `!x`, or
+/// the reverse) flag both sides contradicted rather than erasing
+/// either
+pub fn record(world: &mut World, knower: Entity, e: Entity, fact: String,
+              reveal: Option<Reveal>, source: Source, day: u64) {
+    if world.get_component::<Known>(knower).is_none() {
+        world.add_component(knower, Known::default());
+    }
+    let k = world.get_component_mut::<Known>(knower).unwrap();
+    let heard = k.entries.entry(e).or_default();
+    if heard.iter().any(|en| en.fact == fact) { return; }
+    let neg = fact.strip_prefix('!').map(str::to_string);
+    let anti = format!("!{fact}");
+    let contradicted = heard.iter_mut().fold(false, |hit, en| {
+        let clash = Some(&en.fact) == neg.as_ref() || en.fact == anti;
+        if clash { en.contradicted = true; }
+        hit || clash
+    });
+    heard.push(LedgerEntry {
+        fact: fact.clone(), reveal, source, day,
+        confidence: source_confidence(&source),
+        contradicted,
+    });
+    // a telling from their own mouth makes the seat a co-owner
+    // (E5-5): what's confided is now the seat's to keep
+    if let Source::Told { speaker } = source {
+        if speaker == e {
+            k.confidences.push(Confidence {
+                fact, owner: e, rule: Rule::TellNoOne,
+                kept: true, day, honored: false,
+            });
+        }
+    }
+}
+
+/// An errand's answer settles what the seat heard (E5-7, #1438): a
+/// fact held as word-of-mouth becomes the thing the seat saw proven -
+/// witnessed source, the confidence of a seen thing, the day refreshed,
+/// the contradiction cleared. Absent, the answer writes the fact fresh
+/// as witnessed. Returns whether the ledger holds it now
+pub fn confirm(world: &mut World, knower: Entity, subject: Entity, fact: &str, day: u64) -> bool {
+    let held = world.get_component::<Known>(knower)
+        .and_then(|k| k.entries.get(&subject))
+        .map(|v| v.iter().any(|en| en.fact == fact)).unwrap_or(false);
+    if !held {
+        record(world, knower, subject, fact.to_string(), None, Source::Witnessed, day);
+        return true;
+    }
+    if let Some(k) = world.get_component_mut::<Known>(knower) {
+        if let Some(v) = k.entries.get_mut(&subject) {
+            for en in v.iter_mut() {
+                if en.fact == fact {
+                    en.source = Source::Witnessed;
+                    en.confidence = source_confidence(&Source::Witnessed).max(0.95);
+                    en.day = day;
+                    en.contradicted = false;
+                }
+            }
+        }
+    }
+    true
+}
+
+/// The seat's ledger on `e`: every fact held, sourced and dated
+pub fn entries(world: &World, knower: Entity, e: Entity) -> Vec<LedgerEntry> {
+    world.get_component::<Known>(knower)
+        .and_then(|k| k.entries.get(&e).cloned()).unwrap_or_default()
+}
+
+/// How sure the seat still is of an entry: the certainty at the
+/// hearing, faded a little each day it sits unrefreshed
+pub fn confidence_of(entry: &LedgerEntry, tick: u64) -> f32 {
+    entry.confidence * LEDGER_FADE.powi(tick.saturating_sub(entry.day) as i32)
+}
+
+/// The newest day the seat heard anything about `e` - staleness reads
+/// off this and the TalkMemory's last-sit-down day
+pub fn last_heard(world: &World, knower: Entity, e: Entity) -> Option<u64> {
+    world.get_component::<Known>(knower)
+        .and_then(|k| k.entries.get(&e))
+        .and_then(|v| v.iter().map(|en| en.day).max())
+}
+
+/// The seat's record of `e`: what `knower` has already heard them tell
+pub fn known(world: &World, knower: Entity, e: Entity) -> Vec<Reveal> {
+    entries(world, knower, e).into_iter().filter_map(|en| en.reveal).collect()
+}
+
+/// Mark `r` known to `knower` about `e`, as if `e` said it themselves,
+/// without `hear`'s ledger and issue bookkeeping - tests and seeded
+/// knowledge take this road
+pub fn note(world: &mut World, knower: Entity, e: Entity, r: Reveal) {
+    record(world, knower, e, reveal_key(&r), Some(r), Source::Told { speaker: e }, 0);
+}
+
+/// A turned-aside ask lands on the seat's ledger (E5-2, #1434): each
+/// evasion counts against the area that was closed - a real one, named
+/// by the topic that asked past it. Returns the count in that area; at
+/// `SILHOUETTE_AT` the shape's visible
+pub fn note_evasion(world: &mut World, knower: Entity, e: Entity, area: &str, day: u64) -> u32 {
+    if world.get_component::<Known>(knower).is_none() {
+        world.add_component(knower, Known::default());
+    }
+    let k = world.get_component_mut::<Known>(knower).unwrap();
+    match k.silhouettes.iter_mut().find(|s| s.who == e && s.area == area) {
+        Some(s) => { s.evasions += 1; s.last_day = day; s.evasions }
+        None => {
+            k.silhouettes.push(Silhouette {
+                who: e, area: area.into(), evasions: 1, last_day: day });
+            1
+        }
+    }
+}
+
+/// The count of their turn-asides in `area` the seat's marked (E5-2)
+pub fn evasions_of(world: &World, knower: Entity, e: Entity, area: &str) -> u32 {
+    world.get_component::<Known>(knower)
+        .map(|k| k.silhouettes.iter()
+            .filter(|s| s.who == e && s.area == area).map(|s| s.evasions).sum())
+        .unwrap_or(0)
+}
+
+/// The confidences a seat holds on `e` (E5-5)
+pub fn confidences(world: &World, knower: Entity, e: Entity) -> Vec<Confidence> {
+    world.get_component::<Known>(knower)
+        .map(|k| k.confidences.iter().filter(|c| c.owner == e).cloned().collect())
+        .unwrap_or_default()
+}
+
+/// Name the one place a confidence mustn't go (E5-5): the deep tells
+/// carry it - "not the priest", "not the reeve"
+pub fn restrict(world: &mut World, knower: Entity, owner: Entity, fact: &str, target: Entity) {
+    if let Some(k) = world.get_component_mut::<Known>(knower) {
+        if let Some(c) = k.confidences.iter_mut()
+            .find(|c| c.owner == owner && c.fact == fact && c.kept) {
+            c.rule = Rule::NotTo(target);
+        }
+    }
+}
+
+/// The owner's close ears (E5-5): the folk under their roof and the
+/// bonds that name them family or friend or lover - when the seat's
+/// word leaks, it's theirs the story cools for
+fn circle(world: &World, owner: Entity) -> Vec<Entity> {
+    use crate::game::relationships::{RelKind, Relationship};
+    let mut out = vec![];
+    if let Some(home) = crate::game::household::home_of(world, owner) {
+        if let Some(b) = world.get_component::<crate::game::household::Building>(home) {
+            out.extend(b.occupants.iter().copied().filter(|&o| o != owner));
+        }
+    }
+    for bond in crate::game::relationships::bonds_of(world, owner) {
+        if let Some(r) = world.get_component::<Relationship>(bond) {
+            if matches!(r.kind, RelKind::Family | RelKind::Friend | RelKind::Lover) {
+                out.push(if r.from == owner { r.other } else { r.from });
+            }
+        }
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// A confidence broken (E5-5): word of it reached ears the rule
+/// barred, and the owner's heard of it. Their trust in the seat drops
+/// - the breach reads as a betrayal of the bond - and their circle
+/// cools a little toward the seat: you can't hold a tongue, they
+/// say. Returns whether a held confidence actually broke
+pub fn leak(world: &mut World, knower: Entity, owner: Entity, fact: &str) -> bool {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    let broke = world.get_component_mut::<Known>(knower)
+        .map(|k| k.confidences.iter_mut()
+            .any(|c| if c.owner == owner && c.fact == fact && c.kept {
+                c.kept = false; true
+            } else { false }))
+        .unwrap_or(false);
+    if !broke { return false; }
+    record_interaction(world, owner, Interaction {
+        other: knower, kind: InteractionKind::Betrayal, intensity: 0.8 });
+    for c in circle(world, owner) {
+        if c == knower { continue; }
+        record_interaction(world, c, Interaction {
+            other: knower, kind: InteractionKind::Betrayal, intensity: 0.3 });
+    }
+    true
+}
+
+/// The keeping's wage (E5-5): each confidence that's stood its time
+/// and still holds pays out once in the owner's read of the seat's
+/// integrity - the tongue held, and they saw it hold
+pub fn honor_confidences(world: &mut World, knower: Entity, tick: u64) -> usize {
+    let mut due = vec![];
+    if let Some(k) = world.get_component_mut::<Known>(knower) {
+        for c in k.confidences.iter_mut() {
+            if c.kept && !c.honored && tick >= c.day + CONFIDENCE_MARK_DAYS {
+                c.honored = true;
+                due.push(c.owner);
+            }
+        }
+    }
+    crate::game::relationships::push_kept_word(world, &due, knower);
+    due.len()
 }
 
 /// Days a villager has gone without: the streak that turns a hard day
@@ -549,12 +881,60 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
     }
 }
 
-/// What a person can be made to reveal: their unsatisfied wants, their
-/// live problems, and their fresh grievances - skipping anything already
-/// in `known`
-pub fn unrevealed(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
-    let known = world.get_component::<Known>(e)
-        .map(|k| k.revealed.clone()).unwrap_or_default();
+/// The still-carrying line for a fact already heard (#1347): a re-told
+/// trouble reads as catching up, not amnesia - "it still presses", not
+/// a fresh confession
+pub fn catchup_speech(name: &str, r: &Reveal) -> (String, String) {
+    match r {
+        Reveal::Want(Want::GoodFood) => (format!("{} still misses good bread", name), "The bread's no better, if {2:subj} {2:be} asking.".into()),
+        Reveal::Want(Want::Finery) => (format!("{} still wishes for fine clothes", name), "Still not one decent garment to my name.".into()),
+        Reveal::Want(Want::Faith) => (format!("{} still misses the faith", name), "I still can't feel it, whatever I do.".into()),
+        Reveal::Want(Want::Shelter) => (format!("{} still longs for a home", name), "Still sleeping under another's roof.".into()),
+        Reveal::Want(Want::Security) => (format!("{} still feels unsafe", name), "The door's barred still. It doesn't help.".into()),
+        Reveal::Want(Want::Mastery) => (format!("{} still wants to rise in the trade", name), "Nobody's seen it yet. I'm still better than this.".into()),
+        Reveal::Want(Want::Music) => (format!("{} still misses music", name), "Still not a song to be had.".into()),
+        Reveal::Want(Want::Instrument) => (format!("{} still covets an instrument", name), "The lute's still a dream, friend.".into()),
+        Reveal::Want(Want::BetterTools) => (format!("{} still needs better tools", name), "Same dull tools. Same hard work.".into()),
+        Reveal::Want(Want::DifferentTrade) => (format!("{} still finds the trade stale", name), "This still isn't the life I pictured.".into()),
+        Reveal::Want(Want::Love) => (format!("{} is still lonely", name), "Still no one, when the lamp goes out.".into()),
+        Reveal::Want(Want::Joy) => (format!("{} still wants to play", name), "Still no play to be had.".into()),
+        Reveal::Want(Want::Drink) => (format!("{} still misses a cup", name), "That cup would still sit well.".into()),
+        Reveal::Problem(Problem::NoHome) => (format!("{} still has no home", name), "Still nowhere to lay my head.".into()),
+        Reveal::Problem(Problem::NoWorkplace) => (format!("{} still has no workshop", name), "Still working in the street.".into()),
+        Reveal::Problem(Problem::NoMaster) => (format!("{} still has no master", name), "Still no one to learn from.".into()),
+        Reveal::Problem(Problem::NoInput(g)) => (format!("{} still can't get {}", name, g), format!("Still no {} to be had.", g)),
+        Reveal::Problem(Problem::DerelictNearby) => (format!("{} still hates the empty shop", name), "The boarded shop sits there still.".into()),
+        Reveal::Problem(Problem::OverseerCut) => (format!("{} still resents the overseer's cut", name), "He takes his share still, for watching.".into()),
+        Reveal::Problem(Problem::Taxed) => (format!("{} still curses the tax collector", name), "The tolls press the same as ever.".into()),
+        Reveal::Problem(Problem::Broke) => (format!("{} is still nearly broke", name), "The purse is no fatter, if {2:subj} {2:be} asking.".into()),
+        Reveal::Problem(Problem::Smelly) => (format!("{} still stinks of honest work", name), "The smell still hangs on.".into()),
+        Reveal::Problem(Problem::Loss) => (format!("{} still counts what the wolves took", name), "I still count what the wolves took.".into()),
+        Reveal::Problem(Problem::Bereaved) => (format!("{} is still grieving", name), "The grief's still with me.".into()),
+        Reveal::Problem(Problem::Blamed) => (format!("{} is still blamed for the sickness", name), "They still say my bread did it.".into()),
+        Reveal::Problem(Problem::SourGut) => (format!("{} still suffers the spoiled stock", name), "The gut's still not done with me.".into()),
+        Reveal::Problem(Problem::DeathDuty) => (format!("{} still feels the lord's fifth", name), "A fifth, still gone. For dying.".into()),
+        Reveal::Problem(Problem::ThinWood) => (format!("{}: the wood's still thin", name), "Still half a day's walk for a bundle.".into()),
+        Reveal::Problem(Problem::DryPit) => (format!("{}: the pit's still drowned", name), "Still water in the cut.".into()),
+        Reveal::Problem(Problem::StinkingReach) => (format!("{}: the reach still stinks", name), "You can smell it still, on a quiet night.".into()),
+        Reveal::Problem(Problem::ShortChanged) => (format!("{}: the reckoning's still off", name), "Counted his way again. Short again.".into()),
+        Reveal::Problem(Problem::Tempted) => (format!("{}'s feet still itch", name), "The road still looks shorter from the gate.".into()),
+        Reveal::Problem(Problem::WritBorne) => (format!("{} still bears the writ", name), "The wax still says what it says.".into()),
+        Reveal::Problem(Problem::LongWinter) => (format!("{}'s stores are still thin", name), "The barrel still knows it.".into()),
+        Reveal::Problem(Problem::ColdHearth) => (format!("{} still eats cold", name), "The pot's still cold. The bed's no warmer.".into()),
+        Reveal::Problem(Problem::TheDark) => (format!("{} still keeps to the dark", name), "Still honest, down here in the dark.".into()),
+        Reveal::Problem(Problem::Grief) => (format!("{} still sees it", name), "Strung up where we could see. I still see it.".into()),
+        Reveal::Problem(Problem::Robbed) => (format!("{} still remembers the robbery", name), "Took the good stock, quiet as a cat. Nothing's come back.".into()),
+        Reveal::Problem(Problem::ChildLabor) => (format!("{} still sees the child's hands", name), "Small hands in the rows still. It isn't right.".into()),
+        Reveal::Problem(Problem::Rowdy) => (format!("{} still sees the strangers' brawls", name), "The nights still end in the mud.".into()),
+        Reveal::Problem(Problem::Hungry) => (format!("{}'s pot is still bare", name), "Thin broth again today.".into()),
+        Reveal::Problem(Problem::Sick) => (format!("{} is still sick", name), "The fever still rides.".into()),
+        Reveal::Problem(Problem::Doctrine) => (format!("{} still takes the green word", name), "The word's still for all of us.".into()),
+    }
+}
+
+/// What a person's carrying right now: their live problems and their
+/// unsatisfied wants - the pool every reveal draw works from
+pub(crate) fn live_pool(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
     let mut out: Vec<Reveal> = problems_of(world, e, tick).into_iter()
         .map(Reveal::Problem).collect();
     if let Some(life) = world.get_component::<InnerLife>(e) {
@@ -563,34 +943,74 @@ pub fn unrevealed(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
             out.push(Reveal::Want(*w));
         }
     }
-    out.retain(|r| !known.contains(r));
     out
+}
+
+/// What a person can be made to reveal to `knower`: their unsatisfied
+/// wants, their live problems, and their fresh grievances - skipping
+/// anything that seat's already heard
+pub fn unrevealed(world: &World, knower: Entity, e: Entity, tick: u64) -> Vec<Reveal> {
+    let heard = known(world, knower, e);
+    let mut out = live_pool(world, e, tick);
+    out.retain(|r| !heard.contains(r));
+    out
+}
+
+/// The live facts already told (#1347): what a catch-up draw can still
+/// speak to - a burden they still carry that you've already heard
+pub fn live_known(world: &World, knower: Entity, e: Entity, tick: u64) -> Vec<Reveal> {
+    let heard = known(world, knower, e);
+    let mut out = live_pool(world, e, tick);
+    out.retain(|r| heard.contains(r));
+    out
+}
+
+/// What they'd ask at the door (E5-3, #1435): the pressing thing a
+/// worry question keys off - the live pool's a person's whole current
+/// load, problems first. `seed` picks the one, stable across a talk's
+/// replays; None when they're carrying nothing the talk could take up
+pub fn worry_of(world: &World, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
+    let pool = live_pool(world, e, tick);
+    if pool.is_empty() { return None; }
+    Some(pool[(seed % pool.len() as u64) as usize])
 }
 
 /// Pick one secret to share: problems first (they're what's pressing),
 /// then wants. `roll` is 0..1 - callers give it a boosted chance
-pub fn next_reveal(world: &World, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
-    let pool = unrevealed(world, e, tick);
+pub fn next_reveal(world: &World, knower: Entity, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
+    let pool = unrevealed(world, knower, e, tick);
+    if pool.is_empty() { return None; }
+    Some(pool[(seed % pool.len() as u64) as usize])
+}
+
+/// Pick an old truth to come back around (#1347): once every live fact
+/// is heard, asking can still catch up on what's still pressing. None
+/// when nothing's been heard yet or what's heard has all resolved - a
+/// healed trouble doesn't get re-mourned
+pub fn catchup_reveal(world: &World, knower: Entity, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
+    let pool = live_known(world, knower, e, tick);
     if pool.is_empty() { return None; }
     Some(pool[(seed % pool.len() as u64) as usize])
 }
 
 /// Record that the organizer heard `r` from `person`: mark it known on
-/// them, journal it on the organizer, prune entries older than a year, and
-/// return the new issue if three or more people have now said versions of
-/// the same thing inside the year
+/// the seat's own ledger, journal it on the organizer, prune entries
+/// older than a year, and return the new issue if three or more people
+/// have now said versions of the same thing inside the year
 pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tick: u64) -> Option<String> {
-    {
-        let mut known = world.get_component_mut::<Known>(person);
-        match &mut known {
-            Some(k) if !k.revealed.contains(&r) => k.revealed.push(r),
-            Some(_) => return None,
-            None => {
-                drop(known);
-                world.add_component(person, Known { revealed: vec![r] });
-            }
-        }
-    }
+    hear_via(world, organizer, person, r, tick, Source::Told { speaker: person })
+}
+
+/// `hear` with the source named (E7-2/E5-5): a carried word lands as
+/// `Gossip { speaker }` - the ledger hears it as hearsay, carries no
+/// confidence with it, and the journal still counts the voice
+pub fn hear_via(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tick: u64, source: Source) -> Option<String> {
+    // the hearing's the seat's own (E7-1): the record lands on the
+    // organizer, so another seat's ledger stays blind to it
+    if known(world, organizer, person).contains(&r) { return None; }
+    // they said it themselves, today (E7-2): the entry carries its
+    // teller, its day, and a telling's certainty
+    record(world, organizer, person, reveal_key(&r), Some(r), source, tick);
     let tag = issue_tag(world, person, &r);
     let org = world.get_component_mut::<Organizer>(organizer)?;
     org.heard.retain(|(_, _, day)| tick <= *day + YEAR_DAYS);
@@ -814,8 +1234,8 @@ mod tests {
         assert_eq!(hear(&mut w, org, c, r, 300).as_deref(), Some("the tax collector's cut"));
         // and it isn't discovered twice
         assert_eq!(hear(&mut w, org, c, r, 300), None);
-        let known = w.get_component::<Known>(a).unwrap();
-        assert!(known.revealed.contains(&r) && known.revealed.contains(&Reveal::Problem(Problem::Broke)));
+        let heard = known(&w, org, a);
+        assert!(heard.contains(&r) && heard.contains(&Reveal::Problem(Problem::Broke)));
     }
 
     #[test]
@@ -840,14 +1260,14 @@ mod tests {
     fn test_unrevealed_skips_known_and_satisfied() {
         let mut w = World::new();
         let e = person(&mut w, &[Want::GoodFood, Want::Love]);
-        // NoHome is the only live problem; both wants unrevealed
-        let pool = unrevealed(&w, e, 0);
-        assert_eq!(pool.len(), 3);
         let org = w.create_entity();
         w.add_component(org, Organizer::default());
+        // NoHome is the only live problem; both wants unrevealed
+        let pool = unrevealed(&w, org, e, 0);
+        assert_eq!(pool.len(), 3);
         hear(&mut w, org, e, Reveal::Problem(Problem::NoHome), 0);
         satisfy(&mut w, e, Want::GoodFood, 30);
-        let pool = unrevealed(&w, e, 10);
+        let pool = unrevealed(&w, org, e, 10);
         assert_eq!(pool, vec![Reveal::Want(Want::Love)]);
     }
 
@@ -906,24 +1326,298 @@ mod tests {
     }
 
     #[test]
-    fn test_the_probe_stays_open_only_while_theres_a_want_to_plant() {
+    fn test_the_probe_stays_open_while_theres_something_left_to_hear() {
         let mut w = World::new();
         let (v, asker) = (person(&mut w, &[]), person(&mut w, &[]));
-        assert!(probe_open(&w, v));
-        // carry every probeable want and the question's spent
+        assert!(probe_open(&w, asker, v, 0));
+        // carry every probeable want, all of them heard, nothing
+        // pressing - the question's spent
         w.get_component_mut::<InnerLife>(v).unwrap().wants = PROBE_WANTS.to_vec();
-        assert!(!probe_open(&w, v));
+        housed(&mut w, v);
+        for x in PROBE_WANTS.iter() { note(&mut w, asker, v, Reveal::Want(*x)); }
+        assert!(!probe_open(&w, asker, v, 0));
         // a kid never takes a planted want
         let kid = w.create_entity();
         w.add_component(kid, Pos { x: 0.0, y: 0.0 });
         w.add_component(kid, Kid);
-        assert!(!probe_open(&w, kid));
+        assert!(!probe_open(&w, asker, kid, 0));
         // a want already ripening still counts as covered
         w.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
         plant_want(&mut w, v, asker, 0, 1);
-        assert!(probe_open(&w, v), "other wants remain open");
+        assert!(probe_open(&w, asker, v, 0), "other wants remain open");
         w.get_component_mut::<InnerLife>(v).unwrap().wants = PROBE_WANTS.to_vec();
-        assert!(!probe_open(&w, v));
+        assert!(!probe_open(&w, asker, v, 0));
+        // but the world moving re-opens it: a fresh grievance is
+        // something to hear - heard or run out, it closes again
+        add_grievance(&mut w, v, Problem::Loss, 60);
+        assert!(probe_open(&w, asker, v, 0), "a new burden reopens the question");
+        hear(&mut w, asker, v, Reveal::Problem(Problem::Loss), 0);
+        assert!(!probe_open(&w, asker, v, 0), "heard, it's spent again");
+    }
+
+    #[test]
+    fn test_every_ledger_fact_carries_a_source() {
+        // the done-when: nothing in the seat's ledger floats free of
+        // where it came from, or when it landed
+        let mut w = World::new();
+        let org = w.create_entity();
+        w.add_component(org, Organizer::default());
+        let v = person(&mut w, &[Want::GoodFood]);
+        let carrier = person(&mut w, &[]);
+        hear(&mut w, org, v, Reveal::Want(Want::GoodFood), 42);
+        record(&mut w, org, v, "ghost:levy".into(), None,
+            Source::Gossip { speaker: carrier }, 50);
+        record(&mut w, org, v, "deed:watched_the_tithe".into(), None,
+            Source::Witnessed, 60);
+        let got = entries(&w, org, v);
+        assert_eq!(got.len(), 3);
+        assert!(got.iter().all(|en| en.confidence > 0.0));
+        for en in &got {
+            match en.source {
+                Source::Told { speaker } => assert_eq!(speaker, v),
+                Source::Gossip { .. } | Source::Witnessed => assert!(en.day > 0),
+            }
+        }
+        // a telling lands first, the day it was said
+        assert_eq!(got[0].fact, "want:good_food");
+        assert_eq!(got[0].day, 42);
+        assert_eq!(got[0].reveal, Some(Reveal::Want(Want::GoodFood)));
+    }
+
+    #[test]
+    fn test_a_telling_outweighs_hearsay() {
+        let mut w = World::new();
+        let (knower, v, carrier) = (w.create_entity(), person(&mut w, &[]), person(&mut w, &[]));
+        record(&mut w, knower, v, "problem:broke".into(),
+            Some(Reveal::Problem(Problem::Broke)),
+            Source::Told { speaker: v }, 10);
+        record(&mut w, knower, v, "deed:kept_the_gate".into(), None,
+            Source::Gossip { speaker: carrier }, 10);
+        record(&mut w, knower, v, "deed:took_the_oath".into(), None,
+            Source::Witnessed, 10);
+        let got = entries(&w, knower, v);
+        let told = got[0].confidence;
+        let gossiped = got[1].confidence;
+        let seen = got[2].confidence;
+        assert!(told > seen && seen > gossiped,
+            "told {told} should top witnessed {seen} over gossip {gossiped}");
+    }
+
+    #[test]
+    fn test_the_memory_fades() {
+        let mut w = World::new();
+        let (knower, v) = (w.create_entity(), person(&mut w, &[]));
+        record(&mut w, knower, v, "want:love".into(),
+            Some(Reveal::Want(Want::Love)), Source::Told { speaker: v }, 0);
+        let en = &entries(&w, knower, v)[0];
+        assert_eq!(confidence_of(en, 0), 0.9);
+        let old = confidence_of(en, 100);
+        assert!(old < 0.9 && old > 0.0, "a year-old telling fades: {old}");
+        // the newest hearing is the staleness clock's zero
+        assert_eq!(last_heard(&w, knower, v), Some(0));
+    }
+
+    #[test]
+    fn test_a_contradiction_flags_both_sides() {
+        let mut w = World::new();
+        let (knower, v, carrier) = (w.create_entity(), person(&mut w, &[]), person(&mut w, &[]));
+        // the carrier says the debt's paid; the bailiff's roll says owed
+        record(&mut w, knower, v, "debt:paid".into(), None,
+            Source::Gossip { speaker: carrier }, 10);
+        record(&mut w, knower, v, "!debt:paid".into(), None,
+            Source::Witnessed, 20);
+        let got = entries(&w, knower, v);
+        assert_eq!(got.len(), 2);
+        assert!(got[0].contradicted && got[1].contradicted,
+            "a claim and its opposite both flag, neither erases");
+        // same fact twice says nothing new - and keeps its first source
+        record(&mut w, knower, v, "debt:paid".into(), None,
+            Source::Witnessed, 30);
+        let got = entries(&w, knower, v);
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].source, Source::Gossip { speaker: carrier });
+    }
+
+    #[test]
+    fn test_known_still_reads_back_the_reveals() {
+        let mut w = World::new();
+        let (knower, v) = (w.create_entity(), person(&mut w, &[]));
+        note(&mut w, knower, v, Reveal::Want(Want::Drink));
+        note(&mut w, knower, v, Reveal::Problem(Problem::Taxed));
+        record(&mut w, knower, v, "ghost:levy".into(), None,
+            Source::Gossip { speaker: v }, 5);
+        assert_eq!(known(&w, knower, v),
+            vec![Reveal::Want(Want::Drink), Reveal::Problem(Problem::Taxed)],
+            "only typed reveals come back - claim facts stay out of the pool");
+        // seeded knowledge carries a telling's shape, before the days ran
+        let en = &entries(&w, knower, v)[0];
+        assert_eq!(en.source, Source::Told { speaker: v });
+        assert_eq!(en.day, 0);
+    }
+
+    #[test]
+    fn test_the_grief_clock_alone_doesnt_reopen_a_spent_probe() {
+        let mut w2 = World::new();
+        let v2 = person(&mut w2, &[]);
+        let asker2 = w2.create_entity();
+        w2.get_component_mut::<InnerLife>(v2).unwrap().wants = PROBE_WANTS.to_vec();
+        housed(&mut w2, v2);
+        for x in PROBE_WANTS.iter() { note(&mut w2, asker2, v2, Reveal::Want(*x)); }
+        add_grievance(&mut w2, v2, Problem::Loss, 60);
+        assert!(!probe_open(&w2, asker2, v2, 70), "the grief's run out");
+    }
+
+    #[test]
+    fn test_an_errands_answer_confirms_what_was_carried() {
+        // E5-7's done-when: the manor roll's answer turns hearsay into
+        // a seen thing - confidence to the witnessed level, the day
+        // refreshed, a contradiction settled
+        let mut w = World::new();
+        let (knower, v, carrier) = (person(&mut w, &[]), person(&mut w, &[]), person(&mut w, &[]));
+        record(&mut w, knower, v, "ghost:miller_debt".into(), None,
+            Source::Gossip { speaker: carrier }, 10);
+        record(&mut w, knower, v, "!ghost:miller_debt".into(), None,
+            Source::Gossip { speaker: carrier }, 20);
+        // the contradiction stands before the answer
+        assert!(entries(&w, knower, v).iter().all(|en| en.contradicted));
+        confirm(&mut w, knower, v, "ghost:miller_debt", 60);
+        let en = entries(&w, knower, v).into_iter()
+            .find(|e| e.fact == "ghost:miller_debt").unwrap();
+        assert_eq!(en.source, Source::Witnessed, "the roll was seen");
+        assert_eq!(en.day, 60, "the sight refreshes the clock");
+        assert!(en.confidence >= 0.9, "a seen thing sits high: {}", en.confidence);
+        assert!(!en.contradicted, "the answer settles the doubt");
+        // and what was never heard lands as witnessed, fresh
+        confirm(&mut w, knower, v, "ghost:eviction", 60);
+        let en2 = entries(&w, knower, v).into_iter()
+            .find(|e| e.fact == "ghost:eviction").unwrap();
+        assert_eq!(en2.source, Source::Witnessed);
+    }
+
+    #[test]
+    fn test_a_telling_binds_the_seat_to_keep_it() {
+        // E5-5 done-when: what they tell you themselves lands as an
+        // obligation; hearsay about them carries none
+        let mut w = World::new();
+        let org = w.create_entity();
+        w.add_component(org, Organizer::default());
+        let (v, carrier) = (person(&mut w, &[]), person(&mut w, &[]));
+        let r = Reveal::Problem(Problem::Taxed);
+        hear(&mut w, org, v, r, 10);
+        let held = confidences(&w, org, v);
+        assert_eq!(held.len(), 1, "the telling makes the seat a co-owner");
+        assert!(held[0].kept);
+        assert_eq!(held[0].rule, Rule::TellNoOne);
+        assert_eq!(held[0].fact, "problem:taxed");
+        // gossip about another binds nothing
+        hear_via(&mut w, org, carrier, r, 10,
+            Source::Gossip { speaker: v });
+        assert!(confidences(&w, org, carrier).is_empty(),
+            "hearsay carries no obligation");
+        // and the named bound lands: "not the collector"
+        restrict(&mut w, org, v, "problem:taxed", carrier);
+        let held = confidences(&w, org, v);
+        assert_eq!(held[0].rule, Rule::NotTo(carrier));
+    }
+
+    #[test]
+    fn test_a_leak_costs_the_owner_and_their_circle() {
+        use crate::game::relationships::{find_relationship,
+            Interaction, InteractionKind, RelKind, Relationship};
+        let mut w = World::new();
+        let (knower, owner, kin, neighbor) =
+            (w.create_entity(), person(&mut w, &[]), person(&mut w, &[]), person(&mut w, &[]));
+        // warm bonds to spend down: owner + circle all think well of the seat
+        for e in [owner, kin, neighbor] {
+            crate::game::relationships::record_interaction(&mut w, e,
+                Interaction { other: knower, kind: InteractionKind::Aid, intensity: 0.8 });
+        }
+        // the circle: a friend-bond and a shared roof
+        let bond = w.create_entity();
+        w.add_component(bond, Relationship {
+            from: owner, other: kin, kind: RelKind::Friend,
+            ..Default::default()
+        });
+        let roof = w.create_entity();
+        w.add_component(roof, Building {
+            kind: BuildingKind::Home, name: "a house".into(),
+            occupants: vec![owner, neighbor], worker: None, overseer: None,
+            stock: Default::default(), capacity: 20, flyer: None,
+        });
+        let told = Reveal::Problem(Problem::WritBorne);
+        record(&mut w, knower, owner, reveal_key(&told), Some(told),
+            Source::Told { speaker: owner }, 5);
+        let integ = |w: &World, e: Entity| find_relationship(w, e, knower)
+            .and_then(|b| w.get_component::<Relationship>(b).map(|r| r.trust.integrity))
+            .unwrap_or(0.0);
+        let (o0, k0, n0) = (integ(&w, owner), integ(&w, kin), integ(&w, neighbor));
+        assert!(leak(&mut w, knower, owner, "problem:writ_borne"));
+        assert!(!confidences(&w, knower, owner)[0].kept, "the word's out");
+        let (o1, k1, n1) = (integ(&w, owner), integ(&w, kin), integ(&w, neighbor));
+        assert!(o1 < o0, "the owner's read of your integrity drops: {o0} -> {o1}");
+        assert!(k1 < k0 && n1 < n0, "the circle cools too: {k0}->{k1}, {n0}->{n1}");
+        assert!(k1 > o1 && n1 > o1, "but not as deep as the owner's");
+        // nothing held, nothing breaks - a leak needs a living confidence
+        let stranger = person(&mut w, &[]);
+        assert!(!leak(&mut w, knower, stranger, "problem:broke"));
+    }
+
+    #[test]
+    fn test_the_kept_word_pays_its_keeping() {
+        use crate::game::relationships::{find_relationship,
+            Interaction, InteractionKind, Relationship};
+        let mut w = World::new();
+        let (knower, owner) = (w.create_entity(), person(&mut w, &[]));
+        crate::game::relationships::record_interaction(&mut w, owner,
+            Interaction { other: knower, kind: InteractionKind::Aid, intensity: 0.5 });
+        let integ = |w: &World| find_relationship(w, owner, knower)
+            .and_then(|b| w.get_component::<Relationship>(b).map(|r| r.trust.integrity))
+            .unwrap_or(0.0);
+        let told = Reveal::Problem(Problem::Taxed);
+        record(&mut w, knower, owner, reveal_key(&told), Some(told),
+            Source::Told { speaker: owner }, 5);
+        // not yet stood its time
+        assert_eq!(honor_confidences(&mut w, knower, 5 + CONFIDENCE_MARK_DAYS - 1), 0);
+        let before = integ(&w);
+        assert_eq!(honor_confidences(&mut w, knower, 5 + CONFIDENCE_MARK_DAYS), 1);
+        let after = integ(&w);
+        assert!(after > before, "the keeping pays: {before} -> {after}");
+        // pays once - not a pension
+        assert_eq!(honor_confidences(&mut w, knower, 999), 0);
+        assert_eq!(integ(&w), after);
+        // and a broken one never pays
+        let other = person(&mut w, &[]);
+        let t2 = Reveal::Problem(Problem::Broke);
+        record(&mut w, knower, other, reveal_key(&t2), Some(t2),
+            Source::Told { speaker: other }, 5);
+        leak(&mut w, knower, other, "problem:broke");
+        assert_eq!(honor_confidences(&mut w, knower, 999), 0);
+    }
+
+    #[test]
+    fn test_turned_asides_count_into_a_shape() {
+        let mut w = World::new();
+        let (knower, who) = (w.create_entity(), person(&mut w, &[]));
+        assert_eq!(note_evasion(&mut w, knower, who, "their dead", 5), 1);
+        assert_eq!(note_evasion(&mut w, knower, who, "their dead", 6), 2);
+        // a shape draws at three (E5-2 done-when)
+        assert_eq!(note_evasion(&mut w, knower, who, "their dead", 7), SILHOUETTE_AT);
+        assert_eq!(evasions_of(&w, knower, who, "their dead"), 3);
+        // another area counts its own ledger
+        assert_eq!(note_evasion(&mut w, knower, who, "the lord", 7), 1);
+        assert_eq!(evasions_of(&w, knower, who, "the lord"), 1);
+        // the last day moves with the latest turn-aside
+        let s = &w.get_component::<Known>(knower).unwrap().silhouettes;
+        assert_eq!(s.iter().find(|x| x.area == "their dead").unwrap().last_day, 7);
+    }
+
+    #[test]
+    fn test_a_turn_aside_on_another_villager_is_theirs_not_yours() {
+        let mut w = World::new();
+        let (knower, a, b) = (w.create_entity(), person(&mut w, &[]), person(&mut w, &[]));
+        note_evasion(&mut w, knower, a, "the lord", 3);
+        assert_eq!(evasions_of(&w, knower, b, "the lord"), 0);
+        assert_eq!(evasions_of(&w, a, a, "the lord"), 0);
     }
 }
 
@@ -951,15 +1645,18 @@ pub struct Planted {
     pub wants: Vec<(Want, u64, Entity)>,
 }
 
-/// Whether the probing question could still plant something new
-/// (#1269): a want they neither carry nor already have ripening - the
-/// ask's only worth offering while this holds
-pub fn probe_open(world: &World, e: Entity) -> bool {
+/// Whether the probing question could still open something (#1269,
+/// #1347): a want they neither carry nor already have ripening - or,
+/// once those are all spoken for, a burden their life's taken on that
+/// you've not yet heard. The world moves: a fresh grievance re-opens
+/// the ask
+pub fn probe_open(world: &World, knower: Entity, e: Entity, tick: u64) -> bool {
     if is_kid(world, e) { return false; }
     let carried = world.get_component::<InnerLife>(e).map(|l| l.wants.clone()).unwrap_or_default();
     let planted: Vec<Want> = world.get_component::<Planted>(e)
         .map(|p| p.wants.iter().map(|(w, _, _)| *w).collect()).unwrap_or_default();
     PROBE_WANTS.iter().any(|w| !carried.contains(w) && !planted.contains(w))
+        || !unrevealed(world, knower, e, tick).is_empty()
 }
 
 /// Plant a want the hearer doesn't already carry, ripening in

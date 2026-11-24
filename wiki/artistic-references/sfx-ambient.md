@@ -1,5 +1,7 @@
 # SFX & Ambient Audio Design
 
+> Superseded by [sound-system](../software-design/sound-system.md); kept for history.
+
 **Type:** Audio Reference
 **Source:** Backlog item (Low, artistic) — "SFX/ambient sounds: audio design."
 **Date:** 2026-10-25

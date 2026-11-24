@@ -8,7 +8,10 @@ edition = "2021"
 # on game2-core and sees only its public API; game2-core never depends on it.
 
 [features]
-default = []
+# Desktop output through cpal (#1494): on by default; --no-default-features
+# builds a silent client
+default = ["audio"]
+audio = ["dep:cpal"]
 # The 4x speed key: solo-play only while the flag rides out its deprecation
 # Push-to-talk dev feedback (#1083): hold a key, talk about a bug, and a
 # locally-transcribed clip lands as a filed GitHub issue. Native-only, so
@@ -19,6 +22,9 @@ dev-voice = ["dep:cpal"]
 
 [dependencies]
 game2-core = { path = "../game2-core" }
+# WAV output moved here (#1486); sound_dump's scenario library is the
+# audio crate's harness file, always on for the client (#1493)
+game2-audio = { path = "../game2-audio", features = ["scenarios"] }
 gif = "0.13"
 jpeg-encoder = "0.6"
 png = "0.18.1"

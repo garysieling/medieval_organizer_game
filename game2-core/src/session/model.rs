@@ -344,6 +344,19 @@ pub struct ToastV {
     pub born: Option<u32>,
 }
 
+/// A log line's story tag on the wire (#1488): the braid it belongs
+/// to (`thread`: weather/illness/fire/law/beast/visitor/org/economy/
+/// lifecycle/craft/player/other), its `valence` (-1 bad news, 0
+/// neutral, +1 good), and its `sev` (0 patter, 1 a beat, 2 a
+/// headline). Only structures what the line's text already shows the
+/// reader - the log colours it the same way.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagV {
+    pub thread: String,
+    pub valence: i8,
+    pub sev: u8,
+}
+
 /// One event-log line plus where it happened / who it was about, when the
 /// event had a position or a villager to point at (#645): a click jumps
 /// the camera there and selects the villager. Older servers send bare
@@ -357,6 +370,10 @@ pub struct LogEntryV {
     /// The villager it was about (a villager index, like `Command::Select`)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub who: Option<usize>,
+    /// The story tag, when the line was pushed tagged (#1488) -
+    /// absent from older servers and from plain untagged lines
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<TagV>,
 }
 
 impl<'de> Deserialize<'de> for LogEntryV {
@@ -369,11 +386,12 @@ impl<'de> Deserialize<'de> for LogEntryV {
                 text: String,
                 #[serde(default)] at: Option<(f32, f32)>,
                 #[serde(default)] who: Option<usize>,
+                #[serde(default)] tag: Option<TagV>,
             },
         }
         Ok(match Repr::deserialize(d)? {
-            Repr::Plain(text) => LogEntryV { text, at: None, who: None },
-            Repr::Full { text, at, who } => LogEntryV { text, at, who },
+            Repr::Plain(text) => LogEntryV { text, at: None, who: None, tag: None },
+            Repr::Full { text, at, who, tag } => LogEntryV { text, at, who, tag },
         })
     }
 }
@@ -388,6 +406,11 @@ pub struct MysteryV {
     pub title: String,
     pub heard: usize,
     pub total: usize,
+    /// Per-direction progress (#1350): (word, heard, wanted) for each of
+    /// who/what/when/where/why - `wanted` 0 means the story doesn't ask
+    /// it. Empty on old payloads, where the flat count's all there is
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dims: Vec<(String, usize, usize)>,
     pub asker_name: String,
     /// The asker's villager index (like `Command::Select`), when they're
     /// still on the roll
@@ -408,6 +431,7 @@ impl<'de> Deserialize<'de> for MysteryV {
                 title: String,
                 #[serde(default)] heard: usize,
                 #[serde(default)] total: usize,
+                #[serde(default)] dims: Vec<(String, usize, usize)>,
                 asker_name: String,
                 #[serde(default)] asker: Option<usize>,
                 #[serde(default)] asker_at: Option<(f32, f32)>,
@@ -415,9 +439,9 @@ impl<'de> Deserialize<'de> for MysteryV {
         }
         Ok(match Repr::deserialize(d)? {
             Repr::Plain(line) => MysteryV { title: String::new(), heard: 0, total: 0,
-                asker_name: line, asker: None, asker_at: None },
-            Repr::Full { title, heard, total, asker_name, asker, asker_at } =>
-                MysteryV { title, heard, total, asker_name, asker, asker_at },
+                dims: vec![], asker_name: line, asker: None, asker_at: None },
+            Repr::Full { title, heard, total, dims, asker_name, asker, asker_at } =>
+                MysteryV { title, heard, total, dims, asker_name, asker, asker_at },
         })
     }
 }
@@ -437,6 +461,42 @@ pub struct EventFocusV {
     pub extent: f32,
     /// Whether pos keeps moving while it lasts
     pub moving: bool,
+}
+
+/// The weather event the sky is running (#1487): kind mirrors
+/// `CurrentWeather` (storm/drought/heat/frost), intensity 0..1,
+/// `days_left` the days it still has. `UiModel.weather` is `None`
+/// when the sky is clear - the seat sees the same sky on screen.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeatherV {
+    pub kind: String,
+    pub intensity: f32,
+    pub days_left: u32,
+}
+
+/// Where the village calendar stands (#1487): today's observances,
+/// the feast's name when one falls today, and the countdowns to the
+/// next holy and market days - everything the seat already reads on
+/// the HUD.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CalendarV {
+    pub holy_day: bool,
+    pub market_day: bool,
+    pub feast: Option<String>,
+    pub days_to_holy: u32,
+    pub days_to_market: u32,
+}
+
+/// The frame clock (#1487): how far through today we are (0..1), how
+/// many frames a day lasts, and the current speed multiplier vs the
+/// normal 21s day (1.0 normal, ~5.6 turbo, 0.5 while a meeting slows
+/// the calendar). `frames_per_day` 0 from an older server means
+/// "unknown".
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ClockV {
+    pub day_frac: f32,
+    pub frames_per_day: u32,
+    pub speed: f32,
 }
 
 /// Everything `View::render` draws that comes from the simulation.
@@ -534,7 +594,7 @@ pub struct UiModel {
     pub sel: Selection,
     /// Villager indices within talk/meeting reach
     pub reach: Vec<usize>,
-    /// Whom Talk/Recruit would go to now (a villager index)
+    /// Whom Talk would go to now (a villager index)
     pub reach_target: usize,
     /// Whom Talk would land on now, if anyone (a villager index): the
     /// picked one while they're within a shout, else the best near.
@@ -677,6 +737,18 @@ pub struct UiModel {
     /// so the client's marker can point the way
     #[serde(default)]
     pub quest_target: Option<(f32, f32)>,
+    /// The weather event in the sky - absent on a clear day and from
+    /// older servers (#1487)
+    #[serde(default)]
+    pub weather: Option<WeatherV>,
+    /// The village calendar: holy/market day, feasts, countdowns -
+    /// absent from older servers (zeroes: all false, 0 days to)
+    #[serde(default)]
+    pub calendar: CalendarV,
+    /// The frame clock: where in the day we are, the day's length,
+    /// the speed - absent from older servers (0s = unknown)
+    #[serde(default)]
+    pub clock: ClockV,
 }
 
 /// `PersonV.pose` values: the `rd/people/poses` cells, in order - 0

@@ -539,7 +539,8 @@ impl Game {
             let Some(p) = self.world.get_component_mut::<Pos>(b.e) else { return };
             if b.path.is_empty() {
                 b.working_until = Some(self.tick + INK_BOIL_DAYS);
-                self.say(b.e, "The oil takes its time - bring your crusts when it spits.", TALK_BUBBLE_SECS * 2);
+                let bl = self.pair_said(b.e, self.player, "The oil takes its time - bring {2:poss} crusts when it spits.");
+                self.say(b.e, &bl, TALK_BUBBLE_SECS * 2);
             } else {
                 Self::follow_path(p, &mut b.path, tr_spd);
             }
@@ -629,7 +630,8 @@ impl Game {
                         household::add_stock(b, "ink", INK_YIELD);
                     }
                 }
-                self.say(be, "The black goes in - there's your ink.", TALK_BUBBLE_SECS);
+                let il = self.pair_said(be, self.player, "The black goes in - there's {2:poss} ink.");
+                self.say(be, &il, TALK_BUBBLE_SECS);
                 self.log.push_ev_at_who(EvTag::new(Thread::Craft, Valence::Positive, Sev::Minor), format!("t{}: lampblack into the varnish - the ink-maker sells {} ink before he goes.", tick, INK_YIELD),
                     Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
             }

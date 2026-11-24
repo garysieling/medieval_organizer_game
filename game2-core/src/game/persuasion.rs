@@ -53,6 +53,27 @@ pub struct PendingPersuasion {
 /// Whether the bond's deep enough to argue with them: you know them
 pub fn can_argue(stage: RelStage) -> bool { stage >= RelStage::Known }
 
+/// Lines that are themselves an argument (#1348): the talk offers no
+/// "argue a point" ask any more - the words carry it. Picking one of
+/// these speaks it, then opens the argument the ask used to open.
+/// The accusation picks of the event trees, the flat contradiction the
+/// PushBack replies lean on, calling their word a liar's, and taking
+/// a side in the Noah row all count.
+pub const ARGUMENTATIVE_LINES: &[&str] = &[
+    crate::game::dialogue_trees::FT_ACCUSE,
+    crate::game::dialogue_trees::FT_ACCUSE_RUN,
+    crate::game::dialogue_trees::NOAH_SIDE_THEM,
+    "Nay, I see it differently, mark me.",
+    "That is not the way the elders told it.",
+    "I have heard that lie three times this week.",
+    "Say that again, if {2:subj} {2:dare}.",
+    "{2:subj} {2:have} a treacherous tongue in {2:poss} skull.",
+    "The whole parish knows the measure of {2:poss} word.",
+];
+
+/// Whether a reply's own words are an argument's opening
+pub fn is_argumentative(line: &str) -> bool { ARGUMENTATIVE_LINES.contains(&line) }
+
 /// The live issues worth arguing with `person`: the campaign's, the
 /// ones the organizer has found, then what they've told you of their
 /// own and what's woken them - deduped, at most `ARGUABLE_MAX`
@@ -66,8 +87,8 @@ pub fn arguable_issues(world: &World, org: Entity, organizer: Entity, person: En
     if let Some(o) = world.get_component::<Organizer>(organizer) {
         for t in &o.issues { add(t.clone(), &mut out); }
     }
-    if let Some(k) = world.get_component::<desires::Known>(person) {
-        for r in &k.revealed { add(desires::issue_tag(world, person, r), &mut out); }
+    for r in desires::known(world, organizer, person) {
+        add(desires::issue_tag(world, person, &r), &mut out);
     }
     if let Some(s) = world.get_component::<Sympathized>(person) {
         for (t, _) in &s.issues { add(t.clone(), &mut out); }
@@ -120,9 +141,9 @@ pub fn counter_line(traits: &[Trait], stance: Stance, issue: &IssueTag) -> Strin
     for t in traits {
         let line = match t {
             Trait::Stingy => format!("And who pays for {}? Not me, I'll wager.", what),
-            Trait::Pious => format!("Is {} right, though - or only useful to you?", what),
+            Trait::Pious => format!("Is {} right, though - or only useful to {{2:obj}}?", what),
             Trait::Hotheaded => format!("Talk's cheap. Who'd stand behind {} when it comes to it?", what),
-            Trait::Proud => format!("I'll make my own mind up on {}, thank you.", name),
+            Trait::Proud => format!("I'll make my own mind up on {}, thank {{2:obj}}.", name),
             Trait::Lazy => format!("{} sounds like work. Who'd carry it?", capitalize(&what)),
             _ => continue,
         };

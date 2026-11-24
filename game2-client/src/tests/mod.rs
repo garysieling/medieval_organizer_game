@@ -2,6 +2,7 @@
 //! `session`'s public API, as the client itself does.
 
 mod action_log;
+mod audio_bridge;
 mod basics;
 mod blocker;
 mod bubble;
@@ -51,6 +52,9 @@ mod season;
 mod search;
 mod sel_marker;
 mod sign;
+mod sound_dump;
+mod sound_hud;
+mod sound_menu;
 mod status_line;
 mod title;
 mod toast;

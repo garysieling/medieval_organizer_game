@@ -62,7 +62,7 @@ fn test_a_house_meeting_the_seat_called_is_the_event() {
     }
     let rel = game.world.create_entity();
     game.world.add_component(rel, Relationship { from: game.player, other: eliza,
-        kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+        kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut game, eliza, (18.0, 16.0), &[bram]);
     game.call_meeting();
     assert!(game.meeting.is_some(), "the meeting never got called");

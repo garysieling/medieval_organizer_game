@@ -930,6 +930,24 @@ pub enum Motion {
     /// raising (#1344): the take fills the chest, the shared day warms
     /// the hands
     WorkParty(PartyKind),
+    /// Charter the fire brigade (#1346): the cause's answer to a fire
+    /// grief it's identified - sworn hands on every bell
+    Brigade,
+    /// The rhythm verbs as motions (#1337): the room ratifies the
+    /// organizer's read on how often the cause meets - the cadence is
+    /// what the meeting does, not a button
+    Cadence,
+    /// The room tallies the next step after a meeting's held - the
+    /// members standing there carry the mandate
+    Debrief,
+    /// Put the accountability assembly's agenda up early - it keeps
+    /// its own dates otherwise
+    Assembly,
+    /// The purse mends the storm-hit hall - carried like any spending
+    MendHall,
+    /// The treasury raises the schoolhouse or sends for the teacher -
+    /// a room can refuse the coin
+    School,
 }
 
 /// The work a party walks out to (#1344): caps under the trees, or a
@@ -953,6 +971,11 @@ pub fn motion_line(m: Motion) -> Option<crate::game::rhetoric::Line> {
         Motion::GroupBuy(..) => Some(Line::Patient),
         Motion::WorkParty(_) => Some(Line::Patient),
         Motion::SendOrganizer | Motion::ParallelEvent(_) => None,
+        Motion::Brigade => Some(Line::Patient),
+        // the rhythm carries no line to witness - housekeeping isn't
+        // rhetoric the room can be set against (#1337)
+        Motion::Cadence | Motion::Debrief | Motion::Assembly
+            | Motion::MendHall | Motion::School => None,
     }
 }
 
@@ -994,6 +1017,13 @@ pub fn motion_label(m: Motion) -> String {
             "Send a work party out for the caps - the take fills the chest".into(),
         Motion::WorkParty(PartyKind::Raise) =>
             "Raise a roof together - call the village out for it".into(),
+        Motion::Brigade =>
+            "Charter a fire brigade - sworn hands on every bell".into(),
+        Motion::Cadence => "Set the meeting's cadence - the rhythm's the room's".into(),
+        Motion::Debrief => "Debrief - the room tallies the next step".into(),
+        Motion::Assembly => "Call the accountability assembly early".into(),
+        Motion::MendHall => "Mend the hall - the purse covers the roof".into(),
+        Motion::School => "Raise the school - the treasury pays the desk".into(),
     }
 }
 
@@ -1436,6 +1466,21 @@ pub fn survey_ring(world: &World, v: Entity, issue: &IssueTag, tick: u64) -> u8 
     if known { 1 } else { 0 }
 }
 
+/// The fire grief the brigade answers (#1346): "the bad bread" voiced
+/// or surveyed into the cause's legwork book - or a living member
+/// still carrying the blame themselves, identified or not
+fn fire_known(world: &World, campaign: Entity) -> bool {
+    const FIRE_TAG: &str = "the bad bread";
+    let Some(org) = world.get_component::<Campaign>(campaign).map(|c| c.org) else { return false };
+    if world.get_component::<Legwork>(org)
+        .map(|l| l.0.iter().any(|t| t.as_str() == FIRE_TAG)).unwrap_or(false) {
+        return true;
+    }
+    let Some(members) = world.get_component::<Organization>(org).map(|o| o.members.clone()) else { return false };
+    members.iter().any(|&m| !is_dead(world, m)
+        && desires::problems_of(world, m, u64::MAX).contains(&desires::Problem::Blamed))
+}
+
 /// The motions a cause this size can carry tonight: more people means
 /// more and different doors - two fronts want hands for both at once,
 /// a post wants someone to spare, and a warm town wants staging (#1157)
@@ -1460,6 +1505,34 @@ pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
     // needs the hands
     if n >= 3 { ms.push(Motion::WorkParty(PartyKind::Forage)); }
     if n >= 5 { ms.push(Motion::WorkParty(PartyKind::Raise)); }
+    // the fire brigade is the cause's answer to a fire grief it's
+    // identified (#1346): a bad-bread tag voiced or surveyed into the
+    // legwork book, or a member still carrying the blame themselves.
+    // Chartering's loud enough it wants the same survey-first
+    // discipline the street verbs ride
+    if asked && n >= 3 && fire_known(world, campaign) {
+        ms.push(Motion::Brigade);
+    }
+    // the rhythm is the meeting's own (#1337): the floor can always
+    // retime its gathering, tally the next step once it's held one,
+    // put the assembly up early when the checks have a slate, mend a
+    // roofless hall - housekeeping, not street work, so no legwork asks
+    ms.push(Motion::Cadence);
+    if world.get_component::<CampaignMeeting>(campaign).map(|m| m.held > 0).unwrap_or(false) {
+        ms.push(Motion::Debrief);
+    }
+    let org = world.get_component::<Campaign>(campaign).map(|c| c.org);
+    if let Some(org) = org {
+        if world.get_component::<crate::game::organizing::HallDamaged>(org).is_some() {
+            ms.push(Motion::MendHall);
+        }
+        if !agenda_checks(world, campaign, org).is_empty()
+            && world.get_component::<Assembly>(campaign)
+                .map(|a| a.announced.is_none()).unwrap_or(true)
+        {
+            ms.push(Motion::Assembly);
+        }
+    }
     // the room's own coin: when the pledges gather behind a good, the
     // floor can carry the pooled buy - quiet work, no legwork asked
     if let Some((gi, pledgers)) = group_pledges(world, campaign).into_iter()

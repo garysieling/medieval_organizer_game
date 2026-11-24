@@ -44,7 +44,7 @@ impl Game {
                     .unwrap_or(self.village);
                 let spot = self.map.nearest_passable(anchor.0 + 2, anchor.1 + 2)
                     .unwrap_or((anchor.0 + 2, anchor.1 + 2));
-                let name = vill_name(i);
+                let name = self.cast_name(i);
                 let deed = self.world.get_component::<Craft>(honoree)
                     .map(|c| vocation::trade_name(c.vocation)).unwrap_or("the bench");
                 self.cairns.push(Cairn { pos: spot, honoree: i,
@@ -99,7 +99,7 @@ impl Game {
                         .villagers
                         .iter()
                         .position(|&x| x == v)
-                        .map(vill_name)
+                        .map(|i| cast_of(&self.names, i))
                         .unwrap_or("a wayfarer");
                     self.log.push_ev(
                         EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),

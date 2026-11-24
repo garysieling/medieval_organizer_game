@@ -82,8 +82,15 @@ impl Game {
 
 /// The journal format a binary reads. Bumped when an input's meaning
 /// changes - a journal from before the bump would replay it differently
-/// (the dropped Build button's Act(2) would silently no-op)
-pub const JOURNAL_VERSION: u32 = 1;
+/// (a dropped button's Act(n) would silently no-op; a TalkPick after a
+/// landed come-along now answers the invite's when/where, not the
+/// replies it meant; the floor's slate carries more motions now, so a
+/// Decide(n) can land on a different row (#1337); the dawn's job offers
+/// draw different streams now that ghosts shape them (#1438), so an old
+/// journal's return-trip replay would land on different work; and the
+/// asks' odds themselves moved to the act model (#1442), so an old
+/// journal's rolls land differently still)
+pub const JOURNAL_VERSION: u32 = 6;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -94,10 +101,19 @@ pub struct Journal {
     /// Journals written before versioning carry no field - they read as 0
     #[serde(default)]
     pub version: u32,
+    /// Whether the world was a seeded cast (#1411): replay must rebuild it
+    /// the same way, or the digest check rightly rejects the restore.
+    /// Journals written before the flag read as a fixed cast.
+    #[serde(default)]
+    pub cast_seeded: bool,
 }
 
 impl Journal {
-    pub fn new(seed: u64) -> Journal { Journal { seed, entries: vec![], version: JOURNAL_VERSION } }
+    pub fn new(seed: u64) -> Journal { Journal::new_cast(seed, false) }
+    /// A journal stamped with the cast mode its world runs
+    pub fn new_cast(seed: u64, cast_seeded: bool) -> Journal {
+        Journal { seed, entries: vec![], version: JOURNAL_VERSION, cast_seeded }
+    }
 
     /// Note an input taken at `frame` (frames never go backwards)
     pub fn record(&mut self, frame: u64, input: Input) {
@@ -108,7 +124,7 @@ impl Journal {
 
 /// Rebuild the world a journal describes, `frames` world-loop frames in
 pub fn replay(j: &Journal, frames: u64) -> Game {
-    let mut g = Game::new_seeded(j.seed);
+    let mut g = if j.cast_seeded { Game::new_seeded_cast(j.seed) } else { Game::new_seeded(j.seed) };
     let mut next = j.entries.iter().peekable();
     let mut take = |g: &mut Game, f: u64| {
         while let Some((_, input)) = next.next_if(|(ef, _)| *ef == f) { g.apply_input(input); }

@@ -188,8 +188,16 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity], day: 
         // they spoke at the meeting: the leader's bond with them grows a
         // talk's step, so a seat that hosted counts them as spoken to
         crate::game::player::note_conversation(world, leader, a, day);
+        // the table's company cuts the alone of it (#1442): a shared
+        // meal keeps more than the bare talk does
+        crate::game::act_model::company_kept(world, a, if world_has_hall { 1.5 } else { 1.0 });
         let trust = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(0.0);
-        if crate::sim::community::recruit(world, org, a, trust) {
+        // signing on is an act too: one the day's weights won't carry
+        // doesn't put a name to it, however warm the room was
+        let standing = crate::game::act_model::act_chance(world, leader, a,
+            crate::game::act_model::JOIN_COST
+                + crate::game::act_model::stranger_premium(world, leader, a), day);
+        if standing >= 0.30 && crate::sim::community::recruit(world, org, a, trust) {
             recruited += 1;
         }
         if world.get_component::<Organization>(org).map(|o| o.members.contains(&a)).unwrap_or(false) {
@@ -284,8 +292,8 @@ pub fn meeting_remark(world: &World, person: Entity, name: &str, round: usize) -
 /// Small talk, for someone who has already told you what's on their mind
 const SMALL_TALK: [(&str, &str); 5] = [
     ("chatted about the weather", "Looks like rain again, doesn't it?"),
-    ("passed on some village gossip", "Did you hear who was seen down by the mill?"),
-    ("asked how you were keeping", "Good to see you again."),
+    ("passed on some village gossip", "{2:did} {2:subj} hear who was seen down by the mill?"),
+    ("asked how you were keeping", "Good to see {2:obj} again."),
     ("talked about their family", "The little ones keep me on my toes."),
     ("swapped stories by the well", "Remember the winter the river froze?"),
 ];
@@ -294,12 +302,12 @@ const SMALL_TALK: [(&str, &str); 5] = [
 /// flourished word that makes a passing remark a line worth hearing
 const REGISTERS: [&str; 8] = [
     "By Saint Crispin, the hedges are full of it.",
-    "Thee's a good neighbor - there's my hand on it.",
+    "{2:subj} {2:be} a good neighbor - there's my hand on it.",
     "A pox on this weather, and that's God's truth.",
     "I swear by the well it's the driest year in memory.",
     "As I live and breathe, the miller's a knave and no mistake.",
-    "Good morrow to thee - the Lord keep thy purse fat.",
-    "There's a tale for thee, if thy ears'll take it.",
+    "Good morrow to {2:obj} - the Lord keep {2:poss} purse fat.",
+    "There's a tale for {2:obj}, if {2:poss} ears'll take it.",
     "Marry, the market's dear and the purse is thin.",
 ];
 
@@ -346,14 +354,14 @@ pub fn passing_remark(n: usize) -> &'static str {
 /// What someone who knows you says as you pass: a hello in their own
 /// voice, `{name}` being who they greet - picked by `n`
 const GREETINGS: [&str; 8] = [
-    "Well met, {name} - good to see thee.",
+    "Well met, {name} - good to see {2:obj}.",
     "{name}! Small world, isn't it?",
     "Ah, {name} - out and about?",
     "{name}, there's a fine day for walking.",
     "There's {name} - I was saying only this morning...",
     "Hello, {name} - the village feels warmer for it.",
     "{name}! We haven't crossed paths in an age.",
-    "God save thee, {name} - and thy purse.",
+    "God save {2:obj}, {name} - and {2:poss} purse.",
 ];
 
 /// The hello a friend gives in passing
@@ -366,10 +374,10 @@ pub fn passing_greeting(n: usize, name: &str) -> String {
 /// brush-off stays theirs.
 pub fn cold_gist(name: &str) -> (String, String) {
     const COLD: [(&str, &str); 4] = [
-        ("gives you a cold look", "You're back. What is it now?"),
-        ("barely nods", "Hmph. Say your piece and go."),
-        ("remembers the last words", "We left it badly last time. Say what you came for."),
-        ("folds their arms", "You've a nerve, coming back."),
+        ("gives you a cold look", "{2:subj} {2:be} back. What is it now?"),
+        ("barely nods", "Hmph. Say {2:poss} piece and go."),
+        ("remembers the last words", "We left it badly last time. Say what {2:subj} came for."),
+        ("folds their arms", "{2:subj} {2:have} a nerve, coming back."),
     ];
     let n = name.bytes().map(|b| b as usize).sum::<usize>();
     let (d, s) = COLD[n % COLD.len()];
@@ -528,7 +536,7 @@ mod tests {
             for _ in 0..n {
                 let other = w.create_entity();
                 let r = w.create_entity();
-                w.add_component(r, Relationship { from: c, other, kind, strength: 0.5, interactions: 6 });
+                w.add_component(r, Relationship { from: c, other, kind, strength: 0.5, interactions: 6, ..Default::default() });
             }
         }
         let r = one_on_one(&mut w, organizer, c, 1);
@@ -588,7 +596,7 @@ mod tests {
         for &f in &friends {
             let rel = w.create_entity();
             w.add_component(rel, Relationship {
-                from: leader, other: f, kind: RelKind::Friend, strength: 0.6, interactions: 5,
+                from: leader, other: f, kind: RelKind::Friend, strength: 0.6, interactions: 5, ..Default::default()
             });
         }
         let stranger = w.create_entity();
@@ -692,6 +700,31 @@ mod tests {
         let r = crate::game::relationships::find_relationship(&w, leader, v).unwrap();
         assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.10).abs() < 1e-6, "plain talk, not a shared meal");
     }
+
+    #[test]
+    fn test_the_read_is_a_guess_not_the_truth() {
+        // E7-3: the card's 1-5 reads what the seat could see - warmth
+        // reads loud, so a warm stranger overrates and a cold answer
+        // cools the guess; the band tightens with dealings
+        use crate::game::relationships::{RelKind, Relationship};
+        let mut w = World::new();
+        let (pe, v) = (w.create_entity(), w.create_entity());
+        assert!(read_of(&w, pe, v).is_none(), "no bond, no read");
+        let bond = w.create_entity();
+        w.add_component(bond, Relationship {
+            from: pe, other: v, kind: RelKind::Friend,
+            strength: 0.9, interactions: 6, ..Default::default() });
+        let (n, band) = read_of(&w, pe, v).unwrap();
+        assert!(n >= 4, "a warm ear reads high - the classic overrate: {}", n);
+        assert_eq!(band, ReadBand::Fair);
+        // turned-aside answers cool the guess while the truth wouldn't move
+        w.get_component_mut::<Relationship>(bond).unwrap().pivots = 6;
+        let (cooled, _) = read_of(&w, pe, v).unwrap();
+        assert!(cooled < n, "the pivots drag the read: {} -> {}", n, cooled);
+        // and many dealings make the guess sure of itself
+        w.get_component_mut::<Relationship>(bond).unwrap().interactions = 9;
+        assert_eq!(read_of(&w, pe, v).unwrap().1, ReadBand::Sure);
+    }
 }
 
 /// How well the organizer knows a person: a ladder you climb by talking
@@ -758,8 +791,7 @@ pub fn stage_of(world: &World, organizer: Entity, who: Entity) -> RelStage {
                     .map(|cc| cc.seats.iter().any(|s| s.holder == who)).unwrap_or(false));
         return if committed { RelStage::CoLeader } else { RelStage::Follower };
     }
-    let pieces = world.get_component::<crate::game::desires::Known>(who)
-        .map(|k| k.revealed.len()).unwrap_or(0);
+    let pieces = crate::game::desires::known(world, organizer, who).len();
     // secrets heard, or deeds done for them - either makes them known
     let deeds = world.get_component::<Deeds>(bond).map(|d| d.n).unwrap_or(0);
     if pieces >= KNOWN_PIECES || deeds > 0 { RelStage::Known } else { RelStage::Acquaintance }
@@ -776,16 +808,125 @@ pub fn stage_label(s: RelStage) -> &'static str {
     }
 }
 
+/// How much evidence the seat's read stands on (E7-3, #1432): the
+/// band the card shows beside its 1-5 guess
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ReadBand {
+    /// A talk or two - barely a read at all
+    Guess,
+    /// Some dealings behind it
+    Fair,
+    /// Enough days and asks to trust it
+    Sure,
+}
+
+/// The word for a read's band
+pub fn band_label(b: ReadBand) -> &'static str {
+    match b { ReadBand::Guess => "a guess", ReadBand::Fair => "a fair read", ReadBand::Sure => "sure of it" }
+}
+
+/// The word for a 1-5 stance read: where they seem to stand with you
+pub fn read_label(n: u8) -> &'static str {
+    match n {
+        1 => "set against you",
+        2 => "cold to it",
+        3 => "uncommitted",
+        4 => "leans your way",
+        _ => "with you",
+    }
+}
+
+/// Your read of `who` (E7-3, #1432): the card's 1-5 guess at their
+/// stance, built only from what the seat could see - the warmth felt,
+/// their acts for the cause in the open, the reaches they answered -
+/// never the truth itself (`stage_of` stays that). Warmth reads loud,
+/// which is the point: the classic organizer's error is mistaking a
+/// warm ear for a signed name. None when there's no bond to read.
+pub fn read_of(world: &World, organizer: Entity, who: Entity) -> Option<(u8, ReadBand)> {
+    use crate::game::relationships::{find_relationship, Relationship};
+    let bond = find_relationship(world, organizer, who)?;
+    let r = world.get_component::<Relationship>(bond)?;
+    if r.interactions == 0 { return None; }
+    // the warmth the seat feels - the loudest and the least true signal
+    let warm = ((r.strength + 1.0) / 2.0).clamp(0.0, 1.0);
+    // the cause's public acts: sworn in, on the roll, woken to the issue
+    let mut acts = 0.0f32;
+    if world.query::<Organization>().iter().any(|&o|
+        world.get_component::<Organization>(o)
+            .map(|oo| oo.leader == organizer && oo.members.contains(&who)).unwrap_or(false)) {
+        acts += 1.0;
+    }
+    if crate::game::contracts::pact_live(world, organizer, who) { acts += 1.0; }
+    if let Some(c) = world.query::<Organization>().iter().copied()
+        .find(|&o| world.get_component::<Organization>(o)
+            .map(|oo| oo.leader == organizer).unwrap_or(false))
+        .and_then(|org| crate::game::campaign::campaign_of(world, org))
+        .and_then(|c| world.get_component::<crate::game::campaign::Campaign>(c).map(|cc| cc.issue.clone())) {
+        if world.get_component::<crate::game::reactions::Sympathized>(who)
+            .map(|s| s.issues.iter().any(|(i, _)| *i == c)).unwrap_or(false) {
+            acts += 1.0;
+        }
+    }
+    // the reaches they met, against the times they turned you aside
+    let met = (r.bids_met as f32).min(4.0);
+    let cold = ((r.pivots + r.deflects) as f32).min(5.0);
+    let score = (0.7 * warm + 0.08 * acts + 0.04 * met - 0.05 * cold).clamp(0.0, 1.0);
+    let n = (1 + (score * 4.0).round() as u8).clamp(1, 5);
+    let band = if r.interactions >= 8 { ReadBand::Sure }
+        else if r.interactions >= 3 { ReadBand::Fair } else { ReadBand::Guess };
+    Some((n, band))
+}
+
 /// What a meeting needs before it can happen, gathered one ask at a
 /// time. A promise lives on the org's plan; the more that come true,
 /// the better the meeting runs.
 /// Days before the organizer can testify again: testimony repeated is a speech (#1248)
 pub const TESTIMONY_COOLDOWN_DAYS: u64 = 90;
 
+/// Where the call gathers (#1337): a lent home, or one of the
+/// village's public spots - the invitation's where-pick names it
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Venue {
+    /// A villager's house: the host and the home they lent
+    House(Entity, Entity),
+    /// The market cross - folk can gather there on the word alone
+    Square,
+    /// The church steps
+    Church,
+    /// The tavern on the green
+    Tavern,
+}
+
+impl Venue {
+    /// Who lent it, when it's a house - a public spot keeps no promise
+    pub fn host(self) -> Option<Entity> {
+        match self { Venue::House(h, _) => Some(h), _ => None }
+    }
+}
+
+/// The homes the org's learned it can meet in (#1337): a lent door
+/// stays known past the meeting it was lent for - the plan resets
+/// every call, so the learning lives here. Venues are learned, not
+/// given.
+#[derive(Debug, Default)]
+pub struct KnownVenues {
+    /// (host, their house)
+    pub homes: Vec<(Entity, Entity)>,
+}
+
+/// Their door stays open past the one meeting it was lent for: the org
+/// learns the house as a place it can gather (#1337)
+pub fn learn_venue(world: &mut World, org: Entity, host: Entity, home: Entity) {
+    let mut kv = world.get_component::<KnownVenues>(org)
+        .map(|k| KnownVenues { homes: k.homes.clone() }).unwrap_or_default();
+    if !kv.homes.contains(&(host, home)) { kv.homes.push((host, home)); }
+    world.add_component(org, kv);
+}
+
 #[derive(Debug, Default)]
 pub struct MeetingPlan {
-    /// Who said we could meet at their house, and the house they meant
-    pub venue: Option<(Entity, Entity)>,
+    /// Where the coming meet gathers - a lent home or a public spot
+    pub venue: Option<Venue>,
     /// Who said they'd bring something for the table
     pub snacks: Option<Entity>,
     /// Who said they'd keep the notes
@@ -818,7 +959,7 @@ pub struct MeetingPlan {
 impl MeetingPlan {
     /// Everyone holding a promise on the plan
     pub fn holders(&self) -> Vec<Entity> {
-        let mut v: Vec<Entity> = [self.venue.map(|(h, _)| h), self.snacks, self.notes,
+        let mut v: Vec<Entity> = [self.venue.and_then(|v| v.host()), self.snacks, self.notes,
             self.opener, self.song, self.closer].into_iter().flatten().collect();
         v.extend(self.coming.iter().copied());
         v.extend(self.spreaders.iter().copied());
@@ -959,12 +1100,13 @@ pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKin
 /// `props_on_offer` with the stage nudged - the audition's read bumps
 /// the rung this talk's asks climb to (#1187, #1188).
 pub fn props_on_offer_shifted(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<PropKind> {
-    let heard = world.get_component::<crate::game::desires::Known>(person)
-        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
+    // `org` is the organization entity - the bond and the ledger are
+    // its leader's
+    let (stage, heard) = world.get_component::<Organization>(org)
+        .map(|o| (stage_of(world, o.leader, person),
+            !crate::game::desires::known(world, o.leader, person).is_empty()))
+        .unwrap_or((RelStage::Stranger, false));
     if !heard { return vec![]; }
-    // `org` is the organization entity - the bond is with its leader
-    let stage = world.get_component::<Organization>(org)
-        .map(|o| stage_of(world, o.leader, person)).unwrap_or(RelStage::Stranger);
     let reached = bumped(stage, shift);
     // nothing deeper than the rung they've reached with you
     let mut out = ask_candidates(world, org, person);
@@ -1024,13 +1166,13 @@ pub struct AskOffer {
 /// in the label ("for 15g"), the nerve's the push it is. An ask that
 /// suits something they've let out names the trouble back at them
 /// (#1247) - they remember what they said, not what you pitched.
-pub fn ask_label(world: &World, person: Entity, o: &AskOffer) -> String {
+pub fn ask_label(world: &World, knower: Entity, person: Entity, o: &AskOffer) -> String {
     let label = match o.key {
         AskKey::Earned => prop_label(o.kind).to_string(),
         AskKey::Coin => format!("{} - for {}g", prop_label(o.kind), o.price as u32),
         AskKey::Nerve => format!("{} - press them on it", prop_label(o.kind)),
     };
-    match suited_trouble(world, person, o.kind) {
+    match suited_trouble(world, knower, person, o.kind) {
         Some(t) => format!("{} - \"{}, you said\"", label, t),
         None => label,
     }
@@ -1038,11 +1180,11 @@ pub fn ask_label(world: &World, person: Entity, o: &AskOffer) -> String {
 
 /// The trouble a suited ask quotes back (#1247): the first piece of
 /// their self-interest you've heard that this ask speaks to. It's the
-/// same check `yes_chance` reads for its +0.2, so the quote and the
-/// bonus land together or not at all
-fn suited_trouble(world: &World, person: Entity, p: PropKind) -> Option<String> {
-    world.get_component::<crate::game::desires::Known>(person)?
-        .revealed.iter().find(|r| ask_suits(p, r)).map(their_trouble)
+/// same check `yes_chance` reads for its lighter cost, so the quote
+/// and the discount land together or not at all
+fn suited_trouble(world: &World, knower: Entity, person: Entity, p: PropKind) -> Option<String> {
+    crate::game::desires::known(world, knower, person)
+        .iter().find(|r| ask_suits(p, r)).map(their_trouble)
 }
 
 /// Their trouble named the way an ask can quote it (#1247): one phrase
@@ -1123,28 +1265,57 @@ pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
     base + 5.0 * (need - at).max(0) as f32
 }
 
+/// The season a refused ask stays off the table (#1347): a "won't hear
+/// it" cools off for the season - hearts change, and the second ask can
+/// land differently
+pub const ASK_COOLDOWN_DAYS: u64 = 90;
+
+/// Asks this person refused, and when (#1347): scoped to the org the
+/// ask was put for, so another cause's asking carries no chill
+#[derive(Debug, Default)]
+pub struct DeclinedAsks {
+    pub entries: Vec<(Entity, PropKind, AskKey, u64)>,
+}
+
+/// Whether this exact ask is still cooling on a refusal (#1347)
+fn declined_cooling(world: &World, org: Entity, person: Entity, o: &AskOffer, tick: u64) -> bool {
+    world.get_component::<DeclinedAsks>(person)
+        .map(|d| d.entries.iter().any(|(g, k, key, day)|
+            *g == org && *k == o.kind && *key == o.key && tick < *day + ASK_COOLDOWN_DAYS))
+        .unwrap_or(false)
+}
+
+/// Record a refusal (#1347): the ask cools off for the season, then can
+/// be put again - hearts change
+fn note_declined(world: &mut World, org: Entity, person: Entity, o: AskOffer, tick: u64) {
+    let mut entries = world.get_component::<DeclinedAsks>(person)
+        .map(|d| d.entries.clone()).unwrap_or_default();
+    entries.retain(|(_, _, _, day)| tick <= *day + ASK_COOLDOWN_DAYS);
+    entries.retain(|(g, k, key, _)| !(*g == org && *k == o.kind && *key == o.key));
+    entries.push((org, o.kind, o.key, tick));
+    world.add_component(person, DeclinedAsks { entries });
+}
+
 /// Every ask on the table, any currency (#1225): the earned asks the
 /// bond reaches, and where the ladder locks one out, the coin's priced
 /// variant (which reaches anyone the purse can pay) and the nerve's
-/// pressed one (which needs a piece of them heard to pull on).
-pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<AskOffer> {
-    let heard = world.get_component::<crate::game::desires::Known>(person)
-        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
-    let (stage, purse) = world.get_component::<Organization>(org)
+/// pressed one (which needs a piece of them heard to pull on). Asks
+/// refused inside the season stay off the table (#1347).
+pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u64) -> Vec<AskOffer> {
+    // the ledger's the org leader's own: asks ride on what this seat
+    // heard, not what some other seat did
+    let (stage, purse, leader) = world.get_component::<Organization>(org)
         .map(|o| (stage_of(world, o.leader, person),
             world.get_component::<crate::game::livelihood::Purse>(o.leader)
-                .map(|p| p.gold).unwrap_or(0.0)))
-        .unwrap_or((RelStage::Stranger, 0.0));
+                .map(|p| p.gold).unwrap_or(0.0), Some(o.leader)))
+        .unwrap_or((RelStage::Stranger, 0.0, None));
+    let heard = leader.map(|l| !crate::game::desires::known(world, l, person).is_empty())
+        .unwrap_or(false);
     let reached = bumped(stage, shift);
     let mut out = vec![];
-    // the argument's earned or not at all (#1234): coin doesn't buy a
-    // hearing for your case, and you can't press one on a stranger;
-    // it leads the asks so it's never crowded off the choice list. A
-    // safe read doesn't lift it early: the case moves them by the bond
-    // they actually hold, so an acquaintance couldn't be swayed
-    if crate::game::persuasion::can_argue(stage) && crate::game::persuasion::can_argue(reached) {
-        out.push(AskOffer { kind: PropKind::Argue, key: AskKey::Earned, price: 0.0 });
-    }
+    // the argument's no ask at all now (#1348): the words carry it -
+    // an argumentative line in the ordinary picks opens the same
+    // machinery the offer once did (persuasion::ARGUMENTATIVE_LINES)
     // the scouting read (#1249): an acquaintance will tell you who the
     // room follows - the answer's the talk's yield, so it's earned or
     // not offered; you don't pay for a picture of the room
@@ -1153,7 +1324,8 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
     }
     // the probing question (#1269): the thaw move the talk shares with
     // the meeting - only while there's a want left to plant
-    if reached >= RelStage::Acquaintance && crate::game::desires::probe_open(world, person) {
+    if reached >= RelStage::Acquaintance
+        && leader.map(|l| crate::game::desires::probe_open(world, l, person, tick)).unwrap_or(false) {
         out.push(AskOffer { kind: PropKind::Probe, key: AskKey::Earned, price: 0.0 });
     }
     for p in ask_candidates(world, org, person) {
@@ -1172,6 +1344,9 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<
         && crate::game::inoculation::COUNTERS.iter().any(|&c| !crate::game::inoculation::shielded(world, person, c)) {
         out.push(AskOffer { kind: PropKind::Inoculate, key: AskKey::Earned, price: 0.0 });
     }
+    // a refused ask cools off for the season (#1347) - it re-qualifies
+    // when its days are out, not before
+    out.retain(|o| !declined_cooling(world, org, person, o, tick));
     out
 }
 
@@ -1191,22 +1366,19 @@ fn ask_suits(p: PropKind, r: &crate::game::desires::Reveal) -> bool {
     }
 }
 
-/// The chance a proposition lands: the stage they hold with you, lifted
-/// when the ask touches something you know they want, and quietly
-/// helped along by how practiced the organizer is at a 1-1.
-pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind) -> f32 {
-    let stage = stage_of(world, organizer, person);
-    let base = match stage {
-        RelStage::Stranger => 0.05,
-        RelStage::Acquaintance => 0.45,
-        RelStage::Known => 0.65,
-        RelStage::Follower | RelStage::CoLeader => 0.9,
-    };
-    let suited = world.get_component::<crate::game::desires::Known>(person)
-        .map(|k| k.revealed.iter().any(|r| ask_suits(p, r))).unwrap_or(false);
+/// The chance a proposition lands: the act model's read (#1442) - the
+/// nine tensions their life and the campaign's pushes give them,
+/// weighed against the ask's cost. A well-aimed ask sits lighter when
+/// it touches something you know they want, and the practiced
+/// organizer makes every ask a little cheaper to say yes to.
+pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind, tick: u64) -> f32 {
+    let suited = crate::game::desires::known(world, organizer, person)
+        .iter().any(|r| ask_suits(p, r));
     let skill = world.get_component::<crate::game::org_skills::Organizing>(organizer)
         .map(|o| o.one_on_one).unwrap_or(0.0);
-    (base + if suited { 0.2 } else { 0.0 } + skill * 0.15).min(0.98)
+    let cost = (crate::game::act_model::ask_cost(p) - if suited { 0.15 } else { 0.0 }
+        - skill * 0.1 + crate::game::act_model::stranger_premium(world, organizer, person)).max(0.05);
+    crate::game::act_model::act_chance(world, organizer, person, cost, tick).min(0.98)
 }
 
 /// How far a voice carries in the room (#1249): a computed read, not a
@@ -1242,31 +1414,80 @@ pub fn pull_of(world: &World, v: Entity) -> f32 {
         + (rep - 0.45) * 0.8 + if mourns { 0.3 } else { 0.0 }).clamp(0.3, 2.2)
 }
 
-/// The excuse a declined ask earns (#1188): what you've heard of their
-/// burdens gives them a real reason to say not-yet - the reeve's eye,
-/// a mourning, a purse too thin - before a trait supplies one. None
-/// means a plain no.
-fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
-    use crate::game::desires::{Known, Problem, Reveal};
-    let reason = world.get_component::<Known>(person)
-        .and_then(|k| k.revealed.iter().find_map(|r| match r {
+/// Which weight on the scale speaks when the answer's no (#1442): the
+/// model's heaviest term asks its reason - the fear, the alone of it,
+/// the doubt, the ask's price, or that the work isn't theirs
+#[derive(Clone, Copy)]
+enum Refusal { Fear, Isolation, Doubt, Cost, Value }
+
+/// The excuse a declined ask earns (#1188, #1442): what you've heard of
+/// them gives them a real reason to say not-yet, and the act model
+/// picks which kind speaks - the heaviest of the scale's weights asks
+/// first. A villager you don't know stands behind the ask's price; the
+/// ghost's own reason can answer for the fear or the doubt. None means
+/// a plain no.
+pub(crate) fn no_reason(world: &World, knower: Entity, person: Entity, p: PropKind, tick: u64) -> Option<&'static str> {
+    let t = crate::game::act_model::tension_of(world, knower, person, tick);
+    let cost = crate::game::act_model::ask_cost(p)
+        + crate::game::act_model::stranger_premium(world, knower, person);
+    // the heaviest term speaks first; each asks only its own facts, so
+    // a reason you never heard can't answer for a weight it isn't. The
+    // real reasons run before the stock excuses: a wound or a burden
+    // always outranks what a trait would say
+    let mut whys = [
+        (t.fear, Refusal::Fear), (t.isolation, Refusal::Isolation),
+        (t.self_doubt, Refusal::Doubt), (cost, Refusal::Cost),
+        (t.inertia, Refusal::Value)];
+    whys.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    whys.iter().find_map(|&(_, w)| refusal_line(world, knower, person, w))
+        .or_else(|| whys.iter().find_map(|&(_, w)| refusal_trait(world, person, w)))
+}
+
+/// The facts a given refusal kind can speak for: the burdens you've
+/// been told, or the wound's own words - the earned reasons
+fn refusal_line(world: &World, knower: Entity, person: Entity, w: Refusal) -> Option<&'static str> {
+    use crate::game::desires::{Problem, Reveal, Want};
+    let known = crate::game::desires::known(world, knower, person);
+    match w {
+        Refusal::Fear => known.iter().find_map(|r| match r {
             Reveal::Problem(Problem::Taxed) => Some("the reeve's eye is on me already"),
+            Reveal::Problem(Problem::WritBorne) => Some("there's a writ with my name on it already"),
+            _ => None,
+        }).or_else(|| crate::game::fact_content::pressure_reason(world, person)),
+        Refusal::Isolation => known.iter().find_map(|r| match r {
             Reveal::Problem(Problem::Bereaved) => Some("I'm in mourning - not for gatherings"),
+            Reveal::Want(Want::Love) => Some("there's no one stands beside me in it"),
+            _ => None,
+        }),
+        Refusal::Doubt => known.iter().find_map(|r| match r {
+            Reveal::Problem(Problem::NoMaster) => Some("I've no craft worth a name on"),
+            _ => None,
+        }).or_else(|| crate::game::fact_content::pressure_reason(world, person)),
+        Refusal::Cost => known.iter().find_map(|r| match r {
             Reveal::Problem(Problem::NoHome) => Some("I've no roof of my own to keep"),
             Reveal::Problem(Problem::Broke) => Some("every hand's for the purse just now"),
             Reveal::Problem(Problem::Loss) => Some("I'm still counting what the wolves took"),
             Reveal::Problem(Problem::SourGut) => Some("this gut's not done with me yet"),
             _ => None,
-        }));
-    reason.or_else(|| world.get_component::<crate::game::traits::Personality>(person)
-        .and_then(|p| p.traits.iter().find_map(|t| match t {
-            crate::game::traits::Trait::Lazy => Some("that's work you're asking, and I'm short of it"),
-            crate::game::traits::Trait::Stingy => Some("mine's not for sharing out"),
-            crate::game::traits::Trait::Pious => Some("the church keeps my evenings"),
-            crate::game::traits::Trait::Proud => Some("I've a holding to keep - I'm nobody's recruit"),
-            crate::game::traits::Trait::Hotheaded => Some("you've a nerve, asking me that"),
-            _ => None,
-        })))
+        }),
+        Refusal::Value => None,
+    }
+}
+
+/// The stock excuses a trait supplies for its kind of no - weaker than
+/// any earned reason, they only speak when the facts hold their tongues
+fn refusal_trait(world: &World, person: Entity, w: Refusal) -> Option<&'static str> {
+    use crate::game::traits::Trait;
+    let lines: &[(Trait, &'static str)] = match w {
+        Refusal::Cost => &[(Trait::Stingy, "mine's not for sharing out")],
+        Refusal::Value => &[(Trait::Lazy, "that's work you're asking, and I'm short of it"),
+            (Trait::Pious, "the church keeps my evenings"),
+            (Trait::Proud, "I've a holding to keep - I'm nobody's recruit"),
+            (Trait::Hotheaded, "you've a nerve, asking me that")],
+        _ => return None,
+    };
+    world.get_component::<crate::game::traits::Personality>(person)
+        .and_then(|p| lines.iter().find(|(t, _)| p.traits.contains(t)).map(|(_, l)| *l))
 }
 
 /// Put the proposition: the yes records the promise on the org's plan
@@ -1295,6 +1516,7 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
         if refuses {
             record_interaction(world, organizer, Interaction {
                 other: person, kind: InteractionKind::Conflict, intensity: 0.15 });
+            note_declined(world, org, person, AskOffer { kind: p, key, price }, tick);
             return (format!("{} won't be bought - and won't forget you tried.", name), None);
         }
         let gold = world.get_component::<crate::game::livelihood::Purse>(organizer)
@@ -1310,12 +1532,16 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
         if p != PropKind::Introduce { plan_for(world, org).bought.push(person); }
         if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
         let msg = land_ask(world, org, person, p, name);
+        // a promised meeting part isn't kept until its keeper's in the
+        // room; the name on paper is kept in the signing (#1442)
+        if p == PropKind::SignPetition { crate::game::act_model::ask_kept(world, person); }
         return (format!("{} The coin changes hands.", msg), None);
     }
-    if yes_chance(world, organizer, person, p) <= roll {
+    if yes_chance(world, organizer, person, p, tick) <= roll {
         record_interaction(world, organizer, Interaction {
             other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
-        return match no_reason(world, person) {
+        note_declined(world, org, person, AskOffer { kind: p, key, price }, tick);
+        return match no_reason(world, organizer, person, p, tick) {
             Some(why) => (format!("{} won't hear it - \"{}\"", name, why), None),
             None => (format!("{} won't hear it - not yet.", name), None),
         };
@@ -1324,6 +1550,9 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, 0.01);
     if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
     let msg = land_ask(world, org, person, p, name);
+    // a promised meeting part isn't kept until its keeper's in the
+    // room; the name on paper is kept in the signing (#1442)
+    if p == PropKind::SignPetition { crate::game::act_model::ask_kept(world, person); }
     // a yes is a small warmth too - a pressed yes that lands warms more:
     // the gamble paid on both ends (#1225)
     let warmth = if key == AskKey::Nerve { 0.4 } else { 0.2 };
@@ -1340,6 +1569,11 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
 /// own referral path.
 fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &str) -> String {
     let home = if p == PropKind::LendVenue { crate::game::household::home_of(world, person) } else { None };
+    // the door they open stays known (#1337): learn the house before
+    // the plan borrow begins, whichever call this venue's picked for
+    if p == PropKind::LendVenue {
+        if let Some(h) = home { learn_venue(world, org, person, h); }
+    }
     let plan = plan_for(world, org);
     match p {
         PropKind::ComeAlong => {
@@ -1347,7 +1581,7 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
             format!("{} says they'll come.", name)
         }
         PropKind::LendVenue => {
-            if let Some(h) = home { plan.venue = Some((person, h)); }
+            if let Some(h) = home { plan.venue = Some(Venue::House(person, h)); }
             format!("{} says you can meet at their house.", name)
         }
         PropKind::BringSnacks => { plan.snacks = Some(person); format!("{} will bring something for the table.", name) }
@@ -1382,13 +1616,13 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
 /// little warm to you.
 fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, tick: u64) -> (String, Option<Entity>) {
     use crate::game::relationships::{bonds_of, record_interaction, Interaction, InteractionKind, Relationship};
-    use crate::game::desires::{issue_tag, unrevealed, Known};
+    use crate::game::desires::{issue_tag, unrevealed};
     // a word well spent comes back around: they said they'd think on it,
     // and come find you about it
     world.add_component(person, RoundBack { to: organizer, after: tick + 1, misses: 0 });
     let voc = world.get_component::<crate::game::vocation::Craft>(person).map(|c| c.vocation);
-    let their_tags: Vec<String> = world.get_component::<Known>(person)
-        .map(|k| k.revealed.iter().map(|r| issue_tag(world, person, r)).collect()).unwrap_or_default();
+    let their_tags: Vec<String> = crate::game::desires::known(world, organizer, person)
+        .iter().map(|r| issue_tag(world, person, r)).collect();
     // candidates: who they know, strongest first, sharing something
     let mut cands: Vec<(f32, Entity)> = bonds_of(world, person).iter().filter_map(|&r| {
         let rel = world.get_component::<Relationship>(r)?;
@@ -1396,9 +1630,8 @@ fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, t
         if other == organizer || crate::game::villager::is_dead(world, other) { return None; }
         let same_trade = voc.is_some() && world.get_component::<crate::game::vocation::Craft>(other)
             .map(|c| Some(c.vocation) == voc).unwrap_or(false);
-        let mut their_reveals = world.get_component::<Known>(other)
-            .map(|k| k.revealed.clone()).unwrap_or_default();
-        their_reveals.extend(unrevealed(world, other, tick));
+        let mut their_reveals = crate::game::desires::known(world, organizer, other);
+        their_reveals.extend(unrevealed(world, organizer, other, tick));
         let shared_trouble = their_reveals.iter()
             .any(|r| their_tags.contains(&issue_tag(world, other, r)));
         (same_trade || shared_trouble).then_some((rel.strength, other))
@@ -1496,10 +1729,15 @@ pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i3
         .map(|o| o.turnout).unwrap_or(0.0);
     let mut p = (p + skill * 0.1).min(0.98);
     // a given yes is a yes, and a friend holding the door is reason
-    // enough; the bare word alone asks something still theirs to say
-    if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, guest, tick).is_empty() {
-        p *= 0.25;
+    // enough; the bare word alone is the act model's own question
+    // (#1442) - will they move on nothing but the saying of it?
+    if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, organizer, guest, tick).is_empty() {
+        p *= crate::game::act_model::act_chance(world, organizer, guest, 0.45, tick);
     }
+    // the wound's nerve when the word alone calls (E3-4, #1425): a
+    // ghost that fears the gate halves their showing; the feast's
+    // keeper and the truth-teller come readier
+    if invite == Invite::Word { p *= crate::game::fact_content::showing_factor(world, guest); }
     roll < p
 }
 

@@ -26,8 +26,18 @@ pub fn drive_player(game: &mut Game, seat: usize) {
     let mp = game.world.get_component::<Pos>(game.market_food).map(|m| (m.x, m.y)).unwrap_or((10.0, 10.0));
     let d_market = ((mp.0 - p.0).powi(2) + (mp.1 - p.1).powi(2)).sqrt();
     if has_work && gold < 30.0 {
-        // poor and employable: put in a day
-        game.command_at(seat, Command::CtxAct(0)); // CtxAct::Work, when offered
+        // poor and employable: be at the bench - the work is standing
+        // there now, not a button (#1338)
+        let bench = game.world.get_component::<Craft>(who).and_then(|c| c.workplace)
+            .and_then(|b| game.world.get_component::<Pos>(b)).map(|b| (b.x, b.y));
+        if let Some((bx, by)) = bench {
+            let d = ((bx - p.0).powi(2) + (by - p.1).powi(2)).sqrt();
+            if d > 3.0 {
+                game.command_at(seat, Command::Walk((bx - p.0) / d, (by - p.1) / d));
+            } else {
+                game.command_at(seat, Command::Walk(0.0, 0.0));
+            }
+        }
         return;
     }
     if d_market > 6.0 {

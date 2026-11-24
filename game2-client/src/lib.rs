@@ -21,6 +21,7 @@ use game2_core::ui::weather_fx;
 /// A `println!` that doesn't panic when stdout's closed (#1370): the
 /// headless dumps and benches write progress to pipes the reader can
 /// drop mid-run - os error 232 shouldn't take the run down with it
+#[macro_export]
 macro_rules! sayln {
     ($($arg:tt)*) => {{
         use std::io::Write;
@@ -29,10 +30,14 @@ macro_rules! sayln {
 }
 
 mod art;
+pub mod audio;
 mod bench;
 mod draw;
 mod hud;
 pub mod record;
+pub mod remote;
+pub mod sound_dump;
+mod sound_menu;
 pub mod talk;
 // Push-to-talk dev feedback (#1083): cpal's native-only and the whole
 // module sits behind the flag so normal builds and wasm never see it
@@ -47,4 +52,6 @@ pub use bench::*;
 pub(crate) use draw::*;
 pub use hud::*;
 pub use record::*;
+pub use remote::{connect_remote, Remote};
+pub use sound_menu::*;
 pub use view::*;

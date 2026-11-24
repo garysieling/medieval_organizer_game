@@ -9,7 +9,7 @@ use crate::game::livelihood;
 use crate::game::villager;
 use crate::game::vocation::{self, SocialClass, Vocation};
 
-use super::{country, roll_vocation, vill_name, Game, Rng, NEW_NAMES};
+use super::{country, roll_vocation, Game, Rng, NEW_NAMES};
 
 /// How many wanderers a seed deals
 const ROSTER_SIZE: usize = 7;
@@ -270,11 +270,11 @@ impl Game {
             match self.world.get_component::<vocation::Craft>(v) {
                 Some(c) if c.workplace.is_some() => facts.push(format!(
                     "{} the {} keeps a bench here - worth knowing early.",
-                    vill_name(i), vocation::vocation_name(c.vocation).to_lowercase())),
+                    self.cast_name(i), vocation::vocation_name(c.vocation).to_lowercase())),
                 Some(c) => facts.push(format!(
                     "{} the {} lives here - worth knowing early.",
-                    vill_name(i), vocation::vocation_name(c.vocation).to_lowercase())),
-                None => facts.push(format!("{} lives here - worth knowing early.", vill_name(i))),
+                    self.cast_name(i), vocation::vocation_name(c.vocation).to_lowercase())),
+                None => facts.push(format!("{} lives here - worth knowing early.", self.cast_name(i))),
             }
         }
         // and the one the Wanderer washes up beside: a real grievance,

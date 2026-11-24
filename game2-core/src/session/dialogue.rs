@@ -18,7 +18,7 @@
 //! a child), and the bond between the two.
 
 use crate::engine::ecs::{Entity, World};
-use crate::game::conversation::{converse, converse_with, Act, Choice, DialogueTree, Ending, Relation, Rng as TalkRng, Speaker, Vibe};
+use crate::game::conversation::{converse_at, converse_with_at, Act, Choice, DialogueTree, Ending, Relation, Rng as TalkRng, Speaker, Vibe};
 use crate::game::dialogue_trees::village_library;
 use crate::game::lifecycle::{Age, LifeStage};
 use crate::game::relationships::{self, Interaction, InteractionKind, RelKind};
@@ -36,9 +36,9 @@ pub const CHAT_MAX_LINES: usize = 6;
 
 /// The help-ask's lines (#1368): one neighbor asks another for a hand
 pub(crate) const HELP_ASKS: &[&str] = &[
-    "Couldst thou spare a hand at my fence come the morrow?",
-    "My cart's wheel wants a second pair of hands - couldst thou come by?",
-    "The roof wants patching before the rain - wouldst thou lend a hand?",
+    "{2:could} {2:subj} spare a hand at my fence come the morrow?",
+    "My cart's wheel wants a second pair of hands - {2:could} {2:subj} come by?",
+    "The roof wants patching before the rain - {2:would} {2:subj} lend a hand?",
     "The woodpile's behind and my back's not what it was - a hand, neighbor?",
 ];
 pub(crate) const HELP_YES: &[&str] = &[
@@ -50,6 +50,31 @@ pub(crate) const HELP_NO: &[&str] = &[
     "I've no hands to spare, neighbor.",
     "Can't - my own work's piled past the door.",
     "Not this week - ask me again when the rain's past.",
+];
+/// The favor-ask (#1388): the talk turns on what the asked actually
+/// makes - a fish for coin, a pot of honey for the child's throat. The
+/// walk's the same help-out follow-through; the goods themselves stay
+/// an economy matter, not a chat one
+pub(crate) const FAVOR_ASKS: &[(crate::game::vocation::Vocation, &str)] = &[
+    (crate::game::vocation::Vocation::Fisher, "{2:would} {2:subj} spare a fat trout for a penny? The pot's thin this week."),
+    (crate::game::vocation::Vocation::Beekeeper, "{2:could} {2:subj} spare a pot of honey? My child's throat's raw with the cough."),
+    (crate::game::vocation::Vocation::Weaver, "{2:have} {2:subj} a length of cloth off the loom for a fair price?"),
+    (crate::game::vocation::Vocation::Baker, "{2:would} {2:subj} spare a loaf on tick till market day?"),
+    (crate::game::vocation::Vocation::Alewife, "Could I trouble {2:obj} for a jug of {2:poss} small ale?"),
+    (crate::game::vocation::Vocation::Brewer, "A firkin of {2:poss} beer for the haymaking - name the price."),
+    (crate::game::vocation::Vocation::Vintner, "{2:have} {2:subj} a bottle of the good wine for a feast day?"),
+    (crate::game::vocation::Vocation::Shepherd, "{2:would} {2:subj} spare a fleece or two? My spindle's idle."),
+    (crate::game::vocation::Vocation::Farmer, "{2:could} {2:subj} spare a sack of grain till the harvest comes in?"),
+    (crate::game::vocation::Vocation::Shoemaker, "{2:could} {2:subj} mend my boots? The sole's near through."),
+    (crate::game::vocation::Vocation::Taverner, "A bowl of {2:poss} pottage for a hungry evening - what's the price?"),
+    (crate::game::vocation::Vocation::Perfumer, "A vial of {2:poss} scent for the house - what {2:do} {2:subj} ask?"),
+    (crate::game::vocation::Vocation::Distiller, "A dram of the water of life for a cold night?"),
+];
+/// A favor granted reads like one brought round, not one fetched
+pub(crate) const FAVOR_YES: &[&str] = &[
+    "Aye, I'll bring it by before dark.",
+    "Come by my bench before dusk - I'll set it aside.",
+    "For {2:obj}? Aye - look for it at {2:poss} door.",
 ];
 /// The children's tree: a pair of kids keeps to it
 pub const KID_TREE: &str = "children_at_play";
@@ -94,6 +119,23 @@ pub struct TalkMemory {
     pub mood: TalkMood,
     /// The day it was set; past TALK_MEMORY_DAYS it fades
     pub tick: u64,
+}
+
+/// Who the bearer's already slipped in front of (E5-8, #1439): the
+/// once-per-relationship budget lives here - a slip heard is a
+/// landmark that doesn't repeat to the same ear
+#[derive(Debug, Default)]
+pub struct SlipMemory {
+    pub of: crate::engine::det::HashSet<Entity>,
+}
+
+/// What one seat's told them that landed (E3-3, #1428): keyed by the
+/// seat's player entity -> (deepest disclosure reached, day it did) -
+/// per-player, fading on the same clock as TalkMemory. A second seat
+/// finds nothing of the first's telling
+#[derive(Debug, Default)]
+pub struct SharedDepth {
+    pub of: crate::engine::det::HashMap<Entity, (u8, u64)>,
 }
 
 /// How many times `of` has made amends to the bearer (#1251): the
@@ -148,6 +190,9 @@ pub struct TalkRecord {
     /// Everyone in it (the player too, for a Talk or a meeting)
     pub with: Vec<Entity>,
     pub lines: Vec<TalkLine>,
+    /// Where the talk stood (E5-9, #1446): the place and the ears that
+    /// picked which transcript its lines were said in
+    pub setting: crate::game::setting::Setting,
     /// The warmth beat was counted - a record only warms once
     pub warmed: bool,
     /// A kind answer landed - a Talk warms on those, not push-backs
@@ -164,17 +209,24 @@ pub struct TalkRecord {
 pub struct PlayerTalk {
     pub id: u64,
     pub who: Entity,
+    /// The seat's own organizer (E7-1, #1404): their ledger is what the
+    /// asks' "you said" and the deep draws' already-heard read from -
+    /// another seat's hearing stays out of it
+    pub knower: Entity,
     pub villager: Speaker,
     pub player: Speaker,
     pub rel: Relation,
+    /// The finer bond, when the village knows it (#1372): lovers and
+    /// mentors reach different words than acquaintances
+    pub kind: Option<crate::game::relationships::RelKind>,
     pub seed: u64,
     pub picks: Vec<usize>,
     /// Who they are, read ahead of what's on their mind
     pub profile: String,
     /// What's on their mind, said after their opening line
     pub gist: String,
-    /// The replies on offer now: (act, the line)
-    pub options: Vec<(Act, String)>,
+    /// The replies on offer now: (act, its responsiveness tag, the line)
+    pub options: Vec<(Act, crate::game::conversation::Respond, String)>,
     /// Which tree's fork offered them - a greeting on old_scores is no
     /// greeting
     pub opt_tree: Option<&'static str>,
@@ -195,10 +247,38 @@ pub struct PlayerTalk {
     /// replay accumulates them, the watermark marks what's been seen
     /// (#1189)
     pub asked_seen: usize,
+    /// Too-deep asks already paid for (E3-2): each one the replay
+    /// reports anew costs the bond a rung of nerve
+    pub forward_seen: u8,
+    /// Turn-asides already counted to the ledger (E5-2, #1434): the
+    /// replay's `evasions` list keeps them; the watermark diffs them
+    pub evasions_seen: usize,
+    /// A hothead pressed past the shape already blurted this talk
+    /// (E5-2): the telling's spent once, the temper doesn't pour twice
+    pub blurted: bool,
+    /// The doorknob worry's truth already heard onto the ledger
+    /// (E5-3, #1435): the replay yields `worry_told` every refresh
+    pub worry_told_seen: bool,
+    /// The leaks already marked on the pair's memory (E5-8, #1439):
+    /// the replay yields `slips` every refresh once one's fired
+    pub slips_seen: usize,
+    /// The jokes already read for alignment (E5-6, #1437): the replay
+    /// yields `jokes` every refresh; a laugh shared over a barb at
+    /// power files once
+    pub jokes_seen: usize,
+    /// An easier ask already mended the nerve a press frayed (E5-2):
+    /// backing off pays once a talk
+    pub backed_off: bool,
+    /// The deepest disclosure the seat's given them this talk (E3-3) -
+    /// lands on their TalkMemory when the talk closes
+    pub shared: u8,
     /// How the picks so far have left them feeling (#1183)
     pub mood: TalkMood,
     /// How their audition of you read, once it's been answered (#1187)
     pub vibe: Option<crate::game::conversation::Vibe>,
+    /// Where the talk stands (E5-9, #1446): latched at open so the
+    /// replay walks the same transcript the first frame did
+    pub setting: crate::game::setting::Setting,
     /// An argument under way (#1234): while it is, the choices are its
     pub argue: Option<Argument>,
     /// What the argument put on the record, each after the replay line
@@ -222,11 +302,90 @@ pub struct PlayerTalk {
     /// first choice and their opening names it. Latched at open - a
     /// mid-talk lapse refuses on the pick, never shifts the numbers
     pub job: bool,
+    /// The meeting invite's follow-up (#1337): while it's open the
+    /// choices are the call's - when they gather, then where
+    pub inviting: Option<InviteStep>,
+    /// The safety test a disclosure's waiting on (E5-4, #1436): while
+    /// it rides, the choices are its answers - the secret holds until
+    /// one's picked
+    pub safety_bid: Option<SafetyBid>,
+    /// A passed test this talk (#1436): the next secrets come out
+    /// without asking again
+    pub bid_passed: bool,
+    /// The act the offered replies answer (E5-4): a pick read against
+    /// it is what a bid met, missed or refused moves
+    pub call_act: Option<Act>,
     /// The wares of a shopkeeper you're talking to (#1339): their till's
     /// offer rides the picks just under the job's. The good names latch
     /// at open so the numbers hold; the felt worth's priced live on the
     /// row, and a bare shelf drops the pick on the next take
     pub wares: Vec<String>,
+}
+
+/// The invitation's follow-up under way (#1337): they said they'd come
+/// to a meeting and asked the call's own questions back - when, then
+/// where. While one's open its picks are the talk's choices.
+#[derive(Debug, Clone)]
+pub enum InviteStep {
+    /// "When are we gathering, then?" - the day picks, the same three
+    /// the call panel offers
+    When,
+    /// "And where d'you want us?" - the day's picked (`days` out); the
+    /// venue list's already resolved with its labels: the public
+    /// spots, the org's learned homes, and "their call" riding last
+    Where { days: u64, venues: Vec<(crate::game::organizing::Venue, String)> },
+}
+
+/// A bid for safety (E5-4, #1436): the test a villager runs before a
+/// real telling - Afifi & Steuber's three shapes. `reveal` is the
+/// secret it was holding; passing buys it back out
+#[derive(Debug, Clone, Copy)]
+pub struct SafetyBid {
+    pub kind: SafetyBidKind,
+    pub reveal: crate::game::desires::Reveal,
+    /// The probe's true subject (E5-5): the third party whose lesser
+    /// secret the bidder carried - so a leak lands on the right ledger
+    pub probe: Option<(Entity, crate::game::desires::Reveal)>,
+}
+
+/// The three tests: the hypothetical asks after "a man", the
+/// confidentiality check asks for your tongue, the probe tells someone
+/// else's lesser secret and watches what you do with it
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SafetyBidKind { Hypothetical, Confidence, Probe }
+
+impl SafetyBid {
+    /// The answers on offer while the test stands: the turn toward,
+    /// the sidestep, and the turn away or leak
+    pub fn labels(&self) -> Vec<String> {
+        match self.kind {
+            SafetyBidKind::Hypothetical => vec![
+                "Hear him out - every house has its reasons.".into(),
+                "That's no business of mine.".into(),
+                "The reeve should know of it.".into()],
+            SafetyBidKind::Confidence => vec![
+                "My tongue holds - say on.".into(),
+                "That depends what's said.".into(),
+                "I make no promises.".into()],
+            SafetyBidKind::Probe => vec![
+                "That's between you and me.".into(),
+                "Why tell me this at all?".into(),
+                "The reeve should hear it.".into()],
+        }
+    }
+
+    /// Which turn answer `i` reads as for this shape: the last option
+    /// leaks what was held (against) for the hypothetical and probe -
+    /// the confidence check's cold end is only a miss
+    fn turn_of(&self, i: usize) -> crate::game::relationships::BidTurn {
+        use crate::game::relationships::BidTurn;
+        match (self.kind, i) {
+            (_, 0) => BidTurn::Toward,
+            (SafetyBidKind::Hypothetical, 2) | (SafetyBidKind::Probe, 2) => BidTurn::Against,
+            (SafetyBidKind::Confidence, 1) | (SafetyBidKind::Probe, 1) => BidTurn::Pivot,
+            _ => BidTurn::Away,
+        }
+    }
 }
 
 /// The one-on-one argument as it stands (#1234): which issue, then
@@ -258,6 +417,16 @@ impl Argument {
 /// many asks still fit. The list stops at three.
 pub const TALK_MAX_CHOICES: usize = 3;
 
+/// A talk under the household's own roof (E5-9, #1446): the kitchen
+/// table, the host's hall - the hidden transcript's own room, where an
+/// invitation to sit is the bond's way in
+pub(in crate::session) const HOUSE_SETTING: crate::game::setting::Setting =
+    crate::game::setting::Setting {
+        place: crate::game::setting::Place::Kitchen,
+        law_earshot: false,
+        invited: true,
+    };
+
 impl PlayerTalk {
     /// How many asks fit beside the picks on offer now: the choice
     /// list is the job's take-it first, then the replies, then asks,
@@ -284,10 +453,34 @@ impl PlayerTalk {
         TALK_MAX_CHOICES.saturating_sub(self.options.len() + self.job as usize).min(self.asks.len())
     }
 
+    /// The line `template` speaks as in this talk (E4-4): the offered
+    /// and recorded strings are realized text, so matching a pick
+    /// against an authored const means realizing the const with the
+    /// pair patched the way `converse_with` patches it. `player_side`
+    /// is the player's mouth; false is the villager's.
+    pub fn said(&self, template: &'static str, player_side: bool) -> String {
+        talk_said(&self.villager, &self.player, self.rel, template, player_side)
+    }
+
     /// The choice list as shown: an argument's own steps while one's
     /// under way, else the replies then the asks that fit
     pub fn choice_labels(&self, world: &World) -> Vec<String> {
         if let Some(a) = &self.argue { return a.labels(); }
+        // the invite's questions are the picks while it's open (#1337)
+        if let Some(step) = &self.inviting {
+            return match step {
+                InviteStep::When => vec![
+                    "Two days out - a quick word round".into(),
+                    "Four days out - the word gets round".into(),
+                    "A week out - the far ones can come".into(),
+                ],
+                InviteStep::Where { venues, .. } => venues.iter().map(|(_, l)| l.clone())
+                    .chain(std::iter::once("Their call - they'll pick where".into())).collect(),
+            };
+        }
+        // the safety test's answers, while it stands (E5-4): the
+        // transcript's replies wait underneath until it's settled
+        if let Some(b) = &self.safety_bid { return b.labels(); }
         if self.inoculating {
             return crate::game::inoculation::COUNTERS.iter().map(|&c| crate::game::inoculation::label(c).to_string())
                 .chain(std::iter::once("Let it drop".to_string())).collect();
@@ -295,13 +488,20 @@ impl PlayerTalk {
         self.job.then(|| "About that job - I'll take it.".to_string()).into_iter()
             .chain(self.wares.iter()
                 .map(|g| format!("I'll take the {} - {:.0} gold", g, crate::game::goods::worth_at(world, g))))
-            .chain(self.options.iter().map(|o| o.1.clone()))
+            .chain(self.options.iter().map(|o| {
+                // the words that pick a fight say so (#1348)
+                if crate::game::persuasion::is_argumentative(&o.2)
+                    || crate::game::persuasion::ARGUMENTATIVE_LINES.iter()
+                        .any(|l| o.2 == self.said(l, true)) {
+                    format!("{} - a quarrel", o.2)
+                } else { o.2.clone() }
+            }))
             .chain(self.asks.iter().take(self.asks_shown())
-                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
+                .map(|o| crate::game::organizing::ask_label(world, self.knower, self.who, o)))
             .chain(self.inoculation_beyond().as_ref()
-                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
+                .map(|o| crate::game::organizing::ask_label(world, self.knower, self.who, o)))
             .chain(self.probe_beyond().as_ref()
-                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
+                .map(|o| crate::game::organizing::ask_label(world, self.knower, self.who, o)))
             .chain(self.tell.clone())
             .chain(self.amends.then(|| "Make amends for the other day".to_string()))
             .chain(self.let_run.then(|| "Let them run on".to_string())).collect()
@@ -334,10 +534,50 @@ fn trade_status(v: Vocation) -> Option<&'static str> {
 /// `who` as a conversation speaker, read off the world at `tick`
 pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker {
     let mut s = Speaker::new(name);
+    // the persona's fact table (E3-1, #1423): archetype, top values,
+    // wound, lie and the tiers each area reaches
+    if let Some(p) = world.get_component::<crate::game::persona::Persona>(who) {
+        s.facts = p.fact_table();
+        // the visible habits the wounds and lessons leave (E3-4, #1425):
+        // neighbors' gossip and the ask gate's tell bonus both read them
+        for t in p.tells() { s.status.push(t); }
+        // a carried ghost is a kept thing - `keeps_wound` opens the
+        // deep asks but wears no area of its own: the wound's own tell
+        // slugs mark only the areas it actually hides behind
+        if !p.ghosts.is_empty() { s.status.push("keeps_wound"); }
+        // the leak a strong ghost under a high-strung temperament can
+        // make (E5-8, #1439): seeded here, the budget's patched per
+        // pair - who they've already slipped in front of
+        s.slip = crate::game::conversation::slip_of(p, None);
+        // the ear's landmark (E4-7, #1416): their phrase and habit
+        s.idiolect = Some(p.idiolect);
+    }
+    // the sky overhead (#1388): the day's weather rides as a status so
+    // weather talk gates on what the day is actually doing - rain lines
+    // only fall out of a wet sky
+    let wx = world.query::<crate::sim::climate::Climate>().first()
+        .and_then(|&e| world.get_component::<crate::sim::climate::Climate>(e))
+        .and_then(crate::sim::precipitation::precip_kind);
+    s.status.push(match wx {
+        Some(k) if k.is_snow() => "wx-snow",
+        Some(crate::sim::precipitation::PrecipKind::Haar) => "wx-fog",
+        Some(_) => "wx-rain",
+        None => "wx-fair",
+    });
     // the voice's own weight in the room (#1249): bonds, seniority,
     // standing, the moral pull of a dead loss - read live, not stored
     s.pull = crate::game::organizing::pull_of(world, who);
     if let Some(p) = world.get_component::<Personality>(who) { s.traits = p.traits.clone(); }
+    // their humor (E5-6, #1437): styles off the traits, the grievance
+    // off the persona's strongest ghost - needs both, so it seeds here
+    if let Some(p) = world.get_component::<crate::game::persona::Persona>(who) {
+        s.joke = Some(crate::game::conversation::joke_of(p, &s.traits));
+    }
+    // the body the talk can pronoun by (E1-3, #1417) - set before the
+    // child's early out so kids carry it too
+    if let Some(sex) = world.get_component::<villager::Sex>(who) {
+        s.sex = Some(match sex { villager::Sex::Female => "female", villager::Sex::Male => "male" });
+    }
     if world.get_component::<Kid>(who).is_some() { s.status.push("child"); return s; }
     let craft = world.get_component::<Craft>(who).map(|c| c.vocation);
     s.ideology = match craft {
@@ -391,6 +631,12 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     }
     // an old wound colors their talk long before they'll name it (#1243)
     s.status.extend(crate::game::hooks::statuses(world, who));
+    // their own archaism (E4-2, #1414): the devout and the old-ways keep
+    // the full thou-pattern; the rest take thou only as a marked shift
+    s.archaism = if s.ideology == "clergy"
+        || s.traits.contains(&crate::game::traits::Trait::Pious)
+        || s.status.iter().any(|st| *st == "old_ways")
+        || s.facts.open.iter().any(|f| matches!(f.as_str(), "archetype:devout" | "archetype:old_guard")) { 2 } else { 1 };
     s
 }
 
@@ -420,21 +666,41 @@ pub fn relation_with_wanderer(kind: Option<RelKind>) -> Relation {
 /// Replay a Talk: the lines so far (speaker 0 the villager, 1 the
 /// player), the replies on offer if it's the player's turn, and how it
 /// ended if it has
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>) {
+/// The line `template` speaks as between this pair (E4-4): realized
+/// with the speakers patched the way `converse_with` patches them, so
+/// offered or recorded text can be matched against an authored const.
+pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: Relation,
+             template: &str, player_side: bool) -> String {
+    use crate::game::text::{realize, tv_for, Cx};
+    let (mut v, mut p) = (villager.clone(), player.clone());
+    v.rel = rel;
+    v.tv = tv_for(&v, &p, rel, matches!(rel, Relation::Rival));
+    p.rel = rel;
+    p.tv = tv_for(&p, &v, rel, matches!(rel, Relation::Rival));
+    let (speaker, listener) = if player_side { (&p, &v) } else { (&v, &p) };
+    realize(template, &Cx::plain(speaker, listener, &[]),
+        &mut crate::game::conversation::Rng::new(0))
+}
+
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>, Option<crate::game::desires::Reveal>, Vec<(usize, crate::game::conversation::SlipKind)>, Vec<crate::game::conversation::JokeBeat>) {
     let mut n = 0;
-    let mut offered: Option<Vec<(Act, String)>> = None;
-    let tr = converse_with(&t.villager, &t.player, t.rel, library(), recent, 1, &mut |ch: &[Choice]| {
+    let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
+    let tr = converse_with_at(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &t.setting, &mut |ch: &[Choice]| {
         if n < t.picks.len() {
             n += 1;
             Some(t.picks[n - 1].min(ch.len().saturating_sub(1)))
         } else {
-            offered = Some(ch.iter().map(|c| (c.act, c.preview.clone())).collect());
+            offered = Some(ch.iter().map(|c| (c.act, c.respond, c.preview.clone())).collect());
             None
         }
     }, &mut TalkRng::new(t.seed));
     let lines = tr.turns.iter().map(|x| (x.speaker, x.text.clone(), x.line)).collect();
     let ending = if offered.is_some() { None } else { tr.ending };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked)
+    // the act the offered replies answer (E5-4): when the walk stopped
+    // for a pick, the last turn is their call - a bid's met or missed
+    // against it
+    let call = if offered.is_some() { tr.turns.last().map(|t| t.act) } else { None };
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call, tr.evasions, tr.worry_told, tr.slips, tr.jokes)
 }
 
 impl Game {
@@ -462,7 +728,9 @@ impl Game {
     pub(in crate::session) fn push_talk_cold(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>, cold: bool) -> u64 {
         self.talk_next_id += 1;
         let id = self.talk_next_id;
-        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines, warmed: false, positive: false, cold });
+        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines,
+            setting: crate::game::setting::STREET,
+            warmed: false, positive: false, cold });
         if self.talk_log.len() > TALK_LOG_MAX {
             let extra = self.talk_log.len() - TALK_LOG_MAX;
             self.talk_log.drain(..extra);
@@ -530,7 +798,11 @@ impl Game {
     pub fn open_meeting_record(&mut self, host: Entity, came: &[Entity]) -> u64 {
         let mut with = vec![host];
         with.extend_from_slice(came);
-        self.push_talk(TalkKind::Meeting, with, vec![])
+        let id = self.push_talk(TalkKind::Meeting, with, vec![]);
+        // a house meeting's the hidden transcript's own room (E5-9):
+        // the host's hall, the cause's own ears
+        if let Some(r) = self.talk_record_mut(id) { r.setting = HOUSE_SETTING; }
+        id
     }
 
     /// A meeting already talked through (a campaign meeting): put the
@@ -539,7 +811,8 @@ impl Game {
     pub fn record_meeting(&mut self, with: Vec<Entity>, said: Vec<(Option<Entity>, String, String)>) {
         if said.is_empty() { return; }
         let lines = said.into_iter().map(|(who, name, text)| TalkLine { who, name, text, gist: false }).collect();
-        self.push_talk(TalkKind::Meeting, with, lines);
+        let id = self.push_talk(TalkKind::Meeting, with, lines);
+        if let Some(r) = self.talk_record_mut(id) { r.setting = HOUSE_SETTING; }
     }
 
     /// A campaign's talk - a meeting's deliberation, or the arc that
@@ -570,6 +843,41 @@ impl Game {
             Some(p) if self.seats.iter().any(|s| s.player == e) => p.name.clone(),
             _ => self.name_of(e),
         }
+    }
+
+    /// The line `text` as `who` speaks it to `pe` (E4-4): the ambient
+    /// strings - greetings, remarks, the cold gist - speak in the
+    /// pair's own register too
+    pub(in crate::session) fn pair_said(&self, who: Entity, pe: Entity, text: &str) -> String {
+        let rel = relation_with_wanderer(self.rel_kind(pe, who));
+        talk_said(&speaker_of(&self.world, who, &self.name_of(who), self.tick),
+                  &self.player_speaker(pe), rel, text, false)
+    }
+
+    /// A line said villager-to-villager outside a Talk (E4-4)
+    pub(in crate::session) fn vv_said(&self, a: Entity, b: Entity, text: &str) -> String {
+        let rel = relation_with_wanderer(self.rel_kind(a, b));
+        talk_said(&speaker_of(&self.world, a, &self.name_of(a), self.tick),
+                  &speaker_of(&self.world, b, &self.name_of(b), self.tick),
+                  rel, text, false)
+    }
+
+    /// The player's own line aimed at the villager (E4-4)
+    pub(in crate::session) fn player_line(&self, seat: usize, who: Entity, text: &str) -> String {
+        let pe = self.seats[seat].player;
+        let rel = relation_with_wanderer(self.rel_kind(pe, who));
+        talk_said(&speaker_of(&self.world, who, &self.name_of(who), self.tick),
+                  &self.player_speaker(pe), rel, text, true)
+    }
+
+    /// The player's Speaker for realizing lines aimed at them (E4-4):
+    /// name only - a tree's own wiring layers on rhetoric status
+    pub(in crate::session) fn player_speaker(&self, pe: Entity) -> Speaker {
+        let pname = self.world.get_component::<crate::game::player::PlayerCharacter>(pe)
+            .map(|p| p.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "friend".into());
+        // spoken to, "The Wanderer" is "wanderer": "A peaceful day to thee, wanderer."
+        let pname = match pname.strip_prefix("The ") { Some(rest) => rest.to_lowercase(), None => pname };
+        Speaker::new(&pname)
     }
 
     /// Two villagers meet: they hold a conversation, which goes on the
@@ -626,11 +934,22 @@ impl Game {
                 let answer = amends::their_answer(ttraits, refused);
                 let prior = self.world.get_component::<AmendsTally>(maker)
                     .filter(|x| x.of == target).map(|x| x.n).unwrap_or(0);
+                let (maker_sp, target_sp) = if maker_first { (&sa, &sb) } else { (&sb, &sa) };
+                let srel = relation_of(self.rel_kind(a, b));
+                // the no's shape (E4-5): a guarded villager's refusal
+                // runs long and soft where a proud one's stays short
+                let said = talk_said(target_sp, maker_sp, srel, amends::answer_line(answer), false);
+                let spoken = if answer == Answer::Refused {
+                    let st = crate::game::text::stance_of(target_sp, maker_sp);
+                    let ops = crate::game::text::shape(Act::PushBack, &st, None);
+                    crate::game::text::shaped(&ops, &said, None, &st,
+                        &mut TalkRng::new(seed ^ 0xA115))
+                } else { said };
                 let lines = vec![
                     TalkLine { who: Some(maker), name: self.name_of(maker),
-                        text: amends::AMENDS_ASK.into(), gist: false },
+                        text: talk_said(maker_sp, target_sp, srel, amends::AMENDS_ASK, false), gist: false },
                     TalkLine { who: Some(target), name: self.name_of(target),
-                        text: amends::answer_line(answer).into(), gist: false },
+                        text: spoken, gist: false },
                 ];
                 self.world.add_component(maker,
                     AmendsTally { of: target, n: prior.saturating_add(1) });
@@ -659,10 +978,16 @@ impl Game {
             if fresh {
                 if let Some((_scene, variant, order)) =
                     crate::game::scenes::scene_for(&self.world, a, b, self.tick) {
+                    // the scene's lines speak through the pair's own tv
+                    // (E4-4): kin hear thee where strangers heard you
+                    let srel = relation_of(self.rel_kind(a, b));
+                    let s0 = if order.0 == a { &sa } else { &sb };
+                    let s1 = if order.1 == a { &sa } else { &sb };
                     let lines: Vec<TalkLine> = variant.lines.iter().take(CHAT_MAX_LINES).map(|&(i, text)| {
                         let (who, name) = if i == 0 { (order.0, self.name_of(order.0)) }
                             else { (order.1, self.name_of(order.1)) };
-                        TalkLine { who: Some(who), name, text: text.to_string(), gist: false }
+                        TalkLine { who: Some(who), name,
+                            text: talk_said(s0, s1, srel, text, i == 1), gist: false }
                     }).collect();
                     self.scene_marks.insert(key, self.tick);
                     // the take moves with the bond (#1230): a feuding
@@ -675,12 +1000,52 @@ impl Game {
             }
         }
         let rel = relation_of(self.rel_kind(a, b));
+        // a passing chat is exposed by its kind (E3-2): the street hears
+        sa.open = self.open_toward(a, b, false, None);
+        sb.open = self.open_toward(b, a, false, None);
         // seeded off the meeting itself, not the game's rng: chatter on the
         // street mustn't shift every other roll in the sim
         let seed = self.tick.wrapping_mul(0x9E37_79B9)
             ^ ((a as u64) << 32) ^ (b as u64) ^ self.last_chat.len() as u64;
         let recent = self.fresh_lines();
-        let tr = converse(&sa, &sb, rel, library(), Some(&recent), &mut TalkRng::new(seed));
+        // the two transcripts (E5-9, #1446): where they stand picks the
+        // voice - the alehouse corner bites where the market defers
+        let at = {
+            let pa = self.world.get_component::<villager::Pos>(a).map(|p| (p.x, p.y));
+            let pb = self.world.get_component::<villager::Pos>(b).map(|p| (p.x, p.y));
+            match (pa, pb) {
+                (Some(pa), Some(pb)) => ((pa.0 + pb.0) / 2.0, (pa.1 + pb.1) / 2.0),
+                (Some(p), None) | (None, Some(p)) => p,
+                (None, None) => (0.0, 0.0),
+            }
+        };
+        // the slip's once-a-relationship budget (E5-8, #1439): each
+        // side may still leak to this hearer, or not - and the ghost's
+        // dead get a real name where the churchyard has one
+        sa.slips_left = if self.slipped_to(a, b) { 0 } else { 1 };
+        sb.slips_left = if self.slipped_to(b, a) { 0 } else { 1 };
+        self.lend_dead_name(&mut sa, a as u64);
+        self.lend_dead_name(&mut sb, b as u64);
+        let setting = self.talk_setting_at(at, a, b);
+        let tr = converse_at(&sa, &sb, rel, self.rel_kind(a, b), library(), Some(&recent), &setting, &mut TalkRng::new(seed));
+        for &(i, _) in &tr.slips {
+            let (sp, hr) = if i == 0 { (a, b) } else { (b, a) };
+            let mut of = self.world.get_component::<SlipMemory>(sp)
+                .map(|m| m.of.clone()).unwrap_or_default();
+            of.insert(hr);
+            self.world.add_component(sp, SlipMemory { of });
+        }
+        // who laughs is aligned (E5-6, #1437): a barb at power taken
+        // up - laughed, topped - reads as standing together over it
+        for beat in &tr.jokes {
+            if beat.target.is_some_and(crate::game::conversation::JokeTarget::power)
+                && matches!(beat.receipt, crate::game::conversation::JokeReceipt::Laughed
+                    | crate::game::conversation::JokeReceipt::AddedTo) {
+                let (jk, hr) = if beat.joker == 0 { (a, b) } else { (b, a) };
+                relationships::push_bid(&mut self.world, hr, jk,
+                    relationships::BidTurn::Toward);
+            }
+        }
         self.note_said_lines(tr.turns.iter().filter_map(|t| t.line));
         // the exchange types what it does to the bond (#1230): the acts
         // and the close read warm or cold before the lines go on record
@@ -720,6 +1085,7 @@ impl Game {
             };
             let asker_a = (bent(&sa.traits), -(a as i64)) >= (bent(&sb.traits), -(b as i64));
             let (asker, asked) = if asker_a { (a, b) } else { (b, a) };
+            let (asker_s, asked_s) = if asker_a { (&sa, &sb) } else { (&sb, &sa) };
             let (asker_name, asked_name) = if asker_a { (na.clone(), nb.clone()) } else { (nb.clone(), na.clone()) };
             let atraits = if asker_a { &sa.traits } else { &sb.traits };
             let ttraits = if asker_a { &sb.traits } else { &sa.traits };
@@ -727,8 +1093,13 @@ impl Game {
             let gone = |e: Entity| super::is_sick(&self.world, e)
                 || self.world.get_component::<super::Pos>(e).is_none();
             if (hr.below(1000) as f32) < rate * 1000.0 && !gone(asker) && !gone(asked) {
+                // what the asked makes is what they can be asked for
+                // (#1388): the fish for coin, the pot of honey
+                let favor = self.world.get_component::<super::Craft>(asked)
+                    .and_then(|c| FAVOR_ASKS.iter().find(|(v, _)| *v == c.vocation).map(|(_, t)| *t));
+                let favor = favor.filter(|_| hr.below(2) == 0);
                 lines.push(TalkLine { who: Some(asker), name: asker_name,
-                    text: HELP_ASKS[hr.below(HELP_ASKS.len())].into(), gist: false });
+                    text: talk_said(asker_s, asked_s, rel, favor.unwrap_or_else(|| HELP_ASKS[hr.below(HELP_ASKS.len())]), false), gist: false });
                 let refuse = (hr.below(1000) as f32)
                     < (0.25 - 0.08 * bent(ttraits)).clamp(0.05, 0.9) * 1000.0;
                 let tile = self.world.get_component::<super::Pos>(asker)
@@ -739,9 +1110,18 @@ impl Game {
                 let sent = !refuse && free && tile
                     .map(|t| self.send_far(asked, t, super::Goal::HelpOut(asker)))
                     .unwrap_or(false);
-                let pool = if sent { HELP_YES } else { HELP_NO };
+                let pool = if !sent { HELP_NO }
+                    else if favor.is_some() { FAVOR_YES }
+                    else { HELP_YES };
+                let said = talk_said(asked_s, asker_s, rel, pool[hr.below(pool.len())], false);
+                let text = if !sent {
+                    // the no's shape (E4-5): guarded runs long and soft
+                    let st = crate::game::text::stance_of(asked_s, asker_s);
+                    let ops = crate::game::text::shape(Act::PushBack, &st, None);
+                    crate::game::text::shaped(&ops, &said, None, &st, &mut hr)
+                } else { said };
                 lines.push(TalkLine { who: Some(asked), name: asked_name,
-                    text: pool[hr.below(pool.len())].into(), gist: false });
+                    text, gist: false });
                 if !sent {
                     relationships::record_interaction(&mut self.world, asker,
                         relationships::Interaction { other: asked,
@@ -749,7 +1129,10 @@ impl Game {
                 }
             }
         }
-        self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, temp <= super::SPAT_TEMP);
+        let tid = self.push_talk_cold(TalkKind::Chat, vec![a, b], lines, temp <= super::SPAT_TEMP);
+        // the record keeps where the talk stood (E5-9): which transcript
+        // its lines were said in
+        if let Some(r) = self.talk_record_mut(tid) { r.setting = tr.setting; }
         self.chat_lands(a, b, temp, spat_by);
         true
     }
@@ -895,6 +1278,14 @@ impl Game {
     /// `gist` (what Talk drew out of them), then the player's replies.
     /// `rel` is the bond as it stood before this talk.
     pub fn open_player_talk(&mut self, seat: usize, v: Entity, rel: Relation, gist: &str) {
+        self.open_player_talk_familiar(seat, v, rel, gist, None);
+    }
+
+    /// `talks` is the bond's count before this talk's own opening beat
+    /// deepened it (E3-2): act_talk lands an interaction before the
+    /// panel opens, and the personal tier's "two talks" means prior ones
+    pub(in crate::session) fn open_player_talk_familiar(&mut self, seat: usize, v: Entity,
+        rel: Relation, gist: &str, talks: Option<u32>) {
         let pe = self.seats[seat].player;
         let rare = self.rare.iter().find(|r| r.e == Some(v)).map(|r| r.id);
         let name = rare.map(|id| super::events::spec(id).name.to_string())
@@ -938,11 +1329,10 @@ impl Game {
         if rare.is_none() {
             // what they've told you opens the "trouble they told" ask;
             // what they still keep opens the deeper one (#1189)
-            if self.world.get_component::<crate::game::desires::Known>(v)
-                .map(|k| !k.revealed.is_empty()).unwrap_or(false) {
+            if !crate::game::desires::known(&self.world, self.seats[seat].player, v).is_empty() {
                 villager.status.push("shared");
             }
-            if !crate::game::desires::unrevealed(&self.world, v, self.tick).is_empty() {
+            if !crate::game::desires::unrevealed(&self.world, self.seats[seat].player, v, self.tick).is_empty() {
                 villager.status.push("keeps_secret");
             }
             // a live mystery is its own ask: what folk say of it (#1189)
@@ -1002,7 +1392,7 @@ impl Game {
         }
         // the line they read you by moves what they'll hear a rung (#1236)
         let mut asks = crate::game::organizing::ask_offers(&self.world, self.seats[seat].org, v,
-            crate::game::rhetoric::ask_shift(&self.world, v, self.seats[seat].org));
+            crate::game::rhetoric::ask_shift(&self.world, v, self.seats[seat].org), self.tick);
         // pressing is the act (#1226): the tally counts this talk the
         // moment it opens, whoever's seat asked - and it lifts at dawn
         let tired = {
@@ -1016,13 +1406,9 @@ impl Game {
         // still smarts - a cold ending closes what they'll offer (#1183);
         // a pressed villager keeps them to themselves just the same (#1226)
         if self.talk_mood_of(v) == Some(TalkMood::Slighted) || tired >= 2 { asks.clear(); }
-        let pname = self.world.get_component::<crate::game::player::PlayerCharacter>(pe)
-            .map(|p| p.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "friend".into());
-        // spoken to, "The Wanderer" is "wanderer": "A peaceful day to thee, wanderer."
-        let pname = match pname.strip_prefix("The ") { Some(rest) => rest.to_lowercase(), None => pname };
         // their read of your rhetoric rides on your Speaker (#1236), so
         // a tree can key `other:status:firebrand`
-        let mut player = Speaker::new(&pname);
+        let mut player = self.player_speaker(pe);
         let org = self.seats[seat].org;
         player.status.extend(crate::game::rhetoric::hardened(&self.world, v, org).iter().map(|l| l.status()));
         let mut opening: Vec<String> = crate::game::rhetoric::register_note(&self.world, v, org, &villager.name)
@@ -1045,6 +1431,19 @@ impl Game {
             crate::game::hooks::tell(&mut self.world, v, id);
             let by_you = by == self.seats[seat].player;
             opening.push(format!("{}: \"{}\"", villager.name, crate::game::hooks::remembered(id, by_you, &friend)));
+        }
+        // the pair's own memory surfaces (E6-2): the top episodes by
+        // the retrieval score become `mem:*` facts the trees can key
+        // and a callback line - every fact traces to a real episode
+        {
+            use crate::game::episodes;
+            let eps: Vec<episodes::PairEp> = self.world.get_component::<episodes::PairMemory>(v)
+                .filter(|m| m.pe == pe).map(|m| m.eps.clone()).unwrap_or_default();
+            let remembered = episodes::top(&eps, self.tick, &[], 2);
+            for e in &remembered { villager.facts.open.push(episodes::fact(e.kind).into()); }
+            if let Some(e) = remembered.first() {
+                opening.push(format!("{}: \"{}\"", villager.name, episodes::callback(e.kind)));
+            }
         }
         // a whole mystery they've been asking after: the telling's on offer
         let tell = (rare.is_none() && self.mystery_due(seat, v)).then(|| {
@@ -1084,17 +1483,40 @@ impl Game {
         // open (in_player_talk gates the sends and the walk systems)
         self.travels.retain(|t| t.who != v);
         self.world.add_component(v, villager::InPlayerTalk);
+        // how far they'll open to this seat (E3-2): a talk's a private
+        // 1-1 unless ears are near. `talks` is the count before this
+        // talk's own greeting deepened the bond
+        villager.open = self.open_toward(v, pe, true, talks);
+        // the doorknob worry (E5-3, #1435): what they'd ask as you go -
+        // seeded off the talk's own seed so the replays land the same
+        // question; a visitor carries no life to worry over
+        if rare.is_none() {
+            villager.worry = crate::game::desires::worry_of(&self.world, v, self.tick, seed);
+        }
+        // the leak they could still make to you (E5-8, #1439): once a
+        // relationship - spent, the budget reads zero for this seat
+        villager.slips_left = if self.slipped_to(v, pe) { 0 } else { 1 };
+        self.lend_dead_name(&mut villager, seed);
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
         // a visitor's standing is the road's own blurb, not a villager
         // backstory built off statuses it doesn't have (#1168)
         let profile = rare.map(|i| super::events::visitor_blurb(i).to_string())
             .unwrap_or_else(|| crate::game::dialogue_trees::backstory(&villager));
+        let kind = self.rel_kind(pe, v);
+        // the two transcripts (E5-9, #1446): where they stand picks the
+        // voice - latched now so the replay walks the same setting
+        let setting = self.world.get_component::<villager::Pos>(v)
+            .map(|p| self.talk_setting_at((p.x, p.y), v, pe))
+            .unwrap_or(crate::game::setting::STREET);
         self.seats[seat].talk = Some(PlayerTalk {
-            id, who: v, villager, player, rel, seed, picks: vec![],
+            id, who: v, knower: pe, villager, player, rel, kind, seed, picks: vec![],
+            setting,
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
-            asks_taken: vec![], asked_seen: 0,
+            asks_taken: vec![], asked_seen: 0, forward_seen: 0,
+            evasions_seen: 0, blurted: false, backed_off: false,
+            worry_told_seen: false, slips_seen: 0, jokes_seen: 0, shared: 0,
             // a villager who once heard this seat's testimony opens a
             // rung warmer - they heard the story, they know the teller (#1333)
             mood: if crate::sim::psychology::heard_testimony(&self.world, v, pe) {
@@ -1107,8 +1529,8 @@ impl Game {
             let_run: self.world.get_component::<crate::game::traits::Personality>(v)
                 .map(|p| p.traits.contains(&crate::game::traits::Trait::SelfAbsorbed))
                 .unwrap_or(false),
-            job,
-            wares,
+            job, wares, inviting: None,
+            safety_bid: None, bid_passed: false, call_act: None,
         });
         self.refresh_player_talk(seat);
     }
@@ -1119,7 +1541,125 @@ impl Game {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
         let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions, worry_told, slips, jokes) = replay(&t, Some(&recent));
+        if shared > t.shared {
+            // the deepest telling so far this talk (E3-3): the running
+            // gate already lives in the replay - this only carries the
+            // count to the parting for persistence; the speaker
+            // snapshot stays as-opened so earlier picks replay exact
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.shared = shared; }
+        }
+        // a too-deep ask costs the bond its nerve (E3-2): each new
+        // forward mark on the replay drops the rung a step - and a
+        // safe read's deeper offers come back off the table, the same
+        // reshift a missed audition would have dealt
+        if forward > t.forward_seen {
+            let who = t.who;
+            if let Some(re) = crate::game::relationships::find_relationship(&self.world, pe, who)
+                .and_then(|e| self.world.get_component_mut::<crate::game::relationships::Relationship>(e)) {
+                for _ in t.forward_seen..forward { re.safety = re.safety.lower(); }
+            }
+            // an ask that came before the bond was ready is a memory
+            // they keep (E6-2): "you asked too soon" can come back
+            crate::game::episodes::file(&mut self.world, who, pe,
+                crate::game::episodes::MemKind::AskedTooSoon, self.tick, &["ask"]);
+            if t.vibe == Some(Vibe::Safe) {
+                let mut asks = crate::game::organizing::ask_offers(
+                    &self.world, self.seats[seat].org, t.who,
+                    -1 + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org),
+                    self.tick);
+                asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asks = asks; }
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.forward_seen = forward; }
+        }
+        // each turn-aside counts on the seat's ledger by the real closed
+        // area it stood over (E5-2): three and the shape names itself -
+        // and a hothead pressed past the shape may blurt the thing out,
+        // telling and temper at once
+        if evasions.len() > t.evasions_seen {
+            use crate::game::desires;
+            use crate::game::conversation::area_name;
+            let mut blurted = t.blurted;
+            for &(sp, area) in evasions.iter().skip(t.evasions_seen) {
+                if sp != 0 { continue; }
+                let who = t.who;
+                let an = area_name(area);
+                let n = desires::note_evasion(&mut self.world, pe, who, an, self.tick);
+                if n == desires::SILHOUETTE_AT {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.notes.push(format!(
+                            "You see the shape of it now: {} always finds a way around {}.",
+                            t.villager.name, an));
+                    }
+                }
+                let hot = self.world.get_component::<crate::game::traits::Personality>(who)
+                    .map(|p| p.traits.contains(&crate::game::traits::Trait::Hotheaded))
+                    .unwrap_or(false);
+                if n >= desires::SILHOUETTE_AT && hot && !blurted {
+                    let pick = self.rng.next();
+                    if let Some(r) = desires::next_reveal(&self.world, pe, who, self.tick, pick) {
+                        // it comes out in heat (E5-2): a real telling,
+                        // priced in the bond's warmth
+                        let (_did, said_line) = desires::reveal_speech(&t.villager.name, &r);
+                        desires::hear(&mut self.world, pe, who, r, self.tick);
+                        crate::game::relationships::record_interaction(&mut self.world, who,
+                            Interaction { other: pe, kind: InteractionKind::Conflict, intensity: 0.6 });
+                        let at = said.len().max(1);
+                        if let Some(cur) = self.seats[seat].talk.as_mut() {
+                            cur.argued.push((at, TalkLine {
+                                who: Some(who), name: t.villager.name.clone(),
+                                text: format!("There, then - {} Is that what you wanted?", said_line),
+                                gist: false }));
+                            cur.blurted = true;
+                            blurted = true;
+                        }
+                    }
+                }
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.evasions_seen = evasions.len(); }
+        }
+        // a leak that landed (E5-8, #1439): once to a relationship -
+        // the memory marks so the same ear doesn't hear one twice
+        if slips.len() > t.slips_seen {
+            let who = t.who;
+            for &(i, _) in &slips[t.slips_seen..] {
+                if i == 0 {
+                    let mut of = self.world.get_component::<SlipMemory>(who)
+                        .map(|m| m.of.clone()).unwrap_or_default();
+                    of.insert(pe);
+                    self.world.add_component(who, SlipMemory { of });
+                }
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.slips_seen = slips.len(); }
+        }
+        // who laughs shows who's aligned (E5-6, #1437): a laugh - or
+        // the bolder answer-back - over a barb at power is the village
+        // mind made visible; the villager keeps the episode either
+        // way round the joke went
+        if jokes.len() > t.jokes_seen {
+            let who = t.who;
+            for b in &jokes[t.jokes_seen..] {
+                if b.target.is_some_and(crate::game::conversation::JokeTarget::power)
+                    && matches!(b.receipt, crate::game::conversation::JokeReceipt::Laughed
+                        | crate::game::conversation::JokeReceipt::AddedTo) {
+                    crate::game::episodes::file(&mut self.world, who, pe,
+                        crate::game::episodes::MemKind::LaughedWithUs,
+                        self.tick, &["joke"]);
+                }
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.jokes_seen = jokes.len(); }
+        }
+        // the doorknob worry that opened its tier (E5-3, #1435): the
+        // why's answer is the fear or need itself - it lands on the
+        // seat's ledger like a telling
+        if let Some(r) = worry_told {
+            if !t.worry_told_seen {
+                let who = t.who;
+                crate::game::desires::hear(&mut self.world, pe, who, r, self.tick);
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.worry_told_seen = true; }
+            }
+        }
         self.note_said_lines(said.iter().filter_map(|x| x.2));
         let vname = t.villager.name.clone();
         // the audition's read, the first time it's answered (#1187): a
@@ -1137,7 +1677,7 @@ impl Game {
             // they offer slow - anything already put stays spent
             let mut asks = crate::game::organizing::ask_offers(
                 &self.world, self.seats[seat].org, t.who,
-                if safe { 1 } else { -1 } + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org));
+                if safe { 1 } else { -1 } + crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org), self.tick);
             asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 cur.vibe = Some(v);
@@ -1169,15 +1709,32 @@ impl Game {
         // the way a kept secret comes out - the same reveal a talk's
         // opening rolls for; and asking after the whisper pulls a piece
         // of the mystery, the way the gossip line does
+        let mut drawn: Vec<TalkLine> = vec![];
+        // a test standing holds every telling for its answer (E5-4):
+        // the ask's spent either way - the secret just doesn't move
+        let mut bid_pending = t.safety_bid.is_some();
         for label in asked.iter().skip(t.asked_seen) {
             use crate::game::dialogue_trees::Draw;
             let draw = crate::game::dialogue_trees::ASK_TOPICS.iter()
                 .find(|tp| tp.label == *label).map(|tp| tp.draws).unwrap_or(Draw::No);
             match draw {
                 Draw::No => {}
+                Draw::Secret if bid_pending => {}
                 Draw::Secret => {
                     let pick = self.rng.next();
-                    if let Some(r) = crate::game::desires::next_reveal(&self.world, t.who, self.tick, pick) {
+                    if let Some(r) = crate::game::desires::next_reveal(&self.world, pe, t.who, self.tick, pick) {
+                        if self.reveal_gated(seat, &t) {
+                            // a fresh secret tests the bond's nerve first
+                            // (E5-4): the bid asks, the telling holds until
+                            // the player's answered it
+                            let (line, bid) = self.safety_bid_line(seat, &t, r, pick);
+                            drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: line, gist: false });
+                            if let Some(cur) = self.seats[seat].talk.as_mut() {
+                                cur.safety_bid = Some(bid);
+                            }
+                            bid_pending = true;
+                            continue;
+                        }
                         let (did, said_line) = crate::game::desires::reveal_speech(&vname, &r);
                         if let Some(issue) = crate::game::desires::hear(&mut self.world, pe, t.who, r, self.tick) {
                             use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
@@ -1185,27 +1742,51 @@ impl Game {
                             self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
                                 pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                         }
-                        if let Some(rec) = self.talk_record_mut(t.id) {
-                            rec.lines.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
-                            rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
-                        }
+                        drawn.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
+                        drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
+                        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
+                    } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, pe, t.who, self.tick, pick) {
+                        // the well's not dry - it circles (#1347): an old
+                        // truth they still carry comes back around,
+                        // re-read as catching up, not a fresh telling
+                        let (did, said_line) = crate::game::desires::catchup_speech(&vname, &r);
+                        drawn.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
+                        drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
                         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
                     }
                 }
                 Draw::Mystery => {
                     if let Some(fact) = self.mystery_fact_asked(seat) {
-                        if let Some(rec) = self.talk_record_mut(t.id) {
-                            rec.lines.push(TalkLine { who: Some(t.who), name: vname.clone(), text: fact, gist: false });
-                        }
+                        drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: fact, gist: false });
                         if let Some(m) = &self.seats[seat].mystery {
                             let def = &crate::game::mysteries::MYSTERIES[m.def];
                             let note = format!("A piece of {} - {} of {} heard. Worth remembering.",
-                                def.title, m.known.count_ones(), def.facts.len());
+                                def.title, m.known.count_ones(), def.clues.len());
                             if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(note); }
                         }
                     }
                 }
             }
+        }
+        // a draw's lines ride the talk's argued record (#1347): pushed
+        // straight to `rec.lines` they'd wash out of the next refresh's
+        // replay; carried on `argued` they re-emit where they fell
+        if !drawn.is_empty() {
+            let at = said.len().max(1);
+            if let Some(cur) = self.seats[seat].talk.as_mut() {
+                for l in drawn.iter() { cur.argued.push((at, l.clone())); }
+            }
+            if let Some(rec) = self.talk_record_mut(t.id) { rec.lines.extend(drawn); }
+        }
+        // backing off mends what pressing frayed (E5-2): an answered ask
+        // after a turned-aside one - the easier topic taken - raises the
+        // rung back a step, once a talk
+        if t.forward_seen > 0 && !t.backed_off && asked.len() > t.asked_seen {
+            if let Some(re) = crate::game::relationships::find_relationship(&self.world, pe, t.who)
+                .and_then(|e| self.world.get_component_mut::<crate::game::relationships::Relationship>(e)) {
+                re.safety = re.safety.raise();
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.backed_off = true; }
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asked_seen = asked.len(); }
         self.warm_exchange(t.id);
@@ -1214,7 +1795,8 @@ impl Game {
         // so close on a mutual parting rather than an exit menu
         if let Some(opts) = &offered {
             if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating && t.tell.is_none()
-                && opts.iter().all(|(a, _)| *a == Act::Farewell) {
+                && !bid_pending
+                && opts.iter().all(|(a, _, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");
                 // a spent talk parts kindly - unless the last word chosen
                 // was a slight, which is what they keep (#1183)
@@ -1240,7 +1822,7 @@ impl Game {
                 // a pressed talk comes one word at a time (#1226): the
                 // flat of the day shows as a shorter list, not new lines
                 let opts = if t.tired >= 2 { opts.into_iter().take(1).collect() } else { opts };
-                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.options = opts; cur.opt_tree = tree; }
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.options = opts; cur.opt_tree = tree; cur.call_act = call_act; }
             }
             _ => {
                 // a fresh talk that opens with no replies on offer would
@@ -1249,8 +1831,9 @@ impl Game {
                 // A real ending (a walk-off) still closes as before.
                 if t.picks.is_empty() && ending.is_none() {
                     if let Some(cur) = self.seats[seat].talk.as_mut() {
-                        cur.options = vec![(Act::Farewell, "I take my leave.".into())];
+                        cur.options = vec![(Act::Farewell, crate::game::conversation::Respond::Validate, "I take my leave.".into())];
                         cur.opt_tree = tree;
+                        cur.call_act = call_act;
                     }
                     return;
                 }
@@ -1335,6 +1918,181 @@ impl Game {
         Some((format!("{} talks the cause", self.name_of(v)), line))
     }
 
+    /// The openness `who` carries toward `to` (E3-2, #1424): the bond's
+    /// parts as the components read them, last sit-down's mood, the
+    /// talks behind them, and ears near enough to hear. `private` marks
+    /// the talk a 1-1; anything else (a passing chat, a table) is
+    /// exposed by its kind alone. `talks` overrides the count when the
+    /// caller knows the bond's tally was taken before this talk's
+    /// opening beat landed on it
+    fn open_toward(&self, who: Entity, to: Entity, private: bool,
+        talks: Option<u32>) -> crate::game::conversation::Open {
+        use crate::game::relationships::SafetyRung;
+        let mut o = crate::game::conversation::Open {
+            earshot: !private || self.ears_near(who, to),
+            ..Default::default() };
+        if let Some(r) = crate::game::relationships::find_relationship(&self.world, who, to)
+            .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e)) {
+            // a seeded strength reconciles under intimacy before the
+            // parts read - same numbers the bond's own bookkeeping sees
+            let mut r2 = crate::game::relationships::Relationship {
+                from: r.from, other: r.other, kind: r.kind, strength: r.strength,
+                interactions: r.interactions, intimacy: r.intimacy,
+                trust: r.trust, safety: r.safety,
+                pivots: r.pivots, deflects: r.deflects, bids_met: r.bids_met };
+            r2.recompose();
+            o.intimacy = r2.intimacy;
+            o.benevolence = r2.trust.benevolence;
+            o.integrity = r2.trust.integrity;
+            o.safety = match r2.safety {
+                SafetyRung::Inclusion => 0.0, SafetyRung::Learner => 1.0 / 3.0,
+                SafetyRung::Contributor => 2.0 / 3.0, SafetyRung::Challenger => 1.0 };
+            o.talks = r2.interactions;
+        }
+        if let Some(n) = talks { o.talks = n; }
+        o.mood = match self.talk_mood_of(who) {
+            Some(TalkMood::Warmed) => 0.5, Some(TalkMood::Guarded) => -0.2,
+            Some(TalkMood::Slighted) => -0.5, _ => 0.0 };
+        // what THIS seat's told them that landed, while it's still
+        // fresh (E3-3): another seat's telling is not yours
+        o.shared = self.world.get_component::<SharedDepth>(who)
+            .and_then(|s| s.of.get(&to).copied())
+            .filter(|(_, day)| self.tick < day + TALK_MEMORY_DAYS)
+            .map(|(depth, _)| depth).unwrap_or(0);
+        o
+    }
+
+    /// An open street is no confessional (E3-2): anyone standing within
+    /// earshot of `who` hears the talk
+    fn ears_near(&self, who: Entity, to: Entity) -> bool {
+        const EARSHOT: f32 = 5.0;
+        let Some(wp) = self.world.get_component::<villager::Pos>(who).map(|p| (p.x, p.y))
+            else { return false };
+        self.villagers.iter().any(|&v| v != who && v != to
+            && !villager::is_dead(&self.world, v)
+            && self.world.get_component::<villager::Pos>(v)
+                .map(|p| ((p.x - wp.0).powi(2) + (p.y - wp.1).powi(2)).sqrt() <= EARSHOT)
+                .unwrap_or(false))
+    }
+
+    /// The named place a spot counts as (E5-9, #1446): the building it's
+    /// in front of names it - the alehouse door, the church door, a
+    /// kitchen table - else a worked field, else the street, which is
+    /// public by default
+    fn place_at(&self, at: (f32, f32)) -> crate::game::setting::Place {
+        use crate::game::household::BuildingKind;
+        use crate::game::setting::Place;
+        const ON_THE_STEP: f32 = 5.0;
+        let mut best: Option<(f32, BuildingKind)> = None;
+        for &b in &self.building_entities {
+            let (Some(bp), Some(bb)) = (self.world.get_component::<villager::Pos>(b),
+                self.world.get_component::<crate::game::household::Building>(b))
+            else { continue };
+            let d = (bp.x - at.0).powi(2) + (bp.y - at.1).powi(2);
+            if d <= ON_THE_STEP * ON_THE_STEP && best.map(|(bd, _)| d < bd).unwrap_or(true) {
+                best = Some((d, bb.kind));
+            }
+        }
+        match best {
+            Some((_, BuildingKind::Church)) => Place::ChurchDoor,
+            Some((_, BuildingKind::Shop(Vocation::Taverner))) => Place::Alehouse,
+            Some((_, BuildingKind::Home)) => Place::Kitchen,
+            Some((_, BuildingKind::TraderStall)) => Place::Market,
+            _ => {
+                let (x, y) = (at.0.round() as i32, at.1.round() as i32);
+                if matches!(self.map.get(x, y),
+                    Some(crate::game::tilemap::Tile::Wheat | crate::game::tilemap::Tile::Corn)) {
+                    Place::Field
+                } else {
+                    Place::Street
+                }
+            }
+        }
+    }
+
+    /// The law's ear on a spot (E5-9): an overseer about, the tax man in
+    /// the room, the watch walking past - their presence turns a
+    /// backstage place public again
+    fn law_near(&self, at: (f32, f32)) -> bool {
+        const EARSHOT: f32 = 6.0;
+        self.villagers.iter().any(|&v| {
+            if villager::is_dead(&self.world, v) { return false; }
+            let law = crate::game::livelihood::has_role(&self.world, v, TownRole::Overseer)
+                || crate::game::livelihood::has_role(&self.world, v, TownRole::TaxCollector)
+                || self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == Vocation::Knight).unwrap_or(false);
+            law && self.world.get_component::<villager::Pos>(v)
+                .map(|p| ((p.x - at.0).powi(2) + (p.y - at.1).powi(2)).sqrt() <= EARSHOT)
+                .unwrap_or(false)
+        })
+    }
+
+    /// The named power a deep trouble binds its word against (E5-5):
+    /// "not the collector", "not the priest" - the one the telling
+    /// would feed. None where no power answers for it
+    fn power_for(&self, r: &crate::game::desires::Reveal) -> Option<Entity> {
+        use crate::game::desires::{Problem, Reveal};
+        use crate::game::vocation::{Craft, TownRole, Vocation};
+        let Reveal::Problem(p) = r else { return None };
+        let hunt = match p {
+            Problem::Taxed => 1,
+            Problem::OverseerCut => 2,
+            Problem::WritBorne | Problem::Grief => 3,
+            Problem::Doctrine | Problem::Blamed => 4,
+            _ => return None,
+        };
+        self.villagers.iter().copied().find(|&v| {
+            if villager::is_dead(&self.world, v) { return false; }
+            match hunt {
+                1 => crate::game::livelihood::has_role(&self.world, v, TownRole::TaxCollector),
+                2 => crate::game::livelihood::has_role(&self.world, v, TownRole::Overseer),
+                _ => self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == if hunt == 3 { Vocation::Knight } else { Vocation::Priest })
+                    .unwrap_or(false),
+            }
+        })
+    }
+
+    /// The bond's backstage invitation (E5-9): a bond that's stood the
+    /// safety test all the way to Challenger has already heard the
+    /// hidden transcript - the engine still lets a warm friend-or-kin
+    /// relation in on its own
+    fn backstage_invited(&self, a: Entity, b: Entity) -> bool {
+        crate::game::relationships::find_relationship(&self.world, a, b)
+            .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| r.safety == crate::game::relationships::SafetyRung::Challenger)
+            .unwrap_or(false)
+    }
+
+    /// The setting a talk at `at` between `a` and `b` carries (E5-9):
+    /// the place, the law's ear, and the bond's way backstage
+    fn talk_setting_at(&self, at: (f32, f32), a: Entity, b: Entity) -> crate::game::setting::Setting {
+        crate::game::setting::Setting {
+            place: self.place_at(at),
+            law_earshot: self.law_near(at),
+            invited: self.backstage_invited(a, b),
+        }
+    }
+
+    /// Whether they've already slipped in front of `hearer` (E5-8,
+    /// #1439): the once-a-relationship budget reads it
+    fn slipped_to(&self, who: Entity, hearer: Entity) -> bool {
+        self.world.get_component::<SlipMemory>(who)
+            .map(|m| m.of.contains(&hearer)).unwrap_or(false)
+    }
+
+    /// A real dead name for the slip's referent, where the churchyard
+    /// has one to lend (E5-8): a slip that names the living isn't the
+    /// same mistake. `salt` keeps a speaker naming the same dead
+    fn lend_dead_name(&self, s: &mut Speaker, salt: u64) {
+        let Some(d) = s.slip.as_mut().and_then(|sl| sl.dead.as_mut()) else { return };
+        let dead: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| villager::is_dead(&self.world, v)).collect();
+        if let Some(&v) = dead.get(salt as usize % dead.len().max(1)) {
+            d.name = self.name_of(v);
+        }
+    }
+
     /// How the last sit-down with them ended, while it's still fresh
     /// (#1183): the next talk opens where the last one left off
     pub(in crate::session) fn talk_mood_of(&self, who: Entity) -> Option<TalkMood> {
@@ -1349,6 +2107,19 @@ impl Game {
     pub fn close_player_talk(&mut self, seat: usize, note: Option<&str>) {
         let Some(t) = self.seats[seat].talk.take() else { return };
         self.world.add_component(t.who, TalkMemory { mood: t.mood, tick: self.tick });
+        // what they were told stays told (E3-3): keyed under this
+        // seat's player, refreshed only when the talk told something -
+        // small talk neither revives an expired telling nor rewinds it
+        if t.shared > 0 {
+            let pe = self.seats[seat].player;
+            let mut sd = self.world.get_component::<SharedDepth>(t.who)
+                .map(|s| s.of.clone()).unwrap_or_default();
+            let prev = sd.get(&pe).copied()
+                .filter(|(_, day)| self.tick < day + TALK_MEMORY_DAYS)
+                .map(|(depth, _)| depth).unwrap_or(0);
+            sd.insert(pe, (prev.max(t.shared), self.tick));
+            self.world.add_component(t.who, SharedDepth { of: sd });
+        }
         // they're their own again - unless another seat still holds them
         if !self.seats.iter().any(|s| s.talk.as_ref().map(|k| k.who == t.who).unwrap_or(false)) {
             self.world.remove_component::<villager::InPlayerTalk>(t.who);
@@ -1370,6 +2141,18 @@ impl Game {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
         if let (Some(_), Some(i)) = (&t.argue, pick) { self.argue_pick_at(seat, i); return; }
         if let (true, Some(i)) = (t.inoculating, pick) { self.inoculate_pick_at(seat, i); return; }
+        if let (Some(_), Some(i)) = (&t.inviting, pick) { self.invite_pick_at(seat, i); return; }
+        // a safety test standing takes its own answers (E5-4, #1436)
+        if let (Some(b), Some(i)) = (t.safety_bid, pick) { self.safety_bid_pick_at(seat, i, b); return; }
+        // and walking out on one is the miss itself: they reached and
+        // were left standing - the rung pays it as a turn away, spent
+        // beat or no, the way a too-deep ask's drop lands
+        if let (Some(_), None) = (t.safety_bid, pick) {
+            let (who, pe) = (t.who, self.seats[seat].player);
+            relationships::push_bid(&mut self.world, pe, who, relationships::BidTurn::Away);
+            self.close_player_talk(seat, Some("You take your leave."));
+            return;
+        }
         let (who, n, asks, first_pick) = (t.who, t.options.len(), t.asks_shown(), t.picks.is_empty());
         let extra = t.inoculation_beyond();
         let probe_extra = t.probe_beyond();
@@ -1423,7 +2206,8 @@ impl Game {
                     cur.asks_taken.push(o);
                     cur.inoculating = true;
                 }
-                self.argue_line(seat, Some(self.seats[seat].player), "How d'you think the lord will answer, when he hears you've signed on?".into());
+                let il = self.player_line(seat, who, "How {2:do} {2:subj} think the lord will answer, when he hears {2:subj} {2:have} signed on?");
+                self.argue_line(seat, Some(self.seats[seat].player), il);
                 self.refresh_player_talk(seat);
                 return;
             }
@@ -1447,16 +2231,51 @@ impl Game {
                     cur.asks.retain(|a| *a != o);
                     cur.asks_taken.push(o);
                 }
-                self.argue_line(seat, Some(self.seats[seat].player),
-                    "What do you actually want, when all's said and done?".into());
+                let pl = self.player_line(seat, who, "What {2:do} {2:subj} actually want, when all's said and done?");
+                self.argue_line(seat, Some(self.seats[seat].player), pl);
                 let seed = self.rng.next();
                 let pe = self.seats[seat].player;
                 match crate::game::desires::plant_want(&mut self.world, who, pe, self.tick, seed) {
                     Some(w) => self.argue_line(seat, Some(who), format!(
                         "I ... I'd like {}, I'd warrant. I'd never thought to ask myself that.",
                         crate::game::desires::want_phrase(w))),
-                    None => self.argue_line(seat, Some(who),
-                        "Want? I've wants enough, friend. Ask me another.".into()),
+                    None => {
+                        // nothing left to plant - but the question still
+                        // draws what their life's taken on since (#1347):
+                        // a fresh reveal, an old burden come back
+                        // around, or a plain "I've wants enough"
+                        let pick = self.rng.next();
+                        let name = self.name_of(who);
+                        if let Some(r) = crate::game::desires::next_reveal(&self.world, pe, who, self.tick, pick) {
+                            if self.reveal_gated(seat, self.seats[seat].talk.as_ref().unwrap()) {
+                                // the asked-for telling still tests the
+                                // nerve first (E5-4): the ask's spent,
+                                // the secret holds for the answer
+                                let t2 = self.seats[seat].talk.clone().unwrap();
+                                let (line, bid) = self.safety_bid_line(seat, &t2, r, pick);
+                                self.argue_line(seat, Some(who), line);
+                                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                                    cur.safety_bid = Some(bid);
+                                }
+                                self.refresh_player_talk(seat);
+                                return;
+                            }
+                            let (_did, said) = crate::game::desires::reveal_speech(&name, &r);
+                            self.argue_line(seat, Some(who), said);
+                            if let Some(issue) = crate::game::desires::hear(&mut self.world, pe, who, r, self.tick) {
+                                use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
+                                self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                                self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                                    pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                            }
+                        } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, pe, who, self.tick, pick) {
+                            let (_did, said) = crate::game::desires::catchup_speech(&name, &r);
+                            self.argue_line(seat, Some(who), said);
+                        } else {
+                            self.argue_line(seat, Some(who),
+                                "Want? I've wants enough, friend. Ask me another.".into());
+                        }
+                    }
                 }
                 self.refresh_player_talk(seat);
                 return;
@@ -1484,14 +2303,33 @@ impl Game {
                 cur.asks.retain(|a| *a != o);
                 cur.asks_taken.push(o);
             }
+            // the first invitation to an un-called meet earns the
+            // follow-up (#1337): they'll come - then "when are we
+            // gathering?" The call panel's day pick stays the way when
+            // no invite asks it first
+            if o.kind == crate::game::organizing::PropKind::ComeAlong {
+                let came = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
+                    .map(|p| p.coming.contains(&who) && p.for_day.is_none())
+                    .unwrap_or(false);
+                if came {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.inviting = Some(InviteStep::When);
+                    }
+                    self.argue_line(seat, Some(who), "I'll come. When are we gathering, then?".into());
+                }
+            }
             self.refresh_player_talk(seat);
             return;
         }
-        let act = t.options[i].0;
-        let pick_text = t.options[i].1.clone();
+        let (act, pick_respond) = (t.options[i].0, t.options[i].1);
+        let pick_text = t.options[i].2.clone();
+        // the pick's special effects match on the realized text (E4-4):
+        // the pair cloned now so `t`'s borrow is free for the effects
+        let (said_v, said_p, said_rel) =
+            (t.villager.clone(), t.player.clone(), t.rel);
         let pe = self.seats[seat].player;
-        let (tid, twho, old_scores, opt_tree) =
-            (t.id, t.who, t.opt_tree == Some("old_scores"), t.opt_tree);
+        let (tid, twho, old_scores, opt_tree, call_act) =
+            (t.id, t.who, t.opt_tree == Some("old_scores"), t.opt_tree, t.call_act);
         // an audition pick isn't read by its act - standing up to a
         // hothead is the right answer, not a slight; the vibe read it
         // sets is the whole effect (#1187)
@@ -1526,11 +2364,36 @@ impl Game {
         // valence - a morning slight and an evening kindness don't both
         // count (#1232); a rival's cold greet moves nothing and spends
         // nothing, and an audition read isn't a pick at all
-        let bond_moving = !probing && match act {
+        // every offered line is a way of *receiving* what they said
+        // (E6-3): its respond tag lands on the bond's parts - reflect
+        // and care warm them, a pivot is remembered. Once a day, like
+        // the beat; an audition read isn't a pick at all
+        let bond_moving = !probing && (match act {
             Act::PushBack | Act::Agree | Act::Answer => true,
             Act::Greet | Act::Farewell => !old_scores,
             _ => false,
-        };
+        } || !matches!(pick_respond, crate::game::conversation::Respond::Validate));
+        if bond_moving && !spent {
+            relationships::push_respond(&mut self.world, pe, who, pick_respond);
+        }
+        // a reach met, half-met, missed or refused (E5-4, #1436): when
+        // their call was a bid, the pick's act is the turn it reads -
+        // engaging warms and builds the nerve under the day's beat;
+        // the miss and the refusal are costs, and costs land whenever
+        // they're dealt, the way a too-deep ask's rung drop does
+        if call_act == Some(Act::Bid) && !probing {
+            let turn = match act {
+                Act::Agree | Act::Answer | Act::Question => relationships::BidTurn::Toward,
+                Act::PushBack => relationships::BidTurn::Against,
+                Act::Farewell => relationships::BidTurn::Away,
+                _ => relationships::BidTurn::Pivot,
+            };
+            let gain = matches!(turn, relationships::BidTurn::Toward
+                | relationships::BidTurn::Pivot);
+            if !gain || !spent {
+                relationships::push_bid(&mut self.world, pe, who, turn);
+            }
+        }
         // the line you take is heard by the one you're talking to - the
         // day's first pick with them, like the bond (#1236)
         if bond_moving && !spent {
@@ -1567,13 +2430,16 @@ impl Game {
         // puts the fork on the card; the squeeze spends the held name;
         // the robbed one's answer names him in the record
         if opt_tree == Some(crate::game::dialogue_trees::EWE_TREE)
-            && pick_text == crate::game::dialogue_trees::EWE_GIFT {
+            && pick_text == talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::EWE_GIFT, true) {
             self.ewe_cracked(seat);
         } else if opt_tree == Some(crate::game::dialogue_trees::EWE_PRICE_TREE)
-            && pick_text == crate::game::dialogue_trees::EWE_SQUEEZE {
+            && pick_text == talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::EWE_SQUEEZE, true) {
             self.ewe_squeezed(seat);
         } else if opt_tree == Some(crate::game::dialogue_trees::EWE_VICTIM_TREE)
-            && pick_text == crate::game::dialogue_trees::EWE_WHOSE_POT {
+            && pick_text == talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::EWE_WHOSE_POT, true) {
             if let Some(th) = self.ewe_theft.as_ref().map(|t| t.thief) {
                 let tn = self.name_of(th);
                 self.narrate_talk(seat, &format!("She names him at last: {tn}."));
@@ -1582,9 +2448,11 @@ impl Game {
         // the Noah row (#1257): the mediator's word talks one down, or
         // the pick takes a side where the street can see it
         if opt_tree == Some(crate::game::dialogue_trees::NOAH_ROW_TREE) {
-            if pick_text == crate::game::dialogue_trees::NOAH_PEACE {
+            if pick_text == talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::NOAH_PEACE, true) {
                 self.row_calmed(seat, twho);
-            } else if pick_text == crate::game::dialogue_trees::NOAH_SIDE_THEM {
+            } else if pick_text == talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::NOAH_SIDE_THEM, true) {
                 self.row_sided(seat, twho);
             }
         }
@@ -1593,12 +2461,28 @@ impl Game {
         if matches!(opt_tree, Some(crate::game::dialogue_trees::FT_SPY_TREE)
             | Some(crate::game::dialogue_trees::FT_THIEF_TREE)
             | Some(crate::game::dialogue_trees::FT_RUN_TREE))
-            && (pick_text == crate::game::dialogue_trees::FT_ACCUSE
-                || pick_text == crate::game::dialogue_trees::FT_ACCUSE_RUN) {
+            && (pick_text == talk_said(&said_v, &said_p, said_rel,
+                    crate::game::dialogue_trees::FT_ACCUSE, true)
+                || pick_text == talk_said(&said_v, &said_p, said_rel,
+                    crate::game::dialogue_trees::FT_ACCUSE_RUN, true)) {
             self.false_accused(seat);
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }
         self.refresh_player_talk(seat);
+        // an argumentative line is the argument's way in now (#1348):
+        // the ask's gone from the menu - the words themselves open the
+        // same flow, where they know you well enough to take it up
+        if crate::game::persuasion::is_argumentative(&pick_text)
+            || crate::game::persuasion::ARGUMENTATIVE_LINES.iter()
+                .any(|l| pick_text == talk_said(&said_v, &said_p, said_rel, l, true)) {
+            let stage = crate::game::organizing::stage_of(&self.world,
+                self.seats[seat].player, who);
+            if crate::game::persuasion::can_argue(stage) {
+                self.open_argument(seat, crate::game::organizing::AskOffer {
+                    kind: crate::game::organizing::PropKind::Argue,
+                    key: crate::game::organizing::AskKey::Earned, price: 0.0 });
+            }
+        }
     }
 
     /// The scouting read (#1249): who the room already follows, said in
@@ -1668,8 +2552,19 @@ impl Game {
             .map(|p| p.traits.clone()).unwrap_or_default();
         let roll = (self.rng.next() % 1000) as f32 / 1000.0;
         let answer = amends::their_answer(&traits, roll < amends::refusal_chance(&traits));
+        let spoken = if answer == Answer::Refused {
+            let (vs, ps, tseed) = self.seats[seat].talk.as_ref()
+                .map(|t| (t.villager.clone(), t.player.clone(), t.seed))
+                .unwrap_or_else(|| (Speaker::new(""), Speaker::new(""), 0));
+            let st = crate::game::text::stance_of(&vs, &ps);
+            let ops = crate::game::text::shape(Act::PushBack, &st, None);
+            crate::game::text::shaped(&ops, amends::answer_line(answer),
+                None, &st, &mut TalkRng::new(tseed ^ 0xA116))
+        } else {
+            amends::answer_line(answer).into()
+        };
         self.argue_line(seat, Some(pe), amends::AMENDS_ASK.into());
-        self.argue_line(seat, Some(who), amends::answer_line(answer).into());
+        self.argue_line(seat, Some(who), spoken);
         self.world.add_component(who, AmendsTally { of: pe, n: prior.saturating_add(1) });
         if answer == Answer::Refused {
             // the chill stands - the memory's still the slight, so the
@@ -1685,7 +2580,7 @@ impl Game {
             // repair reopens the ask path: the asks a slight cleared
             // come back on the table - the work isn't over, it's heard
             let mut asks = crate::game::organizing::ask_offers(
-                &self.world, oe, who, crate::game::rhetoric::ask_shift(&self.world, who, oe));
+                &self.world, oe, who, crate::game::rhetoric::ask_shift(&self.world, who, oe), self.tick);
             if let Some(cur) = self.seats[seat].talk.as_mut() {
                 asks.retain(|o| !cur.asks_taken.iter().any(|d| d.kind == o.kind && d.key == o.key));
                 cur.asks = asks;
@@ -1704,10 +2599,20 @@ impl Game {
         let (pe, who) = (self.seats[seat].player, self.seats[seat].talk.as_ref().map(|t| t.who).unwrap());
         if let Some(t) = self.seats[seat].talk.as_mut() { t.let_run = false; }
         use crate::game::desires;
-        if let Some(r) = desires::next_reveal(&self.world, who, self.tick, self.rng.next()) {
+        let run_pick = self.rng.next();
+        let run_fresh = desires::next_reveal(&self.world, pe, who, self.tick, run_pick);
+        // an old trouble's still worth the running on (#1347): the
+        // still-carrying line when the fresh well's dry
+        let run_reveal = run_fresh.clone()
+            .or_else(|| desires::catchup_reveal(&self.world, pe, who, self.tick, run_pick));
+        if let Some(r) = run_reveal {
             let name = self.name_of(who);
-            let (_did, said) = desires::reveal_speech(name.as_str(), &r);
-            self.argue_line(seat, Some(who), said);
+            let (_did, said) = if run_fresh.is_some() {
+                desires::reveal_speech(name.as_str(), &r)
+            } else {
+                desires::catchup_speech(name.as_str(), &r)
+            };
+            self.argue_line(seat, Some(who), self.pair_said(who, pe, &said));
             if let Some(issue) = desires::hear(&mut self.world, pe, who, r, self.tick) {
                 self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                 self.log_entity_ev(
@@ -1724,9 +2629,29 @@ impl Game {
         // nobody else left to opine on? a hog names themselves just fine
         let other = someones.get((self.rng.next() as usize) % someones.len().max(1))
             .copied().unwrap_or(who);
+        // `{someone}` resolves through the realizer's refs (E4-1): the
+        // referent carries the body facts the grammar layers will read
+        let refs = [crate::game::text::Referent {
+            slot: "someone",
+            text: self.name_of(other),
+            sex: self.world.get_component::<villager::Sex>(other)
+                .map(|s| match s { villager::Sex::Female => "female", villager::Sex::Male => "male" }),
+            alive: !villager::is_dead(&self.world, other),
+            count: 1,
+        }];
         let run = crate::game::conversation::HOG_RUN;
-        let line = run[(self.rng.next() as usize) % run.len()]
-            .replace("{someone}", &self.name_of(other));
+        let template = run[(self.rng.next() as usize) % run.len()];
+        let line = match self.seats[seat].talk.as_ref() {
+            Some(t) => crate::game::text::realize(template,
+                &crate::game::text::Cx::plain(&t.villager, &t.player, &refs),
+                &mut TalkRng::new(t.seed ^ run_pick)),
+            None => {
+                let rel = relation_with_wanderer(self.rel_kind(pe, who));
+                talk_said(&speaker_of(&self.world, who, &self.name_of(who), self.tick),
+                          &self.player_speaker(pe), rel, template, false)
+                    .replace("{someone}", &refs[0].text)
+            }
+        };
         self.argue_line(seat, Some(who), line);
         self.narrate_talk(seat, "You let them run - they fill the space with themselves.");
         self.refresh_player_talk(seat);
@@ -1838,6 +2763,139 @@ impl Game {
         }
     }
 
+    /// Is this telling earned yet (E5-4, #1436)? Below the learner
+    /// rung a fresh secret tests the bond's nerve first - a passed bid
+    /// this talk already cleared it, and a bond that's climbed holds it
+    fn reveal_gated(&self, seat: usize, t: &PlayerTalk) -> bool {
+        use crate::game::relationships::SafetyRung;
+        if t.bid_passed { return false; }
+        let pe = self.seats[seat].player;
+        let rung = crate::game::relationships::find_relationship(&self.world, pe, t.who)
+            .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| r.safety).unwrap_or_default();
+        rung == SafetyRung::Inclusion
+    }
+
+    /// The safety test's words and shape for a held secret (E5-4): the
+    /// probe tells someone else's lesser secret (real content - it
+    /// files on the third party through `hear`), the check asks for
+    /// the tongue, the hypothetical hides the telling behind "a man"
+    pub(in crate::session) fn safety_bid_line(&mut self, seat: usize, t: &PlayerTalk,
+                      r: crate::game::desires::Reveal, pick: u64)
+                      -> (String, SafetyBid) {
+        let (who, pe) = (t.who, self.seats[seat].player);
+        use crate::game::desires::{self, Reveal};
+        let bare = |k| SafetyBid { kind: k, reveal: r, probe: None };
+        // the probe tells you someone else's lesser secret and watches:
+        // a live trouble on a third party, told through the real system
+        if pick % 3 == 2 {
+            let third = self.villagers.iter().copied()
+                .filter(|&v| v != who && !villager::is_dead(&self.world, v))
+                .find(|&v| desires::next_reveal(&self.world, pe, v, self.tick, pick).is_some());
+            if let Some(v3) = third {
+                let dr = desires::next_reveal(&self.world, pe, v3, self.tick, pick).unwrap();
+                let n3 = self.name_of(v3);
+                let (did, _said) = desires::reveal_speech(&n3, &dr);
+                // the bidder carried it - hearsay to the seat, never a
+                // telling from `v3`'s own mouth (E5-5)
+                desires::hear_via(&mut self.world, pe, v3, dr, self.tick,
+                    desires::Source::Gossip { speaker: who });
+                let line = format!("Word is, {} - but it wasn't from me {{2:subj}} heard it.", did);
+                let mut bid = bare(SafetyBidKind::Probe);
+                bid.probe = Some((v3, dr));
+                return (self.pair_said(who, pe, &line), bid);
+            }
+        }
+        // the check, or "a man" - wants get the tongue asked, troubles
+        // come in disguise
+        match r {
+            Reveal::Want(_) => (t.said("{2:can} {2:subj} hold {2:poss} tongue? There's a thing I'd near have said.",
+                false), bare(SafetyBidKind::Confidence)),
+            Reveal::Problem(_) => (t.said("Say a man kept back a sack from the tithe - what should be done with him, {2:think} {2:subj}?",
+                false), bare(SafetyBidKind::Hypothetical)),
+        }
+    }
+
+    /// The test answered (E5-4, #1436): a turn toward brings the held
+    /// telling out and the nerve earns a mark; the sidestep keeps it
+    /// held for another day; the miss or the leak costs - and the leak
+    /// leaves the confidence's record behind it
+    fn safety_bid_pick_at(&mut self, seat: usize, i: usize, bid: SafetyBid) {
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let (who, vname, pe) = (t.who, t.villager.name.clone(), self.seats[seat].player);
+        let turn = bid.turn_of(i);
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.safety_bid = None; }
+        // the answer's heard as your line first, the way any pick is
+        if let Some(l) = bid.labels().get(i).cloned() {
+            self.argue_line(seat, Some(pe), l);
+        }
+        use crate::game::relationships::BidTurn;
+        // the test's answer always counts (E5-4): a kept reach earns,
+        // a miss or a leak costs - the answer's a discrete event, not a
+        // grindable pick, so it sits outside the day's beat
+        relationships::push_bid(&mut self.world, pe, who, turn);
+        match turn {
+            BidTurn::Toward => {
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.bid_passed = true; cur.mood = TalkMood::Warmed; }
+                // the kept word is a memory too (E6-2's file; E5-4's
+                // kind): #1443's ledger reads it as the confidence held
+                crate::game::episodes::file(&mut self.world, who, pe,
+                    crate::game::episodes::MemKind::KeptConfidence, self.tick, &["trust", "secret"]);
+                let (did, said) = crate::game::desires::reveal_speech(&vname, &bid.reveal);
+                self.argue_line(seat, None, did.clone());
+                self.argue_line(seat, Some(who), said);
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
+                if let Some(issue) = crate::game::desires::hear(&mut self.world, pe, who, bid.reveal, self.tick) {
+                    use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
+                    self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                    self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                        pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                }
+                // the deep tells name the power they fear (E5-5): a
+                // trouble against the law comes bound "not the reeve"
+                if let Some(power) = self.power_for(&bid.reveal) {
+                    crate::game::desires::restrict(&mut self.world, pe, who,
+                        &crate::game::desires::reveal_key(&bid.reveal), power);
+                }
+            }
+            BidTurn::Pivot => {
+                self.argue_line(seat, Some(who),
+                    self.pair_said(who, pe, "Then never mind me. Another hour for it, maybe."));
+            }
+            _ => {
+                // the leak is the sharpest cut: a confidence taken to
+                // the reeve is a memory they carry (its record is what
+                // #1443's confidence ledger reads back)
+                if turn == BidTurn::Against {
+                    crate::game::episodes::file(&mut self.world, who, pe,
+                        crate::game::episodes::MemKind::LeakedConfidence, self.tick, &["trust", "secret"]);
+                    // and it's a real breach when the fact was already
+                    // held in confidence (E5-5): the probe's word on a
+                    // third party, or the bidder's own earlier telling
+                    let (owner, fact) = bid.probe
+                        .map(|(v3, dr)| (v3, crate::game::desires::reveal_key(&dr)))
+                        .unwrap_or((who, crate::game::desires::reveal_key(&bid.reveal)));
+                    if crate::game::desires::leak(&mut self.world, pe, owner, &fact) {
+                        self.log_entity_ev(
+                            crate::session::gamelog::EvTag::new(
+                                crate::session::gamelog::Thread::Org,
+                                crate::session::gamelog::Valence::Negative,
+                                crate::session::gamelog::Sev::Minor),
+                            pe, format!("t{}: word of the telling got back to {}", self.tick,
+                                self.name_of(owner)));
+                    }
+                    self.argue_line(seat, Some(who),
+                        self.pair_said(who, pe, "Then forget I spoke. {2:subj} {2:be} not the one I took {2:obj} for."));
+                } else {
+                    self.argue_line(seat, Some(who),
+                        self.pair_said(who, pe, "Forget I spoke of it. It was nothing to say."));
+                }
+            }
+        }
+        self.refresh_player_talk(seat);
+    }
+
     /// "Hear me out on something" (#1234): the argument opens on the live
     /// issues worth arguing - or, with none, there's nothing to argue
     fn open_argument(&mut self, seat: usize, o: crate::game::organizing::AskOffer) {
@@ -1879,7 +2937,9 @@ impl Game {
                 let stance = if i == 0 { Stance::For } else { Stance::Against };
                 self.argue_line(seat, Some(pe), persuasion::case_line(stance, &issue));
                 let traits = self.world.get_component::<Personality>(who).map(|p| p.traits.clone()).unwrap_or_default();
-                self.argue_line(seat, Some(who), persuasion::counter_line(&traits, stance, &issue));
+                let cline = self.pair_said(who, self.seats[seat].player,
+                    &persuasion::counter_line(&traits, stance, &issue));
+                self.argue_line(seat, Some(who), cline);
                 if let Some(cur) = self.seats[seat].talk.as_mut() {
                     cur.argue = Some(Argument { stance: Some(stance), ..a });
                 }
@@ -1891,6 +2951,9 @@ impl Game {
                 let outcome = persuasion::resolve(&self.world, pe, who, m, roll);
                 let mag = persuasion::magnitude(&self.world, pe, who, &issue, m, self.tick);
                 persuasion::push_argument(&mut self.world, who, &issue, stance, outcome, mag, self.tick);
+                // the argued case is the agitation itself (#1442): the
+                // trouble gains its urgency and its edge on the model
+                crate::game::act_model::argued(&mut self.world, who, outcome == Outcome::Won);
                 // how you argued it is a line they'll remember (#1236)
                 {
                     use crate::game::rhetoric::Line;
@@ -1944,8 +3007,9 @@ impl Game {
             self.refresh_player_talk(seat);
             return;
         };
-        self.argue_line(seat, Some(who), inoc::fear(c).into());
-        self.argue_line(seat, Some(pe), inoc::answer(c).into());
+        let fl = self.pair_said(who, pe, inoc::fear(c));
+                    self.argue_line(seat, Some(who), fl);
+        self.argue_line(seat, Some(pe), self.player_line(seat, who, inoc::answer(c)));
         inoc::shield(&mut self.world, who, c);
         let vname = self.name_of(who);
         self.argue_line(seat, None, format!("{vname} nods slowly - they'll know it when it comes."));
@@ -1957,6 +3021,87 @@ impl Game {
         self.argue_line(seat, None, "You let it drop.".into());
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.argue = None; }
         self.refresh_player_talk(seat);
+    }
+
+    /// The venues a where-pick can name (#1337): the square, then the
+    /// church steps and the tavern when they stand, then the homes the
+    /// org's learned - the invited's own door isn't listed twice, it's
+    /// what "their call" means
+    fn invite_venues(&self, seat: usize) -> Vec<(crate::game::organizing::Venue, String)> {
+        use crate::game::organizing::Venue;
+        let oe = self.seats[seat].org;
+        let mut out = vec![(Venue::Square, self.venue_label(Venue::Square))];
+        if self.church.is_some() { out.push((Venue::Church, self.venue_label(Venue::Church))); }
+        if self.tavern.is_some() { out.push((Venue::Tavern, self.venue_label(Venue::Tavern))); }
+        if let Some(kv) = self.world.get_component::<crate::game::organizing::KnownVenues>(oe) {
+            for &(h, b) in &kv.homes {
+                if crate::game::villager::is_dead(&self.world, h)
+                    || self.world.get_component::<villager::Pos>(b).is_none() { continue; }
+                out.push((Venue::House(h, b), self.venue_label(Venue::House(h, b))));
+            }
+        }
+        out
+    }
+
+    /// A pick inside the invitation's follow-up (#1337): the when, then
+    /// the where - and the word goes out with both settled, the same
+    /// landing the call panel's day pick makes
+    fn invite_pick_at(&mut self, seat: usize, i: usize) {
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let Some(step) = t.inviting.clone() else { return };
+        let (who, pe, oe) = (t.who, self.seats[seat].player, self.seats[seat].org);
+        match step {
+            InviteStep::When => {
+                let Some(&days) = [2u64, 4, 7].get(i) else { return };
+                let day_line = match days {
+                    2 => "Two days' time - spread the word quick.",
+                    4 => "Four days - let the word get round.",
+                    _ => "A week - the far ones can come.",
+                };
+                self.argue_line(seat, Some(pe), day_line.into());
+                // a venue already promised (a lent house, a pick that
+                // ran ahead) settles the where itself - the call just
+                // wants its day
+                let set = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
+                    .map(|p| p.venue.is_some()).unwrap_or(false);
+                if set {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() { cur.inviting = None; }
+                    self.the_words_out(seat, days);
+                    self.argue_line(seat, Some(who), "I'll be there.".into());
+                } else {
+                    let venues = self.invite_venues(seat);
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.inviting = Some(InviteStep::Where { days, venues });
+                    }
+                    self.argue_line(seat, Some(who), "And where d'you want us?".into());
+                }
+                self.refresh_player_talk(seat);
+            }
+            InviteStep::Where { days, venues } => {
+                let home = crate::game::household::home_of(&self.world, who);
+                let pick_venue = if i == venues.len() {
+                    // "their call": their own door if they have one -
+                    // and the org learns it - else the square
+                    home.map(|b| crate::game::organizing::Venue::House(who, b))
+                        .unwrap_or(crate::game::organizing::Venue::Square)
+                } else {
+                    let Some(&(v, _)) = venues.get(i) else { return };
+                    v
+                };
+                if let crate::game::organizing::Venue::House(h, b) = pick_venue {
+                    crate::game::organizing::learn_venue(&mut self.world, oe, h, b);
+                }
+                if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+                    p.venue = Some(pick_venue);
+                }
+                if let Some(cur) = self.seats[seat].talk.as_mut() { cur.inviting = None; }
+                let label = self.venue_label(pick_venue);
+                self.argue_line(seat, Some(pe), format!("At {}.", label));
+                self.the_words_out(seat, days);
+                self.argue_line(seat, Some(who), "I'll be there.".into());
+                self.refresh_player_talk(seat);
+            }
+        }
     }
 
     /// "I'll take it" with a road visitor: the purse pays or gains, the

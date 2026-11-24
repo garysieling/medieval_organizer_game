@@ -138,7 +138,6 @@ fn main() {
 
     let buttons = vec![
         Button { label: "Talk",     key: 'T', x: UI_X+10, y: 60,  w: 130, h: 36, color: (60,60,120) },
-        Button { label: "Recruit",  key: 'R', x: UI_X+10, y: 104, w: 130, h: 36, color: (60,120,60) },
         Button { label: "Invest",   key: 'I', x: UI_X+10, y: 148, w: 130, h: 36, color: (120,60,60) },
         Button { label: "Organize", key: 'O', x: UI_X+10, y: 192, w: 130, h: 36, color: (120,100,40) },
         Button { label: "Build",    key: 'B', x: UI_X+10, y: 236, w: 130, h: 36, color: (80,60,120) },

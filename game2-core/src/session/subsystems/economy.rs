@@ -164,7 +164,7 @@ impl Game {
                 .find(|&v| !crate::game::dungeon::unavailable(&self.world, v)
                     && self.world.get_component::<Craft>(v)
                         .map(|c| c.vocation == voc && c.workplace.is_none()).unwrap_or(false)));
-        let dname = self.villagers.iter().position(|v| *v == dead).map(|i| vill_name(i)).unwrap_or("the dead");
+        let dname = self.villagers.iter().position(|v| *v == dead).map(|i| self.cast_name(i)).unwrap_or("the dead");
         match heir {
             Some(h) => {
                 // a shop only has the one master - give up any other bench
@@ -187,7 +187,7 @@ impl Game {
                     .villagers
                     .iter()
                     .position(|v| *v == h)
-                    .map(|i| vill_name(i))
+                    .map(|i| self.cast_name(i))
                     .unwrap_or("the heir");
                 self.log_entity_ev(
                     EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),

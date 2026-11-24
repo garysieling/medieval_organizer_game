@@ -9,13 +9,42 @@ use crate::engine::ecs::Entity;
 use crate::game::livelihood;
 use crate::session::*;
 
-/// What the job is about
+/// What the job is about - the plain kinds beside E5-7's five shapes
+/// (the ghosted ask gets the wound's own errand)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum QuestKind { Note, Parcel, Egg, Stone, Talk }
+pub enum QuestKind {
+    Note, Parcel, Egg, Stone, Talk,
+    /// A thing laid somewhere for them - the loaf to the cairn
+    Deliver,
+    /// A question put to who knows - was the debt ever written down?
+    Ask,
+    /// A sight to be seen - the manor roll itself
+    FindOut,
+    /// Word carried to the one they're estranged from
+    CarryWord,
+    /// A thing held a few days - it can't be found on them
+    Keep,
+}
 
 /// Where the thing ends up
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum QuestTarget { Villager(Entity), Site(usize) }
+pub enum QuestTarget {
+    Villager(Entity), Site(usize),
+    /// A named spot that isn't a settlement - the old stones, the cairn
+    Spot(f32, f32),
+}
+
+/// What an errand proves and when it's due (E5-7): Ask and Find out
+/// carry the tag of the ghost-fact their answer confirms (the debt in
+/// the manor roll); a Keep holds `due` - the day the bundle goes back
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Errand {
+    /// the ghost's tag (`miller_debt`) - the errand's answer writes
+    /// `ghost:<tag>` into the seat's ledger as a seen thing
+    pub confirm: Option<&'static str>,
+    /// a Keep's return day
+    pub due: u64,
+}
 
 /// ToFetch: the thing's still out there - pick it up first. ToCarry:
 /// it's in hand, see it to whoever it's for
@@ -33,6 +62,8 @@ pub struct PlayerQuest {
     pub pickup: Option<(f32, f32)>,
     /// the day it goes stale
     pub expires: u64,
+    /// an errand's proof and due day (E5-7), where the job is one
+    pub errand: Option<Errand>,
 }
 
 /// A job going begging: somebody's asked, nobody's taken it yet
@@ -43,6 +74,8 @@ pub struct PendingQuest {
     pub target: QuestTarget,
     pub pickup: Option<(f32, f32)>,
     pub expires: u64,
+    /// an errand's proof and due day (E5-7), where the job is one
+    pub errand: Option<Errand>,
 }
 
 /// How many jobs can go begging at once
@@ -57,6 +90,8 @@ const OFFER_RAPPORT: f32 = 0.2;
 const REST_DAYS: u64 = 20;
 /// How close you stand to pick the thing up, or reach the far village
 const REACH: f32 = 1.6;
+/// Days a Keep's bundle stays hid before it goes back (E5-7)
+const KEEP_DAYS: u64 = 4;
 
 impl Game {
     /// The pending job `giver` is offering, if any
@@ -97,6 +132,66 @@ impl Game {
         }
     }
 
+    /// The ghost's own ask (E5-7, #1438): which of the five errand
+    /// shapes the strongest wound wants, and where it lands - a loaf
+    /// to the stones for grief, the debt question to the collector,
+    /// the manor roll to be seen, word to the town one's estranged
+    /// from, a bundle to keep hid. None when there's no wound, or the
+    /// shape's payload can't be laid this day
+    pub(in crate::session) fn errand_offer(&self, giver: Entity)
+        -> Option<(QuestKind, QuestTarget, Errand)> {
+        use crate::game::persona::{EventKind as EK, Persona};
+        let p = self.world.get_component::<Persona>(giver)?;
+        let g = p.ghosts.iter().max_by(|a, b|
+            a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))?;
+        let kind = match g.kind {
+            EK::Fire | EK::Fever | EK::DeathDuty => QuestKind::Deliver,
+            EK::MillerDebt | EK::Levy => QuestKind::Ask,
+            EK::Eviction => QuestKind::FindOut,
+            EK::BrokenBetrothal | EK::HarvestFeast => QuestKind::CarryWord,
+            EK::OldFaith => QuestKind::Keep,
+        };
+        match kind {
+            QuestKind::Deliver => {
+                // the loaf to the cairn: the old stones take the offering
+                let s = self.stones.first().and_then(|&(x, y)|
+                    self.near_passable(x as f32, y as f32))?;
+                Some((kind, QuestTarget::Spot(s.0, s.1), Errand { confirm: None, due: 0 }))
+            }
+            QuestKind::Ask => {
+                // who keeps the roll: the collector first, any posting else -
+                // never the asker themselves, and nobody off the rolls
+                let can_answer = |v| v != giver
+                    && !crate::game::dungeon::unavailable(&self.world, v);
+                let t = self.villagers.iter().copied().find(|&v| can_answer(v)
+                    && crate::game::livelihood::has_role(&self.world, v,
+                        crate::game::vocation::TownRole::TaxCollector))
+                    .or_else(|| self.villagers.iter().copied().find(|&v| can_answer(v)
+                        && self.world.get_component::<crate::game::vocation::TownRole>(v).is_some()))?;
+                Some((kind, QuestTarget::Villager(t),
+                    Errand { confirm: Some(g.kind.tag()), due: 0 }))
+            }
+            QuestKind::FindOut => {
+                // the manor roll: the castle keeps the writs
+                let i = self.sites.iter().position(|s|
+                    s.kind == crate::session::country::SiteKind::Castle)
+                    .or(if self.sites.is_empty() { None } else { Some(0) })?;
+                Some((kind, QuestTarget::Site(i),
+                    Errand { confirm: Some(g.kind.tag()), due: 0 }))
+            }
+            QuestKind::CarryWord => {
+                // a sister in the town: the estranged kin lives out there
+                let i = self.sites.iter().position(|s|
+                    s.kind == crate::session::country::SiteKind::Town)?;
+                Some((kind, QuestTarget::Site(i), Errand { confirm: None, due: 0 }))
+            }
+            QuestKind::Keep =>
+                Some((kind, QuestTarget::Villager(giver),
+                    Errand { confirm: None, due: self.tick + KEEP_DAYS })),
+            _ => None,
+        }
+    }
+
     /// Somebody to send a note to: another villager of the village
     pub(in crate::session) fn note_target(&self, giver: Entity, rng: &mut Rng) -> Option<Entity> {
         let folk: Vec<Entity> = self.villagers.iter().copied()
@@ -133,6 +228,7 @@ impl Game {
                 let dead_end = match q.target {
                     QuestTarget::Villager(v) => crate::game::villager::is_dead(&self.world, v),
                     QuestTarget::Site(i) => i >= self.sites.len(),
+                    QuestTarget::Spot(x, y) => !self.map.passable(x.floor() as i32, y.floor() as i32),
                 } || q.pickup.map(|(x, y)| !self.map.passable(x.floor() as i32, y.floor() as i32)).unwrap_or(false);
                 if dead_end {
                     let who = self.name_of(q.giver);
@@ -156,23 +252,30 @@ impl Game {
             if self.pending_quests.iter().any(|q| q.giver == v) { continue; }
             if self.quest_rest.get(&v).copied().unwrap_or(0) > tick { continue; }
             if rng.below(100) >= 5 { continue; }
-            // what they need: a note carried, a parcel walked out, or
-            // a thing fetched back - whichever the world's got for
-            let roll = rng.below(100);
-            let offer = if roll < 30 {
-                self.note_target(v, rng).map(|t| (QuestKind::Note, QuestTarget::Villager(t), None))
-            } else if roll < 55 && !self.sites.is_empty() {
-                let i = rng.below(self.sites.len() as i32) as usize;
-                Some((QuestKind::Parcel, QuestTarget::Site(i), None))
-            } else {
-                let kind = if roll < 78 { QuestKind::Egg } else { QuestKind::Stone };
-                self.fetch_spot(kind, rng).map(|p| (kind, QuestTarget::Villager(v), Some(p)))
-            };
-            // the opening victim's ear is already promised - they don't
-            // go begging for a second job while it stands
+            // the ghost asks in its own shape first (E5-7); the plain
+            // jobs roll for the rest
+            let offer = self.errand_offer(v).map(|(k, t, e)| (k, t, None, Some(e)))
+                .or_else(|| {
+                    // what they need: a note carried, a parcel walked
+                    // out, or a thing fetched back - whichever the
+                    // world's got for
+                    let roll = rng.below(100);
+                    if roll < 30 {
+                        self.note_target(v, rng).map(|t| (QuestKind::Note, QuestTarget::Villager(t), None))
+                    } else if roll < 55 && !self.sites.is_empty() {
+                        let i = rng.below(self.sites.len() as i32) as usize;
+                        Some((QuestKind::Parcel, QuestTarget::Site(i), None))
+                    } else {
+                        let kind = if roll < 78 { QuestKind::Egg } else { QuestKind::Stone };
+                        self.fetch_spot(kind, rng).map(|p| (kind, QuestTarget::Villager(v), Some(p)))
+                    }
+                    .map(|(k, t, p)| (k, t, p, None))
+                });
+            // one open errand a villager (E5-7): while the seat still
+            // runs theirs, they don't go begging for another
             if self.seats.iter().any(|s| s.quest.as_ref()
-                .map(|q| q.kind == QuestKind::Talk && q.giver == v).unwrap_or(false)) { continue; }
-            let Some((kind, target, pickup)) = offer else { continue };
+                .map(|q| q.giver == v).unwrap_or(false)) { continue; }
+            let Some((kind, target, pickup, errand)) = offer else { continue };
             self.notices.push(("quest".into(), format!("{} asks for help - the board carries it",
                 self.name_of(v)), tick + 14));
             self.pending_quests.push(PendingQuest {
@@ -181,10 +284,11 @@ impl Game {
                 target,
                 pickup,
                 expires: tick + OFFER_DAYS,
+                errand,
             });
             self.say(
                 v,
-                ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize],
+                &self.pair_said(v, self.player, ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize]),
                 TALK_BUBBLE_SECS * 2,
             );
             self.log_entity_ev(
@@ -242,7 +346,8 @@ impl Game {
         if self.seats[seat].quest.is_none() {
             self.seats[seat].quest = Some(PlayerQuest {
                 giver: v, kind: QuestKind::Talk, target: QuestTarget::Villager(v),
-                stage: QuestStage::ToCarry, pickup: None, expires: self.tick + QUEST_DAYS });
+                stage: QuestStage::ToCarry, pickup: None, expires: self.tick + QUEST_DAYS,
+                errand: None });
         }
     }
 
@@ -275,9 +380,15 @@ impl Game {
     pub(in crate::session) fn take_pending_quest(&mut self, seat: usize, i: usize) -> PlayerQuest {
         let q = self.pending_quests.remove(i);
         let stage = if q.pickup.is_some() { QuestStage::ToFetch } else { QuestStage::ToCarry };
+        // a bundle's days run from the handover, not the posting: the
+        // offer can sit on the board past the day it was meant to hold
+        let errand = q.errand.map(|mut e| {
+            if q.kind == QuestKind::Keep { e.due = self.tick + KEEP_DAYS; }
+            e
+        });
         let quest = PlayerQuest {
             giver: q.giver, kind: q.kind, target: q.target, stage, pickup: q.pickup,
-            expires: self.tick + QUEST_DAYS };
+            expires: self.tick + QUEST_DAYS, errand };
         self.say(q.giver, &self.quest_ask_line(&quest), TALK_BUBBLE_SECS * 2);
         self.seats[seat].quest = Some(quest.clone());
         self.quest_rest.insert(q.giver, self.tick + REST_DAYS);
@@ -287,16 +398,25 @@ impl Game {
     /// What they ask for, in their own words - the bubble on accepting
     /// and the panel's reminder both read off this
     pub fn quest_ask_line(&self, q: &PlayerQuest) -> String {
-        match (q.kind, q.target) {
+        let line = match (q.kind, q.target) {
             (QuestKind::Note, QuestTarget::Villager(t)) =>
-                format!("Will you take this note to {}?", self.name_of(t)),
+                format!("{{2:will}} {{2:subj}} take this note to {}?", self.name_of(t)),
             (QuestKind::Parcel, QuestTarget::Site(i)) =>
-                format!("Would you carry this parcel out to {}?", self.sites.get(i).map(|s| s.name).unwrap_or("the village")),
-            (QuestKind::Egg, _) => "Could you fetch a fresh egg from the hen run?".into(),
-            (QuestKind::Stone, _) => "Would you bring me a stone from the old boulders?".into(),
-            (QuestKind::Talk, _) => "I carry a trouble only a listener can ease - will you hear me out?".into(),
-            _ => "Will you do me a small job?".into(),
-        }
+                format!("{{2:would}} {{2:subj}} carry this parcel out to {}?", self.sites.get(i).map(|s| s.name).unwrap_or("the village")),
+            (QuestKind::Egg, _) => "{2:could} {2:subj} fetch a fresh egg from the hen run?".into(),
+            (QuestKind::Stone, _) => "{2:would} {2:subj} bring me a stone from the old boulders?".into(),
+            (QuestKind::Talk, _) => "I carry a trouble only a listener can ease - {2:will} {2:subj} hear me out?".into(),
+            (QuestKind::Deliver, _) => "{2:will} {2:subj} carry a loaf to the old stones for me? It's for one I lost.".into(),
+            (QuestKind::Ask, QuestTarget::Villager(t)) =>
+                format!("{{2:could}} {{2:subj}} ask {} whether the debt was ever written down?", self.name_of(t)),
+            (QuestKind::FindOut, QuestTarget::Site(i)) =>
+                format!("{{2:will}} {{2:subj}} go look at the manor roll in {} for me? I need to know what's writ.", self.sites.get(i).map(|s| s.name).unwrap_or("the castle")),
+            (QuestKind::CarryWord, QuestTarget::Site(i)) =>
+                format!("{{2:would}} {{2:subj}} carry word to {} for me? One of mine's there - we've not spoken in a year.", self.sites.get(i).map(|s| s.name).unwrap_or("the town")),
+            (QuestKind::Keep, _) => "{2:will} {2:subj} hold a bundle for me, a few days? It can't be found on me.".into(),
+            _ => "{2:will} {2:subj} do me a small job?".into(),
+        };
+        self.pair_said(q.giver, self.player, &line)
     }
 
     /// The begging job's ask in the giver's words - a Talk's opening
@@ -304,7 +424,8 @@ impl Game {
     pub(in crate::session) fn pending_ask_line(&self, q: &PendingQuest) -> String {
         self.quest_ask_line(&PlayerQuest {
             giver: q.giver, kind: q.kind, target: q.target,
-            stage: QuestStage::ToCarry, pickup: q.pickup, expires: q.expires })
+            stage: QuestStage::ToCarry, pickup: q.pickup, expires: q.expires,
+            errand: q.errand })
     }
 
     /// One frame of every job under way: standing on the thing picks it
@@ -328,14 +449,23 @@ impl Game {
                 }
                 continue;
             }
-            // deliver to a far village: standing on its ground is the handover
-            if let QuestTarget::Site(i) = q.target {
-                if let Some(site) = self.sites.get(i) {
-                    let d = ((px - site.centre.0 as f32).powi(2) + (py - site.centre.1 as f32).powi(2)).sqrt();
-                    if d <= site.radius as f32 + 1.0 {
-                        self.finish_quest_site(seat, i);
+            // deliver to a far village or a named spot: standing on the
+            // ground is the handover
+            match q.target {
+                QuestTarget::Site(i) => {
+                    if let Some(site) = self.sites.get(i) {
+                        let d = ((px - site.centre.0 as f32).powi(2) + (py - site.centre.1 as f32).powi(2)).sqrt();
+                        if d <= site.radius as f32 + 1.0 {
+                            self.finish_quest_site(seat, i);
+                        }
                     }
                 }
+                QuestTarget::Spot(x, y) => {
+                    if (px - x).abs() + (py - y).abs() <= REACH {
+                        self.finish_quest_spot(seat);
+                    }
+                }
+                QuestTarget::Villager(_) => {}
             }
         }
     }
@@ -350,6 +480,7 @@ impl Game {
                 self.world.get_component::<Pos>(v).map(|p| (p.x, p.y)),
             QuestTarget::Site(i) =>
                 self.sites.get(i).map(|s| (s.centre.0 as f32, s.centre.1 as f32)),
+            QuestTarget::Spot(x, y) => Some((x, y)),
         }
     }
 
@@ -362,8 +493,16 @@ impl Game {
         let where_to = match q.target {
             QuestTarget::Villager(t) => self.name_of(t),
             QuestTarget::Site(i) => self.sites.get(i).map(|s| s.name).unwrap_or("the village").to_string(),
+            QuestTarget::Spot(..) => "the old stones".to_string(),
         };
         match (q.kind, q.stage) {
+            (QuestKind::Deliver, _) => "Job: lay the loaf at the old stones".into(),
+            (QuestKind::Ask, _) => format!("Job: ask {} about the debt", where_to),
+            (QuestKind::FindOut, _) => format!("Job: see the manor roll at {}", where_to),
+            (QuestKind::CarryWord, _) => format!("Job: carry word to {}", where_to),
+            (QuestKind::Keep, _) if q.errand.map(|e| e.due > self.tick).unwrap_or(false) =>
+                "Job: keep the bundle hid a few days".into(),
+            (QuestKind::Keep, _) => format!("Job: carry {} back to {}", thing, self.name_of(q.giver)),
             (QuestKind::Egg, QuestStage::ToFetch) => "Job: fetch the egg from the hen run".into(),
             (QuestKind::Stone, QuestStage::ToFetch) => "Job: fetch a stone from the boulders".into(),
             (_, QuestStage::ToFetch) => format!("Job: get {}", thing),
@@ -381,6 +520,11 @@ impl Game {
             QuestKind::Egg => "the egg",
             QuestKind::Stone => "the stone",
             QuestKind::Talk => "their trouble",
+            QuestKind::Deliver => "the loaf",
+            QuestKind::Ask => "the question",
+            QuestKind::FindOut => "the errand",
+            QuestKind::CarryWord => "the word",
+            QuestKind::Keep => "the bundle",
         }
     }
 
@@ -391,11 +535,27 @@ impl Game {
         if q.stage != QuestStage::ToCarry { return None; }
         let delivers = match q.target { QuestTarget::Villager(t) => t == v, _ => false };
         if !delivers { return None; }
+        // a Keep isn't handed back until its days are out (E5-7) - held
+        // long enough, the bundle's safe to carry home
+        if q.kind == QuestKind::Keep
+            && q.errand.map(|e| e.due > self.tick).unwrap_or(false) {
+            return None;
+        }
         self.seats[seat].quest = None;
+        let pe = self.seats[seat].player;
+        // an Ask's answer settles the ledger (E5-7's done-when): who
+        // keeps the roll says it plain - the debt's written, and the
+        // seat saw proof rather than heard it
+        if q.kind == QuestKind::Ask {
+            if let Some(tag) = q.errand.and_then(|e| e.confirm) {
+                crate::game::desires::confirm(&mut self.world, pe, q.giver,
+                    &format!("ghost:{tag}"), self.tick);
+            }
+        }
         let giver = self.name_of(q.giver);
         // the opening ear earns no coin - the reward is the bond itself
         if q.kind == QuestKind::Talk {
-            let known = self.quest_bond(seat, q.giver);
+            let known = self.quest_bond(seat, q.giver, q.kind);
             let mut line = format!("t{}: {} feels heard - the trouble's lighter for saying it.", self.tick, giver);
             if known {
                 line.push_str(&format!(" - {} opens up to you; you know them now.", giver));
@@ -404,8 +564,7 @@ impl Game {
         }
         let thing = self.quest_thing(&q);
         // a little gold for the leg-work, more for the long walk out
-        let pay = match q.target { QuestTarget::Site(_) => 5.0, _ => 3.0 };
-        let pe = self.seats[seat].player;
+        let pay = match q.target { QuestTarget::Site(_) | QuestTarget::Spot(..) => 5.0, _ => 3.0 };
         // both purses: the panel reads resources, trades move the Purse,
         // and act_at's sync would wash out a payment in only one of them
         if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(pe) { p.resources += pay; }
@@ -414,8 +573,9 @@ impl Game {
             QuestKind::Note => format!("The note reached {} - and {} remembers it.", self.name_of(v), giver),
             _ => format!("The {} reached {} - and {} remembers it.", thing, self.name_of(v), giver),
         };
-        self.say(v, THANKS_LINES[q.kind as usize % THANKS_LINES.len()], TALK_BUBBLE_SECS * 2);
-        let known = self.quest_bond(seat, q.giver);
+        let tl = self.pair_said(v, self.seats[seat].player, THANKS_LINES[q.kind as usize % THANKS_LINES.len()]);
+        self.say(v, &tl, TALK_BUBBLE_SECS * 2);
+        let known = self.quest_bond(seat, q.giver, q.kind);
         let mut line = format!("t{}: {} ({:.0}g)", self.tick, thanks, pay);
         if known {
             line.push_str(&format!(" - {} opens up to you; you know them now.", giver));
@@ -426,22 +586,43 @@ impl Game {
     /// A job done for someone opens them up: the deed's recorded on the
     /// bond (which alone reads as knowing them), and they tell you a
     /// thing about why they asked. Returns whether they read as known.
-    pub(in crate::session) fn quest_bond(&mut self, seat: usize, giver: Entity) -> bool {
-        crate::timed!("sim.quest_bond", self.quest_bond_inner(seat, giver))
+    pub(in crate::session) fn quest_bond(&mut self, seat: usize, giver: Entity,
+                                         kind: QuestKind) -> bool {
+        crate::timed!("sim.quest_bond", self.quest_bond_inner(seat, giver, kind))
     }
 
-    fn quest_bond_inner(&mut self, seat: usize, giver: Entity) -> bool {
+    fn quest_bond_inner(&mut self, seat: usize, giver: Entity, kind: QuestKind) -> bool {
         use crate::game::organizing::{stage_of, Deeds, RelStage};
-        use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+        use crate::game::relationships::{record_interaction, infer_kind, Interaction, InteractionKind, Relationship};
         if crate::game::villager::is_dead(&self.world, giver) { return false; }
         let pe = self.seats[seat].player;
         let bond = record_interaction(&mut self.world, pe, Interaction {
             other: giver, kind: InteractionKind::Aid, intensity: 0.8 });
+        // the shape presses the face it proves (E5-7, #1438): a thing
+        // carried or a word borne reads kindness, a question settled or
+        // a sight seen competence, a bundle kept hid the keeping itself
+        if let Some(rel) = self.world.get_component_mut::<Relationship>(bond) {
+            match kind {
+                QuestKind::Deliver | QuestKind::CarryWord => rel.trust.benevolence += 0.12,
+                QuestKind::Ask | QuestKind::FindOut => rel.trust.ability += 0.12,
+                QuestKind::Keep => rel.trust.integrity += 0.15,
+                _ => {}
+            }
+            // the press is real warmth, not overshoot: derive the total
+            // from the grown parts (recompose would scale them back to
+            // the old strength and shave the rest)
+            rel.derive();
+            rel.kind = infer_kind(rel);
+        }
         let mut deeds = self.world.get_component::<Deeds>(bond).copied().unwrap_or_default();
         deeds.n += 1;
         self.world.add_component(bond, deeds);
+        // a promise kept is the pair's own episode (E6-2): it can come
+        // back to you at a later talk as a callback
+        crate::game::episodes::file(&mut self.world, giver, pe,
+            crate::game::episodes::MemKind::KeptPromise, self.tick, &["errand", "promise"]);
         // they open up about why they needed the job
-        if let Some(r) = desires::next_reveal(&self.world, giver, self.tick, self.tick) {
+        if let Some(r) = desires::next_reveal(&self.world, pe, giver, self.tick, self.tick) {
             if let Some(issue) = desires::hear(&mut self.world, pe, giver, r, self.tick) {
                 self.toasts.push((
                     format!("Organizer discovers issue {}", issue),
@@ -471,14 +652,25 @@ impl Game {
         if let Some(p) = self.world.get_component_mut::<livelihood::Purse>(pe) {
             p.gold += 5.0;
         }
+        let landed = match q.kind {
+            QuestKind::FindOut => format!(
+                "t{}: the roll at {} is seen - word gets back to {}. (5g)", self.tick, name, giver),
+            QuestKind::CarryWord => format!(
+                "t{}: word reaches {} - {} will hear of it soon. (5g)", self.tick, name, giver),
+            _ => format!(
+                "t{}: the parcel reaches {} - word gets back to {}. (5g)", self.tick, name, giver),
+        };
         self.log.push_ev(
-            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
-            format!(
-                "t{}: the parcel reaches {} - word gets back to {}. (5g)",
-                self.tick, name, giver
-            ),
-        );
-        if self.quest_bond(seat, q.giver) {
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor), landed);
+        // a Find out's sight settles the ledger the same way an Ask's
+        // answer does (E5-7): the roll was seen, not heard of
+        if q.kind == QuestKind::FindOut {
+            if let Some(tag) = q.errand.and_then(|e| e.confirm) {
+                crate::game::desires::confirm(&mut self.world, pe, q.giver,
+                    &format!("ghost:{tag}"), self.tick);
+            }
+        }
+        if self.quest_bond(seat, q.giver, q.kind) {
             self.log.push_ev(
                 EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
                 format!(
@@ -487,22 +679,48 @@ impl Game {
                 ),
             );
         }
-        self.toasts.push((format!("The parcel reached {}", name), self.tick + 60));
+        self.toasts.push((match q.kind {
+            QuestKind::FindOut => format!("The roll at {} is seen", name),
+            QuestKind::CarryWord => format!("Word reached {}", name),
+            _ => format!("The parcel reached {}", name),
+        }, self.tick + 60));
+        self.seats[seat].quests_done += 1;
+    }
+
+    /// The loaf laid at the stones (E5-7): a named spot, not a
+    /// settlement - the errand ends where the offering rests
+    fn finish_quest_spot(&mut self, seat: usize) {
+        let Some(q) = self.seats[seat].quest.take() else { return };
+        let giver = self.name_of(q.giver);
+        let pe = self.seats[seat].player;
+        if let Some(c) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(pe) { c.resources += 3.0; }
+        if let Some(c) = self.world.get_component_mut::<livelihood::Purse>(pe) { c.gold += 3.0; }
+        self.log.push_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+            format!("t{}: the offering rests at the stones - {} will hear of it. (3g)",
+                self.tick, giver),
+        );
+        if self.quest_bond(seat, q.giver, q.kind) {
+            self.log.push_ev(
+                EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+                format!("t{}: {} opens up to you; you know them now.", self.tick, giver),
+            );
+        }
         self.seats[seat].quests_done += 1;
     }
 }
 
 /// What folk say when they ask for the job
 const ASK_LINES: [&str; 4] = [
-    "Could you do me a small job?",
-    "You're a reliable sort - will you carry this for me?",
-    "A small thing, if you'd be so good.",
+    "{2:could} {2:subj} do me a small job?",
+    "{2:subj} {2:be} a reliable sort - {2:will} {2:subj} carry this for me?",
+    "A small thing, if {2:subj} {2:would} be so good.",
     "I need a pair of hands I can trust.",
 ];
 
 /// And when it's handed over
 const THANKS_LINES: [&str; 3] = [
-    "You're a good sort - it'll not be forgot.",
-    "Ta very much - you've a friend in me.",
-    "No trouble at all - folk like you make a village.",
+    "{2:subj} {2:be} a good sort - it'll not be forgot.",
+    "Ta very much - {2:subj} {2:have} a friend in me.",
+    "No trouble at all - folk like {2:obj} make a village.",
 ];

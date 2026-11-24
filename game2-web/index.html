@@ -11,12 +11,72 @@
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     color: #c8c8d0; font: 14px/1.6 Georgia, serif; text-align: center;
   }
+  /* the Sound dialog (#1507): the same rows the desktop's overlay
+     shows, as an HTML dialog so the canvas stays inert beneath it */
+  #sound-gear {
+    position: absolute; top: 8px; right: 8px; z-index: 2;
+    background: #14141e; color: #e8d8a0; border: 1px solid #555;
+    font: 18px/1 Georgia, serif; padding: 4px 8px; cursor: pointer;
+  }
+  #sound-dialog {
+    background: #14141e; color: #e8e0c8; border: 1px solid #777;
+    font: 14px/1.5 Georgia, serif; padding: 16px 20px; min-width: 340px;
+  }
+  #sound-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+  #sound-dialog h2 { margin: 0 0 10px; font-size: 16px; color: #ffd870; }
+  #sound-dialog table { border-collapse: collapse; width: 100%; }
+  #sound-dialog td { padding: 3px 6px 3px 0; vertical-align: middle; }
+  #sound-dialog input[type=range] { width: 130px; }
+  #sound-dialog select { background: #1e1e2a; color: #e8e0c8; font: inherit; }
+  #sound-dialog .val { color: #c8b878; min-width: 3em; display: inline-block; }
+  #sound-dialog .buttons { margin-top: 12px; display: flex; gap: 12px; justify-content: flex-end; }
+  #sound-dialog button { background: #24243a; color: #e8d8a0; border: 1px solid #666; font: inherit; padding: 3px 12px; cursor: pointer; }
 </style>
 </head>
 <body>
 <div id="wrap">
   <canvas id="screen"></canvas>
   <div id="boot">the village is waking&hellip;</div>
+  <button id="sound-gear" aria-label="Sound settings" title="Sound">&#9881;</button>
+  <dialog id="sound-dialog" aria-label="Sound settings">
+    <h2>Sound</h2>
+    <table>
+      <tr><td><label for="snd-master">Master</label></td>
+        <td><input id="snd-master" data-key="master" data-out="snd-master-val" type="range" min="0" max="100" step="5"></td>
+        <td><span class="val" id="snd-master-val"></span></td></tr>
+      <tr><td><label for="snd-music">Music</label></td>
+        <td><input id="snd-music" data-key="music" data-out="snd-music-val" type="range" min="0" max="100" step="5"></td>
+        <td><span class="val" id="snd-music-val"></span></td></tr>
+      <tr><td><label for="snd-ambience">Ambience</label></td>
+        <td><input id="snd-ambience" data-key="ambience" data-out="snd-ambience-val" type="range" min="0" max="100" step="5"></td>
+        <td><span class="val" id="snd-ambience-val"></span></td></tr>
+      <tr><td><label for="snd-effects">Effects</label></td>
+        <td><input id="snd-effects" data-key="effects" data-out="snd-effects-val" type="range" min="0" max="100" step="5"></td>
+        <td><span class="val" id="snd-effects-val"></span></td></tr>
+      <tr><td><label for="snd-interface">Interface</label></td>
+        <td><input id="snd-interface" data-key="interface" data-out="snd-interface-val" type="range" min="0" max="100" step="5"></td>
+        <td><span class="val" id="snd-interface-val"></span></td></tr>
+      <tr><td><label for="snd-presence">Score presence</label></td>
+        <td colspan="2"><select id="snd-presence" data-key="presence">
+          <option value="off">Off</option>
+          <option value="sparse">Sparse</option>
+          <option value="normal">Normal</option>
+          <option value="rich">Rich</option>
+        </select></td></tr>
+      <tr><td><label for="snd-mono">Mono</label></td>
+        <td colspan="2"><input id="snd-mono" data-key="mono" type="checkbox"></td></tr>
+      <tr><td><label for="snd-night">Night mode</label></td>
+        <td colspan="2"><input id="snd-night" data-key="night_mode" type="checkbox"></td></tr>
+      <tr><td><label for="snd-bgmute">Mute in background</label></td>
+        <td colspan="2"><input id="snd-bgmute" data-key="mute_in_background" type="checkbox"></td></tr>
+      <tr><td><label for="snd-captions">Sound captions</label></td>
+        <td colspan="2"><input id="snd-captions" data-key="captions" type="checkbox"></td></tr>
+    </table>
+    <div class="buttons">
+      <button id="snd-reset" type="button">Reset to defaults</button>
+      <form method="dialog"><button type="submit">Close</button></form>
+    </div>
+  </dialog>
 </div>
 <script type="module" src="./main.js"></script>
 </body>

@@ -37,7 +37,7 @@ pub fn label(c: Counter) -> &'static str {
 pub fn fear(c: Counter) -> &'static str {
     match c {
         Counter::Threat => "And when the steward comes to my door and says he'll have my strip?",
-        Counter::Plea => "And if the lord says all's forgiven, just walk away from you lot?",
+        Counter::Plea => "And if the lord says all's forgiven, just walk away from {2p:obj} lot?",
         Counter::Denounce => "And if Father stands up on Sunday and names me for it?",
     }
 }
@@ -45,9 +45,9 @@ pub fn fear(c: Counter) -> &'static str {
 /// The organizer's answer, the rehearsal of it
 pub fn answer(c: Counter) -> &'static str {
     match c {
-        Counter::Threat => "Then he's afraid - a man sure of his land doesn't need to threaten it. You tell him you'll speak with the others first.",
-        Counter::Plea => "His grace comes the day we're strong, and leaves the day we're not. You'll know it for what it is.",
-        Counter::Denounce => "They name you because you matter. You'll stand there with us beside you - and you'll not be alone in that pew.",
+        Counter::Threat => "Then he's afraid - a man sure of his land doesn't need to threaten it. {2:subj} tell him {2:subj} {2:will} speak with the others first.",
+        Counter::Plea => "His grace comes the day we're strong, and leaves the day we're not. {2:subj} {2:will} know it for what it is.",
+        Counter::Denounce => "They name {2:obj} because {2:subj} matter. {2:subj} {2:will} stand there with us beside {2:obj} - and {2:subj} {2:will} not be alone in that pew.",
     }
 }
 

@@ -76,6 +76,20 @@ Rules:
 The client is its own crate (`game2-client`), so the compiler enforces rules 1 and 2;
 rule 3 (probe use) is still enforced by review and tests.
 
+## Audio (game2-audio)
+
+`game2-audio` sits beside `game2-client` in the diagram: it depends on
+`game2-core` for the public views, and nothing ever depends back on it
+(a layering test enforces both directions). The design is
+`wiki/software-design/sound-system.md`; its layer rules are binding:
+
+1. **`UiModel`/public API only.** No `Game`, `World` or `probe` reads
+   outside `#[cfg(test)]` and the `scenarios` feature module.
+2. **The sim only publishes facts** - cues, `DramaV`, weather,
+   calendar - and picks no sounds and no moods.
+3. **No clocks, no OS randomness.** Anything stochastic draws from an
+   xorshift seeded by `UiModel.seed` plus the bar index.
+
 ## The order we're taking it in
 
 Each step is its own PR and moves code without changing behaviour. Every test

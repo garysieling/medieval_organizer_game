@@ -7,6 +7,7 @@
 
 ## Layout
 - Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs the client (the `game2-client` crate: draws a `UiModel`, owns the window bins, and depends on `game2-core`, never the reverse). The split of `session.rs` is in progress there; put new code in its target layer.
+- Audio code lives in `game2-audio`, reads only `UiModel` (never the sim, the probe or a clock), and its tests run with `cargo test -p game2-audio`; the design is `wiki/software-design/sound-system.md`.
 - The sim is deterministic per seed: in `game/`, `sim/`, `session/`, `engine/` use `crate::engine::det::{HashMap, HashSet}` (build with `::default()`), never std's randomly-seeded ones, and don't let iteration order depend on anything but the seed. `tests/layering.rs` and `tests/determinism.rs` enforce it.
 - Session tests live in `game2-core/src/session/tests/<subsystem>.rs` (start with `use crate::session::*;` when the file uses session items; it reaches private ones too). Add new ones to the matching file, or add a file and list it in `tests/mod.rs`. Don't put them back in `session.rs`.
 - Tests that draw (a `View`, `Art`, a panel, a label, a frame) live in `game2-client/src/tests/<area>.rs`; run them with `cargo test -p game2-client --lib`. They see only `session`'s public API, like the client itself; build games with `Game::new_seeded(MAP_SEED)`, since `Game::new()` is session-test-only.

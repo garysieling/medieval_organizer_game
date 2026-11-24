@@ -15,6 +15,17 @@ const TESTIMONY_WARM_TIE: f32 = 0.3;
 const TESTIMONY_OPEN: f32 = 0.10;
 
 impl Game {
+    /// The org behind a campaign as conversation `Speaker`s (E4-4): the
+    /// arc's deliberations realize each line's thee and you against the
+    /// pair it was actually said to
+    pub(in crate::session) fn org_speakers(&self, c: Entity, tick: u64)
+            -> crate::engine::det::HashMap<Entity, crate::game::conversation::Speaker> {
+        let ms: Vec<Entity> = self.world.get_component::<crate::game::campaign::Campaign>(c)
+            .and_then(|c| self.world.get_component::<crate::sim::community::Organization>(c.org))
+            .map(|o| o.members.clone()).unwrap_or_default();
+        ms.iter().map(|&m| (m, dialogue::speaker_of(&self.world, m, &self.name_of(m), tick))).collect()
+    }
+
     /// The end of a house meeting, once those who came have talked it over.
     /// Those who already trust you join the org; everyone who came gets to
     /// know you a little better (organizing::house_meeting). The meeting
@@ -44,8 +55,16 @@ impl Game {
         let joined: Vec<&str> = invited.iter()
             .filter(|v| !members_before.contains(v))
             .filter(|v| self.world.get_component::<Organization>(oe).map(|o| o.members.contains(v)).unwrap_or(false))
-            .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i)))
+            .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| self.cast_name(i)))
             .collect();
+        // bringing them in is the craft the dropped Recruit button
+        // practiced: a meeting that lands members teaches the host to
+        // draw a crowd, a head at a time
+        if !joined.is_empty() {
+            crate::game::org_skills::practice(&mut self.world, pe,
+                crate::game::org_skills::OrgSkill::Training,
+                crate::game::org_skills::SEAT_PRACTICE * joined.len() as f32);
+        }
         let outcome = if joined.is_empty() {
             "No one joins yet, but they'll remember the conversation.".to_string()
         } else {
@@ -116,7 +135,19 @@ impl Game {
             crate::sim::organized_power::ActionQuality::Transactional
         } else { crate::sim::organized_power::ActionQuality::Overreach });
         let founded = self.meeting_call(seat, record, invited).map(|s| format!(" {}", s)).unwrap_or_default();
-        format!("House meeting - {} came. {}{}{}", invited.len(), outcome, found, founded)
+        // the called meeting IS the cadence (#1337): a cause come due
+        // takes its floor on the resolve - the day's own tick stood
+        // down for the gathering, so the slate opens here instead
+        let floor = if let Some(c) = crate::game::campaign::campaign_of(&self.world, oe) {
+            let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+                .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
+            if due && self.seats[seat].pending_agenda.is_none() {
+                self.seats[seat].pending_agenda = Some((self.agenda_motions(seat, c), self.tick));
+                true
+            } else { false }
+        } else { false };
+        format!("House meeting - {} came. {}{}{}{}", invited.len(), outcome, found, founded,
+            if floor { " The cause's business sits - the floor's yours." } else { "" })
     }
 
     /// The founding vote, when the org can take one: enough living
@@ -169,7 +200,7 @@ impl Game {
         // mends itself
         if let Some(t) = crate::game::organizing::target_for(&self.world, &vote.winner, self.collector) {
             if let Some(cc) = self.world.get_component_mut::<campaign::Campaign>(c) { cc.target = Some(t); }
-            let tname = self.villagers.iter().position(|&v| v == t).map(|i| vill_name(i)).unwrap_or("the Reeve");
+            let tname = self.villagers.iter().position(|&v| v == t).map(|i| self.cast_name(i)).unwrap_or("the Reeve");
             self.log_entity_ev(
                 EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
                 t,
@@ -187,7 +218,7 @@ impl Game {
         // grumble - heard in the log, not just counted on the ballots
         let grumbler = vote.ballots.iter().find(|b| b.grumbles).map(|b| b.member);
         if let Some(d) = grumbler {
-            let name = self.villagers.iter().position(|&v| v == d).map(|i| vill_name(i)).unwrap_or("someone");
+            let name = self.villagers.iter().position(|&v| v == d).map(|i| self.cast_name(i)).unwrap_or("someone");
             msg += &format!(" - {} {}", name, campaign::grumble_line(framing));
         }
         msg
@@ -233,11 +264,15 @@ impl Game {
                       c: Entity, tick: u64) -> Option<(String, Vec<Entity>)> {
         let out = crate::game::campaign::hold_campaign_meeting(&mut self.world, c, tick)?;
         let who: Vec<String> = out.attendees.iter()
-            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| self.cast_name(i).to_string()))
             .collect();
         // the room talks it through first: what it decided is what the
-        // notes and the consent report
-        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick);
+        // notes and the consent report - each voice's thee and you
+        // realized against the speakers it already knows (E4-4)
+        let speakers: crate::engine::det::HashMap<Entity, crate::game::conversation::Speaker> =
+            out.attendees.iter()
+                .map(|&v| (v, dialogue::speaker_of(&self.world, v, &self.name_of(v), tick))).collect();
+        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick, &speakers);
         let decided = d.as_ref().map(|d| d.decided).unwrap_or(true);
         let consent = d.as_ref().map(|d| d.consent).unwrap_or(out.consent);
         let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
@@ -247,7 +282,7 @@ impl Game {
         if consent { msg += " - consent banked for the next action"; }
         if !out.healed.is_empty() {
             let healed: Vec<String> = out.healed.iter()
-                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| self.cast_name(i).to_string()))
                 .collect();
             msg += &format!(" - {} heard out", healed.join(", "));
         }
@@ -256,7 +291,7 @@ impl Game {
         // too long leaves the rolls (#1342)
         let dues = crate::game::campaign::dues_beat(&mut self.world, c);
         let names = |vs: &[Entity]| vs.iter()
-            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| self.cast_name(i).to_string()))
             .collect::<Vec<_>>().join(", ");
         if dues.paid > 0 || !dues.carried.is_empty() {
             let mut round = format!(" - the hat passes: {} pay", dues.paid);
@@ -293,8 +328,26 @@ impl Game {
             // itself - the floor's deciding, the day doesn't pre-empt
             // the vote with a meeting of its own (#1157)
             if seat.map(|s| s.pending_agenda.is_some()).unwrap_or(false) { continue; }
+            // a called meeting under way for this org holds the cadence
+            // itself (#1337): the gathering's the meeting - the tick
+            // doesn't run a shadow one beside it. Checked against the
+            // live gathering, not the plan's `for_day`: calling it
+            // consumes that date before the gathering resolves, so a
+            // stale-date check would miss it and double up the meeting
+            let org = self.world.get_component::<crate::game::campaign::Campaign>(c).map(|cc| cc.org);
+            let gathering = self.meeting.as_ref()
+                .map(|m| Some(self.seats[m.seat].org) == org).unwrap_or(false);
+            if gathering { continue; }
             let player = seat.map(|s| s.player);
-            if let Some((msg, _)) = self.hold_and_note_campaign_meeting(player, c, tick) {
+            if let Some((msg, attendees)) = self.hold_and_note_campaign_meeting(player, c, tick) {
+                // the cause met on its own day, without you (E6-2):
+                // "we looked for you and you never came" can surface
+                if let Some(pe) = player {
+                    for a in &attendees {
+                        crate::game::episodes::file(&mut self.world, *a, pe,
+                            crate::game::episodes::MemKind::MissedMeeting, tick, &["meeting"]);
+                    }
+                }
                 self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
                     format!("t{}: {}", tick, msg));
             }
@@ -329,6 +382,35 @@ impl Game {
         true
     }
 
+    /// The tile a venue gathers on (#1337): a lent house's door, the
+    /// church steps, the tavern - the square when it's a spot the map
+    /// can't reach any more, and when there's no venue at all
+    pub(in crate::session) fn venue_tile(&self, v: crate::game::organizing::Venue) -> (i32, i32) {
+        use crate::game::organizing::Venue;
+        let at = |b: Option<Entity>| b.and_then(|e| self.world.get_component::<Pos>(e))
+            .map(|p| (p.x.round() as i32, p.y.round() as i32));
+        match v {
+            Venue::House(_, b) => at(Some(b)).unwrap_or(self.village),
+            Venue::Square => self.village,
+            Venue::Church => at(self.church).unwrap_or(self.village),
+            Venue::Tavern => at(self.tavern).unwrap_or(self.village),
+        }
+    }
+
+    /// How the word names the place (#1337): "Bram's house" when it's
+    /// lent, else the spot - the square, the church steps, the tavern
+    pub(in crate::session) fn venue_label(&self, v: crate::game::organizing::Venue) -> String {
+        use crate::game::organizing::Venue;
+        match v {
+            Venue::House(h, _) => self.villagers.iter().position(|&v| v == h)
+                .map(|i| format!("{}'s house", self.cast_name(i)))
+                .unwrap_or_else(|| "a friend's house".into()),
+            Venue::Square => "the square".into(),
+            Venue::Church => "the church steps".into(),
+            Venue::Tavern => "the tavern".into(),
+        }
+    }
+
     /// Organize: call a house meeting at the venue named on the org's
     /// MeetingPlan - or the square, when nobody's lent a house and the
     /// word alone brings them out (#1065) - for everyone the plan's
@@ -348,13 +430,10 @@ impl Game {
             return format!("No meeting to call yet - {}.", missing);
         }
         let plan: MeetingPlan = std::mem::take(self.world.get_component_mut::<MeetingPlan>(oe).unwrap());
-        // no house lent: the cross is the standing ground for a meeting
+        // no venue named: the cross is the standing ground for a meeting
         // the word alone convened
-        let venue = plan.venue.map(|(_, b)| self.world.get_component::<Pos>(b)
-            .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0)))
-            .unwrap_or(self.village);
-        let label = plan.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h))
-            .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the square".into());
+        let venue = plan.venue.map(|v| self.venue_tile(v)).unwrap_or(self.village);
+        let label = plan.venue.map(|v| self.venue_label(v)).unwrap_or_else(|| "the square".into());
         // the invited: those who said they'd come, those who said
         // they'd bring friends (and the friends they bring), every
         // promise-keeper - and a plus-one for each of the committed,
@@ -417,7 +496,7 @@ impl Game {
         let roles = (plan.snacks.is_some(), plan.notes.is_some(), plan.opener.is_some(),
             plan.song.is_some(), plan.closer.is_some());
         let role_people = [plan.snacks, plan.notes, plan.opener, plan.song, plan.closer];
-        let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
+        let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| self.cast_name(i))).collect();
         let mut msg = format!("Word goes out - {} gather at {}.", names.join(", "), label);
         if stayed > 0 {
             msg = format!("{} - {} of those asked stayed home.", msg.trim_end_matches('.'), stayed);
@@ -439,11 +518,15 @@ impl Game {
         if came.is_empty() { return vec![]; }
         // the probe replaces the host's question (#1267)
         let ask = if probe { crate::game::dialogue_trees::MEET_PROBE.text } else { MEETING_PROMPTS[0] };
-        let mut lines = vec![(host_e, ask.to_string())];
+        // each line carries whether run_meeting already rendered it -
+        // the floor's replies come out realized (their own slots, their
+        // own marks), and a second pass through pair_said would sign
+        // them twice
+        let mut lines = vec![(host_e, ask.to_string(), false)];
         // testimony opens ahead of the ask: Self, Us, Now (#1248)
         if let Some(ev) = testimony {
             let arc = self.testimony_arc(ev, came);
-            lines.splice(0..0, arc.into_iter().map(|l| (host_e, l)));
+            lines.splice(0..0, arc.into_iter().map(|l| (host_e, l, false)));
             self.testify(seat, came);
         }
         self.voiced.clear();
@@ -510,12 +593,12 @@ impl Game {
                 // the probe's first round: each answers as deep as they trust
                 if probe && round == 0 {
                     if let Some(line) = self.probe_answer(host_e, v, came) {
-                        lines.push((v, line));
+                        lines.push((v, line, false));
                         continue;
                     }
                 }
                 let mine: crate::engine::det::HashSet<desires::IssueTag> =
-                    desires::unrevealed(&self.world, v, self.tick).iter()
+                    desires::unrevealed(&self.world, host_e, v, self.tick).iter()
                         .map(|r| desires::issue_tag(&self.world, v, r)).collect();
                 let parallel = self.voiced.iter().filter(|(_, t)| mine.contains(t)).count();
                 let mut chance = desires::REVEAL_BASE + desires::REVEAL_PARALLEL * parallel as f32;
@@ -532,9 +615,14 @@ impl Game {
                 let mut shared = false;
                 if roll < chance {
                     let pick = self.rng.next();
-                    if let Some(r) = desires::next_reveal(&self.world, v, self.tick, pick) {
-                        let (_, said) = desires::reveal_speech(vill_name(i), &r);
-                        self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
+                    if let Some(r) = desires::next_reveal(&self.world, host_e, v, self.tick, pick) {
+                        let (_, said) = desires::reveal_speech(self.cast_name(i), &r);
+                        let tag = desires::issue_tag(&self.world, v, &r);
+                        self.voiced.push((v, tag.clone()));
+                        // a complaint aired is company (#1442): the
+                        // speaker's heard, and every hearer whose own
+                        // trouble echoes it stands a little less alone
+                        self.parallel_push(v, &tag, came);
                         let pe = host_e;
                         if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                             self.toasts.push((
@@ -547,18 +635,18 @@ impl Game {
                                 format!("t{}: Organizer discovers issue {}", self.tick, issue),
                             );
                         }
-                        lines.push((v, said));
+                        lines.push((v, said, false));
                         shared = true;
                     }
                 }
                 if !shared {
                     let ready = said[ci].iter().position(|(_, to, _)| to.map_or(true, |t| aired.contains(&t)));
-                    let line = match ready {
+                    let (line, done) = match ready {
                         Some(j) => { let (k, _, text) = said[ci].remove(j);
-                            aired.insert(k); reached = reached.max(k); text }
-                        None => meeting_remark(&self.world, v, vill_name(i), round),
+                            aired.insert(k); reached = reached.max(k); (text, true) }
+                        None => (meeting_remark(&self.world, v, self.cast_name(i), round), false),
                     };
-                    lines.push((v, line));
+                    lines.push((v, line, done));
                 }
             }
             // when the room drifted, the host calls it back to the
@@ -566,19 +654,19 @@ impl Game {
             while let Some(j) = host_q.iter().position(|(k, _)| *k <= reached) {
                 let (k, text) = host_q.remove(j);
                 aired.insert(k);
-                lines.push((host_e, text));
+                lines.push((host_e, text, true));
             }
-            lines.push((host_e, MEETING_PROMPTS[round + 1].to_string()));
+            lines.push((host_e, MEETING_PROMPTS[round + 1].to_string(), false));
         }
         // a pull-back past the furthest aired statement still lands
         // before the meeting's out - the room drifted on its way
         for (_, text) in host_q.drain(..) {
-            lines.push((host_e, text));
+            lines.push((host_e, text, true));
         }
         // the rite opens it, ahead of the host's question; the send-off
         // is the last word of the night (#1185)
-        lines.insert(0, rite);
-        lines.push(send_off);
+        lines.insert(0, (rite.0, rite.1, true));
+        lines.push((send_off.0, send_off.1, true));
         // the question stays with them: each who heard it goes home with
         // a want they didn't carry, ripening in its own time (#1267)
         if probe {
@@ -587,7 +675,9 @@ impl Game {
                 desires::plant_want(&mut self.world, v, host_e, self.tick, seed);
             }
         }
-        lines
+        lines.into_iter()
+            .map(|(e, t, done)| (e, if done { t } else { self.pair_said(e, self.seats[seat].player, &t) }))
+            .collect()
     }
 
     /// The organizer's history worth testifying to (#1248): the latest
@@ -639,7 +729,7 @@ impl Game {
             None => "And it's not mine alone - every house in this room has felt the lord's hand.".into(),
         };
         vec![
-            format!("I'll tell you why I stand here. I saw it: {} I couldn't keep quiet after that.", ev.trim_end_matches('.').to_string() + "."),
+            format!("I'll tell {{2p:obj}} why I stand here. I saw it: {} I couldn't keep quiet after that.", ev.trim_end_matches('.').to_string() + "."),
             us,
             "So tonight's the choosing: stand together on it, or each go home and bear it alone.".into(),
         ]
@@ -673,6 +763,19 @@ impl Game {
             format!("t{}: you tell it to a cold room - they hear a stranger's story, but they hear it.", self.tick)
         };
         self.log.push_ev(EvTag::new(Thread::Org, if warm { Valence::Positive } else { Valence::Neutral }, Sev::Minor), line);
+    }
+
+    /// A complaint aired in the room is company (#1442): the speaker's
+    /// heard, and every hearer whose own live trouble echoes the tag
+    /// stands a little less alone - it lands on the act model
+    fn parallel_push(&mut self, speaker: Entity, tag: &desires::IssueTag, came: &[Entity]) {
+        crate::game::act_model::parallel_heard(&mut self.world, speaker, true);
+        for &u in came {
+            if u == speaker { continue; }
+            let shares = desires::live_pool(&self.world, u, self.tick).iter()
+                .any(|r| desires::issue_tag(&self.world, u, r) == *tag);
+            if shares { crate::game::act_model::parallel_heard(&mut self.world, u, false); }
+        }
     }
 
     /// One attendee's answer to the probe (#1267), as deep as they trust
@@ -713,9 +816,9 @@ impl Game {
         // the whole of what's pressing, not a want and no more (#1333)
         let heard = crate::sim::psychology::heard_testimony(&self.world, v, asker);
         let pool: Vec<desires::Reveal> = if heard {
-            desires::unrevealed(&self.world, v, self.tick)
+            desires::unrevealed(&self.world, asker, v, self.tick)
         } else {
-            desires::unrevealed(&self.world, v, self.tick).into_iter()
+            desires::unrevealed(&self.world, asker, v, self.tick).into_iter()
                 .filter(|r| matches!(r, desires::Reveal::Want(_))).collect()
         };
         if pool.is_empty() { return None; }
@@ -726,7 +829,9 @@ impl Game {
                 .copied().unwrap_or(pool[at])
         } else { pool[at] };
         let (_, said) = desires::reveal_speech(&name, &r);
-        self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
+        let tag = desires::issue_tag(&self.world, v, &r);
+        self.voiced.push((v, tag.clone()));
+        self.parallel_push(v, &tag, came);
         if let Some(issue) = desires::hear(&mut self.world, asker, v, r, self.tick) {
             self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
             self.log_entity_ev(
@@ -766,7 +871,8 @@ impl Game {
             m.lines.insert(m.lines.len().saturating_sub(1), (n, "Say it plain - I'll keep the word of it.".into()));
         }
         if let (true, Some(c)) = (m.roles.4, closer) {
-            m.lines.insert(m.lines.len().saturating_sub(1), (c, "Same time again, then - and each of you bring one more.".into()));
+            let close = self.pair_said(c, self.player, "Same time again, then - and each of {2p:obj} bring one more.");
+            m.lines.insert(m.lines.len().saturating_sub(1), (c, close));
         }
         if let (true, Some(s)) = (m.roles.3, song) {
             for &a in &m.invited {
@@ -779,10 +885,12 @@ impl Game {
             for &a in &m.invited {
                 desires::satisfy(&mut self.world, a, desires::Want::GoodFood, self.tick + 15);
             }
-            m.lines.insert(1.min(m.lines.len()), (s, "Bread's on the table - help yourselves.".into()));
+            let bread = self.pair_said(s, self.player, "Bread's on the table - help {2p:self}.");
+            m.lines.insert(1.min(m.lines.len()), (s, bread));
         }
         if let (true, Some(o)) = (m.roles.2, opener) {
-            m.lines.insert(0, (o, "Friends - you came, and that's the start of it.".into()));
+            let open = self.pair_said(o, self.player, "Friends - {2p:subj} came, and that's the start of it.");
+            m.lines.insert(0, (o, open));
         }
     }
 
@@ -831,6 +939,16 @@ impl Game {
                     let in_room = |e: Option<Entity>| e.map(|e| m.invited.contains(&e)).unwrap_or(false);
                     m.roles = (in_room(m.role_people[0]), in_room(m.role_people[1]),
                         in_room(m.role_people[2]), in_room(m.role_people[3]), in_room(m.role_people[4]));
+                    // a promised part counts kept when its keeper's in
+                    // the room (#1442): the efficacy credit lands on the
+                    // showing, not the saying
+                    let holders = self.world.get_component::<crate::game::organizing::MeetingPlan>(self.org)
+                        .map(|p| p.holders()).unwrap_or_default();
+                    for &v in &m.invited {
+                        if holders.contains(&v) {
+                            crate::game::act_model::ask_kept(&mut self.world, v);
+                        }
+                    }
                     m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());
                     self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);
@@ -915,9 +1033,13 @@ impl Game {
                     match crate::game::organizing::stage_of(&self.world, self.player, a) {
                         RelStage::Known | RelStage::Follower | RelStage::CoLeader => {
                             let name = self.speaker_name(self.player);
-                            self.say_in_passing(a, &passing_greeting(n, &name), CHAT_BUBBLE_SECS);
+                            let said = self.pair_said(a, self.player, &passing_greeting(n, &name));
+                            self.say_in_passing(a, &said, CHAT_BUBBLE_SECS);
                         }
-                        RelStage::Acquaintance => { self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS); }
+                        RelStage::Acquaintance => {
+                            let said = self.pair_said(a, self.player, passing_remark(n));
+                            self.say_in_passing(a, &said, CHAT_BUBBLE_SECS);
+                        }
                         RelStage::Stranger => {}
                     }
                 }

@@ -24,6 +24,7 @@
 
 use crate::engine::det::HashSet;
 use crate::engine::ecs::Entity;
+use crate::game::relationships::RelKind;
 
 use crate::game::traits::Trait;
 
@@ -34,6 +35,13 @@ pub struct Rng(u64);
 impl Rng {
     pub fn new(seed: u64) -> Self {
         Rng(seed ^ 0x9E37_79B9_7F4A_7C15)
+    }
+
+    /// A stream off this one's state, salted: the slip pass rolls on
+    /// its own stream (E5-8) so a replay with more picks rolls the
+    /// same turns the same way
+    fn fork(&self, salt: u64) -> Rng {
+        Rng(self.0 ^ salt)
     }
 
     fn next_u64(&mut self) -> u64 {
@@ -72,6 +80,47 @@ impl Rng {
 /// A person in a conversation: enough of a profile to roll facts against.
 /// `status` carries circumstance ("sick", "grieving", "hungry", "drunk");
 /// `ideology` carries vocation ("laborer", "clergy", "merchant", "lord").
+/// What of a persona the fact stream can speak (E3-1, #1423): the open
+/// half (archetype, values) is voice-observable and folds under every
+/// prefix; the hidden half (wound, lie, disclosure tiers) stays
+/// self-only until a later ticket's disclosure opens it
+#[derive(Debug, Default, Clone)]
+pub struct FactTable {
+    /// `archetype:*`, `value:*` - folded under self/other/any
+    pub open: Vec<String>,
+    /// `ghost:*`, `lie:*`, `tier:*` - self-only for now
+    pub hidden: Vec<String>,
+}
+
+/// A persona-lite profile for speakers built without a world
+/// (talk_lab, dialogue_gen): an archetype read off the traits and two
+/// values sampled off the salt, so `archetype:*`/`value:*` still reach
+/// synthetic transcripts. Wounds need the E2-3 record - hidden stays
+/// empty here
+pub fn lite_facts(traits: &[Trait], salt: u64) -> FactTable {
+    use crate::game::persona::{draw, VALUES};
+    use crate::game::traits::Trait::*;
+    let arch = if traits.contains(&Pious) { "devout" }
+        else if traits.contains(&Kind) { "soft_heart" }
+        else if traits.contains(&Ambitious) { "striver" }
+        else if traits.contains(&Hotheaded) { "firebrand" }
+        else if traits.contains(&Proud) { "climber" }
+        else if traits.contains(&Gregarious) { "tongue_of_the_well" }
+        else if traits.contains(&Stolid) { "old_guard" }
+        else if traits.contains(&Wary) { "doubter" }
+        else if traits.contains(&Lazy) { "merrymaker" }
+        else { "quiet_hand" };
+    let a = (draw(salt, 300) * 10.0) as usize % VALUES.len();
+    let mut b = (draw(salt, 301) * 10.0) as usize % VALUES.len();
+    if b == a { b = (b + 1) % VALUES.len(); }
+    FactTable {
+        open: vec![format!("archetype:{arch}"),
+            format!("value:{}", VALUES[a].to_lowercase()),
+            format!("value:{}", VALUES[b].to_lowercase())],
+        hidden: vec![],
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Speaker {
     pub name: String,
@@ -85,19 +134,355 @@ pub struct Speaker {
     /// in particular; `speaker_of` reads it off the world, hand-made
     /// speakers default to a middling voice
     pub pull: f32,
+    /// "male"/"female" when the world knows the body (E1-3, #1417) -
+    /// the fact stream's pronoun source for `text.rs`'s {he}/{him}/{his}
+    pub sex: Option<&'static str>,
+    /// The persona's fact table (E3-1, #1423): `speaker_of` fills it
+    /// off the world; hand-made speakers can carry a lite profile
+    /// (`lite_facts`) or none
+    pub facts: FactTable,
+    /// How far they'll open to whoever they face (E3-2, #1424):
+    /// `speaker_of` is pair-blind, so the caller who knows the bond
+    /// patches it; a stranger's is the default - nothing reached
+    pub open: Open,
+    /// Thou or you to whoever they face (E4-2, #1414): patched per-pair
+    /// like `open`; a hand-made speaker's default is you
+    pub tv: crate::game::text::Tv,
+    /// Their own archaism: 0 modern, 1 thou only as a marked shift, 2
+    /// the full thou-pattern - `speaker_of` reads it off the persona
+    pub archaism: u8,
+    /// The bond to whoever they face - `{addr}`'s intimacy reads it
+    pub rel: Relation,
+    /// What they'd ask at the door (E5-3, #1435): the fear or need a
+    /// doorknob worry keys off - the talk-open seeds it off the world;
+    /// hand-made speakers carry none
+    pub worry: Option<crate::game::desires::Reveal>,
+    /// The leak they could make (E5-8, #1439): a strong ghost under a
+    /// high-strung temperament shows through the words - `speaker_of`
+    /// seeds it off the persona; hand-made speakers carry none
+    pub slip: Option<Slip>,
+    /// Whether the arc's one slip is still unspent (E5-8): the caller
+    /// enforces the budget - 0 for hand-made speakers until a caller
+    /// opts in; the transcript's `slips` reports what fired so the
+    /// caller can mark the arc spent
+    pub slips_left: u8,
+    /// Their humor (E5-6, #1437): the style draw and the grievance its
+    /// barbs lean on - `speaker_of` seeds it off the persona and
+    /// traits; hand-made speakers carry none and joke the tree's lines
+    pub joke: Option<Joke>,
+    /// The ear's landmark (E4-7, #1416): a pet phrase and a habit,
+    /// each unique in the village, each spent once a talk -
+    /// `speaker_of` fills it off the persona
+    pub idiolect: Option<crate::game::idiolect::Idiolect>,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8 }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, slips_left: 0, joke: None, idiolect: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
         let mut v: Vec<String> = self.traits.iter().map(|t| format!("trait:{}", trait_name(*t))).collect();
         v.push(format!("ideology:{}", self.ideology));
         v.extend(self.status.iter().map(|s| format!("status:{}", s)));
+        if let Some(sex) = self.sex { v.push(format!("sex:{}", sex)); }
+        v.extend(self.facts.open.iter().cloned());
+        // where the pair stands in each area (E3-2): the gate a topic's
+        // tier reads - open facts carry no tell bonus; the ask side
+        // names a seen tell and earns it on the spot
+        let talkative = self.traits.contains(&Trait::Gregarious);
+        let guarded = self.traits.contains(&Trait::Wary);
+        for &a in AREAS {
+            for t in 0..=3u8 {
+                let reach = if self.open.reached(t, talkative, guarded, false)
+                    { "open" } else { "closed" };
+                v.push(format!("{}:{}:{}", reach, area_name(a), t));
+            }
+        }
         v
     }
+
+    /// The areas a speaker's visible wear tells on (E3-2): a grief
+    /// borne, a wound's quiet - the colored talk the asker already
+    /// saw. Naming one is the ask that attention earns
+    pub fn tell_areas(&self) -> Vec<Area> {
+        let mut v: Vec<Area> = vec![];
+        let mut mark = |a: Area| if !v.contains(&a) { v.push(a) };
+        for st in &self.status {
+            match *st {
+                "grieving" => mark(Area::Heart),
+                "sick" | "hungry" => mark(Area::Body),
+                "keeps_secret" => mark(Area::Trouble),
+                _ if st.starts_with("hook:") => { mark(Area::Trouble); mark(Area::Heart); }
+                // a fact's visible habit (E3-4): the wear names the ask
+                // its area hides behind
+                _ => if let Some(c) = crate::game::fact_content::content_for_tell(st) {
+                    mark(c.area);
+                }
+            }
+        }
+        v
+    }
+}
+
+/// A leak the realizer can produce (E5-8, #1439): keyed to a strong
+/// ghost under a high-strung temperament, at most once to a
+/// relationship's whole arc - the caller passes the remaining budget
+/// on `Speaker::slips_left` and reads what fired off `Transcript::slips`
+#[derive(Debug, Clone, PartialEq)]
+pub struct Slip {
+    /// How prone they are, 0..1 - the ghost's hold folded with their
+    /// neuroticism; the per-line roll scales off it so the landmark
+    /// stays rare
+    pub prone: f32,
+    /// The one the ghost keeps, where the wound is a death: the
+    /// name-slip confuses the listener with them, the tense slip keeps
+    /// them in the present tense and catches itself
+    pub dead: Option<Dead>,
+}
+
+/// The dead a slip names (E5-8): kin word, a name, the trade they
+/// stood at - seeded once from the persona, or a real dead villager's
+/// name when the world has one to give
+#[derive(Debug, Clone, PartialEq)]
+pub struct Dead {
+    /// "brother" - said "my brother"
+    pub kin: &'static str,
+    pub name: String,
+    /// "carter" - what they worked at
+    pub trade: &'static str,
+}
+
+/// Which shape a slip took (E5-8), for the record and the lab's display
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlipKind {
+    /// The dead kept in the present tense, caught mid-word:
+    /// "my brother is… was a carter"
+    Tense,
+    /// The listener called by the dead one's name
+    Name,
+    /// The sentence cut off where ears are near
+    CutOff,
+}
+
+/// The ghost kinds whose wound is a death the speaker kept (E5-8):
+/// the fever's row, the duty's dead, the betrothal's taken, the levy's
+/// gone - only those carry a `dead` the name and tense slips can say
+fn death_ghost(k: crate::game::persona::EventKind) -> bool {
+    use crate::game::persona::EventKind::*;
+    matches!(k, Fever | DeathDuty | BrokenBetrothal | Levy)
+}
+
+/// The kin word a slipped ghost puts on its dead (E5-8): a betrothal's
+/// is the sweetheart, the rest draw on the family's own
+const DEAD_KIN: &[&str] = &["brother", "sister", "husband", "wife",
+    "mother", "father", "son", "daughter"];
+const BETROTHAL_KIN: &[&str] = &["sweetheart", "betrothed"];
+/// Dead names for a slip when the world has none to lend (E5-8)
+const DEAD_NAMES: &[&str] = &["Corvin", "Edgar", "Wystan", "Hal", "Brannoc",
+    "Anselm", "Osric", "Maud", "Elgiva", "Tilda", "Bess", "Wenna"];
+/// The trade the tense slip gives the dead (E5-8)
+const DEAD_TRADES: &[&str] = &["carter", "miller", "plowman", "weaver",
+    "thatcher", "herdsman", "baker", "smith"];
+
+/// The slip a persona could leak (E5-8, #1439): the strongest ghost
+/// carries it, gated on a hard-held wound under a high-strung
+/// temperament - the Big Five's N is `temperament[4]`. `dead_name`,
+/// when the world gives one, is a real dead villager's name
+pub fn slip_of(p: &crate::game::persona::Persona, dead_name: Option<String>) -> Option<Slip> {
+    use crate::game::persona::EventKind::BrokenBetrothal;
+    let g = p.ghosts.iter().max_by(|a, b| a.strength
+        .partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))?;
+    let nerve = p.temperament[4];
+    if g.strength < 0.55 || nerve < 0.55 { return None; }
+    let pick = |n: u64, pool: &[&'static str]| pool[(p.draw(n) * pool.len() as f32) as usize % pool.len()];
+    let dead = if death_ghost(g.kind) {
+        let kin = if g.kind == BrokenBetrothal { pick(91, BETROTHAL_KIN) }
+            else { pick(91, DEAD_KIN) };
+        Some(Dead { kin, name: dead_name.unwrap_or_else(|| pick(92, DEAD_NAMES).to_string()),
+            trade: pick(93, DEAD_TRADES) })
+    } else { None };
+    Some(Slip { prone: (g.strength * (0.4 + 0.6 * nerve)).clamp(0.0, 1.0), dead })
+}
+
+/// Martin's four humor styles (E5-6, #1437): the style is how they
+/// cope, the target's what they resent
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JokeStyle {
+    /// Bonds - the laugh that includes everyone
+    Affiliative,
+    /// Copes - laughing the hardship off
+    SelfEnhancing,
+    /// At another's expense - the barb
+    Aggressive,
+    /// At their own expense - the wound worn light
+    SelfDefeating,
+}
+
+/// What a joke lands on (E5-6)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JokeTarget {
+    Lord,
+    Reeve,
+    Priest,
+    /// The speaker themselves - self-enhancing and self-defeating both
+    /// aim here, kindly or not
+    Oneself,
+    Weather,
+    /// A named feud or just "some folk" - the barb that isn't power
+    Rival,
+}
+
+impl JokeTarget {
+    /// Power's name: the targets the public channel can't carry - the
+    /// done-when's "exposure above zero" is the talk's own channel
+    pub fn power(self) -> bool {
+        matches!(self, JokeTarget::Lord | JokeTarget::Reeve | JokeTarget::Priest)
+    }
+}
+
+/// How a joke landed on its hearer (E5-6): the reply's fork - who
+/// laughs shows who's aligned
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JokeReceipt {
+    /// The open laugh - alignment said out loud
+    Laughed,
+    /// Topped it with one of their own - alignment shown, and given back
+    AddedTo,
+    /// Warned it quiet - the word's dangerous, wherever they stand
+    Warned,
+    /// Let it pass - neither aligned nor against
+    Quiet,
+}
+
+impl JokeReceipt {
+    /// The discourse move the receipt turn wears
+    fn act(self) -> Act {
+        match self {
+            JokeReceipt::Laughed => Act::Agree,
+            JokeReceipt::AddedTo => Act::Joke,
+            JokeReceipt::Warned => Act::PushBack,
+            JokeReceipt::Quiet => Act::Remark,
+        }
+    }
+    /// How the receipt receives the joke (E3-3): a warning is care for
+    /// the speaker's neck; silence steps around it
+    fn respond(self) -> Respond {
+        match self {
+            JokeReceipt::Laughed | JokeReceipt::AddedTo => Respond::Validate,
+            JokeReceipt::Warned => Respond::Care,
+            JokeReceipt::Quiet => Respond::Deflect,
+        }
+    }
+    /// The set its line draws on
+    fn lines(self) -> &'static [&'static str] {
+        match self {
+            JokeReceipt::Laughed => JOKE_LAUGHED,
+            JokeReceipt::AddedTo => JOKE_ADDED,
+            JokeReceipt::Warned => JOKE_WARNED,
+            JokeReceipt::Quiet => JOKE_QUIET,
+        }
+    }
+}
+
+/// What a speaker resents (E5-6): the strongest ghost's lie, worded
+/// for the {grievance} slot and aimed at the power it names
+#[derive(Debug, Clone, Copy)]
+pub struct Grievance {
+    /// The target their aggressive jokes strike
+    pub target: JokeTarget,
+    /// The wound's word - fills the {grievance} slot ("the lord's wars")
+    pub word: &'static str,
+    /// The lie it came off: a hearer holding the same one is aligned
+    pub lie: crate::game::persona::Belief,
+}
+
+/// A speaker's humor (E5-6): the draw weights over the four styles,
+/// off their traits and temperament until the persona's own model
+/// lands, and the grievance the barbs lean on
+#[derive(Debug, Clone)]
+pub struct Joke {
+    /// [affiliative, self-enhancing, aggressive, self-defeating]
+    pub styles: [f32; 4],
+    /// The resentment the {grievance} slot and aggressive target read;
+    /// none for the unwounded, whose barbs aim at whoever's about
+    pub grievance: Option<Grievance>,
+}
+
+/// A joke said and received this talk (E5-6): who told it, what it
+/// struck (matrix jokes only - a tree's own joke carries no target),
+/// and how the hearer took it. The session reads it for alignment
+#[derive(Debug, Clone, Copy)]
+pub struct JokeBeat {
+    pub joker: usize,
+    pub style: Option<JokeStyle>,
+    pub target: Option<JokeTarget>,
+    pub receipt: JokeReceipt,
+}
+
+/// The grievance a lie makes (E5-6): the wound's word for the joke's
+/// slot, aimed at whoever the lie blames. The true lessons - that we
+/// were strong, that truth comes out - carry no grievance
+fn grievance_of(l: crate::game::persona::Belief) -> Option<Grievance> {
+    use crate::game::persona::Belief::*;
+    use JokeTarget::*;
+    Some(Grievance { lie: l, target: match l {
+        LordAlwaysWins | WarsTakeSons | LordTakesFromDead => Lord,
+        MillOwnsUs | NeverCrossReeve => Reeve,
+        GodSends => Priest,
+        PromisesForKeepers | KeepHidden => Oneself,
+        SomeoneToBlame => Rival,
+        StrongTogether | TruthComesOut => return None,
+    }, word: match l {
+        LordAlwaysWins => "the lord's men",
+        WarsTakeSons => "the lord's wars",
+        LordTakesFromDead => "the death-duty",
+        MillOwnsUs => "the mill's take",
+        NeverCrossReeve => "the reeve's count",
+        GodSends => "God's sending",
+        PromisesForKeepers => "my own word",
+        KeepHidden => "the truth of me",
+        SomeoneToBlame => "the blame",
+        StrongTogether | TruthComesOut => return None,
+    } })
+}
+
+/// The lies a ghost teaches about the self's worth (E5-6): while one
+/// holds strong, the humor turns inward - the self-defeating joke is
+/// the wound worn where the village can see it
+fn self_worth_lie(l: crate::game::persona::Belief) -> bool {
+    matches!(l, crate::game::persona::Belief::KeepHidden
+        | crate::game::persona::Belief::PromisesForKeepers)
+}
+
+/// The humor a persona carries (E5-6, #1437): traits set the styles -
+/// the sociable bond, the proud cope, the hothead barbs - and a strong
+/// self-worth lie sharpens the self-defeating edge. `None` for nobody:
+/// everyone jokes some, so an absent persona is the only empty profile
+pub fn joke_of(p: &crate::game::persona::Persona, traits: &[Trait]) -> Joke {
+    let mut styles = [0.8f32, 0.3, 0.15, 0.15];
+    for t in traits {
+        match t {
+            Trait::Gregarious | Trait::Kind => styles[0] += 0.6,
+            Trait::Pious => styles[0] += 0.2,
+            Trait::Proud | Trait::Ambitious | Trait::Steady => styles[1] += 0.5,
+            Trait::SelfAbsorbed => styles[1] += 0.3,
+            Trait::Hotheaded | Trait::Cruel => styles[2] += 0.9,
+            Trait::Stingy => styles[2] += 0.2,
+            Trait::Lazy | Trait::Stolid => styles[3] += 0.2,
+            _ => {}
+        }
+    }
+    // the wound's weight: a self-worth lie turns the humor inward
+    for g in &p.ghosts {
+        if self_worth_lie(g.lie) { styles[3] += g.strength * 1.2; }
+    }
+    // a wary one jokes less - the whole draw thins
+    if traits.contains(&Trait::Wary) { styles.iter_mut().for_each(|s| *s *= 0.5); }
+    let grievance = p.ghosts.iter()
+        .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+        .and_then(|g| grievance_of(g.lie));
+    Joke { styles, grievance }
 }
 
 pub fn trait_name(t: Trait) -> &'static str {
@@ -115,6 +500,99 @@ pub fn trait_name(t: Trait) -> &'static str {
         Trait::Stolid => "stolid",
         Trait::Cruel => "cruel",
         Trait::SelfAbsorbed => "self-absorbed",
+    }
+}
+
+/// A subject area the per-area openness gate knows (E3-2, #1424):
+/// one reach serves every area today - the same bond parts feed each -
+/// but the gate is per-area so later work can weigh one differently
+/// (the lord's name, a burned past)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Area {
+    Village,
+    Work,
+    Body,
+    Road,
+    Heart,
+    Trouble,
+}
+
+/// The areas in order, for fact emission
+pub const AREAS: &[Area] = &[
+    Area::Village, Area::Work, Area::Body, Area::Road, Area::Heart, Area::Trouble,
+];
+
+pub fn area_name(a: Area) -> &'static str {
+    match a {
+        Area::Village => "village",
+        Area::Work => "work",
+        Area::Body => "body",
+        Area::Road => "road",
+        Area::Heart => "heart",
+        Area::Trouble => "trouble",
+    }
+}
+
+/// What feeds a pair's openness to the speaker carrying it (E3-2,
+/// #1424): the bond's parts (E6-1), last talk's mood, the talks behind
+/// them, and whether ears are near. A `Speaker` carries it toward
+/// whoever they face; a stranger's `Open` is the default - nothing
+/// reached, nothing shared
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Open {
+    /// The bond's intimacy - breadth and depth reached together
+    pub intimacy: f32,
+    /// Mayer's benevolence - they mean you well
+    pub benevolence: f32,
+    /// Mayer's integrity - they keep their word
+    pub integrity: f32,
+    /// The safety rung as 0..1 (E6-1's Clark ladder)
+    pub safety: f32,
+    /// Last talk's mood, -1..1 (the `TalkMemory`)
+    pub mood: f32,
+    /// Talks had together - tier 1's "after two talks" gate
+    pub talks: u32,
+    /// Someone can hear: the exposure term, and tier 3's hard bar
+    pub earshot: bool,
+    /// What the asker's given back of themselves (E3-3): the count of
+    /// their disclosures that landed. Private wants one, the core two -
+    /// openness without reciprocation stalls at the personal layer
+    pub shared: u8,
+}
+
+impl Open {
+    /// Naming a tell you actually saw earns this much (E3-2):
+    /// attention, not persistence
+    pub const TELL_BONUS: f32 = 0.2;
+
+    /// The per-area openness (E3-2's formula): the same inputs serve
+    /// every area for now - areas differ when their content lands
+    pub fn reach(&self) -> f32 {
+        0.30 * self.intimacy + 0.25 * self.benevolence + 0.20 * self.integrity
+            + 0.15 * self.safety + 0.10 * self.mood
+            - if self.earshot { 0.20 } else { 0.0 }
+    }
+
+    /// Whether `tier` stands open for this pair: public always,
+    /// personal after two talks, private at openness .4, core at .7
+    /// unheard. Temperament scales it (the design's extraversion/
+    /// neuroticism): a talkative speaker lowers the personal bar to
+    /// one talk; a guarded one raises the core bar. `tell` names the
+    /// bonus a seen tell earns
+    pub fn reached(&self, tier: u8, talkative: bool, guarded: bool, tell: bool) -> bool {
+        match tier {
+            0 => true,
+            // a tell substitutes for warmth, not for time spent: the
+            // personal layer still wants the talks behind it
+            1 => self.talks >= if talkative { 1 } else { 2 },
+            // private wants warmth *and* a piece of yourself given back
+            2 => self.shared >= 1
+                && self.reach() + if tell { Self::TELL_BONUS } else { 0.0 } >= 0.4,
+            // the core wants it mutual: two landed disclosures, unheard
+            _ => self.shared >= 2 && !self.earshot
+                && self.reach() + if tell { Self::TELL_BONUS } else { 0.0 }
+                    >= if guarded { 0.8 } else { 0.7 },
+        }
     }
 }
 
@@ -138,6 +616,19 @@ fn relation_name(r: Relation) -> &'static str {
     }
 }
 
+fn kind_name(k: RelKind) -> &'static str {
+    match k {
+        RelKind::Stranger => "stranger",
+        RelKind::Acquaintance => "acquaintance",
+        RelKind::Friend => "friend",
+        RelKind::Rival => "rival",
+        RelKind::Family => "family",
+        RelKind::Lover => "lover",
+        RelKind::Mentor => "mentor",
+        RelKind::Apprentice => "apprentice",
+    }
+}
+
 /// The world state a rule is matched against (Ruskin's "query"), flattened
 /// to strings so criteria stay declarative and content stays data.
 /// - `self:*` facts are about the speaker being evaluated for
@@ -153,12 +644,34 @@ impl Facts {
     /// Facts for `speaker` choosing a line while talking to `other`
     pub fn for_roles(speaker: &Speaker, other: &Speaker, rel: Relation) -> Facts {
         let mut f = Facts::default();
-        for x in speaker.own_facts() { f.set.insert(format!("self:{}", x)); }
+        // the hidden half is the speaker's own until disclosed (E3-1)
+        for x in speaker.own_facts().into_iter().chain(speaker.facts.hidden.iter().cloned()) {
+            f.set.insert(format!("self:{}", x));
+        }
         for x in other.own_facts() { f.set.insert(format!("other:{}", x)); }
         for x in speaker.own_facts().into_iter().chain(other.own_facts()) {
             f.set.insert(format!("any:{}", x));
         }
         f.set.insert(format!("pair:relation:{}", relation_name(rel)));
+        f
+    }
+
+    /// `for_roles`, plus the pair's finer bond as `pair:kind:*` when the
+    /// session knows it (#1372): the coarse relation still carries the
+    /// cascade, the fine kind lets lovers, mentors, apprentices and
+    /// family be heard as themselves
+    pub fn for_roles_kind(speaker: &Speaker, other: &Speaker, rel: Relation, kind: Option<RelKind>) -> Facts {
+        let mut f = Facts::for_roles(speaker, other, rel);
+        if let Some(k) = kind { f.set.insert(format!("pair:kind:{}", kind_name(k))); }
+        f
+    }
+
+    /// `for_roles_kind`, plus the talk's setting as `pair:place:*` /
+    /// `pair:channel:*` (E5-9, #1446): trees and lines read which
+    /// transcript the room asks for
+    pub fn for_roles_setting(speaker: &Speaker, other: &Speaker, rel: Relation, kind: Option<RelKind>, setting: &crate::game::setting::Setting) -> Facts {
+        let mut f = Facts::for_roles_kind(speaker, other, rel, kind);
+        for fact in setting.facts() { f.set.insert(fact); }
         f
     }
 
@@ -199,6 +712,257 @@ pub enum Act {
     Agree,
     PushBack,
     Farewell,
+    /// A question carrying a fear, usually at the door (E5-1, #1430)
+    Worry,
+    /// A small reach for attention; a safety bid tests before telling
+    Bid,
+    /// Style and target from the persona, gated by setting
+    Joke,
+    /// A job tied to a ghost; extends organizing::Deeds
+    Errand,
+    /// A visible refusal of a topic above its tier
+    Evade,
+    /// A leak the realizer produces, at most once per arc
+    Slip,
+}
+
+/// How a reply receives what was just said (E3-3, #1428): the
+/// responsiveness read `chat_temp` weighs. Authors may tag a `Reply`
+/// directly; untagged ones derive from their act (`respond_of`)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Respond {
+    /// Takes up what was said and hands it back heard
+    Reflect,
+    /// Lets it stand - agreement, acknowledgment
+    Validate,
+    /// Meets it with warmth or worry for the speaker
+    Care,
+    /// Answers it with a way forward
+    Advise,
+    /// Steps around it
+    Deflect,
+    /// Turns it into a question of their own
+    PivotAsk,
+}
+
+/// The responsiveness an untagged reply carries by default (E3-3):
+/// an answer reflects, agreement validates, a question back pivots
+pub fn respond_of(act: Act) -> Respond {
+    match act {
+        Act::Answer => Respond::Reflect,
+        Act::Agree | Act::Remark | Act::Greet | Act::Farewell | Act::Bid | Act::Joke => Respond::Validate,
+        Act::Errand => Respond::Advise,
+        Act::Question | Act::Worry => Respond::PivotAsk,
+        // a leak undercuts the answer it rides on - a misstep, not
+        // warmth (E5-1)
+        Act::PushBack | Act::Evade | Act::Slip => Respond::Deflect,
+    }
+}
+
+/// A player disclosure settling or not (E3-3): each lands a step
+/// deeper than the last, and only as deep as the pair's openness
+/// holds - a civil greeting holds a first telling; what goes in past
+/// the bond reads as strange
+fn note_disclosure(tr: &mut Transcript, open: &mut Open) {
+    if tr.shared >= 3 { return; }
+    let depth = tr.shared + 1;
+    if open.reach() >= depth as f32 * 0.2 {
+        tr.shared = depth;
+        // the landed telling deepens the running pair-open mid-talk:
+        // later beats (rebuilt asks, replies) gate on it - the stored
+        // snapshot stays untouched so replays keep earlier picks valid
+        open.shared = open.shared.max(depth);
+    } else { tr.overshot = true; }
+}
+
+/// The doorknob (E5-3, #1435): a goodbye's when the real question
+/// comes out - "one thing, before you go". The caller may fire one
+/// last worry question; the player answers plainly, reassures, or
+/// asks why - and the why opens the tier whenever the pair's openness
+/// allows, a door that stays shut counting as an evasion's tell
+/// (E5-2). Once a talk, and only once the talk's had its say.
+/// True when the response menu's standing - the walk pauses for it
+fn worry_beat(
+    tr: &mut Transcript,
+    pair: &mut [Speaker; 2],
+    caller: usize,
+    responder: usize,
+    channel: crate::game::setting::Channel,
+    used: &mut HashSet<&'static str>,
+    recent: &HashSet<&'static str>,
+    choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
+    rng: &mut Rng,
+) -> bool {
+    if tr.trees_walked.contains(&WORRY_TREE) || tr.turns.len() < 4 { return false; }
+    let Some(r) = pair[caller].worry else { return false };
+    let Some(w) = worry_of_reveal(r) else { return false };
+    if rng.next_f32() >= 0.55 { return false; }
+    tr.trees_walked.push(WORRY_TREE);
+    let (qt, _) = fresh_line(w.asks, &pair[caller], &pair[responder], used, recent, false, rng)
+        .unwrap_or((w.asks[0], String::new()));
+    used.insert(qt);
+    tr.turns.push(Turn { channel, speaker: caller, act: Act::Worry, respond: None,
+        text: fill(qt, &pair[caller], &pair[responder], rng),
+        concepts: vec!["worry"], tree: WORRY_TREE, line: Some(qt) });
+    let say = |set: &[&'static str], sp: usize,
+                   used: &mut HashSet<&'static str>, rng: &mut Rng| {
+        let (t, _) = fresh_line(set, &pair[sp], &pair[1 - sp], used, recent, false, rng)
+            .unwrap_or((set[0], String::new()));
+        used.insert(t);
+        t
+    };
+    match choose(&[
+        Choice { act: Act::Answer, respond: Respond::Validate,
+            preview: "Answer plainly".into() },
+        Choice { act: Act::Agree, respond: Respond::Care,
+            preview: "Reassure them".into() },
+        Choice { act: Act::Question, respond: Respond::PivotAsk,
+            preview: "Ask why".into() },
+    ]) {
+        None => return true,
+        Some(0) => {
+            let t = say(WORRY_ANSWERS, responder, used, rng);
+            tr.turns.push(Turn { channel, speaker: responder, act: Act::Answer,
+                respond: Some(Respond::Validate),
+                text: fill(t, &pair[responder], &pair[caller], rng),
+                concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+        }
+        Some(1) => {
+            let t = say(WORRY_SOOTHE, responder, used, rng);
+            tr.turns.push(Turn { channel, speaker: responder, act: Act::Agree,
+                respond: Some(Respond::Care),
+                text: fill(t, &pair[responder], &pair[caller], rng),
+                concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+        }
+        Some(2) => {
+            let t = say(WORRY_WHY, responder, used, rng);
+            tr.turns.push(Turn { channel, speaker: responder, act: Act::Question,
+                respond: Some(Respond::PivotAsk),
+                text: fill(t, &pair[responder], &pair[caller], rng),
+                concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+            let talkative = pair[caller].traits.contains(&Trait::Gregarious);
+            let guarded = pair[caller].traits.contains(&Trait::Wary);
+            if pair[caller].open.reached(w.tier, talkative, guarded, true) {
+                // the tier opens (E5-3): the fear or need's told in its
+                // own words - the session hears it onto the ledger
+                let t = say(w.truths, caller, used, rng);
+                tr.turns.push(Turn { channel, speaker: caller, act: Act::Answer,
+                    respond: Some(Respond::Reflect),
+                    text: fill(t, &pair[caller], &pair[responder], rng),
+                    concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+                tr.worry_told = Some(r);
+                note_disclosure(tr, &mut pair[caller].open);
+            } else {
+                // the door stays shut - the turn-aside's the tell
+                // (E5-2): it counts toward their silhouette
+                tr.evasions.push((caller, w.area));
+                let t = say(evade_set(&pair[caller]), caller, used, rng);
+                tr.turns.push(Turn { channel, speaker: caller, act: Act::Evade,
+                    respond: Some(Respond::Deflect),
+                    text: fill(t, &pair[caller], &pair[responder], rng),
+                    concepts: vec!["worry"], tree: WORRY_TREE, line: Some(t) });
+            }
+        }
+        _ => {}
+    }
+    false
+}
+
+/// A line said (E5-8, #1439): pushes the turn, then the slip pass
+/// rolls - a speaker with a profile and budget left may leak through
+/// the words just said: the turn keeps its spent line, its text gets
+/// corrupted, and its act marks the slip. The roll rides its own rng
+/// stream (`say`'s caller forks it once a walk) so the same turns
+/// roll the same way on every replay, however many picks stand
+fn say(
+    tr: &mut Transcript,
+    pair: &[Speaker; 2],
+    slip_rng: &mut Rng,
+    slipped: &mut bool,
+    t: Turn,
+) {
+    tr.turns.push(t);
+    let t = tr.turns.last_mut().unwrap();
+    let sp = t.speaker;
+    if *slipped || pair[sp].slips_left == 0 || pair[sp].slip.is_none() { return; }
+    if !matches!(t.act, Act::Remark | Act::Answer | Act::Agree
+        | Act::Question | Act::PushBack) || t.tree == WORRY_TREE { return; }
+    let profile = pair[sp].slip.clone().unwrap();
+    if slip_rng.next_f32() >= SLIP_RATE * profile.prone { return; }
+    let Some(kind) = slip_corrupt(t, &pair[1 - sp].name, &profile.dead, slip_rng) else { return };
+    t.act = Act::Slip;
+    t.concepts = vec!["slip"];
+    *slipped = true;
+    tr.slips.push((sp, kind));
+}
+
+/// The rareness of a leak (E5-8): per eligible line, scaled by the
+/// speaker's prone - a hard-held ghost under a high-strung temperament
+/// shows roughly once an arc
+const SLIP_RATE: f32 = 0.012;
+
+/// Where `name` stands as its own word in `text` (E5-8): the name
+/// slip confuses a person, not a name that rides inside a longer one
+/// ("Ash" in "Ashby" isn't the man)
+fn word_at(text: &str, name: &str) -> Option<usize> {
+    text.match_indices(name).find(|&(i, _)| {
+        let before = i == 0 || !text.as_bytes()[i - 1].is_ascii_alphanumeric();
+        let after = i + name.len() == text.len()
+            || !text.as_bytes()[i + name.len()].is_ascii_alphanumeric();
+        before && after
+    }).map(|(i, _)| i)
+}
+
+/// Corrupt the just-said words into one of the slip's shapes (E5-8):
+/// the listener called by the dead one's name, the dead kept in the
+/// present tense and caught mid-word, or the sentence cut off where
+/// the channel says ears are near. The pick rotates on a seed draw
+/// and falls back through whichever shape the words can carry
+fn slip_corrupt(t: &mut Turn, listener: &str, dead: &Option<Dead>, rng: &mut Rng) -> Option<SlipKind> {
+    use SlipKind::*;
+    let order: &[SlipKind] = match rng.below(3) {
+        0 => &[Name, Tense, CutOff],
+        1 => &[Tense, CutOff, Name],
+        _ => &[CutOff, Name, Tense],
+    };
+    for &kind in order {
+        match kind {
+            Name => {
+                let Some(d) = dead else { continue };
+                let Some(at) = word_at(&t.text, listener) else { continue };
+                t.text.replace_range(at..at + listener.len(), &d.name);
+                return Some(Name);
+            }
+            CutOff => {
+                if t.channel != crate::game::setting::Channel::Public
+                    || t.text.len() < 24 { continue; }
+                // the word dies halfway: cut where the speech is thickest,
+                // back off to a word's edge
+                let at = (t.text.len() * (40 + rng.below(30)) / 100)
+                    .min(t.text.len() - 1);
+                let cut = t.text[..at].rfind(' ').unwrap_or(at);
+                t.text.truncate(cut);
+                t.text.push_str(" -");
+                return Some(CutOff);
+            }
+            Tense => {
+                let Some(d) = dead else { continue };
+                // the dead's kin word said in the present tense catches
+                // itself; else the kept thing surfaces whole after the
+                // line - "my brother Corvin is... was a carter"
+                if let Some(ki) = word_at(&t.text, d.kin) {
+                    if let Some(ci) = t.text[ki..].find(" is ").filter(|&ci| ci < 60) {
+                        t.text.replace_range(ki + ci..ki + ci + 4, " is... was ");
+                        return Some(Tense);
+                    }
+                }
+                t.text = format!("{} My {} {} is... was a {}.",
+                    t.text.trim_end(), d.kin, d.name, d.trade);
+                return Some(Tense);
+            }
+        }
+    }
+    None
 }
 
 /// How a conversation closes
@@ -228,6 +992,8 @@ pub struct Reply {
     pub bias: &'static [(Trait, f32)],
     /// What this line does in the exchange
     pub act: Act,
+    /// How it receives the call (E3-3): `None` derives from the act
+    pub respond: Option<Respond>,
     /// What it's about; a house meeting threads on these
     pub concepts: &'static [&'static str],
     /// Ways to say it; `{other}` is filled with the listener's name.
@@ -272,6 +1038,7 @@ pub struct Exchange {
 /// A whole dialogue tree plus the circumstances it speaks to. The library
 /// holds many; the most specific match leads (Ruskin: specificity is the
 /// criterion count; library order breaks ties).
+#[derive(Clone)]
 pub struct DialogueTree {
     pub name: &'static str,
     pub criteria: &'static [Criterion],
@@ -289,6 +1056,9 @@ pub struct Turn {
     /// Index into the speakers pair (0 = initiator)
     pub speaker: usize,
     pub act: Act,
+    /// The reply's responsiveness tag, resolved at the pick (E3-3);
+    /// calls and fixed ask-path turns carry theirs or none
+    pub respond: Option<Respond>,
     pub text: String,
     pub concepts: Vec<&'static str>,
     /// Which tree the line came from - handy for a grader
@@ -296,6 +1066,9 @@ pub struct Turn {
     /// The template the text was filled from, when one was - the village's
     /// freshness memory (#1369) counts templates, not rendered words
     pub line: Option<&'static str>,
+    /// Which transcript the line was said in (E5-9, #1446): the public
+    /// one or the backstage one, off the talk's setting
+    pub channel: crate::game::setting::Channel,
 }
 
 /// The full record of a two-person conversation
@@ -313,6 +1086,35 @@ pub struct Transcript {
     /// The labels of the topics the player asked after (#1189), in
     /// order - the session diffs them for what a question drew out
     pub asked: Vec<&'static str>,
+    /// How many questions went in above the pair's openness and came
+    /// back turned aside (E3-2): each costs the bond a rung of nerve
+    pub forward: u8,
+    /// Which closed area each turn-aside stood over (E5-2, #1434):
+    /// (the evader's pair index, the topic's area) - the seat's ledger
+    /// counts them toward a silhouette
+    pub evasions: Vec<(usize, Area)>,
+    /// The doorknob worry that opened its tier (E5-3, #1435): the why
+    /// asked and the pair's openness held, so the fear or need got
+    /// told - the session hears it onto the seat's ledger
+    pub worry_told: Option<crate::game::desires::Reveal>,
+    /// The leaks the realizer made this talk (E5-8, #1439): (who
+    /// slipped, which shape) - the caller marks its arc budget spent
+    /// off this, one slip to a relationship's whole run of talks
+    pub slips: Vec<(usize, SlipKind)>,
+    /// The jokes this talk told and how they landed (E5-6, #1437):
+    /// who joked, what it struck, and the hearer's receipt - who
+    /// laughs shows who's aligned
+    pub jokes: Vec<JokeBeat>,
+    /// The depth of yourself the responder gave and the pair could hold
+    /// (E3-3): each landed disclosure goes a step deeper; the session
+    /// keeps the deepest reached so later asks find it mutual
+    pub shared: u8,
+    /// A disclosure went in past what the pair could hold (E3-3): a
+    /// tier-3 confession to a stranger reads as strange
+    pub overshot: bool,
+    /// Where the talk stood and who could hear (E5-9, #1446): the
+    /// setting every turn's channel tag came off
+    pub setting: crate::game::setting::Setting,
 }
 
 /// What the trust-probe read off the answer (#1187)
@@ -351,10 +1153,22 @@ pub struct Probe {
 pub fn chat_temp(tr: &Transcript) -> f32 {
     let mut score = 0i32;
     for t in &tr.turns {
-        score += match t.act {
-            Act::PushBack => -1,
-            Act::Agree | Act::Answer => 1,
-            _ => 0,
+        // a tagged reply reads on its responsiveness (E3-3): care and
+        // reflection warm the talk, a deflection or a pivot cools it;
+        // untagged turns score on their act as they ever did
+        score += match t.respond {
+            Some(Respond::Care) => 2,
+            Some(Respond::Reflect | Respond::Validate | Respond::Advise) => 1,
+            Some(Respond::Deflect | Respond::PivotAsk) => -1,
+            None => match t.act {
+                Act::PushBack => -1,
+                Act::Agree | Act::Answer => 1,
+                // the reveal acts (E5-1): a reach warms, a pestered
+                // fear, a turned-aside topic or a leaked word cools
+                Act::Bid | Act::Joke | Act::Errand => 1,
+                Act::Worry | Act::Evade | Act::Slip => -1,
+                _ => 0,
+            },
         };
     }
     score += match tr.ending {
@@ -382,6 +1196,689 @@ pub const PROBE_TREE: &str = "the_audition";
 
 /// The tree name your own questions report as (#1189)
 pub const ASK_TREE: &str = "the_asking";
+
+/// A too-deep ask, turned aside (E3-2): the refusal is seen, the talk
+/// goes on - and a tell seen another day may yet open it
+/// The visible turn-aside an over-deep ask earns (E3-2); E5-1 tags the
+/// act `Evade` and the same set answers gossip it shouldn't
+pub const DEFLECTED: &[&str] = &[
+    "That's not for the telling, friend.",
+    "We don't know each other so well as that.",
+    "Ask me another.",
+    "Some things keep.",
+];
+
+/// How a temperament turns the same ask aside (E5-2, #1434): the
+/// hothead snaps, the sociable change the subject, the pious hand it
+/// to God, the proud answer the question you didn't put
+const EVADE_SNAP: &[&str] = &[
+    "That's a nose where it doesn't belong.",
+    "Keep {2:poss} questions to {2:self}.",
+    "Ask the wind - it'll tell {2:obj} as much.",
+];
+const EVADE_CHANGE: &[&str] = &[
+    "Now that reminds me - there's a thing I meant to say.",
+    "Ha! Never mind that - how's {2:poss} own day gone?",
+    "We'll talk of happier things, {2:subj} and I.",
+];
+const EVADE_GOD: &[&str] = &[
+    "That's God's business, not ours.",
+    "The good Lord keeps some books to Himself.",
+    "Let it lie - what's hid is hid for a reason.",
+];
+const EVADE_PIVOT: &[&str] = &[
+    "What {2:subj} ought to ask is a different matter.",
+    "I'll tell {2:obj} a worthier thing than that.",
+    "That's no question for the likes of me.",
+];
+
+/// Every evade set, for the text audit's authored-line census (E5-2)
+#[doc(hidden)]
+pub const EVADE_SETS: &[&[&str]] = &[DEFLECTED, EVADE_SNAP, EVADE_CHANGE, EVADE_GOD, EVADE_PIVOT];
+
+/// The authored jokes (E5-6): style by target, no generation - the
+/// choice of joke carries the personality. `{grievance}` slots fill
+/// from the speaker's own grievance word; lines without one stand for
+/// anyone. Cells the style can't voice go unwritten
+const JOKES: &[(JokeStyle, JokeTarget, &[&str])] = &[
+    // affiliative - the laugh that includes everyone
+    (JokeStyle::Affiliative, JokeTarget::Weather, &[
+        "I asked the sky for a dry week and it sent two wet ones, to be sure I meant it.",
+        "Rain again - the cabbages at least think kindly of somebody.",
+        "They say it clears by Sunday. They said the same last Sunday, and the one before.",
+        "A fine day for ducks, my mother called every day that drowned us.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Lord, &[
+        "The lord's table never wants - comforting to know somebody's fed, I always say.",
+        "I hear the great hall's roof leaks too. Even stone gets rained on.",
+        "May the lord live long and merry - a new one'd only learn the taxes fresh.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Reeve, &[
+        "The reeve counts honest, for a man whose master wrote the numbers.",
+        "I don't envy the reeve - he has to look us in the face while he does it.",
+        "Poor reeve - the only man in the village nobody invites to drink.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Priest, &[
+        "The sermon ran long again - but the bench is soft, and a body's feet are grateful.",
+        "The candles outlasted the sermon once. Once.",
+        "The church roof drips on the good people's heads the same as mine - we're level in the wet.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Oneself, &[
+        "I'm a man of simple tastes - bread, ale, and a fire somebody else paid for.",
+        "I've a gift for joining the slow line - a talent, I tell the wife.",
+        "My memory's a marvel - it forgets the work and keeps the grudges.",
+    ]),
+    (JokeStyle::Affiliative, JokeTarget::Rival, &[
+        "I won't hear a word against my old foe - nobody else will talk to him either.",
+        "We argue like brothers, which is to say we share nothing but the argument.",
+        "He's a good man, my rival - asks him the day he owes and he's suddenly deaf.",
+    ]),
+    // self-enhancing - laughing the hardship off
+    (JokeStyle::SelfEnhancing, JokeTarget::Weather, &[
+        "Wet feet dry. That's what I tell the wet feet.",
+        "Cold keeps the fleas down - there's a mercy hid in everything, my gran used to say.",
+        "It rains on the reeve's roof the same as mine - we're level in the wet.",
+    ]),
+    (JokeStyle::SelfEnhancing, JokeTarget::Lord, &[
+        "The lord has his hall and I've my health - I call it near even.",
+        "He can tax the grain. The jokes he can't reach.",
+        "They keep the hall warm and me honest - each to his own fire.",
+    ]),
+    (JokeStyle::SelfEnhancing, JokeTarget::Reeve, &[
+        "The reeve's count don't frighten me - I've counted worse. My own debts, mostly.",
+        "He takes the tenth. I keep the jokes - I know which weighs lighter.",
+    ]),
+    (JokeStyle::SelfEnhancing, JokeTarget::Oneself, &[
+        "Fortune owes me a debt - I keep the tally patient.",
+        "I don't lack much - just the means to fix most of it.",
+        "Thin times make a man quick. I've never been quicker.",
+    ]),
+    // aggressive - the barb. Power's names are for where power can't
+    // hear: the channel, not the courage, is the gate
+    (JokeStyle::Aggressive, JokeTarget::Lord, &[
+        "The lord's justice: a rope for the man who steals bread, a feast for the man who steals fields.",
+        "They say the lord loves us like sons - he takes from us like it too.",
+        "The lord's men win every fight they start - brave souls, against a man holding a hoe.",
+        "What's between the lord and the weather? The weather takes no thanks.",
+        "{grievance} - the lord collects even what we haven't got.",
+    ]),
+    (JokeStyle::Aggressive, JokeTarget::Reeve, &[
+        "The reeve's arithmetic: two of yours, three of his - it always balances.",
+        "Give the reeve an honest answer and he'll count it twice and charge you for one.",
+        "The reeve knows every store down to the last onion - a gift, truly. Like a rat's.",
+        "{grievance} - you'd think the counting fed him.",
+    ]),
+    (JokeStyle::Aggressive, JokeTarget::Priest, &[
+        "The priest preaches the meek inherit - convenient, since he holds his already.",
+        "He'll pray over your soul for nothing - the burial's where the bill lands.",
+        "Holy patience, he calls it - I've watched it wait a week for the tithe.",
+    ]),
+    (JokeStyle::Aggressive, JokeTarget::Rival, &[
+        "Some folk plow straight furrows. Others plow excuses.",
+        "There's a man could talk the moss off a stone - and does, instead of work.",
+        "I'd trust his word as far as I could throw his barn - and his barn's a fine size.",
+        "{grievance} - pride's the only crop that ever came up heavy.",
+    ]),
+    // self-defeating - the wound worn light
+    (JokeStyle::SelfDefeating, JokeTarget::Oneself, &[
+        "I promised the fence by winter. Kept my word - the winter after.",
+        "My word's worth what it's writ on - nothing, mostly.",
+        "I aimed high once. My aim's improved - now I aim for dinner.",
+        "They say every man has his use. I'm still asking round for mine.",
+        "{grievance} - that's the sum of me, near enough.",
+    ]),
+];
+
+/// The four ways a joke lands (E5-6): the hearer's fork. Who laughs
+/// shows who's aligned
+const JOKE_LAUGHED: &[&str] = &[
+    "Ha! True as rain, that.",
+    "Ha - I'll carry that one home with me.",
+    "Ha! Aye - and the half of it's left unsaid.",
+    "Ha! Oh, that's a good one - I'll owe {2:obj} for it.",
+];
+const JOKE_ADDED: &[&str] = &[
+    "Aye - and worse I've heard, and believed every word.",
+    "Ha - don't stop there, {2:subj} {2:be} just warming.",
+    "True - and I've one to match it, when I've drunk enough.",
+    "Aye - {2:subj} missed the best of it: it gets worse.",
+];
+const JOKE_WARNED: &[&str] = &[
+    "Careful - walls have ears, and ears have masters.",
+    "Ssh - that one's a rope's worth if it travels.",
+    "Laugh softer - the wrong mouth's always near.",
+    "Mind {2:poss} tongue - some jokes keep better indoors.",
+];
+const JOKE_QUIET: &[&str] = &[
+    "Mm. As {2:subj} {2:say}.",
+    "Hm. A man's humor's his own.",
+    "Mm.",
+    "I heard it. I'll not repeat it.",
+];
+
+/// Every joke and receipt set, for the text audit's authored-line
+/// census (E5-6)
+#[doc(hidden)]
+pub fn joke_sets() -> Vec<&'static [&'static str]> {
+    JOKES.iter().map(|(_, _, s)| *s)
+        .chain([JOKE_LAUGHED, JOKE_ADDED, JOKE_WARNED, JOKE_QUIET])
+        .collect()
+}
+
+/// Which cell a matrix line template belongs to (E5-6): the receipt's
+/// record reads the target off the line that drew it
+fn joke_cell_of(line: &'static str) -> Option<(JokeStyle, JokeTarget)> {
+    JOKES.iter().find(|(_, _, lines)| lines.contains(&line))
+        .map(|&(s, t, _)| (s, t))
+}
+
+/// How likely a hearer is to give each receipt (E5-6): aligned by the
+/// shared lie, warm by the bond, careful where the law can hear, stony
+/// where they're built that way
+fn receipt_weights(joker_grievance: Option<Grievance>, target: Option<JokeTarget>,
+                   hearer: &Speaker, channel: crate::game::setting::Channel) -> [f32; 4] {
+    let mut w = [0.35f32, 0.12, 0.10, 0.40]; // laugh, add, warn, quiet
+    let aligned = match (joker_grievance,
+        hearer.joke.as_ref().and_then(|j| j.grievance)) {
+        (Some(a), Some(b)) => a.lie == b.lie,
+        _ => false,
+    };
+    if aligned { w[0] += 0.4; w[1] += 0.25; w[3] -= 0.25; }
+    if matches!(hearer.rel, Relation::Friend | Relation::Kin) { w[0] += 0.2; }
+    if matches!(hearer.rel, Relation::Rival) { w[3] += 0.3; w[0] -= 0.15; }
+    if channel == crate::game::setting::Channel::Public
+        && target.is_some_and(JokeTarget::power) { w[2] += 0.35; }
+    if hearer.traits.contains(&Trait::Wary) || hearer.traits.contains(&Trait::Stolid) { w[3] += 0.25; }
+    w
+}
+
+/// The joke beat (E5-6, #1437): once a talk, after the talk's found its
+/// feet, a profiled caller cracks the joke their style and grievance
+/// draw - and the hearer's reply forks on how they take it. Public
+/// talk can't carry an aggressive joke at power: the draw falls back
+/// to a safer cell. Returns true when it paused on a menu
+fn joke_beat(
+    tr: &mut Transcript,
+    pair: &[Speaker; 2],
+    caller: usize,
+    responder: usize,
+    channel: crate::game::setting::Channel,
+    used: &mut HashSet<&'static str>,
+    recent: &HashSet<&'static str>,
+    player: usize,
+    cap: usize,
+    tree: &'static str,
+    choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
+    rng: &mut Rng,
+) -> bool {
+    // one joke a talk at most (the beat's beats are recorded by who
+    // told them), and it needs room for its two turns plus the
+    // exchange it delays
+    if tr.turns.len() < 4 || tr.turns.len() + 4 > cap
+        || tr.jokes.iter().any(|b| b.joker == caller) {
+        return false;
+    }
+    let Some(j) = pair[caller].joke.as_ref() else { return false };
+    // the grieving and the children don't joke
+    if pair[caller].status.contains(&"grieving") || pair[caller].status.contains(&"child")
+        || pair[responder].status.contains(&"child") { return false; }
+    // one joke a talk at most, and not every talk - a beat that fires
+    // at every sitting stops saying anything about who tells it
+    if rng.next_f32() >= 0.10 { return false; }
+    // the draw: style weighted, then the cell. Aggressive strikes the
+    // grievance's target (the reeve by default, for the unresentful
+    // hothead); the inward styles aim at the self; the rest take
+    // whatever their table holds
+    let style_names = [JokeStyle::Affiliative, JokeStyle::SelfEnhancing,
+        JokeStyle::Aggressive, JokeStyle::SelfDefeating];
+    let mut styles = j.styles;
+    for _ in 0..3 {
+        if styles.iter().all(|s| *s <= 0.0) { return false; }
+        let style = style_names[rng.weighted(&styles)];
+        let target = match style {
+            JokeStyle::Aggressive => j.grievance.map(|g| g.target)
+                .unwrap_or(JokeTarget::Reeve),
+            JokeStyle::SelfDefeating => JokeTarget::Oneself,
+            JokeStyle::Affiliative => [JokeTarget::Weather, JokeTarget::Lord,
+                JokeTarget::Reeve, JokeTarget::Priest, JokeTarget::Oneself,
+                JokeTarget::Rival][rng.below(6)],
+            JokeStyle::SelfEnhancing => [JokeTarget::Weather, JokeTarget::Lord,
+                JokeTarget::Reeve, JokeTarget::Oneself][rng.below(4)],
+        };
+        // the exposure gate (E5-6's done-when): a barb at power waits
+        // for the hidden transcript - where ears can hear, the draw
+        // goes again with the aggressive edge struck out
+        if style == JokeStyle::Aggressive && target.power()
+            && channel == crate::game::setting::Channel::Public {
+            styles[2] = 0.0;
+            continue;
+        }
+        let Some(&(_, _, lines)) = JOKES.iter()
+            .find(|&&(s, t, _)| s == style && t == target) else { continue };
+        let fitting: Vec<&'static str> = lines.iter().copied()
+            .filter(|l| !l.contains("{grievance}") || j.grievance.is_some()).collect();
+        let Some((t, _)) = fresh_line(&fitting, &pair[caller], &pair[responder], used, recent, false, rng)
+            else { return false };
+        used.insert(t);
+        // the {grievance} slot is the wound's own word, where the joke
+        // carries one - a ref like `{someone}`'s, named by the draw
+        let refs = [crate::game::text::Referent { slot: "grievance",
+            text: j.grievance.map(|g| g.word).unwrap_or("the trouble").to_string(),
+            sex: None, alive: true, count: 1 }];
+        let text = crate::game::text::realize(t,
+            &crate::game::text::Cx::plain(&pair[caller], &pair[responder], &refs), rng);
+        // the aside wears the upcoming exchange's tree - it answers
+        // inside the cascade, not off it
+        tr.turns.push(Turn { channel, speaker: caller,
+            act: Act::Joke, respond: None, text,
+            concepts: vec!["joke"], tree, line: Some(t) });
+        // the receipt: who laughs shows who's aligned. A player gets
+        // the four forks as a menu; a villager rolls them off the bond,
+        // the shared lie, and who's listening
+        let kinds = [JokeReceipt::Laughed, JokeReceipt::AddedTo,
+            JokeReceipt::Warned, JokeReceipt::Quiet];
+        let kind = if responder == player {
+            // the line each fork would say, rolled with the menu so the
+            // preview is exactly what lands (the probe's shape)
+            let mut choices: Vec<Choice> = vec![];
+            let mut forks: Vec<&'static str> = vec![];
+            for k in kinds {
+                let t = fresh_line(k.lines(), &pair[responder], &pair[caller], used, recent, false, rng)
+                    .map(|(t, _)| t).unwrap_or(k.lines()[0]);
+                forks.push(t);
+                choices.push(Choice { act: k.act(), respond: k.respond(),
+                    preview: fill(t, &pair[responder], &pair[caller], rng) });
+            }
+            match choose(&choices) {
+                None => return true,
+                Some(i) => {
+                    let t = forks[i.min(forks.len() - 1)];
+                    used.insert(t);
+                    let kind = kinds[i.min(kinds.len() - 1)];
+                    tr.turns.push(Turn { channel, speaker: responder,
+                        act: kind.act(), respond: Some(kind.respond()),
+                        text: fill(t, &pair[responder], &pair[caller], rng),
+                        concepts: vec!["joke", "joke_receipt"], tree, line: Some(t) });
+                    tr.jokes.push(JokeBeat { joker: caller, style: Some(style),
+                        target: Some(target), receipt: kind });
+                    return false;
+                }
+            }
+        } else {
+            kinds[rng.weighted(&receipt_weights(j.grievance, Some(target), &pair[responder], channel))]
+        };
+        let (t, _) = fresh_line(kind.lines(), &pair[responder], &pair[caller], used, recent, false, rng)
+            .unwrap_or((kind.lines()[0], String::new()));
+        used.insert(t);
+        tr.turns.push(Turn { channel, speaker: responder,
+            act: kind.act(), respond: Some(kind.respond()),
+            text: fill(t, &pair[responder], &pair[caller], rng),
+            concepts: vec!["joke", "joke_receipt"], tree, line: Some(t) });
+        tr.jokes.push(JokeBeat { joker: caller, style: Some(style),
+            target: Some(target), receipt: kind });
+        return false;
+    }
+    false
+}
+
+/// The tree name the doorknob worry reports as (E5-3, #1435)
+pub const WORRY_TREE: &str = "the_doorknob";
+
+/// A worry a speaker carries to the door (E5-3): the fear or need the
+/// question's built on, the closed area a turned-aside why counts
+/// under, and the openness tier the why must reach to get the truth
+#[derive(Debug, Clone, Copy)]
+pub struct Worry {
+    pub area: Area,
+    pub tier: u8,
+    /// the two-or-three questions the fear or need puts at the door
+    pub asks: &'static [&'static str],
+    /// what the truth sounds like when the pair's openness reaches
+    pub truths: &'static [&'static str],
+}
+
+/// The plain answers "answer plainly" draws on (E5-3): a truthful
+/// hedge, whichever way the question's honestly met
+const WORRY_ANSWERS: &[&str] = &[
+    "Not that I've seen, friend.",
+    "Aye - take it for so.",
+    "I couldn't say truly.",
+    "From what I've seen - aye.",
+];
+
+/// The reassurances (E5-3): a small warm word, no promise in it
+const WORRY_SOOTHE: &[&str] = &[
+    "Set {2:poss} heart easy - it'll hold.",
+    "That fear won't find {2:obj} here.",
+    "There's naught in it worth the carrying.",
+];
+
+/// Naming the why (E5-3): the marked pick - the answer's gated on how
+/// far they can open, and a door that stays shut is its own tell
+const WORRY_WHY: &[&str] = &[
+    "And why do {2:subj} ask?",
+    "What sits behind that, {other}?",
+];
+
+/// The worry a want or a problem puts at the door (E5-3): two or three
+/// questions per fear and need, each with the truth the why reaches.
+/// None when nothing here would carry a worry out loud
+pub fn worry_of_reveal(r: crate::game::desires::Reveal) -> Option<Worry> {
+    use crate::game::desires::{Problem as P, Reveal as R, Want as W};
+    use Area::*;
+    let w = Worry { area: Trouble, tier: 2, asks: &[], truths: &[] };
+    Some(match r {
+        R::Want(W::GoodFood) => Worry { area: Body, asks: &[
+            "Does the bread keep fair measure, where {2:subj} lodges?",
+            "Is a full loaf cheap enough for a working man's table?",
+        ], truths: &[
+            "My own pot's been thin a while - a body's always counting.",
+        ], ..w },
+        R::Want(W::Finery) => Worry { area: Village, asks: &[
+            "Do folk here hold a patched sleeve against a body?",
+            "Would they look twice at a secondhand cloak?",
+        ], truths: &[
+            "I've nothing fit for a church door - it shows at every gathering.",
+        ], ..w },
+        R::Want(W::Faith) => Worry { area: Heart, tier: 3, asks: &[
+            "Do the parish bells call true here?",
+            "Is the priest a man to trust a soul to?",
+        ], truths: &[
+            "My prayers run thin of late - I want a word that reaches.",
+        ], ..w },
+        R::Want(W::Shelter) => Worry { asks: &[
+            "Is there room at a hearth for one more?",
+            "Do roofs come dear in this village?",
+        ], truths: &[
+            "I've no door that's mine to shut.",
+        ], ..w },
+        R::Want(W::Security) => Worry { asks: &[
+            "Does the watch keep its rounds after dark?",
+            "Is the road safe for a lone cart?",
+        ], truths: &[
+            "A body can't sleep when the door's only wood.",
+        ], ..w },
+        R::Want(W::Mastery) => Worry { area: Work, asks: &[
+            "Does a craft rise here by merit?",
+            "Would a master take on a willing hand?",
+        ], truths: &[
+            "I'm better than my bench - it gnaws at me of a night.",
+        ], ..w },
+        R::Want(W::Music) => Worry { area: Heart, asks: &[
+            "Does anyone here play of an evening?",
+            "Is there music at the feasts?",
+        ], truths: &[
+            "It's a year since a tune lifted me.",
+        ], ..w },
+        R::Want(W::Instrument) => Worry { area: Heart, asks: &[
+            "Would a lute find a buyer in the market?",
+            "Is there a luthier nearer than the town?",
+        ], truths: &[
+            "I dream of strings of my own - daft, at my age.",
+        ], ..w },
+        R::Want(W::BetterTools) => Worry { area: Work, asks: &[
+            "Do tools come fair at the market?",
+            "Would a smith sell on trust?",
+        ], truths: &[
+            "My hands outwork my kit - blunt steel steals my hours.",
+        ], ..w },
+        R::Want(W::DifferentTrade) => Worry { area: Work, tier: 3, asks: &[
+            "Do folk mind one who'd change their trade?",
+            "Would the village forgive a hand that turned?",
+        ], truths: &[
+            "This bench was never mine - another life's been calling.",
+        ], ..w },
+        R::Want(W::Love) => Worry { area: Heart, tier: 3, asks: &[
+            "Is this a village that marries kindly?",
+            "Do folk here look kindly on a new face?",
+        ], truths: &[
+            "The evenings are the longest part of it.",
+        ], ..w },
+        R::Want(W::Joy) => Worry { area: Heart, asks: &[
+            "Do children still get their games here?",
+            "Is there any frolic left after the day's work?",
+        ], truths: &[
+            "Everything's work - I'd forgot a day could ring.",
+        ], ..w },
+        R::Want(W::Drink) => Worry { area: Heart, asks: &[
+            "Does the alehouse keep a friendly fire?",
+            "Is the ale good in this parish?",
+        ], truths: &[
+            "A cup with company does more for me than it should.",
+        ], ..w },
+        R::Problem(P::NoHome) => Worry { asks: &[
+            "Does the village let a bed to a stranger?",
+            "Are there houses to be had here?",
+        ], truths: &[
+            "I've slept under more hedges than roofs this year.",
+        ], ..w },
+        R::Problem(P::NoWorkplace) => Worry { area: Work, asks: &[
+            "Is there bench work for a new hand?",
+            "Do the crafts take on here?",
+        ], truths: &[
+            "I've a trade and nowhere to stand it.",
+        ], ..w },
+        R::Problem(P::NoMaster) => Worry { area: Work, asks: &[
+            "Are the masters here good to their 'prentices?",
+            "Does a master beat his learners much?",
+        ], truths: &[
+            "I'm bound to no one - a trade half-learned is half a life.",
+        ], ..w },
+        R::Problem(P::NoInput(_)) => Worry { area: Work, asks: &[
+            "Is there stuff to be had for honest work here?",
+            "Do materials come dear in this market?",
+        ], truths: &[
+            "My bench sits idle for want of stuff.",
+        ], ..w },
+        R::Problem(P::DerelictNearby) => Worry { area: Village, tier: 1, asks: &[
+            "Does the village see to its empty shops?",
+            "Do folk mind a shuttered house?",
+        ], truths: &[
+            "The husk next door pulls my whole street down with it.",
+        ], ..w },
+        R::Problem(P::OverseerCut) => Worry { tier: 3, asks: &[
+            "Does the overseer take his cut openly?",
+            "Would the lord hear a word against his man?",
+        ], truths: &[
+            "He skims my measure and there's none to tell.",
+        ], ..w },
+        R::Problem(P::Taxed) => Worry { tier: 3, asks: &[
+            "Do the collectors take eggs as well as coin?",
+            "Does the reeve count fair at reckoning?",
+        ], truths: &[
+            "They weighed my cupboards last Lady Day and found them light.",
+        ], ..w },
+        R::Problem(P::Broke) => Worry { asks: &[
+            "Does bread come on credit in this village?",
+            "Will a baker take a promise till market day?",
+        ], truths: &[
+            "Three coins won't stretch to Sunday.",
+        ], ..w },
+        R::Problem(P::Smelly) => Worry { area: Village, tier: 1, asks: &[
+            "Do folk hold the smell of honest work against a body?",
+            "Would they sit by me at table?",
+        ], truths: &[
+            "The work hangs on me - I've seen the looks.",
+        ], ..w },
+        R::Problem(P::Loss) => Worry { tier: 3, asks: &[
+            "Do wolves come down this far?",
+            "Are the folds safe at night?",
+        ], truths: &[
+            "The pack took half my fold one night - I heard them go.",
+        ], ..w },
+        R::Problem(P::Blamed) => Worry { area: Village, tier: 3, asks: &[
+            "Does the village still talk of the fire?",
+            "Would they let a body's name mend?",
+        ], truths: &[
+            "They say my bread lit it - it's years and the name won't wash.",
+        ], ..w },
+        R::Problem(P::SourGut) => Worry { area: Body, tier: 1, asks: &[
+            "Is the market's stock fresh here?",
+            "Would {2:subj} eat from a travelling pack?",
+        ], truths: &[
+            "Bad stock turned my gut - it's not right since.",
+        ], ..w },
+        R::Problem(P::ChildLabor) => Worry { area: Village, asks: &[
+            "Do the children get their games here?",
+            "Would the parish speak against small hands in the fields?",
+        ], truths: &[
+            "My boy's hands should hold a hoop, not a hoe - the village watches.",
+        ], ..w },
+        R::Problem(P::Rowdy) => Worry { area: Village, asks: &[
+            "Do the season hands drink rough here?",
+            "Is the street quiet of a night?",
+        ], truths: &[
+            "They'll not forget the mud I made of their green.",
+        ], ..w },
+        R::Problem(P::DeathDuty) => Worry { tier: 3, asks: &[
+            "Does the lord take his fifth kindly?",
+            "Would a widow's ask reach the castle?",
+        ], truths: &[
+            "The lord's man counted the dead one's spoons - it was owed, they said.",
+        ], ..w },
+        R::Problem(P::Bereaved) => Worry { area: Heart, tier: 3, asks: &[
+            "Do folk here sit with the grieving?",
+            "Does the village remember its dead kindly?",
+        ], truths: &[
+            "The bed's still half-made on their side.",
+        ], ..w },
+        R::Problem(P::ThinWood) => Worry { asks: &[
+            "Is firewood easy come by here?",
+            "Does the wood give out this side of the hill?",
+        ], truths: &[
+            "I walk further each year and come back lighter.",
+        ], ..w },
+        R::Problem(P::DryPit) => Worry { area: Work, asks: &[
+            "Is stone to be had for building?",
+            "Does the pit still give?",
+        ], truths: &[
+            "The pit drowned and took my living with it.",
+        ], ..w },
+        R::Problem(P::StinkingReach) => Worry { area: Village, tier: 1, asks: &[
+            "Does the reach still stink below the mill?",
+            "Would a body's washing come clean in that water?",
+        ], truths: &[
+            "My street smells before it's seen.",
+        ], ..w },
+        R::Problem(P::ShortChanged) => Worry { asks: &[
+            "Do foreign counts run honest at the fair?",
+            "Would they weigh it over if asked?",
+        ], truths: &[
+            "The foreign count came home short - I was too proud to weigh it over.",
+        ], ..w },
+        R::Problem(P::Tempted) => Worry { area: Road, asks: &[
+            "Does the road ever call {2:obj}?",
+            "Would {2:subj} go, if the circus came back?",
+        ], truths: &[
+            "The road's been singing to me - the days here run grey.",
+        ], ..w },
+        R::Problem(P::WritBorne) => Worry { tier: 3, asks: &[
+            "Does the bailiff's writ come quick here?",
+            "Would the castle hear a poor word?",
+        ], truths: &[
+            "A writ rides for me - each knock at the door could be it.",
+        ], ..w },
+        R::Problem(P::LongWinter) => Worry { asks: &[
+            "Do the stores hold this far in?",
+            "Does the village share when the winter runs long?",
+        ], truths: &[
+            "My bin'll be scraped before the thaw.",
+        ], ..w },
+        R::Problem(P::ColdHearth) => Worry { area: Body, asks: &[
+            "Is there fuel to be had for a cold hearth?",
+            "Would a neighbour share a peat?",
+        ], truths: &[
+            "The house eats cold - the children wear their coats to bed.",
+        ], ..w },
+        R::Problem(P::TheDark) => Worry { area: Heart, tier: 3, asks: &[
+            "Are the nights long for {2:obj} too?",
+            "Does the dark keep {2:obj}?",
+        ], truths: &[
+            "The dark's kept me since I can remember - the candle never lasts.",
+        ], ..w },
+        R::Problem(P::Grief) => Worry { area: Heart, tier: 3, asks: &[
+            "Does the village still speak of the hanging?",
+            "Do they let a body be, after?",
+        ], truths: &[
+            "I watched it - the rope and all - it won't leave the backs of my eyes.",
+        ], ..w },
+        R::Problem(P::Robbed) => Worry { tier: 3, asks: &[
+            "Do folk bar their cellar doors here?",
+            "Would the watch look into a walked-off stock?",
+        ], truths: &[
+            "My cellar walked off in the night - someone's eating my winter.",
+        ], ..w },
+        R::Problem(P::Hungry) => Worry { area: Body, asks: &[
+            "Does the pot fill easier here?",
+            "Is there day's work for a day's bread?",
+        ], truths: &[
+            "The pot's been bare three days - the belly knows the count.",
+        ], ..w },
+        R::Problem(P::Sick) => Worry { area: Body, asks: &[
+            "Do the fevers ride this village?",
+            "Is there a herb-wife within reach?",
+        ], truths: &[
+            "The fever won't loose me - the bed's grown into me.",
+        ], ..w },
+        R::Problem(P::Doctrine) => Worry { area: Village, asks: &[
+            "Does the parish preach one thing and live another here?",
+            "Would the green's plainer word be heard?",
+        ], truths: &[
+            "The church says wait - the green says now.",
+        ], ..w },
+    })
+}
+
+/// Every Reveal the worry table speaks to (E5-3), for the text
+/// audit's authored-line census - `NoInput` carries a standing input
+/// so the parameterized variant's covered too
+#[doc(hidden)]
+pub const WORRY_CENSUS: &[crate::game::desires::Reveal] = {
+    use crate::game::desires::{Problem::*, Reveal::*, Want::*};
+    &[
+        Want(GoodFood), Want(Finery), Want(Faith), Want(Shelter),
+        Want(Security), Want(Mastery), Want(Music), Want(Instrument),
+        Want(BetterTools), Want(DifferentTrade), Want(Love), Want(Joy),
+        Want(Drink),
+        Problem(NoHome), Problem(NoWorkplace), Problem(NoMaster),
+        Problem(NoInput("grain")), Problem(DerelictNearby),
+        Problem(OverseerCut), Problem(Taxed), Problem(Broke),
+        Problem(Smelly), Problem(Loss), Problem(Blamed),
+        Problem(SourGut), Problem(ChildLabor), Problem(Rowdy),
+        Problem(DeathDuty), Problem(Bereaved), Problem(ThinWood),
+        Problem(DryPit), Problem(StinkingReach), Problem(ShortChanged),
+        Problem(Tempted), Problem(WritBorne), Problem(LongWinter),
+        Problem(ColdHearth), Problem(TheDark), Problem(Grief),
+        Problem(Robbed), Problem(Hungry), Problem(Sick),
+        Problem(Doctrine),
+    ]
+};
+
+/// Every worry set - each fear and need's questions and truths, plus
+/// the generic moves - for the text audit's authored-line census
+/// (E5-3)
+#[doc(hidden)]
+pub fn worry_sets() -> Vec<&'static [&'static str]> {
+    let mut out = vec![WORRY_ANSWERS, WORRY_SOOTHE, WORRY_WHY];
+    for r in WORRY_CENSUS {
+        if let Some(w) = worry_of_reveal(*r) {
+            out.push(w.asks);
+            out.push(w.truths);
+        }
+    }
+    out
+}
+
+/// The set a speaker turns aside with (E5-2): their first matching
+/// temperament, the plain set when none of the four show
+fn evade_set(s: &Speaker) -> &'static [&'static str] {
+    use crate::game::traits::Trait;
+    if s.traits.contains(&Trait::Hotheaded) { EVADE_SNAP }
+    else if s.traits.contains(&Trait::Gregarious) { EVADE_CHANGE }
+    else if s.traits.contains(&Trait::Pious) { EVADE_GOD }
+    else if s.traits.contains(&Trait::Proud) { EVADE_PIVOT }
+    else { DEFLECTED }
+}
 
 /// Whether a topic's on the table for this asked-about speaker: every
 /// `needs` carried (or `any` one of the alternates when needs is
@@ -466,6 +1963,17 @@ pub fn act_fit(call: Act, reply: Act) -> u8 {
         // answer's left, but a question back or a goodbye never follows
         Act::Question => match reply {
             Act::Answer | Act::Agree | Act::PushBack => 2,
+            // an evasion answers an unwelcome question; a leak IS the
+            // answer slipping out sideways (E5-1)
+            Act::Evade | Act::Slip => 2,
+            // a bid, a joke or a worry back is a passable side-step
+            Act::Remark | Act::Bid | Act::Joke | Act::Worry => 1,
+            _ => 0,
+        },
+        // a door-side fear asks like a question does - and "ask why"
+        // is one of the doors it opens (E5-1)
+        Act::Worry => match reply {
+            Act::Answer | Act::Agree | Act::PushBack | Act::Question => 2,
             Act::Remark => 1,
             _ => 0,
         },
@@ -474,6 +1982,9 @@ pub fn act_fit(call: Act, reply: Act) -> u8 {
             Act::Farewell | Act::Remark => 2,
             _ => 0,
         },
+        // a reach is answered by the turn (E5-4): engaging it, the
+        // half-turn, the miss or the refusal are all its shapes
+        Act::Bid => 2,
         // a statement leaves the floor open; the exit only rides once
         // the talk's run dry - the rule player options already use
         _ => match reply {
@@ -487,8 +1998,8 @@ pub fn act_fit(call: Act, reply: Act) -> u8 {
 /// nothing back (#1252): they don't pass on the village's business -
 /// they hold forth about their own
 pub const HOG_GISTS: &[&str] = &[
-    "You've caught me mid-story - I was just telling myself about the finest cart I ever built. Yours now, as it happens.",
-    "Ah, good - an ear. Did I ever tell you how I came to this village? It's a tale worth the walking.",
+    "{2:subj} {2:have} caught me mid-story - I was just telling myself about the finest cart I ever built. {2:own} now, as it happens.",
+    "Ah, good - an ear. Did I ever tell {2:obj} how I came to this village? It's a tale worth the walking.",
     "I've been fair bursting to tell someone: my stew last night was the best this house has seen. Sit, sit.",
 ];
 
@@ -496,19 +2007,19 @@ pub const HOG_GISTS: &[&str] = &[
 /// it is them - their past, their opinions of everyone. `{someone}`
 /// fills with a villager's name
 pub const HOG_RUN: &[&str] = &[
-    "Did I ever tell you of the winter I out-walked the snow? Three days, and my boots never once let in.",
+    "Did I ever tell {2:obj} of the winter I out-walked the snow? Three days, and my boots never once let in.",
     "{someone}? Lovely sort. Doesn't half go on, though.",
-    "Folk bring me their troubles, you know - I've always a word for them. Usually mine.",
+    "Folk bring me their troubles, {2:subj} {2:know} - I've always a word for them. Usually mine.",
     "I've the strongest back in this village, and the softest bed to prove it.",
     "{someone} does the work well enough, I'll grant - though nothing to how my mother taught me.",
 ];
 
-/// A template rendered for the pair: `{other}` is the listener's name,
-/// `{trade}`/`{other_trade}` the each side's work-noun (#1181)
-fn fill(t: &str, speaker: &Speaker, other: &Speaker) -> String {
-    t.replace("{other}", &other.name)
-        .replace("{trade}", crate::game::dialogue_trees::trade_noun(speaker))
-        .replace("{other_trade}", crate::game::dialogue_trees::trade_noun(other))
+/// A template rendered for the pair, through the realizer (E4-1,
+/// #1403): `{other}` is the listener's name, `{trade}`/`{other_trade}`
+/// each side's work-noun (#1181); the talk's rng backs any draws the
+/// grammar layers add
+pub(crate) fn fill(t: &str, speaker: &Speaker, other: &Speaker, rng: &mut Rng) -> String {
+    crate::game::text::realize(t, &crate::game::text::Cx::plain(speaker, other, &[]), rng)
 }
 
 /// An unused variant of a line set: the template (so it can be spent) and
@@ -524,7 +2035,7 @@ fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: 
             .filter(|l| !recent.contains(*l) || crate::game::dialogue_trees::STOCK_LINES.contains(l)).collect();
         if newer.is_empty() { fresh } else { newer }
     };
-    pick.get(rng.below(pick.len())).map(|&t| (t, fill(t, speaker, other)))
+    pick.get(rng.below(pick.len())).map(|&t| (t, fill(t, speaker, other, rng)))
 }
 
 /// A variant in the speaker's register: voice sets whose criteria the
@@ -556,6 +2067,10 @@ pub struct Choice {
     /// The index of the fork among the node's replies... but for the
     /// caller what matters is which offered option was picked
     pub act: Act,
+    /// How the line receives what was said (E6-3): the authored tag
+    /// where the reply carries one, else the act's default - it moves
+    /// the bond's parts when the pick lands
+    pub respond: Respond,
     /// The line they'd say - the player picks a *way of speaking*
     pub preview: String,
 }
@@ -569,11 +2084,30 @@ pub fn converse(
     a: &Speaker,
     b: &Speaker,
     rel: Relation,
+    kind: Option<RelKind>,
     library: &[DialogueTree],
     recent: Option<&HashSet<&'static str>>,
     rng: &mut Rng,
 ) -> Transcript {
-    converse_with(a, b, rel, library, recent, usize::MAX, &mut |_| Some(0), rng)
+    converse_at(a, b, rel, kind, library, recent, &crate::game::setting::STREET, rng)
+}
+
+/// As `converse`, in a named setting (E5-9, #1446): the place and the
+/// ears pick the transcript. A warm bond (friend or kin) is itself the
+/// invitation backstage - callers pass the place and whether the law's
+/// ear is on it, and the bond does the rest
+pub fn converse_at(
+    a: &Speaker,
+    b: &Speaker,
+    rel: Relation,
+    kind: Option<RelKind>,
+    library: &[DialogueTree],
+    recent: Option<&HashSet<&'static str>>,
+    setting: &crate::game::setting::Setting,
+    rng: &mut Rng,
+) -> Transcript {
+    converse_with_at(a, b, rel, kind, library, recent, usize::MAX, setting,
+        &mut |_| Some(0), rng)
 }
 
 /// As `converse`, but speaker `player`'s response turns go through
@@ -584,16 +2118,49 @@ pub fn converse_with(
     a: &Speaker,
     b: &Speaker,
     rel: Relation,
+    kind: Option<RelKind>,
     library: &[DialogueTree],
     recent: Option<&HashSet<&'static str>>,
     player: usize,
     choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
     rng: &mut Rng,
 ) -> Transcript {
+    converse_with_at(a, b, rel, kind, library, recent, player,
+        &crate::game::setting::STREET, choose, rng)
+}
+
+/// `converse_with`, in a named setting (E5-9, #1446): as `converse_at`,
+/// a warm bond is itself the invitation backstage
+pub fn converse_with_at(
+    a: &Speaker,
+    b: &Speaker,
+    rel: Relation,
+    kind: Option<RelKind>,
+    library: &[DialogueTree],
+    recent: Option<&HashSet<&'static str>>,
+    player: usize,
+    setting: &crate::game::setting::Setting,
+    choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
+    rng: &mut Rng,
+) -> Transcript {
+    // the invitation the bond buys (E5-9): friend and kin hear the
+    // hidden transcript at a backstage place; a stranger gets the
+    // street voice even at the kitchen table
+    let mut setting = *setting;
+    setting.invited |= matches!(rel, Relation::Friend | Relation::Kin);
     // no village memory (synthetic talks): nothing reads as a repeat
     let no_recent = HashSet::default();
     let recent = recent.unwrap_or(&no_recent);
-    let pair = [a, b];
+    // owned clones: a landed telling deepens `open.shared` mid-loop
+    // (E3-3) - the snapshot callers passed stays immutable for replay
+    let mut pair = [a.clone(), b.clone()];
+    // each side's address is computed for the pair (E4-2): the power
+    // semantic, gated by the speaker's own archaism - a rival's thou is
+    // contempt made audible
+    for i in 0..2 {
+        pair[i].rel = rel;
+        pair[i].tv = crate::game::text::tv_for(&pair[i], &pair[1 - i], rel, matches!(rel, Relation::Rival));
+    }
     let mut tr = Transcript {
         speakers: [a.name.clone(), b.name.clone()],
         trees_walked: vec![],
@@ -601,11 +2168,30 @@ pub fn converse_with(
         ending: None,
         vibe: None,
         asked: vec![],
+        forward: 0,
+        evasions: vec![],
+        worry_told: None,
+        slips: vec![],
+        jokes: vec![],
+        shared: 0,
+        overshot: false,
+        setting,
     };
     let mut used: HashSet<&'static str> = HashSet::default();
     // topics already asked this talk - each one's a beat, once
     let mut asked: HashSet<usize> = HashSet::default();
-    let trees = cascade(library, &Facts::for_roles(a, b, rel));
+    // the slip's own stream (E5-8, #1439): forked before the walk
+    // touches the shared rng, so the same turns roll the same way on
+    // every replay however many picks stand - one leak a talk, and
+    // only while the caller's arc budget lasts
+    let mut slip_rng = rng.fork(0x5EED_5119);
+    let mut slipped = false;
+    // the transcript tag (E5-9, #1446): every line this walk pushes
+    // carries the channel the setting speaks - the beat scheduler
+    // (#1445) flips single lines later, when the hidden transcript's
+    // said aloud to power
+    let channel = setting.channel();
+    let trees = cascade(library, &Facts::for_roles_setting(a, b, rel, kind, &setting));
     let mut trees = trees.iter().peekable();
     let mut node: Option<&Exchange> = trees.next().map(|t| {
         tr.trees_walked.push(t.name);
@@ -643,26 +2229,32 @@ pub fn converse_with(
     let mut last_tree = node_tree;
     let cap = if player == usize::MAX { AMBIENT_MAX_TURNS } else { MAX_TURNS };
     for _ in 0..cap {
+        // ambient talks are bounded in turns, not just passes: beats
+        // and echoes push extra lines that can't ride free
+        if player == usize::MAX && tr.turns.len() >= cap - 1 {
+            tr.ending.get_or_insert(Ending::Exhausted);
+            break;
+        }
         if tr.turns.len() - last_advance >= DOLDRUMS {
             tr.ending = Some(Ending::Exhausted);
             break;
         }
         if audition && !probed && tr.turns.len() == 2 {
             probed = true;
-            if let Some(p) = probe_for(pair[caller]) {
-                if let Some((ct, call)) = fresh_line(p.calls, pair[caller], pair[responder], &used, recent, matches!(p.act, Act::Greet | Act::Farewell), rng) {
+            if let Some(p) = probe_for(&pair[caller]) {
+                if let Some((ct, call)) = fresh_line(p.calls, &pair[caller], &pair[responder], &used, recent, matches!(p.act, Act::Greet | Act::Farewell), rng) {
                     used.insert(ct);
                     tr.trees_walked.push(PROBE_TREE);
-                    tr.turns.push(Turn { speaker: caller, act: p.act, text: call,
+                    say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: p.act, respond: None, text: call,
                         concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(ct) });
                     // the tested side gets the two forks the probe
                     // holds - the answer that lands and the wrong note
                     let mut choices: Vec<Choice> = vec![];
                     let mut forks: Vec<(&'static str, bool)> = vec![];
                     for ((act, lines), vibe) in [(p.pass, true), (p.fail, false)] {
-                        let (t, preview) = fresh_line(lines, pair[responder], pair[caller], &used, recent, matches!(act, Act::Greet | Act::Farewell), rng)
-                            .unwrap_or((lines[0], fill(lines[0], pair[responder], pair[caller])));
-                        choices.push(Choice { act, preview });
+                        let (t, preview) = fresh_line(lines, &pair[responder], &pair[caller], &used, recent, matches!(act, Act::Greet | Act::Farewell), rng)
+                            .unwrap_or((lines[0], fill(lines[0], &pair[responder], &pair[caller], rng)));
+                        choices.push(Choice { act, respond: respond_of(act), preview });
                         forks.push((t, vibe));
                     }
                     // no positional tell - which fork lands changes
@@ -671,9 +2263,18 @@ pub fn converse_with(
                         Some(i) => {
                             let (t, vibe) = forks[i];
                             used.insert(t);
-                            tr.turns.push(Turn { speaker: responder, act: choices[i].act,
-                                text: fill(t, pair[responder], pair[caller]),
+                            let tag = respond_of(choices[i].act);
+                            say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: responder, act: choices[i].act,
+                                respond: Some(tag),
+                                text: fill(t, &pair[responder], &pair[caller], rng),
                                 concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(t) });
+                            // answering their probe is telling of
+                            // yourself (E3-3): it lands as deep as the
+                            // pair's openness holds
+                            if responder == player
+                                && matches!(choices[i].act, Act::Answer | Act::Agree) {
+                                note_disclosure(&mut tr, &mut pair[1 - player].open);
+                            }
                             tr.vibe = Some(if vibe { Vibe::Safe } else { Vibe::Mismatch });
                             // a good answer picks the talk up where it
                             // left off; a miss leaves it on the polite
@@ -690,11 +2291,48 @@ pub fn converse_with(
                 }
             }
         }
+        // The joke (E5-6, #1437): once the talk's found its feet, a
+        // profiled caller may crack the one their humor draws - the
+        // beat owns the hearer's fork
+        let had = tr.turns.len();
+        if joke_beat(&mut tr, &pair, caller, responder, channel, &mut used, recent, player, cap, node_tree, choose, rng) {
+            tr.ending = Some(Ending::LeavesEarly); break;
+        }
+        // a spoken joke was this pass's exchange - it costs the turn
+        // budget a call and answer would
+        if tr.turns.len() != had { continue; }
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
+        // a joke's echo (E5-6): when the reply just taken was one of
+        // the trees' own jokes (the beat forks its own receipt), the
+        // caller answers the joke before the exchange speaks - laugh,
+        // top it, warn it quiet, or let it pass
+        if let Some(jt) = tr.turns.last()
+            .filter(|t| t.act == Act::Joke && t.speaker == responder
+                && !t.concepts.contains(&"joke_receipt"))
+            .and_then(|t| t.line) {
+            let (style, target) = joke_cell_of(jt)
+                .map(|(s, t)| (Some(s), Some(t))).unwrap_or((None, None));
+            let jg = pair[responder].joke.as_ref().and_then(|j| j.grievance);
+            let kinds = [JokeReceipt::Laughed, JokeReceipt::AddedTo,
+                JokeReceipt::Warned, JokeReceipt::Quiet];
+            let kind = kinds[rng.weighted(&receipt_weights(jg, target, &pair[caller], channel))];
+            let (t, _) = fresh_line(kind.lines(), &pair[caller], &pair[responder], &used, recent, false, rng)
+                .unwrap_or((kind.lines()[0], String::new()));
+            used.insert(t);
+            // the echo wears the upcoming exchange's tree - an aside,
+            // not a step off the cascade
+            tr.turns.push(Turn { channel, speaker: caller,
+                act: kind.act(), respond: Some(kind.respond()),
+                text: fill(t, &pair[caller], &pair[responder], rng),
+                concepts: vec!["joke", "joke_receipt"], tree: node_tree, line: Some(t) });
+            tr.jokes.push(JokeBeat { joker: responder, style, target, receipt: kind });
+            // the exchange stands unconsumed - next pass speaks it
+            continue;
+        }
         // The floor-holder opens the beat, in the register their own
         // facts put them in (a lord's condescension, a rival's chill)
-        let call_facts = Facts::for_roles(pair[caller], pair[responder], rel);
-        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, pair[caller], pair[responder], &used, recent, matches!(ex.act, Act::Greet | Act::Farewell), rng) else {
+        let call_facts = Facts::for_roles_setting(&pair[caller], &pair[responder], rel, kind, &setting);
+        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, &pair[caller], &pair[responder], &used, recent, matches!(ex.act, Act::Greet | Act::Farewell), rng) else {
             // Nothing fresh to call with: fall through to the next rejoinable tree,
             // or dry up entirely at the generic tail
             match advance_to_rejoin(&mut trees) {
@@ -704,11 +2342,11 @@ pub fn converse_with(
             continue;
         };
         used.insert(call_t);
-        tr.turns.push(Turn { speaker: caller, act: ex.act, text: call,
+        say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: ex.act, respond: None, text: call,
             concepts: ex.concepts.to_vec(), tree: node_tree, line: Some(call_t) });
 
         // The other side picks a fork
-        let facts = Facts::for_roles(pair[responder], pair[caller], rel);
+        let facts = Facts::for_roles_setting(&pair[responder], &pair[caller], rel, kind, &setting);
         let pool = eligible(ex.replies, &facts, &used);
         // the reply has to follow what was just said (#1367): the pool
         // keeps only the best-fitting acts on offer, and when nothing
@@ -734,7 +2372,7 @@ pub fn converse_with(
             }
             continue;
         }
-        let weights: Vec<f32> = pool.iter().map(|r| draw_weight(r, pair[responder])).collect();
+        let weights: Vec<f32> = pool.iter().map(|r| draw_weight(r, &pair[responder])).collect();
 
         // (fork index, line template): the fork picked and the variant it
         // will speak. For a player turn the variants are rolled with the
@@ -753,10 +2391,10 @@ pub fn converse_with(
             let mut rolled: Vec<(&'static str, Choice)> = vec![];
             for &i in &sampled {
                 let r = pool[i];
-                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, pair[responder], pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
+                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
                     .map(|(t, s)| (t, s))
-                    .unwrap_or((r.lines[0], fill(r.lines[0], pair[responder], pair[caller])));
-                rolled.push((t, Choice { act: r.act, preview }));
+                    .unwrap_or((r.lines[0], fill(r.lines[0], &pair[responder], &pair[caller], rng)));
+                rolled.push((t, Choice { act: r.act, respond: r.respond.unwrap_or_else(|| respond_of(r.act)), preview }));
             }
             // a farewell's the tail of a talk, not a per-turn option (#1179):
             // it only sits on the list once the talk's run dry - while
@@ -770,41 +2408,114 @@ pub fn converse_with(
             // hello's had its answer (#1189): the slot opens the topics
             // they can speak to, each a once-a-talk beat. A dry list is
             // farewells alone - there's no asking into a finished talk.
-            let open_topics: Vec<usize> = crate::game::dialogue_trees::ASK_TOPICS.iter().enumerate()
-                .filter(|(ti, t)| !asked.contains(ti) && topic_open(t, pair[caller]))
-                .map(|(ti, _)| ti).collect();
-            let live = pairs.iter().any(|(_, (_, c))| c.act != Act::Farewell);
-            if live && tr.turns.len() >= 2 && !open_topics.is_empty() && pairs.len() < 3 {
-                pairs.push((usize::MAX, ("", Choice {
-                    act: Act::Question, preview: "Put a question to them".into() })));
+            // the tier gate (E3-2): a topic opens on the asked-about's
+            // open facts; one closed but carrying a tell the asker saw
+            // still lists - naming the tell earns its bonus
+            let mut open_topics: Vec<usize> = vec![];
+            let mut tell_topics: Vec<usize> = vec![];
+            {
+                let tells = pair[caller].tell_areas();
+                for (ti, t) in crate::game::dialogue_trees::ASK_TOPICS.iter().enumerate() {
+                    if asked.contains(&ti) || !topic_open(t, &pair[caller]) { continue; }
+                    if call_facts.has(&format!("self:open:{}:{}", area_name(t.area), t.tier)) {
+                        open_topics.push(ti);
+                    } else if t.tier >= 2 && tells.contains(&t.area) {
+                        // seen it, can't reach it - asking reads forward.
+                        // Only the deep asks ride a tell: the personal
+                        // layer is time-spent, nothing observed buys it
+                        tell_topics.push(ti);
+                    }
+                }
             }
-            let choices: Vec<Choice> = pairs.iter().map(|(_, (_, c))| Choice { act: c.act, preview: c.preview.clone() }).collect();
+            let live = pairs.iter().any(|(_, (_, c))| c.act != Act::Farewell);
+            if live && tr.turns.len() >= 2 && !(open_topics.is_empty() && tell_topics.is_empty()) && pairs.len() < 3 {
+                pairs.push((usize::MAX, ("", Choice {
+                    act: Act::Question, respond: Respond::Validate,
+                    preview: "Put a question to them".into() })));
+            }
+            let choices: Vec<Choice> = pairs.iter().map(|(_, (_, c))| Choice { act: c.act, respond: c.respond, preview: c.preview.clone() }).collect();
+            // the doorknob (E5-3, #1435): when the talk's run dry and
+            // all that's left is exits, the caller's worry rides in
+            // ahead of the parting - answered, soothed, or asked why,
+            // then the farewells show
+            if pairs.iter().all(|(_, (_, c))| c.act == Act::Farewell)
+                && worry_beat(&mut tr, &mut pair, caller, responder,
+                    channel, &mut used, recent, choose, rng) {
+                tr.ending = Some(Ending::LeavesEarly);
+                break;
+            }
             match choose(&choices).and_then(|i| pairs.get(i)) {
                 Some(&(usize::MAX, _)) => {
                     // the topics open as a pick of their own - one of
-                    // yours, their answer, then the talk picks back up
-                    let mut tch: Vec<Choice> = open_topics.iter().map(|&ti| Choice {
-                        act: Act::Question,
+                    // yours, their answer, then the talk picks back up.
+                    // A tell-named ask rides the same menu (E3-2)
+                    let menu: Vec<usize> = open_topics.iter().chain(tell_topics.iter()).copied().collect();
+                    let mut tch: Vec<Choice> = menu.iter().map(|&ti| Choice {
+                        act: Act::Question, respond: Respond::Validate,
                         preview: format!("Ask about {}",
                             crate::game::dialogue_trees::ASK_TOPICS[ti].label) }).collect();
-                    tch.push(Choice { act: Act::Remark, preview: "Say nothing of it".into() });
+                    tch.push(Choice { act: Act::Remark, respond: Respond::Validate,
+                        preview: "Say nothing of it".into() });
                     match choose(&tch) {
-                        Some(i) if i < open_topics.len() => {
-                            let tp = &crate::game::dialogue_trees::ASK_TOPICS[open_topics[i]];
-                            asked.insert(open_topics[i]);
-                            tr.asked.push(tp.label);
+                        Some(i) if i < menu.len() => {
+                            let tp = &crate::game::dialogue_trees::ASK_TOPICS[menu[i]];
+                            asked.insert(menu[i]);
                             if !tr.trees_walked.contains(&ASK_TREE) { tr.trees_walked.push(ASK_TREE); }
-                            let (qt, _) = fresh_line(tp.ask, pair[responder], pair[caller], &used, recent, false, rng)
+                            let (qt, _) = fresh_line(tp.ask, &pair[responder], &pair[caller], &used, recent, false, rng)
                                 .unwrap_or((tp.ask[0], String::new()));
                             used.insert(qt);
-                            tr.turns.push(Turn { speaker: responder, act: Act::Question,
-                                text: fill(qt, pair[responder], pair[caller]),
+                            say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: responder, act: Act::Question,
+                                respond: Some(Respond::PivotAsk),
+                                text: fill(qt, &pair[responder], &pair[caller], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(qt) });
-                            let (at, _) = fresh_line(tp.tell, pair[caller], pair[responder], &used, recent, false, rng)
-                                .unwrap_or((tp.tell[0], String::new()));
+                            if tell_topics.contains(&menu[i]) {
+                                let talkative = pair[caller].traits.contains(&Trait::Gregarious);
+                                let guarded = pair[caller].traits.contains(&Trait::Wary);
+                                if !pair[caller].open.reached(tp.tier, talkative, guarded, true) {
+                                    // naming the tell wasn't enough
+                                    // (E3-2): the ask reads as forward -
+                                    // a visible turn-aside, talk goes on
+                                    tr.vibe = Some(Vibe::Mismatch);
+                                    tr.forward += 1;
+                                    // the turn-aside counts on the seat's
+                                    // ledger by the area it stood over
+                                    // (E5-2): enough of them and the
+                                    // shape names itself
+                                    tr.evasions.push((caller, tp.area));
+                                    let set = evade_set(&pair[caller]);
+                                    let (dt, _) = fresh_line(set, &pair[caller], &pair[responder], &used, recent, false, rng)
+                                        .unwrap_or((set[0], String::new()));
+                                    used.insert(dt);
+                                    say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: Act::Evade,
+                                        respond: Some(Respond::Deflect),
+                                        text: fill(dt, &pair[caller], &pair[responder], rng),
+                                        concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(dt) });
+                                    continue;
+                                }
+                            }
+                            tr.asked.push(tp.label);
+                            // a covered fact tells in its own words at
+                            // that depth, but only to the "what you keep"
+                            // asks (Draw::Secret): the named-status asks
+                            // keep their authored answers (E3-4, #1425)
+                            let (at, _) = if matches!(tp.draws,
+                                    crate::game::dialogue_trees::Draw::Secret) {
+                                crate::game::fact_content::telling(
+                                        &call_facts, tp.area, tp.tier,
+                                        rng.next_f32(), &used)
+                                    .map(|l| (l, String::new()))
+                                    .or_else(|| fresh_line(tp.tell, &pair[caller],
+                                        &pair[responder], &used, recent, false, rng))
+                                    .unwrap_or((tp.tell[0], String::new()))
+                            } else {
+                                fresh_line(tp.tell, &pair[caller],
+                                    &pair[responder], &used, recent, false, rng)
+                                    .unwrap_or((tp.tell[0], String::new()))
+                            };
                             used.insert(at);
-                            tr.turns.push(Turn { speaker: caller, act: Act::Answer,
-                                text: fill(at, pair[caller], pair[responder]),
+                            say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: Act::Answer,
+                                respond: Some(Respond::Reflect),
+                                text: fill(at, &pair[caller], &pair[responder], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(at) });
                             continue;
                         }
@@ -818,15 +2529,31 @@ pub fn converse_with(
             }
         } else {
             let i = rng.weighted(&weights);
-            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, pair[responder], pair[caller], &used, recent, matches!(pool[i].act, Act::Greet | Act::Farewell), rng) {
+            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(pool[i].act, Act::Greet | Act::Farewell), rng) {
                 Some((t, _)) => (i, t),
                 None => { tr.ending = Some(Ending::Exhausted); break; }
             }
         };
         let reply = pool[pick];
         used.insert(line_t);
-        tr.turns.push(Turn { speaker: responder, act: reply.act, text: fill(line_t, pair[responder], pair[caller]),
+        let tag = reply.respond.unwrap_or_else(|| respond_of(reply.act));
+        // the reply's shape (E4-5): a dispreferred answer - or a
+        // guarded, cold agreement - draws the padding ops its stance
+        // calls for; a proud, certain no still lands bare
+        let st = crate::game::text::stance_of(&pair[responder], &pair[caller]);
+        let ops = crate::game::text::shape(reply.act, &st, None);
+        let text = crate::game::text::shaped(&ops,
+            &fill(line_t, &pair[responder], &pair[caller], rng), None, &st, rng);
+        say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: responder, act: reply.act, respond: Some(tag),
+            text,
             concepts: reply.concepts.to_vec(), tree: node_tree, line: Some(line_t) });
+        // telling of yourself (E3-3): a substantive answer is a
+        // disclosure; each lands as deep as the pair's openness holds -
+        // a confession past the bond reads as strange
+        if responder == player && matches!(reply.act, Act::Answer | Act::Agree)
+            && matches!(tag, Respond::Reflect | Respond::Validate | Respond::Care | Respond::Advise) {
+            note_disclosure(&mut tr, &mut pair[1 - player].open);
+        }
         // the beat advanced the talk if it walked a new tree or named
         // something unsaid (#1368)
         let advanced = node_tree != last_tree
@@ -851,6 +2578,10 @@ pub fn converse_with(
     if tr.ending.is_none() {
         tr.ending = Some(Ending::Exhausted);
     }
+    // the ear's landmark (E4-7, #1416): each speaker's phrase and habit
+    // land once, on the first slots they fit - deterministic per turn,
+    // so the replay this builds from keeps its prefix
+    crate::game::idiolect::apply(&mut tr, &pair, player);
     tr
 }
 
@@ -1267,6 +2998,23 @@ fn drifted(record: &[Statement]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    /// E3-1 (#1423): the fact table splits by sensitivity - open facts
+    /// fold under every prefix, hidden facts stay the speaker's own
+    #[test]
+    fn the_fact_table_splits_by_sensitivity() {
+        let mut s = Speaker::new("A");
+        s.facts.open = vec!["archetype:burned".into(), "value:safety".into()];
+        s.facts.hidden = vec!["ghost:levy".into(), "tier:wound=3".into()];
+        let other = Speaker::new("B");
+        let f = Facts::for_roles(&s, &other, Relation::Stranger);
+        // A's open facts read under self: and any:, never other:
+        assert!(f.has("self:archetype:burned") && f.has("any:archetype:burned"));
+        assert!(!f.has("other:archetype:burned"));
+        assert!(f.has("self:ghost:levy"));
+        assert!(!f.has("other:ghost:levy"));
+        assert!(!f.has("any:ghost:levy"));
+        assert!(f.has("self:tier:wound=3"));
+    }
     use super::*;
     use crate::engine::det::HashMap;
     use crate::game::dialogue_trees::*;
@@ -1288,12 +3036,12 @@ mod tests {
     /// lines like these, and a Farewell reply may hold none.
     const RUDE: &[&str] = &[
         "knave", "scoundrel", "Out of my way", "parley", "Breathe elsewhere",
-        "nothing to say", "frightened", "Get out", "Hold thy tongue", "pox",
-        "thy pride", "thy own yard", "fool",
+        "nothing to say", "frightened", "Get out", "Hold {2:poss} tongue", "pox",
+        "{2:poss} pride", "{2:poss} own yard", "fool",
         // cold refusals and hostile dismissals that end a talk on a hard note
         "Cur!", "break them", "shadow off my path", "Begone", "be gone",
         "before I shout", "call folk out", "not plague", "move on",
-        "speak poison", "look to my door", "stretch our own store",
+        "{2:speak} poison", "look to my door", "stretch our own store",
         "nothing spare", "bailiff watches", "barely has coals", "not from me",
     ];
 
@@ -1344,6 +3092,29 @@ mod tests {
         assert!(bad.is_empty(), "lines filed under more than one act/ending:\n{}", bad.join("\n"));
     }
 
+    /// #1371: the village shopkeeper is no pedlar - merchant-keyed trees
+    /// carry stall and tally talk, never pack-train or foreign-port
+    /// material (the itinerant trader's lines live in visitor_trader)
+    #[test]
+    fn test_the_village_trader_speaks_of_the_stall_not_the_road() {
+        let pedlar = ["mule", "pack horse", "packs", "highway", "overseas",
+            "caravan", "exotic", "traveling", "Flanders", "sea port",
+            "the ridge", "king's road", "from the city"];
+        let mut bad: Vec<String> = vec![];
+        for (tree, ex) in all_exchanges(&village_library()) {
+            if tree != "merchant_trade" && tree != "the_merchants_ledger" { continue; }
+            for line in ex.calls.iter().chain(ex.replies.iter().flat_map(|r| r.lines.iter())) {
+                let low = line.to_lowercase();
+                if let Some(w) = pedlar.iter().find(|w| low.contains(**w)) {
+                    bad.push(format!("{tree}: {line:?} carries pedlar word {w:?}"));
+                }
+            }
+        }
+        assert!(bad.is_empty(), "{}", bad.join("
+"));
+    }
+
+
     #[test]
     fn test_endings_match_their_lines() {
         let library = village_library();
@@ -1388,7 +3159,7 @@ mod tests {
             let a = Speaker::new("Aldric");
             let b = Speaker::new("Eliza");
             let mut mixed = false;
-            converse_with(&a, &b, Relation::Acquaintance, &library, None, 1, &mut |ch: &[Choice]| {
+            converse_with(&a, &b, Relation::Acquaintance, None, &library, None, 1, &mut |ch: &[Choice]| {
                 let farewells = ch.iter().filter(|c| c.act == Act::Farewell).count();
                 assert!(farewells == 0 || farewells == ch.len(),
                     "farewells shared a list with live replies: {:?}",
@@ -1411,12 +3182,12 @@ mod tests {
         sick.status.push("sick");
         let well = Speaker::new("Aldric");
 
-        let tr = converse(&sick, &well, Relation::Acquaintance, &library, None, &mut rng);
+        let tr = converse(&sick, &well, Relation::Acquaintance, None, &library, None, &mut rng);
         assert_eq!(tr.trees_walked[0], "the_sickness", "sick speaker leads with the_sickness tree");
         assert!(tr.turns.iter().any(|t| t.tree == "the_sickness"));
 
         // A well villager talking to a well villager leads with generic smalltalk
-        let tr_well = converse(&well, &Speaker::new("Bram"), Relation::Acquaintance, &library, None, &mut rng);
+        let tr_well = converse(&well, &Speaker::new("Bram"), Relation::Acquaintance, None, &library, None, &mut rng);
         assert_eq!(tr_well.trees_walked[0], "village_smalltalk", "well speaker leads with smalltalk");
     }
 
@@ -1431,7 +3202,7 @@ mod tests {
         let mut fell_through = false;
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
-            let tr = converse(&sick, &well, Relation::Acquaintance, &library, None, &mut rng);
+            let tr = converse(&sick, &well, Relation::Acquaintance, None, &library, None, &mut rng);
             if tr.trees_walked.contains(&"village_smalltalk") && tr.trees_walked[0] == "the_sickness" {
                 fell_through = true;
                 break;
@@ -1456,7 +3227,7 @@ mod tests {
             // calling out: the resigned register on their own trouble -
             // a hungry speaker leads hunger_lean_times, so the weave
             // lives where the issue lives
-            let tr = converse(&cold, &warm, Relation::Acquaintance, &library, None, &mut rng);
+            let tr = converse(&cold, &warm, Relation::Acquaintance, None, &library, None, &mut rng);
             cold_call |= tr.turns.iter().any(|t| t.speaker == 0
                 && (t.text.contains("nothing for it")
                     || t.text.contains("a thing to be")
@@ -1465,7 +3236,7 @@ mod tests {
                     || t.text.contains("never asked us")));
             // answering: the dedicated pool's resignation
             let mut rng = Rng::new(seed);
-            let tr = converse(&warm, &cold, Relation::Acquaintance, &library, None, &mut rng);
+            let tr = converse(&warm, &cold, Relation::Acquaintance, None, &library, None, &mut rng);
             cold_reply |= tr.turns.iter().any(|t| t.speaker == 1
                 && (t.text.contains("What's to be done but bear it")
                     || t.text.contains("nothing we say moves the sky")
@@ -1485,7 +3256,7 @@ mod tests {
             let mut warm = Speaker::new("Eliza");
             warm.status.push("thaw_joined");
             warm.status.push("hungry");
-            let tr = converse(&warm, &Speaker::new("Aldric"), Relation::Acquaintance, &library, None, &mut rng);
+            let tr = converse(&warm, &Speaker::new("Aldric"), Relation::Acquaintance, None, &library, None, &mut rng);
             for t in &tr.turns {
                 assert!(!t.text.contains("nothing for it")
                     && !t.text.contains("What's to be done but bear it"),
@@ -1505,7 +3276,7 @@ mod tests {
             let mut rng = Rng::new(seed);
             let a = Speaker::new("Aldric");
             let b = Speaker::new("Eliza");
-            let tr = converse(&a, &b, Relation::Acquaintance, &library, None, &mut rng);
+            let tr = converse(&a, &b, Relation::Acquaintance, None, &library, None, &mut rng);
 
             let mut seen = HashSet::default();
             for turn in &tr.turns {
@@ -1530,11 +3301,11 @@ mod tests {
         let mut calm_pushbacks = 0;
         for seed in 0..100 {
             let mut rng = Rng::new(seed);
-            let tr_hot = converse(&rival, &hothead, Relation::Rival, &library, None, &mut rng);
+            let tr_hot = converse(&rival, &hothead, Relation::Rival, None, &library, None, &mut rng);
             hot_pushbacks += tr_hot.turns.iter().filter(|t| t.speaker == 1 && t.act == Act::PushBack).count();
 
             let mut rng = Rng::new(seed);
-            let tr_calm = converse(&rival, &calm, Relation::Rival, &library, None, &mut rng);
+            let tr_calm = converse(&rival, &calm, Relation::Rival, None, &library, None, &mut rng);
             calm_pushbacks += tr_calm.turns.iter().filter(|t| t.speaker == 1 && t.act == Act::PushBack).count();
         }
         assert!(hot_pushbacks > calm_pushbacks, "Hothead should push back more: hot={}, calm={}", hot_pushbacks, calm_pushbacks);
@@ -1549,7 +3320,7 @@ mod tests {
         // Player leaves immediately (choose returns None)
         let mut rng = Rng::new(1);
         let tr_leave = converse_with(
-            &a, &player, Relation::Acquaintance, &library, None, 1,
+            &a, &player, Relation::Acquaintance, None, &library, None, 1,
             &mut |_choices| None,
             &mut rng,
         );
@@ -1560,7 +3331,7 @@ mod tests {
         let mut rng = Rng::new(2);
         let mut choices_seen = 0;
         let tr_play = converse_with(
-            &a, &player, Relation::Acquaintance, &library, None, 1,
+            &a, &player, Relation::Acquaintance, None, &library, None, 1,
             &mut |choices| {
                 // two replies, or two replies plus the ask slot (#1189)
                 assert!(!choices.is_empty() && choices.len() <= 3);
@@ -1789,7 +3560,7 @@ mod tests {
         let mut saw_rival_walked = false;
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
-            let tr = converse(&sick_rival, &rival, Relation::Rival, &library, None, &mut rng);
+            let tr = converse(&sick_rival, &rival, Relation::Rival, None, &library, None, &mut rng);
             if tr.trees_walked.contains(&"old_scores") && tr.trees_walked[0] == "the_sickness" {
                 saw_rival_walked = true;
                 break;
@@ -1807,7 +3578,7 @@ mod tests {
         for seed in 0..50 {
             let mut rng = Rng::new(seed);
             converse_with(
-                &a, &player, Relation::Acquaintance, &library, None, 1,
+                &a, &player, Relation::Acquaintance, None, &library, None, 1,
                 &mut |choices| {
                     if choices.len() == 2 {
                         assert_ne!(choices[0].preview, choices[1].preview, "Player choices must be distinct");
@@ -2052,7 +3823,7 @@ mod tests {
             let mut flock = Speaker::new("Bram");
             flock.status.push(status);
             let prayed = (0..50).any(|seed| {
-                let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, None, &mut Rng::new(seed));
+                let tr = converse(&cleric, &flock, Relation::Acquaintance, None, &library, None, &mut Rng::new(seed));
                 tr.turns.iter().any(|t| t.speaker == 0 && t.act == Act::Question)
                     && tr.turns.iter().any(|t| t.speaker == 1 && t.act == Act::Answer)
             });
@@ -2083,7 +3854,7 @@ mod tests {
         // grief-less CLERIC_PARISH small talk.
         let mut saw_the_cleric_consoles_rejoin = false;
         for seed in 0..50 {
-            let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, None, &mut Rng::new(seed));
+            let tr = converse(&cleric, &flock, Relation::Acquaintance, None, &library, None, &mut Rng::new(seed));
             // speaker 0 (the cleric) opens the rejoin exchange with its `calls`
             // line; that's the line whose concepts identify which exchange it is.
             for t in tr.turns.iter().filter(|t| t.tree == "the_cleric_consoles" && t.speaker == 0) {
@@ -2196,9 +3967,9 @@ mod tests {
         let mut differed = 0;
         for seed in 0..20 {
             let mut ra = Rng::new(seed);
-            let rival = converse(&sick, &other, Relation::Rival, &library, None, &mut ra);
+            let rival = converse(&sick, &other, Relation::Rival, None, &library, None, &mut ra);
             let mut fa = Rng::new(seed);
-            let friend = converse(&sick, &other, Relation::Friend, &library, None, &mut fa);
+            let friend = converse(&sick, &other, Relation::Friend, None, &library, None, &mut fa);
             assert_eq!(rival.trees_walked[0], "the_sickness");
             assert_eq!(friend.trees_walked[0], "the_sickness");
             if rival.lines() != friend.lines() { differed += 1; }
@@ -2224,7 +3995,7 @@ mod tests {
         ];
         for seed in 0..10 {
             let mut ra = Rng::new(seed);
-            let tr = converse(&sick, &other, Relation::Rival, &library, None, &mut ra);
+            let tr = converse(&sick, &other, Relation::Rival, None, &library, None, &mut ra);
             assert_eq!(tr.trees_walked[0], "the_sickness");
             let opening = &tr.turns[0].text;
             assert!(!base_calls.iter().any(|t| t.replace("{other}", "Corvin") == *opening),
@@ -2269,18 +4040,18 @@ mod tests {
         // The lord holds court where the laborer would smalltalk
         for seed in 0..5 {
             let mut ra = Rng::new(seed);
-            let tr = converse(&lord, &laborer, Relation::Acquaintance, &library, None, &mut ra);
+            let tr = converse(&lord, &laborer, Relation::Acquaintance, None, &library, None, &mut ra);
             assert_eq!(tr.trees_walked[0], "the_lords_levee");
             assert!(tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("m'lord")),
                 "the tenant never deferred to rank: {:?}", tr.lines());
         }
         // The merchant keeps the ledger instead
         let mut ra = Rng::new(0);
-        let tr = converse(&merchant, &laborer, Relation::Acquaintance, &library, None, &mut ra);
+        let tr = converse(&merchant, &laborer, Relation::Acquaintance, None, &library, None, &mut ra);
         assert_eq!(tr.trees_walked[0], "the_merchants_ledger");
         // And the way up still runs through the manor
         let mut ra = Rng::new(0);
-        let tr = converse(&laborer, &lord, Relation::Acquaintance, &library, None, &mut ra);
+        let tr = converse(&laborer, &lord, Relation::Acquaintance, None, &library, None, &mut ra);
         assert_eq!(tr.trees_walked[0], "lord_manor");
     }
 
@@ -2296,7 +4067,7 @@ mod tests {
         // still carry the manor's address
         for seed in 0..10 {
             let mut ra = Rng::new(seed);
-            let tr = converse(&sick_lord, &tenant, Relation::Acquaintance, &library, None, &mut ra);
+            let tr = converse(&sick_lord, &tenant, Relation::Acquaintance, None, &library, None, &mut ra);
             assert_eq!(tr.trees_walked[0], "the_sickness");
             assert!(tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("m'lord")),
                 "no deference in the tenant's replies: {:?}", tr.lines());
@@ -2343,13 +4114,13 @@ mod tests {
         let mut work_seen = false;
         for seed in 0..20 {
             let mut ra = Rng::new(seed);
-            let tr = converse(&hand, &smith, Relation::Acquaintance, &library, None, &mut ra);
+            let tr = converse(&hand, &smith, Relation::Acquaintance, None, &library, None, &mut ra);
             if tr.turns.iter().any(|t| t.text.contains("forge")) {
                 work_seen = true;
                 break;
             }
             let mut ra = Rng::new(seed);
-            let tr = converse(&hand, &fisher, Relation::Acquaintance, &library, None, &mut ra);
+            let tr = converse(&hand, &fisher, Relation::Acquaintance, None, &library, None, &mut ra);
             if tr.turns.iter().any(|t| t.text.contains("weir")) {
                 work_seen = true;
                 break;
@@ -2361,9 +4132,9 @@ mod tests {
         let mut diffs = 0;
         for seed in 0..20 {
             let mut ra = Rng::new(seed);
-            let a = converse(&hand, &smith, Relation::Acquaintance, &library, None, &mut ra);
+            let a = converse(&hand, &smith, Relation::Acquaintance, None, &library, None, &mut ra);
             let mut rb = Rng::new(seed);
-            let b = converse(&hand, &fisher, Relation::Acquaintance, &library, None, &mut rb);
+            let b = converse(&hand, &fisher, Relation::Acquaintance, None, &library, None, &mut rb);
             if a.lines() != b.lines() { diffs += 1; }
         }
         assert!(diffs > 0, "smith and fisher talks were identical on every seed");
@@ -2375,12 +4146,23 @@ mod tests {
         caller.status.push("sick"); // a status tree to lose, so depth shows
         let probe = probe_for(&caller);
         let you = Speaker::new("Wanderer");
+        // the offered previews are realized text (E4-4): match them
+        // against the pools realized with the pair's own patch
+        let mut yours = you.clone();
+        let mut theirs = caller.clone();
+        yours.rel = rel;
+        theirs.rel = rel;
+        yours.tv = crate::game::text::tv_for(&yours, &theirs, rel,
+            matches!(rel, Relation::Rival));
+        let cx = crate::game::text::Cx::plain(&yours, &theirs, &[]);
         // at the audition - both options drawn from the probe's two
         // pools - pick the landing or the wrong note as asked
-        converse_with(&caller, &you, rel, &village_library(), None, 1,
+        converse_with(&caller, &you, rel, None, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if let Some(p) = probe {
-                    let in_pool = |c: &Choice, pool: &[&'static str]| pool.iter().any(|l| *l == c.preview);
+                    let in_pool = |c: &Choice, pool: &[&'static str]| pool.iter()
+                        .any(|l| crate::game::text::realize(l, &cx,
+                            &mut Rng::new(0)) == c.preview);
                     if ch.iter().all(|c| in_pool(c, p.pass.1) || in_pool(c, p.fail.1)) {
                         let wanted = if pass { p.pass.1 } else { p.fail.1 };
                         return ch.iter().position(|c| in_pool(c, wanted));
@@ -2419,7 +4201,19 @@ mod tests {
             let tr = audition_talk(&[p.who], Relation::Acquaintance, true);
             assert!(tr.trees_walked.contains(&PROBE_TREE), "{:?} never probed", p.who);
             let call = tr.turns.iter().find(|t| t.tree == PROBE_TREE && t.speaker == 0).unwrap();
-            assert!(p.calls.contains(&call.text.as_str()), "{:?}: {:?} not theirs", p.who, call.text);
+            // the call on the record is realized text - compare like to
+            // like with the caller's own pair patch (E4-4)
+            let mut hob = Speaker::new("Hob");
+            hob.traits = vec![p.who];
+            hob.status.push("sick");
+            let you = Speaker::new("Wanderer");
+            hob.rel = Relation::Acquaintance;
+            hob.tv = crate::game::text::tv_for(&hob, &you, Relation::Acquaintance, false);
+            let cx = crate::game::text::Cx::plain(&hob, &you, &[]);
+            let calls: Vec<String> = p.calls.iter()
+                .map(|l| crate::game::text::realize(l, &cx, &mut Rng::new(0)))
+                .collect();
+            assert!(calls.contains(&call.text), "{:?}: {:?} not theirs", p.who, call.text);
         }
         let none = audition_talk(&[], Relation::Acquaintance, true);
         assert!(!none.trees_walked.contains(&PROBE_TREE));
@@ -2437,7 +4231,7 @@ mod tests {
         // and nobody probes a villager-to-villager talk
         let mut a = Speaker::new("Hob");
         a.traits = vec![Trait::Pious];
-        let tr = converse(&a, &Speaker::new("Tilda"), Relation::Acquaintance,
+        let tr = converse(&a, &Speaker::new("Tilda"), Relation::Acquaintance, None,
             &village_library(), None, &mut Rng::new(7));
         assert!(!tr.trees_walked.contains(&PROBE_TREE));
     }
@@ -2455,14 +4249,22 @@ mod tests {
         assert_eq!(miss.vibe, Some(Vibe::Mismatch));
     }
 
+    /// An acquaintance who'll share the personal layer (E3-2): warm
+    /// enough for tier 2, three talks in, unheard
+    fn warm_open() -> Open {
+        Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4, safety: 0.5,
+            mood: 0.0, talks: 3, earshot: false, shared: 1 }
+    }
+
     fn ask_talk(status: &'static str, want: &[&'static str]) -> Transcript {
         // a talk where your picks follow the wanted previews, falling
         // to the first option when none of them's showing
         let mut caller = Speaker::new("Hob");
         caller.status.push(status);
+        caller.open = warm_open();
         let you = Speaker::new("Wanderer");
         let mut queue: Vec<&'static str> = want.to_vec();
-        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
+        converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if let Some(&w) = queue.first() {
                     if let Some(i) = ch.iter().position(|c| c.preview == w) {
@@ -2499,7 +4301,7 @@ mod tests {
         caller.status.push("sick");
         let you = Speaker::new("Wanderer");
         let mut first_seen = false;
-        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
+        converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if !first_seen {
                     first_seen = true;
@@ -2524,12 +4326,13 @@ mod tests {
         ] {
             let mut caller = Speaker::new("Hob");
             caller.status.push(status);
+            caller.open = warm_open();
             let you = Speaker::new("Wanderer");
             // some status talks run dry before a second beat - try a
             // few seeds until one lives long enough to open the menu
             let mut menu: Vec<String> = vec![];
             for seed in 0..20 {
-                converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
+                converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
                     &mut |ch: &[Choice]| {
                         if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
                             if menu.is_empty() {
@@ -2559,10 +4362,11 @@ mod tests {
         // the rest of the talk (#1189)
         let mut caller = Speaker::new("Hob");
         caller.status.push("sick");
+        caller.open = warm_open();
         let you = Speaker::new("Wanderer");
         let mut menus: Vec<Vec<String>> = vec![];
         let mut took_sick = false;
-        converse_with(&caller, &you, Relation::Acquaintance, &village_library(), None, 1,
+        converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
             &mut |ch: &[Choice]| {
                 if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
                     menus.push(ch.iter().map(|c| c.preview.clone()).collect());
@@ -2583,8 +4387,8 @@ mod tests {
     // --- the hog: a villager who never trades, only talks (#1252) ---
 
     fn reply(act: Act) -> Reply {
-        Reply { criteria: &[], weight: 1.0, bias: &[], act, concepts: &[],
-            lines: &["x"], voice: &[], then: None, end: None }
+        Reply { criteria: &[], weight: 1.0, bias: &[], act, respond: None,
+            concepts: &[], lines: &["x"], voice: &[], then: None, end: None }
     }
 
     #[test]
@@ -2653,6 +4457,7 @@ mod tests {
             calls: &["Morrow to thee."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                respond: None,
                 concepts: &["farewell"], lines: &["I must be on my way."],
                 voice: &[], then: None, end: Some(Ending::Farewell),
             }],
@@ -2662,6 +4467,7 @@ mod tests {
             calls: &["Looks like rain again."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &["weather"], lines: &["Aye, grey all week."],
                 voice: &[], then: None, end: Some(Ending::Farewell),
             }],
@@ -2672,7 +4478,7 @@ mod tests {
             name: "chattier", criteria: &[], root: &CHAT, rejoin: Some(&CHAT) };
         for seed in 0..10 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[EARLY, TAIL], None, &mut Rng::new(seed));
+                Relation::Acquaintance, None, &[EARLY, TAIL], None, &mut Rng::new(seed));
             assert_eq!(tr.turns[1].act, Act::Remark,
                 "the talk moved to the livelier tree, not the early goodbye");
             assert!(tr.turns.iter().take(2).all(|t| t.act != Act::Farewell),
@@ -2682,7 +4488,7 @@ mod tests {
         // trade a hello for a goodbye
         for seed in 0..5 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[EARLY], None, &mut Rng::new(seed));
+                Relation::Acquaintance, None, &[EARLY], None, &mut Rng::new(seed));
             assert_eq!(tr.turns.len(), 1, "the hello stands alone: {:?}", tr.turns.len());
             assert_eq!(tr.ending, Some(Ending::Exhausted));
         }
@@ -2701,6 +4507,7 @@ mod tests {
             voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &["weather"],
                 lines: &["Aye, that it is.", "So it is.", "Truth in that.",
                     "Can't argue.", "Aye, neighbor.", "Indeed.", "Hmm, aye.",
@@ -2712,7 +4519,7 @@ mod tests {
             name: "loop", criteria: &[], root: &LOOP, rejoin: None };
         for seed in 0..10 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[LOOP_TREE], None, &mut Rng::new(seed));
+                Relation::Acquaintance, None, &[LOOP_TREE], None, &mut Rng::new(seed));
             assert!(tr.turns.len() <= AMBIENT_MAX_TURNS,
                 "the doldrums end it before the cap: {} turns", tr.turns.len());
             assert_eq!(tr.ending, Some(Ending::Exhausted),
@@ -2735,7 +4542,7 @@ mod tests {
                         Relation::Friend, Relation::Kin, Relation::Rival] {
                 let a = Speaker::new(names[rng.below(names.len())]);
                 let b = Speaker::new(names[rng.below(names.len())]);
-                let tr = converse(&a, &b, rel, &library, None, &mut rng);
+                let tr = converse(&a, &b, rel, None, &library, None, &mut rng);
                 assert!(tr.turns.len() <= AMBIENT_MAX_TURNS,
                     "an ambient talk stays inside its cap: {}", tr.turns.len());
                 for w in tr.turns.windows(2) {
@@ -2759,6 +4566,7 @@ mod tests {
             calls: &["Hast thou seen the miller?"], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                respond: None,
                 concepts: &[], lines: &["Fare thee well."], voice: &[],
                 then: None, end: Some(Ending::Farewell),
             }],
@@ -2768,7 +4576,7 @@ mod tests {
         };
         for seed in 0..10 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[Q_TREE], None, &mut Rng::new(seed));
+                Relation::Acquaintance, None, &[Q_TREE], None, &mut Rng::new(seed));
             assert_eq!(tr.turns.len(), 1,
                 "nobody could answer but a reply was spoken: {:?}",
                 tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
@@ -2781,11 +4589,13 @@ mod tests {
             replies: &[
                 Reply {
                     criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                    respond: None,
                     concepts: &[], lines: &["Fare thee well."], voice: &[],
                     then: None, end: Some(Ending::Farewell),
                 },
                 Reply {
                     criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                    respond: None,
                     concepts: &[], lines: &["The mill sees whom it sees."], voice: &[],
                     then: None, end: None,
                 },
@@ -2796,7 +4606,7 @@ mod tests {
         };
         for seed in 0..10 {
             let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-                Relation::Acquaintance, &[D_TREE], None, &mut Rng::new(seed));
+                Relation::Acquaintance, None, &[D_TREE], None, &mut Rng::new(seed));
             assert_eq!(tr.turns[1].act, Act::Remark,
                 "the remark was the only answer on offer: {:?}", tr.turns[1].text);
         }
@@ -2809,6 +4619,7 @@ mod tests {
             calls: &["A fair morning to thee."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+                respond: None,
                 concepts: &[], lines: &["And to thee."], voice: &[],
                 then: None, end: Some(Ending::Farewell),
             }],
@@ -2818,6 +4629,7 @@ mod tests {
             calls: &["The lane's all mud."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &[], lines: &["Every year about now."], voice: &[],
                 then: Some(CLOSING), end: None,
             }],
@@ -2827,6 +4639,7 @@ mod tests {
             calls: &["Grey sky again."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &[], lines: &["Aye, all week."], voice: &[],
                 then: Some(MID), end: None,
             }],
@@ -2835,7 +4648,7 @@ mod tests {
             name: "r_closing", criteria: &[], root: &OPENER, rejoin: None,
         };
         let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-            Relation::Acquaintance, &[C_TREE], None, &mut Rng::new(1));
+            Relation::Acquaintance, None, &[C_TREE], None, &mut Rng::new(1));
         assert_eq!(tr.turns.last().unwrap().act, Act::Farewell);
         assert_eq!(tr.ending, Some(Ending::Farewell));
     }
@@ -2860,7 +4673,7 @@ mod tests {
             let b = Speaker::new(names[rng.below(names.len())]);
             let rel = [Relation::Stranger, Relation::Acquaintance,
                        Relation::Friend, Relation::Rival][rng.below(4)];
-            let tr = converse(&a, &b, rel, &library, Some(&recent), &mut rng);
+            let tr = converse(&a, &b, rel, None, &library, Some(&recent), &mut rng);
             for turn in &tr.turns {
                 let Some(l) = turn.line else { continue };
                 if recent.contains(l) && !crate::game::dialogue_trees::STOCK_LINES.contains(&l)
@@ -2885,6 +4698,7 @@ mod tests {
             calls: &["Grey sky again."], voice: &[],
             replies: &[Reply {
                 criteria: &[], weight: 1.0, bias: &[], act: Act::Remark,
+                respond: None,
                 concepts: &[], lines: &["Aye, all week."], voice: &[],
                 then: None, end: None,
             }],
@@ -2894,8 +4708,879 @@ mod tests {
         };
         let recent: HashSet<&'static str> = ["Grey sky again.", "Aye, all week."].into_iter().collect();
         let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
-            Relation::Acquaintance, &[WORN_TREE], Some(&recent), &mut Rng::new(3));
+            Relation::Acquaintance, None, &[WORN_TREE], Some(&recent), &mut Rng::new(3));
         assert_eq!(tr.turns.len(), 2,
             "a dry pool still speaks what it has: {:?}", tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+}
+
+#[cfg(test)]
+mod e3_2 {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+
+    /// The spec formula itself, and the rung of it a pair reaches
+    #[test]
+    fn the_formula_reads_the_parts() {
+        let o = Open { intimacy: 0.6, benevolence: 0.4, integrity: 0.5,
+            safety: 0.5, mood: 0.5, talks: 0, earshot: false, shared: 2 };
+        // .30*.6 + .25*.4 + .20*.5 + .15*.5 + .10*.5 = .505
+        assert!((o.reach() - 0.505).abs() < 1e-6, "{}", o.reach());
+        // ears near cost the exposure term
+        let x = Open { earshot: true, ..o };
+        assert!((x.reach() - 0.305).abs() < 1e-6);
+        // and the tiers stand where the spec puts them
+        assert!(o.reached(2, false, false, false));
+        assert!(!x.reached(2, false, false, false), "ears close the private layer");
+        assert!(!o.reached(3, false, false, false));
+        let deep = Open { intimacy: 1.0, benevolence: 1.0, integrity: 1.0,
+            safety: 1.0, mood: 1.0, talks: 9, earshot: false, shared: 2 };
+        assert!(deep.reached(3, false, false, false));
+        assert!(!Open { earshot: true, ..deep }.reached(3, false, false, false),
+            "the core never opens with ears near");
+        // a guarded one asks more of the core; a talkative one meets sooner
+        let shy = Open { intimacy: 0.6, benevolence: 1.0, integrity: 0.5,
+            safety: 1.0, mood: 1.0, talks: 9, earshot: false, shared: 2 };
+        assert!(shy.reached(3, false, false, false), "reach .78 opens the core");
+        assert!(!shy.reached(3, false, true, false), "guarded raises the core bar");
+        assert!(!Open::default().reached(1, false, false, false));
+        assert!(Open { talks: 1, ..Open::default() }.reached(1, true, false, false),
+            "a talkative one opens the personal after a single talk");
+        assert!(Open { talks: 2, ..Open::default() }.reached(1, false, false, false));
+    }
+
+    /// the pair's openness lands on the asked-about's own facts, the
+    /// criteria a topic's tier reads
+    #[test]
+    fn the_open_facts_say_what_reaches() {
+        let mut s = Speaker::new("Hob");
+        s.open = Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4,
+            safety: 0.5, mood: 0.0, talks: 3, earshot: false, shared: 1 };
+        let f = Facts::for_roles(&s, &Speaker::new("Wanderer"), Relation::Friend);
+        assert!(f.has("self:open:heart:2"), "warm enough for the private layer");
+        assert!(f.has("self:open:village:1"));
+        assert!(f.has("self:open:village:0"), "the public layer never closes");
+        assert!(f.has("self:closed:heart:3"), "the core stays shut");
+        // a stranger's facts are all closed past public
+        let cold = Facts::for_roles(&Speaker::new("Nog"), &Speaker::new("Pell"), Relation::Stranger);
+        assert!(cold.has("self:open:village:0"), "public still lists for a stranger");
+        assert!(cold.has("self:closed:trouble:2"));
+        assert!(!cold.has("self:open:work:1"));
+    }
+
+    /// a topic above the pair's openness never fires (the done-when):
+    /// their grief stays off the open menu for someone barely known -
+    /// and the named-tell ask that can't carry deflects instead
+    #[test]
+    fn a_too_deep_topic_never_fires() {
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("grieving");
+        caller.open = Open { talks: 1, ..Open::default() };
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                    return ch.iter().position(|c| c.preview == "Ask about their grief")
+                        .or_else(|| ch.iter().position(|c| c.preview == "Say nothing of it"));
+                }
+                ch.iter().position(|c| c.preview == "Put a question to them")
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
+        assert_eq!(tr.vibe, Some(Vibe::Mismatch), "{:?}", tr.lines());
+        assert!(tr.forward >= 1);
+        assert!(tr.asked.is_empty(), "a deflected ask never draws: {:?}", tr.asked);
+        assert!(tr.turns.iter().any(|t| t.line.map(|l| DEFLECTED.contains(&l)).unwrap_or(false)),
+            "no turn-aside on the record: {:?}", tr.lines());
+    }
+
+    /// naming a tell the asker saw earns the bonus: grief worn openly
+    /// opens what the bare reach wouldn't
+    #[test]
+    fn a_named_tell_opens_the_tier() {
+        // just under the private bar: .15 + .10 + .04 = .29 closed;
+        // the .2 bonus carries it
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("grieving");
+        caller.open = Open { intimacy: 0.5, benevolence: 0.4, integrity: 0.2,
+            safety: 0.0, mood: 0.0, talks: 3, earshot: false, shared: 1 };
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                    return ch.iter().position(|c| c.preview == "Ask about their grief")
+                        .or_else(|| ch.iter().position(|c| c.preview == "Say nothing of it"));
+                }
+                ch.iter().position(|c| c.preview == "Put a question to them")
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
+        assert_eq!(tr.forward, 0, "{:?}", tr.lines());
+        assert_eq!(tr.asked, vec!["their grief"], "{:?}", tr.lines());
+    }
+
+    /// nothing unseen opens the named ask: a closed area with no wear
+    /// showing simply isn't on the menu at all
+    #[test]
+    fn no_tell_no_named_ask() {
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("keeps_secret");
+        caller.open = Open::default();
+        let you = Speaker::new("Wanderer");
+        let mut saw_menu = false;
+        for seed in 0..20 {
+            converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
+                &mut |ch: &[Choice]| {
+                    if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                        saw_menu = true;
+                        assert!(ch.iter().any(|c| c.preview == "Ask about the village"
+                            || c.preview == "Ask about the day's work"),
+                            "the public layer didn't list: {:?}",
+                            ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
+                        // the public layer lists for anyone; what weighs
+                        // on them and the tier-3 secret ask are closed
+                        // but the kept secret's own wear tells on them
+                        // (E3-4); everything else closed and tell-less
+                        // stays off
+                        assert!(ch.iter().all(|c| c.preview == "Say nothing of it"
+                            || c.preview == "Ask about the village"
+                            || c.preview == "Ask about the day's work"
+                            || c.preview == "Ask about what weighs on them"
+                            || c.preview == "Ask about what they never told"),
+                            "a closed tell-less ask listed: {:?}",
+                            ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
+                        return ch.iter().position(|c| c.preview == "Say nothing of it");
+                    }
+                    ch.iter().position(|c| c.preview == "Put a question to them")
+                        .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+                }, &mut Rng::new(7 + seed));
+            if saw_menu { break; }
+        }
+        assert!(saw_menu, "the ask slot never opened");
+    }
+}
+
+#[cfg(test)]
+mod e3_2_tells {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+
+    /// a tell names only the deep asks: grief worn openly can't stand
+    /// in for time spent - the stranger's "themselves" stays off the
+    /// menu while the grief's own question lists
+    #[test]
+    fn a_tell_names_only_the_deep_asks() {
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("grieving");
+        caller.open = Open::default();
+        let you = Speaker::new("Wanderer");
+        let mut saw_menu = false;
+        for seed in 0..30 {
+            converse_with(&caller, &you, Relation::Stranger, None, &village_library(), None, 1,
+                &mut |ch: &[Choice]| {
+                    if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                        saw_menu = true;
+                        assert!(ch.iter().all(|c| c.preview != "Ask about themselves"),
+                            "a tell bought the personal layer: {:?}",
+                            ch.iter().map(|c| &c.preview).collect::<Vec<_>>());
+                        return ch.iter().position(|c| c.preview == "Say nothing of it");
+                    }
+                    ch.iter().position(|c| c.preview == "Put a question to them")
+                        .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+                }, &mut Rng::new(11 + seed));
+            if saw_menu { break; }
+        }
+        assert!(saw_menu, "the ask slot never opened");
+    }
+}
+
+#[cfg(test)]
+mod e3_3 {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+
+    /// a reply's tag resolves at the pick and the chat's warmth reads
+    /// it (E3-3): care warms past reflection, a deflection chills what
+    /// an agreeable answer would have warmed
+    #[test]
+    fn the_tags_say_how_the_answer_landed() {
+        let tr = |tag: Option<Respond>| Transcript {
+            speakers: ["A".into(), "B".into()], trees_walked: vec![],
+            turns: vec![Turn { speaker: 0, act: Act::Question, respond: None,
+                    text: "q".into(), concepts: vec![], tree: "t", line: None,
+                    channel: crate::game::setting::Channel::Public },
+                Turn { speaker: 1, act: Act::Answer, respond: tag,
+                    text: "a".into(), concepts: vec![], tree: "t", line: None,
+                    channel: crate::game::setting::Channel::Public }],
+            ending: Some(Ending::Farewell), vibe: None, asked: vec![],
+            forward: 0, evasions: vec![], worry_told: None, slips: vec![], jokes: vec![], shared: 0, overshot: false,
+            setting: crate::game::setting::STREET };
+        assert!(chat_temp(&tr(Some(Respond::Care))) > chat_temp(&tr(Some(Respond::Reflect))));
+        assert!(chat_temp(&tr(Some(Respond::Deflect))) < chat_temp(&tr(None)),
+            "a deflection reads colder than a bare answer");
+        // and the untagged derive from the act
+        assert_eq!(respond_of(Act::Answer), Respond::Reflect);
+        assert_eq!(respond_of(Act::PushBack), Respond::Deflect);
+        assert_eq!(respond_of(Act::Question), Respond::PivotAsk);
+    }
+
+    /// the gate wants reciprocation, not just warmth (E3-3): a bond
+    /// warm but never told anything stalls at the personal layer
+    #[test]
+    fn warmth_without_sharing_stalls() {
+        let warm = Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.5,
+            safety: 0.5, mood: 0.0, talks: 3, earshot: false, shared: 0 };
+        assert!(!warm.reached(2, false, false, false),
+            "the private layer wants something of yourself back");
+        assert!(Open { shared: 1, ..warm }.reached(2, false, false, false));
+        assert!(!Open { shared: 1, ..warm }.reached(3, false, false, false),
+            "the core wants it mutual - two landings, not one");
+        let deep = Open { shared: 2, ..warm };
+        assert!(deep.reached(2, false, false, false));
+    }
+
+    /// answering their audition tells of yourself (E3-3): when the pair
+    /// can hold it, the telling lands and the count rises
+    #[test]
+    fn an_answered_probe_counts_as_sharing() {
+        let mut caller = Speaker::new("Hob");
+        caller.traits.push(Trait::Stingy);
+        caller.open = Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4,
+            safety: 0.5, mood: 0.0, talks: 3, earshot: false, shared: 0 };
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                ch.iter().position(|c| matches!(c.act, Act::Agree | Act::Answer))
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
+        assert!(tr.shared >= 1, "the told tale landed: {:?}", tr.lines());
+        assert!(tr.turns.iter().any(|t| t.respond.is_some()),
+            "the replies carry their tags: {:?}", tr.lines());
+    }
+
+    /// the same telling to a cold pair reads as strange (E3-3): a
+    /// stranger has no warmth to hold it, so it overshoots
+    #[test]
+    fn a_telling_past_the_bond_overshoots() {
+        let mut caller = Speaker::new("Hob");
+        caller.traits.push(Trait::Stingy);
+        caller.open = Open::default();
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Stranger, None, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                ch.iter().position(|c| matches!(c.act, Act::Agree | Act::Answer))
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
+        assert_eq!(tr.shared, 0, "nothing landed: {:?}", tr.lines());
+        assert!(tr.overshot, "the stranger found it strange");
+    }
+
+    /// the fine bond rides the facts (#1372): a lover's pair facts carry
+    /// `pair:kind:lover` beside the coarse `pair:relation:kin`, and a
+    /// kind-less caller gets the coarse set alone
+    #[test]
+    fn the_finer_bond_rides_the_facts() {
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        let f = Facts::for_roles_kind(&a, &b, Relation::Kin, Some(RelKind::Lover));
+        assert!(f.has("pair:kind:lover"));
+        assert!(f.has("pair:relation:kin"), "the coarse fact stays for the old trees");
+        assert!(!f.has("pair:kind:family"));
+        let plain = Facts::for_roles_kind(&a, &b, Relation::Acquaintance, None);
+        assert!(plain.has("pair:relation:acquaintance"));
+        assert!(!plain.has("pair:kind:acquaintance"), "no kind, no kind fact");
+    }
+
+    /// a sweetheart opens on sweetheart material (#1372): the kind tree
+    /// walks first for a lover pair and its words read as a lover's,
+    /// not a friend's; the same pair kind-less never hears it
+    #[test]
+    fn a_sweetheart_speaks_as_a_sweetheart() {
+        let a = Speaker::new("Mahelt");
+        let b = Speaker::new("Terrice");
+        let tr = converse(&a, &b, Relation::Kin, Some(RelKind::Lover),
+            &village_library(), None, &mut Rng::new(11));
+        assert_eq!(tr.trees_walked[0], "sweetheart_beat", "{:?}", tr.trees_walked);
+        assert!(tr.turns.iter().any(|t| t.concepts.contains(&"bond:lover")),
+            "the lover's beat landed: {:?}", tr.lines());
+        let plain = converse(&a, &b, Relation::Kin, None,
+            &village_library(), None, &mut Rng::new(11));
+        assert!(!plain.trees_walked.contains(&"sweetheart_beat"),
+            "kind-less pairs never hear it: {:?}", plain.trees_walked);
+    }
+
+    /// the same for the teacher and the learner (#1372): mentor and
+    /// apprentice each get their register, not the acquaintance's
+    #[test]
+    fn a_mentor_speaks_as_a_mentor() {
+        let a = Speaker::new("Old Pell");
+        let b = Speaker::new("Young Nog");
+        let tr = converse(&a, &b, Relation::Acquaintance, Some(RelKind::Mentor),
+            &village_library(), None, &mut Rng::new(11));
+        assert!(tr.trees_walked.contains(&"mentor_counsel"), "{:?}", tr.trees_walked);
+        let tr = converse(&b, &a, Relation::Acquaintance, Some(RelKind::Apprentice),
+            &village_library(), None, &mut Rng::new(11));
+        assert!(tr.trees_walked.contains(&"apprentice_eager"), "{:?}", tr.trees_walked);
+    }
+
+    /// and blood reads as blood (#1372): family pairs get the kin beat
+    /// that is theirs, distinct from a sweetheart's
+    #[test]
+    fn a_cousin_speaks_as_kin() {
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        let tr = converse(&a, &b, Relation::Kin, Some(RelKind::Family),
+            &village_library(), None, &mut Rng::new(11));
+        assert_eq!(tr.trees_walked[0], "blood_kin", "{:?}", tr.trees_walked);
+    }
+
+    /// the two transcripts (E5-9, #1446): the setting rides the facts -
+    /// `pair:place:*` always, `pair:channel:*` picked by the place, the
+    /// law's ear, and the bond's way in
+    #[test]
+    fn the_setting_rides_the_facts() {
+        use crate::game::setting::{Place, Setting};
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        // the law's ear flips an invited backstage room public again
+        let heard = Facts::for_roles_setting(&a, &b, Relation::Friend, None,
+            &Setting { place: Place::Alehouse, law_earshot: true, invited: true });
+        assert!(heard.has("pair:place:alehouse"));
+        assert!(heard.has("pair:channel:public"), "the ear turns it public");
+        assert!(heard.has("pair:earshot:law"));
+        // the same room, no ear, the bond's bought the way in
+        let hushed = Facts::for_roles_setting(&a, &b, Relation::Friend, None,
+            &Setting { place: Place::Alehouse, law_earshot: false, invited: true });
+        assert!(hushed.has("pair:channel:backstage"));
+        // a stranger at the same table still hears the street voice
+        let cold = Facts::for_roles_setting(&a, &b, Relation::Stranger, None,
+            &Setting { place: Place::Alehouse, law_earshot: false, invited: false });
+        assert!(cold.has("pair:channel:public"), "the invitation's the gate");
+        // and the market's public whatever the bond
+        let square = Facts::for_roles_setting(&a, &b, Relation::Kin, None,
+            &Setting { place: Place::Market, law_earshot: false, invited: true });
+        assert!(square.has("pair:place:market"));
+        assert!(square.has("pair:channel:public"));
+    }
+
+    /// the bond itself is the invitation (E5-9, #1446): friends and kin
+    /// are let backstage without the caller asking - the same alehouse
+    /// keeps a stranger at the street voice
+    #[test]
+    fn the_bond_is_the_invitation() {
+        use crate::game::setting::{Channel, Place, Setting};
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        let lib = village_library();
+        let corner = Setting { place: Place::Alehouse, law_earshot: false, invited: false };
+        let warm = converse_at(&a, &b, Relation::Friend, None, &lib, None,
+            &corner, &mut Rng::new(3));
+        assert_eq!(warm.setting.channel(), Channel::Backstage);
+        assert!(warm.turns.iter().all(|t| t.channel == Channel::Backstage));
+        let cold = converse_at(&a, &b, Relation::Stranger, None, &lib, None,
+            &corner, &mut Rng::new(3));
+        assert_eq!(cold.setting.channel(), Channel::Public,
+            "a stranger gets the street voice even at the table");
+    }
+
+    /// the same pair, the same seed (E5-9, #1446): in the market the
+    /// talk defers; invited backstage it bites - the hidden transcript
+    /// reads differently and the turns carry which face each was said in
+    #[test]
+    fn the_place_picks_the_transcript() {
+        use crate::game::setting::{Channel, Place, Setting};
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        let lib = village_library();
+        let square = Setting { place: Place::Market, law_earshot: false, invited: false };
+        // an acquaintance let backstage the other way - the safety
+        // rung's Challenger, which the engine can't see from the rel
+        let corner = Setting { place: Place::Alehouse, law_earshot: false, invited: true };
+        let mut differ = 0;
+        for seed in 1..10 {
+            let front = converse_at(&a, &b, Relation::Acquaintance, None, &lib, None,
+                &square, &mut Rng::new(seed));
+            let back = converse_at(&a, &b, Relation::Acquaintance, None, &lib, None,
+                &corner, &mut Rng::new(seed));
+            assert_eq!(front.setting.channel(), Channel::Public);
+            assert_eq!(back.setting.channel(), Channel::Backstage);
+            assert!(front.turns.iter().all(|t| t.channel == Channel::Public));
+            assert!(back.turns.iter().all(|t| t.channel == Channel::Backstage));
+            if front.lines() != back.lines() { differ += 1; }
+        }
+        assert!(differ > 0, "the hidden transcript should read differently");
+    }
+}
+
+#[cfg(test)]
+mod e5_3 {
+    use super::*;
+    use crate::game::desires::{Problem, Reveal};
+    use crate::game::dialogue_trees::village_library;
+
+    /// Drive a player talk to its parting: take the worry menu's marked
+    /// pick when the doorknob shows, the farewell once the talk's run
+    /// dry, the first live reply otherwise
+    fn drive_to_door(caller: &Speaker, you: &Speaker, pick: &str, seed: u64) -> Transcript {
+        converse_with(caller, you, Relation::Acquaintance, None,
+            &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                ch.iter().position(|c| c.preview == pick)
+                    .or_else(|| ch.iter().position(|c| c.act == Act::Farewell))
+                    .or(Some(0))
+            }, &mut Rng::new(seed))
+    }
+
+    /// the doorknob (E5-3): as the talk heads out, the caller's worry
+    /// rides in ahead of the farewell line - one last question at the
+    /// door
+    #[test]
+    fn a_worry_rides_in_ahead_of_the_goodbye() {
+        let mut caller = Speaker::new("Hob");
+        caller.worry = Some(Reveal::Problem(Problem::Taxed));
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..30 {
+            let tr = drive_to_door(&caller, &you, "Answer plainly", seed);
+            if let Some(wi) = tr.turns.iter().position(|t| t.act == Act::Worry) {
+                saw = true;
+                assert_eq!(tr.turns[wi].speaker, 0, "the caller's worry");
+                assert_eq!(tr.turns[wi].tree, WORRY_TREE);
+                let fi = tr.turns.iter().position(|t| t.act == Act::Farewell).unwrap();
+                assert!(wi < fi, "the worry comes before the goodbye: {:?}", tr.lines());
+            }
+        }
+        assert!(saw, "the doorknob never fired in 30 seeds");
+    }
+
+    /// the done-when (E5-3): asking why opens the tier whenever the
+    /// pair's openness allows - the fear's told and lands for the
+    /// session to hear
+    #[test]
+    fn asking_why_opens_the_tier_when_openness_allows() {
+        let mut caller = Speaker::new("Hob");
+        caller.worry = Some(Reveal::Problem(Problem::Taxed));
+        caller.open = Open { intimacy: 0.7, benevolence: 0.6, integrity: 0.6,
+            safety: 0.6, mood: 0.0, talks: 4, earshot: false, shared: 2 };
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..30 {
+            let tr = drive_to_door(&caller, &you, "Ask why", seed);
+            if tr.turns.iter().any(|t| t.act == Act::Worry) {
+                saw = true;
+                assert_eq!(tr.worry_told, Some(Reveal::Problem(Problem::Taxed)),
+                    "{:?}", tr.lines());
+                assert!(tr.evasions.is_empty(), "no turn-aside: {:?}", tr.lines());
+                let why = tr.turns.iter().position(|t| t.line.map(|l| WORRY_WHY.contains(&l)).unwrap_or(false)).unwrap();
+                assert!(tr.turns[why + 1..].iter().any(|t| t.speaker == 0
+                    && t.act == Act::Answer && t.tree == WORRY_TREE),
+                    "the truth came out: {:?}", tr.lines());
+            }
+        }
+        assert!(saw, "the doorknob never fired in 30 seeds");
+    }
+
+    /// a door that stays shut is its own tell (E5-3 / E5-2): the why
+    /// asked past the pair's openness gets turned aside, and the
+    /// turn-aside counts on the ledger by the area it stood over
+    #[test]
+    fn a_shut_door_is_itself_a_tell() {
+        let mut caller = Speaker::new("Hob");
+        caller.worry = Some(Reveal::Problem(Problem::Taxed));
+        caller.open = Open::default();
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..30 {
+            let tr = drive_to_door(&caller, &you, "Ask why", seed);
+            if tr.turns.iter().any(|t| t.act == Act::Worry) {
+                saw = true;
+                assert_eq!(tr.worry_told, None, "{:?}", tr.lines());
+                assert!(tr.evasions.contains(&(0, Area::Trouble)),
+                    "the evasion counts under its area: {:?}", tr.lines());
+                assert!(tr.turns.iter().any(|t| t.act == Act::Evade
+                    && t.tree == WORRY_TREE), "{:?}", tr.lines());
+            }
+        }
+        assert!(saw, "the doorknob never fired in 30 seeds");
+    }
+
+    /// the plain answers (E5-3): answer plainly rides the talk neutral;
+    /// reassure carries the care tag the chat's warmth reads
+    #[test]
+    fn an_answer_or_a_kind_word_closes_the_door() {
+        let mut caller = Speaker::new("Hob");
+        caller.worry = Some(Reveal::Want(crate::game::desires::Want::GoodFood));
+        let you = Speaker::new("Wanderer");
+        let (mut answered, mut soothed) = (false, false);
+        for seed in 0..40 {
+            let tr = drive_to_door(&caller, &you, "Answer plainly", seed);
+            if tr.turns.iter().any(|t| t.act == Act::Worry) {
+                answered = true;
+                assert_eq!(tr.worry_told, None);
+                assert!(tr.evasions.is_empty());
+                assert!(tr.turns.iter().any(|t| t.speaker == 1
+                    && t.act == Act::Answer && t.tree == WORRY_TREE), "{:?}", tr.lines());
+            }
+            let tr = drive_to_door(&caller, &you, "Reassure them", seed);
+            if tr.turns.iter().any(|t| t.act == Act::Worry) {
+                soothed = true;
+                assert_eq!(tr.worry_told, None);
+                assert!(tr.turns.iter().any(|t| t.speaker == 1
+                    && t.act == Act::Agree && t.respond == Some(Respond::Care)),
+                    "the kind word carries the warmth tag: {:?}", tr.lines());
+            }
+        }
+        assert!(answered && soothed, "the doorknob never fired in 40 seeds");
+    }
+
+    /// nothing carried, nothing asked (E5-3): a caller with no worry
+    /// keyed parts without a doorknob
+    #[test]
+    fn nothing_carried_no_doorknob() {
+        let caller = Speaker::new("Hob");
+        let you = Speaker::new("Wanderer");
+        for seed in 0..20 {
+            let tr = drive_to_door(&caller, &you, "Answer plainly", seed);
+            assert!(tr.turns.iter().all(|t| t.act != Act::Worry), "{:?}", tr.lines());
+            assert_eq!(tr.worry_told, None);
+        }
+    }
+}
+
+#[cfg(test)]
+mod e5_8 {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+
+    fn slip_prone() -> Slip {
+        Slip { prone: 1.0, dead: Some(Dead {
+            kin: "brother", name: "Corvin".into(), trade: "carter" }) }
+    }
+
+    /// a leak the realizer produces (E5-8): a strong ghost under a
+    /// high-strung temperament shows through the words - the line
+    /// keeps its spent template, its text comes out corrupted, its
+    /// act marks the slip
+    #[test]
+    fn a_strong_ghost_leaks_through_the_words() {
+        let mut fired = 0;
+        for seed in 0..60 {
+            let mut caller = Speaker::new("Hob");
+            caller.slip = Some(slip_prone());
+            caller.slips_left = 1;
+            let you = Speaker::new("Wanderer");
+            let tr = converse(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, &mut Rng::new(seed));
+            let slips: Vec<&Turn> = tr.turns.iter().filter(|t| t.act == Act::Slip).collect();
+            assert!(slips.len() <= 1, "one leak a talk: {:?}", tr.lines());
+            if let Some(&t) = slips.first() {
+                fired += 1;
+                assert_eq!(tr.slips.len(), 1, "the slip's on the record");
+                assert!(t.line.is_some(), "the spent template's still marked");
+                // the turn that slips is the ghost-carrier's own
+                assert_eq!(t.speaker, 0);
+            }
+        }
+        assert!(fired > 0, "no slip in 60 talks at full prone");
+    }
+
+    /// the budget is the caller's to enforce (E5-8): a speaker with no
+    /// slip left in the arc never leaks, however prone
+    #[test]
+    fn a_spent_budget_never_slips() {
+        for seed in 0..40 {
+            let mut caller = Speaker::new("Hob");
+            caller.slip = Some(slip_prone());
+            caller.slips_left = 0;
+            let you = Speaker::new("Wanderer");
+            let tr = converse(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, &mut Rng::new(seed));
+            assert!(tr.turns.iter().all(|t| t.act != Act::Slip), "{:?}", tr.lines());
+            assert!(tr.slips.is_empty());
+        }
+    }
+
+    /// no ghost under them, no leak (E5-8): a speaker carrying no
+    /// slip profile says every word as written
+    #[test]
+    fn a_quiet_mind_says_the_line_as_written() {
+        for seed in 0..30 {
+            let mut caller = Speaker::new("Hob");
+            caller.slips_left = 1;
+            let you = Speaker::new("Wanderer");
+            let tr = converse(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, &mut Rng::new(seed));
+            assert!(tr.turns.iter().all(|t| t.act != Act::Slip), "{:?}", tr.lines());
+        }
+    }
+
+    /// the three shapes (E5-8): the dead name stands in for the
+    /// listener's own, the tense corrects itself mid-word, the public
+    /// line cuts off where ears are near
+    #[test]
+    fn the_leak_takes_three_shapes() {
+        let dead = Some(Dead { kin: "brother", name: "Corvin".into(), trade: "carter" });
+        let mk = |text: &str, channel| Turn {
+            speaker: 0, act: Act::Remark, respond: None, text: text.to_string(),
+            concepts: vec![], tree: "t", line: Some("l"),
+            channel };
+
+        // the name slip: the listener called by the dead man's name
+        let mut rng = Rng::new(0);
+        let mut saw = false;
+        for _ in 0..20 {
+            let mut x = mk("Fair day, Tilda - the rye looks well.",
+                crate::game::setting::Channel::Backstage);
+            if slip_corrupt(&mut x, "Tilda", &dead, &mut rng) == Some(SlipKind::Name) {
+                assert!(x.text.contains("Corvin") && !x.text.contains("Tilda"),
+                    "the dead name stands in: {}", x.text);
+                saw = true;
+                break;
+            }
+        }
+        assert!(saw, "the name slip never landed");
+
+        // the tense slip: the kept thing surfaces self-corrected
+        let mut rng = Rng::new(1);
+        let mut saw = false;
+        for _ in 0..20 {
+            let mut x = mk("The rye comes in thin this year.",
+                crate::game::setting::Channel::Backstage);
+            if slip_corrupt(&mut x, "Tilda", &dead, &mut rng) == Some(SlipKind::Tense) {
+                assert!(x.text.contains("is... was") && x.text.contains("Corvin"),
+                    "the tense corrects mid-word: {}", x.text);
+                saw = true;
+                break;
+            }
+        }
+        assert!(saw, "the tense slip never landed");
+
+        // the cut-off: a public line truncates where ears are near
+        let mut rng = Rng::new(2);
+        let long = "The reeve's men were counting the sheepfolds again when I passed the lane.";
+        let mut saw = false;
+        for _ in 0..30 {
+            let mut x = mk(long, crate::game::setting::Channel::Public);
+            if slip_corrupt(&mut x, "Tilda", &dead, &mut rng) == Some(SlipKind::CutOff) {
+                assert!(x.text.ends_with(" -") && x.text.len() < long.len(),
+                    "the sentence dies halfway: {}", x.text);
+                saw = true;
+                break;
+            }
+        }
+        assert!(saw, "the cut-off never landed");
+
+        // backstage keeps the whole sentence - no cut-off there
+        for _ in 0..30 {
+            let mut y = mk(long, crate::game::setting::Channel::Backstage);
+            let k = slip_corrupt(&mut y, "Tilda", &dead, &mut rng);
+            assert_ne!(k, Some(SlipKind::CutOff), "no ears backstage");
+        }
+    }
+
+    /// the persona gates the profile (E5-8): only a hard-held wound
+    /// under a high-strung temperament carries a slip - and only a
+    /// death ghost names a dead
+    #[test]
+    fn only_the_marked_and_high_strung_leak() {
+        use crate::game::persona::{EventId, EventKind, Ghost, Belief, Fear, Need};
+        let ghost = |kind, strength| Ghost {
+            event: EventId(0), kind, hook: None,
+            lie: Belief::LordAlwaysWins, strength,
+            fear: Fear::BellTolls, need: Need::ToBeSeen };
+        let persona = |ghosts: Vec<Ghost>, n: f32| {
+            crate::game::persona::Persona {
+                seed: 7, sex: crate::game::villager::Sex::Male,
+                archetype: crate::game::persona::Archetype::Burned,
+                temperament: [0.5, 0.5, 0.5, 0.5, n],
+                trust_propensity: 0.5, values: [0.5; 10],
+                story: vec![], ghosts,
+                signature: crate::game::persona::Signature::Habit("x"),
+                idiolect: crate::game::idiolect::Idiolect { phrase: "x",
+                    habit: crate::game::idiolect::Habit::OathSaints },
+                hidden: crate::game::persona::Landmark::Skill("x"),
+                contradiction: None,
+            }
+        };
+        // strong death ghost + high N: profile with a dead
+        let p = persona(vec![ghost(EventKind::Fever, 0.8)], 0.8);
+        let s = slip_of(&p, None).expect("a marked, high-strung soul carries a slip");
+        assert!(s.dead.is_some(), "a death ghost names a dead");
+        assert!(s.prone > 0.5);
+        // strong ghost, calm nerves: no leak
+        let p = persona(vec![ghost(EventKind::Fever, 0.8)], 0.2);
+        assert!(slip_of(&p, None).is_none(), "calm nerves don't slip");
+        // high N, faint wound: no leak
+        let p = persona(vec![ghost(EventKind::Fever, 0.2)], 0.9);
+        assert!(slip_of(&p, None).is_none(), "a faint wound doesn't slip");
+        // a non-death wound: prone but no dead to name
+        let p = persona(vec![ghost(EventKind::Eviction, 0.8)], 0.8);
+        let s = slip_of(&p, None).expect("a strong wound still slips");
+        assert!(s.dead.is_none(), "an eviction keeps no dead");
+        // a real dead name beats the invented pool
+        let p = persona(vec![ghost(EventKind::Fever, 0.8)], 0.8);
+        let s = slip_of(&p, Some("Old Nan".into())).unwrap();
+        assert_eq!(s.dead.unwrap().name, "Old Nan");
+    }
+}
+
+#[cfg(test)]
+mod e5_6 {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+    use crate::game::persona::{Belief, EventId, EventKind, Fear, Ghost, Need};
+
+    fn persona(ghosts: Vec<Ghost>, traits: &[Trait]) -> crate::game::persona::Persona {
+        let _ = traits;
+        crate::game::persona::Persona {
+            seed: 7, sex: crate::game::villager::Sex::Male,
+            archetype: crate::game::persona::Archetype::Burned,
+            temperament: [0.5; 5],
+            trust_propensity: 0.5, values: [0.5; 10],
+            story: vec![], ghosts,
+            signature: crate::game::persona::Signature::Habit("x"),
+            idiolect: crate::game::idiolect::Idiolect { phrase: "x",
+                habit: crate::game::idiolect::Habit::OathSaints },
+            hidden: crate::game::persona::Landmark::Skill("x"),
+            contradiction: None,
+        }
+    }
+
+    fn ghost(lie: Belief, strength: f32) -> Ghost {
+        Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+            lie, strength, fear: Fear::BellTolls, need: Need::ToBeSeen }
+    }
+
+    fn funny(traits: &[Trait], lie: Belief) -> Speaker {
+        let mut s = Speaker::new("Hob");
+        s.traits = traits.to_vec();
+        s.joke = Some(joke_of(&persona(vec![ghost(lie, 0.8)], traits), &s.traits));
+        s
+    }
+
+    /// the done-when (E5-6): a barb at power waits for the hidden
+    /// transcript - in a public channel the draw can't strike the
+    /// lord however hot the head
+    #[test]
+    fn a_barb_at_power_waits_for_the_hidden_transcript() {
+        let mut caller = funny(&[Trait::Hotheaded, Trait::Gregarious], Belief::LordAlwaysWins);
+        // a fixed draw so the barb always wins the style roll - the
+        // gate is the only thing that can stop it
+        caller.joke.as_mut().unwrap().styles = [0.05, 0.05, 1.0, 0.05];
+        for seed in 0..80 {
+            let you = Speaker::new("Wenna");
+            let tr = converse_at(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, &crate::game::setting::STREET,
+                &mut Rng::new(seed));
+            for b in &tr.jokes {
+                assert!(!(b.style == Some(JokeStyle::Aggressive)
+                    && b.target.is_some_and(JokeTarget::power)),
+                    "a barb at power in the street: {:?}", tr.lines());
+            }
+        }
+        // backstage it can land
+        let mut struck = false;
+        for seed in 0..80 {
+            let you = Speaker::new("Wenna");
+            let tr = converse_at(&caller, &you, Relation::Friend, None,
+                &village_library(), None, &crate::game::setting::BACKSTAGE,
+                &mut Rng::new(seed));
+            if tr.jokes.iter().any(|b| b.style == Some(JokeStyle::Aggressive)
+                && b.target == Some(JokeTarget::Lord)) { struck = true; }
+        }
+        assert!(struck, "the barb never landed backstage in 80 talks");
+    }
+
+    /// the hearer's fork (E5-6): every joke draws its receipt, and the
+    /// transcript keeps who told what and how it landed
+    #[test]
+    fn a_joke_gets_its_receipt() {
+        let mut kinds_seen: Vec<JokeReceipt> = vec![];
+        for seed in 0..120 {
+            let caller = funny(&[Trait::Gregarious], Belief::LordAlwaysWins);
+            let you = Speaker::new("Wenna");
+            let tr = converse(&caller, &you, Relation::Friend, None,
+                &village_library(), None, &mut Rng::new(seed));
+            for b in tr.jokes.iter().filter(|b| b.joker == 0) {
+                assert!(b.style.is_some(), "the beat's jokes know their cell");
+                if !kinds_seen.contains(&b.receipt) { kinds_seen.push(b.receipt); }
+                // the turn after the joke is the receipt's
+                let at = tr.turns.iter().position(|t|
+                    t.act == Act::Joke && t.speaker == 0).unwrap();
+                let next = &tr.turns[at + 1];
+                assert_eq!(next.speaker, 1, "the hearer receipts");
+            }
+        }
+        assert!(kinds_seen.len() >= 2, "receipts should vary: {kinds_seen:?}");
+    }
+
+    /// who laughs shows alignment (E5-6): a hearer carrying the same
+    /// lie laughs at the barb where a stranger lets it pass
+    #[test]
+    fn the_shared_lie_laughs() {
+        let mut aligned_laughs = 0;
+        let mut plain_laughs = 0;
+        for seed in 0..160 {
+            let mut caller = funny(&[Trait::Hotheaded], Belief::LordAlwaysWins);
+            caller.joke.as_mut().unwrap().styles = [0.0, 0.0, 1.0, 0.0];
+            let mut mate = funny(&[], Belief::LordAlwaysWins);
+            let mut other = funny(&[], Belief::MillOwnsUs);
+            // backstage, so the barb can strike at all
+            for (you, tally) in [(&mut mate, &mut aligned_laughs), (&mut other, &mut plain_laughs)] {
+                let tr = converse_at(&caller, you, Relation::Friend, None,
+                    &village_library(), None, &crate::game::setting::BACKSTAGE,
+                    &mut Rng::new(seed));
+                *tally += tr.jokes.iter().filter(|b| matches!(b.receipt,
+                    JokeReceipt::Laughed | JokeReceipt::AddedTo)).count();
+            }
+        }
+        assert!(aligned_laughs > plain_laughs,
+            "the shared lie should laugh more: {aligned_laughs} vs {plain_laughs}");
+    }
+
+    /// the wound worn light (E5-6): a strong self-worth lie sharpens
+    /// the self-defeating edge - the humor turns inward
+    #[test]
+    fn a_self_worth_lie_turns_the_humor_inward() {
+        let j = joke_of(&persona(vec![ghost(Belief::KeepHidden, 0.9)], &[]), &[]);
+        assert!(j.styles[3] > 1.0, "the self-defeating edge: {:?}", j.styles);
+        assert_eq!(j.grievance.map(|g| g.target), Some(JokeTarget::Oneself),
+            "the wound's barbs aim at the self");
+        // and the talk shows it
+        let mut inward = 0;
+        let mut caller = Speaker::new("Hob");
+        caller.joke = Some(j);
+        for seed in 0..80 {
+            let you = Speaker::new("Wenna");
+            let tr = converse(&caller, &you, Relation::Friend, None,
+                &village_library(), None, &mut Rng::new(seed));
+            inward += tr.jokes.iter().filter(|b|
+                b.style == Some(JokeStyle::SelfDefeating)).count();
+        }
+        assert!(inward > 0, "the self-worth lie never showed in 80 talks");
+    }
+
+    /// the player's fork (E5-6): a joke at them offers the four
+    /// receipts as a menu, and the pick lands as the hearer's line
+    #[test]
+    fn the_player_gets_the_four_forks() {
+        let caller = funny(&[Trait::Gregarious], Belief::LordAlwaysWins);
+        let mut menus = 0;
+        let mut landed = false;
+        for seed in 0..120 {
+            let you = Speaker::new("Wanderer");
+            let mut forks_seen = 0;
+            let tr = converse_with(&caller, &you, Relation::Friend, None,
+                &village_library(), None, 1, &mut |ch: &[Choice]| {
+                    if ch.len() == 4 && ch[0].act == Act::Agree
+                        && ch[1].act == Act::Joke {
+                        forks_seen += 1;
+                        return Some(0);
+                    }
+                    Some(0)
+                }, &mut Rng::new(seed));
+            menus += forks_seen;
+            landed |= tr.jokes.iter().any(|b| b.receipt == JokeReceipt::Laughed);
+        }
+        assert!(menus > 0, "the four-fork menu never showed in 120 talks");
+        assert!(landed, "the laugh never landed");
     }
 }

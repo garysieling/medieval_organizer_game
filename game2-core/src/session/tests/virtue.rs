@@ -69,7 +69,7 @@ fn test_a_kind_neighbor_shares_their_table() {
     let r = g.world.create_entity();
     g.world.add_component(r, crate::game::relationships::Relationship {
         from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
-        strength: 0.6, interactions: 5 });
+        strength: 0.6, interactions: 5, ..Default::default() });
     // the fork needs a face: cut every other bond's strength so a's only
     // hungry neighbor is b and nobody else's fork can fire
     for e in g.world.query::<crate::game::relationships::Relationship>() {
@@ -228,7 +228,7 @@ fn test_the_good_name_greets_ahead_of_smalltalk() {
     let mut b = Speaker::new("Berta");
     b.status.push("kind_soul");
     let lib = crate::game::dialogue_trees::village_library();
-    let tr = converse(&a, &b, Relation::Acquaintance, &lib, None, &mut crate::game::conversation::Rng::new(7));
+    let tr = converse(&a, &b, Relation::Acquaintance, None, &lib, None, &mut crate::game::conversation::Rng::new(7));
     assert_eq!(tr.trees_walked.first().copied(), Some("the_good_name"),
         "the name didn't greet first: {:?}", tr.trees_walked);
     // and the talk doesn't die on the greeting - the rejoin runs
@@ -243,7 +243,7 @@ fn test_the_cold_one_gets_the_wary_greeting() {
     let mut b = Speaker::new("Berta");
     b.status.push("hard");
     let lib = crate::game::dialogue_trees::village_library();
-    let tr = converse(&a, &b, Relation::Acquaintance, &lib, None, &mut crate::game::conversation::Rng::new(3));
+    let tr = converse(&a, &b, Relation::Acquaintance, None, &lib, None, &mut crate::game::conversation::Rng::new(3));
     assert_eq!(tr.trees_walked.first().copied(), Some("the_cold_one"),
         "the wary greeting never came: {:?}", tr.trees_walked);
 }

@@ -45,7 +45,7 @@ impl Game {
             // sit once the published agenda's had its days
             if let Some(out) = crate::game::campaign::hold_assembly(&mut self.world, c, tick) {
                 let names: Vec<String> = out.attendees.iter()
-                    .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
+                    .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| self.cast_name(i).to_string()))
                     .collect();
                 self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable), format!("t{}: the assembly sits - {} answer the call; the leader's yes and no go on record.",
                     tick, names.join(", ")));
@@ -67,7 +67,7 @@ impl Game {
                         .villagers
                         .iter()
                         .position(|v| v == who)
-                        .map(|i| vill_name(i).to_string())
+                        .map(|i| self.cast_name(i).to_string())
                         .unwrap_or_default();
                     self.log.push_ev(
                         EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),

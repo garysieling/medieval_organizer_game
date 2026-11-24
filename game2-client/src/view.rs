@@ -56,10 +56,18 @@ pub struct View {
     /// The village's tune silenced: M toggles it, the client's own
     /// choice, never the sim's
     pub mute: bool,
+    /// The client's own toast (#1505): M's "Sound off"/"Sound on" rides
+    /// the same feed as the model's banners, born on the model frame
+    /// the key pressed. Client-side only - the sim never hears of it.
+    pub note: Option<ToastV>,
     /// The find box under the minimap: what was typed and whether it has
     /// the keys - widget state like the toggles above
     pub search_q: String,
     pub search_focus: bool,
+    /// The Sound overlay off the pause menu (#1506): open or not, and
+    /// which row the keyboard focus sits on
+    pub sound_menu: bool,
+    pub sound_row: usize,
     /// The frame stamp of the last sim camera-ask answered, so the same
     /// ask isn't answered twice
     pub focus_seen: std::cell::Cell<Option<u32>>,
@@ -87,15 +95,32 @@ pub struct View {
     walk: std::cell::RefCell<game2_core::engine::det::HashMap<u32, (f32, f32, f32, u32)>>,
 }
 
-/// The mystery panel's display line, composed the way the sim used to
-/// send it - a legacy bare-string entry (empty title) draws verbatim
+/// The mystery panel's first line, composed the way the sim used to
+/// send it - a legacy bare-string entry (empty title) draws verbatim.
+/// The asker leads so their name lands in the first rows of the wrap:
+/// the button only reaches the top four
 fn mystery_line(mz: &MysteryV) -> String {
     if mz.title.is_empty() {
         mz.asker_name.clone()
     } else {
-        format!("{} {}/{} ({} wants to know)",
-            mz.title, mz.heard, mz.total, mz.asker_name)
+        format!("({}) wants to know {}", mz.asker_name, mz.title)
     }
+}
+
+/// The mystery panel's progress line (#1350): the count of whispers
+/// heard, then each direction's mark - a `*` when the story's need for
+/// it's met, a `.` while it's still wanted, and nothing at all when the
+/// story never asks it
+fn mystery_marks(mz: &MysteryV) -> Option<String> {
+    if mz.title.is_empty() { return None; }
+    // an old payload carries no directions - show the flat count (#1350)
+    if mz.dims.is_empty() { return Some(format!("{}/{}", mz.heard, mz.total)); }
+    let marks: Vec<String> = mz.dims.iter().map(|(w, heard, want)| {
+        if *want == 0 { w.clone() }
+        else if heard >= want { format!("{}*", w) }
+        else { format!("{}.", w) }
+    }).collect();
+    Some(format!("{}/{} {}", mz.heard, mz.total, marks.join(" ")))
 }
 
 /// Where the asker's name lands in the wrapped panel line: (row, first
@@ -104,7 +129,8 @@ fn mystery_line(mz: &MysteryV) -> String {
 /// follows, so wrapping just up to the name finds its row and column
 pub(crate) fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
     if mz.title.is_empty() || mz.asker_name.is_empty() { return None; }
-    let prefix = format!("{} {}/{} (", mz.title, mz.heard, mz.total);
+    let line = mystery_line(mz);
+    let prefix = line[..line.find("(")?].to_string() + "(";
     let lines = wrap_text(&format!("{}{}", prefix, mz.asker_name), 16);
     let (row, last) = lines.iter().enumerate().last()?;
     if row >= 4 { return None; }
@@ -126,8 +152,11 @@ impl View {
             ledger_open: false,
             mouse: None,
             mute: false,
+            note: None,
             search_q: String::new(),
             search_focus: false,
+            sound_menu: false,
+            sound_row: 0,
             focus_seen: std::cell::Cell::new(None),
             convo_pin: std::cell::RefCell::new(talk::ConvoPin::default()),
             ground: std::cell::RefCell::new(None),
@@ -186,6 +215,18 @@ impl View {
             let fade = ((TOAST_LIFE - age) as f32 / TOAST_FADE as f32).min(1.0);
             (i, MAP_W as i32 / 2 - tw / 2, TOAST_TOP + slot as i32 * TOAST_PITCH - rise as i32, tw, fade)
         }).collect()
+    }
+
+    /// M pressed during play (#1505): flip the mute and announce it on
+    /// the toast feed - "Sound off" or "Sound on" - born on the model
+    /// frame the key landed, so it ages with everything else's banners.
+    pub fn toggle_mute(&mut self, frame: u32) {
+        self.mute = !self.mute;
+        self.note = Some(ToastV {
+            text: if self.mute { "Sound off".into() } else { "Sound on".into() },
+            at: None,
+            born: Some(frame),
+        });
     }
 
     /// Which toast the mouse is over - the same boxes render draws, so
@@ -1218,6 +1259,13 @@ impl View {
                     draw_text(&mut buf, x, y, &name, r, g, b);
                 }
             }
+            // the directions' marks ride the last rows, always the same
+            // spot however long the question runs
+            if let Some(marks) = mystery_marks(mz) {
+                for (n, l) in wrap_text(&marks, 16).iter().take(3).enumerate() {
+                    draw_text(&mut buf, UI_X as i32 + 150, 90 + (4 + n) as i32 * LINE_H, l, 200, 180, 235);
+                }
+            }
         }
         // the powers' standing words on the org - one line, so a
         // stack of them can't run under the buttons
@@ -1230,7 +1278,6 @@ impl View {
 
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {
-            if !action_shown(m, i) { continue; }
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             let reason = m.blocked[i].as_deref();
             draw_button(&mut buf, b, hover, reason.is_some());
@@ -1625,9 +1672,12 @@ impl View {
         }
 
         // toasts (big moments); one that happened somewhere is a button -
-        // a click jumps the camera there (toast_hit knows the same boxes)
-        for (i, bx, by, bw, fade) in self.toast_layout(&m.toasts, m.frame) {
-            let t = &m.toasts[i];
+        // a click jumps the camera there (toast_hit knows the same boxes).
+        // The client's own note (#1505) rides the tail of the same feed.
+        let feed: Vec<ToastV> = m.toasts.iter().cloned()
+            .chain(self.note.iter().cloned()).collect();
+        for (i, bx, by, bw, fade) in self.toast_layout(&feed, m.frame) {
+            let t = &feed[i];
             let hovered = t.at.is_some() && mx >= bx && mx < bx + bw && my >= by && my < by + 20;
             // the fade runs every colour toward the banner's own dark
             let mix = |(r, g, b): (i32, i32, i32)| -> (u8, u8, u8) {
@@ -1655,12 +1705,15 @@ impl View {
             .unwrap_or(if m.rainbow_from.is_some() { "icon-rainbow" } else { "icon-sun" });
         let w_ic = art.icon(w_tok);
         let iw = s_ic.map_or(0, |_| 16) + w_ic.map_or(0, |_| 16);
-        // on a dark strip so it reads over any terrain the camera shows
-        buf.rect(4, 4, text_width(&hud, 1) + 12 + iw, GLYPH_H + 8, 20, 20, 32);
+        // on a dark strip so it reads over any terrain the camera shows;
+        // a muted sound wears a little crossed-out horn at its end (#1505)
+        buf.rect(4, 4, text_width(&hud, 1) + 12 + iw
+            + if self.mute { MUTE_GLYPH_W } else { 0 }, GLYPH_H + 8, 20, 20, 32);
         let mut hx = 10;
         if draw_icon(&mut buf, s_ic, hx, 5, 14) { hx += 16; }
         if draw_icon(&mut buf, w_ic, hx, 5, 14) { hx += 16; }
         draw_text_outlined(&mut buf, hx, 8, &hud, 255, 255, 255);
+        if self.mute { draw_mute_glyph(&mut buf, mute_glyph_x(&hud, iw), 5); }
         // the seat's own bag and belly ride under it: the goods wear their
         // sheet icon where one came back, the old words where not
         let strip = satchel_strip(m);

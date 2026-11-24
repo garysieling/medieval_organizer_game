@@ -26,7 +26,7 @@ use crate::engine::det::HashSet;
 use crate::engine::ecs::{Entity, World};
 use crate::game::actions::{Demoralized, TargetResponse};
 use crate::game::campaign::{Campaign, DecisionRule, Framing, Role};
-use crate::game::campaign_dialogue::{apply_hook, fill, Deliberation, Phase, Spoken, Voice, Walker,
+use crate::game::campaign_dialogue::{apply_hook, say, Deliberation, Phase, Spoken, Voice, Walker,
     ARC_BEATS, ORG_STRONG, ORG_WEAK};
 use crate::game::conversation::{Facts, Rng};
 use crate::game::dungeon::unavailable;
@@ -213,9 +213,10 @@ fn outcome_from_response(f: &mut Facts, resp: Option<TargetResponse>) {
 /// heard lately), voice each line through the org - the leader drives,
 /// members answer, the other side speaks for itself - and apply the
 /// hooks. Seeded by campaign and day. None if nobody's free to speak.
-pub fn deliberate_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u64) -> Option<Deliberation> {
+pub fn deliberate_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u64,
+                      speakers: &crate::engine::det::HashMap<Entity, crate::game::conversation::Speaker>) -> Option<Deliberation> {
     record_event(world, campaign, ev);
-    let d = walk_arc(world, campaign, ev, tick);
+    let d = walk_arc(world, campaign, ev, tick, speakers);
     // consent banked at a meeting is spent by the action that follows it -
     // whether or not anyone was free to talk it over
     if let Some(r) = world.get_component_mut::<ArcRecord>(campaign) { r.consent = false; }
@@ -223,7 +224,8 @@ pub fn deliberate_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u
 }
 
 /// The walk itself, with the event already on the record
-fn walk_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u64) -> Option<Deliberation> {
+fn walk_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u64,
+            speakers: &crate::engine::det::HashMap<Entity, crate::game::conversation::Speaker>) -> Option<Deliberation> {
     let (org, issue, dissenters) = world.get_component::<Campaign>(campaign)
         .map(|c| (c.org, c.issue.clone(), c.dissenters.clone()))?;
     let (leader, members) = world.get_component::<Organization>(org).map(|o| (o.leader, o.members.clone()))?;
@@ -256,9 +258,15 @@ fn walk_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u64) -> Opt
         let facts = arc_facts(world, campaign, tick);
         let Some(s) = w.step_avoiding(ARC_BEATS, &facts, &recent, &mut rng) else { break };
         let caller = voice_of(s.beat.voice, None, &mut rng);
-        d.said.push(Spoken { speaker: caller, voice: s.beat.voice, text: fill(s.call, &issue), beat: s.beat.id, phase: s.beat.phase });
         let answerer = voice_of(s.mv.voice, caller, &mut rng);
-        d.said.push(Spoken { speaker: answerer, voice: s.mv.voice, text: fill(s.reply, &issue), beat: s.beat.id, phase: s.beat.phase });
+        // the call's thee is the one who'll answer it; the reply's is
+        // the caller answered back (E4-4)
+        let text = say(world, speakers, s.call, &issue, caller, s.beat.voice,
+            answerer.unwrap_or(driver), &mut rng);
+        d.said.push(Spoken { speaker: caller, voice: s.beat.voice, text, beat: s.beat.id, phase: s.beat.phase });
+        let text = say(world, speakers, s.reply, &issue, answerer, s.mv.voice,
+            caller.unwrap_or(driver), &mut rng);
+        d.said.push(Spoken { speaker: answerer, voice: s.mv.voice, text, beat: s.beat.id, phase: s.beat.phase });
         if apply_hook(world, campaign, s.mv.hook, answerer) { d.applied.push(s.mv.hook); }
         heard.push(s.beat.id);
     }
@@ -368,7 +376,7 @@ mod tests {
     fn test_an_arc_is_voiced_by_the_org_and_replays_by_seed() {
         let run = |day: u64| {
             let (mut w, o, c, ms) = world_with(4);
-            let d = deliberate_arc(&mut w, c, ArcEvent::March(Reaction::Watched), day).unwrap();
+            let d = deliberate_arc(&mut w, c, ArcEvent::March(Reaction::Watched), day, &Default::default()).unwrap();
             let leader = w.get_component::<Organization>(o).unwrap().leader;
             for s in &d.said {
                 if let Some(e) = s.speaker { assert!(e == leader || ms.contains(&e), "{:?} isn't the org's", s); }
@@ -387,7 +395,7 @@ mod tests {
         let (mut w, _, c, _) = world_with(3);
         record_consent(&mut w, c, true);
         assert!(arc_facts(&w, c, 10).has("arc:consent"));
-        let d = deliberate_arc(&mut w, c, ArcEvent::March(Reaction::Watched), 10).unwrap();
+        let d = deliberate_arc(&mut w, c, ArcEvent::March(Reaction::Watched), 10, &Default::default()).unwrap();
         assert!(!d.said.is_empty());
         assert!(!arc_facts(&w, c, 11).has("arc:consent"), "consent carried past the action it was banked for");
         // spent even when nobody's free to talk it over
@@ -397,7 +405,7 @@ mod tests {
         for e in [leader, ms[0]] {
             w.add_component(e, crate::game::dungeon::Imprisoned { since: 5, charge: "riot".into() });
         }
-        assert!(deliberate_arc(&mut w, c, ArcEvent::Strike { called: true }, 12).is_none());
+        assert!(deliberate_arc(&mut w, c, ArcEvent::Strike { called: true }, 12, &Default::default()).is_none());
         assert!(!arc_facts(&w, c, 13).has("arc:consent"));
     }
 
@@ -423,7 +431,7 @@ mod tests {
         let (mut w, o, c, ms) = world_with(3);
         let leader = w.get_component::<Organization>(o).unwrap().leader;
         w.add_component(leader, crate::game::dungeon::Imprisoned { since: 5, charge: "riot".into() });
-        let d = deliberate_arc(&mut w, c, ArcEvent::Strike { called: true }, 9).unwrap();
+        let d = deliberate_arc(&mut w, c, ArcEvent::Strike { called: true }, 9, &Default::default()).unwrap();
         assert!(d.said.iter().all(|s| s.speaker != Some(leader)), "the held don't speak");
         assert!(arc_facts(&w, c, 9).has("arc:leader_taken"));
         let _ = ms;
@@ -553,7 +561,7 @@ mod tests {
         let (mut w, _, c, _) = world_with(4);
         let mut seen: Vec<&str> = vec![];
         for day in 0..10 {
-            let d = deliberate_arc(&mut w, c, ArcEvent::March(Reaction::Watched), 10 + day).unwrap();
+            let d = deliberate_arc(&mut w, c, ArcEvent::March(Reaction::Watched), 10 + day, &Default::default()).unwrap();
             let mut beats: Vec<&str> = d.said.iter().map(|s| s.beat).collect();
             beats.dedup();
             seen.extend(beats);

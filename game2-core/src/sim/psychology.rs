@@ -360,7 +360,7 @@ mod tests {
         let friend = w.create_entity(); // close relationship, bonded elsewhere
         w.add_component(friend, hist());
         let r = w.create_entity();
-        w.add_component(r, Relationship { from: friend, other: elder, kind: RelKind::Friend, strength: 0.6, interactions: 9 });
+        w.add_component(r, Relationship { from: friend, other: elder, kind: RelKind::Friend, strength: 0.6, interactions: 9, ..Default::default() });
         let stranger = w.create_entity();
         w.add_component(stranger, hist());
 

@@ -13,7 +13,7 @@
 //! line, `<frame> <verb> [args]` -
 //!   120 walk 1 0     held walk until `stop` (like WASD held)
 //!   340 stop         stop walking
-//!   360 act 0        press action button i, 0-based (0 Talk .. 4 Build)
+//!   360 act 0        press action button i, 0-based (0 Talk)
 //!   400 select 3     the 1-8 keys
 //!   420 ctx 0        a contextual action (Work, Pair up, ...)
 //!   440 click 700 400   click the map through the camera
@@ -235,22 +235,9 @@ pub fn synth_track(events: &[AudioEvent], every: u64, fps: u32, watch_secs: f64)
 
 /// A 16-bit PCM WAV: 44-byte header + samples. For the ffmpeg mux pass
 /// and for anyone wanting the soundtrack on its own.
-pub fn write_wav(path: &str, pcm: &[i16], channels: u16) -> std::io::Result<()> {
-    let data = (pcm.len() * 2) as u32;
-    let byte_rate = SAMPLE_RATE * channels as u32 * 2;
-    let mut out = Vec::with_capacity(44 + data as usize);
-    out.extend_from_slice(b"RIFF"); out.extend_from_slice(&(36 + data).to_le_bytes());
-    out.extend_from_slice(b"WAVEfmt "); out.extend_from_slice(&16u32.to_le_bytes());
-    out.extend_from_slice(&1u16.to_le_bytes()); // PCM
-    out.extend_from_slice(&channels.to_le_bytes());
-    out.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
-    out.extend_from_slice(&byte_rate.to_le_bytes());
-    out.extend_from_slice(&(channels * 2).to_le_bytes()); // block align
-    out.extend_from_slice(&16u16.to_le_bytes()); // bits
-    out.extend_from_slice(b"data"); out.extend_from_slice(&data.to_le_bytes());
-    for s in pcm { out.extend_from_slice(&s.to_le_bytes()); }
-    std::fs::write(path, out)
-}
+/// The audio crate owns the WAV container now (#1486): this stays so
+/// existing call sites read the same.
+pub use game2_audio::wav::write_wav;
 
 /// What a frame lands in. `push` takes the buffer by value - the GIF sink
 /// quantizes it in place. `finish` gets the synthesised soundtrack
@@ -623,7 +610,7 @@ fn apply_op(op: &ScriptOp, game: &mut Game, view: &mut View, held_walk: &mut Opt
 /// Play the game with no window for `play_secs` of play time, rendering a
 /// video frame every `capture_every` game frames. Returns the output path.
 pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Result<String> {
-    let mut game = Game::new_seeded(seed);
+    let mut game = Game::new_seeded_cast(seed);
     game.speed = opts.game_speed;
     let mut view = View::new(art);
     view.zoom = opts.zoom;
@@ -708,12 +695,12 @@ mod tests {
 
     #[test]
     fn test_parse_script_commands() {
-        let s = "# a comment\n\n120 walk 1 0\n340 stop\n360 act 1\n400 select 3\n420 ctx 0\n440 click 700 400\n500 pause\n700 look 40 60\n750 cancel\n";
+        let s = "# a comment\n\n120 walk 1 0\n340 stop\n360 act 0\n400 select 3\n420 ctx 0\n440 click 700 400\n500 pause\n700 look 40 60\n750 cancel\n";
         let ops = parse_script(s).unwrap();
         assert_eq!(ops.len(), 9);
         assert!(matches!(ops[0], (120, ScriptOp::Cmd(Command::Walk(dx, dy))) if dx == 1.0 && dy == 0.0));
         assert!(matches!(ops[1], (340, ScriptOp::Cmd(Command::Walk(0.0, 0.0)))));
-        assert!(matches!(ops[2], (360, ScriptOp::Cmd(Command::Act(1)))));
+        assert!(matches!(ops[2], (360, ScriptOp::Cmd(Command::Act(0)))));
         assert!(matches!(ops[3], (400, ScriptOp::Cmd(Command::Select(3)))));
         assert!(matches!(ops[4], (420, ScriptOp::Cmd(Command::CtxAct(0)))));
         assert!(matches!(ops[5], (440, ScriptOp::Cmd(Command::ClickMap { mx: 700, my: 400, .. }))));
@@ -722,6 +709,7 @@ mod tests {
         assert!(matches!(ops[8], (750, ScriptOp::Cmd(Command::CancelApproach))));
         assert!(parse_script("oops").is_err());
         assert!(parse_script("10 frobnicate").is_err());
+        assert!(parse_script("360 act 1").is_err(), "no second action button anymore");
     }
 
     #[test]

@@ -310,7 +310,7 @@ fn test_the_tinker_sells_at_a_travellers_premium() {
     g.seats[0].picked = false;
     g.act_at(0, 0);
     let t = g.seats[0].talk.as_ref().expect("no talk opened");
-    let deal = t.options.iter().position(|(a, _)| *a == crate::game::conversation::Act::Agree)
+    let deal = t.options.iter().position(|(a, _, _)| *a == crate::game::conversation::Act::Agree)
         .expect("no deal fork on offer");
     let pre = g.world.get_component::<crate::game::livelihood::Purse>(pe).unwrap().gold;
     g.talk_pick_at(0, Some(deal));
@@ -336,7 +336,7 @@ fn test_hard_words_send_the_deserter_off() {
     g.act_at(0, 0);
     let t = g.seats[0].talk.as_ref().expect("no talk opened");
     let rebuff = t.options.iter()
-        .position(|(a, _)| *a == crate::game::conversation::Act::PushBack)
+        .position(|(a, _, _)| *a == crate::game::conversation::Act::PushBack)
         .expect("no rebuff fork on offer");
     g.talk_pick_at(0, Some(rebuff));
     let r = g.rare.iter().find(|r| r.id == events::EventId::Deserter).unwrap();
@@ -354,7 +354,7 @@ fn test_sheltering_the_deserter_buys_him_time() {
     g.seats[0].picked = false;
     g.act_at(0, 0);
     let deal = g.seats[0].talk.as_ref().unwrap().options.iter()
-        .position(|(a, _)| *a == crate::game::conversation::Act::Agree)
+        .position(|(a, _, _)| *a == crate::game::conversation::Act::Agree)
         .expect("no shelter fork on offer");
     g.talk_pick_at(0, Some(deal));
     let after = g.rare.iter().find(|r| r.id == events::EventId::Deserter)
@@ -402,7 +402,7 @@ fn test_the_pedlar_undersells_the_tinker() {
     g.seats[0].picked = false;
     g.act_at(0, 0);
     let t = g.seats[0].talk.as_ref().expect("no talk opened");
-    let deal = t.options.iter().position(|(a, _)| *a == crate::game::conversation::Act::Agree)
+    let deal = t.options.iter().position(|(a, _, _)| *a == crate::game::conversation::Act::Agree)
         .expect("no deal fork on offer");
     let pre = g.world.get_component::<crate::game::livelihood::Purse>(pe).unwrap().gold;
     g.talk_pick_at(0, Some(deal));
@@ -432,7 +432,7 @@ fn test_the_beggar_asks_and_takes_alms() {
     g.seats[0].picked = false;
     g.act_at(0, 0);
     let t = g.seats[0].talk.as_ref().expect("no talk opened");
-    let deal = t.options.iter().position(|(a, _)| *a == crate::game::conversation::Act::Agree)
+    let deal = t.options.iter().position(|(a, _, _)| *a == crate::game::conversation::Act::Agree)
         .expect("no deal fork on offer");
     let pre = g.world.get_component::<crate::game::livelihood::Purse>(pe).unwrap().gold;
     g.talk_pick_at(0, Some(deal));

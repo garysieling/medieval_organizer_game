@@ -23,19 +23,62 @@ impl Game {
     pub(in crate::session) fn spawn_kid(&mut self, home: Entity, tick: u64) {
         let (x, y) = self.world.get_component::<Pos>(home).map(|p| (p.x, p.y)).unwrap_or((14.0, 14.0));
         let v = villager::spawn_villager(&mut self.world, x + 0.5, y + 0.5);
+        // E2-2 (#1420): the roof's folk raise the child - the two elders'
+        // mean temperament pulls their axes, and the roof gives them kin
+        let occupants: Vec<Entity> = self.world
+            .get_component::<crate::game::household::Building>(home)
+            .map(|b| b.occupants.clone()).unwrap_or_default();
+        let (axes, kin) = if self.seeded_cast {
+            let adults: Vec<Entity> = occupants.iter().copied()
+                .filter(|&o| self.world.get_component::<crate::game::persona::Persona>(o)
+                    .is_some()
+                    && self.world.get_component::<crate::game::vocation::Kid>(o).is_none())
+                .collect();
+            let parents: Vec<Entity> = adults.iter().copied().take(2).collect();
+            let mean = if parents.is_empty() { None } else {
+                let mut m = [0.0f32; 5];
+                for &p in &parents {
+                    if let Some(pp) = self.world
+                        .get_component::<crate::game::persona::Persona>(p)
+                    {
+                        for a in 0..5 { m[a] += pp.temperament[a] / parents.len() as f32; }
+                    }
+                }
+                Some(m)
+            };
+            let siblings: Vec<Entity> = occupants.iter().copied()
+                .filter(|&o| !adults.contains(&o)).collect();
+            let housemates: Vec<Entity> = adults.iter().copied()
+                .filter(|&o| !parents.contains(&o)).collect();
+            (mean, villager::Kin { parents, siblings, housemates })
+        } else {
+            (None, villager::Kin::default())
+        };
+        let dealt = self.deal_cast(v, None, axes);
+        if self.seeded_cast {
+            for o in kin.all() {
+                crate::game::relationships::add_relationship(&mut self.world,
+                    crate::game::relationships::Relationship {
+                        from: v, other: o,
+                        kind: crate::game::relationships::RelKind::Family,
+                        strength: 0.8, interactions: 0, ..Default::default() });
+            }
+            self.world.add_component(v, kin);
+        }
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
-        let traits = personality_from_seed(self.rng.next());
+        let traits = dealt.unwrap_or_else(|| personality_from_seed(self.rng.next()));
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
-        self.world.add_component(v, Known::default());
         self.world.add_component(v, Kid);
         self.world.add_component(v, KidGrowth { age_days: 0, errands: vec![] });
         self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
-        self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
+        if !self.seeded_cast {
+            self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
+        }
         self.world.add_component(v, crate::game::lifecycle::Age { years: 0.0, stage: crate::game::lifecycle::LifeStage::Infant, born_day: (v as u16) % 360 });
         self.world.add_component(v, crate::game::lifecycle::Vitality {
             health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
@@ -60,23 +103,21 @@ impl Game {
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
         self.died_on.push(None);
+        let born_name = self.cast_name(self.villagers.len() - 1);
         self.log_villager_ev(
             EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
             self.villagers.len() - 1,
-            format!(
-                "t{}: a child is born - {}.",
-                tick,
-                vill_name(self.villagers.len() - 1)
-            ),
+            format!("t{}: a child is born - {}.", tick, born_name),
         );
         note_story(
             &mut self.tales,
             &mut self.tales_told,
             &mut self.log,
+            &self.names,
             self.villagers.len() - 1,
             tick,
             crate::sim::story::EventKind::Birth,
-            format!("{} is born.", vill_name(self.villagers.len() - 1)),
+            format!("{} is born.", born_name),
         );
         // and the neighbours mark it: a small celebration at the house
         if let Some(p) = self.world.get_component::<Pos>(home) {
@@ -141,15 +182,18 @@ impl Game {
     pub(in crate::session) fn maybe_migrant(&mut self, tick: u64) {
         let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
         let v = villager::spawn_villager(&mut self.world, x, y);
+        // a seeded cast rolls the trade first so the persona grows up
+        // with it; the fixed cast keeps the roll where it always sat
+        let voc = if self.seeded_cast { Some(roll_vocation(&mut self.rng)) } else { None };
+        let dealt = self.deal_cast(v, voc, None);
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, villager::Migrant { arrived: tick });
-        let traits = personality_from_seed(self.rng.next());
+        let traits = dealt.unwrap_or_else(|| personality_from_seed(self.rng.next()));
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
-        self.world.add_component(v, Known::default());
-        self.world.add_component(v, vocation::craft(roll_vocation(&mut self.rng),
+        self.world.add_component(v, vocation::craft(voc.unwrap_or_else(|| roll_vocation(&mut self.rng)),
             0.1 + (self.rng.next() % 40) as f32 / 100.0));
         self.world.add_component(v, Purse { gold: 8.0 });
         let years = 19.0 + (self.rng.next() % 42) as f32;
@@ -161,7 +205,9 @@ impl Game {
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
-        self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
+        if !self.seeded_cast {
+            self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
+        }
         // a newcomer joins the parish
         self.join_parish(v);
         self.villagers.push(v);
@@ -196,7 +242,7 @@ impl Game {
             format!(
                 "t{}: a stranger settles - {} has come to town.",
                 tick,
-                vill_name(self.villagers.len() - 1)
+                self.cast_name(self.villagers.len() - 1)
             ),
         );
     }
@@ -210,6 +256,7 @@ impl Game {
         self.villagers.remove(idx);
         self.was_sick.remove(idx);
         self.died_on.remove(idx);
+        if idx < self.names.len() { self.names.remove(idx); }
         self.tales = std::mem::take(&mut self.tales).into_iter()
             .filter(|(i, _)| *i != idx)
             .map(|(i, t)| (if i > idx { i - 1 } else { i }, t))
@@ -307,11 +354,11 @@ impl Game {
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 8);
             if tick % 21 == 2 {
                 self.say(checker, match cond {
-                    "a lame leg" => "How's the leg treating you?",
-                    "failing sight" => "Let me read it out for you.",
-                    "no sight" => "I'll tell you what the board says.",
-                    "no hearing" => "No need to shout - you're not missing a thing.",
-                    _ => "The quiet does you good, I hope.",
+                    "a lame leg" => "How's the leg treating {2:obj}?",
+                    "failing sight" => "Let me read it out for {2:obj}.",
+                    "no sight" => "I'll tell {2:obj} what the board says.",
+                    "no hearing" => "No need to shout - {2:subj} {2:be} not missing a thing.",
+                    _ => "The quiet does {2:obj} good, I hope.",
                 }, CHAT_BUBBLE_SECS);
             }
         }
@@ -589,7 +636,7 @@ impl Game {
             c.tasked_by = master;
             self.world.add_component(v, c);
             let name = self.world.get_component::<PlayerCharacter>(v).map(|p| p.name.clone())
-                .or_else(|| self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i).to_string()))
+                .or_else(|| self.villagers.iter().position(|x| *x == v).map(|i| self.cast_name(i).to_string()))
                 .unwrap_or_else(|| "a youngster".into());
             let trade = vocation::vocation_name(voc).to_lowercase();
             self.log_entity_ev(
@@ -636,7 +683,7 @@ impl Game {
                     format!(
                         "t{}: {} dies at {} winters, of old age.",
                         tick,
-                        vill_name(i),
+                        self.cast_name(i),
                         years.round() as u32
                     ),
                 );
@@ -875,8 +922,41 @@ impl Game {
             .map(|r| r.kind)
     }
 
+    /// A seeded cast's spawn rite (#1411): persona, body, a dealt name
+    /// and the persona's two personality views (E1-4, #1412) for the
+    /// villager about to join the roll. Returns the derived traits so
+    /// the caller can feed `Virtues::seeded` and add the component -
+    /// None in a fixed cast, where the old rolls still stand. `parents`
+    /// is the household's mean temperament when the spawn's a child
+    /// raised under a roof (#1420)
+    pub(in crate::session) fn deal_cast(&mut self, v: Entity, vocation: Option<Vocation>,
+        parents: Option<[f32; 5]>)
+        -> Option<crate::game::traits::Personality>
+    {
+        if !self.seeded_cast { return None; }
+        // a newcomer wasn't here for the thirty years - their story
+        // starts empty and the life writes the rest
+        let slot = self.villagers.len();
+        let (story, marks) = self.world.resource::<crate::session::prehistory::Prehistory>()
+            .map(|ph| (ph.story_of(slot), ph.marks_of(slot))).unwrap_or_default();
+        let p = crate::game::persona::generate(self.seed, slot,
+            &crate::game::persona::Past { story, marks, parents, vocation, ..Default::default() });
+        let (big5, traits) = p.personalities();
+        self.world.add_component(v, big5);
+        self.world.add_component(v, p.sex);
+        deal_name(&p, &mut self.names);
+        self.world.add_component(v, p);
+        Some(traits)
+    }
+
+    /// The name this cast dealt to villager `i` - the dealt list in a
+    /// seeded cast (#1411), the fixed roll otherwise
+    pub(in crate::session) fn cast_name(&self, i: usize) -> &'static str {
+        self.names.get(i).copied().unwrap_or("a newcomer")
+    }
+
     pub(in crate::session) fn name_of(&self, e: Entity) -> String {
-        self.villagers.iter().position(|&x| x == e).map(|i| vill_name(i).to_string())
+        self.villagers.iter().position(|&x| x == e).map(|i| self.cast_name(i).to_string())
             .unwrap_or_else(|| "someone".into())
     }
 
@@ -903,7 +983,7 @@ impl Game {
         // of perfume, though, is no smell at all
         let smelly = [a, b].iter().any(|&v|
             self.smells_of(v).map(|k| k != "roses").unwrap_or(false));
-        if smelly { self.say(a, "...you smell of the work, friend.", CHAT_BUBBLE_SECS); }
+        if smelly { self.say(a, &self.vv_said(a, b, "...{2:subj} smell of the work, friend."), CHAT_BUBBLE_SECS); }
         let spark = 0.5 + shared as f32 * 0.1 - if feuded { 0.15 } else { 0.0 }
             - if smelly { 0.15 } else { 0.0 };
         // a deterministic spark per pair and month - no rng spent, so the
@@ -913,7 +993,7 @@ impl Game {
         if (roll as f32) / 1000.0 < spark {
             for (x, y) in [(a, b), (b, a)] {
                 relationships::add_relationship(&mut self.world, relationships::Relationship {
-                    from: x, other: y, kind: relationships::RelKind::Lover, strength: 0.6, interactions: 1 });
+                    from: x, other: y, kind: relationships::RelKind::Lover, strength: 0.6, interactions: 1, ..Default::default() });
             }
             desires::satisfy(&mut self.world, a, desires::Want::Love, tick + 365);
             desires::satisfy(&mut self.world, b, desires::Want::Love, tick + 365);
@@ -943,7 +1023,7 @@ impl Game {
             if let Some(pe) = broker {
                 if pe == self.player { self.record_power(crate::sim::organized_power::ActionQuality::Transactional); }
             }
-            self.say(a, "Come, I want you to meet someone.", TALK_BUBBLE_SECS);
+            self.say(a, &self.vv_said(a, b, "Come, I want {2:obj} to meet someone."), TALK_BUBBLE_SECS);
         } else {
             self.match_tried.push((a, b, tick + 30));
             self.say(a, "Perhaps another heart.", TALK_BUBBLE_SECS);

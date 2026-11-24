@@ -35,7 +35,55 @@ fn test_speaker_reads_traits_trade_and_circumstance_off_the_world() {
     g.world.add_component(v, crate::game::vocation::craft(Vocation::Farmer, 0.5));
     assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).trade, Some("farmer"));
     g.world.add_component(v, Kid);
-    assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).status, vec!["child"]);
+    assert!(speaker_of(&g.world, v, "Eliza", g.tick).status.contains(&"child"));
+}
+
+#[test]
+fn test_a_speakers_persona_wears_the_tells() {
+    // E3-4 (#1425): the wound's habits ride the speaker as statuses -
+    // the gossip criteria and the ask gate's tell bonus both read them
+    use crate::game::persona::*;
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    let mut p = Persona {
+        seed: 1, sex: villager::Sex::Male, archetype: Archetype::OldGuard,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+        idiolect: crate::game::idiolect::Idiolect {
+            phrase: "x", habit: crate::game::idiolect::Habit::Echo },
+    };
+    p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+        lie: Belief::PromisesForKeepers, strength: 0.8, fear: Fear::BailiffKnowsMyFace,
+        need: Need::ToBeSafe });
+    g.world.add_component(v, p);
+    let s = speaker_of(&g.world, v, "Eliza", g.tick);
+    assert!(s.status.contains(&"shuns_the_gate") && s.status.contains(&"promises_nothing"),
+        "the tells should ride the speaker: {:?}", s.status);
+    assert!(s.status.contains(&"keeps_wound"), "a carried ghost is a kept thing");
+    // and the wear names the deep ask it hides behind
+    assert!(s.tell_areas().contains(&crate::game::conversation::Area::Trouble)
+        && s.tell_areas().contains(&crate::game::conversation::Area::Heart));
+}
+
+#[test]
+fn test_a_speakers_body_reaches_the_fact_stream() {
+    // E1-3 (#1417): the pronoun facts text.rs will consume - set even
+    // through the child's early out
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    let w = g.villagers[adults(&g)[1]];
+    g.world.add_component(v, villager::Sex::Female);
+    let s = speaker_of(&g.world, v, "Eliza", g.tick);
+    assert_eq!(s.sex, Some("female"));
+    let other = speaker_of(&g.world, w, "Aldric", g.tick);
+    let f = crate::game::conversation::Facts::for_roles(&s, &other,
+        crate::game::conversation::Relation::Acquaintance);
+    assert!(f.has("self:sex:female"));
+    assert!(!f.has("self:sex:male"));
+    // and a kid still carries theirs
+    g.world.add_component(v, Kid);
+    assert_eq!(speaker_of(&g.world, v, "Eliza", g.tick).sex, Some("female"));
 }
 
 #[test]
@@ -82,6 +130,28 @@ fn test_kids_keep_to_childrens_talk() {
 }
 
 /// Stand the player beside villager index `i` and Talk
+/// A bond warm enough to hear the private layer (E3-2): three talks
+/// behind them, intimacy and trust to carry openness past the private
+/// bar even with ears near. Parts and summary are seeded consistent -
+/// reconcile leaves them be
+fn warm_bond(g: &mut Game, v: Entity) {
+    let pe = g.player;
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: pe, other: v, kind: RelKind::Friend,
+            strength: 1.0, interactions: 3,
+            intimacy: 0.6, pivots: 0, deflects: 0, bids_met: 0,
+            trust: crate::game::relationships::Trust {
+                ability: 0.0, benevolence: 0.6, integrity: 0.6 },
+            safety: crate::game::relationships::SafetyRung::Challenger,
+        });
+    // and the seat's told them a piece of themselves (E3-3): the
+    // private layer wants reciprocation, not just warmth
+    let mut sd = SharedDepth::default();
+    sd.of.insert(pe, (2, g.tick));
+    g.world.add_component(v, sd);
+}
+
 fn talk_beside(g: &mut Game, i: usize) -> Entity {
     let v = g.villagers[i];
     let p = *g.world.get_component::<Pos>(v).unwrap();
@@ -111,18 +181,18 @@ fn test_talk_opens_a_conversation_on_the_talk_panel_with_replies() {
     // pick the first reply: it's said, as previewed
     g.talk_pick_at(0, Some(0));
     let rec = g.talk_log.iter().find(|r| r.id == rec.id).unwrap();
-    assert!(rec.lines.iter().any(|l| l.who == Some(g.player) && l.text == t.options[0].1), "{:?}", rec.lines);
+    assert!(rec.lines.iter().any(|l| l.who == Some(g.player) && l.text == t.options[0].2), "{:?}", rec.lines);
 }
 
 #[test]
 fn test_the_choice_list_stops_at_three() {
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
     // they've told you something of themselves, and the bond's a
     // follower's - the asks open up
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     let pe = g.player;
     crate::game::relationships::record_interaction(&mut g.world, pe,
         crate::game::relationships::Interaction { other: v,
@@ -190,7 +260,7 @@ fn test_a_spent_talk_closes_itself_on_a_mutual_parting() {
     // keeps talking until the talk itself decides it's done
     while g.seats[0].talk.is_some() && picks < 30 {
         if let Some(t) = &g.seats[0].talk {
-            let farewells = t.options.iter().filter(|(a, _)| *a == Act::Farewell).count();
+            let farewells = t.options.iter().filter(|(a, _, _)| *a == Act::Farewell).count();
             assert!(farewells == 0 || farewells == t.options.len(),
                 "farewells shared a list with live replies: {:?}", t.options);
         }
@@ -389,13 +459,13 @@ fn test_a_talk_holds_them_where_they_stand() {
 
 /// The cold brush-offs a Slighted memory serves (#1183)
 fn cold_lines() -> [&'static str; 4] {
-    ["You're back. What is it now?", "Hmph. Say your piece and go.",
-     "We left it badly last time. Say what you came for.", "You've a nerve, coming back."]
+    ["You are back. What is it now?", "Hmph. Say your piece and go.",
+     "We left it badly last time. Say what you came for.", "You have a nerve, coming back."]
 }
 
 #[test]
 fn test_a_talked_back_answer_is_remembered_next_time() {
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     let mut g = Game::new();
     let ad = adults(&g);
     // someone whose first options include a PushBack
@@ -403,7 +473,7 @@ fn test_a_talked_back_answer_is_remembered_next_time() {
     for &i in ad.iter() {
         let v = talk_beside(&mut g, i);
         let has = g.seats[0].talk.as_ref().unwrap().options.iter()
-            .position(|(a, _)| *a == Act::PushBack);
+            .position(|(a, _, _)| *a == Act::PushBack);
         if let Some(p) = has {
             g.talk_pick_at(0, Some(p));
             g.talk_pick_at(0, None);
@@ -415,14 +485,16 @@ fn test_a_talked_back_answer_is_remembered_next_time() {
     let v = slighted.expect("someone takes a PushBack on this map");
     assert_eq!(g.talk_mood_of(v), Some(TalkMood::Slighted));
     // they've told you a secret before: asks would be on offer...
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     // ...and the bond still reads warm - the slight should outrank it
     bond_to(&mut g, v, 0.6);
     let i = g.villagers.iter().position(|&x| x == v).unwrap();
     talk_beside(&mut g, i);
     let t = g.seats[0].talk.as_ref().unwrap();
     // ...but what's on their mind now is you, and no proposition lands
-    assert!(cold_lines().contains(&t.gist.as_str()), "the gist is the cold shoulder: {:?}", t.gist);
+    // a style marker may sign the line (E4-6): match the base words
+    assert!(cold_lines().iter().any(|l| t.gist.contains(l.trim_end_matches('.'))),
+        "the gist is the cold shoulder: {:?}", t.gist);
     assert!(t.asks.is_empty(), "a cold ending closes the asks: {:?}", t.asks);
     // the icon's mark holds the slight while the amends are on offer -
     // a warm bond doesn't paper it over (#1320, review find)
@@ -443,7 +515,7 @@ fn test_a_kind_answer_warms_the_hello_after() {
         // usually a greeting), taking it when it comes
         for _ in 0..10 {
             let Some(t) = &g.seats[0].talk else { break };
-            match t.options.iter().position(|(a, _)| matches!(a, Act::Agree | Act::Answer)) {
+            match t.options.iter().position(|(a, _, _)| matches!(a, Act::Agree | Act::Answer)) {
                 Some(p) => { g.talk_pick_at(0, Some(p)); break; }
                 None => g.talk_pick_at(0, Some(0)),
             }
@@ -487,10 +559,9 @@ fn audition(g: &mut Game, i: usize, pass: bool) -> (Entity, u64) {
 /// `bond` puts one past conversation on the roll so a stage exists to
 /// climb (#1188)
 fn audition_bonded(g: &mut Game, i: usize, pass: bool, revealed: Vec<crate::game::desires::Reveal>, bond: bool) -> (Entity, u64) {
-    use crate::game::desires::Known;
     let v = g.villagers[i];
     g.world.add_component(v, Personality { traits: vec![Trait::Stingy] });
-    g.world.add_component(v, Known { revealed });
+    let __pe = g.player; for __r in revealed { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     if bond {
         let pe = g.player;
         crate::game::relationships::record_interaction(&mut g.world, pe,
@@ -510,7 +581,7 @@ fn audition_bonded(g: &mut Game, i: usize, pass: bool, revealed: Vec<crate::game
     // pick the fork whose words are the stingy test's pass (or miss)
     let probe = crate::game::conversation::probe_for(&t.villager).unwrap();
     let wanted = if pass { probe.pass.1 } else { probe.fail.1 };
-    let pick = t.options.iter().position(|(_, l)| wanted.contains(&l.as_str()))
+    let pick = t.options.iter().position(|(_, _, l)| wanted.contains(&l.as_str()))
         .expect("their fork among the two");
     g.talk_pick_at(0, Some(pick));
     (v, t.id)
@@ -591,14 +662,14 @@ fn test_a_mismatch_keeps_the_asks_shallow_not_barred() {
 
 /// Pick through a Talk until the ask-slot shows, take it, and hand the
 /// topics it opened - `t.options` at that point is the question menu
-fn open_ask_menu(g: &mut Game) -> Vec<(Act, String)> {
+fn open_ask_menu(g: &mut Game) -> Vec<(Act, crate::game::conversation::Respond, String)> {
     for _ in 0..30 {
         let t = g.seats[0].talk.as_ref().expect("still talking").clone();
-        if let Some(i) = t.options.iter().position(|(_, l)| l == "Put a question to them") {
+        if let Some(i) = t.options.iter().position(|(_, _, l)| l == "Put a question to them") {
             g.talk_pick_at(0, Some(i));
             return g.seats[0].talk.as_ref().expect("the menu opens").options.clone();
         }
-        match t.options.iter().position(|(a, _)| *a != Act::Farewell) {
+        match t.options.iter().position(|(a, _, _)| *a != Act::Farewell) {
             Some(i) => g.talk_pick_at(0, Some(i)),
             None => break,
         }
@@ -613,19 +684,22 @@ fn test_a_talk_lets_you_put_your_own_questions() {
     // then the talk picks back up where it stood
     let mut g = Game::new();
     let i = adults(&g)[0];
+    let v = g.villagers[i];
+    warm_bond(&mut g, v);
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
     // the standing asks never leave the table, and the out is a remark
-    assert!(menu.iter().any(|(_, l)| l == "Ask about themselves"), "{:?}", menu);
-    assert_eq!(menu.last().unwrap().1, "Say nothing of it");
-    let p = menu.iter().position(|(_, l)| l == "Ask about themselves").unwrap();
+    assert!(menu.iter().any(|(_, _, l)| l == "Ask about themselves"), "{:?}", menu);
+    assert_eq!(menu.last().unwrap().2, "Say nothing of it");
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about themselves").unwrap();
     let pe = g.player;
     g.talk_pick_at(0, Some(p));
     let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
-    let asks = crate::game::dialogue_trees::ASK_TOPICS.iter()
-        .find(|tp| tp.label == "themselves").unwrap().ask;
-    assert!(rec.lines.iter().any(|l| l.who == Some(pe) && asks.contains(&l.text.as_str())),
+    let asks: Vec<String> = crate::game::dialogue_trees::ASK_TOPICS.iter()
+        .find(|tp| tp.label == "themselves").unwrap().ask.iter()
+        .map(|a| super::fixtures::said(&t, true, *a)).collect();
+    assert!(rec.lines.iter().any(|l| l.who == Some(pe) && asks.contains(&l.text)),
         "your question's on the record: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
     assert!(!t.options.is_empty(), "asking isn't a farewell - options stay live");
 }
@@ -635,19 +709,20 @@ fn test_asking_what_weighs_on_them_draws_it_out() {
     // a kept secret opens the deeper ask (#1189): putting the question
     // is the way a trouble comes out - the same reveal a talk's opening
     // might have rolled, landed because you asked
-    use crate::game::desires::{InnerLife, Known, Problem};
+    use crate::game::desires::{InnerLife, Problem};
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
+    warm_bond(&mut g, v);
     g.world.add_component(v, InnerLife {
         wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    let p = menu.iter().position(|(_, l)| l == "Ask about what weighs on them")
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
         .expect("a kept secret opens the deep ask");
     g.talk_pick_at(0, Some(p));
-    let known = g.world.get_component::<Known>(v).expect("the asking drew something out");
-    assert!(!known.revealed.is_empty(), "nothing drawn: {:?}", known.revealed);
+    let heard = crate::game::desires::known(&g.world, g.player, v);
+    assert!(!heard.is_empty(), "the asking drew nothing out");
     // and the telling of it lands on the talk's record
     let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
@@ -656,17 +731,274 @@ fn test_asking_what_weighs_on_them_draws_it_out() {
 }
 
 #[test]
-fn test_the_trouble_they_told_is_an_ask() {
-    // what's already shared sits on the menu as its own question
-    // (#1189) - asking after it is following up, not prying anew
-    use crate::game::desires::{Known, Problem, Reveal};
+fn test_a_too_deep_ask_costs_them_nerve() {
+    // a question above the pair's openness reads as forward (E3-2):
+    // the secret's own wear makes the ask listable, but asking a
+    // stranger after it deflects - and costs the bond a rung of nerve
+    use crate::game::desires::{InnerLife, Problem};
+    use crate::game::relationships::{SafetyRung, add_relationship, find_relationship};
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let pe = g.player;
+    add_relationship(&mut g.world, crate::game::relationships::Relationship {
+        from: pe, other: v, kind: RelKind::Acquaintance,
+        strength: 0.1, interactions: 1,
+        safety: SafetyRung::Contributor, ..Default::default() });
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    assert!(menu.iter().any(|(_, l)| l == "Ask about the trouble they told"),
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists, as the tell-named kind");
+    g.talk_pick_at(0, Some(p));
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<crate::game::relationships::Relationship>(e))
+        .unwrap();
+    assert_eq!(r.safety, SafetyRung::Learner,
+        "a forward ask costs the bond a rung: {:?}", r.safety);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.forward_seen, 1);
+}
+
+/// Stranger with a worn secret: each "Ask about what weighs on them"
+/// turns aside; returns the villager
+fn press_recipe(g: &mut Game) -> Entity {
+    use crate::game::desires::{InnerLife, Problem};
+    use crate::game::relationships::{SafetyRung, add_relationship};
+    let i = adults(g)[0];
+    let v = g.villagers[i];
+    let pe = g.player;
+    add_relationship(&mut g.world, crate::game::relationships::Relationship {
+        from: pe, other: v, kind: RelKind::Acquaintance,
+        strength: 0.1, interactions: 1,
+        safety: SafetyRung::Contributor, ..Default::default() });
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    talk_beside(g, i);
+    v
+}
+
+/// Press the worn secret's deep ask once - it's spent as it's put; the
+/// press (E5-2) is the same ask re-put across talks
+fn press_on(g: &mut Game) {
+    let menu = open_ask_menu(g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .unwrap_or_else(|| panic!("the worn secret's ask lists: {menu:?}"));
+    g.talk_pick_at(0, Some(p));
+}
+
+#[test]
+fn test_pressing_where_they_wont_go_draws_its_shape() {
+    // E5-2 done-when: pressing where they won't go draws the shape -
+    // "something about the lord", here "something about the trouble" -
+    // and the seat's told they see it. Earlier presses this seat's
+    // already made (the ledger keeps them across talks)
+    let mut g = Game::new();
+    let v = press_recipe(&mut g);
+    let trouble = crate::game::conversation::area_name(crate::game::conversation::Area::Trouble);
+    let (pe, t0) = (g.player, g.tick);
+    crate::game::desires::note_evasion(&mut g.world, pe, v, trouble, t0);
+    crate::game::desires::note_evasion(&mut g.world, pe, v, trouble, t0);
+    press_on(&mut g);
+    assert_eq!(crate::game::desires::evasions_of(&g.world, g.player, v, trouble),
+        crate::game::desires::SILHOUETTE_AT, "the third press draws the shape");
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.notes.iter().any(|n| n.contains("shape of it")),
+        "the seat's told what they see: {:?}", t.notes);
+}
+
+#[test]
+fn test_a_hothead_pressed_past_the_shape_blurts_it_out() {
+    // E5-2: a hothead pressed past the shape tells the thing anyway -
+    // in temper, as a real telling on the seat's ledger - and the bond
+    // pays for the heat
+    use crate::game::desires;
+    use crate::game::relationships::{find_relationship, Relationship};
+    let mut g = Game::new();
+    let v = press_recipe(&mut g);
+    g.world.add_component(v, Personality { traits: vec![Trait::Hotheaded] });
+    let trouble = crate::game::conversation::area_name(crate::game::conversation::Area::Trouble);
+    let (pe, t0) = (g.player, g.tick);
+    crate::game::desires::note_evasion(&mut g.world, pe, v, trouble, t0);
+    crate::game::desires::note_evasion(&mut g.world, pe, v, trouble, t0);
+    press_on(&mut g);
+    let heard = desires::known(&g.world, g.player, v);
+    assert!(!heard.is_empty(), "the blurt told something: {:?}", heard);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.blurted, "the temper spent itself");
+    assert!(t.argued.iter().any(|(_, l)| l.text.contains("Is that what you wanted")),
+        "it came out in heat: {:?}", t.argued.iter().map(|x| &x.1.text).collect::<Vec<_>>());
+    let integ = find_relationship(&g.world, g.player, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e).map(|r| r.trust.integrity))
+        .unwrap_or(0.0);
+    assert!(integ < 0.0, "the telling cost the bond's keeping: {integ}");
+}
+
+#[test]
+fn test_backing_off_mends_the_nerve_a_press_frayed() {
+    // E5-2: after a press frays the rung, taking an easier ask - one
+    // they answer - raises it back a step
+    use crate::game::relationships::{find_relationship, Relationship, SafetyRung};
+    let mut g = Game::new();
+    let v = press_recipe(&mut g);
+    press_on(&mut g);
+    let rung = |g: &Game| find_relationship(&g.world, g.player, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e).map(|r| r.safety));
+    assert_eq!(rung(&g), Some(SafetyRung::Learner), "the press frayed it");
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about the village")
+        .expect("the easy ask's on the table");
+    g.talk_pick_at(0, Some(p));
+    assert_eq!(rung(&g), Some(SafetyRung::Contributor),
+        "backing off paid the fray back a rung: {:?}", rung(&g));
+}
+
+/// The doorknob drive (E5-3): take the first live reply while one's on
+/// offer and the farewell once that's all that's left - true when the
+/// worry's own menu showed and `pick` was taken from it
+fn drive_to_doorknob(g: &mut Game, pick: &str) -> bool {
+    for _ in 0..80 {
+        let Some(t) = g.seats[0].talk.as_ref() else { return false };
+        if t.options.is_empty() { return false; }
+        let opts = t.options.clone();
+        if let Some(p) = opts.iter().position(|(_, _, l)| l == pick) {
+            g.talk_pick_at(0, Some(p));
+            return true;
+        }
+        match opts.iter().position(|(a, _, _)| *a == Act::Farewell) {
+            Some(p) => g.talk_pick_at(0, Some(p)),
+            None => g.talk_pick_at(0, Some(0)),
+        }
+    }
+    false
+}
+
+#[test]
+fn test_the_doorknob_carries_a_real_fear() {
+    // E5-3: the worry a talk carries is their own pressing thing -
+    // seeded off the talk's seed so every replay asks it the same
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.world.add_component(v, crate::game::desires::InnerLife {
+        wants: vec![], grievances: vec![(crate::game::desires::Problem::Taxed, 1000)],
+        satisfied: vec![] });
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.villager.worry,
+        crate::game::desires::worry_of(&g.world, v, g.tick, t.seed),
+        "the seeded worry's the live pool's pick");
+    assert!(t.villager.worry.is_some(), "a live load carries a worry");
+}
+
+#[test]
+fn test_asking_why_at_the_door_opens_the_tier() {
+    // E5-3 done-when: asking why opens the tier whenever openness
+    // allows - the fear's told and lands on the seat's ledger
+    use crate::game::desires::{Problem, Reveal};
+    let mut g = Game::new();
+    let (pe, mut fired) = (g.player, false);
+    for i in adults(&g) {
+        let v = talk_beside(&mut g, i);
+        {
+            let t = g.seats[0].talk.as_mut().unwrap();
+            t.villager.worry = Some(Reveal::Problem(Problem::Taxed));
+            t.villager.open = crate::game::conversation::Open {
+                intimacy: 0.7, benevolence: 0.7, integrity: 0.7,
+                safety: 0.8, mood: 0.0, talks: 4, earshot: false, shared: 2 };
+        }
+        if drive_to_doorknob(&mut g, "Ask why") {
+            fired = true;
+            assert!(crate::game::desires::known(&g.world, pe, v)
+                .contains(&Reveal::Problem(Problem::Taxed)),
+                "the truth landed on the ledger");
+            break;
+        }
+    }
+    assert!(fired, "no doorknob fired across the adults");
+}
+
+#[test]
+fn test_a_door_that_stays_shut_counts_the_tell() {
+    // E5-3/E5-2: the why asked past what they'll open gets turned
+    // aside - the same silhouette count a pressed ask draws
+    use crate::game::desires::{Problem, Reveal};
+    let mut g = Game::new();
+    let (pe, mut fired) = (g.player, false);
+    for i in adults(&g) {
+        let v = talk_beside(&mut g, i);
+        {
+            let t = g.seats[0].talk.as_mut().unwrap();
+            t.villager.worry = Some(Reveal::Problem(Problem::Taxed));
+            t.villager.open = crate::game::conversation::Open::default();
+        }
+        if drive_to_doorknob(&mut g, "Ask why") {
+            fired = true;
+            assert!(!crate::game::desires::known(&g.world, pe, v)
+                .contains(&Reveal::Problem(Problem::Taxed)),
+                "a shut door tells nothing");
+            let trouble = crate::game::conversation::area_name(
+                crate::game::conversation::Area::Trouble);
+            assert_eq!(crate::game::desires::evasions_of(&g.world, pe, v, trouble), 1,
+                "the turn-aside counted under its area");
+            break;
+        }
+    }
+    assert!(fired, "no doorknob fired across the adults");
+}
+
+#[test]
+fn test_a_slip_comes_out_once_to_a_relationship() {
+    // E5-8: a marked soul's leak is a landmark - one to a
+    // relationship. Heard, the budget spends: the next sit-down with
+    // the same ear opens with nothing left to leak
+    let mut g = Game::new();
+    let pe = g.player;
+    let mut heard = None;
+    for i in adults(&g) {
+        let v = talk_beside(&mut g, i);
+        {
+            let t = g.seats[0].talk.as_mut().unwrap();
+            t.villager.slip = Some(crate::game::conversation::Slip {
+                prone: 1.0,
+                dead: Some(crate::game::conversation::Dead {
+                    kin: "brother", name: "Corvin".into(), trade: "carter" }) });
+            t.villager.slips_left = 1;
+        }
+        let mut picks = 0;
+        while g.seats[0].talk.is_some() && picks < 40 { g.talk_pick_at(0, Some(0)); picks += 1; }
+        if g.world.get_component::<SlipMemory>(v)
+            .map(|m| m.of.contains(&pe)).unwrap_or(false) {
+            heard = Some((i, v));
+            break;
+        }
+    }
+    let (i, v) = heard.expect("no slip fired across the adults");
+    // and the next sit-down with the same ear carries no budget
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.villager.slips_left, 0, "the arc's one slip is spent");
+    let mut picks = 0;
+    while g.seats[0].talk.is_some() && picks < 40 { g.talk_pick_at(0, Some(0)); picks += 1; }
+    assert!(g.world.get_component::<SlipMemory>(v)
+        .map(|m| m.of.len() == 1 && m.of.contains(&pe)).unwrap_or(false),
+        "one slip to a relationship, marked once");
+}
+
+#[test]
+fn test_the_trouble_they_told_is_an_ask() {
+    // what's already shared sits on the menu as its own question
+    // (#1189) - asking after it is following up, not prying anew
+    use crate::game::desires::{Problem, Reveal};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    warm_bond(&mut g, v);
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    assert!(menu.iter().any(|(_, _, l)| l == "Ask about the trouble they told"),
         "a shared trouble opens the follow-up: {:?}", menu);
 }
 
@@ -678,10 +1010,11 @@ fn test_a_live_mystery_is_its_own_ask() {
     let mut g = Game::new();
     let i = adults(&g)[0];
     let v = g.villagers[i];
+    warm_bond(&mut g, v);
     g.seats[0].mystery = Some(SeatMystery { def: 0, known: 0, asker: v });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    let p = menu.iter().position(|(_, l)| l == "Ask about the question folk whisper of")
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about the question folk whisper of")
         .expect("a live mystery opens the ask");
     let before = g.seats[0].mystery.as_ref().unwrap().heard();
     g.talk_pick_at(0, Some(p));
@@ -689,7 +1022,7 @@ fn test_a_live_mystery_is_its_own_ask() {
     assert_eq!(m.heard(), before + 1, "the asking drew a fact");
     let t = g.seats[0].talk.as_ref().expect("still talking").clone();
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
-    let facts: Vec<&str> = crate::game::mysteries::MYSTERIES[0].facts.to_vec();
+    let facts: Vec<&str> = crate::game::mysteries::MYSTERIES[0].clues.iter().map(|c| c.text).collect();
     assert!(rec.lines.iter().any(|l| l.who == Some(v) && facts.contains(&l.text.as_str())),
         "they passed the piece on: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
@@ -785,7 +1118,7 @@ fn test_a_feuding_pair_plays_their_scene() {
     crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
     crate::game::relationships::add_relationship(&mut g.world,
         crate::game::relationships::Relationship {
-            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3 });
+            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3, ..Default::default() });
     assert!(g.villagers_chat(a, b));
     let r = g.talk_log.last().unwrap().clone();
     assert_eq!(r.kind, TalkKind::Chat);
@@ -807,7 +1140,7 @@ fn test_the_scene_take_moves_with_the_bond() {
     crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
     let rel = crate::game::relationships::add_relationship(&mut g.world,
         crate::game::relationships::Relationship {
-            from: a, other: b, kind: RelKind::Rival, strength: 0.0, interactions: 1 });
+            from: a, other: b, kind: RelKind::Rival, strength: 0.0, interactions: 1, ..Default::default() });
     assert!(g.villagers_chat(a, b));
     let r = g.talk_log.last().unwrap().clone();
     assert_eq!(r.lines[0].text, "Thy boy ran my fence line yesterday.",
@@ -864,7 +1197,7 @@ fn test_a_scene_cools_off_between_tellings() {
     crate::game::feuds::spawn_feud(&mut g.world, a, b, "a leaning hedge");
     crate::game::relationships::add_relationship(&mut g.world,
         crate::game::relationships::Relationship {
-            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3 });
+            from: a, other: b, kind: RelKind::Rival, strength: -0.5, interactions: 3, ..Default::default() });
     assert!(g.villagers_chat(a, b));
     assert_eq!(g.talk_log.last().unwrap().lines[0].text,
         "Thy fence still leans on my strip.");
@@ -1003,7 +1336,7 @@ fn ledger(g: &Game, a: Entity, b: Entity) -> u32 {
 /// a hello or a goodbye); false if none are up right now
 fn pick_bond_moving(g: &mut Game) -> bool {
     let idx = g.seats[0].talk.as_ref().and_then(|t| t.options.iter()
-        .position(|(a, _)| matches!(a, Act::PushBack | Act::Agree | Act::Answer
+        .position(|(a, _, _)| matches!(a, Act::PushBack | Act::Agree | Act::Answer
             | Act::Greet | Act::Farewell)));
     match idx { Some(i) => { g.talk_pick_at(0, Some(i)); true } None => false }
 }
@@ -1110,9 +1443,13 @@ fn test_the_acts_say_how_the_chat_landed() {
     let tr = |acts: &[(usize, Act)], ending| Transcript {
         speakers: ["A".into(), "B".into()], trees_walked: vec![],
         turns: acts.iter().map(|&(speaker, act)| Turn {
-            speaker, act, text: "x".into(), concepts: vec![], tree: "t", line: None,
+            speaker, act, respond: None, text: "x".into(), concepts: vec![],
+            tree: "t", line: None,
+            channel: crate::game::setting::Channel::Public,
         }).collect(),
-        ending, vibe: None, asked: vec![],
+        ending, vibe: None, asked: vec![], forward: 0, shared: 0, overshot: false,
+        setting: crate::game::setting::STREET,
+        evasions: vec![], worry_told: None, slips: vec![], jokes: vec![],
     };
     // a warm exchange
     assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],
@@ -1240,12 +1577,12 @@ fn test_the_amends_is_on_offer_only_after_a_slight() {
 
 #[test]
 fn test_an_amends_taken_reopens_the_door_guarded() {
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     let mut g = Game::new();
     let ad = adults(&g);
     let v = g.villagers[ad[0]];
     g.world.add_component(v, Personality { traits: vec![Trait::Kind] });
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     slight(&mut g, v);
     talk_beside(&mut g, ad[0]);
     let t = g.seats[0].talk.as_ref().unwrap();
@@ -1391,14 +1728,12 @@ fn test_letting_them_run_discloses_their_own_not_the_villages() {
     talk_beside(&mut g, ad[0]);
     let t = g.seats[0].talk.as_ref().unwrap();
     assert!(t.let_run);
-    let before = g.world.get_component::<crate::game::desires::Known>(v)
-        .map(|k| k.revealed.len()).unwrap_or(0);
+    let before = crate::game::desires::known(&g.world, g.player, v).len();
     let pick = t.choice_labels(&g.world).len() - 1;
     g.talk_pick_at(0, Some(pick));
     let t = g.seats[0].talk.as_ref().unwrap();
     assert!(!t.let_run, "the space is held once, not forever");
-    assert!(g.world.get_component::<crate::game::desires::Known>(v)
-        .map(|k| k.revealed.len()).unwrap_or(0) > before,
+    assert!(crate::game::desires::known(&g.world, g.player, v).len() > before,
         "the monologue yields what they'd never trade: their own trouble");
     assert!(t.notes.iter().any(|n| n.contains("let them run")),
         "the holding's a beat of its own");
@@ -1414,8 +1749,8 @@ fn test_a_hog_speaks_of_themselves_not_the_village() {
     g.world.add_component(v, Personality { traits: vec![Trait::SelfAbsorbed] });
     // their secrets all said already: the draw falls through to the gist
     let all: Vec<crate::game::desires::Reveal> =
-        crate::game::desires::unrevealed(&g.world, v, g.tick);
-    g.world.add_component(v, crate::game::desires::Known { revealed: all });
+        crate::game::desires::unrevealed(&g.world, g.player, v, g.tick);
+    let __pe = g.player; for __r in all { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     let v2 = talk_beside(&mut g, ad[0]);
     assert_eq!(v, v2);
     let t = g.seats[0].talk.as_ref().unwrap();
@@ -1474,19 +1809,101 @@ fn test_the_probing_question_thaws_them_through_the_talk() {
 }
 
 #[test]
-fn test_the_probe_leaves_the_offer_when_theres_nothing_to_plant() {
+fn test_the_probe_leaves_the_offer_when_theres_nothing_left_to_hear() {
     let mut g = Game::new();
     let v = g.villagers[adults(&g)[0]];
     bond_to(&mut g, v, 0.2);
-    // every probeable want carried already: the question's spent
+    // every probeable want carried already, and everything they've got
+    // already heard: the question's spent (#1347)
     g.world.get_component_mut::<crate::game::desires::InnerLife>(v).unwrap().wants =
         vec![crate::game::desires::Want::Security, crate::game::desires::Want::Mastery,
             crate::game::desires::Want::Love, crate::game::desires::Want::Finery,
             crate::game::desires::Want::BetterTools];
-    assert!(!crate::game::desires::probe_open(&g.world, v));
-    let offers = crate::game::organizing::ask_offers(&g.world, g.org, v, 0);
+    let all = crate::game::desires::unrevealed(&g.world, g.player, v, g.tick);
+    let __pe = g.player; for __r in all { crate::game::desires::note(&mut g.world, __pe, v, __r); }
+    assert!(!crate::game::desires::probe_open(&g.world, g.player, v, g.tick));
+    let offers = crate::game::organizing::ask_offers(&g.world, g.org, v, 0, g.tick);
     assert!(!offers.iter().any(|o| o.kind == crate::game::organizing::PropKind::Probe),
-        "nothing left to plant, no probe on offer");
+        "nothing left to plant or hear, no probe on offer");
+}
+
+/// The world moving re-opens the probing question (#1347): once every
+/// want's spoken for and all's heard, a fresh burden puts the ask back
+/// - and putting it draws the new thing out
+#[test]
+fn test_the_probe_reopens_when_their_life_moved_on() {
+    use crate::game::desires::{InnerLife, Problem, Reveal, Want};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    bond_to(&mut g, v, 0.2);
+    g.world.get_component_mut::<InnerLife>(v).unwrap().wants =
+        vec![Want::Security, Want::Mastery, Want::Love, Want::Finery, Want::BetterTools];
+    let all = crate::game::desires::unrevealed(&g.world, g.player, v, g.tick);
+    let __pe = g.player; for __r in all { crate::game::desires::note(&mut g.world, __pe, v, __r); }
+    assert!(!crate::game::desires::probe_open(&g.world, g.player, v, g.tick), "spent while all's heard");
+    // their life took on a load: the question's worth asking again
+    crate::game::desires::add_grievance(&mut g.world, v, Problem::Loss, g.tick + 60);
+    assert!(crate::game::desires::probe_open(&g.world, g.player, v, g.tick), "a new burden reopens it");
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    let pick = t.choice_labels(&g.world).iter().position(|l| l == "Ask what they actually want")
+        .expect("the probing question's back on the table");
+    g.talk_pick_at(0, Some(pick));
+    // a stranger's nerve isn't earned yet (E5-4): the re-asked question
+    // meets the safety test first - answer it true and the telling comes
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    assert!(t.safety_bid.is_some(), "a cold bond's secret tests first: {:?}", t);
+    g.talk_pick_at(0, Some(0));
+    let heard = crate::game::desires::known(&g.world, g.player, v);
+    assert!(heard.contains(&Reveal::Problem(Problem::Loss)),
+        "the re-asked question drew the new trouble: {:?}", heard);
+}
+
+/// A trouble heard can still come back around (#1347): with every live
+/// fact already shared, asking after what they told draws the
+/// still-carrying line - catching up, not a fresh telling - and learns
+/// nothing new twice
+#[test]
+fn test_the_trouble_they_told_comes_back_around() {
+    use crate::game::desires::{InnerLife, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    warm_bond(&mut g, v);
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    let all = crate::game::desires::unrevealed(&g.world, g.player, v, g.tick);
+    let heard_n = all.len();
+    let __pe = g.player; for __r in all { crate::game::desires::note(&mut g.world, __pe, v, __r); }
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about the trouble they told")
+        .expect("a shared trouble stays an ask");
+    g.talk_pick_at(0, Some(p));
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.who == Some(v) && l.text.to_lowercase().contains("still")),
+        "the catch-up reads as still-carrying: {:?}",
+        rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    let heard = crate::game::desires::known(&g.world, g.player, v);
+    assert_eq!(heard.len(), heard_n,
+        "catching up learns nothing twice: {:?}", heard);
+    // and the telling survives the next pick: the replay rebuild would
+    // wash a straight rec.lines push out - the drawn lines ride the
+    // record like an argument's do
+    for _ in 0..30 {
+        let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+        match t.options.iter().position(|(a, _, _)| *a != crate::game::conversation::Act::Farewell) {
+            Some(i) => g.talk_pick_at(0, Some(i)),
+            None => break,
+        }
+    }
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.who == Some(v) && l.text.to_lowercase().contains("still")),
+        "the catch-up's still on the record after another pick: {:?}",
+        rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
 
 
@@ -1546,14 +1963,19 @@ fn test_a_neighbor_asked_for_a_hand_comes_by_or_stings() {
             let n = g.talk_log.len();
             if !g.villagers_chat(a, b) || g.talk_log.len() == n { continue; }
             let rec = g.talk_log.last().unwrap();
-            let Some(ai) = rec.lines.iter().position(|l| HELP_ASKS.contains(&l.text.as_str())) else { continue };
+            let is_ask = |t: &str| HELP_ASKS.iter()
+                .any(|h| *t == g.vv_said(a, b, h) || *t == g.vv_said(b, a, h));
+            let Some(ai) = rec.lines.iter().position(|l| is_ask(&l.text)) else { continue };
             let asker = rec.lines[ai].who.unwrap();
             let answer = &rec.lines[ai + 1];
             let asked = answer.who.unwrap();
-            if HELP_YES.contains(&answer.text.as_str()) {
+            // a style marker may sign the line (E4-6): match its base words
+            let said = |set: &[&str]| set.iter().any(|l| answer.text.contains(l.trim_end_matches('.')));
+            if said(HELP_YES)
+                || FAVOR_YES.iter().any(|h| answer.text == g.vv_said(asked, asker, h)) {
                 yes = Some((asker, asked));
             } else {
-                assert!(HELP_NO.contains(&answer.text.as_str()),
+                assert!(said(HELP_NO),
                     "the answer's a yes or a no: {:?}", answer.text);
                 let after = rel_of(&g, a, b).map(|(i, _)| i).unwrap_or(0);
                 assert_eq!(after - before, 2,
@@ -1590,4 +2012,639 @@ fn test_the_village_remembers_what_was_said() {
     assert!(g.villagers_chat(c, d));
     assert!(!g.said_lines.contains_key("Said ages ago, and forgot."),
         "the memory let go of a line past the window");
+}
+
+#[test]
+fn test_a_first_talk_counts_no_talks_yet() {
+    // the greeting's own beat isn't a talk behind the pair (E3-2):
+    // act_talk lands an interaction before the panel opens, but the
+    // personal layer's count is prior talks - even the gregarious
+    // don't open it on a first meeting
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    g.world.add_component(v, Personality { traits: vec![Trait::Gregarious] });
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    assert!(menu.iter().all(|(_, _, l)| l != "Ask about themselves"),
+        "the personal layer opened on a first meeting: {:?}",
+        menu.iter().map(|(_, _, l)| l).collect::<Vec<_>>());
+}
+
+#[test]
+fn test_the_responsive_guest_hears_more_than_the_curious() {
+    // E3-3's done-when: telling of yourself opens them - the guest who
+    // answers substantively is told more than the one who only asks.
+    // Same pair, same bond warmth; only the talk policy differs
+    use crate::game::conversation::Act;
+    let play_talk = |g: &mut Game, i: usize, curious: bool| {
+        // ears near the crowd close them: a telling wants the pair alone
+        let v = g.villagers[i];
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+        talk_beside(g, i);
+        for _ in 0..60 {
+            let Some(t) = g.seats[0].talk.clone() else { break };
+            let pos = if curious {
+                // only ever asks and remarks - never answers or agrees
+                t.options.iter().position(|(a, _, _)| *a == Act::Question)
+                    .or_else(|| t.options.iter()
+                        .position(|(a, _, _)| !matches!(a, Act::Farewell | Act::Answer | Act::Agree)))
+                    .or_else(|| t.options.iter().position(|(a, _, _)| *a != Act::Farewell))
+            } else {
+                // answers and agrees where they're offered - tells of themself
+                t.options.iter()
+                    .position(|(a, _, _)| matches!(a, Act::Answer | Act::Agree))
+                    .or_else(|| t.options.iter().position(|(a, _, _)| *a != Act::Farewell))
+            };
+            match pos { Some(p) => g.talk_pick_at(0, Some(p)), None => break }
+        }
+        // part kindly when the talk's spent: only the parting writes
+        // the sitting's telling into what they keep of you
+        if g.seats[0].talk.is_some() { g.talk_pick_at(0, None); }
+    };
+    let shared_after = |curious: bool| {
+        let mut g = Game::new();
+        let i = adults(&g)[0];
+        let v = g.villagers[i];
+        let pe = g.player;
+        // an acquaintance warm enough to hold a first telling - the
+        // audition fires for acquaintances, so their probe is where
+        // the telling happens
+        crate::game::relationships::add_relationship(&mut g.world,
+            crate::game::relationships::Relationship {
+                from: pe, other: v, kind: RelKind::Acquaintance,
+                strength: 0.6, interactions: 2,
+                intimacy: 0.5, pivots: 0, deflects: 0, bids_met: 0,
+                trust: crate::game::relationships::Trust {
+                    ability: 0.0, benevolence: 0.6, integrity: 0.5 },
+                safety: crate::game::relationships::SafetyRung::Contributor,
+            });
+        g.world.add_component(v, Personality { traits: vec![Trait::Stingy] });
+        // nothing told them yet: the talk starts unreciprocated
+        g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick });
+        play_talk(&mut g, i, curious);
+        g.world.get_component::<SharedDepth>(v)
+            .and_then(|sd| sd.of.get(&pe).copied())
+            .map(|(depth, _)| depth).unwrap_or(0)
+    };
+    let responsive = shared_after(false);
+    let curious = shared_after(true);
+    assert!(responsive >= 1, "the responsive guest's telling landed: {responsive}");
+    assert_eq!(curious, 0, "the curious guest never told them anything");
+}
+
+#[test]
+fn test_another_guests_telling_isnt_yours() {
+    // E3-3: disclosure credit keys to the seat's player - a different
+    // guest's deep telling doesn't open the private layer for you
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    let pe = g.player;
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: pe, other: v, kind: RelKind::Acquaintance,
+            strength: 0.6, interactions: 2,
+            intimacy: 0.5, pivots: 0, deflects: 0, bids_met: 0,
+            trust: crate::game::relationships::Trust {
+                ability: 0.0, benevolence: 0.6, integrity: 0.5 },
+            safety: crate::game::relationships::SafetyRung::Contributor });
+    // someone else's deepest telling sits on them
+    let mut sd = SharedDepth::default();
+    sd.of.insert(u32::MAX, (3, g.tick));
+    g.world.add_component(v, sd);
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert_eq!(t.villager.open.shared, 0,
+        "another guest's telling doesn't count for this seat");
+}
+
+#[test]
+fn test_a_later_telling_keeps_the_earlier_deflection() {
+    // E3-3 + replay: a telling mid-talk opens deeper asks for LATER
+    // beats only - the replay rebuild keeps earlier forward asks
+    // turned aside, not rewritten by the newer count
+    use crate::game::desires::{InnerLife, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    let pe = g.player;
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: pe, other: v, kind: RelKind::Acquaintance,
+            strength: 0.6, interactions: 2,
+            intimacy: 0.5, pivots: 0, deflects: 0, bids_met: 0,
+            trust: crate::game::relationships::Trust {
+                ability: 0.0, benevolence: 0.6, integrity: 0.5 },
+            safety: crate::game::relationships::SafetyRung::Contributor });
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    g.world.add_component(v, TalkMemory { mood: TalkMood::Warmed, tick: g.tick });
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    // walk to the ask slot without answering - an agree/answer on the
+    // way would already count as the telling under test
+    let menu = (|| {
+        for _ in 0..30 {
+            let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+            if let Some(i) = t.options.iter()
+                .position(|(_, _, l)| l == "Put a question to them") {
+                g.talk_pick_at(0, Some(i));
+                return g.seats[0].talk.as_ref().unwrap().options.clone();
+            }
+            let pos = t.options.iter().position(|(a, _, _)|
+                !matches!(a, Act::Farewell | Act::Answer | Act::Agree));
+            match pos { Some(i) => g.talk_pick_at(0, Some(i)), None => break }
+        }
+        panic!("the ask slot never showed");
+    })();
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists, as the tell-named kind");
+    g.talk_pick_at(0, Some(p));
+    assert_eq!(g.seats[0].talk.as_ref().unwrap().forward_seen, 1,
+        "the forward ask deflected");
+    // answer substantively - a telling lands mid-talk
+    for _ in 0..30 {
+        let t = g.seats[0].talk.as_ref().expect("still talking").clone();
+        if t.shared >= 1 { break; }
+        let pos = t.options.iter()
+            .position(|(a, _, _)| matches!(a, Act::Answer | Act::Agree))
+            .or_else(|| t.options.iter().position(|(a, _, _)| *a != Act::Farewell));
+        match pos { Some(p) => g.talk_pick_at(0, Some(p)), None => break }
+    }
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    assert!(t.shared >= 1, "the telling landed mid-talk");
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    let deflected = ["That's not for the telling",
+        "We don't know each other so well as that",
+        "Ask me another", "Some things keep"];
+    assert!(rec.lines.iter().any(|l| l.who == Some(v)
+            && deflected.iter().any(|d| l.text.contains(d))),
+        "the earlier ask stays turned aside after the telling: {:?}",
+        rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+
+/// #1372: the pair's fine bond rides into the talk - lovers hear the
+/// sweetheart beat, not the coarse kin material or smalltalk
+#[test]
+fn test_a_sweetheart_chat_speaks_as_sweethearts() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: a, other: b, kind: RelKind::Lover, strength: 0.8, interactions: 3, ..Default::default() });
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let lovers = ["my heart", "love", "stand closer", "thee this morning",
+        "saved a smile", "talking with thee", "at the well"];
+    assert!(r.lines.iter().any(|l| lovers.iter().any(|w| l.text.to_lowercase().contains(w))),
+        "no sweetheart words in the record: {:?}", r.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+
+/// #1372: a master and their learner get the teacher's register
+#[test]
+fn test_a_mentor_chat_carries_the_craft() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: a, other: b, kind: RelKind::Mentor, strength: 0.5, interactions: 5, ..Default::default() });
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let craft = ["master", "the craft", "mark me", "mark this", "the bench", "lesson"];
+    assert!(r.lines.iter().any(|l| craft.iter().any(|w| l.text.to_lowercase().contains(w))),
+        "no mentor register in the record: {:?}", r.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+
+
+/// #1388: the weather talk tracks the sky - a wet day falls rain lines,
+/// a fair one dries - the day's own weather rides as a status
+#[test]
+fn test_weather_talk_matches_the_sky() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    // set the sky to rain: the drift past the threshold reads Rain
+    g.world.get_component_mut::<crate::sim::climate::Climate>(g.climate).unwrap().rainfall_drift = 1.0;
+    let na = g.name_of(a);
+    let s = speaker_of(&g.world, a, &na, g.tick);
+    assert!(s.status.contains(&"wx-rain"), "the wet sky rode no status: {:?}", s.status);
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let text = r.lines.iter().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" | ");
+    assert!(!text.contains("dew lay heavy") && !text.contains("drying") && !text.contains("hay wishes"),
+        "fair-sky lines under a wet sky: {text}");
+    // and a fair day hears no rain
+    g.world.get_component_mut::<crate::sim::climate::Climate>(g.climate).unwrap().rainfall_drift = 0.0;
+    g.tick += 1;
+    let s = speaker_of(&g.world, a, &na, g.tick);
+    assert!(s.status.contains(&"wx-fair"), "the clear sky rode no status: {:?}", s.status);
+    assert!(g.villagers_chat(a, b));
+    let r = g.talk_log.last().unwrap().clone();
+    let text = r.lines.iter().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" | ");
+    assert!(!text.contains("Looks like rain") && !text.contains("wet week") && !text.contains("mud will take"),
+        "wet-sky lines under a fair sky: {text}");
+}
+
+/// #1388: a favor-ask names the asked's trade - the fisher gets asked
+/// for a fish, and a yes walks it round like any help-out
+#[test]
+fn test_a_favor_ask_names_their_trade() {
+    let mut g = Game::new();
+    let (a, b) = plain_pair(&g);
+    let fisher = || crate::game::vocation::Craft {
+        vocation: crate::game::vocation::Vocation::Fisher, skill: 0.7,
+        workplace: None, master: None, exposure: 0.0, tasked_by: None,
+        pending: 0.0, apprentice_years: 0, stage: 0 };
+    g.world.add_component(a, fisher());
+    g.world.add_component(b, fisher());
+    let mut found = false;
+    for i in 0..600 {
+        g.tick += 1;
+        g.villagers_chat(a, b);
+        let r = g.talk_log.last().unwrap();
+        if r.lines.iter().any(|l| l.text.contains("spare a fat trout")) {
+            let texts: Vec<&str> = r.lines.iter().map(|l| l.text.as_str()).collect();
+            assert!(texts.iter().any(|t| t.contains("bring it by") || t.contains("set it aside")
+                    || t.contains("at thy door")
+                    || HELP_NO.iter().any(|n| t.contains(n.trim_end_matches('.')))),
+                "the ask never got its answer: {texts:?}");
+            found = true;
+            break;
+        }
+        let _ = i;
+    }
+    assert!(found, "600 chats and no favor-ask fired");
+}
+
+#[test]
+fn test_the_responsive_guest_outbonds_the_greedy_one() {
+    // E6-3's done-when: the greedy bot loses to the responsive bot.
+    // Two identical games, the same villager, a talk a day - one guest
+    // always takes the kindest reply on offer, the other always takes
+    // the one that turns the talk back to themselves
+    use crate::game::conversation::Respond;
+    use crate::game::relationships::{find_relationship, Relationship};
+    fn respond_rank(r: &Respond) -> i32 {
+        match r {
+            Respond::Care => 4, Respond::Reflect => 3, Respond::Advise => 2,
+            Respond::Validate => 1, Respond::Deflect => -1, Respond::PivotAsk => -2,
+        }
+    }
+    fn bond_after(g: &mut Game, i: usize, responsive: bool) -> (f32, u32, u32) {
+        let v = g.villagers[i];
+        let pe = g.player;
+        for day in 0..8u64 {
+            g.tick = day;
+            talk_beside(g, i);
+            let mut guard = 0;
+            while g.seats[0].talk.is_some() && guard < 30 {
+                guard += 1;
+                let t = g.seats[0].talk.clone().unwrap();
+                if t.options.is_empty() { g.talk_pick_at(0, None); continue }
+                let (p, _) = t.options.iter().enumerate()
+                    .max_by_key(|(_, (_, r, _))| {
+                        let s = respond_rank(r);
+                        if responsive { s } else { -s }
+                    })
+                    .expect("a non-empty menu picks");
+                g.talk_pick_at(0, Some(p));
+            }
+        }
+        let e = find_relationship(&g.world, pe, v).expect("the talks left a bond");
+        let r = g.world.get_component::<Relationship>(e).unwrap();
+        (r.intimacy + r.trust.benevolence + r.trust.integrity, r.pivots, r.deflects)
+    }
+    let mut g1 = Game::new();
+    let i = adults(&g1)[0];
+    let responsive = bond_after(&mut g1, i, true);
+    let mut g2 = Game::new();
+    let greedy = bond_after(&mut g2, i, false);
+    assert!(responsive.0 > greedy.0,
+        "a guest who receives you comes out closer than one who doesn't: {responsive:?} vs {greedy:?}");
+    assert!(greedy.1 + greedy.2 > 0,
+        "the greedy guest left marks the bond keeps: {greedy:?}");
+}
+
+/// Warm but untested (E5-4, #1436): the parts reach the private layer
+/// the way `warm_bond`'s do, but the nerve's never climbed - a fresh
+/// telling still tests before it moves
+fn untested_bond(g: &mut Game, v: Entity) {
+    let pe = g.player;
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: pe, other: v, kind: RelKind::Friend,
+            strength: 1.0, interactions: 3,
+            intimacy: 0.6, pivots: 0, deflects: 0, bids_met: 0,
+            trust: crate::game::relationships::Trust {
+                ability: 0.0, benevolence: 0.6, integrity: 0.6 },
+            safety: crate::game::relationships::SafetyRung::Inclusion,
+        });
+    let mut sd = SharedDepth::default();
+    sd.of.insert(pe, (2, g.tick));
+    g.world.add_component(v, sd);
+}
+
+#[test]
+fn test_a_reach_answered_moves_what_the_table_says() {
+    // E5-4's table (#1436): the turn toward warms them and counts - two
+    // kept reaches raise the nerve a rung; the miss costs the rung
+    // outright, deliberately heavier than the refusal's mark
+    use crate::game::relationships::{find_relationship, push_bid, BidTurn,
+        Relationship, SafetyRung};
+    let mut g = Game::new();
+    let pe = g.player;
+    let v = g.villagers[adults(&g)[0]];
+    push_bid(&mut g.world, pe, v, BidTurn::Toward);
+    push_bid(&mut g.world, pe, v, BidTurn::Toward);
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert_eq!(r.bids_met, 2);
+    assert!(r.intimacy > 0.1 && r.trust.benevolence > 0.0,
+        "turning toward warms: {r:?}");
+    assert_eq!(r.safety, SafetyRung::Learner, "kept reaches climb the nerve");
+    push_bid(&mut g.world, pe, v, BidTurn::Away);
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert_eq!(r.safety, SafetyRung::Inclusion, "the miss costs the nerve");
+    // and the refusal marks without costing the rung's own floor - a
+    // refused reach was at least seen, a missed one wasn't
+    push_bid(&mut g.world, pe, v, BidTurn::Toward);
+    push_bid(&mut g.world, pe, v, BidTurn::Toward);
+    let integ = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap().trust.integrity;
+    push_bid(&mut g.world, pe, v, BidTurn::Against);
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert!(r.trust.integrity < integ, "the refusal leaves its mark");
+    assert_eq!(r.safety, SafetyRung::Learner,
+        "the refusal isn't the miss - the nerve keeps its floor");
+}
+
+#[test]
+fn test_a_reach_met_at_the_pick_is_counted() {
+    // when their call was a bid, the pick's act is the turn it reads
+    // (E5-4): an engaging answer counts a kept reach on the bond
+    use crate::game::relationships::{find_relationship, Relationship};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    assert!(t.call_act.is_some(), "the replies answer a real call");
+    g.seats[0].talk.as_mut().unwrap().call_act = Some(Act::Bid);
+    let (p, act) = t.options.iter().enumerate()
+        .map(|(i, (a, _, _))| (i, *a))
+        .find(|(_, a)| !matches!(a, Act::Farewell))
+        .unwrap_or((0, Act::Farewell));
+    g.talk_pick_at(0, Some(p));
+    let r = find_relationship(&g.world, g.player, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e))
+        .expect("the bond moved");
+    let toward = matches!(act, Act::Agree | Act::Answer | Act::Question);
+    assert_eq!(r.bids_met, toward as u32,
+        "the pick's act ({act:?}) was the turn");
+}
+
+#[test]
+fn test_a_fresh_secret_tests_the_nerve_first() {
+    // the disclosure's hard gate (E5-4, #1436): warm but untested, the
+    // ask draws the safety bid, not the telling - answering it true is
+    // what lets the telling out
+    use crate::game::desires::{InnerLife, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    untested_bond(&mut g, v);
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    // a secret wants a private hearing: no ears near
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists");
+    g.talk_pick_at(0, Some(p));
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let bid = t.safety_bid.expect("a fresh secret tests the nerve first");
+    assert_eq!(t.choice_labels(&g.world), bid.labels(),
+        "the choices are the test's answers now");
+    assert!(crate::game::desires::known(&g.world, g.player, v).is_empty(),
+        "the secret holds for the answer");
+    // answering it true: the held telling comes out - the test's own
+    // reveal, whatever the deck dealt - and the word's remembered
+    let held = bid.reveal;
+    g.talk_pick_at(0, Some(0));
+    let heard = crate::game::desires::known(&g.world, g.player, v);
+    assert!(heard.contains(&held),
+        "the passed test let it out: {:?}", heard);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.bid_passed && t.safety_bid.is_none());
+    // and the kept word's on the record E5-5's confidence ledger reads
+    let mem = g.world.get_component::<crate::game::episodes::PairMemory>(v)
+        .expect("the answer left a memory");
+    assert!(mem.eps.iter().any(|e| e.kind == crate::game::episodes::MemKind::KeptConfidence),
+        "{:?}", mem.eps);
+}
+
+#[test]
+fn test_a_test_failed_keeps_the_secret_held() {
+    // the leak answer (E5-4): the telling stays held, and where the
+    // test's shape makes it a confidence leaked the memory's the sour
+    // one the ledger reads back
+    use crate::game::desires::{InnerLife, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    untested_bond(&mut g, v);
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    // a secret wants a private hearing: no ears near
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists");
+    g.talk_pick_at(0, Some(p));
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    let bid = t.safety_bid.expect("the test stands");
+    let leak = bid.labels().len() - 1;
+    g.talk_pick_at(0, Some(leak));
+    assert!(crate::game::desires::known(&g.world, g.player, v).is_empty(),
+        "the telling stayed held");
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.safety_bid.is_none() && !t.bid_passed, "the test's done and failed");
+    match bid.kind {
+        SafetyBidKind::Hypothetical | SafetyBidKind::Probe => {
+            let mem = g.world.get_component::<crate::game::episodes::PairMemory>(v)
+                .expect("the leak left a memory");
+            assert!(mem.eps.iter().any(|e| e.kind == crate::game::episodes::MemKind::LeakedConfidence),
+                "{:?}", mem.eps);
+        }
+        SafetyBidKind::Confidence => {
+            // "I make no promises" is a miss, not a leak: no sour
+            // memory, just the rung's own cost
+            assert!(g.world.get_component::<crate::game::episodes::PairMemory>(v)
+                .map(|m| !m.eps.iter().any(|e| e.kind == crate::game::episodes::MemKind::LeakedConfidence))
+                .unwrap_or(true));
+        }
+    }
+}
+
+#[test]
+fn test_walking_out_on_their_test_is_the_miss() {
+    // leaving the test unanswered is the turn away (E5-4): they
+    // reached and were left standing - the nerve pays it
+    use crate::game::desires::{InnerLife, Problem};
+    use crate::game::relationships::{find_relationship, Relationship, SafetyRung};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    untested_bond(&mut g, v);
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    // a secret wants a private hearing: no ears near
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists");
+    g.talk_pick_at(0, Some(p));
+    // the rung earned: the untested bond's nerve climbs off the floor
+    let pe = g.player;
+    crate::game::relationships::push_bid(&mut g.world, pe, v,
+        crate::game::relationships::BidTurn::Toward);
+    crate::game::relationships::push_bid(&mut g.world, pe, v,
+        crate::game::relationships::BidTurn::Toward);
+    assert_eq!(find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap().safety,
+        SafetyRung::Learner);
+    g.talk_pick_at(0, None);
+    assert!(g.seats[0].talk.is_none(), "the leave closed the talk");
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert_eq!(r.safety, SafetyRung::Inclusion,
+        "walking out on the reach cost the rung");
+}
+
+#[test]
+fn test_the_probe_bid_tells_someone_elses_secret_first() {
+    // the third shape (E5-4): they tell you another's lesser secret
+    // and watch what you do - the decoy's real content, filed on its
+    // owner, so your handling of it is the thing being watched
+    use crate::game::desires::{Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = talk_beside(&mut g, i);
+    let told = |g: &Game| g.villagers.iter().copied()
+        .filter(|&x| x != v)
+        .map(|x| crate::game::desires::known(&g.world, g.player, x).len())
+        .sum::<usize>();
+    let before = told(&g);
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    let r = crate::game::desires::Reveal::Problem(Problem::Taxed);
+    let (line, bid) = g.safety_bid_line(0, &t, r, 2);
+    assert_eq!(bid.kind, SafetyBidKind::Probe, "the third shape probes");
+    assert!(line.contains("Word is,"), "the decoy told: {}", line);
+    assert!(!line.contains(&t.villager.name),
+        "it isn't their own secret: {}", line);
+    assert!(told(&g) > before, "the lesser secret filed on its owner");
+    assert!(bid.probe.is_some(), "the probe names its third party");
+    // and the watch answers are keep / question / leak
+    assert_eq!(bid.labels().len(), 3);
+}
+
+/// E7-1 (#1404): the ledger's the seat's own - what one organizer
+/// hears stays invisible to the other seat
+#[test]
+fn test_what_one_seat_learns_is_invisible_to_the_other() {
+    use crate::game::desires;
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    let s1 = g.add_seat();
+    let (pe0, pe1) = (g.seats[0].player, g.seats[s1].player);
+    // seat 0's meeting: the room gives up a trouble and their ledger
+    // marks it; the asking goes through the real hear path
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None);
+    assert!(!desires::known(&g.world, pe0, v).is_empty(),
+        "the host's meeting marked what they heard");
+    // the other seat's record stays blind: the same draw's still live
+    // for them, and the stage never rose on their side
+    assert!(desires::known(&g.world, pe1, v).is_empty(),
+        "what one seat learns is invisible to the other");
+    // a live secret the meeting didn't give up: seat 0 marks it heard,
+    // and it's off their draw but still on the other's
+    let r = desires::unrevealed(&g.world, pe1, v, g.tick)[0];
+    desires::note(&mut g.world, pe0, v, r);
+    assert!(!desires::unrevealed(&g.world, pe0, v, g.tick).contains(&r),
+        "heard once, it's off their own draw");
+    assert!(desires::unrevealed(&g.world, pe1, v, g.tick).contains(&r),
+        "but the other seat could still draw it out of them");
+}
+
+
+#[test]
+fn test_a_shared_laugh_over_power_files_alignment() {
+    // E5-6: a barb at the lord taken up where it could have been
+    // reported is the village mind made visible - the villager keeps
+    // the laugh as an episode
+    use crate::game::conversation::{Grievance, Joke, JokeTarget};
+    use crate::game::episodes::{MemKind, PairMemory};
+    let mut g = Game::new();
+    let mut heard = None;
+    for i in adults(&g) {
+        let v = talk_beside(&mut g, i);
+        {
+            let t = g.seats[0].talk.as_mut().unwrap();
+            t.setting = crate::game::setting::BACKSTAGE;
+            t.villager.joke = Some(Joke {
+                styles: [0.0, 0.0, 1.0, 0.0],
+                grievance: Some(Grievance { target: JokeTarget::Lord,
+                    word: "the lord's wars",
+                    lie: crate::game::persona::Belief::LordAlwaysWins }) });
+        }
+        // option 0 is the open laugh when the four forks show
+        let mut picks = 0;
+        while g.seats[0].talk.is_some() && picks < 40 { g.talk_pick_at(0, Some(0)); picks += 1; }
+        if g.world.get_component::<PairMemory>(v)
+            .map(|m| m.eps.iter().any(|e| e.kind == MemKind::LaughedWithUs))
+            .unwrap_or(false) {
+            heard = Some(v);
+            break;
+        }
+    }
+    assert!(heard.is_some(), "no laugh over a power joke across the adults");
+}
+
+#[test]
+fn test_a_villagers_temperament_signs_their_lines() {
+    // E4-6 (#1433): the style markers ride the session's own speaker
+    // build - a pious mouth swears where a plain one stays unmarked,
+    // and the signing lands inside the realized line, cap two a line
+    use crate::game::conversation::{fill, Rng};
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    g.world.add_component(v, Personality { traits: vec![Trait::Pious] });
+    let s = speaker_of(&g.world, v, &g.name_of(v), g.tick);
+    let p = g.player_speaker(g.player);
+    let oaths = crate::game::text::authored_lines().iter()
+        .filter(|&&t| {
+            let got = fill(t, &s, &p, &mut Rng::new(0));
+            got.starts_with("Saints keep us.") || got.starts_with("By the rood.")
+                || got.starts_with("God witness.")
+        }).count();
+    assert!(oaths > 50, "a pious mouth should sign its lines: {oaths}");
+    // the player's own un-traited voice stays plain
+    let marked = crate::game::text::authored_lines().iter()
+        .filter(|&&t| {
+            let got = fill(t, &p, &s, &mut Rng::new(0));
+            ["Saints keep us.", "By the rood.", "God witness."].iter()
+                .any(|w| got.starts_with(w))
+                || ["and that's the long of it.", "and more besides.",
+                    "as I've cause to say.", "or so I hear.", "as like as not.",
+                    "by my reckoning.", "or am I mistook?",
+                    "or is that not the way of it?", "or do I hear wrong?",
+                    "for my part.", "as I see it.", "or so I make it."]
+                    .iter().any(|w| got.ends_with(w))
+        }).count();
+    assert_eq!(marked, 0, "a trait-less speaker marks nothing: {marked}");
 }

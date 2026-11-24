@@ -73,10 +73,9 @@ fn test_who_holds_it_shows_on_the_card() {
     crate::game::relationships::record_interaction(&mut g.world, player,
         crate::game::relationships::Interaction { other: v,
             kind: crate::game::relationships::InteractionKind::Conversation, intensity: 1.0 });
-    g.world.add_component(v, crate::game::desires::Known {
-        revealed: vec![crate::game::desires::Reveal::Problem(crate::game::desires::Problem::Broke),
+    let __pe = g.player; for __r in vec![crate::game::desires::Reveal::Problem(crate::game::desires::Problem::Broke),
                        crate::game::desires::Reveal::Want(Want::Joy),
-                       crate::game::desires::Reveal::Problem(crate::game::desires::Problem::Broke)] });
+                       crate::game::desires::Reveal::Want(Want::GoodFood)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     // and two heirlooms in his hands - both of them named
     for name in ["a lute", "a fine toolset"] {
         let item = g.world.create_entity();

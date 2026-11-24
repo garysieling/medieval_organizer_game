@@ -53,7 +53,7 @@ fn village() -> Village {
     let friend = person(&mut world, 1.5, 0.4);
     world.add_component(child, Bond { target: elder, security: 0.8 });
     let r = world.create_entity();
-    world.add_component(r, Relationship { from: friend, other: elder, kind: RelKind::Friend, strength: 0.7, interactions: 9 });
+    world.add_component(r, Relationship { from: friend, other: elder, kind: RelKind::Friend, strength: 0.7, interactions: 9, ..Default::default() });
 
     let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
     pets::adopt(&mut world, dog, elder);

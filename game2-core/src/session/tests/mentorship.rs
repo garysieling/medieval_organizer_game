@@ -23,7 +23,7 @@ fn person(g: &mut Game, v: Entity, years: f32, stage: LifeStage, traits: Vec<Tra
 }
 
 fn bond(g: &mut Game, a: Entity, b: Entity, kind: RelKind, strength: f32, interactions: u32) {
-    add_relationship(&mut g.world, Relationship { from: a, other: b, kind, strength, interactions });
+    add_relationship(&mut g.world, Relationship { from: a, other: b, kind, strength, interactions, ..Default::default() });
 }
 
 fn seasons(g: &mut Game, n: u64) {

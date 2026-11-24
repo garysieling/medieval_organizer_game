@@ -32,7 +32,7 @@ use std::collections::VecDeque;
 use std::io::{self, BufRead, Write};
 
 use game2_core::game::conversation::{
-    converse_with, run_meeting, Act, Choice, Ending, MeetingLine, Relation, Rng, Speaker,
+    converse_with, converse_with_at, run_meeting, Act, Choice, Ending, MeetingLine, Relation, Rng, Speaker,
 };
 use game2_core::game::dialogue_trees::{backstory, meeting_pool, village_library, MEET_PROMPT, MEET_RITES};
 use game2_core::game::traits::Trait;
@@ -57,20 +57,27 @@ struct Args {
     stage: Option<Stage>,
     days: u64,
     n: usize,
+    /// The arc runner's talk count (E0-4, #1405): 20, the Appendix A
+    /// arc scale
+    talks: usize,
+    /// The scripted player policy an arc runs (E0-4)
+    policy: Option<String>,
     picks: VecDeque<usize>,
     auto: bool,
     feedback: bool,
     out: Option<String>,
     folk: usize,
     warm: bool,
+    seeded_cast: bool,
 }
 
 fn parse_args() -> Args {
     let mut a = Args {
         mode: "help".into(), seed: MAP_SEED, villager: None, name: None,
         ideology: None, rel: None, traits: vec![], statuses: vec![],
-        stage: None, days: 0, n: 10, picks: VecDeque::new(), auto: false,
-        feedback: true, out: None, folk: 4, warm: false,
+        stage: None, days: 0, n: 10, talks: 20, policy: None,
+        picks: VecDeque::new(), auto: false,
+        feedback: true, out: None, folk: 4, warm: false, seeded_cast: false,
     };
     let argv: Vec<String> = std::env::args().collect();
     let mut i = 1;
@@ -79,6 +86,8 @@ fn parse_args() -> Args {
         let take = |i: &mut usize| -> String { *i += 1; argv.get(*i).cloned().unwrap_or_default() };
         match argv[i].as_str() {
             "--seed" | "-s" => a.seed = take(&mut i).parse().unwrap_or(MAP_SEED),
+            // a seeded cast carries personas (E3-1): their facts print
+            "--cast" => a.seeded_cast = take(&mut i) == "seeded",
             "--villager" => a.villager = Some(take(&mut i)),
             "--name" => a.name = Some(take(&mut i)),
             "--ideology" => a.ideology = Some(take(&mut i)),
@@ -94,6 +103,8 @@ fn parse_args() -> Args {
             "--stage" => a.stage = Some(stage_of(&take(&mut i))),
             "--days" => a.days = take(&mut i).parse().unwrap_or(0),
             "-n" => a.n = take(&mut i).parse().unwrap_or(10),
+            "--talks" => a.talks = take(&mut i).parse().unwrap_or(20),
+            "--policy" => a.policy = Some(take(&mut i)),
             "--picks" => {
                 for p in take(&mut i).split(',') {
                     if let Ok(n) = p.trim().parse() { a.picks.push_back(n); }
@@ -189,7 +200,8 @@ fn next_pick(opts: &[String], picks: &mut VecDeque<usize>, auto: bool, stdin: &i
 /// profile, gist, asks and all - read off the convo box each frame.
 fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::Stdin) {
     let mut pq = a.picks.clone();
-    let mut g = Game::new_seeded(a.seed);
+    let mut g = if a.seeded_cast { Game::new_seeded_cast(a.seed) }
+        else { Game::new_seeded(a.seed) };
     if let Some(s) = a.stage { stage(&mut g, s); }
     if a.days > 0 { run_days(&mut g, a.days); }
 
@@ -212,17 +224,26 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
     };
     if vi == usize::MAX { return; }
     let who = g.villagers[vi];
-    // --warm: the lab's heard their self-interest already (Known.revealed
+    // --warm: the lab's heard their self-interest already (Known entries
     // non-empty), which is what puts organizing asks on the talk (#1191)
     if a.warm {
-        let org = g.seats[0].org;
-        for r in game2_core::game::desires::unrevealed(&g.world, who, g.tick) {
-            game2_core::game::desires::hear(&mut g.world, org, who, r, g.tick);
+        // the seat's own ledger (E7-1): warm marks what this organizer
+        // heard, kept on their player entity
+        let pe = g.seats[0].player;
+        for r in game2_core::game::desires::unrevealed(&g.world, pe, who, g.tick) {
+            game2_core::game::desires::hear(&mut g.world, pe, who, r, g.tick);
         }
     }
     let vname = m0.people.iter().find(|p| p.e == who)
         .and_then(|p| p.label.clone()).unwrap_or_else(|| format!("villager {vi}"));
     out.emit(&format!("=== Talk: {vname} (villager {vi}, game seed {}) ===", a.seed));
+    // the persona's fact table (E3-1): what the talk's criteria see -
+    // open facts are voice-observable; the hidden half is theirs alone
+    let vs = game2_core::session::dialogue::speaker_of(&g.world, who, &vname, g.tick);
+    out.emit(&format!("  facts: {}", vs.facts.open.join(" ")));
+    if !vs.facts.hidden.is_empty() {
+        out.emit(&format!("  facts (self-only): {}", vs.facts.hidden.join(" ")));
+    }
 
     g.command(Command::Select(vi));
     g.command(Command::Act(0)); // Talk
@@ -294,9 +315,10 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
             }
         }
     }
-    out.emit(&format!("REPRO: talk_lab talk --seed {} --villager {} --picks {} {}",
+    out.emit(&format!("REPRO: talk_lab talk --seed {} --villager {} --picks {} {}{}",
         a.seed, a.villager.clone().unwrap_or_else(|| vi.to_string()),
         taken.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(","),
+        if a.seeded_cast { "--cast seeded " } else { "" },
         if talk_seed != 0 { format!("(talk seed {talk_seed})") } else { String::new() }));
 }
 
@@ -312,6 +334,7 @@ fn run_talk_synthetic(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &i
     let rel = a.rel.unwrap_or(Relation::Acquaintance);
     out.emit(&format!("=== Talk: {} (synthetic) vs {} - {:?} ===", them.name, you.name, rel));
     out.emit(&format!("  them: {}", backstory(&them)));
+    out.emit(&format!("  them's facts: {}", them.facts.open.join(" ")));
     out.emit(&format!("  you : {}", backstory(&you)));
     let lib = village_library();
     let mut picks: Vec<usize> = vec![];
@@ -319,7 +342,7 @@ fn run_talk_synthetic(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &i
     loop {
         let mut need: Option<Vec<(Act, String)>> = None;
         let mut used_picks = 0usize;
-        let tr = converse_with(&them, &you, rel, &lib, None, 1, &mut |ch: &[Choice]| {
+        let tr = converse_with(&them, &you, rel, None, &lib, None, 1, &mut |ch: &[Choice]| {
             if used_picks < picks.len() {
                 let p = picks[used_picks];
                 used_picks += 1;
@@ -360,6 +383,9 @@ fn synthetic_pair(a: &Args) -> (Speaker, Speaker) {
     them.traits = a.traits.clone();
     them.ideology = a.ideology.as_deref().unwrap_or("laborer").to_string().leak();
     for s in &a.statuses { let st: &'static str = s.clone().leak(); them.status.push(st); }
+    // the persona-lite profile (E3-1): archetype:* and value:* facts
+    // reach the transcript even for a flag-built speaker
+    them.facts = game2_core::game::conversation::lite_facts(&them.traits, a.seed);
     // "Voice" is what the game calls the player - keeps greetings like
     // "Morrow, Voice." reading the way they do in the UI (#1190)
     let you = Speaker::new("Voice");
@@ -419,6 +445,12 @@ fn synthetic_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
         }
         let st = STATUSES[rng.below(STATUSES.len())];
         if st != "well" { s.status.push(st); }
+        // the ear's landmark (E4-7, #1416): the index deal, distinct
+        // per speaker like the cast's
+        s.idiolect = Some(game2_core::game::idiolect::Idiolect {
+            phrase: game2_core::game::idiolect::PHRASES[i % game2_core::game::idiolect::PHRASES.len()],
+            habit: game2_core::game::idiolect::HABITS[(i * 7 + 3) % game2_core::game::idiolect::HABITS.len()],
+        });
         s
     }).collect()
 }
@@ -552,17 +584,32 @@ fn run_batch(a: &Args, out: &mut Out) {
         let (ia, ib) = (i % roster.len(), (i + 1 + rng.below(roster.len() - 1)) % roster.len());
         let (x, y) = if ia < ib { (ia, ib) } else { (ib, ia) };
         let rel = rels[rng.below(rels.len())];
+        // E5-9 (#1446): a spread of places - the street and market for
+        // the public face, the alehouse and kitchen for the hidden one
+        // (the batch's friends and kin get let backstage by the bond),
+        // the law's ear on a few to flip backstage public again
+        let setting = game2_core::game::setting::Setting {
+            place: match rng.below(10) {
+                0 | 1 => game2_core::game::setting::Place::Market,
+                2 => game2_core::game::setting::Place::ChurchDoor,
+                3 | 4 | 5 => game2_core::game::setting::Place::Alehouse,
+                6 | 7 => game2_core::game::setting::Place::Kitchen,
+                _ => game2_core::game::setting::Place::Field,
+            },
+            law_earshot: rng.below(8) == 0,
+            invited: false,
+        };
         let cseed = a.seed.wrapping_mul(31).wrapping_add(i as u64);
         // auto-pick with the run's own rng, recording the picks
         let mut prng = Rng::new(cseed);
         let mut made: Vec<usize> = vec![];
-        let tr = converse_with(&roster[x], &roster[y], rel, &lib, None, 1, &mut |ch: &[Choice]| {
+        let tr = converse_with_at(&roster[x], &roster[y], rel, None, &lib, None, 1, &setting, &mut |ch: &[Choice]| {
             let p = prng.below(ch.len());
             made.push(p);
             Some(p)
         }, &mut Rng::new(cseed));
-        out.emit(&format!("## {} and {} - {:?} (seed {cseed}, picks {:?})",
-            roster[x].name, roster[y].name, rel, made));
+        out.emit(&format!("## {} and {} - {:?} at {} ({:?}) (seed {cseed}, picks {:?})",
+            roster[x].name, roster[y].name, rel, tr.setting.place.slug(), tr.setting.channel(), made));
         out.emit(&format!("them: {}", backstory(&roster[x])));
         out.emit(&format!("you : {}\n", backstory(&roster[y])));
         for t in &tr.turns {
@@ -571,6 +618,76 @@ fn run_batch(a: &Args, out: &mut Out) {
         let vibe = tr.vibe.map(|v| format!(", vibe: {v:?}")).unwrap_or_default();
         out.emit(&format!("-- {:?}{vibe}\n", tr.ending.unwrap_or(Ending::Exhausted)));
     }
+}
+
+/// The arc scale (E0-4, #1405): one villager, `--talks` talks against a
+/// scripted `--policy`, the whole arc as JSON - the same seed and policy
+/// give byte-identical output. The metrics table (E0-5) reads this.
+fn run_arc_mode(a: &Args, out: &mut Out) {
+    use game2_core::game::arc::{policy_of, run_arc};
+    let policy = a.policy.as_deref().and_then(policy_of).unwrap_or_else(|| {
+        eprintln!("arc needs --policy, one of: curious responsive greedy silent");
+        std::process::exit(2);
+    });
+    let lib = village_library();
+    // the seeded roster the batch draws on: --villager picks by index or
+    // name, so a villager is reproducible across seeds and policies
+    let roster = synthetic_roster(32, &mut Rng::new(a.seed));
+    let them = a.villager.as_deref()
+        .and_then(|v| v.parse::<usize>().ok().and_then(|i| roster.get(i))
+            .or_else(|| roster.iter().find(|s| s.name.eq_ignore_ascii_case(v))))
+        .unwrap_or(&roster[0]).clone();
+    let you = Speaker::new("Wanderer");
+    let rel = a.rel.unwrap_or(Relation::Acquaintance);
+    let (them_after, arc) = run_arc(&them, &you, rel, None, a.talks, policy, &lib,
+        &game2_core::game::setting::STREET, a.seed);
+    let open_json = |o: &game2_core::game::conversation::Open| serde_json::json!({
+        "intimacy": o.intimacy, "benevolence": o.benevolence,
+        "integrity": o.integrity, "safety": o.safety,
+        "mood": o.mood, "talks": o.talks, "shared": o.shared,
+    });
+    let talks: Vec<serde_json::Value> = arc.iter().map(|t| {
+        let tr = &t.transcript;
+        serde_json::json!({
+            "i": t.index,
+            "seed": t.seed,
+            "lines": tr.turns.iter().map(|turn| serde_json::json!({
+                "speaker": tr.speakers[turn.speaker],
+                "act": format!("{:?}", turn.act),
+                "tree": turn.tree,
+                "channel": format!("{:?}", turn.channel),
+                "text": turn.text,
+            })).collect::<Vec<_>>(),
+            "picks": t.picks,
+            "choices": t.choices_made.iter().map(|(act, r, line)| serde_json::json!({
+                "act": format!("{:?}", act),
+                "respond": format!("{:?}", r),
+                "preview": line,
+            })).collect::<Vec<_>>(),
+            "ending": tr.ending.map(|e| format!("{:?}", e)),
+            "vibe": tr.vibe.map(|v| format!("{:?}", v)),
+            "asked": tr.asked,
+            "forward": tr.forward,
+            "shared": tr.shared,
+            "open_after": open_json(&t.open_after),
+        })
+    }).collect();
+    let doc = serde_json::json!({
+        "kind": "arc",
+        "seed": a.seed,
+        "policy": policy.name(),
+        "relation": format!("{:?}", rel),
+        "villager": {
+            "name": them.name,
+            "ideology": them.ideology,
+            "traits": them.traits.iter().map(|t| format!("{:?}", t)).collect::<Vec<_>>(),
+            "status": them.status,
+            "trade": them.trade,
+        },
+        "talks": talks,
+        "open_final": open_json(&them_after.open),
+    });
+    out.emit(&serde_json::to_string_pretty(&doc).unwrap());
 }
 
 // ------------------------------------------------------------ feedback
@@ -627,10 +744,12 @@ fn usage() {
   meeting   watch a house meeting: --seed S --folk N --name organizer
   sandbox   free session shell (all picked panels live here): --seed S --stage S --days D
   batch     N auto-picked synthetic talks: -n N --seed S --out FILE
+  arc       one villager, --talks T scripted-policy talks, JSON out:
+            --villager N|name --policy curious|responsive|greedy|silent --seed S
   replay    any mode + --picks a,b,c replays the run those picks came from
   smoke     scripted non-interactive run - the test hook
 flags: --picks a,b,c | --auto | --warm | --feedback off | --out FILE | --folk N
-          --warm: seed the villager's Known.revealed first, so organizing asks show".to_string());
+          --warm: mark their reveals heard on the seat's ledger first, so organizing asks show".to_string());
 }
 
 fn main() {
@@ -654,6 +773,7 @@ fn main() {
         "meeting" => run_meeting_mode(&a, &mut out),
         "sandbox" => run_sandbox(&a, &mut out, &stdin),
         "batch" => run_batch(&a, &mut out),
+        "arc" => run_arc_mode(&a, &mut out),
         "smoke" => {
             out.quiet = true;
             let mut a2 = parse_args();
@@ -674,7 +794,7 @@ fn main() {
             out.emit(&format!("(transcript -> {path})"));
         }
     }
-    if a.feedback && a.mode != "batch" && a.mode != "smoke" {
+    if a.feedback && a.mode != "batch" && a.mode != "smoke" && a.mode != "arc" {
         feedback(&mut out, &stdin);
     }
 }

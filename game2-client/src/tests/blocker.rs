@@ -1,24 +1,19 @@
 use crate::*;
 use game2_core::game::villager::Pos;
-use game2_core::sim::community::Organization;
 
 #[test]
-fn test_recruit_is_greyed_out_for_a_member() {
+fn test_talk_is_greyed_out_with_no_one_near() {
     let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
-    let v = game.villagers[2];
-    game.world.get_component_mut::<Organization>(game.org).unwrap().members.push(v);
-    // beside them, so Recruit doesn't turn to someone nearer (reach_target)
-    let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
-    *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 0.5, y: vy };
-    game.selected_target = 2;
-    assert_eq!(game.action_blocker(1).as_deref(), Some("already a member"));
-    // the log line mustn't read as a success (log_colour greens "joined")
-    game.act(1);
-    assert_ne!(log_colour(game.log.last().unwrap()), (120, 255, 120), "{}", game.log.last().unwrap());
+    // out on the map's edge, past any shout: nobody to talk to
+    *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: 1.0, y: 1.0 };
+    assert_eq!(game.action_blocker(0).as_deref(), Some("no one near enough"));
+    // the log line must say why, not read as a talk
+    game.act(0);
+    assert!(game.log.last().unwrap().contains("Can't talk"), "{}", game.log.last().unwrap());
     // and the button is drawn disabled, with the reason beside it
     let buf = view.render(&game.ui_model(), (-1, -1));
-    let b = &action_buttons()[1];
+    let b = &action_buttons()[0];
     let i = ((b.y + 4) as usize * W + (b.x + 4) as usize) * 4;
-    assert_ne!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), b.color, "Recruit still drawn in its live colour");
+    assert_ne!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), b.color, "Talk still drawn in its live colour");
 }

@@ -11,6 +11,10 @@ const SCHOOL_FOUND_COST: f32 = 30.0;
 /// A teacher's season's wage from the chest
 const SCHOOL_TEACHER_COST: f32 = 10.0;
 
+/// Days' presence one bench batch costs (#1338): the click used to
+/// hand a day for a press; standing at the bench pays one slower
+pub(in crate::session) const AMBIENT_WORK_DAYS: f32 = 2.0;
+
 impl Game {
     /// Why action button `i` can't be used right now, if it can't
     pub fn action_blocker_at(&self, seat: usize, i: usize) -> Option<String> {
@@ -94,15 +98,6 @@ impl Game {
                 (purse < crate::game::organizing::HALL_REPAIR_COST)
                     .then(|| "the chest can't make the carpenter's bill".to_string())
             }
-            CtxAct::Brigade => {
-                let oe = self.seats[seat].org;
-                if self.world.get_component::<crate::game::organizing::MeetingHall>(oe).is_none() {
-                    Some("the brigade needs a hall to muster in".to_string())
-                } else if self.world.get_component::<Organization>(oe)
-                    .map(|o| o.resources < BRIGADE_COST).unwrap_or(true) {
-                    Some("the chest can't outfit a crew".to_string())
-                } else { None }
-            }
             CtxAct::Reach => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 if self.world.get_component::<crate::game::leadership::Reach>(v).is_some() {
@@ -144,28 +139,16 @@ impl Game {
     /// can't - the seat's own selection, reach, purse and org answer, not
     /// seat 0's
     pub fn disabled_reason_at(&self, seat: usize, i: usize) -> Option<String> {
-        // Recruit is pointless on a member: say so on the button rather
-        // than fail in the log. Talk and Recruit need the
-        // selected villager alive (they walk over to them)
         // nobody within a shout to talk to: the button says so outright
         if i == 0 && self.talk_target_at(seat).is_none()
             && self.visitor_talk_target_at(seat).is_none() { return Some("no one near enough".into()); }
-        let target = self.villagers[match i {
-            0 => self.talk_target_at(seat).unwrap_or(self.seats[seat].selected_target),
-            1 if self.seats[seat].picked => self.seats[seat].selected_target,
-            _ => self.reach_target_at(seat),
-        }];
+        // Talk needs the picked or nearest villager alive (it walks over)
+        let target = self.villagers[self.talk_target_at(seat).unwrap_or(self.seats[seat].selected_target)];
         let target_alive = self.world.get_component::<Health>(target).is_some();
-        let campaign = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org);
-        let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
         let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some()
             || self.world.get_component::<crate::game::dungeon::CastleHeld>(target).is_some();
-        if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
-        else if (i == 0 || i == 1) && held { Some("in the dungeon".into()) }
-        else if i == 1 && member { Some("already a member".into()) }
-        else if i == 1 && campaign.is_none() { Some("no campaign to join".into()) }
-        else if i == 1 && !campaign.map(|c| crate::game::player::sympathizes(&self.world, c, target)).unwrap_or(false)
-            && crate::game::player::rapport(&self.world, self.seats[seat].player, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
+        if !target_alive { Some("they have died".into()) }
+        else if held { Some("in the dungeon".into()) }
         else { None }
     }
 
@@ -290,7 +273,7 @@ impl Game {
         // close it and start over - the conversation's still going,
         // the replies still on offer (#1058)
         if self.seats[seat].talk.as_ref().map(|t| t.who) == Some(v) {
-            return format!("You are already speaking with {}.", vill_name(who));
+            return format!("You are already speaking with {}.", self.cast_name(who));
         }
         // Uncapped talk count - Rapport caps at 1.0 and would
         // freeze the concern/small-talk index after a few talks.
@@ -314,15 +297,15 @@ impl Game {
             Some(dialogue::TalkMood::Warmed) => 1.6,
             _ => 1.0,
         } * hog_factor;
+        let pe = self.seats[seat].player;
         let revealed = if (self.rng.next() % 1000) < (desires::REVEAL_BASE * reveal_factor * if smelly { 900.0 } else { 1000.0 }) as u64 {
             let pick = self.rng.next();
-            desires::next_reveal(&self.world, v, self.tick, pick)
+            desires::next_reveal(&self.world, pe, v, self.tick, pick)
         } else { None };
         let mut whispered = false;
         let (did, said) = match revealed {
             Some(r) => {
-                let (d, s) = desires::reveal_speech(vill_name(who), &r);
-                let pe = self.seats[seat].player;
+                let (d, s) = desires::reveal_speech(self.cast_name(who), &r);
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                     self.toasts.push((
                         format!("Organizer discovers issue {}", issue),
@@ -338,12 +321,12 @@ impl Game {
             }
             // still smarting: what's on their mind is you
             None if mood == Some(dialogue::TalkMood::Slighted) =>
-                crate::game::organizing::cold_gist(vill_name(who)),
+                crate::game::organizing::cold_gist(self.cast_name(who)),
             None => match if hog { None } else { self.mystery_fact_at(seat) } {
                 // gossip carries a piece of the mystery, now and then
                 Some(text) => {
                     whispered = true;
-                    (format!("{} passes on a rumor", vill_name(who)), text)
+                    (format!("{} passes on a rumor", self.cast_name(who)), text)
                 }
                 // a sworn villager's opening is the cause's weather, not
                 // the sky's (#1228); no live cause, ordinary small talk -
@@ -351,16 +334,25 @@ impl Game {
                 None => self.cause_gist(seat, v)
                     .or_else(|| hog.then(|| {
                         let gists = crate::game::conversation::HOG_GISTS;
-                        (format!("{} holds forth", vill_name(who)),
-                            gists[(self.rng.next() as usize) % gists.len()].to_string())
+                        let g = gists[(self.rng.next() as usize) % gists.len()];
+                        // raw on its way out: pair_said below puts it in
+                        // the pair's register and signs it once
+                        (format!("{} holds forth", self.cast_name(who)), g.to_string())
                     }))
-                    .unwrap_or_else(|| talk_response(&self.world, v, vill_name(who), talks_before, self.tick)),
+                    .unwrap_or_else(|| talk_response(&self.world, v, self.cast_name(who), talks_before, self.tick)),
             },
         };
         let pe = self.seats[seat].player;
         // the bond as it stood before this talk: a first talk is with a stranger
         let rel = dialogue::relation_with_wanderer(self.rel_kind(pe, v));
+        // the talks behind the pair, before act_talk lands this one's (#1424)
+        let talks = crate::game::relationships::find_relationship(&self.world, pe, v)
+            .and_then(|e| self.world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| r.interactions).unwrap_or(0);
         act_talk(&mut self.world, pe, v, self.tick);
+        // their opening speaks in the pair's register (E4-4): the
+        // ambient strings carry {2:} slots now
+        let said = self.pair_said(v, pe, &said);
         self.say(v, &said, TALK_BUBBLE_SECS);
         // a blow-off leaves them hollow: a real talk coaches them back
         let coached = if self.world.get_component::<crate::game::actions::Demoralized>(v).is_some()
@@ -368,7 +360,7 @@ impl Game {
             " You talk the helplessness out of them."
         } else { "" };
         // the conversation itself goes on the TALK panel, the replies yours to pick
-        self.open_player_talk(seat, v, rel, &said);
+        self.open_player_talk_familiar(seat, v, rel, &said, Some(talks));
         if !coached.is_empty() { self.narrate_talk(seat, coached.trim()); }
         // a clue landing mid-talk is marked in the moment (#1184)
         if whispered {
@@ -377,7 +369,7 @@ impl Game {
                 let got = m.known.count_ones();
                 self.narrate_talk(seat, &format!(
                     "A piece of {} - {} of {} heard. Worth remembering.",
-                    def.title, got, def.facts.len()
+                    def.title, got, def.clues.len()
                 ));
             }
         }
@@ -427,9 +419,13 @@ impl Game {
             .expect("visitor talk target");
         let s = events::spec(id);
         let pe = self.seats[seat].player;
+        let talks = crate::game::relationships::find_relationship(&self.world, pe, e)
+            .and_then(|en| self.world.get_component::<crate::game::relationships::Relationship>(en))
+            .map(|r| r.interactions).unwrap_or(0);
         act_talk(&mut self.world, pe, e, self.tick);
         self.say(e, s.cry, TALK_BUBBLE_SECS);
-        self.open_player_talk(seat, e, crate::game::conversation::Relation::Stranger, s.cry);
+        self.open_player_talk_familiar(seat, e, crate::game::conversation::Relation::Stranger, s.cry,
+            Some(talks));
         format!("You talk with {}.", s.name)
     }
 
@@ -456,10 +452,10 @@ impl Game {
         match self.path_to_at(seat, who) {
             Some(path) => {
                 self.seats[seat].approach = Some(Approach { who, action, path, stuck: 0 });
-                Some(format!("You walk over to {}.", vill_name(who)))
+                Some(format!("You walk over to {}.", self.cast_name(who)))
             }
             None => Some(format!("Can't {}: there's no way to reach {}.",
-                ACTION_LABELS[action].to_lowercase(), vill_name(who))),
+                ACTION_LABELS[action].to_lowercase(), self.cast_name(who))),
         }
     }
 
@@ -492,7 +488,7 @@ impl Game {
                         format!(
                             "t{}: You can't find a way to {}.",
                             self.tick,
-                            vill_name(who)
+                            self.cast_name(who)
                         ),
                     );
                     return;
@@ -515,7 +511,7 @@ impl Game {
                 format!(
                     "t{}: You can't get through to {}.",
                     self.tick,
-                    vill_name(who)
+                    self.cast_name(who)
                 ),
             );
             return;
@@ -523,16 +519,13 @@ impl Game {
         self.seats[seat].approach = Some(a);
     }
 
-    /// Take action button `i` (Talk, Recruit). An index past the buttons
+    /// Take action button `i` (Talk). An index past the buttons
     /// is ignored - a stale client or recording can't panic the sim
     pub fn act_at(&mut self, seat: usize, i: usize) {
         if i >= ACTION_LABELS.len() { return; }
         let tick = self.tick;
-        // Recruit goes to whoever the player picked; otherwise to whoever
-        // is in reach
-        if i == 1 && !self.seats[seat].picked { self.seats[seat].selected_target = self.reach_target_at(seat); }
         // Talk singles out someone to hear: the picked one, near or far -
-        // you walk over to a far one like a Recruit - else the best near,
+        // you walk over to a far one - else the best near,
         // the least lately heard first (#944, #1066). A road visitor in
         // reach answers instead when they're the nearer of the two - but
         // a picked villager keeps the word they were clicked for (#1168)
@@ -569,12 +562,6 @@ impl Game {
                         None => { talked = true; self.talk_to_at(seat, selected_target) }
                     },
                 },
-                1 => if let Some(walking) = self.start_approach_at(seat, selected_target, 1) { walking } else {
-                    let (pe, oe, te) = (self.seats[seat].player, self.seats[seat].org, self.villagers[selected_target]);
-                    let r = act_recruit(&mut self.world, pe, oe, te);
-                    if r.success { format!("{} joined!", vill_name(selected_target)) }
-                    else { format!("{}: {}", vill_name(selected_target), r.description.to_lowercase()) }
-                }
                 _ => unreachable!("no action button {}", i),
             }
         };
@@ -609,21 +596,136 @@ impl Game {
         }
     }
 
-    /// The contextual actions that apply right now: work at the player's
-    /// shop, pair a picked junior with a master, send a kid on an errand
+    /// The makings a bench day is short of, phrased how to come by them
+    /// (#1338): "wheat - gather some" when the hedgerow gives it, else
+    /// "- buy some"
+    fn bench_missing(&self, pe: Entity) -> Vec<String> {
+        let (voc, workplace) = self.world.get_component::<Craft>(pe)
+            .map(|c| (Some(c.vocation), c.workplace)).unwrap_or((None, None));
+        let Some(voc) = voc else { return vec![] };
+        vocation::inputs(voc).iter().copied().filter(|g| {
+            // a slot's only missing when nothing that fills it is to
+            // hand - the named good or its fellows
+            std::iter::once(*g).chain(crate::game::recipes::fillers(g).iter().copied())
+                .all(|c| {
+                    let held = self.world.get_component::<Satchel>(pe)
+                        .map(|s| s.goods.get(c).copied().unwrap_or(0)).unwrap_or(0);
+                    let stocked = workplace
+                        .and_then(|b| self.world.get_component::<Building>(b))
+                        .map(|b| b.stock.get(c).copied().unwrap_or(0)).unwrap_or(0);
+                    held + stocked < 1
+                })
+        }).map(|g| {
+            let opts: Vec<&'static str> = std::iter::once(g)
+                .chain(crate::game::recipes::fillers(g).iter().copied()).collect();
+            let what = opts.join(" or ");
+            if opts.iter().any(|o| vocation::gatherable(o)) { format!("{} - gather some", what) }
+            else { format!("{} - buy some", what) }
+        }).collect()
+    }
+
+    /// One day's work at the bench, and the words for where it went:
+    /// a full shelf spills to the satchel, a tasked hand's share runs
+    /// through the senior's shop, a full satchel loses it
+    fn work_bench_msg(&mut self, pe: Entity, tick: u64) -> String {
+        let (voc, workplace, tasked_by) = self.world.get_component::<Craft>(pe)
+            .map(|c| (Some(c.vocation), c.workplace, c.tasked_by)).unwrap_or((None, None, None));
+        let what = voc.and_then(vocation::output).unwrap_or("goods");
+        let held_before = self.world.get_component::<Satchel>(pe)
+            .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0);
+        let stocked_before = workplace
+            .and_then(|b| self.world.get_component::<Building>(b))
+            .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
+        let senior_shop = tasked_by
+            .and_then(|s| self.world.get_component::<Craft>(s))
+            .and_then(|c| c.workplace);
+        let senior_before = senior_shop
+            .and_then(|b| self.world.get_component::<Building>(b))
+            .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
+        let gold_before = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+        let (made, up) = self.bench_work(pe, tick);
+        match up {
+            Some(l) => {
+                let lvl = vocation::level_name(l);
+                let title = self.world.get_component::<Craft>(pe)
+                    .map(|c| format!("{} {}", lvl, vocation::vocation_name(c.vocation)))
+                    .unwrap_or_else(|| lvl.to_string());
+                format!("You work - and reach {}!", title)
+            }
+            None if made > 0.0 => {
+                let held = self.world.get_component::<Satchel>(pe)
+                    .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - held_before as i32;
+                let stocked = workplace
+                    .and_then(|b| self.world.get_component::<Building>(b))
+                    .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - stocked_before as i32;
+                // an heir keeps the senior's bench: when it's the
+                // same shelf, its take is already counted above
+                let senior = if senior_shop == workplace { 0 } else {
+                    senior_shop.and_then(|b| self.world.get_component::<Building>(b))
+                        .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - senior_before as i32
+                };
+                let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0) - gold_before;
+                let shop = workplace.and_then(|b| self.world.get_component::<Building>(b))
+                    .map(|b| b.name.as_str()).unwrap_or("the shop");
+                let mut parts: Vec<String> = vec![];
+                if stocked > 0 { parts.push(format!("{} stocked at {}", stocked, shop)); }
+                if held > 0 { parts.push(format!("{} in your satchel", held)); }
+                if senior > 0 {
+                    let sname = tasked_by.and_then(|s| self.villagers.iter().position(|v| *v == s))
+                        .map(|i| self.cast_name(i)).unwrap_or("your senior");
+                    parts.push(format!("{} through {}'s shop", senior, sname));
+                }
+                if gold > 0.0 { parts.push(format!("{:.0}g earned", gold)); }
+                let lost = made as i32 - stocked - held - senior;
+                if lost > 0 { parts.push(format!("{} spoiled - no room for it", lost)); }
+                let went = if parts.is_empty() { String::new() } else { format!(" - {}", parts.join(", ")) };
+                format!("You work - {:.0} {} made{}.", made, what, went)
+            }
+            None => "You put in the day, but make nothing yet.".into(),
+        }
+    }
+
+    /// Ambient craft (#1338): the work is being there, not a button. A
+    /// day at the bench banks a day's presence - AMBIENT_WORK_DAYS of
+    /// standing makes one day's batch, gentler than the click's - and
+    /// a bench short of its makings says so once a day
+    pub(in crate::session) fn ambient_bench_at(&mut self, seat: usize) {
+        if self.paused || self.seats[seat].talk.is_some() { return; }
+        let pe = self.seats[seat].player;
+        let bench = self.world.get_component::<Craft>(pe).and_then(|c| c.workplace);
+        let Some(bench) = bench else { self.seats[seat].ambient_bench = 0.0; return; };
+        let (px, py) = self.player_pos_at(seat);
+        let near = self.world.get_component::<Pos>(bench)
+            .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < 4.0).unwrap_or(false);
+        // banked days keep; being elsewhere or talking just doesn't add
+        if !near { return; }
+        self.seats[seat].ambient_bench += 1.0 / self.ticks_per_frame() as f32;
+        if self.seats[seat].ambient_bench < AMBIENT_WORK_DAYS { return; }
+        let tick = self.tick;
+        let missing = self.bench_missing(pe);
+        if !missing.is_empty() {
+            // the bench's want has a home in the log, once a day - the
+            // button's "you can't work" nag, ambient now
+            if self.seats[seat].bench_nudged != tick {
+                self.seats[seat].bench_nudged = tick;
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                    format!("t{}: The bench stands idle: no {} to hand.", tick, missing.join(", ")));
+            }
+            return;
+        }
+        self.seats[seat].ambient_bench = 0.0;
+        let msg = self.work_bench_msg(pe, tick);
+        self.log.push_ev(
+            EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+            format!("t{}: {}", tick, msg));
+    }
+
+    /// The contextual actions that apply right now: pair a picked
+    /// junior with a master, send a kid on an errand
     pub fn update_ctx_actions_at(&mut self, seat: usize) {
         self.seats[seat].ctx_actions.clear();
         let (px, py) = self.player_pos_at(seat);
-        // Work: the player's own craft, at the bench if they have one
-        if let Some(c) = self.world.get_component::<Craft>(self.seats[seat].player) {
-            let near = c.workplace
-                .and_then(|b| self.world.get_component::<Pos>(b))
-                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < 4.0)
-                .unwrap_or(true);
-            if near {
-                self.seats[seat].ctx_actions.push(CtxAct::Work);
-            }
-        }
         if self.seats[seat].selected_building.is_none() {
             let v = self.villagers[self.seats[seat].selected_target];
             if self.world.get_component::<Kid>(v).is_some() {
@@ -799,14 +901,6 @@ impl Game {
                 .map(|o| o.resources >= crate::game::organizing::HALL_REPAIR_COST).unwrap_or(false) {
             self.seats[seat].ctx_actions.push(CtxAct::MendHall);
         }
-        // the charter's offered while there's a hall to muster in and
-        // gold enough for buckets - and no brigade yet to answer
-        if self.brigade.is_none()
-            && self.world.get_component::<crate::game::organizing::MeetingHall>(self.seats[seat].org).is_some()
-            && self.world.get_component::<Organization>(self.seats[seat].org)
-                .map(|o| o.resources >= BRIGADE_COST).unwrap_or(false) {
-            self.seats[seat].ctx_actions.push(CtxAct::Brigade);
-        }
         if self.seats[seat].selected_building.is_none()
             && (self.seats[seat].picked || self.seats[seat].agent) {
             let v = self.villagers[self.seats[seat].selected_target];
@@ -836,16 +930,6 @@ impl Game {
                     }
                     let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
                         .map(|o| o.members.contains(&v)).unwrap_or(false);
-                    // a trusted ear can be won to the cause: it takes a tie
-                    // of its own, not just the cause existing
-                    let trust = crate::game::relationships::find_relationship(&self.world, self.seats[seat].player, v)
-                        .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
-                        .map(|r| r.strength).unwrap_or(0.0);
-                    if !is_member && trust >= crate::sim::community::RECRUIT_MIN_TRUST
-                        && self.world.get_component::<crate::session::country::Outlander>(v).is_none()
-                        && self.world.get_component::<crate::game::prophetic::Follower>(v).is_none() {
-                        self.seats[seat].ctx_actions.push(CtxAct::Recruit);
-                    }
                     // a leader - one who's brought someone in - can go out
                     // and hold a one-on-one of their own
                     if is_member && crate::game::leadership::rung(&self.world, self.seats[seat].org, v)
@@ -890,96 +974,6 @@ impl Game {
             return;
         }
         let msg = match act {
-            CtxAct::Work => {
-                let pe = self.seats[seat].player;
-                let (voc, workplace, tasked_by) = self.world.get_component::<Craft>(pe)
-                    .map(|c| (Some(c.vocation), c.workplace, c.tasked_by)).unwrap_or((None, None, None));
-                // nothing comes of a day without the makings: say what's
-                // short and how to come by it, not just "nothing yet"
-                let missing: Vec<&'static str> = voc.map(|v| vocation::inputs(v).iter().copied()
-                    .filter(|g| {
-                        // a slot's only missing when nothing that fills
-                        // it is to hand - the named good or its fellows
-                        std::iter::once(*g).chain(crate::game::recipes::fillers(g).iter().copied())
-                            .all(|c| {
-                                let held = self.world.get_component::<Satchel>(pe)
-                                    .map(|s| s.goods.get(c).copied().unwrap_or(0)).unwrap_or(0);
-                                let stocked = workplace
-                                    .and_then(|b| self.world.get_component::<Building>(b))
-                                    .map(|b| b.stock.get(c).copied().unwrap_or(0)).unwrap_or(0);
-                                held + stocked < 1
-                            })
-                    }).collect()).unwrap_or_default();
-                if !missing.is_empty() {
-                    let how: Vec<String> = missing.iter().map(|g| {
-                        let opts: Vec<&'static str> = std::iter::once(*g)
-                            .chain(crate::game::recipes::fillers(g).iter().copied()).collect();
-                        let what = opts.join(" or ");
-                        if opts.iter().any(|o| vocation::gatherable(o)) { format!("{} - gather some", what) }
-                        else { format!("{} - buy some", what) }
-                    }).collect();
-                    format!("You can't work: no {} to hand.", how.join(", "))
-                } else {
-                    let what = voc.and_then(vocation::output).unwrap_or("goods");
-                    // where the day's work actually lands is read off the
-                    // before-and-after: a full shelf spills to the satchel,
-                    // and a full satchel loses it
-                    let held_before = self.world.get_component::<Satchel>(pe)
-                        .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0);
-                    let stocked_before = workplace
-                        .and_then(|b| self.world.get_component::<Building>(b))
-                        .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
-                    // a tasked junior's share goes through the senior's shop
-                    // and comes back as pay - neither is lost work
-                    let senior_shop = tasked_by
-                        .and_then(|s| self.world.get_component::<Craft>(s))
-                        .and_then(|c| c.workplace);
-                    let senior_before = senior_shop
-                        .and_then(|b| self.world.get_component::<Building>(b))
-                        .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
-                    let gold_before = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
-                    let (made, up) = self.bench_work(pe, tick);
-                    match up {
-                        Some(l) => {
-                            let lvl = vocation::level_name(l);
-                            let title = self.world.get_component::<Craft>(pe)
-                                .map(|c| format!("{} {}", lvl, vocation::vocation_name(c.vocation)))
-                                .unwrap_or_else(|| lvl.to_string());
-                            format!("You work - and reach {}!", title)
-                        }
-                        None if made > 0.0 => {
-                            let held = self.world.get_component::<Satchel>(pe)
-                                .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - held_before as i32;
-                            let stocked = workplace
-                                .and_then(|b| self.world.get_component::<Building>(b))
-                                .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - stocked_before as i32;
-                            // an heir keeps the senior's bench: when it's the
-                            // same shelf, its take is already counted above
-                            let senior = if senior_shop == workplace { 0 } else {
-                                senior_shop.and_then(|b| self.world.get_component::<Building>(b))
-                                    .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - senior_before as i32
-                            };
-                            let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0) - gold_before;
-                            let shop = workplace.and_then(|b| self.world.get_component::<Building>(b))
-                                .map(|b| b.name.as_str()).unwrap_or("the shop");
-                            let mut parts: Vec<String> = vec![];
-                            if stocked > 0 { parts.push(format!("{} stocked at {}", stocked, shop)); }
-                            if held > 0 { parts.push(format!("{} in your satchel", held)); }
-                            if senior > 0 {
-                                let sname = tasked_by.and_then(|s| self.villagers.iter().position(|v| *v == s))
-                                    .map(|i| vill_name(i)).unwrap_or("your senior");
-                                parts.push(format!("{} through {}'s shop", senior, sname));
-                            }
-                            if gold > 0.0 { parts.push(format!("{:.0}g earned", gold)); }
-                            let lost = made as i32 - stocked - held - senior;
-                            if lost > 0 { parts.push(format!("{} spoiled - no room for it", lost)); }
-                            let went = if parts.is_empty() { String::new() } else { format!(" - {}", parts.join(", ")) };
-                            format!("You work - {:.0} {} made{}.", made, what, went)
-                        }
-                        None => "You put in the day, but make nothing yet.".into(),
-                    }
-                }
-            }
             CtxAct::PairUp => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 let voc = self.world.get_component::<Craft>(v).map(|c| c.vocation);
@@ -992,9 +986,9 @@ impl Game {
                     Some(m) => {
                         self.world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
                         relationships::add_relationship(&mut self.world, relationships::Relationship {
-                            from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1 });
+                            from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1, ..Default::default() });
                         let mi = self.villagers.iter().position(|x| *x == m).unwrap();
-                        format!("You pair {} with {} - he'll learn faster now.", vill_name(self.seats[seat].selected_target), vill_name(mi))
+                        format!("You pair {} with {} - he'll learn faster now.", self.cast_name(self.seats[seat].selected_target), self.cast_name(mi))
                     }
                     None => "No master of their trade to pair them with.".into(),
                 }
@@ -1044,12 +1038,12 @@ impl Game {
                         self.travels.retain(|t| t.who != k);
                         self.send(k, Goal::RunOddJob);
                         if hirer == player {
-                            format!("You send {} to fetch {}.", vill_name(self.seats[seat].selected_target), g)
+                            format!("You send {} to fetch {}.", self.cast_name(self.seats[seat].selected_target), g)
                         } else {
                             let pname = self.villagers.iter().position(|&p| p == hirer)
-                                .map(vill_name).unwrap_or("the printer");
+                                .map(|i| cast_of(&self.names, i)).unwrap_or("the printer");
                             format!("You send {} to fetch {} for {}.",
-                                vill_name(self.seats[seat].selected_target), g, pname)
+                                self.cast_name(self.seats[seat].selected_target), g, pname)
                         }
                     }
                     None => "Nothing needs fetching right now.".into(),
@@ -1075,32 +1069,16 @@ impl Game {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
                     return;
                 };
-                self.cadence_day = self.tick;
-                // the organizer's recommendation: the meeting steps up or
-                // down a notch - weekly for the long haul, daily for the fight
-                let now = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
-                    .map(|m| m.cadence_days).unwrap_or(3);
-                let next = match now { 0..=3 => 7, 4..=7 => 14, 8..=14 => 30, _ => 3 };
-                crate::game::campaign::set_cadence(&mut self.world, c, next, tick);
-                format!("The cause will meet every {} days now - the organizer's word.", next)
+                self.cadence_at(c)
             }
             CtxAct::Assembly => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
-                self.assembly_day = self.tick;
-                match crate::game::campaign::announce_assembly(&mut self.world, c, tick) {
-                    Some(questions) => {
-                        let oname = self.world.get_component::<Organization>(self.seats[seat].org)
-                            .map(|o| o.name.clone()).unwrap_or_default();
-                        format!("{} call the accountability assembly - the agenda's posted: {}.",
-                            oname, questions.join("; "))
-                    }
-                    None => "There's no assembly to call - the campaign's still finding its feet.".into(),
-                }
+                self.assembly_at(seat, c)
             }
             CtxAct::Delegate => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
                 let v = self.villagers[self.seats[seat].selected_target];
-                let name = vill_name(self.seats[seat].selected_target);
+                let name = self.cast_name(self.seats[seat].selected_target);
                 use crate::game::campaign::Role;
                 let role_name = |r: Role| match r {
                     Role::TurnoutCoordinator => "turnout coordinator",
@@ -1150,7 +1128,7 @@ impl Game {
             CtxAct::Strike => self.strike_at(seat),
             CtxAct::Reach => {
                 let v = self.villagers[self.seats[seat].selected_target];
-                let name = vill_name(self.seats[seat].selected_target);
+                let name = self.cast_name(self.seats[seat].selected_target);
                 let org = self.seats[seat].org;
                 match crate::game::leadership::reach_target(&self.world, org, v, &self.villagers) {
                     Some(t) => {
@@ -1167,21 +1145,7 @@ impl Game {
                 self.seats[seat].meet_offer = Some(self.tick);
                 "The plan's made - now the word wants a day.".into()
             }
-            CtxAct::MendHall => {
-                let oe = self.seats[seat].org;
-                let purse = self.world.get_component::<Organization>(oe)
-                    .map(|o| o.resources).unwrap_or(0.0);
-                if purse < crate::game::organizing::HALL_REPAIR_COST {
-                    let oname = self.world.get_component::<Organization>(oe)
-                        .map(|o| o.name.clone()).unwrap_or_default();
-                    format!("{} can't make the carpenter's bill - {} gold in the chest.", oname, purse as i32)
-                } else {
-                    self.world.get_component_mut::<Organization>(oe).unwrap().resources
-                        -= crate::game::organizing::HALL_REPAIR_COST;
-                    self.world.remove_component::<crate::game::organizing::HallDamaged>(oe);
-                    "The carpenters patch the roof - the hall's fit to meet in again.".into()
-                }
-            }
+            CtxAct::MendHall => self.mend_hall_at(seat),
             CtxAct::Interview => {
                 let t = self.villagers[self.seats[seat].selected_target];
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
@@ -1233,8 +1197,6 @@ impl Game {
                     self.name_of(t), stance, stake)
             }
             CtxAct::Debrief => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
-                    return; };
                 // the room's answer: the members standing here pick the
                 // next step - the tally's by who's present, not who's on
                 // the roll, and the thin room's a weak mandate
@@ -1245,49 +1207,7 @@ impl Game {
                     && self.world.get_component::<Pos>(m).zip(self.world.get_component::<Pos>(self.seats[seat].player))
                         .map(|(a, b)| (a.x - b.x).abs() + (a.y - b.y).abs() < 20.0).unwrap_or(false)).collect();
                 if present.is_empty() { return; }
-                let options = ["the petition", "the march", "the strike", "a town hall"];
-                let _issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                    .map(|cc| cc.issue.clone()).unwrap_or_default();
-                // each present member's choice is deterministic: their own
-                // grievance's tag picks the step that answers it
-                let mut tally: crate::engine::det::HashMap<&str, usize> = crate::engine::det::HashMap::default();
-                for m in &present {
-                    let pick = options[*m as usize % options.len()];
-                    *tally.entry(pick).or_insert(0) += 1;
-                }
-                let winner = options.iter()
-                    .max_by_key(|o| tally.get(*o).copied().unwrap_or(0))
-                    .copied().unwrap_or("the petition");
-                let mandate = if present.len() < 3 { " - a thin room's weak word" } else { "" };
-                if let Some(cc) = self.world.get_component_mut::<crate::game::campaign::Campaign>(c) {
-                    cc.directive = Some(winner.to_string());
-                }
-                self.log.push_ev(
-                    EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
-                    format!(
-                        "t{}: the debrief settles it - the room's for {}{}.",
-                        tick, winner, mandate
-                    ),
-                );
-                // the settled word is the cause's line, heard by every
-                // member standing there (#1310) - the paper asks are the
-                // patient work, the streets the firebrand's
-                let line = match winner {
-                    "the petition" => Some(crate::game::rhetoric::Line::Patient),
-                    "the march" | "the strike" | "a town hall" => Some(crate::game::rhetoric::Line::Firebrand),
-                    _ => None,
-                };
-                let mut walked = String::new();
-                if let Some(l) = line {
-                    let oe = self.seats[seat].org;
-                    let walked_in_against: Vec<Entity> = present.iter().copied()
-                        .filter(|&a| crate::game::rhetoric::set_against(&self.world, a, oe, l))
-                        .collect();
-                    crate::game::rhetoric::witness_all(&mut self.world, &present, oe, l, tick);
-                    let out = self.line_defections(seat, oe, l, &present, &walked_in_against);
-                    if !out.is_empty() { walked = format!(" {} storms out over it.", out.join(", ")); }
-                }
-                format!("The room settles on {}{}.{}", winner, mandate, walked)
+                self.debrief_at(seat, &present)
             }
             CtxAct::Attend => {
                 // the player's presence counts for what the day means:
@@ -1414,7 +1334,7 @@ impl Game {
                 // the cell opening is news however often the letters go
                 let freed = crate::game::dungeon::release_check(&mut self.world, v, 1.0);
                 let said = if freed {
-                    let name = vill_name(self.seats[seat].selected_target);
+                    let name = self.cast_name(self.seats[seat].selected_target);
                     self.toasts.push_at((format!("{} walks free", name), tick + 40), toast_spot(&self.world, v));
                     format!("The letters don't stop - and the cell opens. {} walks free.", name)
                 } else {
@@ -1423,21 +1343,6 @@ impl Game {
                     format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
                 };
                 if repeat && !freed { String::new() } else { said }
-            }
-            CtxAct::Recruit => {
-                let v = self.villagers[self.seats[seat].selected_target];
-                let oe = self.seats[seat].org;
-                let trust = crate::game::relationships::find_relationship(&self.world, self.seats[seat].player, v)
-                    .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
-                    .map(|r| r.strength).unwrap_or(0.0);
-                if crate::sim::community::recruit(&mut self.world, oe, v, trust) {
-                    crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
-                        crate::game::org_skills::OrgSkill::Training,
-                        crate::game::org_skills::SEAT_PRACTICE);
-                    format!("{} hears you out - and signs on with your cause.", self.name_of(v))
-                } else {
-                    format!("{} won't be won over - the trust isn't there yet.", self.name_of(v))
-                }
             }
             CtxAct::PickCaps => {
                 match self.shroom_patch_at(seat) {
@@ -1497,7 +1402,7 @@ impl Game {
                         if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources = gold; }
                         let n = self.name_of(v);
                         self.say(v, "It's sworn - you've a friend in me.", TALK_BUBBLE_SECS);
-                        note_story(&mut self.tales, &mut self.tales_told, &mut self.log,
+                        note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names,
                             self.seats[seat].selected_target, tick,
                             crate::sim::story::EventKind::Alliance, "sworn to aid the Wanderer".into());
                         format!("You press wax with {} - sworn to aid each other ({:.0}g).", n, crate::game::contracts::PACT_AID)
@@ -1562,7 +1467,6 @@ impl Game {
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Tame => self.tame_stroke_at(seat),
             CtxAct::School => self.school_at(seat),
-            CtxAct::Brigade => self.brigade_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),
             CtxAct::Douse => self.player_douse_at(seat),
@@ -1608,12 +1512,17 @@ impl Game {
                         if let Some(s) = self.world.get_component_mut::<Satchel>(v) {
                             *s.goods.entry(g.clone()).or_insert(0) += 1;
                         }
-                        let kind = if edible(&g) { crate::game::relationships::InteractionKind::SharedMeal }
+                        let shared_meal = edible(&g);
+                        let kind = if shared_meal { crate::game::relationships::InteractionKind::SharedMeal }
                             else { crate::game::relationships::InteractionKind::Aid };
                         crate::game::relationships::record_interaction(&mut self.world, pe,
                             crate::game::relationships::Interaction {
                                 other: v, kind, intensity: (worth / 10.0).clamp(0.5, 2.0) });
-                        let who = vill_name(self.seats[seat].selected_target);
+                        if shared_meal {
+                            crate::game::episodes::file(&mut self.world, v, pe,
+                                crate::game::episodes::MemKind::SharedMeal, self.tick, &["meal", "gift"]);
+                        }
+                        let who = self.cast_name(self.seats[seat].selected_target);
                         format!("you give {} the {} - and it warms them.", who, g)
                     }
                     None => "your satchel's empty - nothing to give.".into(),
@@ -2083,7 +1992,7 @@ impl Game {
                         
                         // hauled off mid-errand: whatever they were doing is dropped
                         self.travels.retain(|t| t.who != taken);
-                        let tn = self.villagers.iter().position(|v| *v == taken).map(|i| vill_name(i))
+                        let tn = self.villagers.iter().position(|v| *v == taken).map(|i| self.cast_name(i))
                             .unwrap_or("someone");
                         msg += &format!(" {} is taken.", tn);
                         // the release effort is a campaign of its own:
@@ -2110,7 +2019,8 @@ impl Game {
                 // (after any arrest, so the taken are counted)
                 let ev = crate::game::campaign_arc::ArcEvent::March(
                     r.unwrap_or(crate::game::reactions::Reaction::Ignored));
-                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                let speakers = self.org_speakers(c, tick);
+                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick, &speakers) {
                     let mut with = vec![pe];
                     with.extend(out.turnout.iter().copied());
                     self.record_campaign_talk(with, &d);
@@ -2228,6 +2138,9 @@ impl Game {
         self.world.add_component(e, Pos { x: at.0, y: at.1 });
         self.world.add_component(e, Villager { activity: Activity::Idle, target_food: None });
         self.world.add_component(e, TownRole::Teacher);
+        if let Some(traits) = self.deal_cast(e, None, None) {
+            self.world.add_component(e, traits);
+        }
         self.villagers.push(e);
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
@@ -2254,6 +2167,36 @@ impl Game {
                 && self.world.get_component::<villager::Pos>(m)
                     .map(|p| (p.x - at.x).hypot(p.y - at.y) <= REACH).unwrap_or(false)).collect())
             .unwrap_or_default()
+    }
+
+    /// The word goes out, `days` from now at the plan's venue (#1337):
+    /// the same landing the call panel's day pick makes, whether the
+    /// panel put it or an invitation's when/where did - the question
+    /// the call opens with still waits its answer (#1267)
+    pub(in crate::session) fn the_words_out(&mut self, seat: usize, days: u64) {
+        let oe = self.seats[seat].org;
+        let for_day = self.tick + days;
+        let label = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
+            .and_then(|p| p.venue).map(|v| self.venue_label(v))
+            .unwrap_or_else(|| "the square".into());
+        if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+            p.for_day = Some(for_day);
+        }
+        self.seats[seat].frame_offer = Some(self.tick);
+        self.notices.push((
+            "meet".into(),
+            format!("the word's out - folk gather at {} in {} days", label, days),
+            for_day,
+        ));
+        self.toasts
+            .push(("a meeting's called - the word's out".into(), self.tick + 40));
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+            format!(
+                "t{}: the word's out - they gather at {} in {} days.",
+                self.tick, label, days
+            ),
+        );
     }
 
     /// The organizer's answer to the founding call on the conversation
@@ -2827,30 +2770,7 @@ impl Game {
         // keeps taking yeses and roles until the door
         if self.seats[seat].meet_offer.take().is_some() {
             let n = [2u64, 4, 7][pick.min(2)];
-            let oe = self.seats[seat].org;
-            let for_day = self.tick + n;
-            let label = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
-                .and_then(|p| p.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h)))
-                .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the square".into());
-            if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
-                p.for_day = Some(for_day);
-            }
-            // and then what's asked when they're in (#1267)
-            self.seats[seat].frame_offer = Some(self.tick);
-            self.notices.push((
-                "meet".into(),
-                format!("the word's out - folk gather at {} in {} days", label, n),
-                for_day,
-            ));
-            self.toasts
-                .push(("a meeting's called - the word's out".into(), self.tick + 40));
-            self.log.push_ev(
-                EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
-                format!(
-                    "t{}: the word's out - they gather at {} in {} days.",
-                    self.tick, label, n
-                ),
-            );
+            self.the_words_out(seat, n);
             return;
         }
         // the agenda a campaign Meet left open: the room votes the pick
@@ -2913,7 +2833,7 @@ impl Game {
             if !joined.is_empty() {
                 let names: Vec<String> = joined.iter()
                     .filter_map(|e| self.villagers.iter().position(|v| v == e)
-                        .map(|i| vill_name(i).to_string()))
+                        .map(|i| self.cast_name(i).to_string()))
                     .collect();
                 msg += &format!(" - {} join the rolls", names.join(", "));
             }
@@ -3097,7 +3017,7 @@ impl Game {
     /// closes - a column already out or home, demands already answered,
     /// no print shop, no trade of theirs to ballot, nobody to spare
     /// for the road or no town left to raise (#1157)
-    fn agenda_motions(&self, seat: usize, c: Entity) -> Vec<crate::game::campaign::Motion> {
+    pub(in crate::session) fn agenda_motions(&self, seat: usize, c: Entity) -> Vec<crate::game::campaign::Motion> {
         use crate::game::campaign::Motion;
         crate::game::campaign::motions_open(&self.world, c).into_iter().filter(|&m| match m {
             Motion::March | Motion::TwoFronts =>
@@ -3128,13 +3048,32 @@ impl Game {
             Motion::ParallelEvent(_) => true,
             // the pledges that put it on the slate carry it through
             Motion::GroupBuy(..) => true,
+            // the charter wants its hall and chest, and there's no
+            // second brigade (#1346)
+            Motion::Brigade => self.brigade.is_none()
+                && self.world.get_component::<crate::game::organizing::MeetingHall>(self.seats[seat].org).is_some()
+                && self.world.get_component::<Organization>(self.seats[seat].org)
+                    .map(|o| o.resources >= BRIGADE_COST).unwrap_or(false),
             // the party needs its ground: a flushed patch to pick, a
             // free plot to raise on (#1344)
             Motion::WorkParty(crate::game::campaign::PartyKind::Forage) =>
                 self.party_patch().is_some(),
             Motion::WorkParty(crate::game::campaign::PartyKind::Raise) =>
                 self.build_site_at(seat).is_some(),
-        }).collect()
+            // the rhythm sits whenever the world gate put it there -
+            // a short purse's no slate-gate, the carried spend reports
+            // the bill instead (#1337)
+            Motion::MendHall | Motion::Cadence | Motion::Debrief | Motion::Assembly => true,
+            // the chain below owns School's seat on the slate - if the
+            // world gate ever learned to push it, it'd sit twice
+            Motion::School => false,
+        }).collect::<Vec<_>>().into_iter().chain(
+            // the schoolhouse is Game state, not world: the slate adds
+            // the ask while the desk's unraised or the chair's empty
+            if self.school.is_none() || self.teacher.is_none() {
+                vec![Motion::School]
+            } else { vec![] })
+        .collect()
     }
 
     /// The trade the room can ballot: the craft most of the cause's
@@ -3198,14 +3137,24 @@ impl Game {
         let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
             return "There's no cause to meet on.".into();
         };
-        match self.hold_and_note_campaign_meeting(Some(self.seats[seat].player), c, tick) {
+        let pe = self.seats[seat].player;
+        match self.hold_and_note_campaign_meeting(Some(pe), c, tick) {
             Some((mut msg, attendees)) => {
+                // you stood at the meeting with them (E6-2): the room
+                // keeps the episode against this seat's pair memory
+                for a in &attendees {
+                    crate::game::episodes::file(&mut self.world, *a, pe,
+                        crate::game::episodes::MemKind::StoodWithUs, tick, &["meeting", "cause"]);
+                }
                 // the pick IS the vote: the agenda the floor was handed
-                // carries, whatever the room settled for itself
+                // carries - unless carrying it costs the room itself
+                // (#1337): a floor that empties on the line leaves the
+                // motion lying there, unseconded
                 if let Some(m) = motion {
                     // the line the floor was handed is witnessed by the
                     // room (#1310) - and a member who walked in set
                     // against it, or sets against it as it lands, walks
+                    let mut emptied = false;
                     if let Some(line) = crate::game::campaign::motion_line(m) {
                         let oe = self.seats[seat].org;
                         let walked_in_against: Vec<Entity> = attendees.iter().copied()
@@ -3214,8 +3163,13 @@ impl Game {
                         crate::game::rhetoric::witness_all(&mut self.world, &attendees, oe, line, tick);
                         let out = self.line_defections(seat, oe, line, &attendees, &walked_in_against);
                         if !out.is_empty() { msg += &format!(" - {} storms out", out.join(", ")); }
+                        emptied = out.len() * 2 >= attendees.len();
                     }
-                    msg += " - "; msg += &self.run_motion(seat, c, m);
+                    if emptied {
+                        msg += " - the floor empties on it, the motion falls";
+                    } else {
+                        msg += " - "; msg += &self.run_motion(seat, c, m, &attendees);
+                    }
                 }
                 msg
             }
@@ -3258,8 +3212,11 @@ impl Game {
         names
     }
 
-    /// What a carried motion does: the street verbs, voted first (#1157)
-    fn run_motion(&mut self, seat: usize, c: Entity, motion: crate::game::campaign::Motion) -> String {
+    /// What a carried motion does: the street verbs and the rhythm
+    /// verbs, voted first (#1157, #1337). `attendees` is the room that
+    /// carried it - the debrief tallies their next step
+    fn run_motion(&mut self, seat: usize, c: Entity, motion: crate::game::campaign::Motion,
+                  attendees: &[Entity]) -> String {
         use crate::game::campaign::Motion;
         match motion {
             Motion::March => self.march_at(seat),
@@ -3274,7 +3231,117 @@ impl Game {
             Motion::Survey => self.survey_motion(seat, c),
             Motion::GroupBuy(gi, _) => self.group_buy_at(seat, c, gi),
             Motion::WorkParty(kind) => self.work_party_at(seat, c, kind),
+            Motion::Brigade => self.brigade_at(seat),
+            Motion::MendHall => self.mend_hall_at(seat),
+            Motion::Cadence => self.cadence_at(c),
+            Motion::Debrief => self.debrief_at(seat, attendees),
+            Motion::Assembly => self.assembly_at(seat, c),
+            Motion::School => self.school_at(seat),
         }
+    }
+
+    /// The carried roof-mending, on the button or the floor (#1337):
+    /// the purse meets the carpenter's bill or the motion fails on it.
+    /// A hall already mended by the other path doesn't bill twice -
+    /// the slate can still offer it stale, picked after the button beat
+    /// it to the repair
+    fn mend_hall_at(&mut self, seat: usize) -> String {
+        let oe = self.seats[seat].org;
+        if self.world.get_component::<crate::game::organizing::HallDamaged>(oe).is_none() {
+            return "The hall doesn't need mending.".into();
+        }
+        let purse = self.world.get_component::<Organization>(oe)
+            .map(|o| o.resources).unwrap_or(0.0);
+        if purse < crate::game::organizing::HALL_REPAIR_COST {
+            let oname = self.world.get_component::<Organization>(oe)
+                .map(|o| o.name.clone()).unwrap_or_default();
+            format!("{} can't make the carpenter's bill - {} gold in the chest.", oname, purse as i32)
+        } else {
+            self.world.get_component_mut::<Organization>(oe).unwrap().resources
+                -= crate::game::organizing::HALL_REPAIR_COST;
+            self.world.remove_component::<crate::game::organizing::HallDamaged>(oe);
+            "The carpenters patch the roof - the hall's fit to meet in again.".into()
+        }
+    }
+
+    /// The carried retiming, on the button or the floor (#1337): the
+    /// meeting steps up or down a notch - weekly for the long haul,
+    /// daily for the fight
+    fn cadence_at(&mut self, c: Entity) -> String {
+        let tick = self.tick;
+        self.cadence_day = tick;
+        let now = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+            .map(|m| m.cadence_days).unwrap_or(3);
+        let next = match now { 0..=3 => 7, 4..=7 => 14, 8..=14 => 30, _ => 3 };
+        crate::game::campaign::set_cadence(&mut self.world, c, next, tick);
+        format!("The cause will meet every {} days now - the organizer's word.", next)
+    }
+
+    /// The carried early assembly, on the button or the floor (#1337)
+    fn assembly_at(&mut self, seat: usize, c: Entity) -> String {
+        let tick = self.tick;
+        self.assembly_day = tick;
+        match crate::game::campaign::announce_assembly(&mut self.world, c, tick) {
+            Some(questions) => {
+                let oname = self.world.get_component::<Organization>(self.seats[seat].org)
+                    .map(|o| o.name.clone()).unwrap_or_default();
+                format!("{} call the accountability assembly - the agenda's posted: {}.",
+                    oname, questions.join("; "))
+            }
+            None => "There's no assembly to call - the campaign's still finding its feet.".into(),
+        }
+    }
+
+    /// The carried tally (#1337): `present` is the room answering - the
+    /// members standing at the organizer on the button's path, the
+    /// meeting's attendees on the floor's
+    fn debrief_at(&mut self, seat: usize, present: &[Entity]) -> String {
+        let tick = self.tick;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+            return String::new();
+        };
+        if present.is_empty() { return "Nobody stood to tally.".into(); }
+        let options = ["the petition", "the march", "the strike", "a town hall"];
+        // each present member's choice is deterministic: their own
+        // grievance's tag picks the step that answers it
+        let mut tally: crate::engine::det::HashMap<&str, usize> = crate::engine::det::HashMap::default();
+        for m in present {
+            let pick = options[*m as usize % options.len()];
+            *tally.entry(pick).or_insert(0) += 1;
+        }
+        let winner = options.iter()
+            .max_by_key(|o| tally.get(*o).copied().unwrap_or(0))
+            .copied().unwrap_or("the petition");
+        let mandate = if present.len() < 3 { " - a thin room's weak word" } else { "" };
+        if let Some(cc) = self.world.get_component_mut::<crate::game::campaign::Campaign>(c) {
+            cc.directive = Some(winner.to_string());
+        }
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+            format!(
+                "t{}: the debrief settles it - the room's for {}{}.",
+                tick, winner, mandate
+            ),
+        );
+        // the settled word is the cause's line, heard by every member
+        // standing there (#1310) - the paper asks are the patient work,
+        // the streets the firebrand's
+        let line = match winner {
+            "the petition" => Some(crate::game::rhetoric::Line::Patient),
+            "the march" | "the strike" | "a town hall" => Some(crate::game::rhetoric::Line::Firebrand),
+            _ => None,
+        };
+        let mut walked = String::new();
+        if let Some(l) = line {
+            let oe = self.seats[seat].org;
+            let walked_in_against: Vec<Entity> = present.iter().copied()
+                .filter(|&a| crate::game::rhetoric::set_against(&self.world, a, oe, l))
+                .collect();
+            crate::game::rhetoric::witness_all(&mut self.world, present, oe, l, tick);
+            let out = self.line_defections(seat, oe, l, present, &walked_in_against);
+            if !out.is_empty() { walked = format!(" {} storms out over it.", out.join(", ")); }
+        }
+        format!("The room settles on {}{}.{}", winner, mandate, walked)
     }
 
     /// A work party carried (#1344): the organizer picks the ground and
@@ -3529,7 +3596,8 @@ impl Game {
                     crate::game::org_skills::OrgSkill::Turnout,
                     crate::game::org_skills::SEAT_PRACTICE);
                 let ev = crate::game::campaign_arc::ArcEvent::Strike { called: out.called };
-                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                let speakers = self.org_speakers(c, tick);
+                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick, &speakers) {
                     self.record_campaign_talk(vec![self.seats[seat].player], &d);
                 }
                 format!("{} of {} say yes{}. {}", out.yes, out.yes + out.no,
@@ -3612,7 +3680,8 @@ impl Game {
             // the answer at the door is the arc's outcome (read
             // after any grant above has landed)
             let ev = crate::game::campaign_arc::ArcEvent::Townhall(out.response);
-            if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+            let speakers = self.org_speakers(c, tick);
+            if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick, &speakers) {
                 let mut with = vec![self.seats[seat].player, target];
                 with.extend(out.turnout.iter().copied());
                 self.record_campaign_talk(with, &d);
@@ -3646,7 +3715,7 @@ impl Game {
         }
         self.send_far(who, to, Goal::FieldPost(site));
         let name = self.villagers.iter().position(|&v| v == who)
-            .map(vill_name).unwrap_or("one of theirs");
+            .map(|i| cast_of(&self.names, i)).unwrap_or("one of theirs");
         format!("the vote sends {} to raise {} for the cause.", name, self.sites[site].name)
     }
 

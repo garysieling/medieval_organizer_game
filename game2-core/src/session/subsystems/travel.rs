@@ -323,8 +323,8 @@ impl Game {
                         if let Some(deal) = livelihood::barter_person(
                             &mut self.world, who, seller, &[(good, qty)], &offer_refs) {
                             paid = Some(deal.boot);
-                            let an = self.villagers.iter().position(|v| *v == who).map(vill_name);
-                            let bn = self.villagers.iter().position(|v| *v == seller).map(vill_name);
+                            let an = self.villagers.iter().position(|v| *v == who).map(|i| cast_of(&self.names, i));
+                            let bn = self.villagers.iter().position(|v| *v == seller).map(|i| cast_of(&self.names, i));
                             if let (Some(a), Some(b)) = (an, bn) {
                                 self.log_entity_ev(
                                     EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
@@ -530,7 +530,7 @@ impl Game {
                     if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold += paid; }
                     self.takings += paid;
                     let name = self.villagers.iter().position(|v| *v == target)
-                        .map(|i| vill_name(i)).unwrap_or("you");
+                        .map(|i| self.cast_name(i)).unwrap_or("you");
                     self.log_entity_ev(EvTag::new(Thread::Law, Valence::Negative, Sev::Minor), target, format!("t{}: the collector counts {}'s barrels - the ale excise comes to {:.0} gold.", tick, name, excise));
                 }
                 // a grant nobody kept watch over is clawed back: if the
@@ -564,7 +564,7 @@ impl Game {
                         crate::game::desires::lift_grievance(&mut self.world, target, crate::game::desires::Problem::Taxed);
                     }
                 }
-                self.say(target, "The lord's share, if you please.", CHAT_BUBBLE_SECS);
+                self.say(target, &self.pair_said(target, self.player, "The lord's share, if {2:subj} please."), CHAT_BUBBLE_SECS);
                 if target == self.player {
                     self.log_entity_ev(
                         EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
@@ -576,7 +576,7 @@ impl Game {
                     );
                 }
                 if granted {
-                    let name = self.villagers.iter().position(|v| *v == target).map(|i| vill_name(i)).unwrap_or("them");
+                    let name = self.villagers.iter().position(|v| *v == target).map(|i| self.cast_name(i)).unwrap_or("them");
                     if relief >= crate::game::reactions::FULL_RELIEF {
                         self.log_entity_ev(
                             EvTag::new(Thread::Law, Valence::Positive, Sev::Minor),
@@ -629,7 +629,7 @@ impl Game {
                                     .villagers
                                     .iter()
                                     .position(|v| *v == who)
-                                    .map(|i| vill_name(i))
+                                    .map(|i| self.cast_name(i))
                                     .unwrap_or("someone");
                                 self.log_entity_ev(
                                     EvTag::new(Thread::Law, Valence::Positive, Sev::Minor),
@@ -654,7 +654,7 @@ impl Game {
                     relationships::record_interaction(&mut self.world, who, relationships::Interaction {
                         other: e, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
                     });
-                    self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
+                    self.say(who, &self.vv_said(who, e, "Good day to {2:obj}."), TALK_BUBBLE_SECS);
                     // an agent seat's chat is a talk like the Wanderer's:
                     // standing beside the one the job was for hands it
                     // over - the seat's own quest, not the villager's
@@ -747,7 +747,7 @@ impl Game {
                 // at the world's edge they don't come back - unless the
                 // castle's keeping them: the dungeon's a held state, and
                 // the org may yet ransom them home
-                let name = self.villagers.iter().position(|v| *v == who).map(|i| vill_name(i)).unwrap_or("someone");
+                let name = self.villagers.iter().position(|v| *v == who).map(|i| self.cast_name(i)).unwrap_or("someone");
                 if self.dungeon.iter().any(|(e, _)| *e == who) {
                     self.log_entity_ev(
                         EvTag::new(Thread::Law, Valence::Negative, Sev::Notable),
@@ -798,7 +798,7 @@ impl Game {
                             .min(self.world.get_component::<Purse>(who).map(|p| p.gold).unwrap_or(0.0));
                         if let Some(p) = self.world.get_component_mut::<Purse>(who) { p.gold -= fee; }
                         if let Some(p) = self.world.get_component_mut::<Purse>(her) { p.gold += fee; }
-                        let patient = self.villagers.iter().position(|v| *v == who).map(|i| vill_name(i)).unwrap_or("someone");
+                        let patient = self.villagers.iter().position(|v| *v == who).map(|i| self.cast_name(i)).unwrap_or("someone");
                         self.say(her, "Steep it and rest - it'll turn.", CHAT_BUBBLE_SECS);
                         self.cured += 1;
                         self.log_entity_ev(
@@ -807,7 +807,7 @@ impl Game {
                             format!(
                                 "t{}: {} treats {}'s {}.",
                                 tick,
-                                vill_name(HERB_IDX),
+                                self.cast_name(HERB_IDX),
                                 patient,
                                 illness.unwrap_or_else(|| "illness".into())
                             ),

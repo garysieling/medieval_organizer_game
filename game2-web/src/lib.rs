@@ -11,13 +11,14 @@
 //! `render()` produces the RGBA `Buffer` `frame_ptr`/`frame_len` point at,
 //! and the canvas blits it - the desktop's draw code, not a JS rewrite.
 
+use game2_audio::host::AudioHost;
+use game2_audio::settings::AudioSettings;
 use game2_client::{
     camera_follow, render_intro, render_picker, talk::digit_cmd, Art, EventCam, View, MAX_ZOOM,
     MIN_ZOOM,
 };
-use game2_core::session::layout::MAP_W;
 use game2_core::session::{
-    self, iso_to_screen_cam, journal, roster::RosterCard, Command, Game, PKind, Scenario,
+    self, journal, roster::RosterCard, Command, Game, PKind, Scenario,
     SceneCache, ServerMsg, UiModel,
 };
 use std::collections::HashMap;
@@ -34,6 +35,29 @@ fn fresh_seed() -> u64 {
         }
     }
     1
+}
+
+/// What the Sound dialog's controls hand over as a `JsValue` (#1507):
+/// a number off a range, a string off the presence select, a bool off
+/// a checkbox. Anything else decodes as Null, which `apply_setting`
+/// refuses - the same wrong-type answer the desktop gives.
+#[cfg(target_arch = "wasm32")]
+fn js_to_json(v: &JsValue) -> serde_json::Value {
+    if let Some(b) = v.as_bool() {
+        serde_json::Value::Bool(b)
+    } else if let Some(n) = v.as_f64() {
+        // a range's number arrives integral; keep it a u64 so
+        // apply_setting's "a number 0..=100" reads it as one
+        if n.fract() == 0.0 && n >= 0.0 {
+            serde_json::Value::from(n as u64)
+        } else {
+            serde_json::Value::from(n)
+        }
+    } else if let Some(s) = v.as_string() {
+        serde_json::Value::String(s)
+    } else {
+        serde_json::Value::Null
+    }
 }
 
 /// Everything about drawing that a page needs and both hosts share:
@@ -55,6 +79,17 @@ struct RenderHost {
     event_cam: EventCam,
     cam_centered: bool,
     focus_seeded: bool,
+    /// the frame's audio intent goes here every render; silent until a
+    /// gesture opens the device, so early frames just drop
+    audio: AudioHost,
+    /// the page's Sound dialog writes here (#1507): the same
+    /// `AudioSettings` the desktop persists, applied to the host the
+    /// moment it exists
+    settings: AudioSettings,
+    /// the open device's stream - owns the heartbeat, so it must live
+    /// as long as `audio` does (#1497)
+    #[cfg(target_arch = "wasm32")]
+    audio_sink: Option<websink::WebSink>,
 }
 
 impl RenderHost {
@@ -70,7 +105,69 @@ impl RenderHost {
             event_cam: EventCam::default(),
             cam_centered: false,
             focus_seeded: false,
+            audio: AudioHost::silent(),
+            settings: AudioSettings::default(),
+            #[cfg(target_arch = "wasm32")]
+            audio_sink: None,
         }
+    }
+
+    /// A click or key calls this (autoplay lets an AudioContext run only
+    /// under a gesture): the stream's built inside the call so its fresh
+    /// context starts running. A failed probe stays silent and the next
+    /// gesture tries again.
+    fn audio_start(&mut self) {
+        if !self.audio.is_silent() {
+            return;
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            use game2_audio::host::HostSettings;
+            if self.audio_sink.is_none() {
+                self.audio_sink = websink::WebSink::probe().ok();
+            }
+            if let Some(sink) = self.audio_sink.as_mut() {
+                self.audio = AudioHost::start(&HostSettings::default(), sink);
+                // the dialog's settings outlive the silent host (#1507):
+                // a fresh device inherits them straight away
+                self.audio.apply_settings(&self.settings);
+            }
+        }
+    }
+
+    /// One settings row from the page's Sound dialog (#1507): the same
+    /// `AudioSettings::apply_setting` the desktop writes through. A bad
+    /// key or a wrong-typed value answers false; a good set re-mixes the
+    /// live host at once, so a slider's change is heard as it's dragged.
+    /// (Only the wasm export and the native tests reach it - JsValue
+    /// doesn't decode off wasm.)
+    #[cfg(any(target_arch = "wasm32", test))]
+    fn set_audio_setting_json(&mut self, key: &str, value: serde_json::Value) -> bool {
+        match self.settings.apply_setting(key, value) {
+            Ok(()) => {
+                self.audio.apply_settings(&self.settings);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// The settings as JSON: the dialog populates its rows from this,
+    /// and the page persists whatever string it reads back
+    fn audio_settings_json(&self) -> String {
+        serde_json::to_string(&self.settings).unwrap_or_else(|_| "{}".into())
+    }
+
+    /// The dialog's Reset (#1507): the design defaults land at once
+    fn reset_audio_settings(&mut self) {
+        self.settings = AudioSettings::default();
+        self.audio.apply_settings(&self.settings);
+    }
+
+    /// `document.hidden` lands here: with `mute_in_background` on, the
+    /// host fades the mix out over its 300 ms ramp (#1507)
+    fn audio_focused(&mut self, on: bool) {
+        self.audio.set_focused(on);
     }
 
     fn provide_asset(&mut self, rel: &str, bytes: &[u8]) {
@@ -121,39 +218,14 @@ impl RenderHost {
             .unwrap_or_default()
     }
 
-    /// The frame's audio cues, drained so a held frame doesn't replay
-    /// them: `[kind, pan, gain]` with pan where the cue lands on screen
-    /// (-1 left .. 1 right) through the same projection the view uses
-    fn take_sfx(&mut self) -> String {
-        let Some(m) = self.model.as_mut() else {
-            return "[]".into();
-        };
-        let cues = std::mem::take(&mut m.sfx_v);
-        let (cx, cy, zoom) = self
-            .view
-            .as_ref()
-            .map(|v| (v.cam_x, v.cam_y, v.zoom))
-            .unwrap_or((0, 0, 1.0));
-        let half = MAP_W as f32 / 2.0;
-        let out: Vec<(String, f32, f32)> = cues
-            .iter()
-            .map(|(kind, x, y, gain)| {
-                let (sx, _) = iso_to_screen_cam(*x as f32, *y as f32, cx, cy, zoom);
-                (
-                    kind.clone(),
-                    ((sx as f32 - half) / half).clamp(-1.0, 1.0),
-                    *gain,
-                )
-            })
-            .collect();
-        serde_json::to_string(&out).unwrap_or_else(|_| "[]".into())
-    }
-
     /// Draw a frame: the camera runs exactly the window's sequence
     /// (sim-asked look, first-frame centre on the player, the comfort-box
     /// follow muted while a focus jump or a live event holds it, then the
     /// event camera), and `View::render` produces the pixels
     fn render_model(&mut self, m: UiModel) {
+        // the frame's cues go down to the host first - the same
+        // AudioFrame::from_model the desktop pushes through (#1497)
+        self.audio.push(&m);
         let Some(view) = self.view.as_mut() else {
             return;
         };
@@ -372,10 +444,43 @@ impl WasmGame {
         self.host.digit_command(n)
     }
 
-    /// The frame's audio cues, drained so a held frame doesn't replay
-    /// them: `[kind, pan, gain]` - pan where the cue lands on screen
-    pub fn take_sfx(&mut self) -> String {
-        self.host.take_sfx()
+    /// The first gesture opens the page's AudioContext and swaps the
+    /// silent host for the real one; call it from click/key handlers.
+    /// Frames pushed before it just drop (#1497)
+    pub fn audio_start(&mut self) {
+        self.host.audio_start();
+    }
+
+    /// The Sound dialog's apply (#1507): one row's new value - a range's
+    /// number, the select's string, a checkbox's bool. False when the
+    /// key's unknown or the type's wrong, so the page can ignore it.
+    pub fn set_audio_setting(&mut self, key: &str, value: JsValue) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.host.set_audio_setting_json(key, js_to_json(&value))
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = (key, value);
+            false
+        }
+    }
+
+    /// The Sound dialog's rows, as JSON: it populates from this on
+    /// open, and the page persists the string on every change
+    pub fn audio_settings(&self) -> String {
+        self.host.audio_settings_json()
+    }
+
+    /// The dialog's Reset row (#1507): the design's defaults land and
+    /// the live mix hears them
+    pub fn reset_audio_settings(&mut self) {
+        self.host.reset_audio_settings();
+    }
+
+    /// `document.hidden` lands here, for the mix's mute-in-background
+    pub fn audio_focused(&mut self, on: bool) {
+        self.host.audio_focused(on);
     }
 
     /// One frame of the village
@@ -468,18 +573,24 @@ impl WasmGame {
     }
 
     /// Rebuild a saved village: replay its record to the saved frame and
-    /// check the fingerprint. `undefined` on a bad string or a drifted
-    /// replay - the page starts a fresh village instead
-    pub fn load(text: &str) -> Option<WasmGame> {
+    /// check the fingerprint. Throws "unreadable" on a bad string,
+    /// "incompatible" on a journal another version wrote, "drifted" on a
+    /// replay that missed its fingerprint - a refused record is the
+    /// page's to keep or replace, never silently started over
+    pub fn load(text: &str) -> Result<WasmGame, String> {
         #[derive(serde::Deserialize)]
         struct Doc {
             journal: journal::Journal,
             frame: u64,
             digest: u64,
         }
-        let doc: Doc = serde_json::from_str(text).ok()?;
+        let doc: Doc = serde_json::from_str(text).map_err(|_| "unreadable".to_string())?;
+        if doc.journal.version != journal::JOURNAL_VERSION {
+            return Err("incompatible".into());
+        }
         let g = journal::replay(&doc.journal, doc.frame);
-        (g.state_digest() == doc.digest).then(|| Self::built(g))
+        if g.state_digest() == doc.digest { Ok(Self::built(g)) }
+        else { Err("drifted".into()) }
     }
 }
 
@@ -682,9 +793,43 @@ impl WasmClient {
         self.host.digit_command(n)
     }
 
-    /// The newest scene's audio cues, drained: `[kind, pan, gain]`
-    pub fn take_sfx(&mut self) -> String {
-        self.host.take_sfx()
+    /// The first gesture opens the page's AudioContext and swaps the
+    /// silent host for the real one; call it from click/key handlers.
+    /// Frames pushed before it just drop (#1497)
+    pub fn audio_start(&mut self) {
+        self.host.audio_start();
+    }
+
+    /// The Sound dialog's apply (#1507): one row's new value - a range's
+    /// number, the select's string, a checkbox's bool. False when the
+    /// key's unknown or the type's wrong, so the page can ignore it.
+    pub fn set_audio_setting(&mut self, key: &str, value: JsValue) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.host.set_audio_setting_json(key, js_to_json(&value))
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = (key, value);
+            false
+        }
+    }
+
+    /// The Sound dialog's rows, as JSON: it populates from this on
+    /// open, and the page persists the string on every change
+    pub fn audio_settings(&self) -> String {
+        self.host.audio_settings_json()
+    }
+
+    /// The dialog's Reset row (#1507): the design's defaults land and
+    /// the live mix hears them
+    pub fn reset_audio_settings(&mut self) {
+        self.host.reset_audio_settings();
+    }
+
+    /// `document.hidden` lands here, for the mix's mute-in-background
+    pub fn audio_focused(&mut self, on: bool) {
+        self.host.audio_focused(on);
     }
 
     /// Which entity is me, from the Welcome - for finding my figure in
@@ -697,6 +842,93 @@ impl WasmClient {
 #[wasm_bindgen(start)]
 pub fn start() {
     // The page constructs a WasmGame and ticks it - nothing to boot here
+}
+
+/// The page's output device: cpal's WebAudio host. `probe` asks for the
+/// default device; `open` builds the stream - inside a gesture, so the
+/// fresh `AudioContext` starts running instead of suspended (#1497).
+#[cfg(target_arch = "wasm32")]
+mod websink {
+    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+    use game2_audio::host::AudioSink;
+    use std::io;
+
+    pub struct WebSink {
+        device: cpal::Device,
+        config: cpal::StreamConfig,
+        /// the live stream - the context's heartbeat; dropped, it stops
+        stream: Option<cpal::Stream>,
+    }
+
+    impl WebSink {
+        pub fn probe() -> Result<WebSink, io::Error> {
+            let dev = cpal::default_host().default_output_device()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no output device"))?;
+            let supported = dev.default_output_config().map_err(io::Error::other)?;
+            if supported.sample_format() != cpal::SampleFormat::F32 {
+                return Err(io::Error::new(io::ErrorKind::Other, "device isn't f32"));
+            }
+            Ok(WebSink { device: dev, config: supported.config(), stream: None })
+        }
+    }
+
+    impl AudioSink for WebSink {
+        /// the AudioContext rate the stream was configured for - the
+        /// engine renders at it or the pitch goes sideways
+        fn sample_rate(&self) -> u32 { self.config.sample_rate.0 }
+
+        fn open(&mut self, mut pump: Box<dyn FnMut(&mut [f32]) + Send>) -> Result<(), io::Error> {
+            let stream = self.device
+                .build_output_stream(&self.config,
+                    move |data: &mut [f32], _: &cpal::OutputCallbackInfo| pump(data),
+                    |e| {
+                        web_sys::console::error_1(
+                            &format!("audio: stream error: {e}").into())
+                    },
+                    None)
+                .map_err(io::Error::other)?;
+            stream.play().map_err(io::Error::other)?;
+            self.stream = Some(stream);
+            Ok(())
+        }
+    }
+}
+
+/// The web side of A2's loader: `assets/sound/manifest.json` (written
+/// by `scripts/sound_process.py`) lists every committed asset; fetch
+/// each and insert the bytes. Native builds use `sampler::load_dir`
+/// instead, so this module is wasm-only.
+#[cfg(target_arch = "wasm32")]
+pub mod sound_loader {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen_futures::JsFuture;
+
+    async fn fetch_bytes(url: &str) -> Option<Vec<u8>> {
+        let resp: web_sys::Response = JsFuture::from(
+            web_sys::window()?.fetch_with_str(url)).await.ok()?.dyn_into().ok()?;
+        let buf = JsFuture::from(resp.array_buffer().ok()?).await.ok()?;
+        Some(js_sys::Uint8Array::new(&buf).to_vec())
+    }
+
+    /// Fetch the manifest then each asset, decoded into a bank ready
+    /// for `Engine::set_bank`. `base` is the page's root ("" works).
+    /// A missing or undecodable file is skipped - the ledger gate has
+    /// already vouched for what should be there.
+    pub async fn fetch_sound_bank(base: &str) -> game2_audio::sampler::SampleBank {
+        let mut bank = game2_audio::sampler::SampleBank::new();
+        let Some(mani) = fetch_bytes(&format!("{base}/assets/sound/manifest.json")).await
+            else { return bank };
+        let Ok(paths) = serde_json::from_slice::<Vec<String>>(&mani)
+            else { return bank };
+        for p in paths {
+            if let Some(bytes) = fetch_bytes(&format!("{base}/assets/sound/{p}")).await {
+                let stem = p.rsplit('/').next().unwrap_or(&p)
+                    .strip_suffix(".ogg").unwrap_or(&p);
+                let _ = bank.insert_bytes(stem, &bytes);
+            }
+        }
+        bank
+    }
 }
 
 #[cfg(test)]
@@ -901,12 +1133,114 @@ mod tests {
             "the reloaded village drifted from the played one"
         );
 
-        assert!(WasmGame::load("not json").is_none(), "gibberish refuses");
+        assert!(WasmGame::load("not json").is_err(), "gibberish refuses");
         // a record that runs longer than it played fails the fingerprint
         let tampered = saved.replace("\"frame\":8", "\"frame\":40");
-        assert!(
-            WasmGame::load(&tampered).is_none(),
-            "a drifted replay refuses"
-        );
+        match WasmGame::load(&tampered) {
+            Err(e) => assert_eq!(e, "drifted", "a drifted replay refuses by name"),
+            Ok(_) => panic!("a drifted replay must not load"),
+        }
+    }
+
+    /// A context that won't open leaves the page silent, not crashed -
+    /// the same sink failure the desktop's bridge test covers, through
+    /// the shared AudioHost (#1497)
+    #[test]
+    fn web_host_silent_when_context_fails() {
+        use game2_audio::host::{AudioSink, HostSettings};
+        struct NoContext;
+        impl AudioSink for NoContext {
+            fn sample_rate(&self) -> u32 { 44100 }
+            fn open(&mut self, _p: Box<dyn FnMut(&mut [f32]) + Send>)
+                -> Result<(), std::io::Error>
+            {
+                Err(std::io::Error::new(std::io::ErrorKind::Other, "AudioContext refused"))
+            }
+        }
+        let mut host = AudioHost::start(&HostSettings::default(), &mut NoContext);
+        assert!(host.is_silent(), "a refused context didn't fall back to silent");
+        let mut buf = [0.0f32; 16];
+        host.render_block(&mut buf);
+        assert!(buf.iter().all(|&s| s == 0.0));
+    }
+
+    /// Both clients push a `UiModel` through `AudioFrame::from_model` -
+    /// the one function - so the eight legacy cues sound the same on the
+    /// page as in the window (#1497)
+    #[test]
+    fn legacy_cue_list_identical_for_desktop_and_web() {
+        use game2_audio::host::{AudioFrame, CueKind};
+        let mut g = Game::new_seeded(session::MAP_SEED);
+        g.update();
+        let mut m = g.ui_model();
+        m.sfx_v = ["rain", "anvil", "festival", "wonder", "bell", "snowballs",
+                   "splash", "mood", "unheard-of"]
+            .iter().map(|k| (k.to_string(), 5, 5, 0.9)).collect();
+        let kinds: Vec<&str> = AudioFrame::from_model(&m).cues.iter().map(|c| match c {
+            CueKind::Rain { .. } => "rain",
+            CueKind::Anvil { .. } => "anvil",
+            CueKind::Festival { .. } => "festival",
+            CueKind::Wonder { .. } => "wonder",
+            CueKind::Bell { .. } => "bell",
+            CueKind::Snowballs { .. } => "snowballs",
+            CueKind::Splash { .. } => "splash",
+            CueKind::Mood { .. } => "mood",
+        }).collect();
+        assert_eq!(kinds, ["rain", "anvil", "festival", "wonder", "bell",
+                           "snowballs", "splash", "mood", "mood"]);
+    }
+
+    /// The dialog's populate string round-trips the same rows the
+    /// desktop persists (#1507): set a few, read the JSON, get them back
+    #[test]
+    fn web_settings_json_round_trip() {
+        let mut host = RenderHost::new();
+        assert!(host.set_audio_setting_json("master", serde_json::json!(45)));
+        assert!(host.set_audio_setting_json("presence", serde_json::json!("rich")));
+        assert!(host.set_audio_setting_json("mono", serde_json::json!(true)));
+        let s: game2_audio::settings::AudioSettings =
+            serde_json::from_str(&host.audio_settings_json()).unwrap();
+        assert_eq!(s.master, 45);
+        assert_eq!(s.presence, game2_audio::settings::Presence::Rich);
+        assert!(s.mono);
+        // Reset restores the design table
+        host.reset_audio_settings();
+        let s: game2_audio::settings::AudioSettings =
+            serde_json::from_str(&host.audio_settings_json()).unwrap();
+        assert_eq!(s, game2_audio::settings::AudioSettings::default());
+    }
+
+    /// The dialog's apply refuses what it can't place, the same errors
+    /// `apply_setting` gives the desktop (#1507)
+    #[test]
+    fn set_audio_setting_rejects_bad_key() {
+        let mut host = RenderHost::new();
+        assert!(!host.set_audio_setting_json("bogus", serde_json::json!(1)));
+        assert!(!host.set_audio_setting_json("master", serde_json::json!("loud")));
+        assert!(!host.set_audio_setting_json("presence", serde_json::json!("lots")));
+        // a good set still lands after the misses
+        assert!(host.set_audio_setting_json("music", serde_json::json!(60)));
+    }
+
+    /// A same-version record replays home; a journal another version
+    /// wrote is refused by name, so the page can keep its record rather
+    /// than start over it (review on #1560)
+    #[test]
+    fn test_an_old_journal_is_refused_apart_from_a_lost_one() {
+        let saved = WasmGame::new().save_json();
+        // the day's own record comes back whole
+        assert!(WasmGame::load(&saved).is_ok(), "the record comes home");
+        // a journal a version behind is refused, and named as such
+        let mut doc: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        doc["journal"]["version"] = serde_json::json!(journal::JOURNAL_VERSION - 1);
+        match WasmGame::load(&doc.to_string()) {
+            Err(e) => assert_eq!(e, "incompatible"),
+            Ok(_) => panic!("an older journal must not replay"),
+        }
+        // and a mangled record is a different refusal still
+        match WasmGame::load("not a record") {
+            Err(e) => assert_eq!(e, "unreadable"),
+            Ok(_) => panic!("a bad string must not load"),
+        }
     }
 }

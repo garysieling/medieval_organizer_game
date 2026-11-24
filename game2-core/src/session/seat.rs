@@ -2,10 +2,10 @@
 
 use crate::session::*;
 
-/// Walking over to someone to talk to or recruit them
+/// Walking over to someone to talk to them
 pub struct Approach {
     pub who: usize,              // villager index
-    pub action: usize,           // the action button to take on arrival (Talk or Recruit)
+    pub action: usize,           // the action button to take on arrival (Talk)
     pub path: Vec<(i32, i32)>,   // tiles still to walk, their tile last
     pub stuck: u32,              // frames without headway
 }
@@ -14,9 +14,9 @@ pub struct Approach {
 /// map to, so a local loop, a remote client and a test all steer the same way.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Command {
-    /// One of the action buttons (Talk, Recruit)
+    /// One of the action buttons (Talk)
     Act(usize),
-    /// A contextual action (Work, Pair up, Errand)
+    /// A contextual action (Pair up, Errand)
     CtxAct(usize),
     /// Held-direction walk, one frame's step
     Walk(f32, f32),
@@ -45,8 +45,6 @@ pub enum Command {
 /// do depends on where they stand and who's picked.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum CtxAct {
-    /// Work the player's own craft (at their bench if they have one)
-    Work,
     /// Pair the picked junior with a master of their trade
     PairUp,
     /// Send the picked child on a paid errand
@@ -101,8 +99,6 @@ pub enum CtxAct {
     /// Pass the hat, buy pamphlets off the print shop and post them
     /// around the streets for the cause
     Flyers,
-    /// Win the picked villager to the cause - it takes real trust first
-    Recruit,
     /// Pick a cap off the patch you're standing by - the wood feeds,
     /// and teaches its lessons the hard way
     PickCaps,
@@ -132,9 +128,6 @@ pub enum CtxAct {
     /// Raise the schoolhouse, or send for a teacher to keep it - asked
     /// only near where it'd stand, while the treasury can pay
     School,
-    /// Charter the fire brigade: a hall to gather in, the chest's gold
-    /// for buckets, and a crew sworn to answer every bell
-    Brigade,
     /// Take the cache the woods' bands left at the edge of the trees -
     /// offered standing by it before it rots or is found
     TakeCache,
@@ -149,7 +142,7 @@ pub struct Seat {
     /// The seat's organization entity
     pub org: Entity,
     /// They picked the selected villager themselves and haven't walked off
-    /// since: Talk and Recruit go to them, however far
+    /// since: Talk goes to them, however far
     pub picked: bool,
     /// The picked one was within a shout when picked, or has come within
     /// one since: a pick that drifts past a shout lets go. A pick made
@@ -203,6 +196,17 @@ pub struct Seat {
     pub mystery_wait: u64,
     /// The last mystery dealt, so the same one doesn't come round twice
     pub mystery_last: usize,
+    /// Days' worth of presence banked at the bench (#1338): the craft
+    /// happens by standing at it, not a button - a slow fill, then the
+    /// day's work lands
+    pub ambient_bench: f32,
+    /// The tick the idle-bench note last fired - a once-a-day word on
+    /// what's missing, not a per-frame nag
+    pub bench_nudged: u64,
+    /// Mysteries this seat's pieced all the way together - the count
+    /// sets which band of the pool the next one draws from (#1350): the
+    /// first ask's easy, the deeper stories come round as solves rack up
+    pub mystery_solved: u32,
     /// Whether they're stood reading the market board: the notices panel
     /// opens on this seat's screen alone (#819)
     pub notice_panel: bool,
@@ -252,10 +256,11 @@ impl Default for Seat {
                pick_near: false,
                pending_founding: None, meet_offer: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
                quest: None, mystery: None, mystery_wait: 0,
-               mystery_last: usize::MAX, notice_panel: false, aboard: None,
+               mystery_last: usize::MAX, mystery_solved: 0, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,
                player_passed: false, survey: None, survey_wait: 0, survey_seen: 0,
-               quests_done: 0, survey_capture: None }
+               quests_done: 0, survey_capture: None,
+               ambient_bench: 0.0, bench_nudged: u64::MAX }
     }
 }
 
@@ -362,7 +367,7 @@ impl Game {
         let who = self.seats.get(seat).map(|s| s.player)
             .ok_or_else(|| "no such seat".to_string())?;
         if target.is_none() && matches!(action,
-            AgentAction::TakeJob | AgentAction::Recruit | AgentAction::Matchmake
+            AgentAction::TakeJob | AgentAction::Matchmake
                 | AgentAction::Errand | AgentAction::PairUp | AgentAction::ShareFindings | AgentAction::Pact) {
             return Err("that action needs a target".into());
         }
@@ -393,7 +398,6 @@ impl Game {
             AgentAction::TakeJob => unreachable!("handled above"),
             AgentAction::Douse => CtxAct::Douse,
             AgentAction::Tame => CtxAct::Tame,
-            AgentAction::Recruit => CtxAct::Recruit,
             AgentAction::Matchmake => CtxAct::Matchmake,
             AgentAction::Errand => CtxAct::Errand,
             AgentAction::PairUp => CtxAct::PairUp,
@@ -658,12 +662,13 @@ impl Game {
                             o.members.iter().any(|&m| !crate::game::villager::is_dead(&self.world, m))))
                         .unwrap_or((false, false));
                     let (msg, tag) = if is_leader {
-                        (format!("{}: we've heard of you - the organizer.", RIVAL_NAMES[i]), "opened")
+                        (format!("{}: we've heard of {{2:obj}} - the organizer.", RIVAL_NAMES[i]), "opened")
                     } else if has_cause {
-                        (format!("{}: word travels. state your business.", RIVAL_NAMES[i]), "wary")
+                        (format!("{}: word travels. state {{2:poss}} business.", RIVAL_NAMES[i]), "wary")
                     } else {
-                        (format!("{}: we don't know you, outsider.", RIVAL_NAMES[i]), "rebuffed")
+                        (format!("{}: we don't know {{2:obj}}, outsider.", RIVAL_NAMES[i]), "rebuffed")
                     };
+                    let msg = self.pair_said(rv, self.player, &msg);
                     self.say(rv, &msg, TALK_BUBBLE_SECS);
                     self.log.push_ev(
                         EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
@@ -696,15 +701,16 @@ impl Game {
             hailed.push((e, s.name, s.cry.to_string()));
         }
         if let Some(d) = &self.doctor { hailed.push((d.e, "the plague doctor", "Stand back - the miasma's about.".into())); }
-        if let Some(m) = &self.minstrel { hailed.push((m.e, "the minstrel", "A tune, then - what's your fancy?".into())); }
+        if let Some(m) = &self.minstrel { hailed.push((m.e, "the minstrel", "A tune, then - what's {2:poss} fancy?".into())); }
         if let Some(m) = &self.pedlar { hailed.push((m.e, "the pedlar", "Pots, pins, and word of the next village.".into())); }
         if let Some(c) = &self.circus { hailed.push((c.e, "the circus", "Come see! Wonders from over the hill!".into())); }
-        if let Some(b) = &self.ink_boiler { hailed.push((b.e, "the ink-boiler", "Ink for the printer - and your crusts come back fried.".into())); }
+        if let Some(b) = &self.ink_boiler { hailed.push((b.e, "the ink-boiler", "Ink for the printer - and {2:poss} crusts come back fried.".into())); }
         for c in &self.couriers { hailed.push((c.e, "the courier", "Letters for the far town - I can't linger.".into())); }
         for (e, name, line) in hailed {
             let Some(p) = self.world.get_component::<Pos>(e) else { continue };
             let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
             if on_map && box_d(sx, sy) < 4.0 {
+                let line = self.pair_said(e, self.player, &line);
                 self.say(e, &line, TALK_BUBBLE_SECS);
                 self.log.push_ev(
                     EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),

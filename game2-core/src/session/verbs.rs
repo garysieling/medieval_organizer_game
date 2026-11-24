@@ -1135,27 +1135,11 @@ impl Game {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
                     return;
                 };
-                self.cadence_day = self.tick;
-                // the organizer's recommendation: the meeting steps up or
-                // down a notch - weekly for the long haul, daily for the fight
-                let now = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
-                    .map(|m| m.cadence_days).unwrap_or(3);
-                let next = match now { 0..=3 => 7, 4..=7 => 14, 8..=14 => 30, _ => 3 };
-                crate::game::campaign::set_cadence(&mut self.world, c, next, tick);
-                format!("The cause will meet every {} days now - the organizer's word.", next)
+                self.cadence_at(c)
             }
             CtxAct::Assembly => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
-                self.assembly_day = self.tick;
-                match crate::game::campaign::announce_assembly(&mut self.world, c, tick) {
-                    Some(questions) => {
-                        let oname = self.world.get_component::<Organization>(self.seats[seat].org)
-                            .map(|o| o.name.clone()).unwrap_or_default();
-                        format!("{} call the accountability assembly - the agenda's posted: {}.",
-                            oname, questions.join("; "))
-                    }
-                    None => "There's no assembly to call - the campaign's still finding its feet.".into(),
-                }
+                self.assembly_at(seat, c)
             }
             CtxAct::Delegate => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
@@ -1227,21 +1211,7 @@ impl Game {
                 self.seats[seat].meet_offer = Some(self.tick);
                 "The plan's made - now the word wants a day.".into()
             }
-            CtxAct::MendHall => {
-                let oe = self.seats[seat].org;
-                let purse = self.world.get_component::<Organization>(oe)
-                    .map(|o| o.resources).unwrap_or(0.0);
-                if purse < crate::game::organizing::HALL_REPAIR_COST {
-                    let oname = self.world.get_component::<Organization>(oe)
-                        .map(|o| o.name.clone()).unwrap_or_default();
-                    format!("{} can't make the carpenter's bill - {} gold in the chest.", oname, purse as i32)
-                } else {
-                    self.world.get_component_mut::<Organization>(oe).unwrap().resources
-                        -= crate::game::organizing::HALL_REPAIR_COST;
-                    self.world.remove_component::<crate::game::organizing::HallDamaged>(oe);
-                    "The carpenters patch the roof - the hall's fit to meet in again.".into()
-                }
-            }
+            CtxAct::MendHall => self.mend_hall_at(seat),
             CtxAct::Interview => {
                 let t = self.villagers[self.seats[seat].selected_target];
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
@@ -1293,8 +1263,6 @@ impl Game {
                     self.name_of(t), stance, stake)
             }
             CtxAct::Debrief => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
-                    return; };
                 // the room's answer: the members standing here pick the
                 // next step - the tally's by who's present, not who's on
                 // the roll, and the thin room's a weak mandate
@@ -1305,49 +1273,7 @@ impl Game {
                     && self.world.get_component::<Pos>(m).zip(self.world.get_component::<Pos>(self.seats[seat].player))
                         .map(|(a, b)| (a.x - b.x).abs() + (a.y - b.y).abs() < 20.0).unwrap_or(false)).collect();
                 if present.is_empty() { return; }
-                let options = ["the petition", "the march", "the strike", "a town hall"];
-                let _issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                    .map(|cc| cc.issue.clone()).unwrap_or_default();
-                // each present member's choice is deterministic: their own
-                // grievance's tag picks the step that answers it
-                let mut tally: crate::engine::det::HashMap<&str, usize> = crate::engine::det::HashMap::default();
-                for m in &present {
-                    let pick = options[*m as usize % options.len()];
-                    *tally.entry(pick).or_insert(0) += 1;
-                }
-                let winner = options.iter()
-                    .max_by_key(|o| tally.get(*o).copied().unwrap_or(0))
-                    .copied().unwrap_or("the petition");
-                let mandate = if present.len() < 3 { " - a thin room's weak word" } else { "" };
-                if let Some(cc) = self.world.get_component_mut::<crate::game::campaign::Campaign>(c) {
-                    cc.directive = Some(winner.to_string());
-                }
-                self.log.push_ev(
-                    EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
-                    format!(
-                        "t{}: the debrief settles it - the room's for {}{}.",
-                        tick, winner, mandate
-                    ),
-                );
-                // the settled word is the cause's line, heard by every
-                // member standing there (#1310) - the paper asks are the
-                // patient work, the streets the firebrand's
-                let line = match winner {
-                    "the petition" => Some(crate::game::rhetoric::Line::Patient),
-                    "the march" | "the strike" | "a town hall" => Some(crate::game::rhetoric::Line::Firebrand),
-                    _ => None,
-                };
-                let mut walked = String::new();
-                if let Some(l) = line {
-                    let oe = self.seats[seat].org;
-                    let walked_in_against: Vec<Entity> = present.iter().copied()
-                        .filter(|&a| crate::game::rhetoric::set_against(&self.world, a, oe, l))
-                        .collect();
-                    crate::game::rhetoric::witness_all(&mut self.world, &present, oe, l, tick);
-                    let out = self.line_defections(seat, oe, l, &present, &walked_in_against);
-                    if !out.is_empty() { walked = format!(" {} storms out over it.", out.join(", ")); }
-                }
-                format!("The room settles on {}{}.{}", winner, mandate, walked)
+                self.debrief_at(seat, &present)
             }
             CtxAct::Attend => {
                 // the player's presence counts for what the day means:
@@ -3228,7 +3154,7 @@ impl Game {
     /// closes - a column already out or home, demands already answered,
     /// no print shop, no trade of theirs to ballot, nobody to spare
     /// for the road or no town left to raise (#1157)
-    fn agenda_motions(&self, seat: usize, c: Entity) -> Vec<crate::game::campaign::Motion> {
+    pub(in crate::session) fn agenda_motions(&self, seat: usize, c: Entity) -> Vec<crate::game::campaign::Motion> {
         use crate::game::campaign::Motion;
         crate::game::campaign::motions_open(&self.world, c).into_iter().filter(|&m| match m {
             Motion::March | Motion::TwoFronts =>
@@ -3271,7 +3197,20 @@ impl Game {
                 self.party_patch().is_some(),
             Motion::WorkParty(crate::game::campaign::PartyKind::Raise) =>
                 self.build_site_at(seat).is_some(),
-        }).collect()
+            // the rhythm sits whenever the world gate put it there -
+            // a short purse's no slate-gate, the carried spend reports
+            // the bill instead (#1337)
+            Motion::MendHall | Motion::Cadence | Motion::Debrief | Motion::Assembly => true,
+            // the chain below owns School's seat on the slate - if the
+            // world gate ever learned to push it, it'd sit twice
+            Motion::School => false,
+        }).collect::<Vec<_>>().into_iter().chain(
+            // the schoolhouse is Game state, not world: the slate adds
+            // the ask while the desk's unraised or the chair's empty
+            if self.school.is_none() || self.teacher.is_none() {
+                vec![Motion::School]
+            } else { vec![] })
+        .collect()
     }
 
     /// The trade the room can ballot: the craft most of the cause's
@@ -3345,11 +3284,14 @@ impl Game {
                         crate::game::episodes::MemKind::StoodWithUs, tick, &["meeting", "cause"]);
                 }
                 // the pick IS the vote: the agenda the floor was handed
-                // carries, whatever the room settled for itself
+                // carries - unless carrying it costs the room itself
+                // (#1337): a floor that empties on the line leaves the
+                // motion lying there, unseconded
                 if let Some(m) = motion {
                     // the line the floor was handed is witnessed by the
                     // room (#1310) - and a member who walked in set
                     // against it, or sets against it as it lands, walks
+                    let mut emptied = false;
                     if let Some(line) = crate::game::campaign::motion_line(m) {
                         let oe = self.seats[seat].org;
                         let walked_in_against: Vec<Entity> = attendees.iter().copied()
@@ -3358,8 +3300,13 @@ impl Game {
                         crate::game::rhetoric::witness_all(&mut self.world, &attendees, oe, line, tick);
                         let out = self.line_defections(seat, oe, line, &attendees, &walked_in_against);
                         if !out.is_empty() { msg += &format!(" - {} storms out", out.join(", ")); }
+                        emptied = out.len() * 2 >= attendees.len();
                     }
-                    msg += " - "; msg += &self.run_motion(seat, c, m);
+                    if emptied {
+                        msg += " - the floor empties on it, the motion falls";
+                    } else {
+                        msg += " - "; msg += &self.run_motion(seat, c, m, &attendees);
+                    }
                 }
                 msg
             }
@@ -3402,8 +3349,11 @@ impl Game {
         names
     }
 
-    /// What a carried motion does: the street verbs, voted first (#1157)
-    fn run_motion(&mut self, seat: usize, c: Entity, motion: crate::game::campaign::Motion) -> String {
+    /// What a carried motion does: the street verbs and the rhythm
+    /// verbs, voted first (#1157, #1337). `attendees` is the room that
+    /// carried it - the debrief tallies their next step
+    fn run_motion(&mut self, seat: usize, c: Entity, motion: crate::game::campaign::Motion,
+                  attendees: &[Entity]) -> String {
         use crate::game::campaign::Motion;
         match motion {
             Motion::March => self.march_at(seat),
@@ -3419,7 +3369,110 @@ impl Game {
             Motion::GroupBuy(gi, _) => self.group_buy_at(seat, c, gi),
             Motion::WorkParty(kind) => self.work_party_at(seat, c, kind),
             Motion::Brigade => self.brigade_at(seat),
+            Motion::MendHall => self.mend_hall_at(seat),
+            Motion::Cadence => self.cadence_at(c),
+            Motion::Debrief => self.debrief_at(seat, attendees),
+            Motion::Assembly => self.assembly_at(seat, c),
+            Motion::School => self.school_at(seat),
         }
+    }
+
+    /// The carried roof-mending, on the button or the floor (#1337):
+    /// the purse meets the carpenter's bill or the motion fails on it
+    fn mend_hall_at(&mut self, seat: usize) -> String {
+        let oe = self.seats[seat].org;
+        let purse = self.world.get_component::<Organization>(oe)
+            .map(|o| o.resources).unwrap_or(0.0);
+        if purse < crate::game::organizing::HALL_REPAIR_COST {
+            let oname = self.world.get_component::<Organization>(oe)
+                .map(|o| o.name.clone()).unwrap_or_default();
+            format!("{} can't make the carpenter's bill - {} gold in the chest.", oname, purse as i32)
+        } else {
+            self.world.get_component_mut::<Organization>(oe).unwrap().resources
+                -= crate::game::organizing::HALL_REPAIR_COST;
+            self.world.remove_component::<crate::game::organizing::HallDamaged>(oe);
+            "The carpenters patch the roof - the hall's fit to meet in again.".into()
+        }
+    }
+
+    /// The carried retiming, on the button or the floor (#1337): the
+    /// meeting steps up or down a notch - weekly for the long haul,
+    /// daily for the fight
+    fn cadence_at(&mut self, c: Entity) -> String {
+        let tick = self.tick;
+        self.cadence_day = tick;
+        let now = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+            .map(|m| m.cadence_days).unwrap_or(3);
+        let next = match now { 0..=3 => 7, 4..=7 => 14, 8..=14 => 30, _ => 3 };
+        crate::game::campaign::set_cadence(&mut self.world, c, next, tick);
+        format!("The cause will meet every {} days now - the organizer's word.", next)
+    }
+
+    /// The carried early assembly, on the button or the floor (#1337)
+    fn assembly_at(&mut self, seat: usize, c: Entity) -> String {
+        let tick = self.tick;
+        self.assembly_day = tick;
+        match crate::game::campaign::announce_assembly(&mut self.world, c, tick) {
+            Some(questions) => {
+                let oname = self.world.get_component::<Organization>(self.seats[seat].org)
+                    .map(|o| o.name.clone()).unwrap_or_default();
+                format!("{} call the accountability assembly - the agenda's posted: {}.",
+                    oname, questions.join("; "))
+            }
+            None => "There's no assembly to call - the campaign's still finding its feet.".into(),
+        }
+    }
+
+    /// The carried tally (#1337): `present` is the room answering - the
+    /// members standing at the organizer on the button's path, the
+    /// meeting's attendees on the floor's
+    fn debrief_at(&mut self, seat: usize, present: &[Entity]) -> String {
+        let tick = self.tick;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+            return String::new();
+        };
+        if present.is_empty() { return "Nobody stood to tally.".into(); }
+        let options = ["the petition", "the march", "the strike", "a town hall"];
+        // each present member's choice is deterministic: their own
+        // grievance's tag picks the step that answers it
+        let mut tally: crate::engine::det::HashMap<&str, usize> = crate::engine::det::HashMap::default();
+        for m in present {
+            let pick = options[*m as usize % options.len()];
+            *tally.entry(pick).or_insert(0) += 1;
+        }
+        let winner = options.iter()
+            .max_by_key(|o| tally.get(*o).copied().unwrap_or(0))
+            .copied().unwrap_or("the petition");
+        let mandate = if present.len() < 3 { " - a thin room's weak word" } else { "" };
+        if let Some(cc) = self.world.get_component_mut::<crate::game::campaign::Campaign>(c) {
+            cc.directive = Some(winner.to_string());
+        }
+        self.log.push_ev(
+            EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
+            format!(
+                "t{}: the debrief settles it - the room's for {}{}.",
+                tick, winner, mandate
+            ),
+        );
+        // the settled word is the cause's line, heard by every member
+        // standing there (#1310) - the paper asks are the patient work,
+        // the streets the firebrand's
+        let line = match winner {
+            "the petition" => Some(crate::game::rhetoric::Line::Patient),
+            "the march" | "the strike" | "a town hall" => Some(crate::game::rhetoric::Line::Firebrand),
+            _ => None,
+        };
+        let mut walked = String::new();
+        if let Some(l) = line {
+            let oe = self.seats[seat].org;
+            let walked_in_against: Vec<Entity> = present.iter().copied()
+                .filter(|&a| crate::game::rhetoric::set_against(&self.world, a, oe, l))
+                .collect();
+            crate::game::rhetoric::witness_all(&mut self.world, present, oe, l, tick);
+            let out = self.line_defections(seat, oe, l, present, &walked_in_against);
+            if !out.is_empty() { walked = format!(" {} storms out over it.", out.join(", ")); }
+        }
+        format!("The room settles on {}{}.{}", winner, mandate, walked)
     }
 
     /// A work party carried (#1344): the organizer picks the ground and

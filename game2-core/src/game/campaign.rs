@@ -933,6 +933,21 @@ pub enum Motion {
     /// Charter the fire brigade (#1346): the cause's answer to a fire
     /// grief it's identified - sworn hands on every bell
     Brigade,
+    /// The rhythm verbs as motions (#1337): the room ratifies the
+    /// organizer's read on how often the cause meets - the cadence is
+    /// what the meeting does, not a button
+    Cadence,
+    /// The room tallies the next step after a meeting's held - the
+    /// members standing there carry the mandate
+    Debrief,
+    /// Put the accountability assembly's agenda up early - it keeps
+    /// its own dates otherwise
+    Assembly,
+    /// The purse mends the storm-hit hall - carried like any spending
+    MendHall,
+    /// The treasury raises the schoolhouse or sends for the teacher -
+    /// a room can refuse the coin
+    School,
 }
 
 /// The work a party walks out to (#1344): caps under the trees, or a
@@ -957,6 +972,10 @@ pub fn motion_line(m: Motion) -> Option<crate::game::rhetoric::Line> {
         Motion::WorkParty(_) => Some(Line::Patient),
         Motion::SendOrganizer | Motion::ParallelEvent(_) => None,
         Motion::Brigade => Some(Line::Patient),
+        // the rhythm carries no line to witness - housekeeping isn't
+        // rhetoric the room can be set against (#1337)
+        Motion::Cadence | Motion::Debrief | Motion::Assembly
+            | Motion::MendHall | Motion::School => None,
     }
 }
 
@@ -1000,6 +1019,11 @@ pub fn motion_label(m: Motion) -> String {
             "Raise a roof together - call the village out for it".into(),
         Motion::Brigade =>
             "Charter a fire brigade - sworn hands on every bell".into(),
+        Motion::Cadence => "Set the meeting's cadence - the rhythm's the room's".into(),
+        Motion::Debrief => "Debrief - the room tallies the next step".into(),
+        Motion::Assembly => "Call the accountability assembly early".into(),
+        Motion::MendHall => "Mend the hall - the purse covers the roof".into(),
+        Motion::School => "Raise the school - the treasury pays the desk".into(),
     }
 }
 
@@ -1488,6 +1512,26 @@ pub fn motions_open(world: &World, campaign: Entity) -> Vec<Motion> {
     // discipline the street verbs ride
     if asked && n >= 3 && fire_known(world, campaign) {
         ms.push(Motion::Brigade);
+    }
+    // the rhythm is the meeting's own (#1337): the floor can always
+    // retime its gathering, tally the next step once it's held one,
+    // put the assembly up early when the checks have a slate, mend a
+    // roofless hall - housekeeping, not street work, so no legwork asks
+    ms.push(Motion::Cadence);
+    if world.get_component::<CampaignMeeting>(campaign).map(|m| m.held > 0).unwrap_or(false) {
+        ms.push(Motion::Debrief);
+    }
+    let org = world.get_component::<Campaign>(campaign).map(|c| c.org);
+    if let Some(org) = org {
+        if world.get_component::<crate::game::organizing::HallDamaged>(org).is_some() {
+            ms.push(Motion::MendHall);
+        }
+        if !agenda_checks(world, campaign, org).is_empty()
+            && world.get_component::<Assembly>(campaign)
+                .map(|a| a.announced.is_none()).unwrap_or(true)
+        {
+            ms.push(Motion::Assembly);
+        }
     }
     // the room's own coin: when the pledges gather behind a good, the
     // floor can carry the pooled buy - quiet work, no legwork asked

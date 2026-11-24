@@ -136,6 +136,7 @@ mod gaol;
 mod events_attend;
 mod construction;
 mod anticolonial;
+mod drama;
 mod campaign_phase;
 mod cult;
 mod dilemma;

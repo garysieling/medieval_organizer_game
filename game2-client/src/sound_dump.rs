@@ -5,8 +5,9 @@
 //! with no `Game` at all; `--connect` records one off a live server.
 use crate::remote;
 use game2_audio::analysis;
-use game2_audio::host::AudioHost;
+use game2_audio::host::{AudioFrame, AudioHost};
 use game2_audio::scenarios::{self, Op, ScriptOp};
+use game2_audio::soundscape::Listener;
 use game2_audio::wav::{self, SAMPLE_RATE};
 use game2_core::game::tilemap::TileMap;
 use game2_core::session::stage::{self, Stage};
@@ -34,10 +35,11 @@ impl Default for DumpOpts {
     }
 }
 
-/// The frame's audio slice: push the model, render one 60 fps frame of
-/// stereo onto `pcm`.
-fn render_frame(host: &mut AudioHost, model: &UiModel, pcm: &mut Vec<f32>) {
-    host.push(model);
+/// The frame's audio slice: push the model at the listener's ear,
+/// render one 60 fps frame of stereo onto `pcm`.
+fn render_frame(host: &mut AudioHost, model: &UiModel, listener: &Listener,
+                pcm: &mut Vec<f32>) {
+    host.push_frame(&AudioFrame::from_model_with(model, listener));
     let n = host.frame_samples();
     let start = pcm.len();
     pcm.resize(start + n * 2, 0.0);
@@ -45,16 +47,24 @@ fn render_frame(host: &mut AudioHost, model: &UiModel, pcm: &mut Vec<f32>) {
 }
 
 /// A scenario op against the running game: the verbs `record_video`'s
-/// scripts use. `Look*` is a no-op headless - the listener spot lands
-/// with the scan work, and recording it keeps the script honest.
+/// scripts use. `Look*` doesn't touch the game - it steers the
+/// listener, which `run_live` carries per frame.
 fn apply_op(op: &Op, game: &mut Game) {
     match op {
         Op::Cmd(c) => game.command(c.clone()),
         Op::ForceEvent(id) => game.force_event(*id),
         Op::RoadMarch(si) => { let _ = game.force_road_march(0, *si); }
         Op::Stage(s) => stage::stage(game, *s),
-        Op::Look(_, _) | Op::LookMarket => {}
+        _ => {}
     }
+}
+
+/// The ear a `Look` op last moved: resolved against each frame's model
+/// (the market, skeps, church and gate move with the seed).
+fn listener_at(look: &Option<Op>, m: &UiModel) -> Listener {
+    look.as_ref().and_then(|op| scenarios::look_spot(op, m))
+        .map(|(x, y)| Listener::at(x, y, 1.0))
+        .unwrap_or_else(|| Listener::from_model(m))
 }
 
 /// Live play: a seeded or scenario game run N frames.
@@ -71,14 +81,28 @@ fn run_live(opts: &DumpOpts, host: &mut AudioHost, pcm: &mut Vec<f32>) -> io::Re
         None => (Game::new_seeded(opts.seed), BTreeMap::new()),
     };
     let mut script = script;
+    let mut look: Option<Op> = None;
     if let Some(s) = opts.stage { stage::stage(&mut game, s); }
     for f in 0..opts.frames {
         if let Some(ops) = script.remove(&f) {
-            for op in &ops { apply_op(op, &mut game); }
+            for op in &ops {
+                if matches!(op, Op::Look(..) | Op::LookMarket
+                    | Op::LookSkeps | Op::LookChurch | Op::LookGate) {
+                    look = Some(match op {
+                        Op::Look(x, y) => Op::Look(*x, *y),
+                        Op::LookMarket => Op::LookMarket,
+                        Op::LookSkeps => Op::LookSkeps,
+                        Op::LookChurch => Op::LookChurch,
+                        Op::LookGate => Op::LookGate,
+                        _ => unreachable!(),
+                    });
+                } else { apply_op(op, &mut game); }
+            }
         }
         game.update();
         let m = game.ui_model();
-        render_frame(host, &m, pcm);
+        let l = listener_at(&look, &m);
+        render_frame(host, &m, &l, pcm);
     }
     Ok(())
 }
@@ -108,7 +132,7 @@ fn run_scenes(path: &str, host: &mut AudioHost, pcm: &mut Vec<f32>) -> io::Resul
         let mut m: UiModel = serde_json::from_str(&line).map_err(io_err)?;
         if m.map.width > 0 { map = Some(m.map.clone()); }
         else if let Some(saved) = &map { m.map = saved.clone(); }
-        render_frame(host, &m, pcm);
+        render_frame(host, &m, &Listener::from_model(&m), pcm);
     }
     Ok(())
 }
@@ -126,7 +150,7 @@ fn run_connect(url: &str, opts: &DumpOpts, host: &mut AudioHost, pcm: &mut Vec<f
         + std::time::Duration::from_secs(120 + opts.frames / 10);
     while got < opts.frames {
         for m in r.drain_scenes() {
-            render_frame(host, &m, pcm);
+            render_frame(host, &m, &Listener::from_model(&m), pcm);
             models.push(m);
             got += 1;
         }
@@ -147,7 +171,7 @@ fn run_connect(url: &str, opts: &DumpOpts, host: &mut AudioHost, pcm: &mut Vec<f
 pub fn render_models<'a, I: Iterator<Item = &'a UiModel>>(models: I) -> (Vec<f32>, usize) {
     let mut host = AudioHost::offline(SAMPLE_RATE);
     let mut pcm = vec![];
-    for m in models { render_frame(&mut host, m, &mut pcm); }
+    for m in models { render_frame(&mut host, m, &Listener::from_model(m), &mut pcm); }
     (pcm, host.voices_peak())
 }
 
@@ -156,6 +180,10 @@ pub fn render_models<'a, I: Iterator<Item = &'a UiModel>>(models: I) -> (Vec<f32
 pub fn run(opts: &DumpOpts) -> io::Result<()> {
     let t0 = std::time::Instant::now();
     let mut host = AudioHost::offline(SAMPLE_RATE);
+    // the dump's bank comes off the disk like game_ui's; the web
+    // loader fetches its bank instead, and sound_dump is a native tool
+    #[cfg(not(target_arch = "wasm32"))]
+    host.set_bank(game2_audio::sampler::load_dir(std::path::Path::new("assets/sound")));
     let mut pcm = vec![];
     if let Some(path) = &opts.scenes {
         run_scenes(path, &mut host, &mut pcm)?;

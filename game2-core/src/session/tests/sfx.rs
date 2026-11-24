@@ -4,13 +4,17 @@ use crate::session::routine::HOLY_EVERY;
 #[test]
 fn test_the_soundscape_raises_its_cues() {
     let mut g = Game::new();
-    g.sfx_tick(45); // a feast day
-    assert!(g.sfx.iter().any(|c| c.kind == "festival"), "the festival hums");
-    // rain's a cue while it falls
+    // the ambient bed (rain, anvil, festival) no longer rides sfx_tick:
+    // the soundscape plays it by place (A4) - only the moments remain
     g.precip = Some(crate::sim::precipitation::PrecipKind::Rain);
-    g.sfx.clear();
-    g.sfx_tick(20);
-    assert!(g.sfx.iter().any(|c| c.kind == "rain"), "the bed keeps the weather");
+    for tick in [10, 20, 45, 90] {
+        g.sfx.clear();
+        g.sfx_tick(tick);
+        assert!(g.sfx.iter().all(|c| !matches!(c.kind,
+            "rain" | "anvil" | "festival")),
+            "ambient cues moved to the soundscape: {:?}",
+            g.sfx.iter().map(|c| &c.kind).collect::<Vec<_>>());
+    }
 }
 
 #[test]

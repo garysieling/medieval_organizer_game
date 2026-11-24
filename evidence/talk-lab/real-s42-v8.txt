@@ -1,39 +1,41 @@
 === Talk: Wystan (villager 8, game seed 42) ===
+  facts: 
   (walking over…)
-  Wystan: Morrow, wanderer.
+  Wystan: Saints keep us. Morrow, wanderer - a fine day to be out, isn't it?
   (Wystan is the village mason. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They cut freestone and build field walls. They're forever turning the big questions over. They keep close to the church folk. They keep close to the market folk.)
-  Wystan: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Aye, words have weight in a small village.
-    2) And to thee.
+  Wystan: By the rood. No one to learn from. I'll be a journeyman forever.   [gist]
+    1) Fair enough, and to you.
+    2) Morrow. I'd best keep moving.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Aye, words have weight in a small village.
-  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
+  you: Fair enough, and to you.
+  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
     1) An open hand finds open doors, say I.
     2) A wise purse keeps its own counsel, say I.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
-  you: An open hand finds open doors, say I.
-  Wystan: Gray clouds gathering over the western hill.
-    1) And the day's work - does it treat thee kindly?
-    2) Tell me true, Wystan - how goes it with thee?
-    3) Put a question to them
+  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
+  you: A loaf shared is a friend made - I'd not grudge it.
+  Wystan: Your roof's holding better than mine in this wind, I'd wager!
+    1) As do we all, neighbor.
+    2) Put a question to them
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: And the day's work - does it treat thee kindly?
-  Wystan: Hard at it down at the day's work, are we?
-    1) It goes, by the saints' grace. the day's work is kind to a steady hand.
-    2) Well enough, aye. And how does the stone yard treat thee?
-    3) Put a question to them
+  you: As do we all, neighbor.
+  Wystan: God witness. As you say, friend.
+  Wystan: Is there room at a hearth for one more?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    4) Ask what they actually want
     l) take your leave
-  you: It goes, by the saints' grace. the day's work is kind to a steady hand.
-  Wystan: The peddler's cart lost a wheel at the bridge.
-    1) Aye? And what else did folk see?
-    2) I'll not repeat marketplace whispers.
-    3) Put a question to them
+  you: I couldn't say truly.
+    1) My day is waiting.
+    2) Fair day to you, Wystan - 'twas good to pass the time.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Aye? And what else did folk see?
-  Wystan: Old Wulfric swore he saw an owl perched on the tavern roof.
-    1) Well, that is talk enough for one morning.
-    2) Nay, I see it differently, mark me.
-    3) Put a question to them
-    l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 8 --picks 0,0,0,0,0,0 (talk seed 989855755)
+REPRO: talk_lab talk --seed 42 --villager 8 --picks 0,0,0,0,0 (talk seed 989855755)

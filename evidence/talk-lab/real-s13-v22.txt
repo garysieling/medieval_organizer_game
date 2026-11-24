@@ -1,27 +1,44 @@
 === Talk: Roderick (villager 22, game seed 13) ===
+  facts: 
   (walking over…)
-  Roderick: Fair morning to thee, wanderer.
+  Roderick: wanderer - good to see a familiar face about!
   (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
-  Roderick: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Good day to thee.
-    2) I am here, as thou seest.
+  Roderick: Hah! No one to learn from. I'll be a journeyman forever, or am I mistook?   [gist]
+    1) Well enough - and yours?
+    2) Aye. Good day to you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Good day to thee.
-  Roderick: I'd have thumped the steward myself. Thou'd have done the same, no doubt?
-    1) Aye... I suppose thou'rt right about that.
-    2) Thou'lt not put words in my mouth, friend.
+  you: Well enough - and yours?
+  Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
+    1) Aye... I suppose you are right about that.
+    2) You will not put words in my mouth, friend.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Roderick: I'd have thumped the steward myself. Thou'd have done the same, no doubt?
-  you: Aye... I suppose thou'rt right about that.
-  Roderick: The morning dew was heavy on the clover.
-    1) Weather aside, Roderick - how does the season treat thee?
-    2) And how fares thy folk in this cold snap?
+  Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
+  you: As you say, no doubt it's so.
+  Roderick: Aye, the dew lay heavy on the clover this morning.
+    1) And the day's work - does it treat you kindly?
+    2) And how fares your folk in this cold snap?
     3) Put a question to them
     l) take your leave
-  you: Weather aside, Roderick - how does the season treat thee?
-  Roderick: Hard at it down at the day's work, are we?
-    1) the day's work is my affair, and it fares as it fares.
-    2) It goes, by the saints' grace. the day's work is kind to a steady hand.
+  you: And the day's work - does it treat you kindly?
+  Roderick: wanderer - how goes the day's work with you this season?
+    1) Ask the reeve about the day's work, not me. I keep my own count.
+    2) The lord's acres are kind to a steady hand, goodman Roderick - I'll say it anywhere.
     3) Put a question to them
     l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0,0,0 (talk seed 1325400078)
+  you: Well… Ask the reeve about the day's work, not me. I keep my own count.
+  Roderick: True enough - the fields don't gossip.
+  Roderick: Are the nights long for you too?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    l) take your leave
+  you: I couldn't say truly.
+    1) The saints keep your roof whole.
+    2) I must walk on; fair day.
+    3) Ask them to come to a meeting - for 18g
+    l) take your leave
+REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0,0,0,0,0 (talk seed 1325400078)

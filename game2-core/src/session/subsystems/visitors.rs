@@ -640,6 +640,7 @@ impl Game {
             // the acrolein reaches whoever's downwind - sharp on the eyes
             0 | 1 => {
                 if self.rng.below(100) < OIL_FLARE_PCT && self.fire.ignite(&self.map, camp.0, camp.1, tick) {
+                    self.emit_sfx("alarm", camp.0 as f32 + 0.5, camp.1 as f32 + 0.5, 1.0);
                     self.say(be, "She's caught - keep back!", TALK_BUBBLE_SECS);
                     self.log.push_ev_at_who(
                         EvTag::new(Thread::Fire, Valence::Negative, Sev::Notable),

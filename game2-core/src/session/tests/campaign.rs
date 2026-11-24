@@ -1,4 +1,5 @@
 use crate::session::*;
+use super::sit_floor;
 
 #[test]
 fn test_the_harvesters_take_a_vote_and_then_they_meet() {
@@ -24,13 +25,11 @@ fn test_the_harvesters_take_a_vote_and_then_they_meet() {
     assert!(cv.seats.iter().all(|s| s.ends_with("(empty)")), "{:?}", cv.seats);
     assert!(!cv.due, "just founded - the cadence still has to run");
 
-    // and the Meet button opens the agenda when it's due - the meeting
-    // runs on the floor's pick (#1157): the last row's always "just meet"
+    // and the cadence's own date opens the agenda when it's due - the
+    // meeting runs on the floor's pick (#1337): the last row's "just meet"
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    let i = g.seats[0].ctx_actions.len() - 1;
-    g.ctx_act_at(0, i);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
     let convo = g.ui_model().convo.expect("the slate shows on the box");
     assert!(convo.decides && convo.options.len() == slate.len() + 1, "{:?}", convo.options);
@@ -47,10 +46,10 @@ fn test_the_harvesters_take_a_vote_and_then_they_meet() {
 }
 
 /// A cause keeps its own dates: the cadence meeting gathers on its
-/// day without the seat calling it - the room's own pull, not the
-/// button (#1159)
+/// day: the cadence's own date sits the floor on the seat's box, and
+/// the seat's vote is the meeting (#1337)
 #[test]
-fn test_the_cause_meets_on_its_own_dates() {
+fn test_the_cause_sits_the_floor_on_its_own_dates() {
     let mut g = Game::new();
     for &v in &g.villagers[..3] {
         desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
@@ -61,23 +60,59 @@ fn test_the_cause_meets_on_its_own_dates() {
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
-    // the founding cadence is three days; nobody presses Meet
+    // the founding cadence is three days: on its day the slate opens -
+    // the room waits on the seat's word, it doesn't just run
     for _ in 0..3 { g.tick += 1; }
     g.campaign_meeting_tick(g.tick);
+    let (slate, _) = g.seats[0].pending_agenda.clone().expect("the floor sits");
+    // the same date doesn't sit twice
+    g.campaign_meeting_tick(g.tick);
+    assert!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap().held == 0,
+        "the floor waits on the seat");
+    g.decide_at(0, slate.len()); // "just meet": the resolves alone
     {
         let m = g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap();
-        assert_eq!(m.held, 1, "the due meeting never sat");
+        assert_eq!(m.held, 1, "the vote held the meeting");
         assert_eq!(m.last_held, g.tick);
     }
     assert!(g.log.iter().any(|l| l.contains("meet about the campaign")), "{:?}", g.log.last());
-    // the same date doesn't sit twice - the seat's button and the
-    // tick hold the one meeting
-    g.campaign_meeting_tick(g.tick);
-    assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap().held, 1);
     // and the next one comes round on schedule again
     for _ in 0..3 { g.tick += 1; }
     g.campaign_meeting_tick(g.tick);
+    assert!(g.seats[0].pending_agenda.is_some(), "the next floor sits");
+    g.decide_at(0, g.seats[0].pending_agenda.as_ref().unwrap().0.len());
     assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap().held, 2);
+}
+
+/// A floor nobody votes doesn't stall the cause (#1337): the slate
+/// waits the week, then the room's own date holds the meeting without
+/// the seat - the same "you never came" the tick files
+#[test]
+fn test_a_floor_left_sitting_meets_without_the_seat() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    sit_floor(&mut g, 0);
+    assert!(g.seats[0].pending_agenda.is_some());
+    // put the rhythm back: the lapsed floor holds the one meeting, the
+    // tick doesn't sit a fresh slate on the same day
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 3;
+    // the slate outlives the week: the day's work ages it out and the
+    // room meets anyway - "we looked for you and you never came"
+    g.tick += FOUNDING_OFFER_EXPIRY_DAYS;
+    g.livelihood_tick(g.tick);
+    assert!(g.seats[0].pending_agenda.is_none(), "the floor moved on");
+    let m = g.world.get_component::<crate::game::campaign::CampaignMeeting>(c).unwrap();
+    assert!(m.held >= 1 && m.last_held == g.tick, "the room met without the seat");
+    assert!(g.log.iter().any(|l| l.contains("meet about the campaign")), "{:?}", g.log.last());
 }
 
 #[test]
@@ -94,21 +129,19 @@ fn test_the_organizer_sets_how_often_they_meet() {
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
     assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days, 3, "the founding cadence");
-    // the Cadence button steps the recommendation up, then wraps round
-    g.seats[0].ctx_actions.push(CtxAct::Cadence);
-    let i = g.seats[0].ctx_actions.len() - 1;
-    g.ctx_act_at(0, i);
+    // the cadence motion steps the recommendation up, then wraps round
+    g.cadence_at(c);
     assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days, 7);
     assert_eq!(g.ui_model().panel.campaign.unwrap().cadence_days, 7);
-    // the organizer answers once a day - the cycle walks a day a step
-    for _ in 0..3 { g.tick += 1; g.ctx_act_at(0, i); }
+    // the room's call counts once a day - the cycle walks a day a step
+    for _ in 0..3 { g.tick += 1; g.cadence_at(c); }
     assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days, 3, "the cycle wraps to the fight's rhythm");
 }
 
 #[test]
-fn test_a_ctx_button_that_cant_answer_says_why() {
+fn test_the_floor_sits_only_when_the_cadence_due() {
     let mut g = Game::new();
     for &v in &g.villagers[..3] {
         desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
@@ -118,16 +151,14 @@ fn test_a_ctx_button_that_cant_answer_says_why() {
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    // the campaign just met at founding - Meet shows but can't answer yet
-    let mi = g.ui_model().ctx.iter().position(|a| *a == CtxAct::Meet).unwrap();
-    assert!(g.ui_model().ctx_blocked[mi].is_some(), "not due: the button should say so");
-    let log_len = g.log.len();
-    g.ctx_act_at(0, mi);
-    assert!(g.log[log_len].contains("Can't"), "{:?}", g.log.last());
-    // and when it IS due the button answers again
+    // the cause just met at founding - the day's tick doesn't sit the
+    // floor until the cadence's run (#1337)
+    g.campaign_meeting_tick(g.tick);
+    assert!(g.seats[0].pending_agenda.is_none(), "not due: no floor sits");
+    // and when it IS due the floor opens on the seat's box
     g.tick += 4;
-    assert!(g.ctx_blocker_at(0, CtxAct::Meet).is_none());
+    g.campaign_meeting_tick(g.tick);
+    assert!(g.seats[0].pending_agenda.is_some(), "due: the floor sits");
 }
 
 #[test]
@@ -174,8 +205,7 @@ fn test_the_organizer_names_a_seat_and_takes_the_street() {
             crate::game::relationships::Interaction {
                 other: g.villagers[0], kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
     }
-    g.seats[0].ctx_actions.push(CtxAct::March);
-    g.ctx_act_at(0, 1);
+    g.march_at(0);
     // the march walks its route out before the street answers
     for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
     assert!(g.log.iter().rev().take(8).any(|l| l.contains("march in the street")), "{:?}", g.log.last());
@@ -215,9 +245,8 @@ fn test_the_cause_passes_the_hat_and_posts_flyers() {
     let gold: Vec<f32> = g.villagers[..3].iter()
         .map(|&v| g.world.get_component::<Purse>(v).unwrap().gold).collect();
     let printer_gold = g.world.get_component::<Purse>(printer).unwrap().gold;
-    g.seats[0].ctx_actions.push(CtxAct::Flyers);
-    g.ctx_act_at(0, 0);
-    assert!(g.log.last().unwrap().contains("flyers go"), "{:?}", g.log.last());
+    let msg = g.flyers_at(0);
+    assert!(msg.contains("flyers go"), "{msg}");
     let qty = g.flyers.len() as u32;
     assert!(qty > 0 && qty <= 3, "one flyer a member at most: {qty}");
     assert_eq!(g.ui_model().flyers.len(), qty as usize, "the model carries the postings");
@@ -320,16 +349,16 @@ fn test_the_panel_names_the_cause_s_posture() {
 }
 
 #[test]
-fn test_the_panel_only_offers_what_can_fire() {
+fn test_the_panel_and_the_slate_only_offer_what_can_fire() {
     let mut g = Game::new();
-    // before any cause exists the campaign verbs aren't on the card
+    // the cause's verbs left the card for good (#1337): before any cause
+    // exists there's nothing of the campaign on the panel at all
     g.update_ctx_actions_at(0);
-    for a in [CtxAct::Meet, CtxAct::Cadence, CtxAct::March, CtxAct::Flyers,
-              CtxAct::Delegate, CtxAct::Strike, CtxAct::Townhall] {
+    for a in [CtxAct::Delegate, CtxAct::Strike, CtxAct::Townhall] {
         assert!(!g.seats[0].ctx_actions.contains(&a), "{a:?}: {:?}", g.seats[0].ctx_actions);
     }
-    // a founded cause offers its street verbs - but not a Meet that
-    // isn't due, nor flyers with no print shop to buy from
+    // a founded cause's day sits the floor - the slate's the only street
+    // left, sized by what the room can carry (#1157)
     for &v in &g.villagers[..3] {
         desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
     }
@@ -338,26 +367,15 @@ fn test_the_panel_only_offers_what_can_fire() {
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
-    // the asking's already done on this trouble - the loud work opens
-    let go = g.org;
-    crate::game::campaign::mark_legwork(&mut g.world, go, "the taxes".into());
-    g.update_ctx_actions_at(0);
-    {
-        let ctx = &g.seats[0].ctx_actions;
-        assert!(ctx.contains(&CtxAct::Cadence), "{ctx:?}");
-        assert!(!ctx.contains(&CtxAct::Meet), "just founded - not due yet: {ctx:?}");
-        // the street verbs aren't on the card any more - they're motions
-        // the meeting floor votes (#1157)
-        for a in [CtxAct::March, CtxAct::Flyers, CtxAct::Strike, CtxAct::Townhall] {
-            assert!(!ctx.contains(&a), "{a:?} is a motion now: {ctx:?}");
-        }
-    }
-    // due is due: Meet joins the card
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    // just founded: the cadence hasn't run, so the floor doesn't sit
+    g.campaign_meeting_tick(g.tick);
+    assert!(g.seats[0].pending_agenda.is_none(), "not due: no floor sits");
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
-    g.update_ctx_actions_at(0);
-    assert!(g.seats[0].ctx_actions.contains(&CtxAct::Meet), "{:?}", g.seats[0].ctx_actions);
+    sit_floor(&mut g, 0);
+    let slate = g.seats[0].pending_agenda.as_ref().unwrap().0.clone();
+    assert!(slate.contains(&crate::game::campaign::Motion::Cadence), "{slate:?}");
     // a picked member is offered a seat while one stands empty
     g.seats[0].selected_target = 0;
     g.seats[0].picked = true;
@@ -374,39 +392,38 @@ fn test_the_panel_only_offers_what_can_fire() {
     g.update_ctx_actions_at(0);
     assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Delegate),
         "a full roster offers no seat: {:?}", g.seats[0].ctx_actions);
-    // the demands live on the slate now: four grown members can put them,
+    // the demands live on the slate: four grown members can put them,
     // but a full grant the Reeve's honouring takes them off it - the same
     // door that used to grey the button (#1157)
+    let oe = g.org;
+    crate::game::campaign::mark_legwork(&mut g.world, oe, "the taxes".into());
     let grown: Vec<Entity> = g.villagers.iter().copied()
         .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none())
         .take(4).collect();
     g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown;
     g.world.get_component_mut::<crate::game::campaign::Campaign>(c).unwrap()
         .target = g.collector;
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    let mi = g.seats[0].ctx_actions.len() - 1;
-    g.ctx_act_at(0, mi);
-    let slate = &g.seats[0].pending_agenda.as_ref().unwrap().0;
-    assert!(slate.contains(&crate::game::campaign::Motion::Townhall), "{slate:?}");
+    assert!(g.agenda_motions(0, c).contains(&crate::game::campaign::Motion::Townhall));
     g.world.add_component(g.org, crate::game::reactions::LordGrant::full(
         "the taxes", g.tick, g.tick + 100));
-    g.ctx_act_at(0, mi);
-    let slate = &g.seats[0].pending_agenda.as_ref().unwrap().0;
-    assert!(!slate.contains(&crate::game::campaign::Motion::Townhall),
-        "the grant stands: {slate:?}");
-    // and a march is a motion the floor votes now: the slate's pick walks
-    // the column out, and the street still answers once a day
-    g.ctx_act_at(0, mi);
+    assert!(!g.agenda_motions(0, c).contains(&crate::game::campaign::Motion::Townhall),
+        "the grant stands");
+    // and a march is a motion the floor votes: the slate's pick walks the
+    // column out, and the street still answers once a day
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|&m| m == crate::game::campaign::Motion::March)
         .expect("a cause this size can march");
     g.decide_at(0, pick);
     assert!(g.formation.is_some(), "the vote marches them out");
-    // the march walks its route out before the street answers
+    // the march walks its route out before the street answers - and the
+    // same day can't be asked for a second column
     for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
-    assert!(g.ctx_blocker_at(0, CtxAct::March).is_some(), "same-day march refused");
+    assert!(!g.agenda_motions(0, c).contains(&crate::game::campaign::Motion::March),
+        "same-day march refused");
     g.tick += 1;
-    assert!(g.ctx_blocker_at(0, CtxAct::March).is_none(), "tomorrow's march answers");
+    assert!(g.agenda_motions(0, c).contains(&crate::game::campaign::Motion::March),
+        "tomorrow's march answers");
 }
 
 #[test]
@@ -431,8 +448,7 @@ fn test_the_slate_grows_with_the_cause_and_sends_an_organizer() {
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
     assert!(slate.contains(&Motion::TwoFronts) && slate.contains(&Motion::SendOrganizer),
         "eight hands carry two fronts and the road: {slate:?}");
@@ -441,13 +457,13 @@ fn test_the_slate_grows_with_the_cause_and_sends_an_organizer() {
     // shrink the roster and the big motions fall off the slate
     g.world.get_component_mut::<Organization>(g.org).unwrap().members =
         grown[..3].to_vec();
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     assert!(!slate.contains(&Motion::TwoFronts) && !slate.contains(&Motion::SendOrganizer),
         "three hands can't hold two fronts or the road: {slate:?}");
     // back to eight: the vote sends an organizer out to raise a town
     g.world.get_component_mut::<Organization>(g.org).unwrap().members = grown;
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|&m| m == Motion::SendOrganizer).unwrap();
     g.decide_at(0, pick);
@@ -471,8 +487,7 @@ fn test_the_slate_grows_with_the_cause_and_sends_an_organizer() {
         .and_then(|o| o.posts.first().map(|(_, _, s)| *s)).unwrap_or(0.0);
     assert!(warm >= crate::game::campaign::FIELD_WARM, "the post warms by the day: {warm}");
     // the warm town goes on the slate: the floor stages its day there
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|&m| matches!(m, Motion::ParallelEvent(s) if s == site))
         .expect("the warm town can stage: {slate:?}");
@@ -522,8 +537,7 @@ fn test_the_survey_motion_sends_the_doors_asking() {
     let mut g = Game::new();
     use crate::game::campaign::Motion;
     let c = tax_cause(&mut g, 4);
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
     let pick = slate.iter().position(|&m| m == Motion::Survey)
         .expect("four hands carry the asking: {slate:?}");
@@ -538,8 +552,7 @@ fn test_the_survey_motion_sends_the_doors_asking() {
     assert!(g.survey_pick.is_none() && g.dilemma.is_none());
     // and one round of asking at a time: the motion's off the slate
     // while the count's out
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     assert!(!slate.contains(&Motion::Survey), "the asking's still out: {slate:?}");
 }
@@ -564,8 +577,7 @@ fn test_the_street_waits_until_the_asking_comes_back() {
         .unwrap().cadence_days = 0;
     // the floor's first slate is the quiet work - the street's loud
     // picks wait until the cause has asked around (#1335)
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     assert!(!slate.contains(&Motion::March) && !slate.contains(&Motion::Strike)
         && !slate.contains(&Motion::Townhall),
@@ -584,8 +596,7 @@ fn test_the_street_waits_until_the_asking_comes_back() {
     for &m in &grown {
         g.world.remove_component::<crate::game::rhetoric::RhetoricMemory>(m);
     }
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     assert!(slate.contains(&Motion::March) && slate.contains(&Motion::Strike)
         && slate.contains(&Motion::Townhall),
@@ -599,8 +610,7 @@ fn test_the_floor_picks_the_surveys_question() {
     // a second question the organizer's heard ledger knows
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the wolves".into());
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|&m| m == crate::game::campaign::Motion::Survey).unwrap();
     g.decide_at(0, pick);
@@ -623,8 +633,7 @@ fn test_the_count_comes_back_fuzzed_and_the_asking_feeds_the_eyes() {
     let c = tax_cause(&mut g, 4);
     g.world.get_component_mut::<crate::game::campaign::Campaign>(c).unwrap()
         .target = g.collector;
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|&m| m == crate::game::campaign::Motion::Survey).unwrap();
     g.decide_at(0, pick);
@@ -706,8 +715,7 @@ fn test_the_picked_motion_witnesses_its_line_on_the_room() {
                 Interaction { other: pe, kind: InteractionKind::Aid, intensity: 1.0 });
         }
     }
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
     let pick = slate.iter().position(|&m| m == Motion::March).expect("four hands march");
     g.decide_at(0, pick);
@@ -764,8 +772,7 @@ fn test_a_member_set_against_the_motion_storms_out() {
     let mut mem = RhetoricMemory::default();
     mem.by_org.insert(g.org, OrgRead { weight: [2.5, 0.0, 0.0, 0.0], ..Default::default() });
     g.world.add_component(waver, mem);
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|&m| m == Motion::March).unwrap();
     g.decide_at(0, pick);
@@ -801,8 +808,8 @@ fn test_the_debriefs_settled_word_is_heard_as_the_line() {
     for &m in &grown {
         if let Some(mp) = g.world.get_component_mut::<Pos>(m) { mp.x = pp.x + 1.0; mp.y = pp.y; }
     }
-    g.seats[0].ctx_actions.push(CtxAct::Debrief);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    // the floor's debrief motion tallies the room standing there (#1337)
+    g.debrief_at(0, &grown);
     let d = g.world.get_component::<crate::game::campaign::Campaign>(c)
         .and_then(|cc| cc.directive.clone()).expect("the room settled nothing");
     let line = match d.as_str() {
@@ -870,8 +877,7 @@ fn test_the_floor_carries_the_pooled_buy() {
         bb.stock.insert("bread".into(), 20);
     }
     // the floor reads whose coin's behind it
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|m| matches!(m, Motion::GroupBuy(0, _)))
         .expect("the pledges put the pooled buy on the floor: {slate:?}");
@@ -906,8 +912,7 @@ fn test_the_party_walks_out_and_the_take_fills_the_chest() {
         .map(|r| r.strength).unwrap_or(0.0);
     let res0 = g.world.get_component::<Organization>(g.org).unwrap().resources;
 
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|m| matches!(m, Motion::WorkParty(PartyKind::Forage)))
         .expect("four hands carry a picking party: {slate:?}");
@@ -955,8 +960,7 @@ fn test_the_raising_turns_the_village_out() {
     g.world.get_component_mut::<Pos>(guest).unwrap().y = pp.y;
     let n0 = g.buildings.len();
 
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|m| matches!(m, Motion::WorkParty(PartyKind::Raise)))
         .expect("five hands carry a raising: {slate:?}");
@@ -1039,8 +1043,7 @@ fn test_the_floor_retimes_the_meetings() {
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|m| matches!(m, crate::game::campaign::Motion::Cadence))
         .expect("the rhythm always sits on the slate: {slate:?}");
@@ -1069,8 +1072,7 @@ fn test_the_floor_mends_the_hall() {
         crate::game::organizing::HALL_REPAIR_COST + 5.0;
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|m| matches!(m, crate::game::campaign::Motion::MendHall))
         .expect("a roofless hall puts the mending on the slate: {slate:?}");
@@ -1104,8 +1106,7 @@ fn test_a_mended_hall_is_not_billed_twice() {
         crate::game::organizing::HALL_REPAIR_COST + 5.0;
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|m| matches!(m, crate::game::campaign::Motion::MendHall))
         .expect("a roofless hall puts the mending on the slate: {slate:?}");
@@ -1144,8 +1145,7 @@ fn test_the_floor_tallies_the_next_step() {
         .unwrap().held = 1;
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|m| matches!(m, crate::game::campaign::Motion::Debrief))
         .expect("a met cause can tally: {slate:?}");
@@ -1190,8 +1190,7 @@ fn test_a_motion_the_room_walks_out_on_falls() {
     let mut mem = RhetoricMemory::default();
     mem.by_org.insert(g.org, OrgRead { weight: [2.9, 0.0, 0.0, 0.0], ..Default::default() });
     g.world.add_component(grown[0], mem);
-    g.seats[0].ctx_actions.push(CtxAct::Meet);
-    g.ctx_act_at(0, g.seats[0].ctx_actions.len() - 1);
+    sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
     let pick = slate.iter().position(|&m| m == Motion::March).unwrap();
     g.decide_at(0, pick);

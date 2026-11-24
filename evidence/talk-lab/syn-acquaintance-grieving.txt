@@ -1,16 +1,38 @@
 === Talk: Probe (synthetic) vs Voice - Acquaintance ===
   them: Probe works the fields for a day's wage. They buried one of their own last week.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Morrow, Voice. The bell tolled for my house this week.
     1) [Agree] The saints receive them kindly.
-    2) [Question] Is there any chore I can take off thy shoulders?
+    2) [Question] Is there any chore I can take off your shoulders?
   Voice: The saints receive them kindly.
   Probe: I keep setting his wooden spoon at table.
     1) [Agree] Their toil shaped this parish; their memory will outlive us.
     2) [Question] Put a question to them
   Voice: Their toil shaped this parish; their memory will outlive us.
-  Probe: It does a body good to speak their name aloud.
-    1) [Farewell] May holy angels watch over thy sleep tonight.
-  Voice: May holy angels watch over thy sleep tonight.
-  -- Farewell (trees: ["a_death_in_the_house"])
-REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Acquaintance --picks 0,0,0
+  Probe: The sorrow will ease as the seasons turn and heal.
+    1) [Agree] Gently does it, friend. Day by day.
+    2) [Bid] Sit a while longer - the kettle's still warm.
+    3) [Question] Put a question to them
+  Voice: Gently does it, friend. Day by day.
+  Probe: Gray clouds, gray days - I scarce mark the weather now.
+    1) [Question] Enough sky-talk - how goes the work these days?
+    2) [Question] Tell me true, Probe - how goes it with you?
+    3) [Question] Put a question to them
+  Voice: Enough sky-talk - how goes the work these days?
+  Probe: Voice - how goes the day's work with you this season?
+    1) [Question] Never better. And yourself - is the day's work kind to you?
+    2) [Answer] Honest work for honest pay at the day's work - can't complain, and wouldn't.
+    3) [Question] Put a question to them
+  Voice: Never better. And yourself - is the day's work kind to you?
+  Probe: They say the miller took an extra scoop of meal again.
+    1) [PushBack] That is not the way the elders told it.
+    2) [Evade] That's kitchen talk, not street talk.
+    3) [Question] Put a question to them
+  Voice: Ah… That is not the way the elders told it.
+  Probe: True enough - the fields don't gossip.
+    1) [Farewell] The saints keep your roof whole.
+    2) [Farewell] My day is waiting.
+  Voice: The saints keep your roof whole.
+  -- Farewell (trees: ["a_death_in_the_house", "village_smalltalk"])
+REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Acquaintance --picks 0,0,0,0,0,0,0

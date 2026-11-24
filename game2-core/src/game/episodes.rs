@@ -81,6 +81,21 @@ pub fn fact(kind: MemKind) -> &'static str {
     }
 }
 
+/// All memory kinds, in a fixed order - the catalog the
+/// callback-truth metric walks (E0-5)
+pub const MEM_KINDS: [MemKind; 9] = [
+    MemKind::KeptPromise, MemKind::MissedMeeting, MemKind::StoodWithUs,
+    MemKind::AskedTooSoon, MemKind::SharedMeal, MemKind::KeptConfidence,
+    MemKind::LeakedConfidence, MemKind::LaughedWithUs, MemKind::Turned,
+];
+
+/// The kind a `mem:*` fact string names (E0-5): the reverse of `fact`,
+/// for the callback-truth metric - a fact with no kind is unfiled
+/// memory and can't be true
+pub fn mem_kind(f: &str) -> Option<MemKind> {
+    MEM_KINDS.into_iter().find(|k| fact(*k) == f)
+}
+
 /// The callback line a surfaced memory earns at talk open
 pub fn callback(kind: MemKind) -> &'static str {
     match kind {

@@ -1,31 +1,50 @@
 === Talk: Wystan (villager 8, game seed 7) ===
+  facts: 
   (walking over…)
-  Wystan: Morrow, wanderer.
+  Wystan: God witness. wanderer - good to see a familiar face about.
   (Wystan works the fields for a day's wage. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They keep close to the church folk. They keep close to the market folk.)
-  Wystan: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Good day to thee.
+  Wystan: By the rood. No one to learn from. I'll be a journeyman forever.   [gist]
+    1) Morrow. I'd best keep moving.
+    2) Fair enough, and to you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Good day to thee.
-  Wystan: They say a free hand makes warm neighbors. What's thy mind on it?
-    1) A wise purse keeps its own counsel, say I.
-    2) A loaf shared is a friend made - I'd not grudge it.
+  you: Ah… Morrow. I'd best keep moving.
+  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
+    1) Charity begins at home, and mostly stays there.
+    2) What's spent on neighbors comes back doubled in the end.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Wystan: They say a free hand makes warm neighbors. What's thy mind on it?
-  you: A wise purse keeps its own counsel, say I.
-  Wystan: Cold wind off the moor this morning.
-    1) And how fares thy folk in this cold snap?
-    2) Nay, I see it differently, mark me.
+  Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
+  you: Folk who give away their bread soon beg for mine.
+  Wystan: Aye, the dew lay heavy on the clover this morning.
+    1) Enough sky-talk - how goes the work these days?
+    2) And how fares your folk in this cold snap?
     3) Put a question to them
     l) take your leave
-  you: And how fares thy folk in this cold snap?
-  Wystan: Well enough, thank thee, wanderer.
-    1) Aye, children grow like weeds in the summer ditch.
-    2) Put a question to them
-    l) take your leave
-  you: Aye, children grow like weeds in the summer ditch.
-  Wystan: The kitchen gardens are dry as a bone this month.
-    1) The hay will wait until tomorrow, surely.
-    2) I'll lend a pitchfork if thou hast timber to spare.
+  you: Enough sky-talk - how goes the work these days?
+  Wystan: I hear the work keeps you busy at the day's work.
+    1) Honest work for honest pay at the day's work - can't complain, and wouldn't.
+    2) Well enough, aye. And how does the day's work treat you?
     3) Put a question to them
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 8 --picks 0,0,0,0,0 (talk seed 1040187413)
+  you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
+  Wystan: The peddler's cart lost a wheel at the bridge.
+    1) Aye, the tithe's the tithe. It was ever so, and ever will be.
+    2) Careful - walls have ears, goodwife Wystan.
+    3) Put a question to them
+    l) take your leave
+  you: Aye, the tithe's the tithe. It was ever so, and ever will be.
+  Wystan: The herb-wife was seen out past the abbey wall at dusk.
+    1) Well, that is talk enough for one morning.
+    2) Folk will invent dragons where there's only sheep.
+    3) Put a question to them
+    l) take your leave
+  you: Well, that is talk enough for one morning.
+  Wystan: True enough - the fields don't gossip.
+    1) I have no leisure to stand about, Wystan.
+    2) Fair day to you, Wystan - 'twas good to pass the time.
+    3) Ask them to come to a meeting - for 18g
+    l) take your leave
+REPRO: talk_lab talk --seed 7 --villager 8 --picks 0,0,0,0,0,0,0 (talk seed 1040187414)

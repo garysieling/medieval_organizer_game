@@ -1,16 +1,27 @@
 === Talk: Probe (synthetic) vs Voice - Rival ===
   them: Probe works the fields for a day's wage. They buried one of their own last week.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
-  Probe: Voice. Even thou'll know the house has gone quiet.
+  Probe: Voice. Even thou wilt know the house has gone quiet.
     1) [Agree] I'll not pretend tears, Probe - but I'll not mock the dead.
-    2) [Question] I'll not offer charity thou'dst refuse - but is thy house seen to?
+    2) [Question] I'll not offer charity thou wouldst refuse - but is thy house seen to?
   Voice: I'll not pretend tears, Probe - but I'll not mock the dead.
   Probe: I keep setting his wooden spoon at table.
     1) [Agree] Their toil shaped this parish; their memory will outlive us.
     2) [Question] Put a question to them
   Voice: Their toil shaped this parish; their memory will outlive us.
-  Probe: It does a body good to speak their name aloud.
-    1) [Farewell] May holy angels watch over thy sleep tonight.
-  Voice: May holy angels watch over thy sleep tonight.
-  -- Farewell (trees: ["a_death_in_the_house"])
-REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Rival --picks 0,0,0
+  Probe: The sorrow will ease as the seasons turn and heal.
+    1) [Agree] Gently does it, friend. Day by day.
+    2) [Bid] Sit a while longer - the kettle's still warm.
+    3) [Question] Put a question to them
+  Voice: Gently does it, friend. Day by day.
+  Probe: Thy lot still owes mine three groats, whatever lies thou tellest.
+    1) [Evade] That's not for the telling, friend.
+    2) [PushBack] Thou hast a treacherous tongue in thy skull.
+    3) [Question] Put a question to them
+  Voice: That's not for the telling, friend.
+  Probe: Take thy shadow off my land.
+    1) [Farewell] Aye. Done.
+  Voice: Aye. Done.
+  -- Farewell (trees: ["a_death_in_the_house", "old_scores"])
+REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Rival --picks 0,0,0,0,0

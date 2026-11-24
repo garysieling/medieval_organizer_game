@@ -1,40 +1,36 @@
 === Talk: Voice (synthetic) vs Voice - Acquaintance ===
   them: Voice serves the village church. They bow to no one.
+  them's facts: archetype:climber value:freedom value:standing
   you : Voice works the fields for a day's wage.
-  Voice: The peace of the saints be with thee, child.
+  Voice: The peace of the saints be with you, child.
     1) [Remark] Morrow, father.
-    2) [Greet] Blessings on thy holy house as well.
+    2) [Greet] Blessings on your holy house as well.
   Voice: Morrow, father.
-  Voice: My family held this land when thine were sowing wild oats. Dost know it?
+  Voice: My family held this land when yours were sowing wild oats. Do know it?
     1) [Agree] I've heard, and I mind my manners accordingly.
     2) [Remark] Can't say the name reached me - I keep to my own lane.
   Voice: I've heard, and I mind my manners accordingly.
   Voice: Remember that honest work in the field is a holy prayer.
-    1) [Agree] The season has been lean, father, but faith sustains us.
+    1) [Agree] You have spoken the plain heart of the matter.
     2) [Question] Put a question to them
-  Voice: The season has been lean, father, but faith sustains us.
-  Voice: Gray clouds gathering over the western hill.
-    1) [Agree] Good for the barley, but bad for the road.
-    2) [Question] And the day's work - does it treat thee kindly?
+  Voice: You have spoken the plain heart of the matter.
+  Voice: Cold wind off the moor this morning.
+    1) [Question] Has your brother returned from the market town?
+    2) [Question] And the day's work - does it treat you kindly?
     3) [Question] Put a question to them
-  Voice: Good for the barley, but bad for the road.
-  Voice: A steady hand and a patient mule see it through.
-    1) [Agree] So long as the well stays sweet, we'll thrive.
+  Voice: Has your brother returned from the market town?
+  Voice: My knees ache with the damp, but I still walk.
+    1) [Agree] A full hearth is a blessing in hard times.
     2) [Question] Put a question to them
-  Voice: So long as the well stays sweet, we'll thrive.
-  Voice: Didst thou hear who was seen down by the mill?
-    1) [Remark] Tell on, neighbor - my ears are open.
-    2) [PushBack] Idle tongues, that. It breeds mischief.
+  Voice: A full hearth is a blessing in hard times.
+  Voice: Rooks are gathering thick in the elm trees.
+    1) [PushBack] Let the rain fall; my bones need a day's rest.
+    2) [Agree] Aye, work never sleeps in this valley.
     3) [Question] Put a question to them
-  Voice: Tell on, neighbor - my ears are open.
-  Voice: A stranger with two laden mules passed by the weir at noon.
-    1) [PushBack] Folk will invent dragons where there's only sheep.
-    2) [Agree] Tavern tales grow taller with each ale drawn.
-    3) [Question] Put a question to them
-  Voice: Folk will invent dragons where there's only sheep.
-  Voice: As thou sayest, friend.
-    1) [Farewell] Fair day to thee, Voice.
+  Voice: Well… Let the rain fall; my bones need a day's rest.
+  Voice: True enough - the fields don't gossip.
+    1) [Farewell] Fare you well until the morrow.
     2) [Farewell] I have no leisure to stand about, Voice.
-  Voice: Fair day to thee, Voice.
+  Voice: Fare you well until the morrow.
   -- Farewell (trees: ["the_cleric_blesses", "the_audition", "village_smalltalk"], vibe: Safe)
-REPRO: talk_lab talk --name Voice --ideology clergy --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0,0,0,0
+REPRO: talk_lab talk --name Voice --ideology clergy --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0,0,0

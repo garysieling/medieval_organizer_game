@@ -1,5 +1,6 @@
 === Talk: Probe (synthetic) vs Voice - Kin ===
   them: Probe works the fields for a day's wage. They buried one of their own last week.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Voice. Blood knows blood - the house is empty without them.
     1) [Agree] They were ours - and we carry them now.
@@ -9,8 +10,23 @@
     1) [Agree] Their toil shaped this parish; their memory will outlive us.
     2) [Question] Put a question to them
   Voice: Their toil shaped this parish; their memory will outlive us.
-  Probe: It does a body good to speak their name aloud.
-    1) [Farewell] May holy angels watch over thy sleep tonight.
-  Voice: May holy angels watch over thy sleep tonight.
-  -- Farewell (trees: ["a_death_in_the_house"])
-REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Kin --picks 0,0,0
+  Probe: The sorrow will ease as the seasons turn and heal.
+    1) [Agree] Gently does it, friend. Day by day.
+    2) [Bid] Sit a while longer - the kettle's still warm.
+    3) [Question] Put a question to them
+  Voice: Gently does it, friend. Day by day.
+  Probe: Has our cousin returned with the pack horse from the fair?
+    1) [Answer] Aye, he brought home two bags of salt and a fine sickle.
+    2) [Question] Put a question to them
+  Voice: Aye, he brought home two bags of salt and a fine sickle.
+  Probe: Blood is thicker than river mud, Voice.
+    1) [Agree] Kindly, kin - I'll not forget it.
+    2) [Errand] Mind the stall an hour come market day - a loaf and my thanks for it.
+    3) [Question] Put a question to them
+  Voice: Kindly, kin - I'll not forget it.
+  Probe: True enough - the fields don't gossip.
+    1) [Farewell] Fair day, kin - give my love to thy hearth.
+    2) [Farewell] I have no leisure to stand about, Probe.
+  Voice: Fair day, kin - give my love to thy hearth.
+  -- Farewell (trees: ["a_death_in_the_house", "kin_warmth"])
+REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Kin --picks 0,0,0,0,0,0

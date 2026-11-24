@@ -114,15 +114,19 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
     // clears it) means the approach never lands - nobody's ever talked to
     if game.seats[seat].approach.is_some() { return; }
 
-    // the campaign loop: once the cause stands, work it - a due meeting,
-    // a seat for a member, letters for anyone inside, a fortnight's
-    // march to keep the pressure on. One a day, not every frame - the
+    // the campaign loop: once the cause stands, work it - the floor's
+    // slate when the cadence's own date sits it, a seat for a member,
+    // letters for anyone inside. One a day, not every frame - the
     // village isn't a button to mash
     if *last_campaign_day < game.tick {
         use game2_core::session::CtxAct;
         let ctxs = game.seats[seat].ctx_actions.clone();
-        let acted = if ctxs.contains(&CtxAct::Meet) && game.ctx_blocker_at(seat, CtxAct::Meet).is_none() {
-            act_ctx(game, seat, CtxAct::Meet); true
+        let acted = if let Some((slate, _)) = game.seats[seat].pending_agenda.clone() {
+            // the floor sits on its own dates now (#1337): the slate's
+            // a question the organizer answers - the bot takes the
+            // first line it can carry, the street work it pressed before
+            let pick = if slate.is_empty() { slate.len() } else { 0 };
+            game.decide_at(seat, pick); true
         } else if ctxs.contains(&CtxAct::Delegate) {
             // an open seat goes to someone without one - re-picking the
             // seated member eats the day's slot without delegating
@@ -150,8 +154,6 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
             if game.seats[seat].ctx_actions.contains(&CtxAct::Petition) {
                 act_ctx(game, seat, CtxAct::Petition); true
             } else { false }
-        } else if ctxs.contains(&CtxAct::March) && game.tick % 14 == 0 {
-            act_ctx(game, seat, CtxAct::March); true
         } else { false };
         if acted { *last_campaign_day = game.tick; return; }
     }
@@ -216,11 +218,7 @@ fn drive_agitator(
     const PRESS: &[CtxAct] = &[
         CtxAct::Strike,
         CtxAct::Townhall,
-        CtxAct::Assembly,
-        CtxAct::Debrief,
-        CtxAct::Flyers,
         CtxAct::Gather,
-        CtxAct::March,
         CtxAct::Attend,
         CtxAct::Pact,
         CtxAct::Give,

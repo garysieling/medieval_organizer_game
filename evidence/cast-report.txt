@@ -1,0 +1,34 @@
+== fixed cast (authored, 100 seeds) ==
+  fewest distinct trait sets: 26 in 31 villagers (seed 0)
+  biggest hook pile-up: 9 holders (seed 0)
+  identical-line rate: 16% of villagers share a trait set
+
+== seeded cast (100 seeds, 31 villagers each) ==
+
+check                              target            seeds failing
+  shared signatures                  0                 0
+  most holders of one wound          <= 2             0
+  archetypes present / biggest share >= 6/<= 20%      0
+  nearest pair distance              >= 0.25           0
+  contradictions per cast (ensemble) ~1 in 6 +/- 5%    ok (mean 13%)
+
+nearest pair: min 0.251  mean 0.379  max 0.524  (worst seed 28, slots 26 and 30)
+trait sets:  fewest 17 in 31  mean 21.7
+identical-line rate: 30% of villagers share a trait set
+contradictions per cast: mean 4.1
+distinct wounds per cast: mean 5.5
+
+archetype holders per cast (mean min-max):
+  OldGuard         2.6  (0..6)
+  Striver          2.7  (0..6)
+  SoftHeart        2.8  (0..6)
+  Firebrand        2.8  (0..6)
+  QuietHand        2.8  (0..6)
+  TongueOfTheWell  2.9  (0..6)
+  Burned           3.0  (0..6)
+  Doubter          3.0  (0..6)
+  Devout           2.8  (0..6)
+  Merrymaker       2.7  (0..6)
+  Climber          2.9  (0..6)
+
+distinctive in 100% of seeds (worst single check: 0 failures)

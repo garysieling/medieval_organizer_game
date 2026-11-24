@@ -1,5 +1,6 @@
 === Talk: Probe (synthetic) vs Voice - Friend ===
   them: Probe works the fields for a day's wage. They buried one of their own last week.
+  them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Voice. Forgive me - the house is still since they passed, and thy face is a kindness.
     1) [Agree] My heart breaks with thine, Probe. Always.
@@ -9,8 +10,17 @@
     1) [Agree] Their toil shaped this parish; their memory will outlive us.
     2) [Question] Put a question to them
   Voice: Their toil shaped this parish; their memory will outlive us.
-  Probe: It does a body good to speak their name aloud.
-    1) [Farewell] May holy angels watch over thy sleep tonight.
-  Voice: May holy angels watch over thy sleep tonight.
-  -- Farewell (trees: ["a_death_in_the_house"])
-REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Friend --picks 0,0,0
+  Probe: The sorrow will ease as the seasons turn and heal.
+    1) [Agree] Gently does it, friend. Day by day.
+    2) [Bid] Sit a while longer - the kettle's still warm.
+    3) [Question] Put a question to them
+  Voice: Gently does it, friend. Day by day.
+  Probe: Can I count on thy team when we haul the heavy timber?
+    1) [Answer] My oxen are thine whenever thou needest them, friend.
+    2) [Question] Put a question to them
+  Voice: My oxen are thine whenever thou needest them, friend.
+  Probe: A good friend is worth more than a pouch of silver.
+    1) [Farewell] God's peace be upon thy cottage, Probe.
+  Voice: God's peace be upon thy cottage, Probe.
+  -- Farewell (trees: ["a_death_in_the_house", "friendship_bonds"])
+REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Friend --picks 0,0,0,0,0

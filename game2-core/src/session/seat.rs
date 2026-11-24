@@ -51,10 +51,6 @@ pub enum CtxAct {
     Errand,
     /// Put a word between two hearts the organizer knows are lonely
     Matchmake,
-    /// Hold the campaign's meeting, on its cadence
-    Meet,
-    /// Take the campaign to the streets: a demonstration at the player
-    March,
     /// Give the picked member a campaign seat (turnout, notes, chair)
     Delegate,
     /// Send the picked leader out to hold a one-on-one of their own (#1268)
@@ -68,9 +64,6 @@ pub enum CtxAct {
     /// Sound the campaign's target out: where they stand on the issue,
     /// and the stake that puts them there - rapport earns the hearing
     Interview,
-    /// The debrief: present members ballot the next step and the vote
-    /// sets the campaign's directive
-    Debrief,
     /// Join the gathering at hand: a service, a feast, a birthday -
     /// the player's presence counts for what the day means
     Attend,
@@ -80,13 +73,6 @@ pub enum CtxAct {
     Disembark,
     /// Drop a line off the boat: the river feeds you where it runs
     Fish,
-    /// Mend the meeting hall a storm took - the org's treasury pays
-    MendHall,
-    /// Set how often the cause meets: the organizer's recommendation
-    Cadence,
-    /// Call the accountability assembly: the agenda goes up and the
-    /// leader's yes and no go on record
-    Assembly,
     /// Call the house meeting the organizer has earned - a venue promised
     /// and folk who've said they'll come
     Gather,
@@ -96,9 +82,6 @@ pub enum CtxAct {
     PetCat,
     /// Call a snowball fight: everyone free comes out to play (winter)
     Snowballs,
-    /// Pass the hat, buy pamphlets off the print shop and post them
-    /// around the streets for the cause
-    Flyers,
     /// Pick a cap off the patch you're standing by - the wood feeds,
     /// and teaches its lessons the hard way
     PickCaps,
@@ -125,9 +108,6 @@ pub enum CtxAct {
     /// Stroke the animal you're standing by - the kind hand, again and
     /// again, until it leaves the fold and follows
     Tame,
-    /// Raise the schoolhouse, or send for a teacher to keep it - asked
-    /// only near where it'd stand, while the treasury can pay
-    School,
     /// Take the cache the woods' bands left at the edge of the trees -
     /// offered standing by it before it rots or is found
     TakeCache,
@@ -181,7 +161,9 @@ pub struct Seat {
     /// The tick the organizer last testified - testimony repeated is a
     /// speech, so it waits out TESTIMONY_COOLDOWN_DAYS
     pub last_testimony: Option<u64>,
-    /// The agenda a campaign Meet leaves open on the conversation box:
+    /// The agenda a campaign's own date leaves open on the conversation
+    /// box (#1337): the cadence tick sits the floor, or a called
+    /// gathering resolving on a due cause does - the pick votes a motion
     /// the motions the cause's size can carry and the tick it was asked,
     /// waiting on their pick (Command::Decide) - the last option's always
     /// "just meet", and an unanswered one lapses like the founding's (#1157)

@@ -573,6 +573,18 @@ impl TileMap {
             && !self.gates.contains(&(x, y))
     }
 
+    /// Whether this tile is one of the town gates - walkable wall gaps
+    /// where a crossing steps through the palisade
+    pub fn is_gate(&self, x: i32, y: i32) -> bool {
+        self.gates.contains(&(x, y))
+    }
+
+    /// The town's gate tiles, for tests and tools that need to stand a
+    /// walker at the wall's gap
+    pub fn gates(&self) -> &[(i32, i32)] {
+        &self.gates
+    }
+
     /// The buildable cell nearest (x, y), searching outward ring by ring
     pub fn nearest_buildable(&self, x: i32, y: i32) -> Option<(i32, i32)> {
         (0..self.width.max(self.height) as i32).find_map(|r| {

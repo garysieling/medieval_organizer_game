@@ -1,30 +1,63 @@
 === Talk: Dagny (villager 4, game seed 42) ===
+  facts: 
   (walking over…)
-  Dagny: Fair morning to thee, wanderer.
-  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
+  Dagny: Neighbor! Out early like the rest of us, wanderer.
+  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Their hand is heavy and their tongue heavier. They keep close to the church folk.)
   Dagny: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Good day to thee.
+    1) Out and about early today.
+    2) Aye. Good day to you.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  you: Good day to thee.
-  Dagny: My family held this land when thine were sowing wild oats. Dost know it?
+  you: Out and about early today.
+  Dagny: My family held this land when yours were sowing wild oats. Do know it?
     1) Can't say the name reached me - I keep to my own lane.
-    2) Aye, and I've heard nothing but good of thy house.
+    2) Aye, and I've heard nothing but good of your house.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
     l) take your leave
-  Dagny: My family held this land when thine were sowing wild oats. Dost know it?
-  you: Can't say the name reached me - I keep to my own lane.
-  Dagny: The morning dew was heavy on the clover.
-    1) Tell me true, Dagny - how goes it with thee?
-    2) Put a question to them
-    l) take your leave
-  you: Tell me true, Dagny - how goes it with thee?
-  Dagny: Well enough, thank thee, wanderer.
-    1) A full hearth is a blessing in hard times.
-    2) Put a question to them
-    l) take your leave
-  you: A full hearth is a blessing in hard times.
-  Dagny: The ditch along the south pasture needs clearing.
-    1) There's always another ditch to dig.
-    2) Every hand will be needed when the grain ripens.
+  Dagny: My family held this land when yours were sowing wild oats. Do know it?
+  you: We all muck the same stalls here, high or low.
+  Dagny: Aye, the dew lay heavy on the clover this morning, or do I hear wrong?
+    1) And the day's work - does it treat you kindly?
+    2) Has your brother returned from the market town?
     3) Put a question to them
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0 (talk seed 922746905)
+  you: And the day's work - does it treat you kindly?
+  Dagny: I hear the work keeps you busy at the day's work.
+    1) The lord's acres are kind to a steady hand, goodwife Dagny - I'll say it anywhere.
+    2) Well enough, aye. And how does the day's work treat you?
+    3) Put a question to them
+    l) take your leave
+  you: The lord's acres are kind to a steady hand, goodwife Dagny - I'll say it anywhere.
+  Dagny: A rider from the castle came through before dawn.
+    1) My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
+    2) Idle tongues, that. It breeds mischief.
+    3) Put a question to them
+    l) take your leave
+  you: My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
+  Dagny: Mm.
+  Dagny: Walk with me a moment, wanderer - the light's good this hour.
+    1) Aye, so they are - I'd not have seen it.
+    2) Aye, the light's the light.
+    3) Put a question to them
+    l) take your leave
+  you: Aye, so they are - I'd not have seen it.
+  Dagny: They do say the reeve counts the sheep twice over.
+    1) Every tongue in the parish wags before sunset.
+    2) I have heard that lie three times this week. - a quarrel
+    3) Put a question to them
+    l) take your leave
+  you: Every tongue in the parish wags before sunset.
+  Dagny: As you say, friend.
+  Dagny: Is there music at the feasts?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    l) take your leave
+  you: I couldn't say truly.
+    1) I must walk on; fair day.
+    2) Fair day to you, Dagny - 'twas good to pass the time.
+    3) Ask who you should talk to next - for 6g
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0,0,0,0,0 (talk seed 922746905)

@@ -77,6 +77,24 @@ impl Game {
             self.world.remove_component::<villager::InFormation>(m);
         }
         if f.members.is_empty() { self.formation = None; return; }
+        // the column's voice: a march raises its chant once a day while
+        // it's out; a funeral's bell tolls every couple of seconds of
+        // sim time, slow and single
+        if let Some(hp) = f.members.first()
+            .and_then(|&h| self.world.get_component::<Pos>(h).copied()) {
+            match f.kind {
+                FormationKind::March if self.chant_day != self.tick => {
+                    self.chant_day = self.tick;
+                    self.emit_sfx("chant", hp.x, hp.y, 0.7);
+                }
+                FormationKind::Funeral(_)
+                    if u64::from(self.frame_n).saturating_sub(self.funeral_toll_frame) >= 120 => {
+                    self.funeral_toll_frame = u64::from(self.frame_n);
+                    self.emit_sfx("toll", hp.x, hp.y, 0.8);
+                }
+                _ => {}
+            }
+        }
         // the column keeps the day's stride at any watch speed, the way
         // the walks do - turbo shouldn't leave a funeral crawling for a
         // month of game-days

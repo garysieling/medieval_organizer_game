@@ -26,6 +26,9 @@ pub enum MemKind {
     /// A risky laugh shared (E5-6, #1437): a barb at power taken up
     /// where it could have been reported - who laughs is aligned
     LaughedWithUs,
+    /// A lie let go (E8-2, #1444): the campaign disproved what the
+    /// ghost taught and they turned - as core as a memory gets
+    Turned,
 }
 
 /// One remembered beat between a villager and a player
@@ -59,6 +62,7 @@ pub fn importance(kind: MemKind) -> f32 {
         MemKind::KeptConfidence => 0.8,
         MemKind::LeakedConfidence => 0.85,
         MemKind::LaughedWithUs => 0.5,
+        MemKind::Turned => 0.9,
     }
 }
 
@@ -73,7 +77,23 @@ pub fn fact(kind: MemKind) -> &'static str {
         MemKind::KeptConfidence => "mem:you_kept_confidence",
         MemKind::LeakedConfidence => "mem:you_leaked_confidence",
         MemKind::LaughedWithUs => "mem:you_laughed_with_us",
+        MemKind::Turned => "mem:they_turned",
     }
+}
+
+/// All memory kinds, in a fixed order - the catalog the
+/// callback-truth metric walks (E0-5)
+pub const MEM_KINDS: [MemKind; 9] = [
+    MemKind::KeptPromise, MemKind::MissedMeeting, MemKind::StoodWithUs,
+    MemKind::AskedTooSoon, MemKind::SharedMeal, MemKind::KeptConfidence,
+    MemKind::LeakedConfidence, MemKind::LaughedWithUs, MemKind::Turned,
+];
+
+/// The kind a `mem:*` fact string names (E0-5): the reverse of `fact`,
+/// for the callback-truth metric - a fact with no kind is unfiled
+/// memory and can't be true
+pub fn mem_kind(f: &str) -> Option<MemKind> {
+    MEM_KINDS.into_iter().find(|k| fact(*k) == f)
 }
 
 /// The callback line a surfaced memory earns at talk open
@@ -87,6 +107,7 @@ pub fn callback(kind: MemKind) -> &'static str {
         MemKind::KeptConfidence => "You kept a thing to yourself for me. I've not forgotten.",
         MemKind::LeakedConfidence => "I told you a thing and it traveled. I've learned what you're worth.",
         MemKind::LaughedWithUs => "We laughed where it wasn't safe to. I remember that.",
+        MemKind::Turned => "Something I held true broke open, and you were in the breaking of it.",
     }
 }
 

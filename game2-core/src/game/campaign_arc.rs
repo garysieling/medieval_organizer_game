@@ -43,6 +43,35 @@ pub struct ArcRecord {
     pub actions: u32,
     pub last_response: Option<TargetResponse>,
     pub consent: bool,
+    /// The last public outcome and its day - the fact `DramaV.last`
+    /// projects (P3, #1489)
+    pub last_outcome: Option<OutcomeRec>,
+}
+
+/// A public outcome the wire can name and verdict (P3): the event
+/// kinds that land as the arc's last word. Grants that lapse quietly
+/// read off the component instead - there's no event to stamp.
+#[derive(Debug, Clone, Copy)]
+pub enum OutcomeKind {
+    /// The target's answer to demands
+    Townhall(TargetResponse),
+    /// How the powers answered a march
+    March(Reaction),
+    /// The strike ballot's call
+    Strike { called: bool },
+    /// A pledge's deadline check: the word kept or broken
+    Pledge { kept: bool },
+    /// The grant nobody kept watch over went hollow
+    GrantHollowed,
+    /// The campaign's leader was jailed
+    LeaderTaken,
+}
+
+/// The outcome and the day it landed
+#[derive(Debug, Clone, Copy)]
+pub struct OutcomeRec {
+    pub kind: OutcomeKind,
+    pub day: u64,
 }
 
 /// Beats a campaign has heard lately, meetings and arcs both: a walk
@@ -88,14 +117,32 @@ impl ArcEvent {
     }
 }
 
-/// Note an action on the campaign's record (before reading its facts)
-pub fn record_event(world: &mut World, campaign: Entity, ev: ArcEvent) {
+/// Note an action on the campaign's record (before reading its facts):
+/// the count, the target's last answer, and the outcome `DramaV.last`
+/// reports (P3)
+pub fn record_event(world: &mut World, campaign: Entity, ev: ArcEvent, day: u64) {
     if world.get_component::<ArcRecord>(campaign).is_none() {
         world.add_component(campaign, ArcRecord::default());
     }
     if let Some(r) = world.get_component_mut::<ArcRecord>(campaign) {
         r.actions += 1;
         if let ArcEvent::Townhall(resp) = ev { r.last_response = Some(resp); }
+    }
+    record_outcome(world, campaign, match ev {
+        ArcEvent::March(r) => OutcomeKind::March(r),
+        ArcEvent::Strike { called } => OutcomeKind::Strike { called },
+        ArcEvent::Townhall(resp) => OutcomeKind::Townhall(resp),
+    }, day);
+}
+
+/// Stamp the campaign's last public outcome (P3): every site a verdict
+/// lands calls this with the day it happened
+pub fn record_outcome(world: &mut World, campaign: Entity, kind: OutcomeKind, day: u64) {
+    if world.get_component::<ArcRecord>(campaign).is_none() {
+        world.add_component(campaign, ArcRecord::default());
+    }
+    if let Some(r) = world.get_component_mut::<ArcRecord>(campaign) {
+        r.last_outcome = Some(OutcomeRec { kind, day });
     }
 }
 
@@ -215,7 +262,7 @@ fn outcome_from_response(f: &mut Facts, resp: Option<TargetResponse>) {
 /// hooks. Seeded by campaign and day. None if nobody's free to speak.
 pub fn deliberate_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u64,
                       speakers: &crate::engine::det::HashMap<Entity, crate::game::conversation::Speaker>) -> Option<Deliberation> {
-    record_event(world, campaign, ev);
+    record_event(world, campaign, ev, tick);
     let d = walk_arc(world, campaign, ev, tick, speakers);
     // consent banked at a meeting is spent by the action that follows it -
     // whether or not anyone was free to talk it over
@@ -338,13 +385,13 @@ mod tests {
     #[test]
     fn test_outcomes_come_from_grants_and_answers() {
         let (mut w, o, c, _) = world_with(3);
-        record_event(&mut w, c, ArcEvent::Townhall(TargetResponse::Refuses));
+        record_event(&mut w, c, ArcEvent::Townhall(TargetResponse::Refuses), 0);
         assert!(arc_facts(&w, c, 10).has("arc:lost"));
-        record_event(&mut w, c, ArcEvent::Townhall(TargetResponse::Deflects));
+        record_event(&mut w, c, ArcEvent::Townhall(TargetResponse::Deflects), 0);
         let f = arc_facts(&w, c, 10);
         assert!(f.has("arc:delayed") && !f.has("arc:lost"));
         // carried up and granted: a win while the grant lasts...
-        record_event(&mut w, c, ArcEvent::Townhall(TargetResponse::Carries));
+        record_event(&mut w, c, ArcEvent::Townhall(TargetResponse::Carries), 0);
         w.add_component(o, LordGrant::full("the taxes", 0, 100));
         let f = arc_facts(&w, c, 50);
         assert!(f.has("arc:won") && !f.has("arc:promise_broken"));
@@ -367,8 +414,8 @@ mod tests {
         // and the record counts actions: three so far, five makes a veteran
         let f = arc_facts(&w, c, 50);
         assert!(!f.has("arc:first") && !f.has("arc:veteran"));
-        record_event(&mut w, c, ArcEvent::Strike { called: true });
-        record_event(&mut w, c, ArcEvent::March(Reaction::Watched));
+        record_event(&mut w, c, ArcEvent::Strike { called: true }, 0);
+        record_event(&mut w, c, ArcEvent::March(Reaction::Watched), 0);
         assert!(arc_facts(&w, c, 50).has("arc:veteran"));
     }
 

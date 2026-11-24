@@ -220,9 +220,17 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             match campaign::hold_campaign_meeting(world, c, tick) {
                 Some(out) => {
                     let mut msg = format!("{} meet about the campaign; consensus banks as it does.", out.attendees.len());
-                    if let Some(last) = super::campaign_dialogue::deliberate_meeting(world, c, &out, tick,
-                            &Default::default())
-                        .and_then(|d| d.said.into_iter().last()) {
+                    let d = super::campaign_dialogue::deliberate_meeting(world, c, &out, tick,
+                        &Default::default());
+                    // only a settled, noted resolve tests the room's
+                    // lies about deciding (E8-2, #1444)
+                    if out.noted && d.as_ref().map(|d| d.decided).unwrap_or(true) {
+                        for &a in &out.attendees {
+                            crate::game::beliefs::tested_by(world, a,
+                                crate::game::beliefs::Tested::Decided, Some(player), tick);
+                        }
+                    }
+                    if let Some(last) = d.and_then(|d| d.said.into_iter().last()) {
                         msg += &format!(" \"{}\"", last.text);
                     }
                     msg

@@ -275,6 +275,15 @@ impl Game {
         let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick, &speakers);
         let decided = d.as_ref().map(|d| d.decided).unwrap_or(true);
         let consent = d.as_ref().map(|d| d.consent).unwrap_or(out.consent);
+        // a resolve kept on the record is a decided thing - the room's
+        // lies about rooms deciding take the test, but only when the
+        // deliberation actually settled (E8-2, #1444)
+        if out.noted && decided {
+            for &a in &out.attendees {
+                crate::game::beliefs::tested_by(&mut self.world, a,
+                    crate::game::beliefs::Tested::Decided, player, tick);
+            }
+        }
         let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
         if out.drifted { msg += " - run by whoever pulled hardest, nobody asked"; }
         if out.noted && decided { msg += " - the notes keep the resolves"; }
@@ -513,7 +522,10 @@ impl Game {
         // an unanswered question-question leaves the matter (#1267)
         self.seats[seat].frame_offer = None;
         self.seats[seat].testimony_offer = None;
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, bought: plan.bought });
+        // the plan's spent by the call - its promise-holders are
+        // snapshotted on the meeting so a keeper's arrival still counts
+        let promised = plan.holders();
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, bought: plan.bought, promised });
         msg
     }
 
@@ -950,12 +962,15 @@ impl Game {
                         in_room(m.role_people[2]), in_room(m.role_people[3]), in_room(m.role_people[4]));
                     // a promised part counts kept when its keeper's in
                     // the room (#1442): the efficacy credit lands on the
-                    // showing, not the saying
-                    let holders = self.world.get_component::<crate::game::organizing::MeetingPlan>(self.org)
-                        .map(|p| p.holders()).unwrap_or_default();
+                    // showing, not the saying - against the plan the
+                    // call snapshotted, the live one's already spent
                     for &v in &m.invited {
-                        if holders.contains(&v) {
+                        if m.promised.contains(&v) {
                             crate::game::act_model::ask_kept(&mut self.world, v);
+                            // the keeper heard their own keeping (E8-2)
+                            crate::game::beliefs::tested_by(&mut self.world, v,
+                                crate::game::beliefs::Tested::PromiseKept,
+                                Some(self.seats[m.seat].player), self.tick);
                         }
                     }
                     m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());

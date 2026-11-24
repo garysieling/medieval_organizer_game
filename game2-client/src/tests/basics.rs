@@ -38,7 +38,7 @@ fn test_name_label_sits_just_above_the_head_and_centred() {
     let head = sy + SPRITE_HEAD;
     assert!(label_bottom <= head && head - label_bottom <= 6,
         "label should end just above the head (bottom {} vs head {})", label_bottom, head);
-    let centre = lx + "Aldric".len() as i32 * GLYPH_W / 2;
+    let centre = lx + measure("Aldric") / 2;
     assert_eq!(centre, sx, "label should be centred over the character");
 }
 

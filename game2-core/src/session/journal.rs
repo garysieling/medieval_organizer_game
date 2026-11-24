@@ -89,10 +89,12 @@ impl Game {
 /// draw different streams now that ghosts shape them (#1438), so an old
 /// journal's return-trip replay would land on different work; and the
 /// asks' odds themselves moved to the act model (#1442), so an old
-/// journal's rolls land differently still; and the cause's ctx verbs
-/// left the wire enum, so an old journal's Ctx(n) names a different
-/// act (#1337))
-pub const JOURNAL_VERSION: u32 = 7;
+/// journal's rolls land differently still; campaign outcomes now test
+/// ghost lies (#1444), so an old journal's writs, parades, pleas and
+/// resolves land on different ghost strengths; and the cause's ctx
+/// verbs left the wire enum, so an old journal's Ctx(n) names a
+/// different act (#1337))
+pub const JOURNAL_VERSION: u32 = 9;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

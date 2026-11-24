@@ -388,6 +388,29 @@ meeting slows the calendar).
 Scenes from an older server may omit all three; read them as
 "unknown" (no weather, all-zeroes calendar, `frames_per_day` 0).
 
+`sfx_v` is the frame's sound cues, each `[kind, x, y, intensity]` -
+a cue lives exactly one scene and the audio layer turns it into a
+voice (A5). `x`/`y` are the tile the cue rose at, `intensity` its
+loudness 0..1. `kind` is one of:
+
+- `rain`, `anvil`, `festival`, `wonder`, `bell`, `snowballs`,
+  `splash`, `mood` - the legacy cues
+- `alarm` - a fire caught (chimney, lightning, an oil flare) or the
+  knights rode out on a crackdown
+- `toll` - the passing bell: a death, or a funeral column's beat
+  (at most one ring per two seconds of sim time)
+- `cheer` - a townhall demand carried, or a march home to a good
+  reception
+- `chant` - a march column's voice, once a day while it's out
+- `coins` - a purchase rung up, at market stall or in person
+- `quill` - a petition letter pressed, every press
+- `door` - a canvasser's knock
+- `cart_arrive` - a cart or levy train rolled in
+- `gate` - a walker stepped through the palisade's gate (the edge
+  only: standing on the tile doesn't ring it)
+
+Older servers omit it; read it as empty.
+
 `panel.leader` names the org's head for the status line - `"you"` when
 the seat leads its own, a villager's name when the bond's passed to
 another. Older servers omit it or send null; a client should draw no
@@ -429,6 +452,34 @@ accountability assembly's standing - "assembly called - the agenda's
 posted" while an agenda waits, else the pledges' count ("2 pledges
 broke - 1 pledge stands"); empty before the institution's called or
 when nothing's on record. Older servers omit it; read it as empty.
+
+`panel.drama` is the campaign arc as structured data - the same public
+facts the panel and camera already show, shaped for a client that
+scores or stages the fight rather than parses the strings. It is
+always present: `{"phase":"Action","next":{"kind":"assembly",
+"in_days":2.0,"at":42},"live":{"kind":"march","progress":0.4},
+"last":{"kind":"townhall","verdict":"Win","day":39},"pressure":
+{"guards_posted":true,"assembly_ban":false,"members_held":1,
+"leader_taken":false}}`. `phase` is one of `Listening`, `IssueCut`,
+`Research`, `Action`, `Evaluate`. `next` is the soonest
+publicly-planned thing - `"assembly"` sits `announced + PUBLISH_GAP`
+days after the call, `"campaign meeting"` is due at
+`last_held + cadence_days`, `"pledge"` lands at its deadline, and the
+calendar's feasts and `"holy day"` round it out; `in_days` is negative
+when it's overdue. `live` names what's on now - `"march"`/`"funeral"`/
+`"parade"`/`"feast"` (progress is the column's head along its route),
+or the day's set piece: `"house meeting"`, `"assembly"`,
+`"campaign meeting"`, `"townhall"`, `"strike vote"` (progress 0).
+`last` is the newest public answer: `verdict` is one of `Win`,
+`Partial`, `Stall`, `Loss`, `Crackdown` - the townhall carrying or a
+full grant is `Win`, a concession, a called strike or a kept pledge is
+`Partial`, a deflection or an ignored march is `Stall`, a refusal,
+watched march, failed strike, broken pledge or diluted/expired grant
+is `Loss`, and a crackdown or a taken leader is `Crackdown`.
+`pressure` is the powers' standing pressure as fields - what
+`org_status` and the `(held)` marks already say. Older servers omit
+the whole field; read it as `{"phase":"Listening","next":null,
+"live":null,"last":null,"pressure":{...false,0,false}}`.
 
 `panel.meeting` is the house-meeting plan being gathered, or absent:
 `{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",

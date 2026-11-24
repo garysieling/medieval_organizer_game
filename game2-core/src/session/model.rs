@@ -247,6 +247,90 @@ pub struct PanelV {
     /// The house meeting being planned: who said yes to what, so the
     /// seat can see the plan fill before it calls the meeting
     pub meeting: Option<MeetingPlanV>,
+    /// The campaign arc as structured data (P3, #1489): the phase, the
+    /// next planned event, what's live, the last outcome, and the
+    /// pressure the village is under - the director's score feed.
+    /// Nothing here the panel doesn't already show.
+    #[serde(default)]
+    pub drama: DramaV,
+}
+
+/// The campaign's own season, on the wire (#1489)
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CampaignPhaseV {
+    #[default]
+    Listening,
+    IssueCut,
+    Research,
+    Action,
+    Evaluate,
+}
+
+/// How a public outcome landed, in the design's verdict vocabulary
+/// (sound-system.md, "Outcome to mode"): the mode's steps follow it
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Verdict {
+    Win,
+    Partial,
+    Stall,
+    Loss,
+    Crackdown,
+}
+
+/// The soonest publicly-planned event: an announced assembly's sitting,
+/// a campaign meeting due on its cadence, a pledge's deadline, the
+/// calendar's feasts and holy days
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlannedV {
+    /// "assembly", "campaign meeting", "pledge", a feast's name,
+    /// "holy day"
+    pub kind: String,
+    /// Days from now - negative when the thing's overdue
+    pub in_days: f32,
+    /// The day it lands
+    pub at: u32,
+}
+
+/// What's publicly happening right now: a march column, a house
+/// meeting, a funeral, a feast's celebration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LiveV {
+    /// "march", "house meeting", "funeral", "feast", "parade"
+    pub kind: String,
+    /// 0..1 - a march's head along its route, an event's run so far
+    pub progress: f32,
+}
+
+/// The last public answer the cause got (#1489)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutcomeV {
+    /// "townhall", "march", "strike", "pledge", "lord's grant",
+    /// "part grant", "grant diluted", "grant expired", "leader taken"
+    pub kind: String,
+    pub verdict: Verdict,
+    /// The day it landed
+    pub day: u32,
+}
+
+/// The pressure the powers put on the cause (#1489): the same facts
+/// `org_status` renders as strings, as fields
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct PressureV {
+    pub guards_posted: bool,
+    pub assembly_ban: bool,
+    /// Members of the org currently held
+    pub members_held: u32,
+    pub leader_taken: bool,
+}
+
+/// The campaign arc's public shape (#1489)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DramaV {
+    pub phase: CampaignPhaseV,
+    pub next: Option<PlannedV>,
+    pub live: Option<LiveV>,
+    pub last: Option<OutcomeV>,
+    pub pressure: PressureV,
 }
 
 /// The seat's bond ledger: folk they've talked to, counted by the stage

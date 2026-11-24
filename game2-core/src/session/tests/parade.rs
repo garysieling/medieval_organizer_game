@@ -25,7 +25,7 @@ fn test_the_village_walks_it_in() {
 #[test]
 fn test_a_carried_demand_walks_the_streets() {
     let mut g = Game::new();
-    g.victory_parade();
+    g.victory_parade(Some(g.player));
     assert!(matches!(g.formation.as_ref().map(|f| f.kind),
         Some(formation::FormationKind::Parade { feast: None })), "{:?}", g.formation.as_ref().map(|f| f.kind));
     for _ in 0..30000 { g.update(); if g.formation.is_none() { break; } }

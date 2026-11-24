@@ -28,6 +28,14 @@ pub enum EventKind {
     HarvestFeast,
 }
 
+/// All ghost kinds, in a fixed order - the shipped `ghost:*` fact types
+/// the rule-of-three coverage metric walks (E0-5)
+pub const EVENT_KINDS: [EventKind; 9] = [
+    EventKind::Fire, EventKind::Levy, EventKind::DeathDuty,
+    EventKind::Fever, EventKind::MillerDebt, EventKind::BrokenBetrothal,
+    EventKind::OldFaith, EventKind::Eviction, EventKind::HarvestFeast,
+];
+
 impl EventKind {
     /// The event's slug for the fact table ("ghost:levy")
     pub fn tag(self) -> &'static str {
@@ -271,6 +279,10 @@ pub struct Ghost {
     pub lie: Belief,
     /// How hard they hold it, 0 to 1
     pub strength: f32,
+    /// The lie's been disproved enough to let go (E8-2, #1444): set by
+    /// `beliefs::tested_by` crossing TURN_FLOOR; tells and showing stops
+    /// counting it
+    pub turned: bool,
     /// What it leaves them watching for
     pub fear: Fear,
     /// What the campaign can give
@@ -578,6 +590,15 @@ fn mix(mut x: u64) -> u64 {
     x ^= x >> 31; x
 }
 
+/// The cast slot a persona's seed was generated from - the roster's
+/// index shifts home under departures but the seed never does (E4-8,
+/// #1426). Newcomers generated past the founding cast land above the
+/// scan and come back None
+pub(crate) fn cast_slot(world_seed: u64, p: &Persona) -> Option<usize> {
+    (0..64).find(|&slot| p.seed == mix(world_seed ^ (slot as u64)
+        .wrapping_add(1).wrapping_mul(0x9E37_79B9_7F4A_7C15)))
+}
+
 /// The n-th draw off a seed, as a 0..1 fraction
 pub(crate) fn draw(seed: u64, n: u64) -> f32 {
     (mix(seed ^ n.wrapping_mul(0x9E37_79B9_7F4A_7C15)) % 10_000) as f32 / 10_000.0
@@ -704,7 +725,7 @@ pub fn generate_attempt(world_seed: u64, slot: usize, past: &Past, attempt: u32)
     let ghosts: Vec<Ghost> = scored.into_iter().take(2)
         .map(|(s, m)| {
             let (hook, lie, fear, need) = rationalize(m.kind, disp, m.part);
-            Ghost { event: m.id, kind: m.kind, hook, lie, strength: s.min(1.0), fear, need }
+            Ghost { event: m.id, kind: m.kind, hook, lie, strength: s.min(1.0), fear, need, turned: false }
         }).collect();
 
     // the body (pass 0, E1-3): drawn off the person's own stream so
@@ -898,6 +919,19 @@ mod tests {
         assert_eq!(a, b);
     }
 
+    /// A departure shifts the roster's seats, never the seed's slot
+    /// (E4-8, #1426): the story pass finds each soul by it
+    #[test]
+    fn the_seed_gives_back_the_slot() {
+        for slot in 0..39 {
+            let p = generate(77, slot, &Past::default());
+            assert_eq!(cast_slot(77, &p), Some(slot));
+        }
+        // another world's seed claims no slot here
+        let p = generate(78, 7, &Past::default());
+        assert_eq!(cast_slot(77, &p), None);
+    }
+
     #[test]
     fn different_slots_differ() {
         let past = Past::default();
@@ -1030,7 +1064,7 @@ mod tests {
         // the severe ghosts stay near one in eight
         let ghost = |event: u32, lie: Belief, strength: f32| Ghost {
             event: EventId(event), kind: EventKind::Fire, hook: None, lie, strength,
-            fear: Fear::BuriedLikeHim, need: Need::ToBelong,
+            fear: Fear::BuriedLikeHim, need: Need::ToBelong, turned: false,
         };
         let mut cast: Vec<Option<Persona>> = (0..16).map(|s| {
             let mut p = generate(3, s, &Past::default());

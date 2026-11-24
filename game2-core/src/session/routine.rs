@@ -1349,7 +1349,7 @@ mod tests {
                 phrase: "x", habit: crate::game::idiolect::Habit::Echo },
         };
         p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::OldFaith, hook: None,
-            lie: Belief::GodSends, strength: 0.8, fear: Fear::StonesRemember, need: Need::ToBelong });
+            lie: Belief::GodSends, strength: 0.8, fear: Fear::StonesRemember, need: Need::ToBelong, turned: false });
         // two runs over the same rng draws: the same villager, the same
         // day, once with the tell and once without
         let count_stones = |g: &mut Game, tell: bool| -> usize {

@@ -108,6 +108,29 @@ tagging.
 5. Next ticket. Stop when the user says so or the queue is empty - say
    how many were grilled and which remain.
 
+## Judgment calls
+
+Grilling is for forks only the user can price. Before spending a
+question, spend your own judgment - the defaults below are the user's
+recorded preferences (#1455):
+
+- **Dependency over question** - if a fork can be resolved by adding a
+  `Needs` dependency between tickets, prefer the dependency and record
+  it on both issues instead of asking.
+- **Auto-choose consistent** - pick the option consistent with the
+  user's prior answers on earlier tickets; only ask when prior answers
+  genuinely conflict or the choice changes gameplay/behavior they
+  haven't priced yet.
+- **Gameplay-impact wording** - options must state the behavior
+  consequence explicitly, not just the mechanism ("the TALK panel
+  gains a X row", not "wires X through Y").
+- **Extend over add** - prefer extending an existing enum/concept to
+  creating a new one, unless the spec demands a separate axis.
+
+Every judgment call made this way is recorded on the issue like an
+answer would be - a fresh session must see what was decided, not just
+that it was.
+
 ## Rules
 
 - One ticket at a time; never batch questions across tickets.

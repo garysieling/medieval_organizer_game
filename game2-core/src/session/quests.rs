@@ -447,7 +447,7 @@ impl Game {
         crate::game::episodes::file(&mut self.world, giver, pe,
             crate::game::episodes::MemKind::KeptPromise, self.tick, &["errand", "promise"]);
         // they open up about why they needed the job
-        if let Some(r) = desires::next_reveal(&self.world, giver, self.tick, self.tick) {
+        if let Some(r) = desires::next_reveal(&self.world, pe, giver, self.tick, self.tick) {
             if let Some(issue) = desires::hear(&mut self.world, pe, giver, r, self.tick) {
                 self.toasts.push((
                     format!("Organizer discovers issue {}", issue),

@@ -219,9 +219,11 @@ fn run_talk_real(a: &Args, out: &mut Out, taken: &mut Vec<usize>, stdin: &io::St
     // --warm: the lab's heard their self-interest already (Known.revealed
     // non-empty), which is what puts organizing asks on the talk (#1191)
     if a.warm {
-        let org = g.seats[0].org;
-        for r in game2_core::game::desires::unrevealed(&g.world, who, g.tick) {
-            game2_core::game::desires::hear(&mut g.world, org, who, r, g.tick);
+        // the seat's own ledger (E7-1): warm marks what this organizer
+        // heard, kept on their player entity
+        let pe = g.seats[0].player;
+        for r in game2_core::game::desires::unrevealed(&g.world, pe, who, g.tick) {
+            game2_core::game::desires::hear(&mut g.world, pe, who, r, g.tick);
         }
     }
     let vname = m0.people.iter().find(|p| p.e == who)
@@ -646,7 +648,7 @@ fn usage() {
   replay    any mode + --picks a,b,c replays the run those picks came from
   smoke     scripted non-interactive run - the test hook
 flags: --picks a,b,c | --auto | --warm | --feedback off | --out FILE | --folk N
-          --warm: seed the villager's Known.revealed first, so organizing asks show".to_string());
+          --warm: mark their reveals heard on the seat's ledger first, so organizing asks show".to_string());
 }
 
 fn main() {

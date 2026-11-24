@@ -298,15 +298,15 @@ impl Game {
             Some(dialogue::TalkMood::Warmed) => 1.6,
             _ => 1.0,
         } * hog_factor;
+        let pe = self.seats[seat].player;
         let revealed = if (self.rng.next() % 1000) < (desires::REVEAL_BASE * reveal_factor * if smelly { 900.0 } else { 1000.0 }) as u64 {
             let pick = self.rng.next();
-            desires::next_reveal(&self.world, v, self.tick, pick)
+            desires::next_reveal(&self.world, pe, v, self.tick, pick)
         } else { None };
         let mut whispered = false;
         let (did, said) = match revealed {
             Some(r) => {
                 let (d, s) = desires::reveal_speech(self.cast_name(who), &r);
-                let pe = self.seats[seat].player;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                     self.toasts.push((
                         format!("Organizer discovers issue {}", issue),

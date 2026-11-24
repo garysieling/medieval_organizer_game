@@ -138,9 +138,9 @@ fn test_the_ladder_climbs_from_stranger_to_co_leader() {
         other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
     assert_eq!(stage_of(&g.world, pe, v), RelStage::Acquaintance);
     // three pieces of their self-interest told, and they're known to you
-    use crate::game::desires::{Known, Problem, Reveal, Want};
-    g.world.add_component(v, Known { revealed: vec![
-        Reveal::Want(Want::GoodFood), Reveal::Problem(Problem::Taxed), Reveal::Want(Want::Love)] });
+    use crate::game::desires::{Problem, Reveal, Want};
+    let __pe = g.player; for __r in vec![
+        Reveal::Want(Want::GoodFood), Reveal::Problem(Problem::Taxed), Reveal::Want(Want::Love)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     assert_eq!(stage_of(&g.world, pe, v), RelStage::Known);
     // a real bond makes a follower
     crate::game::relationships::find_relationship(&g.world, pe, v)
@@ -154,7 +154,7 @@ fn test_the_ladder_climbs_from_stranger_to_co_leader() {
 #[test]
 fn test_you_cant_put_a_claim_on_a_stranger() {
     use crate::game::organizing::{props_on_offer, PropKind, RelStage};
-    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::desires::{Problem, Reveal, Want};
     use crate::game::relationships::{record_interaction, find_relationship,
         Interaction, InteractionKind, Relationship};
     let mut g = Game::new();
@@ -162,7 +162,7 @@ fn test_you_cant_put_a_claim_on_a_stranger() {
     // nothing heard from them: no asks on the table
     assert!(props_on_offer(&g.world, g.org, v).is_empty());
     // one piece heard but no bond yet - heard alone isn't a claim
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     assert_eq!(props_on_offer(&g.world, g.org, v), Vec::<PropKind>::new());
     // an acquaintance hears the light ask only: who to know next
     record_interaction(&mut g.world, pe, Interaction {
@@ -171,8 +171,8 @@ fn test_you_cant_put_a_claim_on_a_stranger() {
     assert_eq!(asks, vec![PropKind::Introduce], "{:?}", asks);
     // known to you (three pieces): they'll hear about bringing friends,
     // but a meeting's still too big a claim (#1188)
-    g.world.add_component(v, Known { revealed: vec![
-        Reveal::Problem(Problem::Taxed), Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love)] });
+    let __pe = g.player; for __r in vec![
+        Reveal::Problem(Problem::Taxed), Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     let asks = props_on_offer(&g.world, g.org, v);
     assert!(asks.contains(&PropKind::Introduce) && asks.contains(&PropKind::InviteFriends), "{:?}", asks);
     assert!(!asks.contains(&PropKind::ComeAlong), "{:?}", asks);
@@ -188,11 +188,11 @@ fn test_you_cant_put_a_claim_on_a_stranger() {
 #[test]
 fn test_one_job_apiece_spreads_the_meetings_work() {
     use crate::game::organizing::{props_on_offer, propose, PropKind};
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     let mut g = Game::new();
     let (pe, first, next) = (g.player, g.villagers[1], g.villagers[2]);
     for v in [first, next] {
-        g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+        let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
         // the meeting asks only open for a follower (#1188)
         crate::game::relationships::record_interaction(&mut g.world, pe,
             crate::game::relationships::Interaction { other: v,
@@ -220,14 +220,14 @@ fn test_one_job_apiece_spreads_the_meetings_work() {
 #[test]
 fn test_the_word_alone_convenes_a_meeting_at_the_square() {
     use crate::game::organizing::{MeetingPlan, PropKind, propose};
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     let mut g = Game::new();
     let pe = g.player;
     // no house lent - just a round of come-alongs the word carried.
     // Enough of them that the turnout roll can't empty the square
     let guests: Vec<_> = g.villagers[1..9].to_vec();
     for &v in &guests {
-        g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+        let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     }
     let (oe, tick) = (g.org, g.tick);
     for v in guests {
@@ -280,9 +280,9 @@ fn test_the_disinterested_drift_in_thinly_not_never() {
     use crate::game::relationships::{self, RelKind};
     let mut g = Game::new();
     // someone with nothing left to say: no wants, no problems hanging
-    let v = g.villagers.iter().copied().find(|&v| {
+    let pe = g.player; let v = g.villagers.iter().copied().find(|&v| {
         if let Some(l) = g.world.get_component_mut::<desires::InnerLife>(v) { l.wants.clear(); }
-        desires::unrevealed(&g.world, v, g.tick).is_empty()
+        desires::unrevealed(&g.world, pe, v, g.tick).is_empty()
     }).expect("someone content enough to have nothing to say");
     // the meeting comes to them - a zero-length walk keeps the roll honest
     let at = {
@@ -309,9 +309,9 @@ fn test_the_disinterested_drift_in_thinly_not_never() {
     assert!(shows_up(&g.world, g.player, v, at, Invite::Pulled, 0.4, g2),
         "a pulled friend needs no stake");
     // and a true friend of the host needs no other reason
-    let w = g.villagers.iter().copied().find(|&w| {
+    let pe = g.player; let w = g.villagers.iter().copied().find(|&w| {
         if let Some(l) = g.world.get_component_mut::<desires::InnerLife>(w) { l.wants.clear(); }
-        desires::unrevealed(&g.world, w, g2).is_empty()
+        desires::unrevealed(&g.world, pe, w, g2).is_empty()
     }).expect("another contented one");
     let at = {
         let p = *g.world.get_component::<Pos>(w).unwrap();
@@ -468,7 +468,7 @@ fn test_a_follower_greets_you_differently() {
 
 #[test]
 fn test_an_introduction_names_someone_to_look_at() {
-    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::desires::{Problem, Reveal, Want};
     use crate::game::organizing::PropKind;
     use crate::game::vocation::{craft, Vocation};
     let mut g = Game::new();
@@ -480,8 +480,8 @@ fn test_an_introduction_names_someone_to_look_at() {
         other: asker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
     crate::game::relationships::find_relationship(&g.world, pe, asker)
         .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
-    g.world.add_component(asker, Known { revealed: vec![
-        Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love), Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![
+        Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love), Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, asker, __r); }
     g.world.add_component(asker, craft(Vocation::Weaver, 0.5));
     g.world.add_component(friend, craft(Vocation::Weaver, 0.5));
     relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
@@ -530,7 +530,7 @@ fn test_an_introduction_names_someone_to_look_at() {
 
 #[test]
 fn test_the_person_you_asked_comes_back_around() {
-    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::desires::{Problem, Reveal, Want};
     use crate::game::organizing::{propose, PropKind, RoundBack};
     use crate::game::vocation::{craft, Vocation};
     let mut g = Game::new();
@@ -541,8 +541,8 @@ fn test_the_person_you_asked_comes_back_around() {
         other: asker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
     crate::game::relationships::find_relationship(&g.world, pe, asker)
         .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
-    g.world.add_component(asker, Known { revealed: vec![
-        Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love), Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![
+        Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love), Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, asker, __r); }
     g.world.add_component(asker, craft(Vocation::Weaver, 0.5));
     g.world.add_component(friend, craft(Vocation::Weaver, 0.5));
     relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
@@ -785,7 +785,7 @@ fn test_coin_buys_an_ask_the_bond_cant_reach() {
     let offers = ask_offers(&g.world, g.org, v, 0, g.tick);
     assert!(offers.iter().all(|o| o.key == AskKey::Coin), "{:?}", offers);
     let o = offers.iter().find(|o| o.kind == PropKind::ComeAlong).expect("come is priced");
-    assert!(ask_label(&g.world, v, o).contains("for "), "{}", ask_label(&g.world, v, o));
+    assert!(ask_label(&g.world, g.player, v, o).contains("for "), "{}", ask_label(&g.world, g.player, v, o));
     let (oe, tick) = (g.org, g.tick);
     let (msg, _) = propose_keyed(&mut g.world, pe, oe, v, o.kind, "Bram", 0.0, tick, o.key, o.price);
     assert!(msg.contains("coin"), "{}", msg);
@@ -828,13 +828,13 @@ fn test_the_proud_wont_be_bought() {
 #[test]
 fn test_nerve_presses_past_the_stage_gate() {
     use crate::game::organizing::{ask_offers, propose_keyed, AskKey, MeetingPlan, PropKind};
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     use crate::game::relationships::{find_relationship, record_interaction,
         Interaction, InteractionKind, Relationship};
     let mut g = Game::new();
     let (pe, v, v2) = (g.player, g.villagers[1], g.villagers[2]);
     for p in [v, v2] {
-        g.world.add_component(p, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+        let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, p, __r); }
         record_interaction(&mut g.world, pe, Interaction {
             other: p, kind: InteractionKind::Conversation, intensity: 0.3 });
     }
@@ -874,7 +874,7 @@ fn test_nerve_presses_past_the_stage_gate() {
 fn test_a_short_purse_offers_no_coin() {
     use crate::game::organizing::{ask_offers, AskKey};
     use crate::game::livelihood::Purse;
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     let mut g = Game::new();
     let (pe, v, heard_v) = (g.player, g.villagers[1], g.villagers[2]);
     g.world.get_component_mut::<Purse>(pe).unwrap().gold = 0.0;
@@ -882,7 +882,7 @@ fn test_a_short_purse_offers_no_coin() {
     // for them, and yours is empty
     assert!(ask_offers(&g.world, g.org, v, 0, g.tick).is_empty());
     // someone you've heard still takes the press, free of coin
-    g.world.add_component(heard_v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, heard_v, __r); }
     let offers = ask_offers(&g.world, g.org, heard_v, 0, g.tick);
     assert!(offers.iter().all(|o| o.key == AskKey::Nerve), "{:?}", offers);
 }
@@ -893,11 +893,11 @@ fn test_a_short_purse_offers_no_coin() {
 #[test]
 fn test_a_refused_ask_cools_off_for_the_season() {
     use crate::game::organizing::{ask_offers, propose_keyed, AskKey, PropKind};
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
     let mut g = Game::new();
     let (pe, v) = (g.player, g.villagers[1]);
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     record_interaction(&mut g.world, pe, Interaction {
         other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
     let (oe, tick) = (g.org, g.tick);
@@ -1000,14 +1000,13 @@ fn test_putting_the_matter_or_letting_it_lapse_keeps_the_matter() {
 
 #[test]
 fn test_a_probe_meeting_asks_what_they_want_and_who_for() {
-    use crate::game::desires::{InnerLife, Known, Reveal, Want};
+    use crate::game::desires::{InnerLife, Reveal, Want};
     let mut g = Game::new();
     let pe = g.player;
     let (deep, loved, guarded) = (g.villagers[1], g.villagers[2], g.villagers[3]);
     tie(&mut g, pe, deep, 0.8);
     tie(&mut g, deep, loved, 0.95);
     g.world.get_component_mut::<InnerLife>(guarded).unwrap().wants = vec![Want::Music];
-    g.world.add_component(guarded, Known::default());
     let came = vec![deep, guarded];
     let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), true, None);
     assert!(lines.iter().any(|(e, l)| *e == pe
@@ -1017,7 +1016,7 @@ fn test_a_probe_meeting_asks_what_they_want_and_who_for() {
     assert!(lines.iter().any(|(e, l)| *e == deep && l.contains(&loved_name)),
         "the follower names who they do it for: {:?}", lines);
     assert!(g.log.iter().any(|l| l.contains(&format!("names {}", loved_name))), "the room hears the bond");
-    assert!(g.world.get_component::<Known>(guarded).unwrap().revealed.contains(&Reveal::Want(Want::Music)),
+    assert!(crate::game::desires::known(&g.world, g.player, guarded).contains(&Reveal::Want(Want::Music)),
         "the guarded one gives up a want");
 }
 
@@ -1173,7 +1172,7 @@ fn test_a_told_testimony_lets_more_of_the_room_speak() {
 /// a want - and their next talk opens a rung warmer (#1333)
 #[test]
 fn test_a_hearer_answers_deeper_and_opens_warm() {
-    use crate::game::desires::{add_grievance, InnerLife, Known, Problem, Reveal};
+    use crate::game::desires::{add_grievance, InnerLife, Problem, Reveal};
     use crate::sim::psychology::heard_testimony;
     use crate::session::dialogue::TalkMood;
     let mut g = Game::new();
@@ -1188,9 +1187,9 @@ fn test_a_hearer_answers_deeper_and_opens_warm() {
     let ev = hard_news(&mut g);
     g.meeting_lines(&[v], 0, (false, false, false, false, false), true, Some(&ev));
     assert!(heard_testimony(&g.world, v, host), "the telling rides their journal");
-    assert!(g.world.get_component::<Known>(v).map(|k|
-            k.revealed.iter().any(|r| matches!(r, Reveal::Problem(_))))
-        .unwrap_or(false), "a hearer's probe answer gives up what presses");
+    assert!(crate::game::desires::known(&g.world, host, v)
+        .iter().any(|r| matches!(r, Reveal::Problem(_))),
+        "a hearer's probe answer gives up what presses");
     // and the next Talk with them opens a rung warmer
     let p = *g.world.get_component::<Pos>(v).unwrap();
     *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: p.x + 0.5, y: p.y };
@@ -1206,24 +1205,23 @@ fn test_a_hearer_answers_deeper_and_opens_warm() {
 /// plain on someone who's told you nothing that fits
 #[test]
 fn test_the_ask_quotes_their_trouble_back() {
-    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::desires::{Problem, Reveal, Want};
     use crate::game::organizing::{ask_label, AskKey, AskOffer, PropKind};
     let mut g = Game::new();
     let (v_taxed, v_plain) = (g.villagers[1], g.villagers[2]);
-    g.world.add_component(v_taxed, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v_taxed, __r); }
     let come = AskOffer { kind: PropKind::ComeAlong, key: AskKey::Earned, price: 0.0 };
-    assert!(ask_label(&g.world, v_taxed, &come).contains("the tolls"),
-        "{}", ask_label(&g.world, v_taxed, &come));
-    assert_eq!(ask_label(&g.world, v_plain, &come), "Ask them to come to a meeting");
+    assert!(ask_label(&g.world, g.player, v_taxed, &come).contains("the tolls"),
+        "{}", ask_label(&g.world, g.player, v_taxed, &come));
+    assert_eq!(ask_label(&g.world, g.player, v_plain, &come), "Ask them to come to a meeting");
     // a non-suiting ask stays plain on the same villager
     let song = AskOffer { kind: PropKind::GiveSong, key: AskKey::Earned, price: 0.0 };
-    assert_eq!(ask_label(&g.world, v_taxed, &song), "Ask them for a song");
+    assert_eq!(ask_label(&g.world, g.player, v_taxed, &song), "Ask them for a song");
     // and the quote answers the ask that suits it, not just any problem
-    g.world.get_component_mut::<Known>(v_taxed).unwrap()
-        .revealed.push(Reveal::Want(Want::Love));
+    { let __pe = g.player; crate::game::desires::note(&mut g.world, __pe, v_taxed, Reveal::Want(Want::Love)); }
     let friends = AskOffer { kind: PropKind::InviteFriends, key: AskKey::Earned, price: 0.0 };
-    assert!(ask_label(&g.world, v_taxed, &friends).contains("company"),
-        "{}", ask_label(&g.world, v_taxed, &friends));
+    assert!(ask_label(&g.world, g.player, v_taxed, &friends).contains("company"),
+        "{}", ask_label(&g.world, g.player, v_taxed, &friends));
 }
 
 /// The scouting read (#1249): an acquaintance will tell you who the
@@ -1374,9 +1372,9 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
     use crate::game::persona::*;
     let mut g = Game::new();
     // a contented guest whose roll floats near the drift-in edge
-    let v = g.villagers.iter().copied().find(|&v| {
+    let pe = g.player; let v = g.villagers.iter().copied().find(|&v| {
         if let Some(l) = g.world.get_component_mut::<crate::game::desires::InnerLife>(v) { l.wants.clear(); }
-        crate::game::desires::unrevealed(&g.world, v, g.tick).is_empty()
+        desires::unrevealed(&g.world, pe, v, g.tick).is_empty()
     }).expect("someone content enough to have nothing to say");
     let at = {
         let p = *g.world.get_component::<Pos>(v).unwrap();
@@ -1401,12 +1399,12 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
     assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.02, g.tick),
         "but a low roll still finds them");
     // and a no lands in the wound's own words, not a trait's stock excuse
-    assert_eq!(no_reason(&g.world, v),
+    assert_eq!(no_reason(&g.world, g.player, v),
         Some("You'll not see me stand under that gate. Ask another."));
     // a warm ghost cuts the other way: the feast-keeper comes readier
-    let w = g.villagers.iter().copied().find(|&w| {
+    let pe = g.player; let w = g.villagers.iter().copied().find(|&w| {
         if let Some(l) = g.world.get_component_mut::<crate::game::desires::InnerLife>(w) { l.wants.clear(); }
-        crate::game::desires::unrevealed(&g.world, w, g.tick).is_empty()
+        desires::unrevealed(&g.world, pe, w, g.tick).is_empty()
     }).expect("another contented one");
     let at2 = {
         let p = *g.world.get_component::<Pos>(w).unwrap();
@@ -1431,13 +1429,13 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
 /// Make `v` a follower of the player's org who's let one trouble out -
 /// the earned asks are on the table
 fn follower_with_a_grievance(g: &mut Game, v: Entity) {
-    use crate::game::desires::{Known, Problem, Reveal};
+    use crate::game::desires::{Problem, Reveal};
     let pe = g.player;
     relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
         other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
     crate::game::relationships::find_relationship(&g.world, g.player, v)
         .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
 }
 
 /// Talk to villager `vi` and keep offering the come-along until a yes

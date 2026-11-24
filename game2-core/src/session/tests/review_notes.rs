@@ -18,7 +18,7 @@ fn test_the_review_sheet_tells_what_the_card_holds_back() {
         let traits = g.world.get_component::<crate::game::traits::Personality>(v)
             .map(|p| p.traits.len()).unwrap_or(0);
         assert_eq!(n.traits.len(), traits, "every trait on the sheet, known or not");
-        assert_eq!(n.secrets.len(), desires::unrevealed(&g.world, v, g.tick).len(),
+        assert_eq!(n.secrets.len(), desires::unrevealed(&g.world, g.player, v, g.tick).len(),
             "every kept want and trouble on the sheet");
         any_secret |= !n.secrets.is_empty();
     }

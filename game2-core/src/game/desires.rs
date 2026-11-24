@@ -147,10 +147,37 @@ pub struct Domination {
     pub experience: f32,
 }
 
-/// What the organizer has learned about this person, piece by piece
+/// What an organizer has learned about the village, piece by piece:
+/// the seat's own ledger of who told them what (E7-1, #1404). It lives
+/// on the seat's player entity - one seat's hearing is invisible to
+/// another
 #[derive(Debug, Default)]
 pub struct Known {
-    pub revealed: Vec<Reveal>,
+    pub revealed: crate::engine::det::HashMap<Entity, Vec<Reveal>>,
+}
+
+/// The seat's record of `e`: what `knower` has already heard them tell
+pub fn known(world: &World, knower: Entity, e: Entity) -> Vec<Reveal> {
+    world.get_component::<Known>(knower)
+        .and_then(|k| k.revealed.get(&e).cloned()).unwrap_or_default()
+}
+
+/// Mark `r` known to `knower` about `e`, without `hear`'s ledger and
+/// issue bookkeeping - tests and seeded knowledge take this road
+pub fn note(world: &mut World, knower: Entity, e: Entity, r: Reveal) {
+    let mut known = world.get_component_mut::<Known>(knower);
+    match &mut known {
+        Some(k) => {
+            let heard = k.revealed.entry(e).or_default();
+            if !heard.contains(&r) { heard.push(r); }
+        }
+        None => {
+            drop(known);
+            let mut m = crate::engine::det::HashMap::default();
+            m.insert(e, vec![r]);
+            world.add_component(knower, Known { revealed: m });
+        }
+    }
 }
 
 /// Days a villager has gone without: the streak that turns a hard day
@@ -614,31 +641,29 @@ fn live_pool(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
     out
 }
 
-/// What a person can be made to reveal: their unsatisfied wants, their
-/// live problems, and their fresh grievances - skipping anything already
-/// in `known`
-pub fn unrevealed(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
-    let known = world.get_component::<Known>(e)
-        .map(|k| k.revealed.clone()).unwrap_or_default();
+/// What a person can be made to reveal to `knower`: their unsatisfied
+/// wants, their live problems, and their fresh grievances - skipping
+/// anything that seat's already heard
+pub fn unrevealed(world: &World, knower: Entity, e: Entity, tick: u64) -> Vec<Reveal> {
+    let heard = known(world, knower, e);
     let mut out = live_pool(world, e, tick);
-    out.retain(|r| !known.contains(r));
+    out.retain(|r| !heard.contains(r));
     out
 }
 
 /// The live facts already told (#1347): what a catch-up draw can still
 /// speak to - a burden they still carry that you've already heard
-pub fn live_known(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
-    let known = world.get_component::<Known>(e)
-        .map(|k| k.revealed.clone()).unwrap_or_default();
+pub fn live_known(world: &World, knower: Entity, e: Entity, tick: u64) -> Vec<Reveal> {
+    let heard = known(world, knower, e);
     let mut out = live_pool(world, e, tick);
-    out.retain(|r| known.contains(r));
+    out.retain(|r| heard.contains(r));
     out
 }
 
 /// Pick one secret to share: problems first (they're what's pressing),
 /// then wants. `roll` is 0..1 - callers give it a boosted chance
-pub fn next_reveal(world: &World, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
-    let pool = unrevealed(world, e, tick);
+pub fn next_reveal(world: &World, knower: Entity, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
+    let pool = unrevealed(world, knower, e, tick);
     if pool.is_empty() { return None; }
     Some(pool[(seed % pool.len() as u64) as usize])
 }
@@ -647,28 +672,21 @@ pub fn next_reveal(world: &World, e: Entity, tick: u64, seed: u64) -> Option<Rev
 /// is heard, asking can still catch up on what's still pressing. None
 /// when nothing's been heard yet or what's heard has all resolved - a
 /// healed trouble doesn't get re-mourned
-pub fn catchup_reveal(world: &World, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
-    let pool = live_known(world, e, tick);
+pub fn catchup_reveal(world: &World, knower: Entity, e: Entity, tick: u64, seed: u64) -> Option<Reveal> {
+    let pool = live_known(world, knower, e, tick);
     if pool.is_empty() { return None; }
     Some(pool[(seed % pool.len() as u64) as usize])
 }
 
 /// Record that the organizer heard `r` from `person`: mark it known on
-/// them, journal it on the organizer, prune entries older than a year, and
-/// return the new issue if three or more people have now said versions of
-/// the same thing inside the year
+/// the seat's own ledger, journal it on the organizer, prune entries
+/// older than a year, and return the new issue if three or more people
+/// have now said versions of the same thing inside the year
 pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tick: u64) -> Option<String> {
-    {
-        let mut known = world.get_component_mut::<Known>(person);
-        match &mut known {
-            Some(k) if !k.revealed.contains(&r) => k.revealed.push(r),
-            Some(_) => return None,
-            None => {
-                drop(known);
-                world.add_component(person, Known { revealed: vec![r] });
-            }
-        }
-    }
+    // the hearing's the seat's own (E7-1): the record lands on the
+    // organizer, so another seat's ledger stays blind to it
+    if known(world, organizer, person).contains(&r) { return None; }
+    note(world, organizer, person, r);
     let tag = issue_tag(world, person, &r);
     let org = world.get_component_mut::<Organizer>(organizer)?;
     org.heard.retain(|(_, _, day)| tick <= *day + YEAR_DAYS);
@@ -892,8 +910,8 @@ mod tests {
         assert_eq!(hear(&mut w, org, c, r, 300).as_deref(), Some("the tax collector's cut"));
         // and it isn't discovered twice
         assert_eq!(hear(&mut w, org, c, r, 300), None);
-        let known = w.get_component::<Known>(a).unwrap();
-        assert!(known.revealed.contains(&r) && known.revealed.contains(&Reveal::Problem(Problem::Broke)));
+        let heard = known(&w, org, a);
+        assert!(heard.contains(&r) && heard.contains(&Reveal::Problem(Problem::Broke)));
     }
 
     #[test]
@@ -918,14 +936,14 @@ mod tests {
     fn test_unrevealed_skips_known_and_satisfied() {
         let mut w = World::new();
         let e = person(&mut w, &[Want::GoodFood, Want::Love]);
-        // NoHome is the only live problem; both wants unrevealed
-        let pool = unrevealed(&w, e, 0);
-        assert_eq!(pool.len(), 3);
         let org = w.create_entity();
         w.add_component(org, Organizer::default());
+        // NoHome is the only live problem; both wants unrevealed
+        let pool = unrevealed(&w, org, e, 0);
+        assert_eq!(pool.len(), 3);
         hear(&mut w, org, e, Reveal::Problem(Problem::NoHome), 0);
         satisfy(&mut w, e, Want::GoodFood, 30);
-        let pool = unrevealed(&w, e, 10);
+        let pool = unrevealed(&w, org, e, 10);
         assert_eq!(pool, vec![Reveal::Want(Want::Love)]);
     }
 
@@ -987,39 +1005,38 @@ mod tests {
     fn test_the_probe_stays_open_while_theres_something_left_to_hear() {
         let mut w = World::new();
         let (v, asker) = (person(&mut w, &[]), person(&mut w, &[]));
-        assert!(probe_open(&w, v, 0));
+        assert!(probe_open(&w, asker, v, 0));
         // carry every probeable want, all of them heard, nothing
         // pressing - the question's spent
         w.get_component_mut::<InnerLife>(v).unwrap().wants = PROBE_WANTS.to_vec();
         housed(&mut w, v);
-        w.add_component(v, Known { revealed: PROBE_WANTS.iter()
-            .map(|x| Reveal::Want(*x)).collect() });
-        assert!(!probe_open(&w, v, 0));
+        for x in PROBE_WANTS.iter() { note(&mut w, asker, v, Reveal::Want(*x)); }
+        assert!(!probe_open(&w, asker, v, 0));
         // a kid never takes a planted want
         let kid = w.create_entity();
         w.add_component(kid, Pos { x: 0.0, y: 0.0 });
         w.add_component(kid, Kid);
-        assert!(!probe_open(&w, kid, 0));
+        assert!(!probe_open(&w, asker, kid, 0));
         // a want already ripening still counts as covered
         w.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
         plant_want(&mut w, v, asker, 0, 1);
-        assert!(probe_open(&w, v, 0), "other wants remain open");
+        assert!(probe_open(&w, asker, v, 0), "other wants remain open");
         w.get_component_mut::<InnerLife>(v).unwrap().wants = PROBE_WANTS.to_vec();
-        assert!(!probe_open(&w, v, 0));
+        assert!(!probe_open(&w, asker, v, 0));
         // but the world moving re-opens it: a fresh grievance is
         // something to hear - heard or run out, it closes again
         add_grievance(&mut w, v, Problem::Loss, 60);
-        assert!(probe_open(&w, v, 0), "a new burden reopens the question");
+        assert!(probe_open(&w, asker, v, 0), "a new burden reopens the question");
         hear(&mut w, asker, v, Reveal::Problem(Problem::Loss), 0);
-        assert!(!probe_open(&w, v, 0), "heard, it's spent again");
+        assert!(!probe_open(&w, asker, v, 0), "heard, it's spent again");
         let mut w2 = World::new();
         let v2 = person(&mut w2, &[]);
+        let asker2 = w2.create_entity();
         w2.get_component_mut::<InnerLife>(v2).unwrap().wants = PROBE_WANTS.to_vec();
         housed(&mut w2, v2);
-        w2.add_component(v2, Known { revealed: PROBE_WANTS.iter()
-            .map(|x| Reveal::Want(*x)).collect() });
+        for x in PROBE_WANTS.iter() { note(&mut w2, asker2, v2, Reveal::Want(*x)); }
         add_grievance(&mut w2, v2, Problem::Loss, 60);
-        assert!(!probe_open(&w2, v2, 70), "the grief's run out");
+        assert!(!probe_open(&w2, asker2, v2, 70), "the grief's run out");
     }
 }
 
@@ -1052,13 +1069,13 @@ pub struct Planted {
 /// once those are all spoken for, a burden their life's taken on that
 /// you've not yet heard. The world moves: a fresh grievance re-opens
 /// the ask
-pub fn probe_open(world: &World, e: Entity, tick: u64) -> bool {
+pub fn probe_open(world: &World, knower: Entity, e: Entity, tick: u64) -> bool {
     if is_kid(world, e) { return false; }
     let carried = world.get_component::<InnerLife>(e).map(|l| l.wants.clone()).unwrap_or_default();
     let planted: Vec<Want> = world.get_component::<Planted>(e)
         .map(|p| p.wants.iter().map(|(w, _, _)| *w).collect()).unwrap_or_default();
     PROBE_WANTS.iter().any(|w| !carried.contains(w) && !planted.contains(w))
-        || !unrevealed(world, e, tick).is_empty()
+        || !unrevealed(world, knower, e, tick).is_empty()
 }
 
 /// Plant a want the hearer doesn't already carry, ripening in

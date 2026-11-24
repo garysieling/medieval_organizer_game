@@ -767,8 +767,8 @@ fn test_the_hawthorn_lightens_a_heart() {
         assert!(!g.world.get_component::<desires::InnerLife>(v).unwrap().grievances.iter()
             .any(|(p, _)| *p == desires::Problem::Taxed),
             "the weight came off on {:?}", st);
-        assert!(g.world.get_component::<desires::Known>(v)
-            .map(|k| k.revealed.contains(&desires::Reveal::Want(Want::Love))).unwrap_or(false),
+        assert!(desires::known(&g.world, g.player, v)
+            .contains(&desires::Reveal::Want(Want::Love)),
             "the ear learned the want on {:?}", st);
         stage::run_days(&mut g, 5);
         assert!(g.rare.iter().all(|r| r.id != EventId::Friar), "he wandered on from {:?}", st);
@@ -1278,8 +1278,8 @@ fn test_the_lines_dont_lie() {
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the fortune-teller")),
             "the frame shows her scarf on {:?}", st);
         stage::run_days(&mut g, 1);
-        assert!(g.world.get_component::<desires::Known>(v)
-            .map(|k| k.revealed.contains(&desires::Reveal::Want(Want::Love))).unwrap_or(false),
+        assert!(desires::known(&g.world, g.player, v)
+            .contains(&desires::Reveal::Want(Want::Love)),
             "the lines surfaced the want on {:?}", st);
         assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny bought the palm");
         stage::run_days(&mut g, 5);

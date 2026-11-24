@@ -3,7 +3,7 @@
 use crate::session::*;
 use crate::engine::ecs::Entity;
 use crate::game::conversation::Act;
-use crate::game::desires::{Known, Problem, Reveal, Want};
+use crate::game::desires::{Problem, Reveal, Want};
 use crate::game::rhetoric::{self, Line, RhetoricMemory, HARDEN};
 use crate::game::relationships::{self, find_relationship, Interaction, InteractionKind, Relationship};
 use crate::game::traits::{Personality, Trait};
@@ -18,8 +18,8 @@ fn adults(g: &Game) -> Vec<usize> {
 fn known(g: &mut Game, i: usize, traits: Vec<Trait>) -> Entity {
     let (pe, v) = (g.player, g.villagers[i]);
     g.world.add_component(v, Personality { traits });
-    g.world.add_component(v, Known { revealed: vec![
-        Reveal::Problem(Problem::Taxed), Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love)] });
+    let __pe = g.player; for __r in vec![
+        Reveal::Problem(Problem::Taxed), Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     relationships::record_interaction(&mut g.world, pe,
         Interaction { other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
     find_relationship(&g.world, pe, v)

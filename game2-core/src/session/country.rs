@@ -659,7 +659,6 @@ impl Game {
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
-        self.world.add_component(v, Known::default());
         match voc {
             // the lord of a castle is a master of arms; the rest are rolled
             Some(voc) => {

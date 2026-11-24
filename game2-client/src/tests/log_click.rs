@@ -35,9 +35,9 @@ fn test_a_log_line_with_a_spot_is_hit_where_it_is_drawn() {
 #[test]
 fn test_any_wrapped_row_of_a_log_line_counts() {
     let view = View::new(Art::load_fs("../assets", 0));
-    // "t9:" wraps alone, then the 80-char word splits at 28 chars: four
+    // "t9:" wraps alone, then the overwide word splits on pixels: four
     // rows for the one entry - a click on any of them hits it
-    let long = format!("t9: {}", "x".repeat(80));
+    let long = format!("t9: {}", "x".repeat(100));
     let m = log_model(vec![
         entry(&long, Some((1.0, 1.0)), None),
         entry("t10: a plain line", None, None),

@@ -25,7 +25,7 @@ fn test_the_powers_words_fit_the_sidebar() {
     ];
     let line = org_status_line(&words);
     // the panel wraps the line into the two rows the draw path gives it
-    for l in wrap_text(&line, 29) {
+    for l in wrap_px(&line, 300) {
         assert!(UI_X as i32 + 10 + text_width(&l, 1) <= W as i32 - 6,
             "the powers' words outrun the sidebar: {:?}", l);
     }

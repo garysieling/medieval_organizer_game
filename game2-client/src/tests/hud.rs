@@ -55,7 +55,8 @@ fn test_meeting_lines_name_the_yeses() {
     // a crowd can't push the roles off: each category holds one row,
     // the overflow counted
     let crowd = MeetingPlanV {
-        coming: vec!["Willa".into(), "Bram".into(), "Corvin".into(), "Nell".into(), "Aldric".into(), "Dagny".into()],
+        coming: vec!["Willa".into(), "Bram".into(), "Corvin".into(), "Nell".into(), "Aldric".into(),
+            "Dagny".into(), "Eliza".into(), "Osric".into(), "Tilda".into(), "Rowan".into()],
         spreaders: vec!["Eliza".into()],
         roles: vec!["house: Hob".into()],
     };
@@ -63,7 +64,7 @@ fn test_meeting_lines_name_the_yeses() {
     assert_eq!(lines.len(), 3, "one row per category: {:?}", lines);
     assert!(lines[0].contains("+"), "the overflow is counted: {}", lines[0]);
     assert_eq!(lines[2], "house: Hob");
-    for l in &lines { assert!(l.len() <= 40, "one row: {}", l); }
+    for l in &lines { assert!(measure(l) <= 300, "one row: {}", l); }
 }
 
 #[test]

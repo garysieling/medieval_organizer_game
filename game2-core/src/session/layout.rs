@@ -191,3 +191,38 @@ pub fn wrap_text(text: &str, max: usize) -> Vec<String> {
     if !line.is_empty() { lines.push(line); }
     lines
 }
+
+/// Word-wrap `text` into lines of at most `max_px` pixels in the book
+/// face, breaking at spaces. The glyph budget version (`wrap_text`)
+/// counts chars, which only ever approximated the old fixed-width face;
+/// a string's real width comes from `font::measure`, and the columns it
+/// wraps for are laid out in pixels (a word wider than a line is split
+/// where it stops fitting)
+pub fn wrap_px(text: &str, max_px: i32) -> Vec<String> {
+    use crate::ui::font::measure;
+    let mut lines = vec![];
+    let mut line = String::new();
+    for word in text.split_whitespace() {
+        let mut word = word.to_string();
+        while measure(&word) > max_px {
+            if !line.is_empty() { lines.push(std::mem::take(&mut line)); }
+            // the longest head still inside the budget
+            let mut take = word.chars().count();
+            while take > 1 && measure(&word.chars().take(take).collect::<String>()) > max_px {
+                take -= 1;
+            }
+            lines.push(word.chars().take(take).collect::<String>());
+            word = word.chars().skip(take).collect();
+        }
+        if line.is_empty() {
+            line = word;
+        } else if measure(&format!("{} {}", line, word)) <= max_px {
+            line.push(' ');
+            line.push_str(&word);
+        } else {
+            lines.push(std::mem::replace(&mut line, word));
+        }
+    }
+    if !line.is_empty() { lines.push(line); }
+    lines
+}

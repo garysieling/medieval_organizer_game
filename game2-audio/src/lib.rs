@@ -3,6 +3,7 @@
 //! offline. Everything that makes a random choice draws it from
 //! `rng::Rng`, seeded by the caller - no OS randomness, no clocks.
 pub mod compose;
+pub mod director;
 pub mod engine;
 pub mod host;
 pub mod instruments;
@@ -14,6 +15,7 @@ pub mod settings;
 pub mod soundscape;
 pub mod synth;
 pub mod theory;
+pub mod trace;
 pub mod wav;
 
 #[cfg(feature = "analysis")]

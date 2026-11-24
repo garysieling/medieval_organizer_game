@@ -704,8 +704,15 @@ fn run_metrics_mode(a: &Args, out: &mut Out) {
     let lib = village_library();
     let mut g = Game::new_seeded_cast(a.seed);
     let n = a.folk.max(2).min(g.villagers.len());
-    let cast: Vec<Speaker> = g.villagers.iter().take(n)
-        .map(|&v| speaker_of(&g.world, v, &g.name_of(v), g.tick)).collect();
+    let cast: Vec<Speaker> = g.villagers.iter().take(n).map(|&v| {
+        let mut s = speaker_of(&g.world, v, &g.name_of(v), g.tick);
+        // what live talk setup adds: a fresh pair carries an unspent
+        // slip budget, and the doorknob worry the world seeds - the
+        // metrics count those channels, so the cast needs them live
+        s.slips_left = 1;
+        s.worry = game2_core::game::desires::worry_of(&g.world, v, g.tick, a.seed);
+        s
+    }).collect();
     let you = Speaker::new("Wanderer");
     let rel = Relation::Acquaintance;
     let setting = &game2_core::game::setting::STREET;

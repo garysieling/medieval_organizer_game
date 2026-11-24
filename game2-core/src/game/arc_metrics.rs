@@ -29,9 +29,11 @@ pub const LATE_FROM: usize = 10;
 /// The speaker's own facts, split the way `Facts::for_roles` folds
 /// them: `self:` reads own facts plus the hidden half; `any:` reads
 /// the open half only. The `open:`/`closed:` area-tier strings are the
-/// pair's state, not persona facts - both sets drop them
+/// pair's state and `status:wx-*` the whole sky's - both shared facts,
+/// not the persona's, so both sets drop them
 fn own_sets(s: &Speaker) -> (HashSet<String>, HashSet<String>) {
-    let drop_tiers = |f: &String| !f.starts_with("open:") && !f.starts_with("closed:");
+    let drop_tiers = |f: &String| !f.starts_with("open:")
+        && !f.starts_with("closed:") && !f.starts_with("status:wx-");
     let self_set: HashSet<String> = s.own_facts().into_iter()
         .chain(s.facts.hidden.iter().cloned()).filter(drop_tiers).collect();
     let any_set: HashSet<String> = s.own_facts().into_iter().filter(drop_tiers).collect();
@@ -78,20 +80,36 @@ fn exchange_keyed(ex: &Exchange, line: &str, self_set: &HashSet<String>, any_set
     false
 }
 
+/// Is `line` one of the tellings authored for a fact this speaker
+/// carries? `the_asking`'s secret answers draw from `telling` - the
+/// fact's own words under the ask - and ride a synthetic tree the
+/// library doesn't hold, so the share names them by content
+fn telling_keyed(line: &str, self_set: &HashSet<String>) -> bool {
+    crate::game::fact_content::FACT_CONTENTS.iter()
+        .any(|c| self_set.contains(c.fact) && c.tiers.iter().any(|&(_, l)| l == line))
+}
+
 /// Was this turn keyed to the speaker's own facts? The tree's own
 /// criteria first - then, when the line's template is known, the fork
-/// or register that let it through. Turns without a template (a
-/// composed line) judge on the tree alone. A slip, a joke or a worry
-/// speaks persona-seeded content channels (the ghost's leak, the
-/// grievance's barb, the doorknob fear) - own-voice by birth
+/// or register that let it through, then the authored tellings. Turns
+/// without a template (a composed line) judge on the tree alone. A
+/// slip or a worry speaks persona-seeded content (the ghost's leak,
+/// the doorknob fear); a joke counts only when it's theirs - the
+/// `joke_receipt` echo answers the other side's joke from a stock
+/// table anyone can draw
 pub fn turn_keyed(turn: &crate::game::conversation::Turn, lib: &[DialogueTree],
                   self_set: &HashSet<String>, any_set: &HashSet<String>) -> bool {
-    if matches!(turn.act, Act::Slip | Act::Joke | Act::Worry) { return true; }
-    let Some(tree) = lib.iter().find(|t| t.name == turn.tree) else { return false; };
+    if matches!(turn.act, Act::Slip | Act::Worry)
+        || (turn.act == Act::Joke && !turn.concepts.contains(&"joke_receipt")) { return true; }
+    let Some(tree) = lib.iter().find(|t| t.name == turn.tree) else {
+        // a synthetic tree (the_asking) still tells true by its line
+        return turn.line.map(|l| telling_keyed(l, self_set)).unwrap_or(false);
+    };
     if own_keyed(tree.criteria, self_set, any_set) { return true; }
     let Some(line) = turn.line else { return false; };
     exchange_keyed(tree.root, line, self_set, any_set)
         || tree.rejoin.map(|e| exchange_keyed(e, line, self_set, any_set)).unwrap_or(false)
+        || telling_keyed(line, self_set)
 }
 
 /// The own-voice share over one speaker's turns: (keyed, total) for
@@ -291,7 +309,8 @@ mod tests {
     }
 
     /// the persona-seeded channels - a slip, a joke, a worry - are
-    /// own-voice wherever they land
+    /// own-voice wherever they land, but the joke_receipt echo is the
+    /// other side's joke answered from a stock table
     #[test]
     fn the_seeded_channels_count() {
         let lib = village_library();
@@ -303,6 +322,85 @@ mod tests {
                 channel: crate::game::setting::Channel::Public };
             assert!(turn_keyed(&t, &lib, &self_set, &any_set), "{act:?} is own-voice");
         }
+        let receipt = Turn { speaker: 0, act: Act::Joke, respond: None,
+            text: "aye, and worse".into(), concepts: vec!["joke", "joke_receipt"],
+            tree: "village_smalltalk", line: None,
+            channel: crate::game::setting::Channel::Public };
+        assert!(!turn_keyed(&receipt, &lib, &self_set, &any_set),
+            "a stock receipt to the other's joke isn't theirs");
+    }
+
+    /// a fair sky is everyone's - a line gated `self:status:wx-*`
+    /// alone says nothing about who carries it
+    #[test]
+    fn the_days_weather_is_not_theirs() {
+        static EX: Exchange = Exchange { act: Act::Remark, concepts: &[],
+            calls: &["bright enough for drying"], voice: &[],
+            replies: &[Reply { criteria: &[Has("self:status:wx-fair")], weight: 1.0,
+                bias: &[], act: Act::Agree, respond: None, concepts: &[],
+                lines: &["a fine drying day"], voice: &[], then: None, end: None }] };
+        let lib = vec![tree("plain", &[], &EX),
+                       tree("sky", &[Has("self:status:wx-fair")], &EX)];
+        let mut them = Speaker::new("Hob");
+        them.status.push("wx-fair");
+        let (self_set, any_set) = own_sets(&them);
+        let t_reply = say(0, "plain", Some("a fine drying day"));
+        let t_tree = say(0, "sky", None);
+        assert!(!turn_keyed(&t_reply, &lib, &self_set, &any_set), "weather-gated reply");
+        assert!(!turn_keyed(&t_tree, &lib, &self_set, &any_set), "weather-gated tree");
+    }
+
+    /// the_asking's secret answers: a tier telling from the fact they
+    /// carry is own-voice; the topic's generic fallback is not
+    #[test]
+    fn an_authored_telling_is_theirs() {
+        let lib = village_library();
+        let mut them = Speaker::new("Hob");
+        them.facts.hidden.push("ghost:levy".into());
+        let (self_set, any_set) = own_sets(&them);
+        let telling = crate::game::fact_content::FACT_CONTENTS.iter()
+            .find(|c| c.fact == "ghost:levy").unwrap().tiers[0].1;
+        let t_told = Turn { speaker: 0, act: Act::Answer, respond: None,
+            text: "told".into(), concepts: vec![], tree: "the_asking",
+            line: Some(telling), channel: crate::game::setting::Channel::Public };
+        let t_flat = Turn { speaker: 0, act: Act::Answer, respond: None,
+            text: "flat".into(), concepts: vec![], tree: "the_asking",
+            line: Some("It's not for me to say."), channel: crate::game::setting::Channel::Public };
+        assert!(turn_keyed(&t_told, &lib, &self_set, &any_set), "the levy's telling is theirs");
+        assert!(!turn_keyed(&t_flat, &lib, &self_set, &any_set), "the flat answer is anybody's");
+    }
+
+    /// the metrics' own cast patch: a slip budget lets the leak
+    /// reach the measure, and when it fires the share counts it -
+    /// the channel live talk setup spends but `speaker_of` leaves
+    /// unpatched
+    #[test]
+    fn a_budgeted_leak_reaches_the_share() {
+        let lib = village_library();
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..20 {
+            let mut them = Speaker::new("Hob");
+            them.trade = Some("carter");
+            them.slip = Some(crate::game::conversation::Slip {
+                prone: 1.0,
+                dead: Some(crate::game::conversation::Dead {
+                    kin: "brother", name: "Corvin".into(), trade: "carter" }) });
+            them.slips_left = 1;
+            let (_, arc) = run_arc(&them, &you, Relation::Acquaintance, None, 20,
+                Policy::Responsive, &lib, &STREET, seed);
+            for t in &arc {
+                for turn in &t.transcript.turns {
+                    if turn.speaker == 0 && turn.act == Act::Slip {
+                        saw = true;
+                        let (self_set, any_set) = own_sets(&them);
+                        assert!(turn_keyed(turn, &lib, &self_set, &any_set),
+                            "the fired leak isn't own-voice");
+                    }
+                }
+            }
+        }
+        assert!(saw, "a prone ghost never leaked in 20 arcs");
     }
 
     /// the share reads keyed/total over the villager's turns in the

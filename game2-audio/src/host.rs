@@ -9,7 +9,6 @@
 //! warning, never a crash.
 use crate::engine::{Bus, Engine, Source, VoiceParams};
 use crate::settings::AudioSettings;
-use crate::synth::SynthKind;
 use game2_core::session::{UiModel, MAP_TILES};
 use std::collections::VecDeque;
 use std::io;
@@ -27,12 +26,21 @@ pub enum CueKind {
     Bell { pan: f32, gain: f32 },
     Snowballs { pan: f32, gain: f32 },
     Splash { pan: f32, gain: f32 },
+    Alarm { pan: f32, gain: f32 },
+    Toll { pan: f32, gain: f32 },
+    Cheer { pan: f32, gain: f32 },
+    Chant { pan: f32, gain: f32 },
+    Coins { pan: f32, gain: f32 },
+    Quill { pan: f32, gain: f32 },
+    Door { pan: f32, gain: f32 },
+    CartArrive { pan: f32, gain: f32 },
+    Gate { pan: f32, gain: f32 },
     /// "mood" and cues without their own voice: a small blip
     Mood { pan: f32, gain: f32 },
 }
 
 impl CueKind {
-    fn from_name(kind: &str, pan: f32, gain: f32) -> Self {
+    pub(crate) fn from_name(kind: &str, pan: f32, gain: f32) -> Self {
         match kind {
             "rain" => CueKind::Rain { pan, gain },
             "anvil" => CueKind::Anvil { pan, gain },
@@ -41,22 +49,34 @@ impl CueKind {
             "bell" => CueKind::Bell { pan, gain },
             "snowballs" => CueKind::Snowballs { pan, gain },
             "splash" => CueKind::Splash { pan, gain },
+            "alarm" => CueKind::Alarm { pan, gain },
+            "toll" => CueKind::Toll { pan, gain },
+            "cheer" => CueKind::Cheer { pan, gain },
+            "chant" => CueKind::Chant { pan, gain },
+            "coins" => CueKind::Coins { pan, gain },
+            "quill" => CueKind::Quill { pan, gain },
+            "door" => CueKind::Door { pan, gain },
+            "cart_arrive" => CueKind::CartArrive { pan, gain },
+            "gate" => CueKind::Gate { pan, gain },
             _ => CueKind::Mood { pan, gain },
         }
     }
 
-    fn parts(self) -> (f32, f32, SynthKind) {
-        let (pan, gain, s) = match self {
-            CueKind::Rain { pan, gain } => (pan, gain, SynthKind::Rain),
-            CueKind::Anvil { pan, gain } => (pan, gain, SynthKind::Anvil),
-            CueKind::Festival { pan, gain } => (pan, gain, SynthKind::Festival),
-            CueKind::Wonder { pan, gain } => (pan, gain, SynthKind::Wonder),
-            CueKind::Bell { pan, gain } => (pan, gain, SynthKind::Bell),
-            CueKind::Snowballs { pan, gain } => (pan, gain, SynthKind::Snowballs),
-            CueKind::Splash { pan, gain } => (pan, gain, SynthKind::Splash),
-            CueKind::Mood { pan, gain } => (pan, gain, SynthKind::Mood),
-        };
-        (pan, gain, s)
+    /// The cue's own numbers - where in the stereo field it sits and
+    /// how loud the sim called it. The palette's `VoiceSpec` turns the
+    /// kind into a voice.
+    fn pos(self) -> (f32, f32) {
+        match self {
+            CueKind::Rain { pan, gain } | CueKind::Anvil { pan, gain }
+            | CueKind::Festival { pan, gain } | CueKind::Wonder { pan, gain }
+            | CueKind::Bell { pan, gain } | CueKind::Snowballs { pan, gain }
+            | CueKind::Splash { pan, gain } | CueKind::Alarm { pan, gain }
+            | CueKind::Toll { pan, gain } | CueKind::Cheer { pan, gain }
+            | CueKind::Chant { pan, gain } | CueKind::Coins { pan, gain }
+            | CueKind::Quill { pan, gain } | CueKind::Door { pan, gain }
+            | CueKind::CartArrive { pan, gain } | CueKind::Gate { pan, gain }
+            | CueKind::Mood { pan, gain } => (pan, gain),
+        }
     }
 }
 
@@ -361,9 +381,18 @@ impl AudioHost {
         match &mut self.link {
             Link::Offline { engine } => {
                 for c in self.pending.drain(..) {
-                    let (pan, gain, kind) = c.parts();
-                    engine.play(Source::Synth(kind), Bus::Sfx,
-                        VoiceParams { gain, pan, ..Default::default() });
+                    let (pan, gain) = c.pos();
+                    let spec = crate::palette::voice_for(c);
+                    // a ledgered patch takes the voice when the bank has
+                    // it; the synth stands in until a name's banked
+                    let source = spec.sample
+                        .and_then(|n| engine.bank().patch_id(n))
+                        .map(|id| Source::Sample { id, midi: 60 })
+                        .unwrap_or(Source::Synth(spec.synth));
+                    engine.play(source, spec.bus,
+                        VoiceParams { gain: gain * spec.gain,
+                            pan: if spec.pan_from_pos { pan } else { 0.0 },
+                            ..Default::default() });
                 }
                 engine.render(out);
                 self.voices_peak = self.voices_peak.max(engine.live_voices());

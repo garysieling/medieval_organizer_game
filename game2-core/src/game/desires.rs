@@ -195,6 +195,41 @@ pub struct LedgerEntry {
     pub contradicted: bool,
 }
 
+/// The bounds a confidence travels under (E5-5, #1443): what the
+/// owner asked of the seat when they told. A closed set - the
+/// design's two shapes, nothing freer
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Rule {
+    /// To no one: the whole world's out of bounds
+    TellNoOne,
+    /// Anywhere but there: "not the priest", "not the reeve" - the
+    /// deep tells name the power they fear
+    NotTo(Entity),
+}
+
+/// A disclosure held as an obligation (E5-5, #1443): what's told in
+/// trust makes the seat a co-owner of it, bound by its rule until
+/// it's broken. The keeping has a wage: a confidence stood long
+/// enough proves the seat's integrity to the owner
+#[derive(Debug, Clone)]
+pub struct Confidence {
+    /// The ledger fact it binds
+    pub fact: String,
+    /// Whose telling it was - the drop lands on their bond
+    pub owner: Entity,
+    pub rule: Rule,
+    /// Held so far; a leak turns it false
+    pub kept: bool,
+    /// The day it was taken on
+    pub day: u64,
+    /// The keeping already paid its integrity out once
+    pub honored: bool,
+}
+
+/// Days a kept confidence must stand before the holding itself is
+/// proof (E5-5)
+pub const CONFIDENCE_MARK_DAYS: u64 = 20;
+
 /// What they dodge on (E5-2 counts these up later; the record's kept
 /// now): the shape a villager shows a seat that asks where they won't
 /// go - a form without a name
@@ -219,11 +254,13 @@ pub struct Known {
     pub entries: crate::engine::det::HashMap<Entity, Vec<LedgerEntry>>,
     /// The shapes that show without ever being told
     pub silhouettes: Vec<Silhouette>,
+    /// The tellings the seat's bound to keep (E5-5)
+    pub confidences: Vec<Confidence>,
 }
 
 /// The fact-table id a Reveal writes under in the ledger (E7-2):
 /// `want:*` / `problem:*`, with NoInput carrying its input
-fn reveal_key(r: &Reveal) -> String {
+pub fn reveal_key(r: &Reveal) -> String {
     fn snake(s: &str) -> String {
         s.chars().enumerate().flat_map(|(i, c)| {
             if c.is_uppercase() && i > 0 { vec!['_', c.to_ascii_lowercase()] }
@@ -258,10 +295,20 @@ pub fn record(world: &mut World, knower: Entity, e: Entity, fact: String,
         hit || clash
     });
     heard.push(LedgerEntry {
-        fact, reveal, source, day,
+        fact: fact.clone(), reveal, source, day,
         confidence: source_confidence(&source),
         contradicted,
     });
+    // a telling from their own mouth makes the seat a co-owner
+    // (E5-5): what's confided is now the seat's to keep
+    if let Source::Told { speaker } = source {
+        if speaker == e {
+            k.confidences.push(Confidence {
+                fact, owner: e, rule: Rule::TellNoOne,
+                kept: true, day, honored: false,
+            });
+        }
+    }
 }
 
 /// The seat's ledger on `e`: every fact held, sourced and dated
@@ -294,6 +341,88 @@ pub fn known(world: &World, knower: Entity, e: Entity) -> Vec<Reveal> {
 /// knowledge take this road
 pub fn note(world: &mut World, knower: Entity, e: Entity, r: Reveal) {
     record(world, knower, e, reveal_key(&r), Some(r), Source::Told { speaker: e }, 0);
+}
+
+/// The confidences a seat holds on `e` (E5-5)
+pub fn confidences(world: &World, knower: Entity, e: Entity) -> Vec<Confidence> {
+    world.get_component::<Known>(knower)
+        .map(|k| k.confidences.iter().filter(|c| c.owner == e).cloned().collect())
+        .unwrap_or_default()
+}
+
+/// Name the one place a confidence mustn't go (E5-5): the deep tells
+/// carry it - "not the priest", "not the reeve"
+pub fn restrict(world: &mut World, knower: Entity, owner: Entity, fact: &str, target: Entity) {
+    if let Some(k) = world.get_component_mut::<Known>(knower) {
+        if let Some(c) = k.confidences.iter_mut()
+            .find(|c| c.owner == owner && c.fact == fact && c.kept) {
+            c.rule = Rule::NotTo(target);
+        }
+    }
+}
+
+/// The owner's close ears (E5-5): the folk under their roof and the
+/// bonds that name them family or friend or lover - when the seat's
+/// word leaks, it's theirs the story cools for
+fn circle(world: &World, owner: Entity) -> Vec<Entity> {
+    use crate::game::relationships::{RelKind, Relationship};
+    let mut out = vec![];
+    if let Some(home) = crate::game::household::home_of(world, owner) {
+        if let Some(b) = world.get_component::<crate::game::household::Building>(home) {
+            out.extend(b.occupants.iter().copied().filter(|&o| o != owner));
+        }
+    }
+    for bond in crate::game::relationships::bonds_of(world, owner) {
+        if let Some(r) = world.get_component::<Relationship>(bond) {
+            if matches!(r.kind, RelKind::Family | RelKind::Friend | RelKind::Lover) {
+                out.push(if r.from == owner { r.other } else { r.from });
+            }
+        }
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// A confidence broken (E5-5): word of it reached ears the rule
+/// barred, and the owner's heard of it. Their trust in the seat drops
+/// - the breach reads as a betrayal of the bond - and their circle
+/// cools a little toward the seat: you can't hold a tongue, they
+/// say. Returns whether a held confidence actually broke
+pub fn leak(world: &mut World, knower: Entity, owner: Entity, fact: &str) -> bool {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    let broke = world.get_component_mut::<Known>(knower)
+        .map(|k| k.confidences.iter_mut()
+            .any(|c| if c.owner == owner && c.fact == fact && c.kept {
+                c.kept = false; true
+            } else { false }))
+        .unwrap_or(false);
+    if !broke { return false; }
+    record_interaction(world, owner, Interaction {
+        other: knower, kind: InteractionKind::Betrayal, intensity: 0.8 });
+    for c in circle(world, owner) {
+        if c == knower { continue; }
+        record_interaction(world, c, Interaction {
+            other: knower, kind: InteractionKind::Betrayal, intensity: 0.3 });
+    }
+    true
+}
+
+/// The keeping's wage (E5-5): each confidence that's stood its time
+/// and still holds pays out once in the owner's read of the seat's
+/// integrity - the tongue held, and they saw it hold
+pub fn honor_confidences(world: &mut World, knower: Entity, tick: u64) -> usize {
+    let mut due = vec![];
+    if let Some(k) = world.get_component_mut::<Known>(knower) {
+        for c in k.confidences.iter_mut() {
+            if c.kept && !c.honored && tick >= c.day + CONFIDENCE_MARK_DAYS {
+                c.honored = true;
+                due.push(c.owner);
+            }
+        }
+    }
+    crate::game::relationships::push_kept_word(world, &due, knower);
+    due.len()
 }
 
 /// Days a villager has gone without: the streak that turns a hard day
@@ -799,13 +928,19 @@ pub fn catchup_reveal(world: &World, knower: Entity, e: Entity, tick: u64, seed:
 /// older than a year, and return the new issue if three or more people
 /// have now said versions of the same thing inside the year
 pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tick: u64) -> Option<String> {
+    hear_via(world, organizer, person, r, tick, Source::Told { speaker: person })
+}
+
+/// `hear` with the source named (E7-2/E5-5): a carried word lands as
+/// `Gossip { speaker }` - the ledger hears it as hearsay, carries no
+/// confidence with it, and the journal still counts the voice
+pub fn hear_via(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tick: u64, source: Source) -> Option<String> {
     // the hearing's the seat's own (E7-1): the record lands on the
     // organizer, so another seat's ledger stays blind to it
     if known(world, organizer, person).contains(&r) { return None; }
     // they said it themselves, today (E7-2): the entry carries its
     // teller, its day, and a telling's certainty
-    record(world, organizer, person, reveal_key(&r), Some(r),
-        Source::Told { speaker: person }, tick);
+    record(world, organizer, person, reveal_key(&r), Some(r), source, tick);
     let tag = issue_tag(world, person, &r);
     let org = world.get_component_mut::<Organizer>(organizer)?;
     org.heard.retain(|(_, _, day)| tick <= *day + YEAR_DAYS);
@@ -1260,6 +1395,106 @@ mod tests {
         for x in PROBE_WANTS.iter() { note(&mut w2, asker2, v2, Reveal::Want(*x)); }
         add_grievance(&mut w2, v2, Problem::Loss, 60);
         assert!(!probe_open(&w2, asker2, v2, 70), "the grief's run out");
+    }
+
+    #[test]
+    fn test_a_telling_binds_the_seat_to_keep_it() {
+        // E5-5 done-when: what they tell you themselves lands as an
+        // obligation; hearsay about them carries none
+        let mut w = World::new();
+        let org = w.create_entity();
+        w.add_component(org, Organizer::default());
+        let (v, carrier) = (person(&mut w, &[]), person(&mut w, &[]));
+        let r = Reveal::Problem(Problem::Taxed);
+        hear(&mut w, org, v, r, 10);
+        let held = confidences(&w, org, v);
+        assert_eq!(held.len(), 1, "the telling makes the seat a co-owner");
+        assert!(held[0].kept);
+        assert_eq!(held[0].rule, Rule::TellNoOne);
+        assert_eq!(held[0].fact, "problem:taxed");
+        // gossip about another binds nothing
+        hear_via(&mut w, org, carrier, r, 10,
+            Source::Gossip { speaker: v });
+        assert!(confidences(&w, org, carrier).is_empty(),
+            "hearsay carries no obligation");
+        // and the named bound lands: "not the collector"
+        restrict(&mut w, org, v, "problem:taxed", carrier);
+        let held = confidences(&w, org, v);
+        assert_eq!(held[0].rule, Rule::NotTo(carrier));
+    }
+
+    #[test]
+    fn test_a_leak_costs_the_owner_and_their_circle() {
+        use crate::game::relationships::{find_relationship,
+            Interaction, InteractionKind, RelKind, Relationship};
+        let mut w = World::new();
+        let (knower, owner, kin, neighbor) =
+            (w.create_entity(), person(&mut w, &[]), person(&mut w, &[]), person(&mut w, &[]));
+        // warm bonds to spend down: owner + circle all think well of the seat
+        for e in [owner, kin, neighbor] {
+            crate::game::relationships::record_interaction(&mut w, e,
+                Interaction { other: knower, kind: InteractionKind::Aid, intensity: 0.8 });
+        }
+        // the circle: a friend-bond and a shared roof
+        let bond = w.create_entity();
+        w.add_component(bond, Relationship {
+            from: owner, other: kin, kind: RelKind::Friend,
+            ..Default::default()
+        });
+        let roof = w.create_entity();
+        w.add_component(roof, Building {
+            kind: BuildingKind::Home, name: "a house".into(),
+            occupants: vec![owner, neighbor], worker: None, overseer: None,
+            stock: Default::default(), capacity: 20, flyer: None,
+        });
+        let told = Reveal::Problem(Problem::WritBorne);
+        record(&mut w, knower, owner, reveal_key(&told), Some(told),
+            Source::Told { speaker: owner }, 5);
+        let integ = |w: &World, e: Entity| find_relationship(w, e, knower)
+            .and_then(|b| w.get_component::<Relationship>(b).map(|r| r.trust.integrity))
+            .unwrap_or(0.0);
+        let (o0, k0, n0) = (integ(&w, owner), integ(&w, kin), integ(&w, neighbor));
+        assert!(leak(&mut w, knower, owner, "problem:writ_borne"));
+        assert!(!confidences(&w, knower, owner)[0].kept, "the word's out");
+        let (o1, k1, n1) = (integ(&w, owner), integ(&w, kin), integ(&w, neighbor));
+        assert!(o1 < o0, "the owner's read of your integrity drops: {o0} -> {o1}");
+        assert!(k1 < k0 && n1 < n0, "the circle cools too: {k0}->{k1}, {n0}->{n1}");
+        assert!(k1 > o1 && n1 > o1, "but not as deep as the owner's");
+        // nothing held, nothing breaks - a leak needs a living confidence
+        let stranger = person(&mut w, &[]);
+        assert!(!leak(&mut w, knower, stranger, "problem:broke"));
+    }
+
+    #[test]
+    fn test_the_kept_word_pays_its_keeping() {
+        use crate::game::relationships::{find_relationship,
+            Interaction, InteractionKind, Relationship};
+        let mut w = World::new();
+        let (knower, owner) = (w.create_entity(), person(&mut w, &[]));
+        crate::game::relationships::record_interaction(&mut w, owner,
+            Interaction { other: knower, kind: InteractionKind::Aid, intensity: 0.5 });
+        let integ = |w: &World| find_relationship(w, owner, knower)
+            .and_then(|b| w.get_component::<Relationship>(b).map(|r| r.trust.integrity))
+            .unwrap_or(0.0);
+        let told = Reveal::Problem(Problem::Taxed);
+        record(&mut w, knower, owner, reveal_key(&told), Some(told),
+            Source::Told { speaker: owner }, 5);
+        // not yet stood its time
+        assert_eq!(honor_confidences(&mut w, knower, 5 + CONFIDENCE_MARK_DAYS - 1), 0);
+        let before = integ(&w);
+        assert_eq!(honor_confidences(&mut w, knower, 5 + CONFIDENCE_MARK_DAYS), 1);
+        let after = integ(&w);
+        assert!(after > before, "the keeping pays: {before} -> {after}");
+        // pays once - not a pension
+        assert_eq!(honor_confidences(&mut w, knower, 999), 0);
+        assert_eq!(integ(&w), after);
+        // and a broken one never pays
+        let other = person(&mut w, &[]);
+        let t2 = Reveal::Problem(Problem::Broke);
+        record(&mut w, knower, other, reveal_key(&t2), Some(t2),
+            Source::Told { speaker: other }, 5);
+        leak(&mut w, knower, other, "problem:broke");
+        assert_eq!(honor_confidences(&mut w, knower, 999), 0);
     }
 }
 

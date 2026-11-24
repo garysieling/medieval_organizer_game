@@ -613,6 +613,8 @@ impl Game {
         crate::timed!("sim.wage_edict", self.wage_edict_tick(tick));
         crate::timed!("sim.pass", self.pass_tick(tick));
         crate::timed!("sim.petition_law", self.petition_law_tick(tick));
+        // and a held confidence pays its keeping out in integrity
+        crate::timed!("sim.confidences", self.confidences_tick(tick));
         crate::timed!("sim.kind", self.kind_tick(tick));
         // and every other winter runs long and tests the village
         crate::timed!("sim.winter", self.winter_tick(tick));

@@ -3482,6 +3482,11 @@ impl Game {
             .map(|o| o.members.iter().any(|&m| self.literate(m))).unwrap_or(false);
         let need = if literate { crate::game::organizing::PETITION_NAMES - 1 } else { crate::game::organizing::PETITION_NAMES };
         if count >= need {
+            let (demand, protected): (String, Vec<Entity>) =
+                self.world.get_component::<crate::game::organizing::Petition>(org)
+                    .map(|p| (p.demand.clone(),
+                        p.spokesmen.iter().chain(p.signatories.iter()).copied().collect()))
+                    .unwrap_or_default();
             if let Some(p) = self.world.get_component_mut::<crate::game::organizing::Petition>(org) {
                 p.presented = Some(tick);
             }
@@ -3490,6 +3495,44 @@ impl Game {
                 format!("t{}: the petition's presented - the names stand under the demand, protected in form.", tick),
             );
             self.toasts.push(("The petition's presented.".into(), tick + 80));
+            // a member's confided trouble gone to the lord in ink
+            // (E5-5): if they never put their own name to it, the
+            // petition leaked their confidence to the opposition
+            let members = self.world.get_component::<crate::sim::community::Organization>(org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            for m in members {
+                if protected.contains(&m) { continue; }
+                let wrongs: Vec<crate::game::desires::Problem> =
+                    self.world.get_component::<crate::game::desires::InnerLife>(m)
+                        .map(|l| l.grievances.iter()
+                            .filter(|(_, u)| tick < *u).map(|(p, _)| *p).collect())
+                        .unwrap_or_default();
+                for w in wrongs {
+                    if crate::game::desires::wrong_phrase(w) == demand {
+                        let key = crate::game::desires::reveal_key(
+                            &crate::game::desires::Reveal::Problem(w));
+                        for seat in 0..self.seats.len() {
+                            let pe = self.seats[seat].player;
+                            if crate::game::desires::leak(&mut self.world, pe, m, &key) {
+                                let name = self.name_of(m);
+                                self.log.push_ev(
+                                    EvTag::new(Thread::Law, Valence::Negative, Sev::Minor),
+                                    format!("t{}: the petition names {}'s trouble in the open - word of the telling got back to them.", tick, name),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The keeping's wage (E5-5): a confidence that's stood its time
+    /// pays out once in the owner's read of the seat's integrity
+    pub(in crate::session) fn confidences_tick(&mut self, tick: u64) {
+        for seat in 0..self.seats.len() {
+            let pe = self.seats[seat].player;
+            crate::game::desires::honor_confidences(&mut self.world, pe, tick);
         }
     }
 

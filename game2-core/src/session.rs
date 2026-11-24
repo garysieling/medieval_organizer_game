@@ -1353,6 +1353,12 @@ pub struct Game {
     pub townhall_day: u64,
     pub petition_day: u64,
     pub assembly_day: u64,
+    /// The day a marching column last raised its chant cue - the
+    /// sound goes up once a day while the march is out
+    pub chant_day: u64,
+    /// The frame a funeral column last tolled - the bell's beat is
+    /// capped at one ring per two seconds of sim time
+    pub funeral_toll_frame: u64,
     /// Whether today's fight has raised its hubbub yet
     pub snowball_cued: bool,
     /// Where today's fight is being made, for the sound's pan

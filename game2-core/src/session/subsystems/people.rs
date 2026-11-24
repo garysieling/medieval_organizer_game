@@ -844,6 +844,10 @@ impl Game {
                 && self.world.get_component::<Mourned>(v).is_none()).collect();
         for d in newly_dead {
             self.world.add_component(d, Mourned);
+            // the passing bell: one toll for each the village lost
+            if let Some(p) = self.world.get_component::<Pos>(d) {
+                self.emit_sfx("toll", p.x, p.y, 0.8);
+            }
             let mourners: Vec<Entity> = folk.iter().copied().filter(|&m| m != d
                 && !villager::is_dead(&self.world, m)
                 && (self.world.get_component::<Bond>(m).map(|b| b.target == d).unwrap_or(false)

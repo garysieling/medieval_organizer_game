@@ -125,6 +125,7 @@ impl Game {
                     let name = self.world.get_component::<household::Building>(h)
                         .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
                     if lit {
+                        if let Some((fx, fy)) = fire_at { self.emit_sfx("alarm", fx, fy, 1.0); }
                         self.log.push_ev_at_who(EvTag::new(Thread::Fire, Valence::Negative, Sev::Notable), format!("t{}: a chimney fire - smoke gone wrong at {}, and the neighbors with the buckets.", self.tick, name), fire_at, None);
                         for &o in self.world.get_component::<household::Building>(h)
                             .map(|b| b.occupants.clone()).unwrap_or_default().iter() {

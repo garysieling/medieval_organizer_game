@@ -436,6 +436,7 @@ impl Game {
             if self.fire.ignite(&self.map, c.0 + dx, c.1 + dy, self.tick) { lit += 1; }
         }
         if lit > 0 {
+            self.emit_sfx("alarm", c.0 as f32 + 0.5, c.1 as f32 + 0.5, 1.0);
             self.log.push_ev_at_who(
                 EvTag::new(Thread::Fire, Valence::Negative, Sev::Minor),
                 format!(

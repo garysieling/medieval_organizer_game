@@ -9,6 +9,8 @@
 //! warning, never a crash.
 use crate::engine::{Bus, Engine, Source, VoiceParams};
 use crate::settings::AudioSettings;
+use crate::soundscape::ambience::Ambience;
+use crate::soundscape::{Emitter, Listener};
 use game2_core::session::{UiModel, MAP_TILES};
 use std::collections::VecDeque;
 use std::io;
@@ -81,19 +83,27 @@ impl CueKind {
 }
 
 /// One frame's audio intent, pulled off the public model: which cues
-/// fired and the world's seed. Later tickets add the mood scan's
-/// emitters and the listener spot (`..` is the ticket's own license).
+/// fired, which emitters the listener can hear (A4), and the world's
+/// seed.
 #[derive(Clone, Debug)]
 pub struct AudioFrame {
     pub cues: Vec<CueKind>,
+    pub emitters: Vec<Emitter>,
     pub seed: u64,
 }
 
 impl AudioFrame {
-    /// The cues the model reports (`sfx_v`: kind, tile x/y, intensity).
-    /// Pan comes off the map x like `record.rs` did, remapped to the
-    /// engine's -1..1; y is kept for a later distance term.
+    /// The cues the model reports (`sfx_v`: kind, tile x/y, intensity)
+    /// plus the soundscape scan at the model's own ear. Pan comes off
+    /// the map x like `record.rs` did, remapped to the engine's -1..1;
+    /// y is kept for a later distance term.
     pub fn from_model(model: &UiModel) -> Self {
+        Self::from_model_with(model, &Listener::from_model(model))
+    }
+
+    /// The same intent at a caller's own ear - a client with a real
+    /// camera (or a scenario's `Look` op) passes its `Listener` in.
+    pub fn from_model_with(model: &UiModel, listener: &Listener) -> Self {
         AudioFrame {
             cues: model.sfx_v.iter()
                 .map(|(kind, x, _y, intensity)| {
@@ -101,6 +111,7 @@ impl AudioFrame {
                     CueKind::from_name(kind, pan, *intensity)
                 })
                 .collect(),
+            emitters: crate::soundscape::scan(model, listener),
             seed: model.seed,
         }
     }
@@ -165,9 +176,10 @@ enum Link {
     Offline { engine: Engine },
     /// `start()`: frames go down this bounded queue; a sink's callback
     /// renders them. `muted`, `mix` and `focused` are shared with the
-    /// device half
+    /// device half, `pending_bank` hands it a sample bank once set
     Live { frames: Arc<Mutex<VecDeque<AudioFrame>>>, muted: Arc<AtomicBool>,
-        mix: Arc<Mutex<Mix>>, focused: Arc<AtomicBool> },
+        mix: Arc<Mutex<Mix>>, focused: Arc<AtomicBool>,
+        pending_bank: Arc<Mutex<Option<crate::sampler::SampleBank>>> },
     /// `silent()`: every method is a no-op
     Silent,
 }
@@ -193,6 +205,17 @@ pub struct AudioHost {
     focused: bool,
     /// Where the background fade currently stands, 1 sounding to 0 gone
     focus_gain: f32,
+    /// A4's ambience mixer: beds, one-shot schedules and the duck
+    ambience: Ambience,
+    /// The latest pushed frame's emitters and seed, and a count of
+    /// frames pushed - the ambience update's arguments
+    cur_emitters: Vec<Emitter>,
+    cur_seed: u64,
+    frames_in: u64,
+    /// The last frame count the ambience update ran on - a second
+    /// render block on the same pushed frame mustn't re-draw its
+    /// Poisson fires
+    amb_frame: u64,
     link: Link,
 }
 
@@ -204,10 +227,14 @@ pub struct LivePump {
     muted: Arc<AtomicBool>,
     mix: Arc<Mutex<Mix>>,
     focused: Arc<AtomicBool>,
+    pending_bank: Arc<Mutex<Option<crate::sampler::SampleBank>>>,
 }
 
 impl LivePump {
     pub fn pump(&mut self, out: &mut [f32]) {
+        if let Some(bank) = self.pending_bank.lock().unwrap().take() {
+            self.core.set_bank(bank);
+        }
         {
             let mut q = self.frames.lock().unwrap();
             for f in q.drain(..) { self.core.push_frame(&f); }
@@ -233,6 +260,10 @@ impl AudioHost {
             muted: false,
             focused: true,
             focus_gain: 1.0,
+            ambience: Ambience::new(),
+            cur_emitters: vec![],
+            cur_seed: 0,
+            frames_in: 0, amb_frame: 0,
             link: Link::Offline { engine: Engine::new(sample_rate, 0) },
         }
     }
@@ -241,7 +272,9 @@ impl AudioHost {
     pub fn silent() -> Self {
         AudioHost { sr: 44100, pending: vec![], carry: 0.0,
             voices_peak: 0, mix: Mix::default(), muted: false,
-            focused: true, focus_gain: 1.0, link: Link::Silent }
+            focused: true, focus_gain: 1.0, ambience: Ambience::new(),
+            cur_emitters: vec![], cur_seed: 0, frames_in: 0, amb_frame: 0,
+            link: Link::Silent }
     }
 
     /// A live host: `sink` gets the render pump (a `LivePump` over the
@@ -253,12 +286,14 @@ impl AudioHost {
         let muted = Arc::new(AtomicBool::new(false));
         let mix = Arc::new(Mutex::new(Mix::default()));
         let focused = Arc::new(AtomicBool::new(true));
+        let pending_bank = Arc::new(Mutex::new(None));
         let mut pump = LivePump {
             core: AudioHost::offline(sink.sample_rate()),
             frames: frames.clone(),
             muted: muted.clone(),
             mix: mix.clone(),
             focused: focused.clone(),
+            pending_bank: pending_bank.clone(),
         };
         match sink.open(Box::new(move |out: &mut [f32]| pump.pump(out))) {
             Ok(()) => AudioHost {
@@ -270,7 +305,9 @@ impl AudioHost {
                 muted: false,
                 focused: true,
                 focus_gain: 1.0,
-                link: Link::Live { frames, muted, mix, focused },
+                ambience: Ambience::new(),
+                cur_emitters: vec![], cur_seed: 0, frames_in: 0, amb_frame: 0,
+                link: Link::Live { frames, muted, mix, focused, pending_bank },
             },
             Err(e) => {
                 eprintln!("audio: couldn't open the output device ({e}) - running silent");
@@ -281,6 +318,17 @@ impl AudioHost {
 
     /// Whether this host is the no-op fallback.
     pub fn is_silent(&self) -> bool { matches!(self.link, Link::Silent) }
+
+    /// Hand the engine its decoded assets (A4's ambience batch). On a
+    /// live host the bank crosses to the device half on its next
+    /// callback; on a silent host it drops.
+    pub fn set_bank(&mut self, bank: crate::sampler::SampleBank) {
+        match &mut self.link {
+            Link::Offline { engine } => engine.set_bank(bank),
+            Link::Live { pending_bank, .. } => *pending_bank.lock().unwrap() = Some(bank),
+            Link::Silent => {}
+        }
+    }
 
     /// The live queue, for the bridge tests: frames waiting on the device.
     pub fn live_queue(&self) -> Option<Arc<Mutex<VecDeque<AudioFrame>>>> {
@@ -297,7 +345,12 @@ impl AudioHost {
     /// the game loop never waits on audio.
     pub fn push_frame(&mut self, frame: &AudioFrame) {
         match &mut self.link {
-            Link::Offline { .. } => self.pending.extend_from_slice(&frame.cues),
+            Link::Offline { .. } => {
+                self.pending.extend_from_slice(&frame.cues);
+                self.cur_emitters.clone_from(&frame.emitters);
+                self.cur_seed = frame.seed;
+                self.frames_in += 1;
+            }
             Link::Live { frames, .. } => {
                 let mut q = frames.lock().unwrap();
                 if q.len() >= FRAME_QUEUE { q.pop_front(); }
@@ -375,8 +428,9 @@ impl AudioHost {
     }
 
     /// Render `out` (interleaved stereo, even length); queued cues
-    /// enter at the block's first sample on the Sfx bus. Live and
-    /// silent hosts render zeros - the device side owns the engine.
+    /// enter at the block's first sample on the Sfx bus, and the latest
+    /// pushed emitters drive the ambience mixer (A4). Live and silent
+    /// hosts render zeros - the device side owns the engine.
     pub fn render_block(&mut self, out: &mut [f32]) {
         match &mut self.link {
             Link::Offline { engine } => {
@@ -393,6 +447,11 @@ impl AudioHost {
                         VoiceParams { gain: gain * spec.gain,
                             pan: if spec.pan_from_pos { pan } else { 0.0 },
                             ..Default::default() });
+                }
+                if self.frames_in != self.amb_frame {
+                    self.amb_frame = self.frames_in;
+                    self.ambience.update(&self.cur_emitters, self.cur_seed,
+                        self.frames_in, engine);
                 }
                 engine.render(out);
                 self.voices_peak = self.voices_peak.max(engine.live_voices());

@@ -35,6 +35,9 @@ pub enum Source {
     /// A synthesized instrument note (M2): `patch` voices `midi` for
     /// its own `len()` seconds, then retires.
     NoteSynth { patch: crate::synth::SynthPatch, midi: u8 },
+    /// An own-synth ambience bed (A4): wind and rain's noise beds, no
+    /// asset - it plays until `stop`, like a `Bed`.
+    SynthBed(crate::synth::BedKind),
 }
 
 /// How a voice sounds: loudness, stereo place, speed, tone and how
@@ -67,6 +70,9 @@ struct Voice {
     params: VoiceParams,
     phase: f32,
     lp: f32,
+    /// The own-synth beds' second integrator: band-limits the white
+    /// draw so a bed doesn't crackle like a click storm (A4).
+    lp2: f32,
     /// When this voice started, in rendered samples - the oldest-
     /// first tiebreak for stealing.
     born: u64,
@@ -153,9 +159,11 @@ impl Reverb {
 }
 
 /// The soft clipper on Master: transparent under the knee, then a tanh
-/// shoulder that asymptotes at the -1 dBFS ceiling and can never pass
-/// it. A plain `tanh` would bend quiet material and fail the RMS test.
-const CEILING: f32 = 0.891250938; // 10^(-1/20)
+/// shoulder that asymptotes at the -1.5 dBFS ceiling and can never
+/// pass it - a -1 dBFS digital ceiling still overshoots -1 dBTP on the
+/// oversampled true-peak read. A plain `tanh` would bend quiet
+/// material and fail the RMS test.
+const CEILING: f32 = 0.841_395_14; // 10^(-1.5/20)
 const KNEE: f32 = 0.7;
 fn limit(x: f32) -> f32 {
     let a = x.abs();
@@ -248,7 +256,7 @@ impl Engine {
         };
         self.voices.push(Voice {
             id, src, bus: bi(bus), params,
-            phase: 0.0, lp: 0.0, born: self.clock, attack: self.fade_samples,
+            phase: 0.0, lp: 0.0, lp2: 0.0, born: self.clock, attack: self.fade_samples,
             samp, note,
         });
         VoiceId(id)
@@ -316,8 +324,20 @@ impl Engine {
     /// cap and the perf budget both read this.
     pub fn live_voices(&self) -> usize { self.voices.len() }
 
+    /// Whether `id` still holds a slot - the ambience mixer's per-kind
+    /// voice budget reads it.
+    pub fn alive(&self, id: VoiceId) -> bool { self.voices.iter().any(|v| v.id == id.0) }
+
+    /// Retune a live voice (the ambience mixer's eased bed gains and
+    /// duck): no-op once the voice is gone.
+    pub fn set_params(&mut self, id: VoiceId, params: VoiceParams) {
+        if let Some(v) = self.voices.iter_mut().find(|v| v.id == id.0) {
+            v.params = params;
+        }
+    }
+
     fn voice_sample(v: &mut Voice, sr: f32, rng: &mut Rng, age: u64,
-                    bank: &crate::sampler::SampleBank) -> f32 {
+                    bank: &crate::sampler::SampleBank, tail_n: u32) -> f32 {
         let s = match v.src {
             Source::Sine { hz } => {
                 let y = (v.phase * TAU).sin();
@@ -327,7 +347,22 @@ impl Engine {
             Source::Noise => rng.range(-1.0, 1.0),
             Source::Synth(kind) => {
                 let t = age as f32 / sr;
-                if t > kind.len() { 0.0 } else { kind.sample(t, rng.range(-1.0, 1.0)) }
+                if t > kind.len() { 0.0 } else {
+                    // the noise voices (rain hiss, splash, cheer, cart,
+                    // quill) crackle past the click bar on raw white
+                    // draws - band-limit like the synth beds do
+                    v.lp2 += 0.4 * (rng.range(-1.0, 1.0) - v.lp2);
+                    kind.sample(t, v.lp2)
+                }
+            }
+            Source::SynthBed(kind) => {
+                let t = age as f32 / sr;
+                // raw white draws crackle like clicks at bed loudness:
+                // a fixed integrator band-limits them, wind darker
+                // than rain, before the emitter's own lowpass shapes on
+                let a = kind.smooth();
+                v.lp2 += a * (rng.range(-1.0, 1.0) - v.lp2);
+                kind.sample(t, v.lp2)
             }
             Source::Sample { .. } | Source::Bed { .. } => {
                 let Some(sp) = v.samp.as_mut() else { return 0.0 };
@@ -346,10 +381,18 @@ impl Engine {
                         } else { sp.done = true; }
                     }
                     // the patch's own band-limit (the shawm)
-                    if sp.tone_a > 0.0 {
+                    let y = if sp.tone_a > 0.0 {
                         sp.tone_lp += sp.tone_a * (y - sp.tone_lp);
                         sp.tone_lp
-                    } else { y }
+                    } else { y };
+                    // a one-shot fades its last 5 ms rather than ending
+                    // mid-waveform - the same anti-click ramp as `stop`
+                    let tail = if sp.loop_end > sp.loop_start { 1.0 } else {
+                        let left = (sp.loop_end as f32 - sp.pos)
+                            / (sp.step * v.params.pitch).max(0.001);
+                        (left / tail_n as f32).clamp(0.0, 1.0)
+                    };
+                    y * tail
                 }
             }
             Source::NoteSynth { patch, midi } => {
@@ -380,7 +423,8 @@ impl Engine {
                     f
                 } else { 1.0 };
                 let age = self.clock + (i / 2) as u64 - v.born;
-                let s = Self::voice_sample(v, self.sr, &mut self.rng, age, &self.bank) * ramp;
+                let s = Self::voice_sample(v, self.sr, &mut self.rng, age, &self.bank,
+                    self.fade_samples) * ramp;
                 let th = (v.params.pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
                 let (l, r) = (s * th.cos(), s * th.sin());
                 if v.bus == bi(Bus::Master) { m[0] += l; m[1] += r; }
@@ -394,7 +438,8 @@ impl Engine {
             for d in self.dying.iter_mut() {
                 let fade = d.left as f32 / d.total as f32;
                 let age = self.clock + (i / 2) as u64 - d.v.born;
-                let s = Self::voice_sample(&mut d.v, self.sr, &mut self.rng, age, &self.bank) * fade;
+                let s = Self::voice_sample(&mut d.v, self.sr, &mut self.rng, age, &self.bank,
+                    self.fade_samples) * fade;
                 let th = (d.v.params.pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
                 let (l, r) = (s * th.cos(), s * th.sin());
                 if d.v.bus == bi(Bus::Master) { m[0] += l; m[1] += r; }
@@ -430,6 +475,8 @@ impl Engine {
             // like `Synth`, a note voice frees its slot at its tail
             Source::NoteSynth { patch, .. } =>
                 (clock - v.born) as f32 <= patch.len() * self.sr,
+            // an own-synth bed runs until `stop`, like a sampled bed
+            Source::SynthBed(_) => true,
             _ => true,
         });
     }

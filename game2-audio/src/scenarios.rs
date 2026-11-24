@@ -3,9 +3,10 @@
 //! a scenario is a test rig, so it may name `Game` and the harness
 //! verbs (`stage`, `force_event`, `force_road_march`); the audio path
 //! itself still sees only `UiModel`.
-use game2_core::session::{Command, Game};
+use game2_core::session::{Command, Game, UiModel};
 use game2_core::session::events::EventId;
 use game2_core::session::stage::Stage;
+use game2_core::sim::climate::{Climate, Season};
 
 /// What a scenario does to its game on one frame: the same verbs
 /// `record_video`'s scripts use (walk, camera, force_event, a road
@@ -17,6 +18,12 @@ pub enum Op {
     Look(i32, i32),
     /// Centre the listener on the market cross, wherever the seed put it
     LookMarket,
+    /// Centre the listener on the apiary's skeps (A4)
+    LookSkeps,
+    /// Centre the listener on the church (A4)
+    LookChurch,
+    /// Centre the listener on the wall's first gate (A4)
+    LookGate,
     /// Force a rare event now
     ForceEvent(EventId),
     /// Send the cause's column to site `si`
@@ -41,14 +48,101 @@ pub struct Scenario {
 
 fn quiet_village(seed: u64) -> Game { Game::new_seeded_cast(seed) }
 
-/// Every scenario by name. `quiet_village` is S3's; the later
-/// soundscape tickets add theirs here.
+/// Where a `Look` op puts the ear, in tile space: the fixed tiles are
+/// literal, the named spots resolve against the frame's model (the
+/// market's cross, the apiary's first skep, the church, the wall's
+/// first gate). Non-look ops resolve to nothing.
+pub fn look_spot(op: &Op, m: &UiModel) -> Option<(f32, f32)> {
+    use game2_core::game::tilemap::WallPiece;
+    use game2_core::session::BSprite;
+    match op {
+        Op::Look(x, y) => Some((*x as f32 + 0.5, *y as f32 + 0.5)),
+        Op::LookMarket => m.market
+            .or_else(|| m.stalls.first().map(|s| (s.0, s.1))),
+        Op::LookSkeps => m.skeps.first().copied(),
+        Op::LookChurch => m.buildings.iter()
+            .find(|b| b.sprite == BSprite::Church).map(|b| (b.x, b.y)),
+        Op::LookGate => m.map.walls.iter()
+            .find(|(_, p)| matches!(p, WallPiece::GateAlongX | WallPiece::GateAlongY))
+            .map(|(t, _)| (t.0 as f32 + 0.5, t.1 as f32 + 0.5)),
+        _ => None,
+    }
+}
+
+/// Run the sim until `cond` holds (bounded, so a dead schedule can't
+/// hang the harness) - the sanctioned `stage::run_days` mover.
+fn run_until(g: &mut Game, cond: impl Fn(&Game) -> bool, max_days: u64) {
+    for _ in 0..max_days {
+        if cond(g) { return; }
+        game2_core::session::stage::run_days(g, 1);
+    }
+}
+
+/// The apiary in spring: bees and birdsong carry the scene, so the
+/// build only needs the season a new game opens in.
+fn apiary_spring(seed: u64) -> Game { quiet_village(seed) }
+
+/// Holy day: run to the next holy morning and put the ear at the
+/// church - the bell, the chant's room, a hushed murmur.
+fn holy_day_church(seed: u64) -> Game {
+    let mut g = quiet_village(seed);
+    run_until(&mut g, |g| game2_core::session::routine::is_holy(g.tick), 14);
+    g
+}
+
+/// Market day at the cross: the crowd bed over the murmur.
+fn market_square(seed: u64) -> Game {
+    let mut g = quiet_village(seed);
+    run_until(&mut g, |g| game2_core::session::routine::is_market_day(g.tick), 40);
+    g
+}
+
+/// Winter at the gate: the world muffled by snow, the gate's creak as
+/// trains and folk pass. The climate component goes straight to
+/// winter (the harness's licence, like `stage`'s own edits) and the
+/// build waits for a day the precipitation system actually shows snow.
+fn winter_gate(seed: u64) -> Game {
+    let mut g = quiet_village(seed);
+    if let Some(c) = g.world.get_component_mut::<Climate>(g.climate) {
+        c.season = Season::Winter;
+        c.day = c.day / 360 * 360 + 300; // mid-winter in the 360-day year
+    }
+    g.harsh_winter = true;
+    run_until(&mut g, |g| {
+        g.ui_model().precip.is_some_and(|p| p.is_snow())
+            || g.ui_model().season != Season::Winter
+    }, 40);
+    g
+}
+
+/// Every scenario by name. `quiet_village` is S3's; A4's four play to
+/// the place-based soundscape's strengths.
 pub fn registry() -> Vec<Scenario> {
     vec![
         Scenario {
             name: "quiet_village",
             build: quiet_village,
             script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
+        },
+        Scenario {
+            name: "apiary_spring",
+            build: apiary_spring,
+            script: vec![ScriptOp { frame: 0, op: Op::LookSkeps }],
+        },
+        Scenario {
+            name: "holy_day_church",
+            build: holy_day_church,
+            script: vec![ScriptOp { frame: 0, op: Op::LookChurch }],
+        },
+        Scenario {
+            name: "market_square",
+            build: market_square,
+            script: vec![ScriptOp { frame: 0, op: Op::LookMarket }],
+        },
+        Scenario {
+            name: "winter_gate",
+            build: winter_gate,
+            script: vec![ScriptOp { frame: 0, op: Op::LookGate }],
         },
     ]
 }

@@ -301,3 +301,40 @@ impl SynthPatch {
         }
     }
 }
+
+/// An ambience bed with no sampled asset of its own (A4): the design
+/// calls for own-synth noise beds for wind and rain. These play
+/// open-endedly (`Source::SynthBed` never retires) and are voiced the
+/// same way the cue voices are - a -1..1 `noise` draw per sample from
+/// the engine's rng, so a scene renders identically every time.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BedKind {
+    /// Open air over the hills: broadband noise that swells and settles
+    /// on a slow cycle - the emitter's lowpass does the colouring.
+    Wind,
+    /// Falling water: brighter noise with a faint patter wobble.
+    Rain,
+}
+
+impl BedKind {
+    /// The integrator constant the engine band-limits this bed's
+    /// noise draw with - wind is darker than rain's brighter patter.
+    pub fn smooth(self) -> f32 {
+        match self { BedKind::Wind => 0.30, BedKind::Rain => 0.55 }
+    }
+
+    /// One sample of the bed at `t` seconds, `noise` a -1..1 draw.
+    /// Both beds keep their headroom low (the mixer's emitter gain
+    /// and the duck own the level).
+    pub fn sample(self, t: f32, noise: f32) -> f32 {
+        match self {
+            // gusts wander on ~7 s and ~1.6 s cycles, never to silence
+            BedKind::Wind => noise
+                * (0.55 + 0.30 * (2.0 * PI * 0.14 * t).sin()
+                    + 0.15 * (2.0 * PI * 0.61 * t + 1.7).sin())
+                * 0.35,
+            // steady hiss with a soft patter at ~11 Hz
+            BedKind::Rain => noise * (0.85 + 0.15 * (2.0 * PI * 11.0 * t).sin()) * 0.30,
+        }
+    }
+}

@@ -241,8 +241,11 @@ fn main() {
                 e
             }).ok()
         };
-        let host = client::audio::open_host(no_audio, &settings,
+        let mut host = client::audio::open_host(no_audio, &settings,
             sink.as_mut().map(|s| s as &mut dyn game2_audio::host::AudioSink));
+        // A4's ambience batch: whatever assets/sound holds (missing
+        // patches voice silence until the files land)
+        host.set_bank(game2_audio::sampler::load_dir(std::path::Path::new("assets/sound")));
         (sink, host)
     };
     #[cfg(not(all(feature = "audio", not(target_arch = "wasm32"))))]
@@ -633,6 +636,7 @@ fn main() {
                             if key == "effects" {
                                 audio_host.push_frame(&game2_audio::host::AudioFrame {
                                     cues: vec![game2_audio::host::CueKind::Bell { pan: 0.0, gain: 0.8 }],
+                                    emitters: vec![],
                                     seed: 0,
                                 });
                             }

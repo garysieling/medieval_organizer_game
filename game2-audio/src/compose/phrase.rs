@@ -148,7 +148,14 @@ impl Composer {
 
         let ending = if spec.resolved { Ending::Clos } else { Ending::Ouvert };
         let mut phrase = Phrase { notes: Vec::new(), ending, voices_changed };
-        if spec.section == Section::Silence || applied.iter().all(|&d| d <= 0.0) {
+        // An explicit all-zero request is quiet NOW (unlike a fade,
+        // which the transition reaches a voice at a time). The
+        // arranger still walks toward it, so music that returns
+        // re-enters the same way: one voice per phrase.
+        if spec.section == Section::Silence
+            || spec.density.iter().all(|&d| d <= 0.0)
+            || applied.iter().all(|&d| d <= 0.0)
+        {
             return phrase;
         }
 
@@ -260,10 +267,17 @@ impl Composer {
             Section::Peak | Section::Build => PatchId::Timpani,
             _ => PatchId::FolkHarp,
         };
-        let beats: &[u32] = if d > 0.55 {
-            &[0, 1, 2, 3]
+        // Busy ground plays every pulse; sparse ground plays beat 1
+        // and the bar's middle - the meter says how many there are.
+        let beats: Vec<u32> = if d > 0.55 {
+            (0..spec.meter.num as u32).collect()
         } else {
-            &[0, 2]
+            let mid = spec.meter.num as u32 / 2;
+            if mid > 0 {
+                vec![0, mid]
+            } else {
+                vec![0]
+            }
         };
         let beat = t.beat_samples();
         let Some(midi) = place(
@@ -273,17 +287,15 @@ impl Composer {
             return;
         };
         for bar in 0..8u64 {
-            for &b in beats {
-                if b < spec.meter.num as u32 {
-                    phrase.notes.push(NoteEvent {
-                        at_sample: bar * t.bar_samples() + b as u64 * beat,
-                        dur_samples: beat as u32,
-                        voice: Voice::Ground,
-                        midi: midi as f32,
-                        vel: 0.4 + 0.3 * d,
-                        patch,
-                    });
-                }
+            for &b in &beats {
+                phrase.notes.push(NoteEvent {
+                    at_sample: bar * t.bar_samples() + b as u64 * beat,
+                    dur_samples: beat as u32,
+                    voice: Voice::Ground,
+                    midi: midi as f32,
+                    vel: 0.4 + 0.3 * d,
+                    patch,
+                });
             }
         }
     }
@@ -354,37 +366,64 @@ impl Composer {
         let mut resolve_step: Option<i8> = None;
         for bar in 0..play_bars {
             let mut fig = figures[bar].clone();
-            // The strain steps back in: an entry that would leap a
-            // fourth or more and not resolve by stepping back the way
-            // it came is snapped onto the degree the last bar ended
-            // on - the figure keeps its shape, the boundary steps.
+            // The strain steps back in: a queued resolution walks the
+            // figure's head to the note it was owed, and an entry that
+            // would leap a fourth or more without resolving is snapped
+            // onto the degree the last bar ended on - the figure keeps
+            // its shape, the boundary steps.
             let entry = fig.degrees[0] as i32 - last_deg as i32;
             let resolves = fig.degrees.get(1).is_some_and(|&s| {
                 let st = s as i32 - fig.degrees[0] as i32;
                 st.abs() <= 2 && st.signum() == -entry.signum()
             });
-            if entry.abs() >= 3 && !resolves {
-                fig = fig.transpose(last_deg - fig.degrees[0]);
+            let want = match resolve_step.take() {
+                Some(r) => last_deg + r,
+                None if entry.abs() >= 3 && !resolves => last_deg,
+                None => fig.degrees[0],
+            };
+            if want != fig.degrees[0] {
+                fig = fig.transpose(want - fig.degrees[0]);
             }
             let base16 = bar as i32 * bar16;
             // The figure fills its bar whatever the meter holds: in a
             // short bar the rhythm compresses onto the sixteenth grid,
             // notes stay ordered, nothing spills into the next strain.
+            // A busy strain sings faster still - it compresses into
+            // the front of the bar so free notes can fill the tail;
+            // but if the squeeze costs the figure a note it takes the
+            // full bar instead.
             let total16: i32 = fig.rhythm.iter().map(|&r| r as i32).sum();
-            let mut t16 = 0i32;
-            let mut prev16 = -1i32;
-            for (i, &deg) in fig.degrees.iter().enumerate() {
-                let mut at16 = base16 + t16 * bar16 / total16;
-                at16 = at16.max(prev16 + 1);
-                if at16 >= base16 + bar16 || at16 >= punctus16 {
+            let want_free = d > 0.45;
+            let mut span16 = if want_free {
+                bar16 - (bar16 / 4).max(2)
+            } else {
+                bar16
+            };
+            let mark = events.len();
+            loop {
+                let mut t16 = 0i32;
+                let mut prev16 = -1i32;
+                for (i, &deg) in fig.degrees.iter().enumerate() {
+                    let mut at16 = base16 + t16 * span16 / total16;
+                    at16 = at16.max(prev16 + 1);
+                    if at16 >= base16 + span16 || at16 >= punctus16 {
+                        break;
+                    }
+                    let next16 = base16 + (t16 + fig.rhythm[i] as i32) * span16 / total16;
+                    let dur16 = (next16 - at16).max(1).min(base16 + span16 - at16);
+                    events.push(MelodyNote { at16, dur16, deg, cadence: false, fig: true });
+                    last_deg = deg;
+                    prev16 = at16;
+                    t16 += fig.rhythm[i] as i32;
+                }
+                if !want_free
+                    || events.len() - mark >= fig.degrees.len()
+                    || span16 == bar16
+                {
                     break;
                 }
-                let next16 = base16 + (t16 + fig.rhythm[i] as i32) * bar16 / total16;
-                let dur16 = (next16 - at16).max(1).min(base16 + bar16 - at16);
-                events.push(MelodyNote { at16, dur16, deg, cadence: false });
-                last_deg = deg;
-                prev16 = at16;
-                t16 += fig.rhythm[i] as i32;
+                span16 = bar16;
+                events.truncate(mark);
             }
             // Free notes fill what the figure left: step 70%, a 3rd
             // 20%, a leap of at most a 5th 10%, each leap resolved by
@@ -394,13 +433,27 @@ impl Composer {
                     if m.at16 / bar16 == bar as i32 { m.at16 - base16 + m.dur16 } else { 0 }
                 });
                 while fill16 + 2 <= bar16 {
-                    let step = free_step(rng, &mut resolve_step);
+                    let pending = resolve_step.is_some();
+                    let mut step = free_step(rng, &mut resolve_step);
+                    // the wandering walks home: a free note straying
+                    // from the motif's register turns back instead of
+                    // dragging the next figure's snap off compass
+                    if !pending
+                        && (last_deg > med0 as i8 + 1 && step > 0
+                            || last_deg < med0 as i8 - 1 && step < 0)
+                    {
+                        step = -step;
+                        if let Some(r) = resolve_step.as_mut() {
+                            *r = -*r;
+                        }
+                    }
                     last_deg += step;
                     events.push(MelodyNote {
                         at16: base16 + fill16,
                         dur16: 2,
                         deg: last_deg,
                         cadence: false,
+                        fig: false,
                     });
                     fill16 += 2;
                 }
@@ -441,7 +494,13 @@ impl Composer {
                 line.push(MelodyNote { cadence: false, ..*m });
             }
         }
-        line.push(MelodyNote { at16: end16, dur16: bar16, deg: deg_a, cadence: true });
+        line.push(MelodyNote {
+            at16: end16,
+            dur16: bar16,
+            deg: deg_a,
+            cadence: true,
+            fig: false,
+        });
         for m in &events {
             if m.at16 < end16 {
                 line.push(MelodyNote {
@@ -449,6 +508,7 @@ impl Composer {
                     dur16: m.dur16,
                     deg: m.deg,
                     cadence: false,
+                    fig: m.fig,
                 });
             }
         }
@@ -457,6 +517,7 @@ impl Composer {
             dur16: bar16,
             deg: deg_b,
             cadence: true,
+            fig: false,
         });
         line.sort_by_key(|m| m.at16);
 
@@ -487,59 +548,72 @@ impl Composer {
                         .all(|m| (lo..=hi).contains(&(m + 12 * k)))
                 })
         };
-        let mut pick: Option<(PatchId, i32, usize)> = None;
-        for p in [
-            patch, PatchId::RecorderSoprano, PatchId::RecorderAlto,
-            PatchId::RecorderTenor, PatchId::Vielle, PatchId::FolkHarp,
-            PatchId::Shawm,
-        ] {
-            let inst = p.instrument();
-            if let Some(k) = motif_k(inst) {
-                // coverage counts notes that sit UNFOLDED: octaves are
-                // legal, but a folded straggler next to a direct note
-                // can flip a leap's direction mid-figure
-                let (lo, hi) = inst.range();
-                let cov = midis
-                    .iter()
-                    .filter(|&&m| (lo as i32..=hi as i32).contains(&(m + 12 * k)))
-                    .count();
-                if pick.map_or(true, |(_, _, c)| cov > c) {
-                    pick = Some((p, k, cov));
+        // The motif's own instrument leads whenever the motif itself
+        // fits its compass at a centred octave; only when it can't
+        // does a substitute step in - the voice that holds the motif
+        // and covers the most of the line UNFOLDED (octaves are legal,
+        // but a folded straggler next to a direct note can flip a
+        // leap's direction mid-figure).
+        let (patch, line_k) = match motif_k(patch.instrument()) {
+            Some(k) => (patch, k),
+            None => {
+                let mut pick: Option<(PatchId, i32, usize)> = None;
+                for p in [
+                    PatchId::RecorderSoprano, PatchId::RecorderAlto,
+                    PatchId::RecorderTenor, PatchId::Vielle,
+                    PatchId::FolkHarp, PatchId::Shawm,
+                ] {
+                    let inst = p.instrument();
+                    if let Some(k) = motif_k(inst) {
+                        let (lo, hi) = inst.range();
+                        let cov = midis
+                            .iter()
+                            .filter(|&&m| {
+                                (lo as i32..=hi as i32).contains(&(m + 12 * k))
+                            })
+                            .count();
+                        if pick.map_or(true, |(_, _, c)| cov > c) {
+                            pick = Some((p, k, cov));
+                        }
+                    }
                 }
+                pick.map(|(p, k, _)| (p, k)).unwrap_or((patch, 0))
             }
-        }
-        let (patch, line_k) = pick.map(|(p, k, _)| (p, k)).unwrap_or((patch, 0));
+        };
         let inst = patch.instrument();
+        // The melody never folds a straggler: a note folded into the
+        // middle of a strain saws the line in two registers. What the
+        // lead can't reach unfolded, it rests.
+        let (lo, hi) = inst.range();
         let mut placed: Vec<Option<i32>> = midis
             .iter()
-            .map(|&m| place(m + 12 * line_k, inst))
+            .map(|&m| {
+                let m = m + 12 * line_k;
+                (lo as i32..=hi as i32).contains(&m).then_some(m)
+            })
             .collect();
 
-        // Emit, then drop any note whose fold still left a gap wider
-        // than a fifth to its neighbour (never a cadence - its
-        // neighbour goes instead).
+        // Emit, then rest any note that still sits a leap wider than
+        // a fifth from its neighbour (never a cadence - its neighbour
+        // goes instead).
         // Sixteenth slots divide the bar exactly - a truncated grid
         // would land cadences a few samples shy of the bar line.
         let at = |at16: i32| at16 as u64 * t.bar_samples() / bar16 as u64;
         let mut notes: Vec<NoteEvent> = Vec::new();
         let mut cadence: Vec<bool> = Vec::new();
+        let mut figv: Vec<bool> = Vec::new();
         let mut prev: Option<i32> = None;
         for (i, m) in line.iter().enumerate() {
             let pl = placed[i];
-            // A cadence sings its degree in the octave that lands
-            // best: near the strain it ends AND so the way out is a
-            // leap the next note can resolve. The repeat may enter an
-            // octave over (b_off) to make that exit clean - a resolvable
-            // exit outranks a clean landing, since the drop pass can
-            // silence a vaulting entry but nothing repairs an
-            // unresolved leap out of a cadence.
+            // A cadence sings its degree in the octave that costs the
+            // line least: a rough landing cascades rests backward
+            // through the strain's tail, a rough exit rests the
+            // repeat's head forward, a shifted repeat loses whatever
+            // leaves the compass - all counted in notes gone quiet.
+            // The octave that destroys least wins.
             let midi_opt = if m.cadence {
                 let (lo, hi) = inst.range();
                 let is_a = m.at16 == end16;
-                let next: Option<i32> =
-                    placed[i + 1..].iter().find_map(|o| *o);
-                let next2: Option<i32> =
-                    placed[i + 1..].iter().flatten().nth(1).copied();
                 let degs: &[i8] = if is_a || !spec.resolved {
                     &[2, 5]
                 } else {
@@ -555,28 +629,64 @@ impl Composer {
                             continue;
                         }
                         let entry = prev.map(|p| (p - c).abs()).unwrap_or(0);
+                        // notes the tail cascade would rest: the walk
+                        // back ends at the first gap inside a fifth
+                        let mut ecost = 0i32;
+                        for k in (0..notes.len()).rev() {
+                            if (notes[k].midi as i32 - c).abs() <= 7 {
+                                break;
+                            }
+                            ecost += 1;
+                        }
                         // the repeat may sit an octave over - the exit
-                        // is judged against the octave that leaves best
+                        // is judged against the notes that will still
+                        // sound after the shift, not the ones it kills
                         let offs: &[i32] = if is_a { &[0, 1, -1] } else { &[0] };
                         for &boff in offs {
-                            let n = next.map(|x| x + 12 * boff);
-                            let n2 = next2.map(|x| x + 12 * boff);
-                            let dirty = match n {
-                                Some(n) => {
-                                    let gap = n - c;
-                                    !(gap.abs() <= 7
-                                        && (gap.abs() < 5
-                                            || n2.map_or(false, |n2| {
-                                                let st = n2 - n;
-                                                st.signum() == -gap.signum()
-                                                    && st.abs() <= 4
-                                            })))
+                            let sv: Vec<i32> = line[i + 1..]
+                                .iter()
+                                .zip(placed[i + 1..].iter())
+                                .filter(|(m, _)| !m.cadence)
+                                .filter_map(|(_, o)| {
+                                    o.filter(|x| {
+                                        (lo as i32..=hi as i32)
+                                            .contains(&(x + 12 * boff))
+                                    })
+                                    .map(|x| x + 12 * boff)
+                                })
+                                .take(10)
+                                .collect();
+                            // the shift's dead notes, and the rests a
+                            // rough exit would ask of what survives
+                            let lost = line[i + 1..]
+                                .iter()
+                                .zip(placed[i + 1..].iter())
+                                .filter(|(m, o)| {
+                                    !m.cadence
+                                        && o.is_some()
+                                        && !(lo as i32..=hi as i32)
+                                            .contains(&(o.unwrap() + 12 * boff))
+                                })
+                                .count() as i32;
+                            let mut xcost = 0i32;
+                            for (k, &nv) in sv.iter().enumerate() {
+                                let gap = nv - c;
+                                let clean = gap.abs() <= 7
+                                    && (gap.abs() < 5
+                                        || sv.get(k + 1).map_or(false, |&n2| {
+                                            let st = n2 - nv;
+                                            st.signum() == -gap.signum()
+                                                && st.abs() <= 4
+                                        }));
+                                if clean {
+                                    break;
                                 }
-                                None => false,
-                            };
+                                xcost += 1;
+                            }
+                            let dead = lost > 0 && sv.is_empty();
                             let score = (
-                                dirty as i32,
-                                (entry > 7) as i32,
+                                dead as i32,
+                                lost + xcost + ecost,
                                 entry,
                                 boff.abs(),
                                 j.abs(),
@@ -641,6 +751,7 @@ impl Composer {
                     patch,
                 });
                 cadence.push(m.cadence);
+                figv.push(m.fig);
                 prev = Some(midi);
             }
         }
@@ -652,14 +763,48 @@ impl Composer {
         let bar = t.bar_samples();
         for _ in 0..64 {
             let mut changed = false;
-            // the fifth rule: no interval wider than a fifth survives;
-            // the leapt-to note rests (never a cadence).
+            // the fifth rule: no interval wider than a fifth survives,
+            // and a leap of a fourth or more must step back the way it
+            // came - the leapt-to note rests (never a cadence; a leap
+            // landing on one needs no resolve, the ending holds, and
+            // leaps inside a stated figure are the cell's own grammar).
             let mut i = 0;
             while i + 1 < notes.len() {
-                if (notes[i + 1].midi - notes[i].midi).abs() > 7.0 {
-                    let drop_i = if cadence[i + 1] { i } else { i + 1 };
+                let gap = notes[i + 1].midi - notes[i].midi;
+                let figpair = figv[i]
+                    && figv[i + 1]
+                    && notes[i].at_sample / bar == notes[i + 1].at_sample / bar;
+                let bad = if gap.abs() > 7.0 {
+                    true
+                } else if gap.abs() >= 5.0 && !cadence[i + 1] && !figpair {
+                    match notes.get(i + 2) {
+                        Some(nx) => {
+                            let st = nx.midi - notes[i + 1].midi;
+                            !(st.abs() <= 4.0 && st.signum() == -gap.signum())
+                        }
+                        None => false,
+                    }
+                } else {
+                    false
+                };
+                if bad {
+                    // cadences never rest; at a bar boundary the old
+                    // strain's tail vault goes, never the new bar's
+                    // head
+                    let drop_i = if cadence[i + 1]
+                        || notes[i].at_sample / bar != notes[i + 1].at_sample / bar
+                            && !cadence[i]
+                    {
+                        i
+                    } else {
+                        i + 1
+                    };
                     notes.remove(drop_i);
                     cadence.remove(drop_i);
+                    figv.remove(drop_i);
+                    if drop_i == i {
+                        i = i.saturating_sub(1);
+                    }
                     changed = true;
                 } else {
                     i += 1;
@@ -705,6 +850,7 @@ impl Composer {
                 } else if let Some(&j) = idx.iter().rev().find(|&&j| !cadence[j]) {
                     notes.remove(j);
                     cadence.remove(j);
+                    figv.remove(j);
                 }
                 changed = true;
                 break;
@@ -794,7 +940,11 @@ impl Composer {
         }
         let patch = PatchId::Lute;
         let inst = patch.instrument();
-        let strums: &[u32] = if d > 0.6 { &[0, 2] } else { &[0] };
+        let strums: Vec<u32> = if d > 0.6 && spec.meter.num > 1 {
+            vec![0, spec.meter.num as u32 / 2]
+        } else {
+            vec![0]
+        };
         let (Some(fifth), Some(root)) = (
             place(theory::midi(spec.tonic, spec.mode, Degree(5)), inst),
             place(theory::midi(spec.tonic, spec.mode, Degree(1)), inst),
@@ -802,18 +952,16 @@ impl Composer {
             return;
         };
         for bar in 0..8u64 {
-            for &b in strums {
-                if b < spec.meter.num as u32 {
-                    for midi in [root, fifth] {
-                        phrase.notes.push(NoteEvent {
-                            at_sample: bar * t.bar_samples() + b as u64 * t.beat_samples(),
-                            dur_samples: (t.beat_samples() / 2) as u32,
-                            voice: Voice::Harmony,
-                            midi: midi as f32,
-                            vel: 0.35 + 0.35 * d,
-                            patch,
-                        });
-                    }
+            for &b in &strums {
+                for midi in [root, fifth] {
+                    phrase.notes.push(NoteEvent {
+                        at_sample: bar * t.bar_samples() + b as u64 * t.beat_samples(),
+                        dur_samples: (t.beat_samples() / 2) as u32,
+                        voice: Voice::Harmony,
+                        midi: midi as f32,
+                        vel: 0.35 + 0.35 * d,
+                        patch,
+                    });
                 }
             }
         }
@@ -909,6 +1057,10 @@ struct MelodyNote {
     deg: i8,
     /// A punctus-ending note: never dropped by the leap pass.
     cadence: bool,
+    /// Part of a stated figure (the motif or its variation): the
+    /// leaps inside are the cell's own grammar - the resolve rule
+    /// only polices what the composer wrote around them.
+    fig: bool,
 }
 
 /// Recover the scale degree of a midi note (nearest diatonic step);

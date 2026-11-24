@@ -6,6 +6,7 @@ use game2_audio::compose::{
     free_step, notes_hash, tempo_band, Composer, Ending, Meter, MotifId, NoteEvent,
     Phrase, PhraseSpec, Section, Voice,
 };
+use game2_audio::instruments::PatchId;
 use game2_audio::rng::Rng;
 use game2_audio::theory::Mode;
 
@@ -359,6 +360,111 @@ fn cause_motif_shape() {
         if m.len() > 3 {
             assert!(iv(&m[2], &m[3]) < 0.0, "seed {seed}: hangs on the 7");
         }
+    }
+}
+
+#[test]
+fn quiet_request_silences_now() {
+    // an explicit all-zero spec mutes the phrase at once - the
+    // one-voice-per-phrase walk is for fades, not for a hard quiet
+    let mut c = Composer::new();
+    let mut s = spec(0);
+    let loud = c.compose_phrase(&s);
+    assert!(!loud.notes.is_empty());
+    s.density = [0.0; 8];
+    let p = c.compose_phrase(&s);
+    assert!(p.notes.is_empty(), "quiet spec still emitted {} notes", p.notes.len());
+}
+
+#[test]
+fn free_notes_fill_dense_bars() {
+    // above .45 the figure compresses and free notes fill the bar's
+    // tail; below it the figure alone fills the bar
+    let bar0_count = |d: f32| -> usize {
+        let mut s = spec(7);
+        s.density = [d; 8];
+        let bar = bar_samples(&s);
+        melody(&Composer::new().compose_phrase(&s).notes)
+            .iter()
+            .filter(|n| n.at_sample < bar)
+            .count()
+    };
+    let sparse = bar0_count(0.3);
+    let dense = bar0_count(0.8);
+    assert!(sparse > 0, "motif unstated at low density");
+    assert!(dense > sparse, "dense {dense} should out-sing sparse {sparse}");
+}
+
+#[test]
+fn lead_sings_when_the_motif_fits() {
+    // Old Faith's cell sits inside the psaltery's compass - its own
+    // lead must sing it, coverage or no
+    let mut s = spec(10);
+    s.mode = Mode::Lydian;
+    s.motif = MotifId::OldFaith;
+    let p = Composer::new().compose_phrase(&s);
+    let m = melody(&p.notes);
+    assert!(!m.is_empty(), "old faith unplayed");
+    assert_eq!(m[0].patch, PatchId::Psaltery);
+    // and where the lead can't hold the cell - Cause's 12st span on a
+    // 10st fife - a substitute steps in instead
+    s.motif = MotifId::Cause;
+    let p = Composer::new().compose_phrase(&s);
+    let m = melody(&p.notes);
+    assert!(!m.is_empty(), "cause unplayed");
+    assert!(
+        m.iter().all(|n| n.patch != PatchId::Fife),
+        "cause motif on a fife that can't hold it",
+    );
+}
+
+#[test]
+fn cadence_shift_keeps_the_repeat_sounding() {
+    // seed 6 D Lydian Village: the A-cadence must not pick a repeat
+    // octave that drops every note of punctus B's body
+    let mut s = spec(6);
+    s.mode = Mode::Lydian;
+    let p = Composer::new().compose_phrase(&s);
+    let bar = bar_samples(&s);
+    let m = melody(&p.notes);
+    for b in 4..7u64 {
+        assert!(
+            m.iter().any(|n| n.at_sample / bar == b),
+            "punctus B body bar {b} went silent",
+        );
+    }
+}
+
+#[test]
+fn ground_and_strum_follow_the_meter() {
+    // dense ground hits every pulse of whatever meter it plays in;
+    // the lute's second strum lands mid-bar
+    for meter in [Meter::SIX_EIGHT, Meter::TWO_FOUR] {
+        let mut s = spec(0);
+        s.meter = meter;
+        s.density = [0.0; 8];
+        s.density[Voice::Ground as usize] = 0.8;
+        s.density[Voice::Harmony as usize] = 0.8;
+        let p = Composer::new().compose_phrase(&s);
+        let bar = bar_samples(&s);
+        let beat = bar / meter.num as u64;
+        for b in 0..meter.num as u64 {
+            assert!(
+                p.notes.iter().any(|n| {
+                    n.voice == Voice::Ground && n.at_sample == b * beat
+                }),
+                "{:?} ground misses beat {b}",
+                meter,
+            );
+        }
+        assert!(
+            p.notes.iter().any(|n| {
+                n.voice == Voice::Harmony
+                    && n.at_sample == (meter.num as u64 / 2) * beat
+            }),
+            "{:?} strum misses mid-bar",
+            meter,
+        );
     }
 }
 

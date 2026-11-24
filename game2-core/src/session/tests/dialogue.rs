@@ -731,6 +731,41 @@ fn test_asking_what_weighs_on_them_draws_it_out() {
 }
 
 #[test]
+fn test_asking_the_old_days_tells_their_story() {
+    // a carried mark seeds the tale at talk-open (E4-8, #1426): the
+    // "old days" ask draws a Labov telling - the record's souls named,
+    // the parts in the frame's order, on the talk's record
+    let mut g = Game::new_seeded_cast(MAP_SEED);
+    let ph = g.world.resource::<crate::session::prehistory::Prehistory>().unwrap().clone();
+    let i = adults(&g).into_iter()
+        .find(|&i| !ph.marks_of(i).is_empty())
+        .expect("someone in the cast carries a mark");
+    let v = g.villagers[i];
+    let mark = ph.marks_of(i).into_iter()
+        .max_by(|a, b| a.severity.partial_cmp(&b.severity).unwrap()).unwrap();
+    let ev = ph.events[mark.id.0 as usize].clone();
+    let other = ev.touched.iter().find(|t| t.who != crate::session::prehistory::Who::Cast(i))
+        .map(|t| match t.who {
+            crate::session::prehistory::Who::Cast(s) => g.name_of(g.villagers[s]),
+            crate::session::prehistory::Who::Ephemeral(n) => n.to_string(),
+        });
+    warm_bond(&mut g, v);
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about the old days")
+        .unwrap_or_else(|| panic!("a marked past opens the tale ask: {:?}", menu));
+    g.talk_pick_at(0, Some(p));
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    let said = rec.lines.iter().find(|l| l.who == Some(v) && l.text.contains("years back"))
+        .unwrap_or_else(|| panic!("the telling lands on the record: {:?}",
+            rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>()));
+    if let Some(n) = other {
+        assert!(said.text.contains(&n), "{} tells of {}: {}", g.name_of(v), n, said.text);
+    }
+}
+
+#[test]
 fn test_a_too_deep_ask_costs_them_nerve() {
     // a question above the pair's openness reads as forward (E3-2):
     // the secret's own wear makes the ask listable, but asking a

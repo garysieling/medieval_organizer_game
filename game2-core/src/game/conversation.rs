@@ -174,11 +174,16 @@ pub struct Speaker {
     /// each unique in the village, each spent once a talk -
     /// `speaker_of` fills it off the persona
     pub idiolect: Option<crate::game::idiolect::Idiolect>,
+    /// The story they'd tell if asked (E4-8, #1426): their deepest
+    /// prehistory event and the frame their stake sets on it -
+    /// the talk-open seeds it where the world can resolve the record's
+    /// names; hand-made speakers carry none
+    pub story: Option<crate::game::storytelling::StorySeed>,
 }
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, slips_left: 0, joke: None, idiolect: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, slips_left: 0, joke: None, idiolect: None, story: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -2497,6 +2502,18 @@ pub fn converse_with_at(
                             // a covered fact tells in its own words at
                             // that depth, but only to the "what you keep"
                             // asks (Draw::Secret): the named-status asks
+                            // the tale itself (E4-8, #1426): a story ask's
+                            // answer is composed off the speaker's seed in
+                            // Labov's parts - no template, no `used` line
+                            if matches!(tp.draws, crate::game::dialogue_trees::Draw::Story)
+                                && pair[caller].story.is_some() {
+                                let (_, text) = crate::game::storytelling::tell(
+                                    pair[caller].story.as_ref().unwrap());
+                                say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: Act::Answer,
+                                    respond: Some(Respond::Reflect),
+                                    text, concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: None });
+                                continue;
+                            }
                             // keep their authored answers (E3-4, #1425)
                             let (at, _) = if matches!(tp.draws,
                                     crate::game::dialogue_trees::Draw::Secret) {

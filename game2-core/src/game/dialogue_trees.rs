@@ -4186,6 +4186,10 @@ pub enum Draw {
     Secret,
     /// A fact of the seat's live mystery, if one's still unheard
     Mystery,
+    /// Their story of a prehistory event, told in Labov's parts
+    /// (E4-8, #1426): the answer is composed off the speaker's
+    /// `story` seed, not picked from `tell`
+    Story,
 }
 
 /// The topics a Talk's ask-slot can open (#1189). Personal questions
@@ -4296,6 +4300,16 @@ pub const ASK_TOPICS: &[Topic] = &[
         tell: &["Born under this roof, like most of us.", "I've no great tale - the years just keep.",
             "Same story as the next one's, only mine.", "I came for the work and stayed for the quiet."],
         concepts: &["self", "history"], draws: Draw::No,
+    },
+    // the tale itself (E4-8, #1426): a prehistory story told in Labov's
+    // parts - the answer is composed off their `story` seed, not picked
+    Topic {
+        label: "the old days",
+        area: crate::game::conversation::Area::Heart,
+        tier: 1, needs: &["has_a_past"], any: &[], not: &["visitor"],
+        ask: &["Tell me of the old days - what do {2:subj} keep of them?", "What years does {2:poss} memory still carry?"],
+        tell: &["The old days keep what they keep.", "Long years back - the mind wanders there."],
+        concepts: &["self", "history", "past"], draws: Draw::Story,
     },
     // the deepest asks (E3-4, #1425): tier 3 - a kept secret tells in
     // the fact's own words when the carrier holds one, else these

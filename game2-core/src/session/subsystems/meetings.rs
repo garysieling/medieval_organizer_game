@@ -617,7 +617,12 @@ impl Game {
                     let pick = self.rng.next();
                     if let Some(r) = desires::next_reveal(&self.world, host_e, v, self.tick, pick) {
                         let (_, said) = desires::reveal_speech(self.cast_name(i), &r);
-                        self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
+                        let tag = desires::issue_tag(&self.world, v, &r);
+                        self.voiced.push((v, tag.clone()));
+                        // a complaint aired is company (#1442): the
+                        // speaker's heard, and every hearer whose own
+                        // trouble echoes it stands a little less alone
+                        self.parallel_push(v, &tag, came);
                         let pe = host_e;
                         if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                             self.toasts.push((
@@ -760,6 +765,19 @@ impl Game {
         self.log.push_ev(EvTag::new(Thread::Org, if warm { Valence::Positive } else { Valence::Neutral }, Sev::Minor), line);
     }
 
+    /// A complaint aired in the room is company (#1442): the speaker's
+    /// heard, and every hearer whose own live trouble echoes the tag
+    /// stands a little less alone - it lands on the act model
+    fn parallel_push(&mut self, speaker: Entity, tag: &desires::IssueTag, came: &[Entity]) {
+        crate::game::act_model::parallel_heard(&mut self.world, speaker, true);
+        for &u in came {
+            if u == speaker { continue; }
+            let shares = desires::live_pool(&self.world, u, self.tick).iter()
+                .any(|r| desires::issue_tag(&self.world, u, r) == *tag);
+            if shares { crate::game::act_model::parallel_heard(&mut self.world, u, false); }
+        }
+    }
+
     /// One attendee's answer to the probe (#1267), as deep as they trust
     /// the asker: a follower names who they do it for - the room hears
     /// the bond, and so does the lord's ear if it's in the room - a
@@ -811,7 +829,9 @@ impl Game {
                 .copied().unwrap_or(pool[at])
         } else { pool[at] };
         let (_, said) = desires::reveal_speech(&name, &r);
-        self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
+        let tag = desires::issue_tag(&self.world, v, &r);
+        self.voiced.push((v, tag.clone()));
+        self.parallel_push(v, &tag, came);
         if let Some(issue) = desires::hear(&mut self.world, asker, v, r, self.tick) {
             self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
             self.log_entity_ev(
@@ -919,6 +939,16 @@ impl Game {
                     let in_room = |e: Option<Entity>| e.map(|e| m.invited.contains(&e)).unwrap_or(false);
                     m.roles = (in_room(m.role_people[0]), in_room(m.role_people[1]),
                         in_room(m.role_people[2]), in_room(m.role_people[3]), in_room(m.role_people[4]));
+                    // a promised part counts kept when its keeper's in
+                    // the room (#1442): the efficacy credit lands on the
+                    // showing, not the saying
+                    let holders = self.world.get_component::<crate::game::organizing::MeetingPlan>(self.org)
+                        .map(|p| p.holders()).unwrap_or_default();
+                    for &v in &m.invited {
+                        if holders.contains(&v) {
+                            crate::game::act_model::ask_kept(&mut self.world, v);
+                        }
+                    }
                     m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());
                     self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);

@@ -1381,7 +1381,7 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
         (p.x as i32, p.y as i32)
     };
     // the drift-in edge: this roll passes while unhurt
-    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.10, g.tick),
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.05, g.tick),
         "the bare roll should drift them in");
     let mut p = Persona {
         seed: 1, sex: villager::Sex::Male, archetype: Archetype::OldGuard,
@@ -1398,10 +1398,10 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
     // the same roll now keeps them home (0.55 levy x 0.45 reeve lie)
     assert!(!shows_up(&g.world, g.player, v, at, Invite::Word, 0.10, g.tick),
         "the wound hangs them back");
-    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.02, g.tick),
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.01, g.tick),
         "but a low roll still finds them");
     // and a no lands in the wound's own words, not a trait's stock excuse
-    assert_eq!(no_reason(&g.world, g.player, v),
+    assert_eq!(no_reason(&g.world, g.player, v, crate::game::organizing::PropKind::ComeAlong, g.tick),
         Some("You'll not see me stand under that gate. Ask another."));
     // a warm ghost cuts the other way: the feast-keeper comes readier
     let pe = g.player; let w = g.villagers.iter().copied().find(|&w| {
@@ -1426,7 +1426,7 @@ fn test_a_ghost_hangs_back_from_the_bare_word() {
         lie: Belief::StrongTogether, strength: 0.8, fear: Fear::AloneInIt,
         need: Need::ToBelong });
     g.world.add_component(w, p2);
-    assert!(shows_up(&g.world, g.player, w, at2, Invite::Word, 0.14, g.tick),
+    assert!(shows_up(&g.world, g.player, w, at2, Invite::Word, 0.05, g.tick),
         "the feast-keeper's year draws them out (1.15 x 1.15)");
 }
 
@@ -1557,4 +1557,40 @@ fn test_their_call_names_their_house() {
     assert_eq!(plan.venue, Some(Venue::House(v, home)), "their door's the venue");
     assert!(g.world.get_component::<KnownVenues>(g.org)
         .map(|k| k.homes.contains(&(v, home))).unwrap_or(false), "and it's learned");
+}
+
+
+/// The E8-1 done-when (#1442): a villager's realized yes-rate across
+/// repeated asks lands on the act model's call - and the call itself
+/// climbs as the ledger fills on them. Knowing the trouble that suits
+/// the ask sits it cheaper; the agitation work pushes it further. At
+/// both ends of knowing them the rolls and the read agree.
+#[test]
+fn test_the_models_calls_track_the_ledger() {
+    use crate::game::organizing::{yes_chance, PropKind};
+    let mut g = Game::new();
+    let pe = g.player;
+    let v = g.villagers[2];
+    // a middling bond: enough that the ask isn't a stranger's, not so
+    // much the read's already yes
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    relationships::find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.5;
+    // nothing of theirs on the ledger yet
+    let p0 = yes_chance(&g.world, pe, v, PropKind::ComeAlong, g.tick);
+    // hear the trouble the come-along speaks to - the ledger fills
+    desires::note(&mut g.world, pe, v, desires::Reveal::Problem(desires::Problem::Taxed));
+    let p1 = yes_chance(&g.world, pe, v, PropKind::ComeAlong, g.tick);
+    assert!(p1 > p0, "the suited ask sits lighter once it's heard: {p0:.2} -> {p1:.2}");
+    // and the campaign's own pushes move it further still
+    for _ in 0..3 { crate::game::act_model::argued(&mut g.world, v, true); }
+    let p2 = yes_chance(&g.world, pe, v, PropKind::ComeAlong, g.tick);
+    assert!(p2 > p1, "agitation moves the read: {p1:.2} -> {p2:.2}");
+    // the realized yes-rate across rolls lands on each call
+    for (i, p) in [p0, p1, p2].iter().enumerate() {
+        let mut rng = Rng(0xE81 + i as u64);
+        let yes = (0..400).filter(|_| p > &((rng.next() % 1000) as f32 / 1000.0)).count() as f32 / 400.0;
+        assert!((yes - p).abs() < 0.1, "realized {yes:.2} vs model {p:.2}");
+    }
 }

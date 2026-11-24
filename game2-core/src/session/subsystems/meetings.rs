@@ -939,6 +939,16 @@ impl Game {
                     let in_room = |e: Option<Entity>| e.map(|e| m.invited.contains(&e)).unwrap_or(false);
                     m.roles = (in_room(m.role_people[0]), in_room(m.role_people[1]),
                         in_room(m.role_people[2]), in_room(m.role_people[3]), in_room(m.role_people[4]));
+                    // a promised part counts kept when its keeper's in
+                    // the room (#1442): the efficacy credit lands on the
+                    // showing, not the saying
+                    let holders = self.world.get_component::<crate::game::organizing::MeetingPlan>(self.org)
+                        .map(|p| p.holders()).unwrap_or_default();
+                    for &v in &m.invited {
+                        if holders.contains(&v) {
+                            crate::game::act_model::ask_kept(&mut self.world, v);
+                        }
+                    }
                     m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());
                     self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);

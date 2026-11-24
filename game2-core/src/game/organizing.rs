@@ -1532,7 +1532,9 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
         if p != PropKind::Introduce { plan_for(world, org).bought.push(person); }
         if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
         let msg = land_ask(world, org, person, p, name);
-        crate::game::act_model::ask_kept(world, person);
+        // a promised meeting part isn't kept until its keeper's in the
+        // room; the name on paper is kept in the signing (#1442)
+        if p == PropKind::SignPetition { crate::game::act_model::ask_kept(world, person); }
         return (format!("{} The coin changes hands.", msg), None);
     }
     if yes_chance(world, organizer, person, p, tick) <= roll {
@@ -1548,8 +1550,9 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, 0.01);
     if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
     let msg = land_ask(world, org, person, p, name);
-    // the kept ask builds the belief their part can matter (#1442)
-    crate::game::act_model::ask_kept(world, person);
+    // a promised meeting part isn't kept until its keeper's in the
+    // room; the name on paper is kept in the signing (#1442)
+    if p == PropKind::SignPetition { crate::game::act_model::ask_kept(world, person); }
     // a yes is a small warmth too - a pressed yes that lands warms more:
     // the gamble paid on both ends (#1225)
     let warmth = if key == AskKey::Nerve { 0.4 } else { 0.2 };

@@ -62,30 +62,45 @@ fn test_a_gift_feeds_the_hungry_and_warms_the_bond() {
 }
 
 #[test]
-fn test_a_shop_sells_you_what_it_makes() {
+fn test_a_shopkeepers_talk_sells_you_what_they_make() {
     let mut g = Game::new();
+    g.pending_quests.clear(); // no job offer to crowd the till's picks
     let pe = g.seats[0].player;
     g.world.get_component_mut::<Purse>(pe).unwrap().gold = 50.0;
-    // a shop with a worker and bread on the shelf, stood beside
+    // a shop with a worker and bread on the shelf; the buy runs through
+    // the keeper's talk now (#1339)
     let shop = g.building_entities.iter().copied().find(|&b|
         g.world.get_component::<Building>(b)
             .map(|bb| bb.worker.is_some() && matches!(bb.kind, BuildingKind::Shop(_))).unwrap_or(false))
         .expect("no working shop");
+    let worker = g.world.get_component::<Building>(shop).unwrap().worker.unwrap();
     {
         let bb = g.world.get_component_mut::<Building>(shop).unwrap();
         bb.stock.clear();
         bb.stock.insert("bread".into(), 3);
-        *g.world.get_component_mut::<Pos>(pe).unwrap() =
-            g.world.get_component::<Pos>(shop).map(|p| Pos { x: p.x + 1.0, y: p.y }).unwrap();
+        // stood beside the keeper, not the stones: the talk's what sells
+        let wp = g.world.get_component::<Pos>(worker).copied().unwrap();
+        *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: wp.x + 1.0, y: wp.y };
     }
-    g.seats[0].ctx_actions = vec![CtxAct::Buy];
-    g.ctx_act_at(0, 0);
+    let wi = g.villagers.iter().position(|&v| v == worker).unwrap();
+    g.talk_to_at(0, wi);
+    let i = { let t = g.seats[0].talk.as_ref().expect("the talk opens");
+        assert_eq!(t.wares, vec!["bread".to_string()], "the shelf's offer rides the picks");
+        t.job as usize };
+    g.talk_pick_at(0, Some(i));
     assert_eq!(g.world.get_component::<Satchel>(pe).unwrap().goods.get("bread").copied().unwrap_or(0), 1,
         "the bread never reached your bag");
     assert!(g.world.get_component::<Purse>(pe).unwrap().gold < 50.0, "the purse never paid");
     // and a broke purse gets told, not robbed
     g.world.get_component_mut::<Purse>(pe).unwrap().gold = 0.0;
-    g.ctx_act_at(0, 0);
+    g.talk_pick_at(0, Some(i));
     assert_eq!(g.world.get_component::<Satchel>(pe).unwrap().goods.get("bread").copied().unwrap_or(0), 1);
-    assert!(g.log.iter().any(|l| l.contains("can't cover")), "the refusal went unsaid");
+    assert!(g.seats[0].talk.as_ref().unwrap().notes.iter().any(|n| n.contains("can't cover")),
+        "the refusal went unsaid");
+    // and a bare shelf offers no wares: clear the stock and the pick's gone
+    g.world.get_component_mut::<Building>(shop).unwrap().stock.clear();
+    g.talk_pick_at(0, None);
+    g.talk_to_at(0, wi);
+    assert!(g.seats[0].talk.as_ref().unwrap().wares.is_empty(),
+        "a bare shelf still sells - the wares latched empty");
 }

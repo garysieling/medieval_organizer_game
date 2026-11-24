@@ -315,6 +315,11 @@ pub struct PlayerTalk {
     /// The act the offered replies answer (E5-4): a pick read against
     /// it is what a bid met, missed or refused moves
     pub call_act: Option<Act>,
+    /// The wares of a shopkeeper you're talking to (#1339): their till's
+    /// offer rides the picks just under the job's. The good names latch
+    /// at open so the numbers hold; the felt worth's priced live on the
+    /// row, and a bare shelf drops the pick on the next take
+    pub wares: Vec<String>,
 }
 
 /// The invitation's follow-up under way (#1337): they said they'd come
@@ -481,6 +486,8 @@ impl PlayerTalk {
                 .chain(std::iter::once("Let it drop".to_string())).collect();
         }
         self.job.then(|| "About that job - I'll take it.".to_string()).into_iter()
+            .chain(self.wares.iter()
+                .map(|g| format!("I'll take the {} - {:.0} gold", g, crate::game::goods::worth_at(world, g))))
             .chain(self.options.iter().map(|o| {
                 // the words that pick a fight say so (#1348)
                 if crate::game::persuasion::is_argumentative(&o.2)
@@ -1504,6 +1511,17 @@ impl Game {
                 opening.push(format!("{}: \"{}\"", villager.name, self.pending_ask_line(q)));
             }
         }
+        // a shopkeeper's till rides the picks too (#1339): talking to
+        // whoever minds a stocked shop is how you buy - the good names
+        // latch at open beside the job's offer
+        let wares = if rare.is_none() && near
+            && self.world.get_component::<crate::game::livelihood::Satchel>(pe).is_some() {
+            self.shop_worked_by(v)
+                .and_then(|b| self.world.get_component::<crate::game::household::Building>(b)
+                    .map(|bb| crate::game::household::on_offer_at(&self.world, bb)
+                        .into_iter().map(|(g, _, _)| g).collect()))
+                .unwrap_or_default()
+        } else { vec![] };
         let seed = self.tick.wrapping_mul(0x2545_F491) ^ ((v as u64) << 24) ^ self.talk_next_id;
         self.close_player_talk(seat, None);
         // they stop where they are for the talk: a walk under way would
@@ -1557,7 +1575,7 @@ impl Game {
             let_run: self.world.get_component::<crate::game::traits::Personality>(v)
                 .map(|p| p.traits.contains(&crate::game::traits::Trait::SelfAbsorbed))
                 .unwrap_or(false),
-            job, inviting: None,
+            job, wares, inviting: None,
             safety_bid: None, bid_passed: false, call_act: None,
         });
         self.refresh_player_talk(seat);
@@ -2190,15 +2208,20 @@ impl Game {
         // the bound counts it, then everything numbers one down into
         // the reply/ask space the rest of this reads
         let job = t.job;
+        // the till's wares ride under it (#1339): the bound counts
+        // them too, and their picks trade straight off
+        let wares = t.wares.len();
         let tell_at = n + asks + extra.is_some() as usize + probe_extra.is_some() as usize;
         let amends_at = tell_at + t.tell.is_some() as usize;
         let let_run_at = amends_at + t.amends as usize;
-        let Some(i) = pick.filter(|&i| i < let_run_at + t.let_run as usize + job as usize) else {
+        let Some(i) = pick.filter(|&i| i < let_run_at + t.let_run as usize + job as usize + wares) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
         };
         if job && i == 0 { self.talk_take_job(seat); return; }
         let i = i - job as usize;
+        if i < wares { self.talk_buy_at(seat, i); return; }
+        let i = i - wares;
         // the last pick, when it's there: tell them the mystery's answer
         if t.tell.is_some() && i == tell_at {
             self.talk_tell_mystery(seat);
@@ -2708,6 +2731,56 @@ impl Game {
         self.argue_line(seat, Some(who), ask);
         self.argue_line(seat, Some(pe), "About that job - I'll take it.".into());
         self.refresh_player_talk(seat);
+    }
+
+    /// The shop `v` minds, when their till holds an offer (#1339): the
+    /// building whose `worker` they are, stock on the shelf
+    fn shop_worked_by(&self, v: Entity) -> Option<Entity> {
+        self.building_entities.iter().copied().find(|&b| {
+            self.world.get_component::<crate::game::household::Building>(b)
+                .map(|bb| bb.worker == Some(v)
+                    && !crate::game::household::on_offer_at(&self.world, bb).is_empty())
+                .unwrap_or(false)
+        })
+    }
+
+    /// A ware pick (#1339): the keeper sells you the unit straight off
+    /// the list - their purse takes the gold, your bag the good, and the
+    /// trade's on the record. A shelf that's gone bare drops the row; a
+    /// light purse just says so
+    fn talk_buy_at(&mut self, seat: usize, i: usize) {
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let who = t.who;
+        let Some(good) = t.wares.get(i).cloned() else { return };
+        let pe = self.seats[seat].player;
+        let stocked = |g: &Game| g.building_entities.iter().copied().find(|&b|
+            g.world.get_component::<crate::game::household::Building>(b)
+                .map(|bb| bb.worker == Some(who)
+                    && bb.stock.get(good.as_str()).copied().unwrap_or(0) > 0)
+                .unwrap_or(false));
+        let sold = stocked(self)
+            .and_then(|b| crate::game::household::buy_at_shop(&mut self.world, b, pe, &good, 1));
+        match sold {
+            Some(paid) => {
+                self.argue_line(seat, Some(pe), format!("I'll take the {}.", good));
+                if stocked(self).is_none() {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.wares.retain(|w| *w != good);
+                    }
+                }
+                self.narrate_talk(seat, &format!("You buy the {} for {:.0} gold.", good, paid));
+            }
+            None => {
+                if stocked(self).is_none() {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.wares.retain(|w| *w != good);
+                    }
+                    self.narrate_talk(seat, &format!("The {}'s gone - the shelf's bare.", good));
+                } else {
+                    self.narrate_talk(seat, "You can't cover it - the purse is light.");
+                }
+            }
+        }
     }
 
     /// "I've pieced it together": the mystery told across the talk - your

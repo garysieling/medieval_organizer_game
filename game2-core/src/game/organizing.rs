@@ -188,8 +188,16 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity], day: 
         // they spoke at the meeting: the leader's bond with them grows a
         // talk's step, so a seat that hosted counts them as spoken to
         crate::game::player::note_conversation(world, leader, a, day);
+        // the table's company cuts the alone of it (#1442): a shared
+        // meal keeps more than the bare talk does
+        crate::game::act_model::company_kept(world, a, if world_has_hall { 1.5 } else { 1.0 });
         let trust = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(0.0);
-        if crate::sim::community::recruit(world, org, a, trust) {
+        // signing on is an act too: one the day's weights won't carry
+        // doesn't put a name to it, however warm the room was
+        let standing = crate::game::act_model::act_chance(world, leader, a,
+            crate::game::act_model::JOIN_COST
+                + crate::game::act_model::stranger_premium(world, leader, a), day);
+        if standing >= 0.30 && crate::sim::community::recruit(world, org, a, trust) {
             recruited += 1;
         }
         if world.get_component::<Organization>(org).map(|o| o.members.contains(&a)).unwrap_or(false) {
@@ -1172,8 +1180,8 @@ pub fn ask_label(world: &World, knower: Entity, person: Entity, o: &AskOffer) ->
 
 /// The trouble a suited ask quotes back (#1247): the first piece of
 /// their self-interest you've heard that this ask speaks to. It's the
-/// same check `yes_chance` reads for its +0.2, so the quote and the
-/// bonus land together or not at all
+/// same check `yes_chance` reads for its lighter cost, so the quote
+/// and the discount land together or not at all
 fn suited_trouble(world: &World, knower: Entity, person: Entity, p: PropKind) -> Option<String> {
     crate::game::desires::known(world, knower, person)
         .iter().find(|r| ask_suits(p, r)).map(their_trouble)
@@ -1358,22 +1366,19 @@ fn ask_suits(p: PropKind, r: &crate::game::desires::Reveal) -> bool {
     }
 }
 
-/// The chance a proposition lands: the stage they hold with you, lifted
-/// when the ask touches something you know they want, and quietly
-/// helped along by how practiced the organizer is at a 1-1.
-pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind) -> f32 {
-    let stage = stage_of(world, organizer, person);
-    let base = match stage {
-        RelStage::Stranger => 0.05,
-        RelStage::Acquaintance => 0.45,
-        RelStage::Known => 0.65,
-        RelStage::Follower | RelStage::CoLeader => 0.9,
-    };
+/// The chance a proposition lands: the act model's read (#1442) - the
+/// nine tensions their life and the campaign's pushes give them,
+/// weighed against the ask's cost. A well-aimed ask sits lighter when
+/// it touches something you know they want, and the practiced
+/// organizer makes every ask a little cheaper to say yes to.
+pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind, tick: u64) -> f32 {
     let suited = crate::game::desires::known(world, organizer, person)
         .iter().any(|r| ask_suits(p, r));
     let skill = world.get_component::<crate::game::org_skills::Organizing>(organizer)
         .map(|o| o.one_on_one).unwrap_or(0.0);
-    (base + if suited { 0.2 } else { 0.0 } + skill * 0.15).min(0.98)
+    let cost = (crate::game::act_model::ask_cost(p) - if suited { 0.15 } else { 0.0 }
+        - skill * 0.1 + crate::game::act_model::stranger_premium(world, organizer, person)).max(0.05);
+    crate::game::act_model::act_chance(world, organizer, person, cost, tick).min(0.98)
 }
 
 /// How far a voice carries in the room (#1249): a computed read, not a
@@ -1409,35 +1414,80 @@ pub fn pull_of(world: &World, v: Entity) -> f32 {
         + (rep - 0.45) * 0.8 + if mourns { 0.3 } else { 0.0 }).clamp(0.3, 2.2)
 }
 
-/// The excuse a declined ask earns (#1188): what you've heard of their
-/// burdens gives them a real reason to say not-yet - the reeve's eye,
-/// a mourning, a purse too thin - before a trait supplies one. None
-/// means a plain no.
-pub(crate) fn no_reason(world: &World, knower: Entity, person: Entity) -> Option<&'static str> {
-    use crate::game::desires::{Problem, Reveal};
-    let reason = crate::game::desires::known(world, knower, person)
-        .iter().find_map(|r| match r {
+/// Which weight on the scale speaks when the answer's no (#1442): the
+/// model's heaviest term asks its reason - the fear, the alone of it,
+/// the doubt, the ask's price, or that the work isn't theirs
+#[derive(Clone, Copy)]
+enum Refusal { Fear, Isolation, Doubt, Cost, Value }
+
+/// The excuse a declined ask earns (#1188, #1442): what you've heard of
+/// them gives them a real reason to say not-yet, and the act model
+/// picks which kind speaks - the heaviest of the scale's weights asks
+/// first. A villager you don't know stands behind the ask's price; the
+/// ghost's own reason can answer for the fear or the doubt. None means
+/// a plain no.
+pub(crate) fn no_reason(world: &World, knower: Entity, person: Entity, p: PropKind, tick: u64) -> Option<&'static str> {
+    let t = crate::game::act_model::tension_of(world, knower, person, tick);
+    let cost = crate::game::act_model::ask_cost(p)
+        + crate::game::act_model::stranger_premium(world, knower, person);
+    // the heaviest term speaks first; each asks only its own facts, so
+    // a reason you never heard can't answer for a weight it isn't. The
+    // real reasons run before the stock excuses: a wound or a burden
+    // always outranks what a trait would say
+    let mut whys = [
+        (t.fear, Refusal::Fear), (t.isolation, Refusal::Isolation),
+        (t.self_doubt, Refusal::Doubt), (cost, Refusal::Cost),
+        (t.inertia, Refusal::Value)];
+    whys.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    whys.iter().find_map(|&(_, w)| refusal_line(world, knower, person, w))
+        .or_else(|| whys.iter().find_map(|&(_, w)| refusal_trait(world, person, w)))
+}
+
+/// The facts a given refusal kind can speak for: the burdens you've
+/// been told, or the wound's own words - the earned reasons
+fn refusal_line(world: &World, knower: Entity, person: Entity, w: Refusal) -> Option<&'static str> {
+    use crate::game::desires::{Problem, Reveal, Want};
+    let known = crate::game::desires::known(world, knower, person);
+    match w {
+        Refusal::Fear => known.iter().find_map(|r| match r {
             Reveal::Problem(Problem::Taxed) => Some("the reeve's eye is on me already"),
+            Reveal::Problem(Problem::WritBorne) => Some("there's a writ with my name on it already"),
+            _ => None,
+        }).or_else(|| crate::game::fact_content::pressure_reason(world, person)),
+        Refusal::Isolation => known.iter().find_map(|r| match r {
             Reveal::Problem(Problem::Bereaved) => Some("I'm in mourning - not for gatherings"),
+            Reveal::Want(Want::Love) => Some("there's no one stands beside me in it"),
+            _ => None,
+        }),
+        Refusal::Doubt => known.iter().find_map(|r| match r {
+            Reveal::Problem(Problem::NoMaster) => Some("I've no craft worth a name on"),
+            _ => None,
+        }).or_else(|| crate::game::fact_content::pressure_reason(world, person)),
+        Refusal::Cost => known.iter().find_map(|r| match r {
             Reveal::Problem(Problem::NoHome) => Some("I've no roof of my own to keep"),
             Reveal::Problem(Problem::Broke) => Some("every hand's for the purse just now"),
             Reveal::Problem(Problem::Loss) => Some("I'm still counting what the wolves took"),
             Reveal::Problem(Problem::SourGut) => Some("this gut's not done with me yet"),
             _ => None,
-        });
-    // the wound's own reason (E3-4, #1425): a ghost or its lie answers
-    // the ask in words only that fact could explain - it outranks a
-    // trait's stock excuse but not a burden you've been told
-    reason.or_else(|| crate::game::fact_content::pressure_reason(world, person))
-        .or_else(|| world.get_component::<crate::game::traits::Personality>(person)
-        .and_then(|p| p.traits.iter().find_map(|t| match t {
-            crate::game::traits::Trait::Lazy => Some("that's work you're asking, and I'm short of it"),
-            crate::game::traits::Trait::Stingy => Some("mine's not for sharing out"),
-            crate::game::traits::Trait::Pious => Some("the church keeps my evenings"),
-            crate::game::traits::Trait::Proud => Some("I've a holding to keep - I'm nobody's recruit"),
-            crate::game::traits::Trait::Hotheaded => Some("you've a nerve, asking me that"),
-            _ => None,
-        })))
+        }),
+        Refusal::Value => None,
+    }
+}
+
+/// The stock excuses a trait supplies for its kind of no - weaker than
+/// any earned reason, they only speak when the facts hold their tongues
+fn refusal_trait(world: &World, person: Entity, w: Refusal) -> Option<&'static str> {
+    use crate::game::traits::Trait;
+    let lines: &[(Trait, &'static str)] = match w {
+        Refusal::Cost => &[(Trait::Stingy, "mine's not for sharing out")],
+        Refusal::Value => &[(Trait::Lazy, "that's work you're asking, and I'm short of it"),
+            (Trait::Pious, "the church keeps my evenings"),
+            (Trait::Proud, "I've a holding to keep - I'm nobody's recruit"),
+            (Trait::Hotheaded, "you've a nerve, asking me that")],
+        _ => return None,
+    };
+    world.get_component::<crate::game::traits::Personality>(person)
+        .and_then(|p| lines.iter().find(|(t, _)| p.traits.contains(t)).map(|(_, l)| *l))
 }
 
 /// Put the proposition: the yes records the promise on the org's plan
@@ -1482,13 +1532,14 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
         if p != PropKind::Introduce { plan_for(world, org).bought.push(person); }
         if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
         let msg = land_ask(world, org, person, p, name);
+        crate::game::act_model::ask_kept(world, person);
         return (format!("{} The coin changes hands.", msg), None);
     }
-    if yes_chance(world, organizer, person, p) <= roll {
+    if yes_chance(world, organizer, person, p, tick) <= roll {
         record_interaction(world, organizer, Interaction {
             other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
         note_declined(world, org, person, AskOffer { kind: p, key, price }, tick);
-        return match no_reason(world, organizer, person) {
+        return match no_reason(world, organizer, person, p, tick) {
             Some(why) => (format!("{} won't hear it - \"{}\"", name, why), None),
             None => (format!("{} won't hear it - not yet.", name), None),
         };
@@ -1497,6 +1548,8 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, 0.01);
     if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
     let msg = land_ask(world, org, person, p, name);
+    // the kept ask builds the belief their part can matter (#1442)
+    crate::game::act_model::ask_kept(world, person);
     // a yes is a small warmth too - a pressed yes that lands warms more:
     // the gamble paid on both ends (#1225)
     let warmth = if key == AskKey::Nerve { 0.4 } else { 0.2 };
@@ -1673,9 +1726,10 @@ pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i3
         .map(|o| o.turnout).unwrap_or(0.0);
     let mut p = (p + skill * 0.1).min(0.98);
     // a given yes is a yes, and a friend holding the door is reason
-    // enough; the bare word alone asks something still theirs to say
+    // enough; the bare word alone is the act model's own question
+    // (#1442) - will they move on nothing but the saying of it?
     if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, organizer, guest, tick).is_empty() {
-        p *= 0.25;
+        p *= crate::game::act_model::act_chance(world, organizer, guest, 0.45, tick);
     }
     // the wound's nerve when the word alone calls (E3-4, #1425): a
     // ghost that fears the gate halves their showing; the feast's

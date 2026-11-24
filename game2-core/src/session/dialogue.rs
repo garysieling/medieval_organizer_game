@@ -2878,6 +2878,9 @@ impl Game {
                 let outcome = persuasion::resolve(&self.world, pe, who, m, roll);
                 let mag = persuasion::magnitude(&self.world, pe, who, &issue, m, self.tick);
                 persuasion::push_argument(&mut self.world, who, &issue, stance, outcome, mag, self.tick);
+                // the argued case is the agitation itself (#1442): the
+                // trouble gains its urgency and its edge on the model
+                crate::game::act_model::argued(&mut self.world, who, outcome == Outcome::Won);
                 // how you argued it is a line they'll remember (#1236)
                 {
                     use crate::game::rhetoric::Line;

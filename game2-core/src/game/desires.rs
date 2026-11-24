@@ -934,7 +934,7 @@ pub fn catchup_speech(name: &str, r: &Reveal) -> (String, String) {
 
 /// What a person's carrying right now: their live problems and their
 /// unsatisfied wants - the pool every reveal draw works from
-fn live_pool(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
+pub(crate) fn live_pool(world: &World, e: Entity, tick: u64) -> Vec<Reveal> {
     let mut out: Vec<Reveal> = problems_of(world, e, tick).into_iter()
         .map(Reveal::Problem).collect();
     if let Some(life) = world.get_component::<InnerLife>(e) {

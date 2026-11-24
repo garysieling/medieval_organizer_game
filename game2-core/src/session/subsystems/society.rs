@@ -352,9 +352,12 @@ impl Game {
         }
         let orth = self.world.get_component::<Congregation>(self.congregation)
             .map(|c| c.orthodoxy).unwrap_or(0.0);
-        // a member readied for the denouncement shrugs off the shame (#1246)
-        if orth >= 0.7 && !crate::game::inoculation::take(&mut self.world, v, crate::game::inoculation::Counter::Denounce) {
-            self.apply_sanction(v, Sanction::Gossip, tick);
+        // a member readied for the denouncement shrugs off the shame (#1246);
+        // readied or raw, the move lands on their fear (#1442)
+        if orth >= 0.7 {
+            let ready = crate::game::inoculation::take(&mut self.world, v, crate::game::inoculation::Counter::Denounce);
+            crate::game::act_model::counter_lands(&mut self.world, v, ready);
+            if !ready { self.apply_sanction(v, Sanction::Gossip, tick); }
         }
     }
 
@@ -1754,6 +1757,9 @@ impl Game {
             .map(|p| (p.x, p.y)).unwrap_or((self.village.0 as f32, self.village.1 as f32));
         let route = self.street_route(head, 30);
         if route.len() < 4 { return; }
+        // the carried demand is the campaign's best argument for hope
+        // (#1442): everyone who walks it believes a little more
+        for &v in &folk { crate::game::act_model::win_witnessed(&mut self.world, v); }
         self.start_parade(folk, route, None);
         self.log.push_ev(
             EvTag::new(Thread::Org, Valence::Positive, Sev::Major),
@@ -3423,7 +3429,9 @@ impl Game {
                 // not one readied for the soft plea (#1246)
                 let n = members.len() / 10;
                 for &m in members.iter().rev().take(n) {
-                    if crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Plea) { continue; }
+                    let ready = crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Plea);
+                    crate::game::act_model::counter_lands(&mut self.world, m, ready);
+                    if ready { continue; }
                     if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
                         o.members.retain(|&x| x != m);
                     }
@@ -3722,9 +3730,12 @@ impl Game {
             if villager::is_dead(&self.world, m) { continue; }
             if self.penetration < 0.1 { break; }
             let caught = self.rng.next() % 1000 < (self.penetration * 120.0) as u64;
-            // readied for the denouncement, it doesn't take (#1246)
-            if caught && !crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Denounce) {
-                self.apply_penalty(0, m, "combining", tick);
+            // readied for the denouncement, it doesn't take (#1246) -
+            // though the attempt still lands on their fear (#1442)
+            if caught {
+                let ready = crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Denounce);
+                crate::game::act_model::counter_lands(&mut self.world, m, ready);
+                if !ready { self.apply_penalty(0, m, "combining", tick); }
             }
         }
     }
@@ -3801,8 +3812,11 @@ impl Game {
         self.oath_intensity = self.oath_intensity.saturating_sub(1);
         let damage = if self.front { 0.02 } else { 0.05 };
         for m in members {
-            // a member readied for the threat feels it at half (#1246)
-            let hit = if crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Threat) { damage / 2.0 } else { damage };
+            // a member readied for the threat feels it at half (#1246) -
+            // the fear push lands either way, lighter readied (#1442)
+            let ready = crate::game::inoculation::take(&mut self.world, m, crate::game::inoculation::Counter::Threat);
+            crate::game::act_model::counter_lands(&mut self.world, m, ready);
+            let hit = if ready { damage / 2.0 } else { damage };
             if let Some(b) = self.world.get_component_mut::<crate::sim::psychology::Bond>(m) {
                 b.security = (b.security - hit).max(0.0);
             }

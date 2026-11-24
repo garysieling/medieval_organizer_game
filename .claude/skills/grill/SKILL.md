@@ -116,7 +116,12 @@ recorded preferences (#1455):
 
 - **Dependency over question** - if a fork can be resolved by adding a
   `Needs` dependency between tickets, prefer the dependency and record
-  it on both issues instead of asking.
+  it on both issues instead of asking. Keep the chain on one
+  `queue-N`: dependency chains share a queue (the filing rule), so a
+  link across queues moves the dependent ticket onto its
+  prerequisite's queue - unless a side already carries claimed or
+  in-progress work, in which case record the fork on the issue and
+  leave the relabel for coordination.
 - **Auto-choose consistent** - pick the option consistent with the
   user's prior answers on earlier tickets; only ask when prior answers
   genuinely conflict or the choice changes gameplay/behavior they

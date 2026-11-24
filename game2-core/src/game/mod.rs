@@ -68,3 +68,4 @@ pub mod fact_content;
 pub mod text;
 pub mod talk_gen;
 pub mod idiolect;
+pub mod setting;

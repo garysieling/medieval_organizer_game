@@ -449,19 +449,24 @@ mod tests {
             turns: vec![
                 Turn { speaker: 0, act: Act::Greet, respond: None,
                     text: "Morrow, Tilda.".into(), concepts: vec![],
-                    tree: "t", line: Some("x") },
+                    tree: "t", line: Some("x"),
+                    channel: crate::game::setting::Channel::Public },
                 Turn { speaker: 1, act: Act::Greet, respond: None,
                     text: "Good day.".into(), concepts: vec![],
-                    tree: "t", line: Some("x") },
+                    tree: "t", line: Some("x"),
+                    channel: crate::game::setting::Channel::Public },
                 Turn { speaker: 0, act: Act::Answer, respond: None,
                     text: "The ditch wants digging.".into(),
-                    concepts: vec![], tree: "t", line: Some("x") },
+                    concepts: vec![], tree: "t", line: Some("x"),
+                    channel: crate::game::setting::Channel::Public },
                 Turn { speaker: 0, act: Act::Answer, respond: None,
                     text: "And the roof wants thatch.".into(),
-                    concepts: vec![], tree: "t", line: Some("x") },
+                    concepts: vec![], tree: "t", line: Some("x"),
+                    channel: crate::game::setting::Channel::Public },
             ],
             ending: None, vibe: None, asked: vec![], forward: 0,
             shared: 0, overshot: false,
+            setting: crate::game::setting::STREET,
         };
         apply(&mut tr, &[a, b], usize::MAX);
         assert_eq!(tr.turns[0].text, "Morrow, Tilda - as the mill grinds.");

@@ -3,7 +3,7 @@
 //! relations, run through `converse` - shared so the `--json` corpus
 //! and the talk checks generate the same talks.
 
-use crate::game::conversation::{converse, Relation, Rng, Speaker, Transcript};
+use crate::game::conversation::{converse_at, Relation, Rng, Speaker, Transcript};
 use crate::game::dialogue_trees::village_library;
 use crate::game::relationships::RelKind;
 use crate::game::traits::Trait;
@@ -49,6 +49,9 @@ pub struct GenTalk {
     pub b: usize,
     pub relation: Relation,
     pub kind: Option<RelKind>,
+    /// Where the talk stood (E5-9, #1446): the corpus seeds a spread of
+    /// places so the same speaker is heard in both transcripts
+    pub setting: crate::game::setting::Setting,
     pub transcript: Transcript,
 }
 
@@ -135,8 +138,24 @@ pub fn gen_conversations(num_characters: usize, num_conversations: usize, seed: 
             let b = (char_idx + other_offset) % num_characters;
             let relation = RELATIONS[rng.below(RELATIONS.len())];
             let kind = kind_for(&mut rng, relation);
-            let t = converse(char_a, &roster[b], relation, kind, &library, None, &mut rng);
-            talks.push(GenTalk { a: char_idx, b, relation, kind, transcript: t });
+            // E5-9 (#1446): a spread of places - the street and market
+            // for the public transcript, the alehouse, kitchen and
+            // field for the hidden one (the bond decides if it opens),
+            // and the law's ear on a few backstage talks to flip them
+            // public again
+            let setting = crate::game::setting::Setting {
+                place: match rng.below(10) {
+                    0 | 1 => crate::game::setting::Place::Market,
+                    2 => crate::game::setting::Place::ChurchDoor,
+                    3 | 4 | 5 => crate::game::setting::Place::Alehouse,
+                    6 | 7 => crate::game::setting::Place::Kitchen,
+                    _ => crate::game::setting::Place::Field,
+                },
+                law_earshot: rng.below(8) == 0,
+                invited: false,
+            };
+            let t = converse_at(char_a, &roster[b], relation, kind, &library, None, &setting, &mut rng);
+            talks.push(GenTalk { a: char_idx, b, relation, kind, setting, transcript: t });
         }
     }
     GenCorpus { roster, talks }

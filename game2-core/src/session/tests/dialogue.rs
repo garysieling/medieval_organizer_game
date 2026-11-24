@@ -1218,8 +1218,10 @@ fn test_the_acts_say_how_the_chat_landed() {
         turns: acts.iter().map(|&(speaker, act)| Turn {
             speaker, act, respond: None, text: "x".into(), concepts: vec![],
             tree: "t", line: None,
+            channel: crate::game::setting::Channel::Public,
         }).collect(),
         ending, vibe: None, asked: vec![], forward: 0, shared: 0, overshot: false,
+        setting: crate::game::setting::STREET,
     };
     // a warm exchange
     assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],

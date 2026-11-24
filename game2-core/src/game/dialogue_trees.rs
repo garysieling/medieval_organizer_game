@@ -116,6 +116,18 @@ const SMALL_WORK: Exchange = Exchange {
             respond: None,
             lines: &["Well enough - {trade} keeps my hands full and my belly fuller.", "It goes, by the saints' grace. {trade} is kind to a steady hand.", "Fair season for it - {trade} has not wanted for custom.", "Slow mornings, honest evenings - that is {trade} for {2:obj}."],
             voice: &[
+                // the two transcripts (E5-9, #1446): backstage the
+                // work's grievance comes out; in public the answer's
+                // loyal enough for the law's ear
+                Voice { criteria: &[Has("pair:channel:backstage")], lines: &[
+                    "The lord's field eats my best hours, {other} - {trade} gets what's left.",
+                    "Work's work - but the reeve counts my sacks twice over, that I'd tell {2:obj} here.",
+                    "It goes - though half of {trade} belongs to the manor before my own table sees it.",
+                ] },
+                Voice { criteria: &[Has("pair:channel:public")], lines: &[
+                    "Honest work for honest pay at {trade} - can't complain, and wouldn't.",
+                    "The lord's acres are kind to a steady hand, {addr} - I'll say it anywhere.",
+                ] },
                 Voice { criteria: &[Has("self:status:hungry")], lines: &["Thin fare at {trade}, truth be told - but it goes."] },
                 Voice { criteria: &[Has("self:status:newborn")], lines: &["Busy as it's ever been - {trade} and a new babe both."] },
                 Voice { criteria: &[Has("pair:relation:kin")], lines: &["The work goes, kin - mother would be proud of {trade}."] },
@@ -153,7 +165,23 @@ const SMALL_GOSSIP: Exchange = Exchange {
             act: Act::Remark, concepts: &["gossip"],
             respond: None,
             lines: &["{2:subj} {2:do} not say it! What happened then?", "Aye? And what else did folk see?", "Tell on, neighbor - my ears are open.", "I knew that bridge would give way sooner or later."],
-            voice: &[],
+            voice: &[
+                // the two transcripts (E5-9, #1446): backstage the
+                // talk names power plainly; in public the same ears
+                // hear deference - "the lord's fair, as lords go"
+                Voice { criteria: &[Has("pair:channel:backstage")], lines: &[
+                    "The lord's share grows a little fatter every year, and nobody says it plain. Here, I'll say it.",
+                    "The reeve's scales lean a half-pound to the manor's side - we all pay for the tilt.",
+                    "They call it God's tithe. It's the manor's appetite, is what it is.",
+                    "His lordship counts our sacks twice - once for the barn, once for his own.",
+                ] },
+                Voice { criteria: &[Has("pair:channel:public")], lines: &[
+                    "The lord's a fair master, as lords go - I'll say that anywhere.",
+                    "The reeve's hard but the law's the law - keeps us all honest.",
+                    "God keep the lord and his men. They keep the peace, they say.",
+                    "Aye, the tithe's the tithe. It was ever so, and ever will be.",
+                ] },
+            ],
             then: Some(SMALL_GOSSIP_MORE), end: None,
         },
         Reply {
@@ -173,6 +201,14 @@ const SMALL_GOSSIP: Exchange = Exchange {
             respond: None,
             lines: &["I told the rain to stop and it came down the harder. So much for commanding the weather.", "My wife says I snore like the mill at full grind. I tell her the mill learned it from me.", "The cat catches nothing and eats like a deacon. We've a prior in the house."],
             voice: &[
+                // E5-9 (#1446): backstage is where power's name is safe
+                // to laugh at - the channel, not the kin count, is the
+                // honest gate the comment below meant
+                Voice { criteria: &[Has("pair:channel:backstage")], lines: &[
+                    "The tax man weighed my goose twice - once for the count, once for his supper.",
+                    "The reeve says the village is his family. Then let him eat our bread - there's little enough.",
+                    "The lord's man writes everything down, they say - shame he can't read what he's owed us.",
+                ] },
                 Voice { criteria: &[Has("pair:relation:friend")], lines: &["The reeve's horse eats better than my children. Mind, it works harder.", "The priest's sermon ran so long the candles asked for mercy."] },
                 Voice { criteria: &[Has("pair:relation:kin")], lines: &["The lord's feast had more ale than harvest - I'll say it to {2:obj} and no further.", "The reeve counts our sheep twice over - practices, I hear, on his own children."] },
                 Voice { criteria: &[Has("self:status:drunk")], lines: &["Ale's the only thing that listens to me - and even it makes me pay."] },
@@ -188,7 +224,15 @@ const SMALL_GOSSIP: Exchange = Exchange {
             act: Act::Evade, concepts: &["gossip", "evade"],
             respond: None,
             lines: crate::game::conversation::DEFLECTED,
-            voice: &[],
+            voice: &[
+                // E5-9 (#1446): a public deflection names the public -
+                // the transcript's kept where the law can't hear
+                Voice { criteria: &[Has("pair:channel:public")], lines: &[
+                    "Careful - walls have ears, {addr}.",
+                    "That's kitchen talk, not street talk.",
+                    "Hush - some things are best said where the law can't hear.",
+                ] },
+            ],
             then: Some(SMALL_GOSSIP_MORE), end: None,
         },
         Reply {

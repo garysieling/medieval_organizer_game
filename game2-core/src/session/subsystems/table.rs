@@ -104,6 +104,10 @@ impl Game {
         with.extend(house.iter().copied());
         let opening = TalkLine { who: None, name: String::new(), text: format!("You sit down at the table in {}.", roof), gist: false };
         let talk_id = self.push_talk(TalkKind::Meal, with, vec![opening]);
+        // the kitchen table's the hidden transcript's own room (E5-9)
+        if let Some(r) = self.talk_record_mut(talk_id) {
+            r.setting = crate::session::dialogue::HOUSE_SETTING;
+        }
         self.seats[seat].tables_laid.retain(|&(_, t)| tick < t + TABLE_GAP_DAYS);
         self.seats[seat].tables_laid.push((home, tick));
         let at = self.world.get_component::<villager::Pos>(pe).map(|p| (p.x, p.y)).unwrap_or_default();

@@ -32,7 +32,7 @@ use std::collections::VecDeque;
 use std::io::{self, BufRead, Write};
 
 use game2_core::game::conversation::{
-    converse_with, run_meeting, Act, Choice, Ending, MeetingLine, Relation, Rng, Speaker,
+    converse_with, converse_with_at, run_meeting, Act, Choice, Ending, MeetingLine, Relation, Rng, Speaker,
 };
 use game2_core::game::dialogue_trees::{backstory, meeting_pool, village_library, MEET_PROMPT, MEET_RITES};
 use game2_core::game::traits::Trait;
@@ -576,17 +576,32 @@ fn run_batch(a: &Args, out: &mut Out) {
         let (ia, ib) = (i % roster.len(), (i + 1 + rng.below(roster.len() - 1)) % roster.len());
         let (x, y) = if ia < ib { (ia, ib) } else { (ib, ia) };
         let rel = rels[rng.below(rels.len())];
+        // E5-9 (#1446): a spread of places - the street and market for
+        // the public face, the alehouse and kitchen for the hidden one
+        // (the batch's friends and kin get let backstage by the bond),
+        // the law's ear on a few to flip backstage public again
+        let setting = game2_core::game::setting::Setting {
+            place: match rng.below(10) {
+                0 | 1 => game2_core::game::setting::Place::Market,
+                2 => game2_core::game::setting::Place::ChurchDoor,
+                3 | 4 | 5 => game2_core::game::setting::Place::Alehouse,
+                6 | 7 => game2_core::game::setting::Place::Kitchen,
+                _ => game2_core::game::setting::Place::Field,
+            },
+            law_earshot: rng.below(8) == 0,
+            invited: false,
+        };
         let cseed = a.seed.wrapping_mul(31).wrapping_add(i as u64);
         // auto-pick with the run's own rng, recording the picks
         let mut prng = Rng::new(cseed);
         let mut made: Vec<usize> = vec![];
-        let tr = converse_with(&roster[x], &roster[y], rel, None, &lib, None, 1, &mut |ch: &[Choice]| {
+        let tr = converse_with_at(&roster[x], &roster[y], rel, None, &lib, None, 1, &setting, &mut |ch: &[Choice]| {
             let p = prng.below(ch.len());
             made.push(p);
             Some(p)
         }, &mut Rng::new(cseed));
-        out.emit(&format!("## {} and {} - {:?} (seed {cseed}, picks {:?})",
-            roster[x].name, roster[y].name, rel, made));
+        out.emit(&format!("## {} and {} - {:?} at {} ({:?}) (seed {cseed}, picks {:?})",
+            roster[x].name, roster[y].name, rel, tr.setting.place.slug(), tr.setting.channel(), made));
         out.emit(&format!("them: {}", backstory(&roster[x])));
         out.emit(&format!("you : {}\n", backstory(&roster[y])));
         for t in &tr.turns {

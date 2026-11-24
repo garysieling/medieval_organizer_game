@@ -921,6 +921,12 @@ impl Game {
             use crate::engine::ecs::System;
             crate::sim::religion::DevotionSystem.run(&mut self.world);
         });
+        // what the day didn't pull on, time softens (E8-4, #1454)
+        crate::timed!("sim.tension", {
+            for &v in villagers.iter() {
+                crate::game::tension::rest(&mut self.world, v);
+            }
+        });
         // and the weather rolls through: an event thins the fields and
         // chills or scorches the bones while it lasts
         let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");

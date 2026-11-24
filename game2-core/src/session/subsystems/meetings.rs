@@ -972,6 +972,27 @@ impl Game {
                                 crate::game::beliefs::Tested::PromiseKept,
                                 Some(self.seats[m.seat].player), self.tick);
                         }
+                        // the org's ask over a bare house: a member who
+                        // comes with their own problem still live strains
+                        // against their own interest (E8-4, #1454)
+                        if self.world
+                            .get_component::<crate::sim::community::Organization>(self.org)
+                            .map(|o| o.members.contains(&v)).unwrap_or(false) {
+                            use crate::game::desires::Problem;
+                            let bare = crate::game::desires::problems_of(&self.world, v, self.tick)
+                                .iter().any(|p| matches!(p,
+                                    Problem::Broke | Problem::NoHome | Problem::NoWorkplace));
+                            if bare {
+                                crate::game::tension::strained(&mut self.world, v,
+                                    crate::game::tension::Axis::Interest, 0.05);
+                            } else {
+                                crate::game::tension::eased(&mut self.world, v,
+                                    crate::game::tension::Axis::Interest, 0.02);
+                            }
+                            if let Some(a) = crate::game::tension::giving(&self.world, v) {
+                                self.tension_flip(v, a, self.tick);
+                            }
+                        }
                     }
                     m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());
                     self.meeting_beats(&mut m);

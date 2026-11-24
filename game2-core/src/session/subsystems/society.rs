@@ -1761,15 +1761,95 @@ impl Game {
     /// each lie that hears it moves, and a ghost that turns says so in
     /// the moment - the line is theirs, the log carries it. `pe` is the
     /// organizer the memory files toward
+    ///
+    /// The same outcome feeds the day's tension (E8-4, #1454): a member
+    /// doing work their own ghost calls futile strains against their
+    /// belief, an establishment self strains against the rebel work, and
+    /// a soul outside whose issue the cause lifts strains toward it.
     pub(in crate::session) fn test_lies(&mut self, scope: &[Entity],
         t: crate::game::beliefs::Tested, pe: Option<Entity>, tick: u64) {
+        use crate::game::tension::{self, Axis};
+        let members: Vec<Entity> = self.world
+            .get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        // the issue the cause stands on - the watcher's stake in it is
+        // what the issue strain hangs on
+        let cause_issue = self.world.query::<crate::game::campaign::Campaign>().iter()
+            .copied()
+            .find(|&c| self.world.get_component::<crate::game::campaign::Campaign>(c)
+                .map(|cc| cc.org == self.org).unwrap_or(false))
+            .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+            .map(|c| c.issue.clone());
         for &v in scope {
             if let Some(lie) = crate::game::beliefs::tested_by(&mut self.world, v, t, pe, tick) {
                 let n = self.name_of(v);
                 self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
                     format!("t{}: {n} - \"{}\"", tick, crate::game::beliefs::turn_line(lie)));
             }
+            if members.contains(&v) {
+                // the cause's proof against their lie is their own work
+                // against their own lesson - dissonant days pull belief
+                if let Some(lie) = self.world
+                    .get_component::<crate::game::persona::Persona>(v)
+                    .and_then(crate::game::beliefs::strongest_lie) {
+                    let s = crate::game::beliefs::hears(lie, t);
+                    if s < 0.0 { tension::strained(&mut self.world, v, Axis::Belief, 0.08); }
+                    else if s > 0.0 { tension::eased(&mut self.world, v, Axis::Belief, 0.04); }
+                }
+                // the establishment self at rebel work - who they are
+                // fights what they're doing
+                let staid = self.world
+                    .get_component::<crate::game::persona::Persona>(v)
+                    .map(|p| matches!(p.archetype,
+                        crate::game::persona::Archetype::OldGuard
+                        | crate::game::persona::Archetype::QuietHand))
+                    .unwrap_or(false);
+                if staid { tension::strained(&mut self.world, v, Axis::Identity, 0.05); }
+                else { tension::eased(&mut self.world, v, Axis::Identity, 0.02); }
+            } else if let Some(tag) = &cause_issue {
+                // the cause lifts what's on them while they watch from
+                // outside - staying out strains against the issue
+                if crate::game::campaign::stake_for(&self.world, v, tag, tick).is_some() {
+                    tension::strained(&mut self.world, v, Axis::Issue, 0.06);
+                }
+            }
+            // whatever's pulled past its floor, the softer side yields
+            if let Some(a) = tension::giving(&self.world, v) {
+                self.tension_flip(v, a, tick);
+            }
         }
+    }
+
+    /// A strain past `FLIP_AT` resolves as its flip (E8-4, #1454): the
+    /// softer side gives - they drift out of the cause, or come in off
+    /// the edge of it - and the log says which pull won
+    pub(in crate::session) fn tension_flip(&mut self, v: Entity,
+        axis: crate::game::tension::Axis, tick: u64) {
+        use crate::game::tension::Axis::*;
+        let n = self.name_of(v);
+        let (line, valence) = match axis {
+            Belief => (format!("t{tick}: {n} drifts out of the cause - the old lesson held."),
+                Valence::Negative),
+            Identity => (format!("t{tick}: {n} drifts out of the cause - it isn't who they are."),
+                Valence::Negative),
+            Interest => (format!("t{tick}: {n} drifts out of the cause - the belly called them home."),
+                Valence::Negative),
+            Issue => (format!("t{tick}: {n} stands with the cause - it lifted what weighed on them."),
+                Valence::Positive),
+        };
+        if let Some(o) = self.world
+            .get_component_mut::<crate::sim::community::Organization>(self.org) {
+            match axis {
+                Issue => { if !o.members.contains(&v) { o.members.push(v); } }
+                _ => {
+                    if !o.members.contains(&v) { return; }
+                    o.members.retain(|&m| m != v);
+                    o.successors.retain(|&m| m != v);
+                }
+            }
+        }
+        crate::game::tension::resolved(&mut self.world, v, axis);
+        self.log.push_ev(EvTag::new(Thread::Org, valence, Sev::Minor), line);
     }
 
     /// A carried demand sends the village out in the open: the column

@@ -93,8 +93,10 @@ impl Game {
 /// ghost lies (#1444), so an old journal's writs, parades, pleas and
 /// resolves land on different ghost strengths; and the cause's ctx
 /// verbs left the wire enum, so an old journal's Ctx(n) names a
-/// different act (#1337))
-pub const JOURNAL_VERSION: u32 = 9;
+/// different act (#1337); and the day's pulls now strain a tension
+/// ledger that flips souls in and out of the cause (#1454), so an
+/// old journal's orgs keep different members)
+pub const JOURNAL_VERSION: u32 = 10;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

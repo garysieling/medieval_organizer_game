@@ -125,6 +125,14 @@ pub fn tested_by(world: &mut World, v: Entity, t: Tested, pe: Option<Entity>, da
     turned
 }
 
+/// The lie that still holds hardest (E8-4): strongest strength wins,
+/// and a turned ghost doesn't count - it already admitted
+pub fn strongest_lie(p: &crate::game::persona::Persona) -> Option<Belief> {
+    p.ghosts.iter().filter(|g| !g.turned)
+        .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|g| g.lie)
+}
+
 /// The words a turned ghost finally says (E8-2): the admission the lie
 /// kept back, in their own mouth. E8-3 schedules the beat it lands in;
 /// the sites log it when the turn happens in public

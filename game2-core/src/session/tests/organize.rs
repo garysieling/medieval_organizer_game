@@ -1670,3 +1670,87 @@ fn a_keeper_who_walks_in_tests_their_own_keeping() {
         .map(|p| p.efficacy > 0.0).unwrap_or(false),
         "the keeping itself credits the keeper");
 }
+
+/// E8-4 (#1454) done-when: cause-work that disproves a member's own
+/// lie strains their belief; past the floor the softer side yields -
+/// they drift out of the cause and the log says why
+#[test]
+fn work_that_disproves_your_own_lesson_pulls_you_out_of_the_cause() {
+    use crate::game::persona::*;
+    use crate::game::tension::{self, Axis, FLIP_AT};
+    use crate::game::beliefs::Tested;
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org)
+        .unwrap().members = vec![v];
+    let mut p = Persona {
+        seed: 5, sex: villager::Sex::Male, archetype: Archetype::Firebrand,
+        temperament: [0.5; 5], trust_propensity: 0.5, values: [0.5; 10],
+        story: vec![], ghosts: vec![], signature: Signature::Habit("x"),
+        hidden: Landmark::Skill("y"), contradiction: None,
+        idiolect: crate::game::idiolect::Idiolect {
+            phrase: "x", habit: crate::game::idiolect::Habit::Echo },
+    };
+    p.ghosts.push(Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+        lie: Belief::NeverCrossReeve, strength: 0.9, fear: Fear::BailiffKnowsMyFace,
+        need: Need::ToBeSafe, turned: false });
+    g.world.add_component(v, p);
+    // a dissonant streak already wound near its floor: one more writ
+    // sent home empty tips it
+    tension::strained(&mut g.world, v, Axis::Belief, FLIP_AT - 0.04);
+    let tick = g.tick;
+    g.test_lies(&[v], Tested::WritDefied, None, tick);
+    // the writ's failure reached their own lie through their own work -
+    // the strain tipped, and the softer side yielded
+    let o = g.world.get_component::<crate::sim::community::Organization>(g.org).unwrap();
+    assert!(!o.members.contains(&v), "they drift out of the cause");
+    assert_eq!(tension::strain_of(&g.world, v, Axis::Belief), 0.0,
+        "the spent pull rests");
+    assert!(g.log.iter().any(|l| l.contains("drifts out of the cause")
+        && l.contains("the old lesson held")), "{:?}", g.log.last());
+}
+
+/// E8-4 (#1454): the edge-watcher's strain resolves the other way -
+/// past the floor they come in off the edge and stand with the cause
+#[test]
+fn a_watcher_whose_issue_the_cause_lifts_comes_in() {
+    use crate::game::tension::{self, Axis, FLIP_AT};
+    let mut g = Game::new();
+    let w = g.villagers[0];
+    tension::strained(&mut g.world, w, Axis::Issue, FLIP_AT);
+    let tick = g.tick;
+    g.test_lies(&[w], crate::game::beliefs::Tested::WritDefied, None, tick);
+    let o = g.world.get_component::<crate::sim::community::Organization>(g.org).unwrap();
+    assert!(o.members.contains(&w), "the lifted issue drew them in");
+    assert!(g.log.iter().any(|l| l.contains("stands with the cause")),
+        "{:?}", g.log.last());
+}
+
+/// E8-4 (#1454): the org's ask over a bare house strains interest at
+/// the meeting itself - past the floor, arrival is when they drift out
+#[test]
+fn the_orgs_ask_over_a_bare_house_calls_them_home() {
+    use crate::game::tension::{self, Axis, FLIP_AT};
+    use crate::game::desires::{self, Problem};
+    let mut g = Game::new();
+    let (host, member) = (g.villagers[1], g.villagers[2]);
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org)
+        .unwrap().members = vec![host, member];
+    // the bench's ask fights a bare shop
+    g.world.get_component_mut::<crate::game::vocation::Craft>(member)
+        .unwrap().workplace = None;
+    assert!(desires::problems_of(&g.world, member, g.tick).iter()
+        .any(|p| matches!(p, Problem::NoWorkplace | Problem::NoHome | Problem::Broke)),
+        "the house must be bare for the strain to bite");
+    tension::strained(&mut g.world, member, Axis::Interest, FLIP_AT - 0.02);
+    *g.world.get_component_mut::<Pos>(member).unwrap() = Pos { x: 17.0, y: 16.0 };
+    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[member]);
+    let msg = g.call_meeting_at(0);
+    assert!(msg.contains("gather"), "{msg}");
+    finish_meeting(&mut g);
+    let o = g.world.get_component::<crate::sim::community::Organization>(g.org).unwrap();
+    assert!(!o.members.contains(&member),
+        "arriving tipped the strain - they drift out");
+    assert!(g.log.iter().any(|l| l.contains("the belly called them home")),
+        "{:?}", g.log.last());
+}

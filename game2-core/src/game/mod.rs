@@ -55,6 +55,7 @@ pub mod hooks;
 pub mod inoculation;
 pub mod act_model;
 pub mod beliefs;
+pub mod tension;
 pub mod storytelling;
 pub mod dungeon;
 pub mod conversation;

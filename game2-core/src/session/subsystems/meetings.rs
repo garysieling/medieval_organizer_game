@@ -323,20 +323,19 @@ impl Game {
         Some((msg, out.attendees))
     }
 
-    /// The day's campaign meetings: a cause that comes due on its
-    /// cadence meets on its own - the turnout seat pulls them in, or
-    /// whoever's pulling, or the leader. The institution keeps its own
-    /// dates like the assembly does; the seat's Meet button holds the
-    /// same meeting on paths that never run the day's tick (#1159).
+    /// The cadence sits the floor on its own dates (#1337): a seat that
+    /// can answer gets the agenda slate, and the room meets when the
+    /// seat votes a motion - or without it, when the slate's let lapse.
+    /// An agent's cause just meets, same as it always did.
     pub fn campaign_meeting_tick(&mut self, tick: u64) {
         let campaigns = self.world.query::<crate::game::campaign::Campaign>();
         for c in campaigns {
-            let seat = self.seats.iter()
-                .find(|s| crate::game::campaign::campaign_of(&self.world, s.org) == Some(c));
+            let seat = self.seats.iter().position(|s|
+                crate::game::campaign::campaign_of(&self.world, s.org) == Some(c));
             // an agenda slate already open on the box holds the date
             // itself - the floor's deciding, the day doesn't pre-empt
             // the vote with a meeting of its own (#1157)
-            if seat.map(|s| s.pending_agenda.is_some()).unwrap_or(false) { continue; }
+            if seat.map(|s| self.seats[s].pending_agenda.is_some()).unwrap_or(false) { continue; }
             // a called meeting under way for this org holds the cadence
             // itself (#1337): the gathering's the meeting - the tick
             // doesn't run a shadow one beside it. Checked against the
@@ -347,7 +346,17 @@ impl Game {
             let gathering = self.meeting.as_ref()
                 .map(|m| Some(self.seats[m.seat].org) == org).unwrap_or(false);
             if gathering { continue; }
-            let player = seat.map(|s| s.player);
+            // due? the seat's own date opens the floor for it; a seat
+            // the machine drives has no box to answer on, so its cause
+            // meets without asking (agents held this meeting all along)
+            let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+                .map(|m| tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
+            if !due { continue; }
+            if let Some(s) = seat.filter(|&s| !self.seats[s].agent) {
+                self.seats[s].pending_agenda = Some((self.agenda_motions(s, c), tick));
+                continue;
+            }
+            let player = seat.map(|s| self.seats[s].player);
             if let Some((msg, attendees)) = self.hold_and_note_campaign_meeting(player, c, tick) {
                 // the cause met on its own day, without you (E6-2):
                 // "we looked for you and you never came" can surface

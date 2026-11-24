@@ -25,12 +25,6 @@ impl Game {
     /// with the reason beside it, like the main buttons' `blocked`
     pub fn ctx_blocker_at(&self, seat: usize, act: CtxAct) -> Option<String> {
         match act {
-            CtxAct::Meet => {
-                let c = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
-                let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
-                    .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
-                if due { None } else { Some("not due to meet".into()) }
-            }
             CtxAct::Gather => {
                 if self.meeting.is_some() { Some("a meeting is under way".into()) }
                 else if self.seats[seat].meet_offer.is_some() { Some("the call's day isn't picked yet".into()) }
@@ -66,19 +60,6 @@ impl Game {
                         .then(|| format!("the Reeve has answered - the grant stands till day {}", g.until))
                 }
             }
-            // the campaign's street verbs answer once a day: offered always,
-            // greyed with the reason until tomorrow (rate limits aren't
-            // availability - the button stays)
-            CtxAct::March => (self.march_day == self.tick)
-                .then(|| "the streets have heard it today".to_string()),
-            CtxAct::Cadence => (self.cadence_day == self.tick)
-                .then(|| "the organizer needs a day to think".to_string()),
-            CtxAct::Assembly => {
-                let _ = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
-                if self.assembly_day == self.tick {
-                    Some("the organizer needs a day to think".into())
-                } else { None }
-            }
             // an oath needs a name: greyed for a stranger, and while the
             // purse can't cover the wax (#1061)
             CtxAct::Pact => {
@@ -91,12 +72,6 @@ impl Game {
                     (gold < crate::game::contracts::PACT_AID)
                         .then(|| format!("the oath's wax costs {:.0} gold", crate::game::contracts::PACT_AID))
                 }
-            }
-            CtxAct::MendHall => {
-                let purse = self.world.get_component::<Organization>(self.seats[seat].org)
-                    .map(|o| o.resources).unwrap_or(0.0);
-                (purse < crate::game::organizing::HALL_REPAIR_COST)
-                    .then(|| "the chest can't make the carpenter's bill".to_string())
             }
             CtxAct::Reach => {
                 let v = self.villagers[self.seats[seat].selected_target];
@@ -117,20 +92,6 @@ impl Game {
             CtxAct::PetCat => self.rare.iter().find(|r| r.id == events::EventId::StrayCat && !r.leaving)
                 .filter(|r| r.aux > self.frame_n as u64)
                 .map(|_| "she needs a moment".to_string()),
-            CtxAct::Flyers => {
-                let asked = self.world.get_component::<Organization>(self.seats[seat].org)
-                    .map(|o| o.members.iter().filter(|&&m| {
-                        !villager::is_dead(&self.world, m)
-                            && self.world.get_component::<Kid>(m).is_none()
-                            && !crate::game::dungeon::unavailable(&self.world, m)
-                    }).count()).unwrap_or(0);
-                if asked == 0 { Some("no one to ask".into()) }
-                else if !self.building_entities.iter().any(|&b| self.world.get_component::<Building>(b)
-                    .map(|bb| matches!(bb.kind, crate::game::household::BuildingKind::Shop(Vocation::Printmaker))
-                        && !crate::game::household::derelict(bb))
-                    .unwrap_or(false)) { Some("no print shop".into()) }
-                else { None }
-            }
             _ => None,
         }
     }
@@ -589,9 +550,6 @@ impl Game {
                     _ => "the stray",
                 }))
                 .unwrap_or_else(|| ctx_button(act).label),
-            // "The school" said where, not what (#1071): name the deed
-            CtxAct::School if self.school.is_none() => "Found the school".into(),
-            CtxAct::School => "Send for a teacher".into(),
             _ => ctx_button(act).label,
         }
     }
@@ -807,23 +765,6 @@ impl Game {
         if self.tame_animal_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::Tame);
         }
-        // the schoolhouse: raise it once, then keep a teacher in it. The
-        // ask shows only where the thing's done - near the market plot
-        // it'd rise on, or the schoolhouse once it stands - and only
-        // while the treasury could cover the press (#1071)
-        if self.school.is_none() || self.teacher.is_none() {
-            let cost = if self.school.is_none() { SCHOOL_FOUND_COST } else { SCHOOL_TEACHER_COST };
-            let covered = self.world.get_component::<Organization>(self.seats[seat].org)
-                .map(|o| o.resources >= cost).unwrap_or(false);
-            let site = self.school
-                .and_then(|s| self.world.get_component::<Pos>(s).copied())
-                .or_else(|| self.world.get_component::<Pos>(self.market_food).copied());
-            let (px, py) = self.player_pos_at(seat);
-            let near = site.map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= MEETING_REACH).unwrap_or(false);
-            if covered && near {
-                self.seats[seat].ctx_actions.push(CtxAct::School);
-            }
-        }
         // caps in the shade: standing by a flushed patch offers the
         // picking - and what the belly's learned shows up in why it won't
         if let Some(pi) = self.shroom_patch_at(seat) {
@@ -868,39 +809,10 @@ impl Game {
             && self.snowball_day != self.tick {
             self.seats[seat].ctx_actions.push(CtxAct::Snowballs);
         }
-        // the cause meets on its cadence and marches on the streets: only
-        // what can actually fire is offered - a meeting not yet due, a
-        // flyer run with no shop or nobody to ask, stay off the panel
-        let cause = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org);
-        if let Some(c) = cause {
-            let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
-                .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
-            if due {
-                self.seats[seat].ctx_actions.push(CtxAct::Meet);
-            }
-            // the debrief settles the next step after a meeting's held
-            if self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
-                .map(|m| m.held > 0).unwrap_or(false) {
-                self.seats[seat].ctx_actions.push(CtxAct::Debrief);
-            }
-            self.seats[seat].ctx_actions.push(CtxAct::Cadence);
-            // the accountability assembly can be called early while no
-            // agenda stands - it keeps its own dates otherwise
-            let agenda_up = self.world.get_component::<crate::game::campaign::Assembly>(c)
-                .map(|a| a.announced.is_some()).unwrap_or(false);
-            if !agenda_up {
-                self.seats[seat].ctx_actions.push(CtxAct::Assembly);
-            }
-            // the street verbs aren't buttons any more - they're motions
-            // the meeting floor votes, sized by the cause (#1157): Meet
-            // opens the agenda slate
-        }
-        // a storm-hit hall stands roofless till the treasury can mend it
-        if self.world.get_component::<crate::game::organizing::HallDamaged>(self.seats[seat].org).is_some()
-            && self.world.get_component::<Organization>(self.seats[seat].org)
-                .map(|o| o.resources >= crate::game::organizing::HALL_REPAIR_COST).unwrap_or(false) {
-            self.seats[seat].ctx_actions.push(CtxAct::MendHall);
-        }
+        // the cause's verbs aren't buttons any more (#1337): the cadence
+        // tick sits the floor on its own dates, and a called gathering
+        // resolving on a due cause opens the slate - the panel motions
+        // carry what the buttons did
         if self.seats[seat].selected_building.is_none()
             && (self.seats[seat].picked || self.seats[seat].agent) {
             let v = self.villagers[self.seats[seat].selected_target];
@@ -936,7 +848,7 @@ impl Game {
                             == crate::game::leadership::Rung::Leader {
                         self.seats[seat].ctx_actions.push(CtxAct::Reach);
                     }
-                    if let Some(c) = cause {
+                    if let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) {
                         // seats go to the picked member, but only while one
                         // stands empty - a full roster offers nothing
                         if is_member && [crate::game::campaign::Role::TurnoutCoordinator,
@@ -1049,32 +961,6 @@ impl Game {
                     None => "Nothing needs fetching right now.".into(),
                 }
             }
-            CtxAct::Meet => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
-                    return;
-                };
-                let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
-                    .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
-                if !due {
-                    "The campaign isn't due to meet yet.".into()
-                } else {
-                    // the meeting doesn't just run: the floor takes an
-                    // agenda first - the motions the cause's size can
-                    // carry, and the room votes the pick (#1157)
-                    self.seats[seat].pending_agenda = Some((self.agenda_motions(seat, c), self.tick));
-                    "The cause's to meet - the floor's yours: set the agenda.".into()
-                }
-            }
-            CtxAct::Cadence => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
-                    return;
-                };
-                self.cadence_at(c)
-            }
-            CtxAct::Assembly => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
-                self.assembly_at(seat, c)
-            }
             CtxAct::Delegate => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
                 let v = self.villagers[self.seats[seat].selected_target];
@@ -1114,14 +1000,6 @@ impl Game {
                     }
                 }
             }
-            CtxAct::March => {
-                let m = self.march_at(seat);
-                self.log.push_ev(
-                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
-                    format!("t{}: {}", tick, m),
-                );
-                return;
-            }
             // strike and townhall aren't buttons any more - they're
             // motions the floor votes (#1157); the arms stay for any
             // wire-side CtxAct that still comes in
@@ -1145,7 +1023,6 @@ impl Game {
                 self.seats[seat].meet_offer = Some(self.tick);
                 "The plan's made - now the word wants a day.".into()
             }
-            CtxAct::MendHall => self.mend_hall_at(seat),
             CtxAct::Interview => {
                 let t = self.villagers[self.seats[seat].selected_target];
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
@@ -1195,19 +1072,6 @@ impl Game {
                 }
                 format!("You learn where {} stands on it - {} - and what's behind it: {}.",
                     self.name_of(t), stance, stake)
-            }
-            CtxAct::Debrief => {
-                // the room's answer: the members standing here pick the
-                // next step - the tally's by who's present, not who's on
-                // the roll, and the thin room's a weak mandate
-                let members = self.world.get_component::<Organization>(self.seats[seat].org)
-                    .map(|o| o.members.clone()).unwrap_or_default();
-                let present: Vec<Entity> = members.iter().copied().filter(|&m|
-                    !villager::is_dead(&self.world, m)
-                    && self.world.get_component::<Pos>(m).zip(self.world.get_component::<Pos>(self.seats[seat].player))
-                        .map(|(a, b)| (a.x - b.x).abs() + (a.y - b.y).abs() < 20.0).unwrap_or(false)).collect();
-                if present.is_empty() { return; }
-                self.debrief_at(seat, &present)
             }
             CtxAct::Attend => {
                 // the player's presence counts for what the day means:
@@ -1470,9 +1334,7 @@ impl Game {
             }
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Tame => self.tame_stroke_at(seat),
-            CtxAct::School => self.school_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
-            CtxAct::Flyers => self.flyers_at(seat),
             CtxAct::Douse => self.player_douse_at(seat),
             CtxAct::Give => {
                 let pe = self.seats[seat].player;
@@ -2090,17 +1952,11 @@ impl Game {
 
     /// What pressing a ctx button does, told ahead - the hover line that
     /// doesn't bar the press (#1071). None when nothing needs explaining.
-    pub fn ctx_hint_at(&self, _seat: usize, act: CtxAct) -> Option<String> {
-        match act {
-            CtxAct::School if self.school.is_none() =>
-                Some(format!("the treasury raises the schoolhouse by the market - {:.0} gold", SCHOOL_FOUND_COST)),
-            CtxAct::School if self.teacher.is_none() =>
-                Some(format!("send for a teacher for the season - {:.0} gold", SCHOOL_TEACHER_COST)),
-            _ => None,
-        }
+    pub fn ctx_hint_at(&self, _seat: usize, _act: CtxAct) -> Option<String> {
+        None
     }
 
-    fn school_at(&mut self, seat: usize) -> String {
+    pub(in crate::session) fn school_at(&mut self, seat: usize) -> String {
         let oe = self.seats[seat].org;
         if self.school.is_none() {
             let paid = self.world.get_component_mut::<Organization>(oe)
@@ -2784,9 +2640,10 @@ impl Game {
             self.the_words_out(seat, n);
             return;
         }
-        // the agenda a campaign Meet left open: the room votes the pick
-        // and the meeting runs on it (#1157) - a founding call sitting on
-        // the same box resolves first, matching what the panel showed
+        // the agenda the cadence's own date left open (#1337): the room
+        // votes the pick and the meeting runs on it - a founding call
+        // sitting on the same box resolves first, matching what the
+        // panel showed
         if self.seats[seat].pending_founding.is_none() {
             if let Some((motions, _)) = self.seats[seat].pending_agenda.take() {
                 // the last row's always "just meet" - a pick past the
@@ -2893,7 +2750,7 @@ impl Game {
     /// Pass the hat and post the cause's flyers: living members chip
     /// in, the treasury buys pamphlets off the print shop, and they go
     /// up around the streets - folk who read them wake to the issue
-    fn flyers_at(&mut self, seat: usize) -> String {
+    pub(in crate::session) fn flyers_at(&mut self, seat: usize) -> String {
         let tick = self.tick;
         let org = self.seats[seat].org;
         let Some(campaign) = crate::game::campaign::campaign_of(&self.world, org) else { return String::new() };
@@ -3256,7 +3113,7 @@ impl Game {
     /// A hall already mended by the other path doesn't bill twice -
     /// the slate can still offer it stale, picked after the button beat
     /// it to the repair
-    fn mend_hall_at(&mut self, seat: usize) -> String {
+    pub(in crate::session) fn mend_hall_at(&mut self, seat: usize) -> String {
         let oe = self.seats[seat].org;
         if self.world.get_component::<crate::game::organizing::HallDamaged>(oe).is_none() {
             return "The hall doesn't need mending.".into();
@@ -3278,7 +3135,7 @@ impl Game {
     /// The carried retiming, on the button or the floor (#1337): the
     /// meeting steps up or down a notch - weekly for the long haul,
     /// daily for the fight
-    fn cadence_at(&mut self, c: Entity) -> String {
+    pub(in crate::session) fn cadence_at(&mut self, c: Entity) -> String {
         let tick = self.tick;
         self.cadence_day = tick;
         let now = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
@@ -3289,7 +3146,7 @@ impl Game {
     }
 
     /// The carried early assembly, on the button or the floor (#1337)
-    fn assembly_at(&mut self, seat: usize, c: Entity) -> String {
+    pub(in crate::session) fn assembly_at(&mut self, seat: usize, c: Entity) -> String {
         let tick = self.tick;
         self.assembly_day = tick;
         match crate::game::campaign::announce_assembly(&mut self.world, c, tick) {
@@ -3306,7 +3163,7 @@ impl Game {
     /// The carried tally (#1337): `present` is the room answering - the
     /// members standing at the organizer on the button's path, the
     /// meeting's attendees on the floor's
-    fn debrief_at(&mut self, seat: usize, present: &[Entity]) -> String {
+    pub(in crate::session) fn debrief_at(&mut self, seat: usize, present: &[Entity]) -> String {
         let tick = self.tick;
         let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
             return String::new();

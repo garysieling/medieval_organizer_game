@@ -11,8 +11,7 @@ fn call_the_march(g: &mut Game) -> Vec<Entity> {
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
-    g.seats[0].ctx_actions = vec![CtxAct::March];
-    g.ctx_act_at(0, 0);
+    g.march_at(0);
     g.formation.as_ref().map(|f| f.members.clone()).unwrap_or_default()
 }
 

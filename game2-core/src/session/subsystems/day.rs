@@ -71,15 +71,30 @@ impl Game {
                 );
             }
         }
-        // an agenda nobody sets lapses the same way - the floor moves on,
-        // no meeting held, and a seat with no Decide wired doesn't hold
-        // the game at half pace forever (#1157)
+        // an agenda nobody sets doesn't stall the cause (#1337): the
+        // room waited the week, then met without the seat - the same
+        // holding the tick runs, and the same "you never came" it files
         for seat in 0..self.seats.len() {
             let stale = self.seats[seat].pending_agenda.as_ref()
                 .map(|(_, offered)| tick.saturating_sub(*offered) >= FOUNDING_OFFER_EXPIRY_DAYS)
                 .unwrap_or(false);
             if stale {
                 self.seats[seat].pending_agenda = None;
+                if let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) {
+                    let player = self.seats[seat].player;
+                    if let Some((msg, attendees)) =
+                        self.hold_and_note_campaign_meeting(Some(player), c, tick)
+                    {
+                        for a in &attendees {
+                            crate::game::episodes::file(&mut self.world, *a, player,
+                                crate::game::episodes::MemKind::MissedMeeting, tick, &["meeting"]);
+                        }
+                        self.log.push_ev(
+                            EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),
+                            format!("t{}: {}", tick, msg),
+                        );
+                    }
+                }
                 self.log.push_ev(
                     EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
                     format!("t{}: the floor moves on - no agenda set.", tick),

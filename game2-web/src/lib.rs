@@ -1184,6 +1184,15 @@ mod tests {
             CueKind::Bell { .. } => "bell",
             CueKind::Snowballs { .. } => "snowballs",
             CueKind::Splash { .. } => "splash",
+            CueKind::Alarm { .. } => "alarm",
+            CueKind::Toll { .. } => "toll",
+            CueKind::Cheer { .. } => "cheer",
+            CueKind::Chant { .. } => "chant",
+            CueKind::Coins { .. } => "coins",
+            CueKind::Quill { .. } => "quill",
+            CueKind::Door { .. } => "door",
+            CueKind::CartArrive { .. } => "cart_arrive",
+            CueKind::Gate { .. } => "gate",
             CueKind::Mood { .. } => "mood",
             // the A5 scene cues (alarm, toll, cheer, ...) - the legacy
             // list this test builds never produces them

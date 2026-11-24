@@ -5,8 +5,7 @@ fn test_the_school_opens_and_the_desk_counts_the_days() {
     let mut g = Game::new();
     // the treasury raises the room and sends for a teacher
     g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
-    g.seats[0].ctx_actions = vec![CtxAct::School];
-    g.ctx_act_at(0, 0);
+    g.school_at(0);
     assert!(g.school.is_some(), "no schoolhouse raised");
     assert!(g.teacher.is_some(), "no teacher sent for");
     // a kid's day at the desk counts
@@ -31,8 +30,7 @@ fn test_the_school_opens_and_the_desk_counts_the_days() {
 fn test_the_hire_grows_the_rolls_and_her_card_opens() {
     let mut g = Game::new();
     g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
-    g.seats[0].ctx_actions = vec![CtxAct::School];
-    g.ctx_act_at(0, 0);
+    g.school_at(0);
     assert!(g.teacher.is_some(), "no teacher sent for");
     // the hire is a name on the roster: the parallel rolls keep step or
     // the next lookup panics (#940)
@@ -48,8 +46,7 @@ fn test_the_hire_grows_the_rolls_and_her_card_opens() {
 fn test_the_desk_emptying_shifts_the_rolls_home() {
     let mut g = Game::new();
     g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
-    g.seats[0].ctx_actions = vec![CtxAct::School];
-    g.ctx_act_at(0, 0);
+    g.school_at(0);
     let (teacher, season_end) = g.teacher.unwrap();
     let ti = g.villagers.iter().position(|&v| v == teacher).unwrap();
     // a later arrival sits after her on the roll, so her leaving shifts him
@@ -77,8 +74,7 @@ fn test_the_desk_emptying_shifts_the_rolls_home() {
 fn test_the_stones_honored_shift_with_the_roll() {
     let mut g = Game::new();
     g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
-    g.seats[0].ctx_actions = vec![CtxAct::School];
-    g.ctx_act_at(0, 0);
+    g.school_at(0);
     let (teacher, season_end) = g.teacher.unwrap();
     let ti = g.villagers.iter().position(|&v| v == teacher).unwrap();
     // a later arrival sits after her - the stones that honor him must
@@ -140,60 +136,39 @@ fn test_the_imported_expert_grows_the_dependency() {
 }
 
 #[test]
-fn test_the_ask_waits_on_place_and_purse() {
-    // #1071: the school ask used to show anywhere, always. It lives
-    // where the thing's done - the market plot it'd rise on - and only
-    // while the treasury could pay the press
+fn test_the_school_sits_on_the_slate_while_the_desk_wants_filling() {
+    // the school ask is a floor motion now (#1337): the slate carries
+    // it while the desk's unraised or the chair's empty - the treasury's
+    // say is the motion's own line, not a gate
+    use crate::game::campaign::Motion;
     let mut g = Game::new();
-    let mp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
-    // funded but forty tiles off: no ask follows you across the map
-    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
-    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.x + 40.0, y: mp.y + 40.0 };
-    g.update_ctx_actions();
-    assert!(!g.ctx_actions.contains(&CtxAct::School), "the ask followed the player far from the site");
-    // beside the market cross but the chest's light: still no ask
-    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.x + 1.0, y: mp.y };
-    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 5.0;
-    g.update_ctx_actions();
-    assert!(!g.ctx_actions.contains(&CtxAct::School), "an empty chest still offered the ask");
-    // near and funded: the ask's on the card
-    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
-    g.update_ctx_actions();
-    assert!(g.ctx_actions.contains(&CtxAct::School), "beside the site with a full chest, no ask");
-}
-
-#[test]
-fn test_the_hover_says_what_the_press_does() {
-    // #1071: "The school" reads as a mystery - the hint line tells the
-    // press ahead of it, per state, and doesn't bar the button
-    let mut g = Game::new();
-    assert_eq!(g.ctx_hint_at(0, CtxAct::School).as_deref(),
-        Some("the treasury raises the schoolhouse by the market - 30 gold"));
-    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
-    g.seats[0].ctx_actions = vec![CtxAct::School];
-    g.ctx_act_at(0, 0);
-    assert!(g.school.is_some(), "no schoolhouse raised");
-    // the house stands but the desk's empty: the ask turns to keeping it
-    g.teacher = None;
-    assert_eq!(g.ctx_hint_at(0, CtxAct::School).as_deref(),
-        Some("send for a teacher for the season - 10 gold"));
-    // the model carries it parallel to the ctx list, index for index
-    let m = g.ui_model();
-    assert_eq!(m.ctx_hint.len(), m.ctx.len(), "hints fell out of step with the ctx list");
-    let i = m.ctx.iter().position(|a| *a == CtxAct::School);
-    if let Some(i) = i {
-        assert!(m.ctx_hint[i].is_some(), "the School button has no hint");
-        assert!(m.ctx_blocked[i].is_none(), "a hint is not a block");
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
     }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    assert!(g.agenda_motions(0, c).contains(&Motion::School),
+        "unraised: the ask isn't on the slate");
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
+    g.school_at(0);
+    assert!(g.school.is_some() && g.teacher.is_some(), "the vote's deed didn't land");
+    assert!(!g.agenda_motions(0, c).contains(&Motion::School),
+        "a kept desk still asks the floor");
+    // the chair empties: the keeping ask comes back
+    g.teacher = None;
+    assert!(g.agenda_motions(0, c).contains(&Motion::School),
+        "an empty chair asks the floor again");
 }
 
 #[test]
-fn test_the_button_names_the_deed_not_the_place() {
-    let mut g = Game::new();
-    // no school yet: the ask is to raise it
-    assert_eq!(g.ctx_label_at(0, CtxAct::School), "Found the school");
-    // the room stands but the desk's empty: the ask is to fill it
-    g.school = Some(g.world.create_entity());
-    g.teacher = None;
-    assert_eq!(g.ctx_label_at(0, CtxAct::School), "Send for a teacher");
+fn test_the_motion_names_the_deed_not_the_place() {
+    // #1071's wording lives on the motion now: the slate's line names
+    // the deed, not the spot the schoolhouse would stand on
+    let label = crate::game::campaign::motion_label(crate::game::campaign::Motion::School);
+    assert!(label.contains("school"), "{label}");
+    assert!(label.contains("treasury"), "{label}");
 }

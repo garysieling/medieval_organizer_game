@@ -14,28 +14,30 @@ fn taxed_campaign(g: &mut Game) -> Entity {
 }
 
 #[test]
-fn test_the_organizer_calls_the_assembly_and_the_agenda_posts() {
+fn test_the_room_calls_the_assembly_and_the_agenda_posts() {
+    use crate::game::campaign::Motion;
     let mut g = Game::new();
     let c = taxed_campaign(&mut g);
     // nothing on the panel's line till the institution's called
     assert!(g.ui_model().panel.campaign.unwrap().assembly.is_empty());
-    g.update_ctx_actions_at(0);
-    assert!(g.seats[0].ctx_actions.contains(&CtxAct::Assembly),
-        "{:?}", g.seats[0].ctx_actions);
-    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::Assembly).unwrap();
-    g.ctx_act_at(0, i);
-    assert!(g.log.last().unwrap().contains("accountability assembly"),
+    // the call's a floor motion now (#1337): the slate carries it while
+    // no agenda stands, and the room's vote posts the agenda
+    assert!(g.agenda_motions(0, c).contains(&Motion::Assembly),
+        "the slate carries the call: {:?}", g.agenda_motions(0, c));
+    super::sit_floor(&mut g, 0);
+    let (slate, _) = g.seats[0].pending_agenda.clone().unwrap();
+    let pick = slate.iter().position(|&m| m == Motion::Assembly).unwrap();
+    g.decide_at(0, pick);
+    assert!(g.log.iter().any(|l| l.contains("accountability assembly")),
         "{:?}", g.log.last());
     let a = g.world.get_component::<crate::game::campaign::Assembly>(c).unwrap();
     assert!(a.announced.is_some() && !a.agenda.is_empty(), "the agenda stands");
     assert!(g.ui_model().panel.campaign.unwrap().assembly.contains("agenda"),
         "{:?}", g.ui_model().panel.campaign.unwrap().assembly);
-    // the card won't take a second call the same day - nor offer one
-    // while the posted agenda still stands
-    assert!(g.ctx_blocker_at(0, CtxAct::Assembly).is_some(), "same-day call refused");
-    g.update_ctx_actions_at(0);
-    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Assembly),
-        "an agenda's up: {:?}", g.seats[0].ctx_actions);
+    // the slate won't take a second call the same day - nor while the
+    // posted agenda still stands
+    assert!(!g.agenda_motions(0, c).contains(&Motion::Assembly),
+        "an agenda's up: {:?}", g.agenda_motions(0, c));
     // the publish gap passes and the assembly sits on its own
     g.tick += crate::game::campaign::PUBLISH_GAP;
     g.assembly_tick(g.tick);
@@ -43,9 +45,8 @@ fn test_the_organizer_calls_the_assembly_and_the_agenda_posts() {
     assert_eq!(a.held, 1, "the assembly sat");
     assert!(a.announced.is_none() && !a.pledges.is_empty(),
         "the leader's answers are on record");
-    g.update_ctx_actions_at(0);
-    assert!(g.seats[0].ctx_actions.contains(&CtxAct::Assembly),
-        "the card offers the next call: {:?}", g.seats[0].ctx_actions);
+    assert!(g.agenda_motions(0, c).contains(&Motion::Assembly),
+        "the slate carries the next call");
 }
 
 #[test]

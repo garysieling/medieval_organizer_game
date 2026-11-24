@@ -44,19 +44,28 @@ fn test_the_org_takes_the_harvest_in_together() {
 }
 
 #[test]
-fn test_the_mend_button_waits_for_the_chest() {
+fn test_the_mend_motion_waits_for_a_struck_hall() {
     let mut g = Game::new();
     let oe = g.seats[0].org;
+    // a cause on the org, so the floor's slate has somewhere to stand
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(oe).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, oe).unwrap();
+    // the mending's a floor motion now (#1337): an unscarred hall asks
+    // nothing; struck, the mending sits on the slate - the purse's say
+    // is the motion's own line, not a gate
+    assert!(!crate::game::campaign::motions_open(&g.world, c)
+        .contains(&crate::game::campaign::Motion::MendHall),
+        "a sound hall asks no mending");
     g.world.add_component(oe, MeetingHall);
-    assert!(storm_strikes_hall(&mut g.world, oe));
-    // a broke chest can't pay the carpenter - the button stays off
-    g.world.get_component_mut::<Organization>(oe).unwrap().resources = 1.0;
-    g.update_ctx_actions_at(0);
-    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::MendHall),
-        "no gold, no mend: {:?}", g.seats[0].ctx_actions);
-    // funded, it's offered again
-    g.world.get_component_mut::<Organization>(oe).unwrap().resources = 20.0;
-    g.update_ctx_actions_at(0);
-    assert!(g.seats[0].ctx_actions.contains(&CtxAct::MendHall),
-        "{:?}", g.seats[0].ctx_actions);
+    assert!(storm_strikes_hall(&mut g.world, oe), "no hall struck");
+    let slate = crate::game::campaign::motions_open(&g.world, c);
+    assert!(slate.contains(&crate::game::campaign::Motion::MendHall),
+        "a struck hall asks the floor: {slate:?}");
 }

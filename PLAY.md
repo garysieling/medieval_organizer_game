@@ -201,6 +201,11 @@ matter, or **probe** - what do you actually want, and who are you doing
 it for? Followers name who they do it for (and if the lord's man is in
 the room, a writ finds that name); the guarded give up a want. Everyone
 who heard it carries a new want home that ripens about ten days later.
+And the cause keeps its own dates: when its meeting day comes round,
+the floor sits on the talk panel - the slate's the room's business:
+march, demands, the debrief, a hall to mend, a school to raise, and
+"just meet" at the foot. Leave it sitting and the room meets without
+you.
 Or **testify**: tell the room why you're here - pick one of the hard
 things you've lived through (a hanging, a writ, a fire), then what this
 room shares, then tonight's choice. A warm room carries it home and its

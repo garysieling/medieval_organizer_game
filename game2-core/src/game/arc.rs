@@ -166,7 +166,7 @@ pub fn run_arc(
     seed: u64,
 ) -> (Speaker, Vec<ArcTalk>) {
     let mut them = them.clone();
-    let you = you.clone();
+    let mut you = you.clone();
     // the village's memory of what's said (E0-4): every template the
     // arc's spent stays spent - the repetition metric measures what's
     // left to say
@@ -185,6 +185,13 @@ pub fn run_arc(
                 })
             }, &mut Rng::new(tseed));
         recent.extend(tr.turns.iter().filter_map(|t| t.line));
+        // the arc's one slip (E5-8, #1439): the engine reports what
+        // fired, the caller spends the pair's budget on it - once to
+        // a relationship's whole run of talks
+        for &(i, _) in &tr.slips {
+            let sp = if i == 0 { &mut them } else { &mut you };
+            sp.slips_left = sp.slips_left.saturating_sub(1);
+        }
         settle(&mut them, &tr, &made);
         out.push(ArcTalk { index: i, seed: tseed, transcript: tr,
             picks, choices_made: made, open_after: them.open.clone() });
@@ -272,5 +279,38 @@ mod tests {
             if again.lines() != blank.lines() { moved += 1; }
         }
         assert!(moved > 0, "the spent lines never stayed spent");
+    }
+
+    /// the done-when (E5-8, #1439): at most one slip in a
+    /// relationship's whole run of talks - the pair's budget spends
+    /// on the first leak and a prone speaker's arc never shows two
+    #[test]
+    fn an_arc_never_shows_two_slips() {
+        let (_, you) = pair();
+        let lib = village_library();
+        let mut saw = 0;
+        for seed in 0..12 {
+            let mut them = Speaker::new("Hob");
+            them.trade = Some("carter");
+            // a prone soul with the arc's budget still unspent
+            them.slip = Some(crate::game::conversation::Slip {
+                prone: 1.0,
+                dead: Some(crate::game::conversation::Dead {
+                    kin: "brother", name: "Corvin".into(), trade: "carter" }) });
+            them.slips_left = 1;
+            let (spent, arc) = run_arc(&them, &you, Relation::Acquaintance, None, 20,
+                Policy::Responsive, &lib, &STREET, seed);
+            let slips = arc.iter()
+                .map(|t| t.transcript.slips.len()).sum::<usize>();
+            assert!(slips <= 1, "two slips in one arc: {}", slips);
+            let tagged = arc.iter().flat_map(|t| t.transcript.turns.iter())
+                .filter(|t| t.act == crate::game::conversation::Act::Slip).count();
+            assert_eq!(slips, tagged, "the record counts what the lines show");
+            if slips == 1 {
+                saw += 1;
+                assert_eq!(spent.slips_left, 0, "the leak spent the budget");
+            }
+        }
+        assert!(saw > 0, "a prone ghost never leaked in 12 arcs");
     }
 }

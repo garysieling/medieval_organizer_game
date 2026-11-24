@@ -37,6 +37,13 @@ impl Rng {
         Rng(seed ^ 0x9E37_79B9_7F4A_7C15)
     }
 
+    /// A stream off this one's state, salted: the slip pass rolls on
+    /// its own stream (E5-8) so a replay with more picks rolls the
+    /// same turns the same way
+    fn fork(&self, salt: u64) -> Rng {
+        Rng(self.0 ^ salt)
+    }
+
     fn next_u64(&mut self) -> u64 {
         self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = self.0;
@@ -150,6 +157,15 @@ pub struct Speaker {
     /// doorknob worry keys off - the talk-open seeds it off the world;
     /// hand-made speakers carry none
     pub worry: Option<crate::game::desires::Reveal>,
+    /// The leak they could make (E5-8, #1439): a strong ghost under a
+    /// high-strung temperament shows through the words - `speaker_of`
+    /// seeds it off the persona; hand-made speakers carry none
+    pub slip: Option<Slip>,
+    /// Whether the arc's one slip is still unspent (E5-8): the caller
+    /// enforces the budget - 0 for hand-made speakers until a caller
+    /// opts in; the transcript's `slips` reports what fired so the
+    /// caller can mark the arc spent
+    pub slips_left: u8,
     /// The ear's landmark (E4-7, #1416): a pet phrase and a habit,
     /// each unique in the village, each spent once a talk -
     /// `speaker_of` fills it off the persona
@@ -158,7 +174,7 @@ pub struct Speaker {
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, idiolect: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, slips_left: 0, idiolect: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     fn own_facts(&self) -> Vec<String> {
@@ -203,6 +219,86 @@ impl Speaker {
         }
         v
     }
+}
+
+/// A leak the realizer can produce (E5-8, #1439): keyed to a strong
+/// ghost under a high-strung temperament, at most once to a
+/// relationship's whole arc - the caller passes the remaining budget
+/// on `Speaker::slips_left` and reads what fired off `Transcript::slips`
+#[derive(Debug, Clone, PartialEq)]
+pub struct Slip {
+    /// How prone they are, 0..1 - the ghost's hold folded with their
+    /// neuroticism; the per-line roll scales off it so the landmark
+    /// stays rare
+    pub prone: f32,
+    /// The one the ghost keeps, where the wound is a death: the
+    /// name-slip confuses the listener with them, the tense slip keeps
+    /// them in the present tense and catches itself
+    pub dead: Option<Dead>,
+}
+
+/// The dead a slip names (E5-8): kin word, a name, the trade they
+/// stood at - seeded once from the persona, or a real dead villager's
+/// name when the world has one to give
+#[derive(Debug, Clone, PartialEq)]
+pub struct Dead {
+    /// "brother" - said "my brother"
+    pub kin: &'static str,
+    pub name: String,
+    /// "carter" - what they worked at
+    pub trade: &'static str,
+}
+
+/// Which shape a slip took (E5-8), for the record and the lab's display
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlipKind {
+    /// The dead kept in the present tense, caught mid-word:
+    /// "my brother is… was a carter"
+    Tense,
+    /// The listener called by the dead one's name
+    Name,
+    /// The sentence cut off where ears are near
+    CutOff,
+}
+
+/// The ghost kinds whose wound is a death the speaker kept (E5-8):
+/// the fever's row, the duty's dead, the betrothal's taken, the levy's
+/// gone - only those carry a `dead` the name and tense slips can say
+fn death_ghost(k: crate::game::persona::EventKind) -> bool {
+    use crate::game::persona::EventKind::*;
+    matches!(k, Fever | DeathDuty | BrokenBetrothal | Levy)
+}
+
+/// The kin word a slipped ghost puts on its dead (E5-8): a betrothal's
+/// is the sweetheart, the rest draw on the family's own
+const DEAD_KIN: &[&str] = &["brother", "sister", "husband", "wife",
+    "mother", "father", "son", "daughter"];
+const BETROTHAL_KIN: &[&str] = &["sweetheart", "betrothed"];
+/// Dead names for a slip when the world has none to lend (E5-8)
+const DEAD_NAMES: &[&str] = &["Corvin", "Edgar", "Wystan", "Hal", "Brannoc",
+    "Anselm", "Osric", "Maud", "Elgiva", "Tilda", "Bess", "Wenna"];
+/// The trade the tense slip gives the dead (E5-8)
+const DEAD_TRADES: &[&str] = &["carter", "miller", "plowman", "weaver",
+    "thatcher", "herdsman", "baker", "smith"];
+
+/// The slip a persona could leak (E5-8, #1439): the strongest ghost
+/// carries it, gated on a hard-held wound under a high-strung
+/// temperament - the Big Five's N is `temperament[4]`. `dead_name`,
+/// when the world gives one, is a real dead villager's name
+pub fn slip_of(p: &crate::game::persona::Persona, dead_name: Option<String>) -> Option<Slip> {
+    use crate::game::persona::EventKind::BrokenBetrothal;
+    let g = p.ghosts.iter().max_by(|a, b| a.strength
+        .partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))?;
+    let nerve = p.temperament[4];
+    if g.strength < 0.55 || nerve < 0.55 { return None; }
+    let pick = |n: u64, pool: &[&'static str]| pool[(p.draw(n) * pool.len() as f32) as usize % pool.len()];
+    let dead = if death_ghost(g.kind) {
+        let kin = if g.kind == BrokenBetrothal { pick(91, BETROTHAL_KIN) }
+            else { pick(91, DEAD_KIN) };
+        Some(Dead { kin, name: dead_name.unwrap_or_else(|| pick(92, DEAD_NAMES).to_string()),
+            trade: pick(93, DEAD_TRADES) })
+    } else { None };
+    Some(Slip { prone: (g.strength * (0.4 + 0.6 * nerve)).clamp(0.0, 1.0), dead })
 }
 
 pub fn trait_name(t: Trait) -> &'static str {
@@ -588,6 +684,103 @@ fn worry_beat(
     false
 }
 
+/// A line said (E5-8, #1439): pushes the turn, then the slip pass
+/// rolls - a speaker with a profile and budget left may leak through
+/// the words just said: the turn keeps its spent line, its text gets
+/// corrupted, and its act marks the slip. The roll rides its own rng
+/// stream (`say`'s caller forks it once a walk) so the same turns
+/// roll the same way on every replay, however many picks stand
+fn say(
+    tr: &mut Transcript,
+    pair: &[Speaker; 2],
+    slip_rng: &mut Rng,
+    slipped: &mut bool,
+    t: Turn,
+) {
+    tr.turns.push(t);
+    let t = tr.turns.last_mut().unwrap();
+    let sp = t.speaker;
+    if *slipped || pair[sp].slips_left == 0 || pair[sp].slip.is_none() { return; }
+    if !matches!(t.act, Act::Remark | Act::Answer | Act::Agree
+        | Act::Question | Act::PushBack) || t.tree == WORRY_TREE { return; }
+    let profile = pair[sp].slip.clone().unwrap();
+    if slip_rng.next_f32() >= SLIP_RATE * profile.prone { return; }
+    let Some(kind) = slip_corrupt(t, &pair[1 - sp].name, &profile.dead, slip_rng) else { return };
+    t.act = Act::Slip;
+    t.concepts = vec!["slip"];
+    *slipped = true;
+    tr.slips.push((sp, kind));
+}
+
+/// The rareness of a leak (E5-8): per eligible line, scaled by the
+/// speaker's prone - a hard-held ghost under a high-strung temperament
+/// shows roughly once an arc
+const SLIP_RATE: f32 = 0.012;
+
+/// Where `name` stands as its own word in `text` (E5-8): the name
+/// slip confuses a person, not a name that rides inside a longer one
+/// ("Ash" in "Ashby" isn't the man)
+fn word_at(text: &str, name: &str) -> Option<usize> {
+    text.match_indices(name).find(|&(i, _)| {
+        let before = i == 0 || !text.as_bytes()[i - 1].is_ascii_alphanumeric();
+        let after = i + name.len() == text.len()
+            || !text.as_bytes()[i + name.len()].is_ascii_alphanumeric();
+        before && after
+    }).map(|(i, _)| i)
+}
+
+/// Corrupt the just-said words into one of the slip's shapes (E5-8):
+/// the listener called by the dead one's name, the dead kept in the
+/// present tense and caught mid-word, or the sentence cut off where
+/// the channel says ears are near. The pick rotates on a seed draw
+/// and falls back through whichever shape the words can carry
+fn slip_corrupt(t: &mut Turn, listener: &str, dead: &Option<Dead>, rng: &mut Rng) -> Option<SlipKind> {
+    use SlipKind::*;
+    let order: &[SlipKind] = match rng.below(3) {
+        0 => &[Name, Tense, CutOff],
+        1 => &[Tense, CutOff, Name],
+        _ => &[CutOff, Name, Tense],
+    };
+    for &kind in order {
+        match kind {
+            Name => {
+                let Some(d) = dead else { continue };
+                let Some(at) = word_at(&t.text, listener) else { continue };
+                t.text.replace_range(at..at + listener.len(), &d.name);
+                return Some(Name);
+            }
+            CutOff => {
+                if t.channel != crate::game::setting::Channel::Public
+                    || t.text.len() < 24 { continue; }
+                // the word dies halfway: cut where the speech is thickest,
+                // back off to a word's edge
+                let at = (t.text.len() * (40 + rng.below(30)) / 100)
+                    .min(t.text.len() - 1);
+                let cut = t.text[..at].rfind(' ').unwrap_or(at);
+                t.text.truncate(cut);
+                t.text.push_str(" -");
+                return Some(CutOff);
+            }
+            Tense => {
+                let Some(d) = dead else { continue };
+                // the dead's kin word said in the present tense catches
+                // itself; else the kept thing surfaces whole after the
+                // line - "my brother Corvin is... was a carter"
+                if let Some(ki) = word_at(&t.text, d.kin) {
+                    if let Some(ci) = t.text[ki..].find(" is ").filter(|&ci| ci < 60) {
+                        t.text.replace_range(ki + ci..ki + ci + 4, " is... was ");
+                        return Some(Tense);
+                    }
+                }
+                t.text = format!("{} My {} {} is... was a {}.",
+                    t.text.trim_end(), d.kin, d.name, d.trade);
+                return Some(Tense);
+            }
+        }
+    }
+    None
+}
+
 /// How a conversation closes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ending {
@@ -720,6 +913,10 @@ pub struct Transcript {
     /// asked and the pair's openness held, so the fear or need got
     /// told - the session hears it onto the seat's ledger
     pub worry_told: Option<crate::game::desires::Reveal>,
+    /// The leaks the realizer made this talk (E5-8, #1439): (who
+    /// slipped, which shape) - the caller marks its arc budget spent
+    /// off this, one slip to a relationship's whole run of talks
+    pub slips: Vec<(usize, SlipKind)>,
     /// The depth of yourself the responder gave and the pair could hold
     /// (E3-3): each landed disclosure goes a step deeper; the session
     /// keeps the deepest reached so later asks find it mutual
@@ -1501,6 +1698,7 @@ pub fn converse_with_at(
         forward: 0,
         evasions: vec![],
         worry_told: None,
+        slips: vec![],
         shared: 0,
         overshot: false,
         setting,
@@ -1508,6 +1706,12 @@ pub fn converse_with_at(
     let mut used: HashSet<&'static str> = HashSet::default();
     // topics already asked this talk - each one's a beat, once
     let mut asked: HashSet<usize> = HashSet::default();
+    // the slip's own stream (E5-8, #1439): forked before the walk
+    // touches the shared rng, so the same turns roll the same way on
+    // every replay however many picks stand - one leak a talk, and
+    // only while the caller's arc budget lasts
+    let mut slip_rng = rng.fork(0x5EED_5119);
+    let mut slipped = false;
     // the transcript tag (E5-9, #1446): every line this walk pushes
     // carries the channel the setting speaks - the beat scheduler
     // (#1445) flips single lines later, when the hidden transcript's
@@ -1561,7 +1765,7 @@ pub fn converse_with_at(
                 if let Some((ct, call)) = fresh_line(p.calls, &pair[caller], &pair[responder], &used, recent, matches!(p.act, Act::Greet | Act::Farewell), rng) {
                     used.insert(ct);
                     tr.trees_walked.push(PROBE_TREE);
-                    tr.turns.push(Turn { channel,  speaker: caller, act: p.act, respond: None, text: call,
+                    say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: p.act, respond: None, text: call,
                         concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(ct) });
                     // the tested side gets the two forks the probe
                     // holds - the answer that lands and the wrong note
@@ -1580,7 +1784,7 @@ pub fn converse_with_at(
                             let (t, vibe) = forks[i];
                             used.insert(t);
                             let tag = respond_of(choices[i].act);
-                            tr.turns.push(Turn { channel,  speaker: responder, act: choices[i].act,
+                            say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: responder, act: choices[i].act,
                                 respond: Some(tag),
                                 text: fill(t, &pair[responder], &pair[caller], rng),
                                 concepts: p.concepts.to_vec(), tree: PROBE_TREE, line: Some(t) });
@@ -1621,7 +1825,7 @@ pub fn converse_with_at(
             continue;
         };
         used.insert(call_t);
-        tr.turns.push(Turn { channel,  speaker: caller, act: ex.act, respond: None, text: call,
+        say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: ex.act, respond: None, text: call,
             concepts: ex.concepts.to_vec(), tree: node_tree, line: Some(call_t) });
 
         // The other side picks a fork
@@ -1743,7 +1947,7 @@ pub fn converse_with_at(
                             let (qt, _) = fresh_line(tp.ask, &pair[responder], &pair[caller], &used, recent, false, rng)
                                 .unwrap_or((tp.ask[0], String::new()));
                             used.insert(qt);
-                            tr.turns.push(Turn { channel,  speaker: responder, act: Act::Question,
+                            say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: responder, act: Act::Question,
                                 respond: Some(Respond::PivotAsk),
                                 text: fill(qt, &pair[responder], &pair[caller], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(qt) });
@@ -1765,7 +1969,7 @@ pub fn converse_with_at(
                                     let (dt, _) = fresh_line(set, &pair[caller], &pair[responder], &used, recent, false, rng)
                                         .unwrap_or((set[0], String::new()));
                                     used.insert(dt);
-                                    tr.turns.push(Turn { channel,  speaker: caller, act: Act::Evade,
+                                    say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: Act::Evade,
                                         respond: Some(Respond::Deflect),
                                         text: fill(dt, &pair[caller], &pair[responder], rng),
                                         concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(dt) });
@@ -1792,7 +1996,7 @@ pub fn converse_with_at(
                                     .unwrap_or((tp.tell[0], String::new()))
                             };
                             used.insert(at);
-                            tr.turns.push(Turn { channel,  speaker: caller, act: Act::Answer,
+                            say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: Act::Answer,
                                 respond: Some(Respond::Reflect),
                                 text: fill(at, &pair[caller], &pair[responder], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(at) });
@@ -1823,7 +2027,7 @@ pub fn converse_with_at(
         let ops = crate::game::text::shape(reply.act, &st, None);
         let text = crate::game::text::shaped(&ops,
             &fill(line_t, &pair[responder], &pair[caller], rng), None, &st, rng);
-        tr.turns.push(Turn { channel,  speaker: responder, act: reply.act, respond: Some(tag),
+        say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: responder, act: reply.act, respond: Some(tag),
             text,
             concepts: reply.concepts.to_vec(), tree: node_tree, line: Some(line_t) });
         // telling of yourself (E3-3): a substantive answer is a
@@ -4190,7 +4394,7 @@ mod e3_3 {
                     text: "a".into(), concepts: vec![], tree: "t", line: None,
                     channel: crate::game::setting::Channel::Public }],
             ending: Some(Ending::Farewell), vibe: None, asked: vec![],
-            forward: 0, evasions: vec![], worry_told: None, shared: 0, overshot: false,
+            forward: 0, evasions: vec![], worry_told: None, slips: vec![], shared: 0, overshot: false,
             setting: crate::game::setting::STREET };
         assert!(chat_temp(&tr(Some(Respond::Care))) > chat_temp(&tr(Some(Respond::Reflect))));
         assert!(chat_temp(&tr(Some(Respond::Deflect))) < chat_temp(&tr(None)),
@@ -4521,5 +4725,182 @@ mod e5_3 {
             assert!(tr.turns.iter().all(|t| t.act != Act::Worry), "{:?}", tr.lines());
             assert_eq!(tr.worry_told, None);
         }
+    }
+}
+
+#[cfg(test)]
+mod e5_8 {
+    use super::*;
+    use crate::game::dialogue_trees::village_library;
+
+    fn slip_prone() -> Slip {
+        Slip { prone: 1.0, dead: Some(Dead {
+            kin: "brother", name: "Corvin".into(), trade: "carter" }) }
+    }
+
+    /// a leak the realizer produces (E5-8): a strong ghost under a
+    /// high-strung temperament shows through the words - the line
+    /// keeps its spent template, its text comes out corrupted, its
+    /// act marks the slip
+    #[test]
+    fn a_strong_ghost_leaks_through_the_words() {
+        let mut fired = 0;
+        for seed in 0..60 {
+            let mut caller = Speaker::new("Hob");
+            caller.slip = Some(slip_prone());
+            caller.slips_left = 1;
+            let you = Speaker::new("Wanderer");
+            let tr = converse(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, &mut Rng::new(seed));
+            let slips: Vec<&Turn> = tr.turns.iter().filter(|t| t.act == Act::Slip).collect();
+            assert!(slips.len() <= 1, "one leak a talk: {:?}", tr.lines());
+            if let Some(&t) = slips.first() {
+                fired += 1;
+                assert_eq!(tr.slips.len(), 1, "the slip's on the record");
+                assert!(t.line.is_some(), "the spent template's still marked");
+                // the turn that slips is the ghost-carrier's own
+                assert_eq!(t.speaker, 0);
+            }
+        }
+        assert!(fired > 0, "no slip in 60 talks at full prone");
+    }
+
+    /// the budget is the caller's to enforce (E5-8): a speaker with no
+    /// slip left in the arc never leaks, however prone
+    #[test]
+    fn a_spent_budget_never_slips() {
+        for seed in 0..40 {
+            let mut caller = Speaker::new("Hob");
+            caller.slip = Some(slip_prone());
+            caller.slips_left = 0;
+            let you = Speaker::new("Wanderer");
+            let tr = converse(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, &mut Rng::new(seed));
+            assert!(tr.turns.iter().all(|t| t.act != Act::Slip), "{:?}", tr.lines());
+            assert!(tr.slips.is_empty());
+        }
+    }
+
+    /// no ghost under them, no leak (E5-8): a speaker carrying no
+    /// slip profile says every word as written
+    #[test]
+    fn a_quiet_mind_says_the_line_as_written() {
+        for seed in 0..30 {
+            let mut caller = Speaker::new("Hob");
+            caller.slips_left = 1;
+            let you = Speaker::new("Wanderer");
+            let tr = converse(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, &mut Rng::new(seed));
+            assert!(tr.turns.iter().all(|t| t.act != Act::Slip), "{:?}", tr.lines());
+        }
+    }
+
+    /// the three shapes (E5-8): the dead name stands in for the
+    /// listener's own, the tense corrects itself mid-word, the public
+    /// line cuts off where ears are near
+    #[test]
+    fn the_leak_takes_three_shapes() {
+        let dead = Some(Dead { kin: "brother", name: "Corvin".into(), trade: "carter" });
+        let mk = |text: &str, channel| Turn {
+            speaker: 0, act: Act::Remark, respond: None, text: text.to_string(),
+            concepts: vec![], tree: "t", line: Some("l"),
+            channel };
+
+        // the name slip: the listener called by the dead man's name
+        let mut rng = Rng::new(0);
+        let mut saw = false;
+        for _ in 0..20 {
+            let mut x = mk("Fair day, Tilda - the rye looks well.",
+                crate::game::setting::Channel::Backstage);
+            if slip_corrupt(&mut x, "Tilda", &dead, &mut rng) == Some(SlipKind::Name) {
+                assert!(x.text.contains("Corvin") && !x.text.contains("Tilda"),
+                    "the dead name stands in: {}", x.text);
+                saw = true;
+                break;
+            }
+        }
+        assert!(saw, "the name slip never landed");
+
+        // the tense slip: the kept thing surfaces self-corrected
+        let mut rng = Rng::new(1);
+        let mut saw = false;
+        for _ in 0..20 {
+            let mut x = mk("The rye comes in thin this year.",
+                crate::game::setting::Channel::Backstage);
+            if slip_corrupt(&mut x, "Tilda", &dead, &mut rng) == Some(SlipKind::Tense) {
+                assert!(x.text.contains("is... was") && x.text.contains("Corvin"),
+                    "the tense corrects mid-word: {}", x.text);
+                saw = true;
+                break;
+            }
+        }
+        assert!(saw, "the tense slip never landed");
+
+        // the cut-off: a public line truncates where ears are near
+        let mut rng = Rng::new(2);
+        let long = "The reeve's men were counting the sheepfolds again when I passed the lane.";
+        let mut saw = false;
+        for _ in 0..30 {
+            let mut x = mk(long, crate::game::setting::Channel::Public);
+            if slip_corrupt(&mut x, "Tilda", &dead, &mut rng) == Some(SlipKind::CutOff) {
+                assert!(x.text.ends_with(" -") && x.text.len() < long.len(),
+                    "the sentence dies halfway: {}", x.text);
+                saw = true;
+                break;
+            }
+        }
+        assert!(saw, "the cut-off never landed");
+
+        // backstage keeps the whole sentence - no cut-off there
+        for _ in 0..30 {
+            let mut y = mk(long, crate::game::setting::Channel::Backstage);
+            let k = slip_corrupt(&mut y, "Tilda", &dead, &mut rng);
+            assert_ne!(k, Some(SlipKind::CutOff), "no ears backstage");
+        }
+    }
+
+    /// the persona gates the profile (E5-8): only a hard-held wound
+    /// under a high-strung temperament carries a slip - and only a
+    /// death ghost names a dead
+    #[test]
+    fn only_the_marked_and_high_strung_leak() {
+        use crate::game::persona::{EventId, EventKind, Ghost, Belief, Fear, Need};
+        let ghost = |kind, strength| Ghost {
+            event: EventId(0), kind, hook: None,
+            lie: Belief::LordAlwaysWins, strength,
+            fear: Fear::BellTolls, need: Need::ToBeSeen };
+        let persona = |ghosts: Vec<Ghost>, n: f32| {
+            crate::game::persona::Persona {
+                seed: 7, sex: crate::game::villager::Sex::Male,
+                archetype: crate::game::persona::Archetype::Burned,
+                temperament: [0.5, 0.5, 0.5, 0.5, n],
+                trust_propensity: 0.5, values: [0.5; 10],
+                story: vec![], ghosts,
+                signature: crate::game::persona::Signature::Habit("x"),
+                idiolect: crate::game::idiolect::Idiolect { phrase: "x",
+                    habit: crate::game::idiolect::Habit::OathSaints },
+                hidden: crate::game::persona::Landmark::Skill("x"),
+                contradiction: None,
+            }
+        };
+        // strong death ghost + high N: profile with a dead
+        let p = persona(vec![ghost(EventKind::Fever, 0.8)], 0.8);
+        let s = slip_of(&p, None).expect("a marked, high-strung soul carries a slip");
+        assert!(s.dead.is_some(), "a death ghost names a dead");
+        assert!(s.prone > 0.5);
+        // strong ghost, calm nerves: no leak
+        let p = persona(vec![ghost(EventKind::Fever, 0.8)], 0.2);
+        assert!(slip_of(&p, None).is_none(), "calm nerves don't slip");
+        // high N, faint wound: no leak
+        let p = persona(vec![ghost(EventKind::Fever, 0.2)], 0.9);
+        assert!(slip_of(&p, None).is_none(), "a faint wound doesn't slip");
+        // a non-death wound: prone but no dead to name
+        let p = persona(vec![ghost(EventKind::Eviction, 0.8)], 0.8);
+        let s = slip_of(&p, None).expect("a strong wound still slips");
+        assert!(s.dead.is_none(), "an eviction keeps no dead");
+        // a real dead name beats the invented pool
+        let p = persona(vec![ghost(EventKind::Fever, 0.8)], 0.8);
+        let s = slip_of(&p, Some("Old Nan".into())).unwrap();
+        assert_eq!(s.dead.unwrap().name, "Old Nan");
     }
 }

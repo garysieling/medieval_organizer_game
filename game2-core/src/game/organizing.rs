@@ -758,8 +758,7 @@ pub fn stage_of(world: &World, organizer: Entity, who: Entity) -> RelStage {
                     .map(|cc| cc.seats.iter().any(|s| s.holder == who)).unwrap_or(false));
         return if committed { RelStage::CoLeader } else { RelStage::Follower };
     }
-    let pieces = world.get_component::<crate::game::desires::Known>(who)
-        .map(|k| k.revealed.len()).unwrap_or(0);
+    let pieces = crate::game::desires::known(world, organizer, who).len();
     // secrets heard, or deeds done for them - either makes them known
     let deeds = world.get_component::<Deeds>(bond).map(|d| d.n).unwrap_or(0);
     if pieces >= KNOWN_PIECES || deeds > 0 { RelStage::Known } else { RelStage::Acquaintance }
@@ -999,12 +998,13 @@ pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKin
 /// `props_on_offer` with the stage nudged - the audition's read bumps
 /// the rung this talk's asks climb to (#1187, #1188).
 pub fn props_on_offer_shifted(world: &World, org: Entity, person: Entity, shift: i8) -> Vec<PropKind> {
-    let heard = world.get_component::<crate::game::desires::Known>(person)
-        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
+    // `org` is the organization entity - the bond and the ledger are
+    // its leader's
+    let (stage, heard) = world.get_component::<Organization>(org)
+        .map(|o| (stage_of(world, o.leader, person),
+            !crate::game::desires::known(world, o.leader, person).is_empty()))
+        .unwrap_or((RelStage::Stranger, false));
     if !heard { return vec![]; }
-    // `org` is the organization entity - the bond is with its leader
-    let stage = world.get_component::<Organization>(org)
-        .map(|o| stage_of(world, o.leader, person)).unwrap_or(RelStage::Stranger);
     let reached = bumped(stage, shift);
     // nothing deeper than the rung they've reached with you
     let mut out = ask_candidates(world, org, person);
@@ -1064,13 +1064,13 @@ pub struct AskOffer {
 /// in the label ("for 15g"), the nerve's the push it is. An ask that
 /// suits something they've let out names the trouble back at them
 /// (#1247) - they remember what they said, not what you pitched.
-pub fn ask_label(world: &World, person: Entity, o: &AskOffer) -> String {
+pub fn ask_label(world: &World, knower: Entity, person: Entity, o: &AskOffer) -> String {
     let label = match o.key {
         AskKey::Earned => prop_label(o.kind).to_string(),
         AskKey::Coin => format!("{} - for {}g", prop_label(o.kind), o.price as u32),
         AskKey::Nerve => format!("{} - press them on it", prop_label(o.kind)),
     };
-    match suited_trouble(world, person, o.kind) {
+    match suited_trouble(world, knower, person, o.kind) {
         Some(t) => format!("{} - \"{}, you said\"", label, t),
         None => label,
     }
@@ -1080,9 +1080,9 @@ pub fn ask_label(world: &World, person: Entity, o: &AskOffer) -> String {
 /// their self-interest you've heard that this ask speaks to. It's the
 /// same check `yes_chance` reads for its +0.2, so the quote and the
 /// bonus land together or not at all
-fn suited_trouble(world: &World, person: Entity, p: PropKind) -> Option<String> {
-    world.get_component::<crate::game::desires::Known>(person)?
-        .revealed.iter().find(|r| ask_suits(p, r)).map(their_trouble)
+fn suited_trouble(world: &World, knower: Entity, person: Entity, p: PropKind) -> Option<String> {
+    crate::game::desires::known(world, knower, person)
+        .iter().find(|r| ask_suits(p, r)).map(their_trouble)
 }
 
 /// Their trouble named the way an ask can quote it (#1247): one phrase
@@ -1200,13 +1200,15 @@ fn note_declined(world: &mut World, org: Entity, person: Entity, o: AskOffer, ti
 /// pressed one (which needs a piece of them heard to pull on). Asks
 /// refused inside the season stay off the table (#1347).
 pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u64) -> Vec<AskOffer> {
-    let heard = world.get_component::<crate::game::desires::Known>(person)
-        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
-    let (stage, purse) = world.get_component::<Organization>(org)
+    // the ledger's the org leader's own: asks ride on what this seat
+    // heard, not what some other seat did
+    let (stage, purse, leader) = world.get_component::<Organization>(org)
         .map(|o| (stage_of(world, o.leader, person),
             world.get_component::<crate::game::livelihood::Purse>(o.leader)
-                .map(|p| p.gold).unwrap_or(0.0)))
-        .unwrap_or((RelStage::Stranger, 0.0));
+                .map(|p| p.gold).unwrap_or(0.0), Some(o.leader)))
+        .unwrap_or((RelStage::Stranger, 0.0, None));
+    let heard = leader.map(|l| !crate::game::desires::known(world, l, person).is_empty())
+        .unwrap_or(false);
     let reached = bumped(stage, shift);
     let mut out = vec![];
     // the argument's no ask at all now (#1348): the words carry it -
@@ -1220,7 +1222,8 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u
     }
     // the probing question (#1269): the thaw move the talk shares with
     // the meeting - only while there's a want left to plant
-    if reached >= RelStage::Acquaintance && crate::game::desires::probe_open(world, person, tick) {
+    if reached >= RelStage::Acquaintance
+        && leader.map(|l| crate::game::desires::probe_open(world, l, person, tick)).unwrap_or(false) {
         out.push(AskOffer { kind: PropKind::Probe, key: AskKey::Earned, price: 0.0 });
     }
     for p in ask_candidates(world, org, person) {
@@ -1272,8 +1275,8 @@ pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind)
         RelStage::Known => 0.65,
         RelStage::Follower | RelStage::CoLeader => 0.9,
     };
-    let suited = world.get_component::<crate::game::desires::Known>(person)
-        .map(|k| k.revealed.iter().any(|r| ask_suits(p, r))).unwrap_or(false);
+    let suited = crate::game::desires::known(world, organizer, person)
+        .iter().any(|r| ask_suits(p, r));
     let skill = world.get_component::<crate::game::org_skills::Organizing>(organizer)
         .map(|o| o.one_on_one).unwrap_or(0.0);
     (base + if suited { 0.2 } else { 0.0 } + skill * 0.15).min(0.98)
@@ -1316,10 +1319,10 @@ pub fn pull_of(world: &World, v: Entity) -> f32 {
 /// burdens gives them a real reason to say not-yet - the reeve's eye,
 /// a mourning, a purse too thin - before a trait supplies one. None
 /// means a plain no.
-pub(crate) fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
-    use crate::game::desires::{Known, Problem, Reveal};
-    let reason = world.get_component::<Known>(person)
-        .and_then(|k| k.revealed.iter().find_map(|r| match r {
+pub(crate) fn no_reason(world: &World, knower: Entity, person: Entity) -> Option<&'static str> {
+    use crate::game::desires::{Problem, Reveal};
+    let reason = crate::game::desires::known(world, knower, person)
+        .iter().find_map(|r| match r {
             Reveal::Problem(Problem::Taxed) => Some("the reeve's eye is on me already"),
             Reveal::Problem(Problem::Bereaved) => Some("I'm in mourning - not for gatherings"),
             Reveal::Problem(Problem::NoHome) => Some("I've no roof of my own to keep"),
@@ -1327,7 +1330,7 @@ pub(crate) fn no_reason(world: &World, person: Entity) -> Option<&'static str> {
             Reveal::Problem(Problem::Loss) => Some("I'm still counting what the wolves took"),
             Reveal::Problem(Problem::SourGut) => Some("this gut's not done with me yet"),
             _ => None,
-        }));
+        });
     // the wound's own reason (E3-4, #1425): a ghost or its lie answers
     // the ask in words only that fact could explain - it outranks a
     // trait's stock excuse but not a burden you've been told
@@ -1391,7 +1394,7 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
         record_interaction(world, organizer, Interaction {
             other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
         note_declined(world, org, person, AskOffer { kind: p, key, price }, tick);
-        return match no_reason(world, person) {
+        return match no_reason(world, organizer, person) {
             Some(why) => (format!("{} won't hear it - \"{}\"", name, why), None),
             None => (format!("{} won't hear it - not yet.", name), None),
         };
@@ -1463,13 +1466,13 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
 /// little warm to you.
 fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, tick: u64) -> (String, Option<Entity>) {
     use crate::game::relationships::{bonds_of, record_interaction, Interaction, InteractionKind, Relationship};
-    use crate::game::desires::{issue_tag, unrevealed, Known};
+    use crate::game::desires::{issue_tag, unrevealed};
     // a word well spent comes back around: they said they'd think on it,
     // and come find you about it
     world.add_component(person, RoundBack { to: organizer, after: tick + 1, misses: 0 });
     let voc = world.get_component::<crate::game::vocation::Craft>(person).map(|c| c.vocation);
-    let their_tags: Vec<String> = world.get_component::<Known>(person)
-        .map(|k| k.revealed.iter().map(|r| issue_tag(world, person, r)).collect()).unwrap_or_default();
+    let their_tags: Vec<String> = crate::game::desires::known(world, organizer, person)
+        .iter().map(|r| issue_tag(world, person, r)).collect();
     // candidates: who they know, strongest first, sharing something
     let mut cands: Vec<(f32, Entity)> = bonds_of(world, person).iter().filter_map(|&r| {
         let rel = world.get_component::<Relationship>(r)?;
@@ -1477,9 +1480,8 @@ fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, t
         if other == organizer || crate::game::villager::is_dead(world, other) { return None; }
         let same_trade = voc.is_some() && world.get_component::<crate::game::vocation::Craft>(other)
             .map(|c| Some(c.vocation) == voc).unwrap_or(false);
-        let mut their_reveals = world.get_component::<Known>(other)
-            .map(|k| k.revealed.clone()).unwrap_or_default();
-        their_reveals.extend(unrevealed(world, other, tick));
+        let mut their_reveals = crate::game::desires::known(world, organizer, other);
+        their_reveals.extend(unrevealed(world, organizer, other, tick));
         let shared_trouble = their_reveals.iter()
             .any(|r| their_tags.contains(&issue_tag(world, other, r)));
         (same_trade || shared_trouble).then_some((rel.strength, other))
@@ -1578,7 +1580,7 @@ pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i3
     let mut p = (p + skill * 0.1).min(0.98);
     // a given yes is a yes, and a friend holding the door is reason
     // enough; the bare word alone asks something still theirs to say
-    if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, guest, tick).is_empty() {
+    if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, organizer, guest, tick).is_empty() {
         p *= 0.25;
     }
     // the wound's nerve when the word alone calls (E3-4, #1425): a

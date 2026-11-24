@@ -2,7 +2,7 @@
 //! few days, moves where they stand on an issue.
 use crate::session::*;
 use crate::engine::ecs::Entity;
-use crate::game::desires::{Known, Problem, Reveal, Want};
+use crate::game::desires::{Problem, Reveal, Want};
 use crate::game::organizing::{stage_of, PropKind, RelStage};
 use crate::game::persuasion::{self, ArgueMove, Outcome, PendingPersuasion, Stance, THINK_DAYS};
 use crate::game::reactions::Sympathized;
@@ -21,8 +21,8 @@ fn adult(g: &Game) -> usize {
 fn known(g: &mut Game, i: usize, traits: Vec<Trait>, strength: f32) -> Entity {
     let (pe, v) = (g.player, g.villagers[i]);
     g.world.add_component(v, Personality { traits });
-    g.world.add_component(v, Known { revealed: vec![
-        Reveal::Problem(Problem::Taxed), Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love)] });
+    let __pe = g.player; for __r in vec![
+        Reveal::Problem(Problem::Taxed), Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     relationships::record_interaction(&mut g.world, pe,
         Interaction { other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
     set_strength(g, v, strength);
@@ -91,7 +91,8 @@ fn test_the_argument_waits_on_knowing_them() {
     assert!(!crate::game::organizing::ask_offers(&g.world, g.org, v, 0, g.tick).iter().any(|o| o.kind == PropKind::Argue));
     // an acquaintance (one piece heard) gets no hearing for your case:
     // a quarrel's opening needs them to know you
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; g.world.get_component_mut::<crate::game::desires::Known>(__pe).unwrap()
+        .revealed.insert(v, vec![Reveal::Problem(Problem::Taxed)]);
     assert_eq!(stage_of(&g.world, g.player, v), RelStage::Acquaintance);
     assert!(!persuasion::can_argue(stage_of(&g.world, g.player, v)));
     assert_eq!(persuasion::magnitude(&g.world, g.player, v, &"the taxes".to_string(), ArgueMove::HearOut, g.tick), 0.0);
@@ -132,7 +133,7 @@ fn test_a_quarrel_a_stranger_cant_take_up() {
     let i = adult(&g);
     let v = g.villagers[i];
     // one piece heard - an acquaintance, not yet known
-    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let __pe = g.player; for __r in vec![Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, v, __r); }
     let pe = g.player;
     relationships::record_interaction(&mut g.world, pe,
         Interaction { other: v, kind: InteractionKind::Conversation, intensity: 0.3 });

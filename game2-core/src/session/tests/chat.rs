@@ -68,14 +68,14 @@ fn test_a_stranger_walks_past_quiet() {
 
 #[test]
 fn test_someone_who_knows_you_says_hi() {
-    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::desires::{Problem, Reveal, Want};
     let mut game = Game::new();
     let (pe, v) = (game.player, game.villagers[2]);
     // known: a bond plus three pieces of their self-interest heard
     relationships::record_interaction(&mut game.world, pe, relationships::Interaction {
         other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
-    game.world.add_component(v, Known { revealed: vec![
-        Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love), Reveal::Problem(Problem::Taxed)] });
+    let __pe = game.player; for __r in vec![
+        Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love), Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut game.world, __pe, v, __r); }
     bram_in_reach(&mut game);
     game.chat_in_passing();
     let bubble = game.bubbles.iter().find(|b| b.0 == v).expect("someone who knows you says hi");

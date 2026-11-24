@@ -198,6 +198,10 @@ pub struct TalkRecord {
 pub struct PlayerTalk {
     pub id: u64,
     pub who: Entity,
+    /// The seat's own organizer (E7-1, #1404): their ledger is what the
+    /// asks' "you said" and the deep draws' already-heard read from -
+    /// another seat's hearing stays out of it
+    pub knower: Entity,
     pub villager: Speaker,
     pub player: Speaker,
     pub rel: Relation,
@@ -440,11 +444,11 @@ impl PlayerTalk {
                 } else { o.2.clone() }
             }))
             .chain(self.asks.iter().take(self.asks_shown())
-                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
+                .map(|o| crate::game::organizing::ask_label(world, self.knower, self.who, o)))
             .chain(self.inoculation_beyond().as_ref()
-                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
+                .map(|o| crate::game::organizing::ask_label(world, self.knower, self.who, o)))
             .chain(self.probe_beyond().as_ref()
-                .map(|o| crate::game::organizing::ask_label(world, self.who, o)))
+                .map(|o| crate::game::organizing::ask_label(world, self.knower, self.who, o)))
             .chain(self.tell.clone())
             .chain(self.amends.then(|| "Make amends for the other day".to_string()))
             .chain(self.let_run.then(|| "Let them run on".to_string())).collect()
@@ -1214,11 +1218,10 @@ impl Game {
         if rare.is_none() {
             // what they've told you opens the "trouble they told" ask;
             // what they still keep opens the deeper one (#1189)
-            if self.world.get_component::<crate::game::desires::Known>(v)
-                .map(|k| !k.revealed.is_empty()).unwrap_or(false) {
+            if !crate::game::desires::known(&self.world, self.seats[seat].player, v).is_empty() {
                 villager.status.push("shared");
             }
-            if !crate::game::desires::unrevealed(&self.world, v, self.tick).is_empty() {
+            if !crate::game::desires::unrevealed(&self.world, self.seats[seat].player, v, self.tick).is_empty() {
                 villager.status.push("keeps_secret");
             }
             // a live mystery is its own ask: what folk say of it (#1189)
@@ -1369,7 +1372,7 @@ impl Game {
             .unwrap_or_else(|| crate::game::dialogue_trees::backstory(&villager));
         let kind = self.rel_kind(pe, v);
         self.seats[seat].talk = Some(PlayerTalk {
-            id, who: v, villager, player, rel, kind, seed, picks: vec![],
+            id, who: v, knower: pe, villager, player, rel, kind, seed, picks: vec![],
             profile,
             gist: gist.to_string(),
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
@@ -1492,7 +1495,7 @@ impl Game {
                 Draw::Secret if bid_pending => {}
                 Draw::Secret => {
                     let pick = self.rng.next();
-                    if let Some(r) = crate::game::desires::next_reveal(&self.world, t.who, self.tick, pick) {
+                    if let Some(r) = crate::game::desires::next_reveal(&self.world, pe, t.who, self.tick, pick) {
                         if self.reveal_gated(seat, &t) {
                             // a fresh secret tests the bond's nerve first
                             // (E5-4): the bid asks, the telling holds until
@@ -1515,7 +1518,7 @@ impl Game {
                         drawn.push(TalkLine { who: None, name: String::new(), text: did.clone(), gist: false });
                         drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: said_line, gist: false });
                         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.notes.push(did); }
-                    } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, t.who, self.tick, pick) {
+                    } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, pe, t.who, self.tick, pick) {
                         // the well's not dry - it circles (#1347): an old
                         // truth they still carry comes back around,
                         // re-read as catching up, not a fresh telling
@@ -1883,7 +1886,7 @@ impl Game {
                         // around, or a plain "I've wants enough"
                         let pick = self.rng.next();
                         let name = self.name_of(who);
-                        if let Some(r) = crate::game::desires::next_reveal(&self.world, who, self.tick, pick) {
+                        if let Some(r) = crate::game::desires::next_reveal(&self.world, pe, who, self.tick, pick) {
                             if self.reveal_gated(seat, self.seats[seat].talk.as_ref().unwrap()) {
                                 // the asked-for telling still tests the
                                 // nerve first (E5-4): the ask's spent,
@@ -1905,7 +1908,7 @@ impl Game {
                                 self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
                                     pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                             }
-                        } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, who, self.tick, pick) {
+                        } else if let Some(r) = crate::game::desires::catchup_reveal(&self.world, pe, who, self.tick, pick) {
                             let (_did, said) = crate::game::desires::catchup_speech(&name, &r);
                             self.argue_line(seat, Some(who), said);
                         } else {
@@ -2237,11 +2240,11 @@ impl Game {
         if let Some(t) = self.seats[seat].talk.as_mut() { t.let_run = false; }
         use crate::game::desires;
         let run_pick = self.rng.next();
-        let run_fresh = desires::next_reveal(&self.world, who, self.tick, run_pick);
+        let run_fresh = desires::next_reveal(&self.world, pe, who, self.tick, run_pick);
         // an old trouble's still worth the running on (#1347): the
         // still-carrying line when the fresh well's dry
         let run_reveal = run_fresh.clone()
-            .or_else(|| desires::catchup_reveal(&self.world, who, self.tick, run_pick));
+            .or_else(|| desires::catchup_reveal(&self.world, pe, who, self.tick, run_pick));
         if let Some(r) = run_reveal {
             let name = self.name_of(who);
             let (_did, said) = if run_fresh.is_some() {
@@ -2377,9 +2380,9 @@ impl Game {
         if pick % 3 == 2 {
             let third = self.villagers.iter().copied()
                 .filter(|&v| v != who && !villager::is_dead(&self.world, v))
-                .find(|&v| desires::next_reveal(&self.world, v, self.tick, pick).is_some());
+                .find(|&v| desires::next_reveal(&self.world, pe, v, self.tick, pick).is_some());
             if let Some(v3) = third {
-                let dr = desires::next_reveal(&self.world, v3, self.tick, pick).unwrap();
+                let dr = desires::next_reveal(&self.world, pe, v3, self.tick, pick).unwrap();
                 let n3 = self.name_of(v3);
                 let (did, _said) = desires::reveal_speech(&n3, &dr);
                 desires::hear(&mut self.world, pe, v3, dr, self.tick);

@@ -1400,19 +1400,17 @@ impl Game {
         if crate::game::contracts::pact_live(world, self.seats[seat].player, v) {
             issues.push(("sworn to you".into(), (150, 210, 150)));
         }
-        if let Some(k) = world.get_component::<Known>(v) {
-            let mut told = 0;
-            for r in k.revealed.iter() {
-                if told >= 3 { break; }
-                let text = match r {
-                    desires::Reveal::Want(w) => desires::want_label(*w).to_string(),
-                    desires::Reveal::Problem(p) => desires::problem_label(p),
-                };
-                // a worry heard twice still reads once
-                if !issues.iter().any(|(t, _)| *t == text) {
-                    issues.push((text, (210, 170, 140)));
-                    told += 1;
-                }
+        let mut told = 0;
+        for r in desires::known(world, self.seats[seat].player, v) {
+            if told >= 3 { break; }
+            let text = match r {
+                desires::Reveal::Want(w) => desires::want_label(w).to_string(),
+                desires::Reveal::Problem(p) => desires::problem_label(&p),
+            };
+            // a worry heard twice still reads once
+            if !issues.iter().any(|(t, _)| *t == text) {
+                issues.push((text, (210, 170, 140)));
+                told += 1;
             }
         }
         // the village's answer, public as the stocks: the rung they're on
@@ -1776,9 +1774,8 @@ impl Game {
             desires::Reveal::Want(w) => desires::want_label(*w).to_string(),
             desires::Reveal::Problem(p) => desires::problem_label(p),
         };
-        let told: Vec<String> = world.get_component::<desires::Known>(v)
-            .map(|k| k.revealed.iter().map(reveal).collect()).unwrap_or_default();
-        let secrets: Vec<String> = desires::unrevealed(world, v, self.tick).iter().map(reveal).collect();
+        let told: Vec<String> = desires::known(world, self.player, v).iter().map(reveal).collect();
+        let secrets: Vec<String> = desires::unrevealed(world, self.player, v, self.tick).iter().map(reveal).collect();
         let kin: Vec<String> = self.villagers.iter().copied()
             .filter(|&o| o != v && self.rel_kind(v, o) == Some(crate::game::relationships::RelKind::Family))
             .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|k| self.cast_name(k).to_string()))

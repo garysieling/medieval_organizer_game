@@ -462,10 +462,8 @@ impl Game {
                     let want = {
                         let wants: Vec<Want> = self.world.get_component::<desires::InnerLife>(v)
                             .map(|l| l.wants.clone()).unwrap_or_default();
-                        let kn = self.world.get_component::<desires::Known>(v);
-                        wants.into_iter().find(|w| kn
-                            .map(|k| !k.revealed.contains(&desires::Reveal::Want(*w)))
-                            .unwrap_or(true))
+                        let kn = desires::known(&self.world, self.player, v);
+                        wants.into_iter().find(|w| !kn.contains(&desires::Reveal::Want(*w)))
                     };
                     if let Some(w) = want {
                         let player = self.player;
@@ -900,10 +898,8 @@ impl Game {
                     let want = {
                         let wants: Vec<Want> = self.world.get_component::<desires::InnerLife>(v)
                             .map(|l| l.wants.clone()).unwrap_or_default();
-                        let kn = self.world.get_component::<desires::Known>(v);
-                        wants.into_iter().find(|w| kn
-                            .map(|k| !k.revealed.contains(&desires::Reveal::Want(*w)))
-                            .unwrap_or(true))
+                        let kn = desires::known(&self.world, self.player, v);
+                        wants.into_iter().find(|w| !kn.contains(&desires::Reveal::Want(*w)))
                     };
                     let Some(w) = want else { continue };
                     // the organizer's own ledger hears it - the person,
@@ -1550,7 +1546,6 @@ impl Game {
                             self.world.add_component(v, crate::sim::psychology::personality_from_seed(trng.next()));
                         }
                         self.world.add_component(v, crate::game::livelihood::Satchel::default());
-                        self.world.add_component(v, desires::Known::default());
                         let voc = crate::session::roll_vocation(&mut trng);
                         let mut trng2 = Rng(trng.0);
                         self.world.add_component(v, desires::InnerLife {

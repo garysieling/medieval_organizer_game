@@ -72,7 +72,6 @@ impl Game {
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
-        self.world.add_component(v, Known::default());
         self.world.add_component(v, Kid);
         self.world.add_component(v, KidGrowth { age_days: 0, errands: vec![] });
         self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
@@ -194,7 +193,6 @@ impl Game {
         self.world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
         self.world.add_component(v, traits);
         self.world.add_component(v, Satchel::default());
-        self.world.add_component(v, Known::default());
         self.world.add_component(v, vocation::craft(voc.unwrap_or_else(|| roll_vocation(&mut self.rng)),
             0.1 + (self.rng.next() % 40) as f32 / 100.0));
         self.world.add_component(v, Purse { gold: 8.0 });

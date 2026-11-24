@@ -572,7 +572,7 @@ impl Game {
                     }
                 }
                 let mine: crate::engine::det::HashSet<desires::IssueTag> =
-                    desires::unrevealed(&self.world, v, self.tick).iter()
+                    desires::unrevealed(&self.world, host_e, v, self.tick).iter()
                         .map(|r| desires::issue_tag(&self.world, v, r)).collect();
                 let parallel = self.voiced.iter().filter(|(_, t)| mine.contains(t)).count();
                 let mut chance = desires::REVEAL_BASE + desires::REVEAL_PARALLEL * parallel as f32;
@@ -589,7 +589,7 @@ impl Game {
                 let mut shared = false;
                 if roll < chance {
                     let pick = self.rng.next();
-                    if let Some(r) = desires::next_reveal(&self.world, v, self.tick, pick) {
+                    if let Some(r) = desires::next_reveal(&self.world, host_e, v, self.tick, pick) {
                         let (_, said) = desires::reveal_speech(self.cast_name(i), &r);
                         self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
                         let pe = host_e;
@@ -772,9 +772,9 @@ impl Game {
         // the whole of what's pressing, not a want and no more (#1333)
         let heard = crate::sim::psychology::heard_testimony(&self.world, v, asker);
         let pool: Vec<desires::Reveal> = if heard {
-            desires::unrevealed(&self.world, v, self.tick)
+            desires::unrevealed(&self.world, asker, v, self.tick)
         } else {
-            desires::unrevealed(&self.world, v, self.tick).into_iter()
+            desires::unrevealed(&self.world, asker, v, self.tick).into_iter()
                 .filter(|r| matches!(r, desires::Reveal::Want(_))).collect()
         };
         if pool.is_empty() { return None; }

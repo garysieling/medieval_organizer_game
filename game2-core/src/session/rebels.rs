@@ -137,7 +137,6 @@ impl Game {
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, dealt.unwrap_or_else(|| personality_from_seed(i as u64 * 7 + 3)));
         self.world.add_component(v, Satchel::default());
-        self.world.add_component(v, Known::default());
         self.world.add_component(v, Rebel { band });
         // the sentinel site: every "is this country folk" check reads
         // them as outlanders; `site_of` filters the index away, so no

@@ -55,7 +55,7 @@ use crate::game::organizing::{gossip_insult, meeting_remark, passing_greeting, p
 use crate::game::traits::personality_from_seed;
 use crate::game::relationships;
 use crate::game::vocation::{self, Craft, Kid, KidGrowth, Level, SocialClass, TownRole, Vocation};
-use crate::game::desires::{self, InnerLife, Known, Organizer, Problem, Want};
+use crate::game::desires::{self, InnerLife, Organizer, Problem, Want};
 use crate::game::household::{self, Building, BuildingKind};
 use crate::game::goods;
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};

@@ -87,8 +87,8 @@ pub fn arguable_issues(world: &World, org: Entity, organizer: Entity, person: En
     if let Some(o) = world.get_component::<Organizer>(organizer) {
         for t in &o.issues { add(t.clone(), &mut out); }
     }
-    if let Some(k) = world.get_component::<desires::Known>(person) {
-        for r in &k.revealed { add(desires::issue_tag(world, person, r), &mut out); }
+    for r in desires::known(world, organizer, person) {
+        add(desires::issue_tag(world, person, &r), &mut out);
     }
     if let Some(s) = world.get_component::<Sympathized>(person) {
         for (t, _) in &s.issues { add(t.clone(), &mut out); }

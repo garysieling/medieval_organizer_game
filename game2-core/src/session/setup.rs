@@ -635,7 +635,6 @@ impl Game {
             world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
             world.add_component(v, traits);
             world.add_component(v, Satchel::default());
-            world.add_component(v, Known::default());
             // the old wounds they carry in (#1243); a seeded cast's
             // come off its persona's ghosts instead (E2-3, #1421)
             let hooks = if seeded_cast {

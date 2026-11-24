@@ -138,7 +138,7 @@ fn warm_bond(g: &mut Game, v: Entity) {
         crate::game::relationships::Relationship {
             from: pe, other: v, kind: RelKind::Friend,
             strength: 1.0, interactions: 3,
-            intimacy: 0.6, pivots: 0, deflects: 0,
+            intimacy: 0.6, pivots: 0, deflects: 0, bids_met: 0,
             trust: crate::game::relationships::Trust {
                 ability: 0.0, benevolence: 0.6, integrity: 0.6 },
             safety: crate::game::relationships::SafetyRung::Challenger,
@@ -1621,6 +1621,11 @@ fn test_the_probe_reopens_when_their_life_moved_on() {
     let pick = t.choice_labels(&g.world).iter().position(|l| l == "Ask what they actually want")
         .expect("the probing question's back on the table");
     g.talk_pick_at(0, Some(pick));
+    // a stranger's nerve isn't earned yet (E5-4): the re-asked question
+    // meets the safety test first - answer it true and the telling comes
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    assert!(t.safety_bid.is_some(), "a cold bond's secret tests first: {:?}", t);
+    g.talk_pick_at(0, Some(0));
     let known = g.world.get_component::<Known>(v).unwrap();
     assert!(known.revealed.contains(&Reveal::Problem(Problem::Loss)),
         "the re-asked question drew the new trouble: {:?}", known.revealed);
@@ -1838,7 +1843,7 @@ fn test_the_responsive_guest_hears_more_than_the_curious() {
             crate::game::relationships::Relationship {
                 from: pe, other: v, kind: RelKind::Acquaintance,
                 strength: 0.6, interactions: 2,
-                intimacy: 0.5, pivots: 0, deflects: 0,
+                intimacy: 0.5, pivots: 0, deflects: 0, bids_met: 0,
                 trust: crate::game::relationships::Trust {
                     ability: 0.0, benevolence: 0.6, integrity: 0.5 },
                 safety: crate::game::relationships::SafetyRung::Contributor,
@@ -1869,7 +1874,7 @@ fn test_another_guests_telling_isnt_yours() {
         crate::game::relationships::Relationship {
             from: pe, other: v, kind: RelKind::Acquaintance,
             strength: 0.6, interactions: 2,
-            intimacy: 0.5, pivots: 0, deflects: 0,
+            intimacy: 0.5, pivots: 0, deflects: 0, bids_met: 0,
             trust: crate::game::relationships::Trust {
                 ability: 0.0, benevolence: 0.6, integrity: 0.5 },
             safety: crate::game::relationships::SafetyRung::Contributor });
@@ -1898,7 +1903,7 @@ fn test_a_later_telling_keeps_the_earlier_deflection() {
         crate::game::relationships::Relationship {
             from: pe, other: v, kind: RelKind::Acquaintance,
             strength: 0.6, interactions: 2,
-            intimacy: 0.5, pivots: 0, deflects: 0,
+            intimacy: 0.5, pivots: 0, deflects: 0, bids_met: 0,
             trust: crate::game::relationships::Trust {
                 ability: 0.0, benevolence: 0.6, integrity: 0.5 },
             safety: crate::game::relationships::SafetyRung::Contributor });
@@ -2087,4 +2092,234 @@ fn test_the_responsive_guest_outbonds_the_greedy_one() {
         "a guest who receives you comes out closer than one who doesn't: {responsive:?} vs {greedy:?}");
     assert!(greedy.1 + greedy.2 > 0,
         "the greedy guest left marks the bond keeps: {greedy:?}");
+}
+
+/// Warm but untested (E5-4, #1436): the parts reach the private layer
+/// the way `warm_bond`'s do, but the nerve's never climbed - a fresh
+/// telling still tests before it moves
+fn untested_bond(g: &mut Game, v: Entity) {
+    let pe = g.player;
+    crate::game::relationships::add_relationship(&mut g.world,
+        crate::game::relationships::Relationship {
+            from: pe, other: v, kind: RelKind::Friend,
+            strength: 1.0, interactions: 3,
+            intimacy: 0.6, pivots: 0, deflects: 0, bids_met: 0,
+            trust: crate::game::relationships::Trust {
+                ability: 0.0, benevolence: 0.6, integrity: 0.6 },
+            safety: crate::game::relationships::SafetyRung::Inclusion,
+        });
+    let mut sd = SharedDepth::default();
+    sd.of.insert(pe, (2, g.tick));
+    g.world.add_component(v, sd);
+}
+
+#[test]
+fn test_a_reach_answered_moves_what_the_table_says() {
+    // E5-4's table (#1436): the turn toward warms them and counts - two
+    // kept reaches raise the nerve a rung; the miss costs the rung
+    // outright, deliberately heavier than the refusal's mark
+    use crate::game::relationships::{find_relationship, push_bid, BidTurn,
+        Relationship, SafetyRung};
+    let mut g = Game::new();
+    let pe = g.player;
+    let v = g.villagers[adults(&g)[0]];
+    push_bid(&mut g.world, pe, v, BidTurn::Toward);
+    push_bid(&mut g.world, pe, v, BidTurn::Toward);
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert_eq!(r.bids_met, 2);
+    assert!(r.intimacy > 0.1 && r.trust.benevolence > 0.0,
+        "turning toward warms: {r:?}");
+    assert_eq!(r.safety, SafetyRung::Learner, "kept reaches climb the nerve");
+    push_bid(&mut g.world, pe, v, BidTurn::Away);
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert_eq!(r.safety, SafetyRung::Inclusion, "the miss costs the nerve");
+    // and the refusal marks without costing the rung's own floor - a
+    // refused reach was at least seen, a missed one wasn't
+    push_bid(&mut g.world, pe, v, BidTurn::Toward);
+    push_bid(&mut g.world, pe, v, BidTurn::Toward);
+    let integ = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap().trust.integrity;
+    push_bid(&mut g.world, pe, v, BidTurn::Against);
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert!(r.trust.integrity < integ, "the refusal leaves its mark");
+    assert_eq!(r.safety, SafetyRung::Learner,
+        "the refusal isn't the miss - the nerve keeps its floor");
+}
+
+#[test]
+fn test_a_reach_met_at_the_pick_is_counted() {
+    // when their call was a bid, the pick's act is the turn it reads
+    // (E5-4): an engaging answer counts a kept reach on the bond
+    use crate::game::relationships::{find_relationship, Relationship};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    assert!(t.call_act.is_some(), "the replies answer a real call");
+    g.seats[0].talk.as_mut().unwrap().call_act = Some(Act::Bid);
+    let (p, act) = t.options.iter().enumerate()
+        .map(|(i, (a, _, _))| (i, *a))
+        .find(|(_, a)| !matches!(a, Act::Farewell))
+        .unwrap_or((0, Act::Farewell));
+    g.talk_pick_at(0, Some(p));
+    let r = find_relationship(&g.world, g.player, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e))
+        .expect("the bond moved");
+    let toward = matches!(act, Act::Agree | Act::Answer | Act::Question);
+    assert_eq!(r.bids_met, toward as u32,
+        "the pick's act ({act:?}) was the turn");
+}
+
+#[test]
+fn test_a_fresh_secret_tests_the_nerve_first() {
+    // the disclosure's hard gate (E5-4, #1436): warm but untested, the
+    // ask draws the safety bid, not the telling - answering it true is
+    // what lets the telling out
+    use crate::game::desires::{InnerLife, Known, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    untested_bond(&mut g, v);
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    // a secret wants a private hearing: no ears near
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists");
+    g.talk_pick_at(0, Some(p));
+    let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+    let bid = t.safety_bid.expect("a fresh secret tests the nerve first");
+    assert_eq!(t.choice_labels(&g.world), bid.labels(),
+        "the choices are the test's answers now");
+    assert!(g.world.get_component::<Known>(v)
+        .map(|k| k.revealed.is_empty()).unwrap_or(true),
+        "the secret holds for the answer");
+    // answering it true: the held telling comes out - the test's own
+    // reveal, whatever the deck dealt - and the word's remembered
+    let held = bid.reveal;
+    g.talk_pick_at(0, Some(0));
+    let known = g.world.get_component::<Known>(v).unwrap();
+    assert!(known.revealed.contains(&held),
+        "the passed test let it out: {:?}", known.revealed);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.bid_passed && t.safety_bid.is_none());
+    // and the kept word's on the record E5-5's confidence ledger reads
+    let mem = g.world.get_component::<crate::game::episodes::PairMemory>(v)
+        .expect("the answer left a memory");
+    assert!(mem.eps.iter().any(|e| e.kind == crate::game::episodes::MemKind::KeptConfidence),
+        "{:?}", mem.eps);
+}
+
+#[test]
+fn test_a_test_failed_keeps_the_secret_held() {
+    // the leak answer (E5-4): the telling stays held, and where the
+    // test's shape makes it a confidence leaked the memory's the sour
+    // one the ledger reads back
+    use crate::game::desires::{InnerLife, Known, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    untested_bond(&mut g, v);
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    // a secret wants a private hearing: no ears near
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists");
+    g.talk_pick_at(0, Some(p));
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    let bid = t.safety_bid.expect("the test stands");
+    let leak = bid.labels().len() - 1;
+    g.talk_pick_at(0, Some(leak));
+    assert!(g.world.get_component::<Known>(v)
+        .map(|k| k.revealed.is_empty()).unwrap_or(true),
+        "the telling stayed held");
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.safety_bid.is_none() && !t.bid_passed, "the test's done and failed");
+    match bid.kind {
+        SafetyBidKind::Hypothetical | SafetyBidKind::Probe => {
+            let mem = g.world.get_component::<crate::game::episodes::PairMemory>(v)
+                .expect("the leak left a memory");
+            assert!(mem.eps.iter().any(|e| e.kind == crate::game::episodes::MemKind::LeakedConfidence),
+                "{:?}", mem.eps);
+        }
+        SafetyBidKind::Confidence => {
+            // "I make no promises" is a miss, not a leak: no sour
+            // memory, just the rung's own cost
+            assert!(g.world.get_component::<crate::game::episodes::PairMemory>(v)
+                .map(|m| !m.eps.iter().any(|e| e.kind == crate::game::episodes::MemKind::LeakedConfidence))
+                .unwrap_or(true));
+        }
+    }
+}
+
+#[test]
+fn test_walking_out_on_their_test_is_the_miss() {
+    // leaving the test unanswered is the turn away (E5-4): they
+    // reached and were left standing - the nerve pays it
+    use crate::game::desires::{InnerLife, Problem};
+    use crate::game::relationships::{find_relationship, Relationship, SafetyRung};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    untested_bond(&mut g, v);
+    g.world.add_component(v, InnerLife {
+        wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    // a secret wants a private hearing: no ears near
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
+    talk_beside(&mut g, i);
+    let menu = open_ask_menu(&mut g);
+    let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
+        .expect("the worn secret's ask lists");
+    g.talk_pick_at(0, Some(p));
+    // the rung earned: the untested bond's nerve climbs off the floor
+    let pe = g.player;
+    crate::game::relationships::push_bid(&mut g.world, pe, v,
+        crate::game::relationships::BidTurn::Toward);
+    crate::game::relationships::push_bid(&mut g.world, pe, v,
+        crate::game::relationships::BidTurn::Toward);
+    assert_eq!(find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap().safety,
+        SafetyRung::Learner);
+    g.talk_pick_at(0, None);
+    assert!(g.seats[0].talk.is_none(), "the leave closed the talk");
+    let r = find_relationship(&g.world, pe, v)
+        .and_then(|e| g.world.get_component::<Relationship>(e)).unwrap();
+    assert_eq!(r.safety, SafetyRung::Inclusion,
+        "walking out on the reach cost the rung");
+}
+
+#[test]
+fn test_the_probe_bid_tells_someone_elses_secret_first() {
+    // the third shape (E5-4): they tell you another's lesser secret
+    // and watch what you do - the decoy's real content, filed on its
+    // owner, so your handling of it is the thing being watched
+    use crate::game::desires::{Known, Problem};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = talk_beside(&mut g, i);
+    let told = |g: &Game| g.villagers.iter().copied()
+        .filter(|&x| x != v)
+        .map(|x| g.world.get_component::<Known>(x)
+            .map(|k| k.revealed.len()).unwrap_or(0))
+        .sum::<usize>();
+    let before = told(&g);
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    let r = crate::game::desires::Reveal::Problem(Problem::Taxed);
+    let (line, kind) = g.safety_bid_line(0, &t, r, 2);
+    assert_eq!(kind, SafetyBidKind::Probe, "the third shape probes");
+    assert!(line.contains("Word is,"), "the decoy told: {}", line);
+    assert!(!line.contains(&t.villager.name),
+        "it isn't their own secret: {}", line);
+    assert!(told(&g) > before, "the lesser secret filed on its owner");
+    // and the watch answers are keep / question / leak
+    let bid = SafetyBid { kind, reveal: r };
+    assert_eq!(bid.labels().len(), 3);
 }

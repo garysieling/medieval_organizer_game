@@ -134,7 +134,7 @@ fn test_the_migration_leaves_no_typed_forms_in_the_trees() {
 // `list:` referent grammar - plus the names a `refs`/`fill` carries
 const SLOT_FAMILIES: &[&str] = &["2", "2p", "he", "him", "his", "is", "was",
     "n", "a", "list", "other", "other_trade", "trade", "addr",
-    "someone", "lads", "grandda", "issue", "self"];
+    "someone", "lads", "grandda", "issue", "self", "grievance"];
 
 fn slot_known(s: &str) -> bool {
     let s = s.trim_start_matches('{').trim_end_matches('}');
@@ -180,7 +180,9 @@ fn test_authored_lines_have_no_unknown_or_unfilled_slots() {
             Referent { slot: "lads", text: "the lads".into(),
                 sex: None, alive: true, count: 3 },
             Referent { slot: "grandda", text: "grandda".into(),
-                sex: Some("male"), alive: false, count: 1 }];
+                sex: Some("male"), alive: false, count: 1 },
+            Referent { slot: "grievance", text: "the tithe".into(),
+                sex: None, alive: true, count: 1 }];
         let got = fill(&realize(t, &Cx::plain(&a, &b, &refs), &mut rng), "the hunger");
         if got.contains('{') || got.contains('}') {
             bad.push(format!("unfilled after realize: {got} <- {t}"));

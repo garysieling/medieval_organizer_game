@@ -1447,7 +1447,7 @@ fn test_the_acts_say_how_the_chat_landed() {
         }).collect(),
         ending, vibe: None, asked: vec![], forward: 0, shared: 0, overshot: false,
         setting: crate::game::setting::STREET,
-        evasions: vec![], worry_told: None, slips: vec![],
+        evasions: vec![], worry_told: None, slips: vec![], jokes: vec![],
     };
     // a warm exchange
     assert!(chat_temp(&tr(&[(0, Act::Greet), (1, Act::Agree), (0, Act::Agree)],
@@ -2576,3 +2576,36 @@ fn test_what_one_seat_learns_is_invisible_to_the_other() {
         "but the other seat could still draw it out of them");
 }
 
+
+#[test]
+fn test_a_shared_laugh_over_power_files_alignment() {
+    // E5-6: a barb at the lord taken up where it could have been
+    // reported is the village mind made visible - the villager keeps
+    // the laugh as an episode
+    use crate::game::conversation::{Grievance, Joke, JokeTarget};
+    use crate::game::episodes::{MemKind, PairMemory};
+    let mut g = Game::new();
+    let mut heard = None;
+    for i in adults(&g) {
+        let v = talk_beside(&mut g, i);
+        {
+            let t = g.seats[0].talk.as_mut().unwrap();
+            t.setting = crate::game::setting::BACKSTAGE;
+            t.villager.joke = Some(Joke {
+                styles: [0.0, 0.0, 1.0, 0.0],
+                grievance: Some(Grievance { target: JokeTarget::Lord,
+                    word: "the lord's wars",
+                    lie: crate::game::persona::Belief::LordAlwaysWins }) });
+        }
+        // option 0 is the open laugh when the four forks show
+        let mut picks = 0;
+        while g.seats[0].talk.is_some() && picks < 40 { g.talk_pick_at(0, Some(0)); picks += 1; }
+        if g.world.get_component::<PairMemory>(v)
+            .map(|m| m.eps.iter().any(|e| e.kind == MemKind::LaughedWithUs))
+            .unwrap_or(false) {
+            heard = Some(v);
+            break;
+        }
+    }
+    assert!(heard.is_some(), "no laugh over a power joke across the adults");
+}

@@ -262,6 +262,10 @@ pub struct PlayerTalk {
     /// The leaks already marked on the pair's memory (E5-8, #1439):
     /// the replay yields `slips` every refresh once one's fired
     pub slips_seen: usize,
+    /// The jokes already read for alignment (E5-6, #1437): the replay
+    /// yields `jokes` every refresh; a laugh shared over a barb at
+    /// power files once
+    pub jokes_seen: usize,
     /// An easier ask already mended the nerve a press frayed (E5-2):
     /// backing off pays once a talk
     pub backed_off: bool,
@@ -557,6 +561,11 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     // standing, the moral pull of a dead loss - read live, not stored
     s.pull = crate::game::organizing::pull_of(world, who);
     if let Some(p) = world.get_component::<Personality>(who) { s.traits = p.traits.clone(); }
+    // their humor (E5-6, #1437): styles off the traits, the grievance
+    // off the persona's strongest ghost - needs both, so it seeds here
+    if let Some(p) = world.get_component::<crate::game::persona::Persona>(who) {
+        s.joke = Some(crate::game::conversation::joke_of(p, &s.traits));
+    }
     // the body the talk can pronoun by (E1-3, #1417) - set before the
     // child's early out so kids carry it too
     if let Some(sex) = world.get_component::<villager::Sex>(who) {
@@ -666,7 +675,7 @@ pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: R
         &mut crate::game::conversation::Rng::new(0))
 }
 
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>, Option<crate::game::desires::Reveal>, Vec<(usize, crate::game::conversation::SlipKind)>) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>, Option<crate::game::desires::Reveal>, Vec<(usize, crate::game::conversation::SlipKind)>, Vec<crate::game::conversation::JokeBeat>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
     let tr = converse_with_at(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &t.setting, &mut |ch: &[Choice]| {
@@ -684,7 +693,7 @@ fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static s
     // for a pick, the last turn is their call - a bid's met or missed
     // against it
     let call = if offered.is_some() { tr.turns.last().map(|t| t.act) } else { None };
-    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call, tr.evasions, tr.worry_told, tr.slips)
+    (lines, offered, ending, tr.trees_walked.last().copied(), tr.vibe, tr.asked, tr.forward, tr.shared, call, tr.evasions, tr.worry_told, tr.slips, tr.jokes)
 }
 
 impl Game {
@@ -1018,6 +1027,17 @@ impl Game {
                 .map(|m| m.of.clone()).unwrap_or_default();
             of.insert(hr);
             self.world.add_component(sp, SlipMemory { of });
+        }
+        // who laughs is aligned (E5-6, #1437): a barb at power taken
+        // up - laughed, topped - reads as standing together over it
+        for beat in &tr.jokes {
+            if beat.target.is_some_and(crate::game::conversation::JokeTarget::power)
+                && matches!(beat.receipt, crate::game::conversation::JokeReceipt::Laughed
+                    | crate::game::conversation::JokeReceipt::AddedTo) {
+                let (jk, hr) = if beat.joker == 0 { (a, b) } else { (b, a) };
+                relationships::push_bid(&mut self.world, hr, jk,
+                    relationships::BidTurn::Toward);
+            }
         }
         self.note_said_lines(tr.turns.iter().filter_map(|t| t.line));
         // the exchange types what it does to the bond (#1230): the acts
@@ -1478,7 +1498,7 @@ impl Game {
             options: vec![], opt_tree: None, since: self.tick, notes: opening, asks,
             asks_taken: vec![], asked_seen: 0, forward_seen: 0,
             evasions_seen: 0, blurted: false, backed_off: false,
-            worry_told_seen: false, slips_seen: 0, shared: 0,
+            worry_told_seen: false, slips_seen: 0, jokes_seen: 0, shared: 0,
             // a villager who once heard this seat's testimony opens a
             // rung warmer - they heard the story, they know the teller (#1333)
             mood: if crate::sim::psychology::heard_testimony(&self.world, v, pe) {
@@ -1503,7 +1523,7 @@ impl Game {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
         let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions, worry_told, slips) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions, worry_told, slips, jokes) = replay(&t, Some(&recent));
         if shared > t.shared {
             // the deepest telling so far this talk (E3-3): the running
             // gate already lives in the replay - this only carries the
@@ -1594,6 +1614,23 @@ impl Game {
                 }
             }
             if let Some(cur) = self.seats[seat].talk.as_mut() { cur.slips_seen = slips.len(); }
+        }
+        // who laughs shows who's aligned (E5-6, #1437): a laugh - or
+        // the bolder answer-back - over a barb at power is the village
+        // mind made visible; the villager keeps the episode either
+        // way round the joke went
+        if jokes.len() > t.jokes_seen {
+            let who = t.who;
+            for b in &jokes[t.jokes_seen..] {
+                if b.target.is_some_and(crate::game::conversation::JokeTarget::power)
+                    && matches!(b.receipt, crate::game::conversation::JokeReceipt::Laughed
+                        | crate::game::conversation::JokeReceipt::AddedTo) {
+                    crate::game::episodes::file(&mut self.world, who, pe,
+                        crate::game::episodes::MemKind::LaughedWithUs,
+                        self.tick, &["joke"]);
+                }
+            }
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.jokes_seen = jokes.len(); }
         }
         // the doorknob worry that opened its tier (E5-3, #1435): the
         // why's answer is the fear or need itself - it lands on the

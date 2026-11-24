@@ -3,7 +3,7 @@
 //! relations, run through `converse` - shared so the `--json` corpus
 //! and the talk checks generate the same talks.
 
-use crate::game::conversation::{converse_at, Relation, Rng, Speaker, Transcript};
+use crate::game::conversation::{converse_at, DialogueTree, Relation, Rng, Speaker, Transcript};
 use crate::game::dialogue_trees::village_library;
 use crate::game::relationships::RelKind;
 use crate::game::traits::Trait;
@@ -148,20 +148,141 @@ pub fn gen_conversations(num_characters: usize, num_conversations: usize, seed: 
             // field for the hidden one (the bond decides if it opens),
             // and the law's ear on a few backstage talks to flip them
             // public again
-            let setting = crate::game::setting::Setting {
-                place: match rng.below(10) {
-                    0 | 1 => crate::game::setting::Place::Market,
-                    2 => crate::game::setting::Place::ChurchDoor,
-                    3 | 4 | 5 => crate::game::setting::Place::Alehouse,
-                    6 | 7 => crate::game::setting::Place::Kitchen,
-                    _ => crate::game::setting::Place::Field,
-                },
-                law_earshot: rng.below(8) == 0,
-                invited: false,
-            };
+            let setting = spread_setting(&mut rng);
             let t = converse_at(char_a, &roster[b], relation, kind, &library, None, &setting, &mut rng);
             talks.push(GenTalk { a: char_idx, b, relation, kind, setting, transcript: t });
         }
     }
     GenCorpus { roster, talks }
+}
+
+/// The places a batch spreads over (E5-9, #1446) - shared by the
+/// flat and the stratified draws
+fn spread_setting(rng: &mut Rng) -> crate::game::setting::Setting {
+    crate::game::setting::Setting {
+        place: match rng.below(10) {
+            0 | 1 => crate::game::setting::Place::Market,
+            2 => crate::game::setting::Place::ChurchDoor,
+            3 | 4 | 5 => crate::game::setting::Place::Alehouse,
+            6 | 7 => crate::game::setting::Place::Kitchen,
+            _ => crate::game::setting::Place::Field,
+        },
+        law_earshot: rng.below(8) == 0,
+        invited: false,
+    }
+}
+
+/// A stratified batch (E0-8, #1410): every tree's line count, which
+/// never reached the target, and the conversations that added
+/// coverage in order drawn
+pub struct Coverage {
+    /// turns counted per tree, in library order
+    pub counts: Vec<(&'static str, usize)>,
+    /// trees that never reached the target inside the cap
+    pub uncovered: Vec<&'static str>,
+    /// the conversations that added coverage, in order
+    pub talks: Vec<GenTalk>,
+    /// pairs rolled, kept or not
+    pub attempts: usize,
+}
+
+/// Branch-stratified sampling: keep rolling pairs until each tree's
+/// lines hit `target`; a dead branch (criteria unreachable by any
+/// speaker) is reported uncovered rather than looping forever
+pub fn cover_branches(roster: &[Speaker], target: usize, max_attempts: usize,
+    library: &[DialogueTree], rng: &mut Rng) -> Coverage {
+    assert!(roster.len() >= 2, "a pair needs two speakers");
+    let mut counts: Vec<(&'static str, usize)> =
+        library.iter().map(|t| (t.name, 0usize)).collect();
+    let mut talks = vec![];
+    let mut attempts = 0;
+    while attempts < max_attempts && counts.iter().any(|&(_, c)| c < target) {
+        attempts += 1;
+        let a = rng.below(roster.len());
+        let b = (a + 1 + rng.below(roster.len() - 1)) % roster.len();
+        let relation = RELATIONS[rng.below(RELATIONS.len())];
+        let kind = kind_for(rng, relation);
+        let setting = spread_setting(rng);
+        let t = converse_at(&roster[a], &roster[b], relation, kind,
+            library, None, &setting, rng);
+        // the count is the kept corpus' own: a talk that only repeats
+        // already-full branches isn't kept and adds nothing; a kept
+        // talk's every line counts, whatever branch it came off - the
+        // table's numbers are what a recount of the corpus finds
+        let added = t.turns.iter().any(|turn|
+            counts.iter().any(|(n, c)| *n == turn.tree && *c < target));
+        if added {
+            for turn in &t.turns {
+                if let Some(c) = counts.iter_mut().find(|(n, _)| *n == turn.tree) {
+                    c.1 += 1;
+                }
+            }
+            talks.push(GenTalk { a, b, relation, kind, setting, transcript: t });
+        }
+    }
+    let uncovered = counts.iter().filter(|&&(_, c)| c < target)
+        .map(|&(n, _)| n).collect();
+    Coverage { counts, uncovered, talks, attempts }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::conversation::{Act, Criterion, Ending, Exchange, Reply};
+
+    static HELLO: Exchange = Exchange {
+        act: Act::Greet, concepts: &["x"], calls: &["Morrow."], voice: &[],
+        replies: &[Reply {
+            criteria: &[], weight: 1.0, bias: &[], act: Act::Farewell,
+            respond: None, concepts: &[], lines: &["Off I go."], voice: &[],
+            then: None, end: Some(Ending::LeavesEarly) }],
+    };
+
+    /// The stratified draw fills a reachable branch to the target and
+    /// keeps the conversations that added coverage
+    #[test]
+    fn a_reachable_branch_fills_to_target() {
+        let mut rng = Rng::new(7);
+        let roster = generate_roster(4, &mut rng);
+        let lib = vec![DialogueTree { name: "always", criteria: &[],
+            root: &HELLO, rejoin: None }];
+        let cov = cover_branches(&roster, 5, 500, &lib, &mut rng);
+        assert!(cov.counts[0].1 >= 5, "{:?}", cov.counts);
+        assert!(cov.uncovered.is_empty());
+        assert!(!cov.talks.is_empty());
+        assert!(cov.attempts < 500);
+    }
+
+    /// A branch no speaker can reach is reported uncovered at the cap,
+    /// not hung on (E0-8, #1410)
+    #[test]
+    fn a_dead_branch_reports_uncovered_and_stops() {
+        let mut rng = Rng::new(7);
+        let roster = generate_roster(4, &mut rng);
+        let lib = vec![
+            DialogueTree { name: "dead",
+                criteria: &[Criterion::Has("self:status:never_there")],
+                root: &HELLO, rejoin: None },
+            DialogueTree { name: "always", criteria: &[],
+                root: &HELLO, rejoin: None }];
+        let cov = cover_branches(&roster, 5, 200, &lib, &mut rng);
+        assert_eq!(cov.uncovered, vec!["dead"]);
+        assert_eq!(cov.attempts, 200);
+        assert!(cov.counts.iter().find(|(n, _)| *n == "always").unwrap().1 >= 5);
+    }
+
+    /// Kept conversations are the coverage contributors - a talk that
+    /// only repeats already-full branches isn't kept
+    #[test]
+    fn only_coverage_adding_talks_are_kept() {
+        let mut rng = Rng::new(7);
+        let roster = generate_roster(4, &mut rng);
+        let lib = vec![DialogueTree { name: "always", criteria: &[],
+            root: &HELLO, rejoin: None }];
+        // target 2 turns: each talk says two "always" lines - the
+        // second talk is the last that adds anything
+        let cov = cover_branches(&roster, 2, 500, &lib, &mut rng);
+        assert_eq!(cov.talks.len(), 1);
+        assert!(cov.attempts >= 1);
+    }
 }

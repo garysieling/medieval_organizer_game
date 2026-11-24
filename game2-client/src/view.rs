@@ -1343,9 +1343,9 @@ impl View {
                 fig.blit_scaled(&mut buf, lx(6), ly(322), 2);
             }
             for line in &insp.lines {
-                if line.text.starts_with('\u{3}') {
+                if let Some(heading) = line.text.strip_prefix('\u{3}') {
                     // a section head: the rubric hand, capital
-                    draw_tier(&mut buf, lx(line.x), ly(line.y), &line.text[3..],
+                    draw_tier(&mut buf, lx(line.x), ly(line.y), heading,
                         TextTier::H3, line.rgb.0, line.rgb.1, line.rgb.2);
                 } else if line.text.starts_with('\u{1}') {
                     // "METER:name:frac:note" sentinel from the sim

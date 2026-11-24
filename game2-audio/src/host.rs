@@ -237,6 +237,9 @@ pub struct AudioHost {
     /// ever sees the `Intent`s frames carry.
     director: Option<crate::director::Director>,
     dir_seed: u64,
+    /// The presence budget the settings last applied - a director
+    /// seeded after the setting lands still hears it.
+    presence: f32,
     /// The score state: kept in its own struct so the render loop can
     /// borrow it beside the `engine` living inside `link`.
     score: Score,
@@ -253,10 +256,19 @@ struct Score {
     song_pos: u64,
     /// The sample the next phrase starts on
     phrase_next: u64,
+    /// Device samples the current phrase spans
+    phrase_samples: u64,
     /// Composed phrases so far - `bar_index` = `phrase_idx * 8`
     phrase_idx: u64,
     /// Notes waiting on their onset sample, earliest first
     pending_notes: std::collections::VecDeque<(u64, crate::compose::NoteEvent)>,
+    /// Stingers waiting on their downbeat: an intent carries each for
+    /// a single frame, so they queue here and fire once.
+    stinger_queue: Vec<crate::director::Stinger>,
+    /// Whether the trace and note ledger record: the dump host turns
+    /// it on, the live pump leaves it off so a day's session doesn't
+    /// grow a history nobody drains.
+    capture: bool,
     /// Per-bar records for `sound_dump`'s `.trace.json`
     traces: Vec<crate::trace::BarTrace>,
     /// Every note fired, for the dump's piano roll
@@ -264,13 +276,50 @@ struct Score {
 }
 
 impl Score {
-    fn new() -> Self {
+    fn new(capture: bool) -> Self {
         Score {
             intent: crate::director::Intent::default(),
             composer: crate::compose::Composer::new(),
-            song_pos: 0, phrase_next: 0, phrase_idx: 0,
+            song_pos: 0, phrase_next: 0, phrase_samples: 0, phrase_idx: 0,
             pending_notes: std::collections::VecDeque::new(),
+            stinger_queue: vec![],
+            capture,
             traces: vec![], note_log: vec![],
+        }
+    }
+
+    /// The stinger's voice and pitch (the design's palette: bells for
+    /// wins, a low drum for a loss, a half-cadence for a stall).
+    fn stinger_patch(s: crate::director::Stinger) -> (crate::instruments::PatchId, u8) {
+        use crate::director::Stinger;
+        use crate::instruments::PatchId;
+        match s {
+            Stinger::BellsPeal | Stinger::CauseClose => (PatchId::TubularBells, 72),
+            Stinger::HalfCadence => (PatchId::HandBells, 60),
+            Stinger::LowDrum => (PatchId::BassDrum, 40),
+            Stinger::Alarm => (PatchId::TubularBells, 84),
+        }
+    }
+
+    /// Queue-up stingers play once each, on the Music bus, as soon as
+    /// the block that carries them renders - the director already
+    /// timed the frame to a downbeat.
+    fn fire_stingers(&mut self, engine: &mut Engine, sr: u32) {
+        for s in std::mem::take(&mut self.stinger_queue) {
+            let (patch, midi) = Self::stinger_patch(s);
+            let src = crate::instruments::source(patch, engine.bank(), midi);
+            engine.play(src, Bus::Music,
+                VoiceParams { gain: 0.3, ..Default::default() });
+            if self.capture {
+                let phrase_start = self.phrase_next.saturating_sub(self.phrase_samples);
+                self.note_log.push((self.song_pos, crate::compose::NoteEvent {
+                    at_sample: self.song_pos.saturating_sub(phrase_start)
+                        * crate::wav::SAMPLE_RATE as u64 / sr as u64,
+                    dur_samples: crate::wav::SAMPLE_RATE / 4,
+                    voice: crate::compose::Voice::Color,
+                    midi: midi as f32, vel: 0.9, patch,
+                }));
+            }
         }
     }
 
@@ -296,17 +345,18 @@ impl Score {
             let src = crate::instruments::source(n.patch, engine.bank(), n.midi as u8);
             engine.play(src, Bus::Music,
                 VoiceParams { gain: n.vel * NOTE_GAIN, ..Default::default() });
-            self.note_log.push((self.song_pos, n));
+            if self.capture {
+                self.note_log.push((self.song_pos, n));
+            }
         }
         if self.song_pos >= self.phrase_next {
-            self.compose_next(engine, seed, emitters, sr);
+            self.compose_next(seed, emitters, sr);
         }
     }
 
     /// Write the next 8 bars from the current intent: the composer's
-    /// phrase becomes scheduled notes, its bars join the trace, and a
-    /// queued stinger fires right on the downbeat.
-    fn compose_next(&mut self, engine: &mut Engine, seed: u64,
+    /// phrase becomes scheduled notes and its bars join the trace.
+    fn compose_next(&mut self, seed: u64,
         emitters: &[Emitter], sr: u32) {
         use crate::compose::{PhraseSpec, Voice};
         let i = self.intent.clone();
@@ -328,29 +378,25 @@ impl Score {
             self.phrase_idx * crate::director::BARS_PER_PHRASE,
             self.song_pos as f64 / sr as f64,
             emitters, stingers);
+        // the composer writes at `wav::SAMPLE_RATE`; the render clock
+        // runs at the device's rate, so offsets and cutoffs convert
+        let to_dev = |at: u64| at * sr as u64 / crate::wav::SAMPLE_RATE as u64;
         // the build's one-bar rest: the last bar before the event
         // drops its melody so the arrival lands clean
         if i.rest_bar {
             let cut = phrase_samples - phrase_samples / crate::director::BARS_PER_PHRASE;
-            phrase.notes.retain(|n| !(n.voice == Voice::Melody && n.at_sample >= cut));
+            phrase.notes.retain(|n| !(n.voice == Voice::Melody && to_dev(n.at_sample) >= cut));
         }
+        // notes come out voice by voice - the firing queue wants them
+        // earliest-onset-first or a late drone parks an early melody
+        phrase.notes.sort_by_key(|n| n.at_sample);
         for n in phrase.notes {
-            self.pending_notes.push_back((self.phrase_next + n.at_sample, n));
+            self.pending_notes.push_back((self.phrase_next + to_dev(n.at_sample), n));
         }
-        if let Some(s) = i.stinger {
-            use crate::director::Stinger;
-            use crate::instruments::PatchId;
-            let (patch, midi) = match s {
-                Stinger::BellsPeal | Stinger::CauseClose => (PatchId::TubularBells, 72),
-                Stinger::HalfCadence => (PatchId::HandBells, 60),
-                Stinger::LowDrum => (PatchId::BassDrum, 40),
-                Stinger::Alarm => (PatchId::TubularBells, 84),
-            };
-            let src = crate::instruments::source(patch, engine.bank(), midi);
-            engine.play(src, Bus::Music,
-                VoiceParams { gain: 0.3, ..Default::default() });
+        if self.capture {
+            self.traces.extend(bars);
         }
-        self.traces.extend(bars);
+        self.phrase_samples = phrase_samples;
         self.phrase_next += phrase_samples;
         self.phrase_idx += 1;
     }
@@ -401,8 +447,8 @@ impl AudioHost {
             cur_emitters: vec![],
             cur_seed: 0,
             frames_in: 0, amb_frame: 0,
-            director: None, dir_seed: u64::MAX,
-            score: Score::new(),
+            director: None, dir_seed: u64::MAX, presence: 0.6,
+            score: Score::new(true),
             link: Link::Offline { engine: Engine::new(sample_rate, 0) },
         }
     }
@@ -413,8 +459,8 @@ impl AudioHost {
             voices_peak: 0, mix: Mix::default(), muted: false,
             focused: true, focus_gain: 1.0, ambience: Ambience::new(),
             cur_emitters: vec![], cur_seed: 0, frames_in: 0, amb_frame: 0,
-            director: None, dir_seed: u64::MAX,
-            score: Score::new(),
+            director: None, dir_seed: u64::MAX, presence: 0.6,
+            score: Score::new(false),
             link: Link::Silent }
     }
 
@@ -436,6 +482,9 @@ impl AudioHost {
             focused: focused.clone(),
             pending_bank: pending_bank.clone(),
         };
+        // the device-side score plays what frames ask for; only the
+        // dump's offline host keeps the bar trace and note ledger
+        pump.core.score.capture = false;
         match sink.open(Box::new(move |out: &mut [f32]| pump.pump(out))) {
             Ok(()) => AudioHost {
                 sr: settings.sample_rate,
@@ -448,8 +497,8 @@ impl AudioHost {
                 focus_gain: 1.0,
                 ambience: Ambience::new(),
                 cur_emitters: vec![], cur_seed: 0, frames_in: 0, amb_frame: 0,
-                director: None, dir_seed: u64::MAX,
-                score: Score::new(),
+                director: None, dir_seed: u64::MAX, presence: 0.6,
+                score: Score::new(false),
                 link: Link::Live { frames, muted, mix, focused, pending_bank },
             },
             Err(e) => {
@@ -482,7 +531,9 @@ impl AudioHost {
     /// the world under us changes.
     fn director(&mut self, model: &UiModel) -> &mut crate::director::Director {
         if self.dir_seed != model.seed {
-            self.director = Some(crate::director::Director::new(model.seed));
+            let mut d = crate::director::Director::new(model.seed);
+            d.set_presence(self.presence);
+            self.director = Some(d);
             self.dir_seed = model.seed;
         }
         self.director.as_mut().unwrap()
@@ -513,6 +564,11 @@ impl AudioHost {
                 self.pending.extend_from_slice(&frame.cues);
                 self.cur_emitters.clone_from(&frame.emitters);
                 self.cur_seed = frame.seed;
+                // a stinger lives in its intent for this one frame -
+                // queue it or the next intent would overwrite it
+                if let Some(s) = frame.intent.stinger {
+                    self.score.stinger_queue.push(s);
+                }
                 self.score.intent = frame.intent.clone();
                 self.frames_in += 1;
             }
@@ -548,6 +604,10 @@ impl AudioHost {
                 AudioSettings::bus_amp(s.interface)],
             mono: s.mono, night: s.night_mode, bg_mute: s.mute_in_background,
         };
+        self.presence = s.presence.budget();
+        if let Some(d) = &mut self.director {
+            d.set_presence(self.presence);
+        }
         match &mut self.link {
             Link::Offline { .. } => self.apply_mix(),
             Link::Live { mix, .. } => *mix.lock().unwrap() = self.mix,
@@ -621,10 +681,11 @@ impl AudioHost {
                         self.frames_in, engine);
                 }
                 // the score (M5): the music and ambience buses take the
-                // intent's duck on top of the settings mix, then the
-                // block renders in chunks so phrase boundaries and note
-                // onsets land on their samples.
+                // intent's duck on top of the settings mix, queued
+                // stingers ring, then the block renders in chunks so
+                // phrase boundaries and note onsets land on samples.
                 self.score.apply_duck(&self.mix, engine);
+                self.score.fire_stingers(engine, self.sr);
                 let mut done = 0usize;
                 while done * 2 < out.len() {
                     let rem = (out.len() / 2 - done) as u64;
@@ -684,3 +745,28 @@ impl AudioHost {
 
 /// dB to amplitude, for the duck multipliers.
 fn db_amp(db: f32) -> f32 { 10f32.powf(db / 20.0) }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The ledgers are diagnostics: `start()` clears the flag on the
+    /// render core so a session doesn't grow a history nobody drains;
+    /// only the offline dump host records.
+    #[test]
+    fn capture_gates_the_score_ledgers() {
+        for capture in [false, true] {
+            let mut s = Score::new(capture);
+            let mut e = Engine::new(44100, 0);
+            s.fire_due(&mut e, 7, &[], 44100); // composes phrase 0
+            s.song_pos = 44_100;
+            s.fire_due(&mut e, 7, &[], 44100); // fires the due notes
+            s.stinger_queue.push(crate::director::Stinger::BellsPeal);
+            s.fire_stingers(&mut e, 44100);
+            assert_eq!(s.traces.is_empty(), !capture,
+                "capture={capture}: the bar trace should follow the flag");
+            assert_eq!(s.note_log.is_empty(), !capture,
+                "capture={capture}: the note ledger should follow the flag");
+        }
+    }
+}

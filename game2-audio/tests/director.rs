@@ -6,7 +6,11 @@
 
 use game2_audio::compose::{MotifId, Section};
 use game2_audio::director::{Ducks, Director, Intent, Stinger};
+use game2_audio::host::AudioHost;
+use game2_audio::instruments::PatchId;
+use game2_audio::settings::{AudioSettings, Presence};
 use game2_audio::theory::Mode;
+use game2_audio::wav::SAMPLE_RATE;
 use game2_core::session::{
     CampaignV, ConvoPanelV, Game, LiveV, OutcomeV, PlannedV, UiModel, Verdict,
 };
@@ -379,4 +383,127 @@ fn no_hidden_state_access() {
     // ducks/sections are value-only: no hidden channel could have
     // reached in
     let _ = Ducks::default();
+}
+
+/// Push `m` and render one 60fps block per update - the offline
+/// host's lockstep loop, the one `sound_dump` drives.
+fn render(host: &mut AudioHost, m: &UiModel, frames: u32) {
+    for _ in 0..frames {
+        host.push(m);
+        let n = host.frame_samples();
+        let mut buf = vec![0.0f32; n * 2];
+        host.render_block(&mut buf);
+    }
+}
+
+/// The sample the second phrase starts on, from the bar trace.
+fn phrase_two_start(host: &mut AudioHost, sr: u32) -> u64 {
+    host.drain_trace().iter()
+        .find(|r| r.bar >= game2_audio::director::BARS_PER_PHRASE)
+        .map(|r| (r.at_s * sr as f64) as u64)
+        .unwrap_or(u64::MAX)
+}
+
+/// A postponed event keeps the build; a resolved or replaced one
+/// must let it go - otherwise the layer hangs over every quiet spell
+/// after the first assembly.
+#[test]
+fn build_lets_go_when_its_event_resolves() {
+    let mut m = model();
+    m.panel.campaign = Some(campaign());
+    next_at(&mut m, "assembly", 70.0);
+    let mut d = Director::new(7);
+    let i = drive_until(&mut d, &m, 3600,
+        |i| i.section == Section::Build && i.motif_step >= 1);
+    assert!(i.motif_step >= 1, "setup: the build never layered");
+    // the assembly resolves; the calendar now names a far-off holy day
+    m.panel.drama.next = Some(PlannedV {
+        kind: "holy day".into(), in_days: 30.0, at: m.tick as u32 + 30 });
+    // Build may ride out its min-hold (~2 phrases, ~40 s); after that
+    // it must not come back while nothing's near
+    let mut held_too_long = false;
+    for f in 0..7200 {
+        let i = d.update(&m);
+        if f > 3600 && i.section == Section::Build {
+            held_too_long = true;
+        }
+    }
+    assert!(!held_too_long, "the build held after its event resolved");
+}
+
+/// `push_frame` files a one-frame stinger into the score's queue, so
+/// a verdict mid-phrase still rings on its downbeat instead of
+/// vanishing with the intent that carried it.
+#[test]
+fn stinger_fires_when_verdict_lands_mid_phrase() {
+    let mut m = model();
+    m.panel.campaign = Some(campaign());
+    let mut host = AudioHost::offline(SAMPLE_RATE);
+    render(&mut host, &m, 300); // five seconds in, mid-phrase
+    verdict(&mut m, Verdict::Win);
+    render(&mut host, &m, 600); // the stinger's bar lands well inside
+    let notes = host.drain_notes();
+    assert!(notes.iter().any(|(_, n)|
+            n.patch == PatchId::TubularBells && n.midi == 72.0),
+        "the win peal never fired: {:?}", notes.iter()
+            .map(|(_, n)| n.patch).collect::<Vec<_>>());
+}
+
+/// Every queued note must fire on its own onset: the composer emits
+/// voice by voice, so an unsorted queue parks an early melody behind
+/// a late drone.
+#[test]
+fn notes_fire_on_their_onsets() {
+    let mut m = model();
+    m.panel.campaign = Some(campaign());
+    let mut host = AudioHost::offline(SAMPLE_RATE);
+    render(&mut host, &m, 2400); // past the first phrase boundary
+    let p2 = phrase_two_start(&mut host, SAMPLE_RATE);
+    let notes = host.drain_notes();
+    assert!(!notes.is_empty(), "the score wrote no notes");
+    for (t, n) in &notes {
+        if *t < p2 {
+            assert_eq!(*t, n.at_sample,
+                "note fired {} samples off its onset",
+                *t as i64 - n.at_sample as i64);
+        }
+    }
+}
+
+/// The composer writes at `wav::SAMPLE_RATE`; a device running 48 kHz
+/// must still land each note on its beat - offsets convert, phrase
+/// boundaries already do.
+#[test]
+fn score_schedules_on_the_device_clock() {
+    const DEV: u32 = 48_000;
+    let mut m = model();
+    m.panel.campaign = Some(campaign());
+    let mut host = AudioHost::offline(DEV);
+    render(&mut host, &m, 2400);
+    let p2 = phrase_two_start(&mut host, DEV);
+    let notes = host.drain_notes();
+    assert!(!notes.is_empty(), "the score wrote no notes");
+    for (t, n) in &notes {
+        if *t < p2 {
+            assert_eq!(*t, n.at_sample * DEV as u64 / SAMPLE_RATE as u64,
+                "48kHz: note fired at {t}, onset was {}",
+                n.at_sample * DEV as u64 / SAMPLE_RATE as u64);
+        }
+    }
+}
+
+/// The Sound row's presence budget reaches the director through
+/// `apply_settings`: Off hears no score at all.
+#[test]
+fn presence_off_plays_no_score() {
+    let mut m = model();
+    m.panel.campaign = Some(campaign());
+    let mut host = AudioHost::offline(SAMPLE_RATE);
+    host.apply_settings(&AudioSettings {
+        presence: Presence::Off, ..Default::default() });
+    render(&mut host, &m, 2400);
+    assert!(host.drain_notes().is_empty(),
+        "presence Off still fired notes");
+    assert!(host.drain_trace().iter().all(|r| r.section == "Silence"),
+        "presence Off left the Silence section");
 }

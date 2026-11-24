@@ -203,11 +203,15 @@ fn density_for(s: Section, layer: u32, phrase_parity: bool) -> [f32; 8] {
 /// The anticipatory build's state: how many layers it has laid down
 /// toward `next`, and whether the last phrase leaves its final bar
 /// empty before the arrival.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct Build {
     layer: u32,
     /// The event left the window or slipped: hold here, never drop.
     holding: bool,
+    /// The kind the layers were laid for. A postponement keeps the
+    /// kind while `at` slips, so the hold survives a slip but not the
+    /// calendar naming a different event - or none.
+    event: Option<String>,
 }
 
 /// The score's brain. `new` takes the world's seed so the trace lines
@@ -291,9 +295,15 @@ impl Director {
     }
 
     /// The presence budget (0 / 0.35 / 0.6 / 0.85): the settings row's
-    /// share of time with music.
+    /// share of time with music. Off silences at once - the phrase in
+    /// flight doesn't play out first.
     pub fn set_presence(&mut self, share: f32) {
         self.presence = share.clamp(0.0, 1.0);
+        if self.presence <= 0.0 {
+            self.section = Section::Silence;
+            self.section_held = 0;
+            self.build = Build::default();
+        }
     }
 
     /// True on the update that crossed a phrase boundary - the moment a
@@ -563,10 +573,20 @@ impl Director {
             Meter::FOUR_FOUR, 96.0 + 2.0 * self.build.layer as f64);
         let want_build = secs_to
             .is_some_and(|s| s <= BUILD_PHRASES as f64 * build_phrase_s);
+        let next_kind = m.panel.drama.next.as_ref().map(|p| p.kind.as_str());
         if want_build {
             self.build.holding = false;
+            self.build.event = next_kind.map(str::to_string);
         } else if self.build.layer > 0 || self.section == Section::Build {
-            self.build.holding = true;
+            // hold only while the calendar still names the event the
+            // layers were laid for: a postponed date slips `in_days`
+            // but keeps its kind; a resolved or replaced event lets go
+            let same = self.build.event.is_some() && self.build.event.as_deref() == next_kind;
+            if same {
+                self.build.holding = true;
+            } else {
+                self.build = Build::default();
+            }
         } else {
             self.build = Build::default();
         }

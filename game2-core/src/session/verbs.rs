@@ -2041,6 +2041,12 @@ impl Game {
             p.for_day = Some(for_day);
         }
         self.seats[seat].frame_offer = Some(self.tick);
+        // the call's agenda can press a heard issue (#1611): the two
+        // latest the ledger holds ride the question as their own rows
+        self.seats[seat].frame_issues = self.world
+            .get_component::<crate::game::desires::Organizer>(self.seats[seat].player)
+            .map(|o| o.issues.iter().rev().take(2).cloned().collect())
+            .unwrap_or_default();
         self.notices.push((
             "meet".into(),
             format!("the word's out - folk gather at {} in {} days", label, days),
@@ -2606,6 +2612,22 @@ impl Game {
                 self.seats[seat].testimony_offer = Some((self.tick, self.testimony_events()));
                 return;
             }
+            // an agenda pick presses a heard issue (#1611): the rows
+            // past matter/probe/testify are the snapshot's issues
+            let base = if self.testimony_ready(seat) { 3 } else { 2 };
+            if pick >= base {
+                if let Some(tag) = self.seats[seat].frame_issues.get(pick - base).cloned() {
+                    if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+                        p.agenda = Some(tag.clone());
+                    }
+                    self.log.push_ev(
+                        EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                        format!("t{}: you'll press {} yourself when they're in the room.",
+                            self.tick, crate::game::desires::issue_name(tag)),
+                    );
+                    return;
+                }
+            }
             let probe = pick == 1;
             // asking before telling is the patient line, and the members
             // at hand hear you choose it (#1236)
@@ -2645,6 +2667,17 @@ impl Game {
                     format!("t{}: {}", self.tick, msg));
                 return;
             }
+        }
+        // the live meeting's own pause (#1611): the floor waits on the
+        // organizer's steer - it sits under a pending call or floor
+        // slate, matching what the box shows
+        if self.seats[seat].pending_founding.is_none()
+            && self.seats[seat].pending_agenda.is_none()
+            && self.seats[seat].steer_offer.is_some()
+            && self.meeting.as_ref().map_or(false, |m| m.seat == seat)
+        {
+            self.steer_meeting_at(seat, pick);
+            return;
         }
         // the traveller's ask (#1085): it shows past every real
         // decision and past a live talk or meeting, so it answers only

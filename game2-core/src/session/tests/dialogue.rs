@@ -346,7 +346,8 @@ fn test_a_house_meeting_is_kept_on_the_talk_panel() {
     }
     plan_ready_meeting(&mut g, eliza, (18.0, 16.0), &[bram]);
     g.call_meeting();
-    for _ in 0..crate::session::FPS * 60 { if g.meeting.is_none() { break; } g.update(); }
+    // the steering pause holds the floor a while unanswered (#1611)
+    for _ in 0..crate::session::FPS * 90 { if g.meeting.is_none() { break; } g.update(); }
     assert!(g.meeting.is_none(), "the meeting ran its course");
     let r = g.talk_log.iter().rev().find(|r| r.kind == TalkKind::Meeting).expect("a meeting on the record");
     assert!(r.with.contains(&g.player));
@@ -363,7 +364,7 @@ fn test_each_seat_sees_its_own_lines_as_you_and_hosts_its_own_meeting() {
     let (p0, p1) = (g.seats[0].player, g.seats[s1].player);
     let v = g.villagers[adults(&g)[0]];
     // seat 1 hosts: the prompts are theirs, not seat 0's
-    let lines = g.meeting_lines(&[v], s1, (false, false, false, false, false), false, None);
+    let (lines, _) = g.meeting_lines(&[v], s1, (false, false, false, false, false), false, None, None);
     assert!(lines.iter().any(|l| l.0 == p1) && !lines.iter().any(|l| l.0 == p0), "seat 1 asks the questions");
     let n1 = g.speaker_name(p1);
     g.record_meeting(vec![p1, p0, v], vec![(Some(p1), n1.clone(), "Thanks for coming.".into())]);
@@ -2667,7 +2668,7 @@ fn test_what_one_seat_learns_is_invisible_to_the_other() {
     let (pe0, pe1) = (g.seats[0].player, g.seats[s1].player);
     // seat 0's meeting: the room gives up a trouble and their ledger
     // marks it; the asking goes through the real hear path
-    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None);
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None, None);
     assert!(!desires::known(&g.world, pe0, v).is_empty(),
         "the host's meeting marked what they heard");
     // the other seat's record stays blind: the same draw's still live

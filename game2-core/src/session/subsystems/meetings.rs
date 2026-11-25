@@ -556,10 +556,11 @@ impl Game {
         // an unanswered question-question leaves the matter (#1267)
         self.seats[seat].frame_offer = None;
         self.seats[seat].testimony_offer = None;
+        self.seats[seat].frame_issues.clear();
         // the plan's spent by the call - its promise-holders are
         // snapshotted on the meeting so a keeper's arrival still counts
         let promised = plan.holders();
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, bought: plan.bought, promised });
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised });
         msg
     }
 
@@ -567,17 +568,23 @@ impl Game {
     /// what's on their mind - now and then a secret slips out, and every
     /// parallel complaint already voiced makes the next speaker likelier
     /// to share their own. Three voices in a family surface an issue.
-    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool), probe: bool, testimony: Option<&str>) -> Vec<(Entity, String)> {
+    /// Returns the lines and, for a full floor, the index where the
+    /// first round's heard and the organizer steers (#1611).
+    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool), probe: bool, testimony: Option<&str>, agenda: Option<&desires::IssueTag>) -> (Vec<(Entity, String)>, Option<usize>) {
         // the seat that called it hosts: its player asks, and hears what comes out
         let host_e = self.seats[seat].player;
-        if came.is_empty() { return vec![]; }
-        // the probe replaces the host's question (#1267)
-        let ask = if probe { crate::game::dialogue_trees::MEET_PROBE.text } else { MEETING_PROMPTS[0] };
+        if came.is_empty() { return (vec![], None); }
+        // the probe replaces the host's question (#1267); a set agenda
+        // opens on the matter by name instead (#1611)
+        let ask = if probe { crate::game::dialogue_trees::MEET_PROBE.text.to_string() }
+            else if let Some(tag) = agenda {
+                format!("{} - you all know the matter. Let's hear it.", desires::issue_name(tag.clone()))
+            } else { MEETING_PROMPTS[0].to_string() };
         // each line carries whether run_meeting already rendered it -
         // the floor's replies come out realized (their own slots, their
         // own marks), and a second pass through pair_said would sign
         // them twice
-        let mut lines = vec![(host_e, ask.to_string(), false)];
+        let mut lines = vec![(host_e, ask, false)];
         // testimony opens ahead of the ask: Self, Us, Now (#1248)
         if let Some(ev) = testimony {
             let arc = self.testimony_arc(ev, came);
@@ -642,6 +649,7 @@ impl Game {
         // the furthest floor statement heard so far - pull-backs air
         // once the room's reached where they happened
         let mut reached = 1usize;
+        let mut steer_at = None;
         for round in 0..2 {
             for (ci, &v) in came.iter().enumerate() {
                 let Some(i) = self.villagers.iter().position(|x| *x == v) else { continue };
@@ -657,6 +665,11 @@ impl Game {
                         .map(|r| desires::issue_tag(&self.world, v, r)).collect();
                 let parallel = self.voiced.iter().filter(|(_, t)| mine.contains(t)).count();
                 let mut chance = desires::REVEAL_BASE + desires::REVEAL_PARALLEL * parallel as f32;
+                // the call's agenda calls its carriers on (#1611): when
+                // the organizer presses a matter, the folk it presses
+                // get heard - and what they give up is that matter
+                let pressed = agenda.map_or(false, |t| mine.contains(t));
+                if pressed { chance += 0.4; }
                 // an opener or a song loosens tongues: each promised role
                 // that came off warms the room to share a little more
                 if roles.2 { chance += 0.05; }
@@ -670,7 +683,15 @@ impl Game {
                 let mut shared = false;
                 if roll < chance {
                     let pick = self.rng.next();
-                    if let Some(r) = desires::next_reveal(&self.world, host_e, v, self.tick, pick) {
+                    let r = if pressed {
+                        let want = agenda.cloned().unwrap_or_default();
+                        desires::unrevealed(&self.world, host_e, v, self.tick).into_iter()
+                            .find(|r| desires::issue_tag(&self.world, v, r) == want)
+                            .or_else(|| desires::next_reveal(&self.world, host_e, v, self.tick, pick))
+                    } else {
+                        desires::next_reveal(&self.world, host_e, v, self.tick, pick)
+                    };
+                    if let Some(r) = r {
                         let (_, said) = desires::reveal_speech(self.cast_name(i), &r);
                         let tag = desires::issue_tag(&self.world, v, &r);
                         self.voiced.push((v, tag.clone()));
@@ -711,6 +732,10 @@ impl Game {
                 aired.insert(k);
                 lines.push((host_e, text, true));
             }
+            // the first round's heard, on a full floor: the script holds
+            // at the prompt for the organizer's steer (#1611) - a thin
+            // gathering isn't worth a decision moment
+            if round == 0 && came.len() >= 3 { steer_at = Some(lines.len()); }
             lines.push((host_e, MEETING_PROMPTS[round + 1].to_string(), false));
         }
         // a pull-back past the furthest aired statement still lands
@@ -721,6 +746,7 @@ impl Game {
         // the rite opens it, ahead of the host's question; the send-off
         // is the last word of the night (#1185)
         lines.insert(0, (rite.0, rite.1, true));
+        steer_at = steer_at.map(|a| a + 1);
         lines.push((send_off.0, send_off.1, true));
         // the question stays with them: each who heard it goes home with
         // a want they didn't carry, ripening in its own time (#1267)
@@ -730,9 +756,10 @@ impl Game {
                 desires::plant_want(&mut self.world, v, host_e, self.tick, seed);
             }
         }
-        lines.into_iter()
+        let lines = lines.into_iter()
             .map(|(e, t, done)| (e, if done { t } else { self.pair_said(e, self.seats[seat].player, &t) }))
-            .collect()
+            .collect();
+        (lines, steer_at)
     }
 
     /// The organizer's history worth testifying to (#1248): the latest
@@ -833,6 +860,54 @@ impl Game {
         }
     }
 
+    /// The loudest grievance the room's aired so far (#1611): the tag
+    /// most voiced, first-voiced on a tie - what a "press it" steer
+    /// would name. None: nothing's come out yet
+    pub(in crate::session) fn loudest_voiced(&self) -> Option<desires::IssueTag> {
+        let mut counts: crate::engine::det::HashMap<desires::IssueTag, usize> = Default::default();
+        for (_, t) in &self.voiced { *counts.entry(t.clone()).or_default() += 1; }
+        let max = counts.values().copied().max().unwrap_or(0);
+        self.voiced.iter().find(|(_, t)| counts.get(t) == Some(&max)).map(|(_, t)| t.clone())
+    }
+
+    /// The organizer's steer at the floor's pause (#1611): press the
+    /// loudest grievance (or the call's agenda), open the floor and let
+    /// them talk it out, or bring it home - cut the floor to the close
+    pub fn steer_meeting_at(&mut self, seat: usize, pick: usize) {
+        self.seats[seat].steer_offer = None;
+        if self.meeting.as_ref().map_or(true, |m| m.seat != seat) { return; }
+        let host = self.seats[seat].player;
+        let tag = self.loudest_voiced().or_else(|| self.meeting.as_ref().and_then(|m| m.agenda.clone()));
+        let Some(m) = self.meeting.as_mut() else { return };
+        m.steered = true;
+        let at = m.steer_at.unwrap_or(m.lines.len());
+        match pick {
+            0 => {
+                // press it: the host names what the room keeps circling -
+                // their own voice behind it counts toward the reckoning
+                let line = tag.as_ref().map(|t| format!("Then it's {} we take on - say it plain, and it's yours.",
+                    desires::issue_name(t.clone())))
+                    .unwrap_or_else(|| "Then hear me - say it plain, what's on the table.".into());
+                if at < m.lines.len() { m.lines[at] = (host, line); }
+                if let Some(t) = tag {
+                    self.voiced.push((host, t.clone()));
+                    let came = m.invited.clone();
+                    self.parallel_push(host, &t, &came);
+                }
+            }
+            2 => {
+                // bring it home: the floor's remaining turns come out to
+                // the close - the organizer names the next step and the
+                // send-off still lands
+                let off = m.lines.pop();
+                m.lines.truncate(at);
+                m.lines.push((host, MEETING_PROMPTS[2].to_string()));
+                if let Some(off) = off { m.lines.push(off); }
+            }
+            _ => {} // open the floor - the script plays on as written
+        }
+    }
+
     /// One attendee's answer to the probe (#1267), as deep as they trust
     /// the asker: a follower names who they do it for - the room hears
     /// the bond, and so does the lord's ear if it's in the room - a
@@ -923,11 +998,15 @@ impl Game {
         // the send-off is the last word of the night - kept promises land
         // just ahead of it, never after the benediction (#1185)
         if let (true, Some(n)) = (m.roles.1, notes) {
-            m.lines.insert(m.lines.len().saturating_sub(1), (n, "Say it plain - I'll keep the word of it.".into()));
+            let at = m.lines.len().saturating_sub(1);
+            m.lines.insert(at, (n, "Say it plain - I'll keep the word of it.".into()));
+            m.note_insert(at);
         }
         if let (true, Some(c)) = (m.roles.4, closer) {
             let close = self.pair_said(c, self.player, "Same time again, then - and each of {2p:obj} bring one more.");
-            m.lines.insert(m.lines.len().saturating_sub(1), (c, close));
+            let at = m.lines.len().saturating_sub(1);
+            m.lines.insert(at, (c, close));
+            m.note_insert(at);
         }
         if let (true, Some(s)) = (m.roles.3, song) {
             for &a in &m.invited {
@@ -935,17 +1014,21 @@ impl Game {
             }
             let mid = m.lines.len() / 2;
             m.lines.insert(mid, (s, "The rain came down on the road to the fair, and who should meet me there...".into()));
+            m.note_insert(mid);
         }
         if let (true, Some(s)) = (m.roles.0, snacks) {
             for &a in &m.invited {
                 desires::satisfy(&mut self.world, a, desires::Want::GoodFood, self.tick + 15);
             }
             let bread = self.pair_said(s, self.player, "Bread's on the table - help {2p:self}.");
-            m.lines.insert(1.min(m.lines.len()), (s, bread));
+            let at = 1.min(m.lines.len());
+            m.lines.insert(at, (s, bread));
+            m.note_insert(at);
         }
         if let (true, Some(o)) = (m.roles.2, opener) {
             let open = self.pair_said(o, self.player, "Friends - {2p:subj} came, and that's the start of it.");
             m.lines.insert(0, (o, open));
+            m.note_insert(0);
         }
     }
 
@@ -1038,7 +1121,10 @@ impl Game {
                     if !departed.is_empty() {
                         m.invited.retain(|v| !departed.contains(v));
                     }
-                    m.lines = self.meeting_lines(&m.invited, m.seat, m.credit_roles(), m.probe, m.testimony.as_deref());
+                    let (lines, steer_at) = self.meeting_lines(&m.invited, m.seat,
+                        m.credit_roles(), m.probe, m.testimony.as_deref(), m.agenda.as_ref());
+                    m.lines = lines;
+                    m.steer_at = steer_at;
                     self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);
                     // the TALK panel keeps the meeting's record as it's said
@@ -1058,6 +1144,22 @@ impl Game {
             }
             Some(start) => {
                 let (since, k) = (m.frames - start, ((m.frames - start) / line) as usize);
+                // the floor's first round is heard - the organizer
+                // steers (#1611): the script holds at the marker, one
+                // tick short of airing it, until the pick lands. A
+                // client that never sends Command::Decide lapses back
+                // to an open floor after STEER_WAIT_FRAMES
+                if !m.steered && m.steer_at.map_or(false, |at| k >= at) {
+                    m.frames = start + m.steer_at.unwrap_or(0) as u32 * line - 1;
+                    if m.steer_wait == 0 { self.seats[m.seat].steer_offer = Some(self.tick); }
+                    m.steer_wait += 1;
+                    if m.steer_wait > STEER_WAIT_FRAMES {
+                        m.steered = true;
+                        self.seats[m.seat].steer_offer = None;
+                    }
+                    self.meeting = Some(m);
+                    return;
+                }
                 if since % line == 0 && k < m.lines.len() {
                     let (who, text) = m.lines[k].clone();
                     self.think(who, &text, line); // gone as the next one speaks

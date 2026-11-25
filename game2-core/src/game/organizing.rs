@@ -954,6 +954,9 @@ pub struct MeetingPlan {
     /// The organizer opens with testimony (#1248): the event from their
     /// own history they'll tell
     pub testimony: Option<String>,
+    /// The agenda the organizer set on the call (#1611): the heard
+    /// issue they'll press in the room - its carriers get called on
+    pub agenda: Option<crate::game::desires::IssueTag>,
 }
 
 impl MeetingPlan {

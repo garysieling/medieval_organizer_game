@@ -613,10 +613,32 @@ pub struct Meeting {
     pub probe: bool,
     /// The organizer opens with testimony: the event they tell (#1248)
     pub testimony: Option<String>,
+    /// The agenda the organizer put on the call (#1611): the heard
+    /// issue they mean to press - the carriers of it get called on,
+    /// and the host opens on it by name
+    pub agenda: Option<desires::IssueTag>,
+    /// The line where the floor's first round is heard and the
+    /// organizer steers (#1611) - the index of the between-rounds
+    /// prompt in `lines`, kept honest as meeting_beats splices parts in
+    pub steer_at: Option<usize>,
+    /// Frames the steering pause has sat unanswered: a client without
+    /// Command::Decide can't hold the room forever - the floor opens
+    /// again on its own past STEER_WAIT_FRAMES
+    pub steer_wait: u32,
+    /// The steer's been picked (or lapsed) - the script plays on
+    pub steered: bool,
     /// Everyone the calling plan held a promise from (E8-2, #1444):
     /// snapshotted at call_meeting_at because the plan itself is
     /// consumed there - a keeper's arrival is checked against this
     pub promised: Vec<Entity>,
+}
+
+impl Meeting {
+    /// A line spliced in ahead of the steering marker pushes it back
+    /// (#1611): meeting_beats' kept parts all insert, never append
+    fn note_insert(&mut self, pos: usize) {
+        if let Some(at) = self.steer_at.as_mut() { if pos <= *at { *at += 1; } }
+    }
 }
 
 impl Meeting {
@@ -660,6 +682,10 @@ const FOUNDING_OFFER_EXPIRY_DAYS: u64 = 7;
 const MEETING_WALK: f32 = 2.5 / FPS as f32;
 const GATHER_FRAMES: u32 = 20 * FPS;
 const LINE_FRAMES: u32 = 3 * FPS;
+/// How long the floor waits on the organizer's steer before opening
+/// again on its own (#1611): a client with no Command::Decide wired
+/// (the browser's canvas shim) would otherwise freeze every meeting
+const STEER_WAIT_FRAMES: u32 = 20 * FPS;
 /// How long the knights hold the streets after a crackdown: a posting is
 /// a tour, not a life sentence - they ride home in a month
 const GUARD_TOUR: u64 = 30;

@@ -714,8 +714,10 @@ fn main() {
         if let Some(c) = esc_cmd { cmds.push(c); }
         if clicked && !on_minimap && !swallow_click {
             if let Some(m) = &cur_model {
-                // a toast that happened somewhere: the click jumps there
-                if let Some(i) = view.toast_hit(m, mx, my) {
+                // a toast that happened somewhere: the click jumps there -
+                // but not one hidden under the conversation box, which
+                // draws on top now (convo_cover above, #1600)
+                if let Some(i) = if convo_cover { None } else { view.toast_hit(m, mx, my) } {
                     if let Some(at) = m.toasts[i].at {
                         (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
                         manual_cam = true;

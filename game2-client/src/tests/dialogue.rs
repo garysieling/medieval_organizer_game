@@ -5,7 +5,8 @@ use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::Sprite;
 use game2_core::game::villager;
 use game2_core::game::vocation::Kid;
-use game2_core::session::model::{ConvoPanelV, TalkPanelV, TalkRowV};
+use game2_core::session::model::{BubbleV, ConvoPanelV, TalkPanelV, TalkRowV};
+use crate::draw::{bubble_rect, BUBBLE_H};
 use crate::talk::*;
 use game2_core::ui::font::measure;
 use crate::UiFrame;
@@ -464,6 +465,59 @@ fn test_the_conversation_box_draws_the_speakers_portrait() {
     for (k, h) in art.villager_heads.iter().enumerate() {
         assert!(h.pixels.chunks(4).any(|p| p[3] > 128), "villager head {} is blank", k);
     }
+}
+
+/// #1600: the box is the topmost content layer - a bubble (or any map
+/// popup) under it can't sit on a reply mid-read
+#[test]
+fn test_the_conversation_box_paints_over_a_bubble() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    g.seats[0].frame_offer = Some(g.tick);
+    let mut m = g.ui_model();
+    assert!(m.convo.is_some(), "the call's question is on the box");
+    let view = crate::View::new(crate::Art::load_fs("../assets", 0));
+    let (_, box_h) = convo_layout(m.convo.as_ref().unwrap(), &mut ConvoPin::default(), m.frame);
+    // park a speaker whose bubble lands half on the box, half off it
+    let text = "the well's low again";
+    let mut spot = None;
+    'scan: for ty in 0..m.map.height {
+        for tx in 0..m.map.width {
+            let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, view.cam_x, view.cam_y, view.zoom);
+            let Some((bx, by, bw)) = bubble_rect(sx, sy, view.zoom, text, None) else { continue };
+            let overlaps = bx < CONVO_X + CONVO_W - 8 && bx + bw > CONVO_X + 8
+                && by < CONVO_Y + box_h - 8 && by + BUBBLE_H > CONVO_Y + 8;
+            let inside = bx >= CONVO_X && bx + bw <= CONVO_X + CONVO_W
+                && by >= CONVO_Y && by + BUBBLE_H + 8 <= CONVO_Y + box_h;
+            if overlaps && !inside {
+                spot = Some((tx as f32, ty as f32, bx, by, bw));
+                break 'scan;
+            }
+        }
+    }
+    let (px, py, bx, by, bw) = spot.expect("a speaker whose bubble straddles the box");
+    m.bubbles.clear();
+    let without = view.render(&m, (-1, -1));
+    m.bubbles.push(BubbleV { e: m.people[0].e, pos: (px, py), text: text.into(), thought: false, name: None });
+    let with = view.render(&m, (-1, -1));
+    // inside the box the bubble never landed
+    for y in CONVO_Y..CONVO_Y + box_h {
+        for x in CONVO_X..CONVO_X + CONVO_W {
+            let i = (y as usize * with.width + x as usize) * 4;
+            assert_eq!(&with.pixels[i..i + 3], &without.pixels[i..i + 3],
+                "a bubble pixel covered the box at {},{}", x, y);
+        }
+    }
+    // and the part hanging off it still drew, so the check isn't vacuous
+    let mut outside = 0;
+    for y in by..by + BUBBLE_H + 8 {
+        for x in bx..bx + bw {
+            let in_box = x >= CONVO_X && x < CONVO_X + CONVO_W && y >= CONVO_Y && y < CONVO_Y + box_h;
+            if in_box || y < 0 || y >= with.height as i32 { continue; }
+            let i = (y as usize * with.width + x as usize) * 4;
+            if with.pixels[i..i + 3] != without.pixels[i..i + 3] { outside += 1; }
+        }
+    }
+    assert!(outside > 0, "the bubble never drew");
 }
 
 /// The mood mark: a badge pip on the head slot's bottom corner - gold

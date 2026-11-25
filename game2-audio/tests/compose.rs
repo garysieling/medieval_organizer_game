@@ -435,6 +435,137 @@ fn cadence_shift_keeps_the_repeat_sounding() {
     }
 }
 
+/// Melody notes that sound within one bar.
+fn bar_line(s: &PhraseSpec, notes: &[NoteEvent], b: u64) -> Vec<NoteEvent> {
+    let bar = bar_samples(s);
+    melody(notes)
+        .into_iter()
+        .filter(|n| n.at_sample / bar == b)
+        .collect()
+}
+
+#[test]
+fn the_repeat_restates_the_strain() {
+    // punctus B opens with the strain's opening figure transposed a
+    // step or two: bar 4's first notes parallel bar 0's at a fixed
+    // shift (the mode's half-steps wobble it a semitone or two)
+    for motif in [
+        MotifId::Village,
+        MotifId::Lord,
+        MotifId::Church,
+        MotifId::OldFaith,
+        MotifId::Road,
+        MotifId::Feast,
+    ] {
+        let mut ok = 0;
+        let mut n = 0;
+        for seed in 0..200u64 {
+            let mut s = spec(seed);
+            s.motif = motif;
+            let m = melody(&Composer::new().compose_phrase(&s).notes);
+            let (a, b) = (bar_line(&s, &m, 0), bar_line(&s, &m, 4));
+            if a.len() < 4 || b.len() < 4 {
+                continue;
+            }
+            n += 1;
+            let diffs: Vec<f32> =
+                a.iter().zip(&b).take(4).map(|(x, y)| y.midi - x.midi).collect();
+            let hi = diffs.iter().cloned().fold(f32::MIN, f32::max);
+            let lo = diffs.iter().cloned().fold(f32::MAX, f32::min);
+            if hi - lo <= 4.0 {
+                ok += 1;
+            }
+        }
+        assert!(ok * 20 >= n * 19, "{motif:?}: {ok}/{n} restatements");
+    }
+}
+
+#[test]
+fn the_repeat_is_not_a_copy() {
+    // B re-ornaments the strain: some body bar always differs from
+    // its A twin (the old verbatim double is gone)
+    for motif in MotifId::ALL {
+        for seed in 0..200u64 {
+            let mut s = spec(seed);
+            s.motif = motif;
+            let m = melody(&Composer::new().compose_phrase(&s).notes);
+            let bar = bar_samples(&s);
+            let line = |b: u64| {
+                bar_line(&s, &m, b)
+                    .iter()
+                    .map(|n| (n.midi, n.at_sample % bar, n.dur_samples))
+                    .collect::<Vec<_>>()
+            };
+            assert!(
+                (0..3u64).any(|k| line(k) != line(4 + k)),
+                "{motif:?} seed {seed}: punctus B is a verbatim copy",
+            );
+        }
+    }
+}
+
+#[test]
+fn phrase_apex_lives_in_the_repeat() {
+    // the line's extreme - the top of a rising arc, the floor of a
+    // falling one - sounds last inside punctus B's strain, not spent
+    // early in A's
+    for motif in MotifId::ALL {
+        let d = motif.motif().degrees;
+        let dir = if *d.last().unwrap() < d[0] { -1.0f32 } else { 1.0 };
+        let mut late = 0;
+        let mut n = 0;
+        for seed in 0..200u64 {
+            let mut s = spec(seed);
+            s.motif = motif;
+            let m = melody(&Composer::new().compose_phrase(&s).notes);
+            if m.len() < 6 {
+                continue;
+            }
+            n += 1;
+            let bar = bar_samples(&s);
+            let extr = m
+                .iter()
+                .map(|x| x.midi)
+                .fold(if dir > 0.0 { f32::MIN } else { f32::MAX }, |a, b| {
+                    if dir > 0.0 { a.max(b) } else { a.min(b) }
+                });
+            let last = m
+                .iter()
+                .rfind(|x| x.midi == extr)
+                .map(|x| x.at_sample / bar)
+                .unwrap_or(99);
+            if last >= 4 {
+                late += 1;
+            }
+        }
+        assert!(late * 3 >= n * 2, "{motif:?}: apex late in {late}/{n}");
+    }
+}
+
+#[test]
+fn the_body_walks_into_the_cadence() {
+    // the closing punctus's tail approaches its ending: the last
+    // body-bar note sits within a fourth of the clos
+    for motif in MotifId::ALL {
+        let mut near = 0;
+        let mut n = 0;
+        for seed in 0..200u64 {
+            let mut s = spec(seed);
+            s.motif = motif;
+            let m = melody(&Composer::new().compose_phrase(&s).notes);
+            let bar = bar_samples(&s);
+            let cad = m.iter().find(|x| x.at_sample / bar == 7);
+            let tail = m.iter().rfind(|x| (4..=6).contains(&(x.at_sample / bar)));
+            let (Some(c), Some(t)) = (cad, tail) else { continue };
+            n += 1;
+            if (c.midi - t.midi).abs() <= 5.0 {
+                near += 1;
+            }
+        }
+        assert!(near * 20 >= n * 17, "{motif:?}: {near}/{n} cadence approaches");
+    }
+}
+
 #[test]
 fn ground_and_strum_follow_the_meter() {
     // dense ground hits every pulse of whatever meter it plays in;

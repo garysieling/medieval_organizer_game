@@ -234,10 +234,10 @@ All motifs are hand-authored as scale degrees plus rhythm, in `compose/motifs.rs
 
 ### Composer: phrase grammar and voices
 
-- **Phrase = 8 bars = one estampie punctus played twice**: 3 bars of body plus 1 bar of ending, then the same body with the second ending. The first ending is *ouvert* (it lands on degree 2 or 5). The second is *clos* (degree 1), unless the arc is unresolved, in which case both stay *ouvert*.
+- **Phrase = 8 bars = one estampie punctus played twice**: 3 bars of body plus 1 bar of ending, then the body restated a sequence step on with the second ending. The first ending is *ouvert* (it lands on degree 2 or 5). The second is *clos* (degree 1), unless the arc is unresolved, in which case both stay *ouvert*.
 - **Tempo bands:** ambient 60–72 bpm, theme 84–96, build and march 96–112, feast 108–126.
 - **Voices:** Drone (tonic and 5th), Pulse (Euclidean patterns such as E(3,8) and E(5,8), scaled by density), Ground (bass on beats 1 and 3), Harmony (lute open 5ths or organum), Melody, Counter (the tintinnabuli T-voice, taken from the tonic triad), Color (bells and finger cymbals on phrase starts), Choir (sacred only).
-- **Melody rules:** state the motif first, then vary it by transposing within the mode, inverting, augmenting or fragmenting. Free notes move by step 70% of the time, by a 3rd 20%, and by a leap of at most a 5th 10%. A leap resolves by a step the other way. Notes stay in the instrument's range, and no bar repeats twice running.
+- **Melody rules:** state the motif first, then vary it by transposing within the mode, inverting, augmenting or fragmenting. Each punctus's body follows a contour: head notes climb (or, for falling motifs and laments, sink) a step per bar toward the ending, and the restatement shifts the strain by a sequence step so the phrase's apex sits in the repeat. Free notes walk toward the next bar's head — or toward the ending degree on a punctus's last bar — by step 70% of the time, by a 3rd 15%, and may settle into a held note on arrival. A leap resolves by a step the other way. Notes stay in the instrument's range, and no bar repeats twice running.
 - **Arranger:** each voice gets a density from 0 to 1, and at most one voice changes per phrase. That is the 8-bar rule.
 - **Presence (silence budget):** Off 0%, Sparse ~35%, Normal ~60%, Rich ~85% of time with music. Music sections end on a *clos* cadence and leave 1–3 phrases of ambience.
 

@@ -1339,8 +1339,12 @@ impl Game {
             CtxAct::Give => {
                 let pe = self.seats[seat].player;
                 let v = self.villagers[self.seats[seat].selected_target];
+                // the job's cargo isn't yours to hand round (#1603)
+                let job_good = self.quest_cargo(pe);
                 let bag: Vec<String> = self.world.get_component::<Satchel>(pe)
-                    .map(|s| s.goods.iter().filter(|(_, &n)| n > 0).map(|(g, _)| g.clone()).collect())
+                    .map(|s| s.goods.iter()
+                        .filter(|(g, &n)| n > 0 && Some(g.as_str()) != job_good)
+                        .map(|(g, _)| g.clone()).collect())
                     .unwrap_or_default();
                 let edible = |g: &str| goods::spec(g)
                     .map(|sp| [goods::Tag::StapleFood, goods::Tag::Fruit, goods::Tag::Sweet]

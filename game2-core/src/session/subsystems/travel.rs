@@ -322,6 +322,9 @@ impl Game {
         let tick = self.tick;
         match goal {
             Goal::BuyFrom(seller, good, qty) => {
+                // the job's cargo isn't for sale - it changes hands on
+                // the job alone (#1603)
+                if self.quest_cargo(seller) == Some(good) { return; }
                 // seller may be a person (satchel) or a building (the stall)
                 let mut paid = if self.world.get_component::<Building>(seller).is_some() {
                     household::buy_at_shop(&mut self.world, seller, who, good, qty)
@@ -330,10 +333,12 @@ impl Game {
                 };
                 // short of coin, a neighbour still swaps: the buyer offers
                 // out of the satchel toward what the ask is worth, and a
-                // few coppers to boot squares it
+                // few coppers to boot squares it - but never the job's cargo
                 if paid.is_none() && self.world.get_component::<Building>(seller).is_none() {
+                    let cargo = self.quest_cargo(who);
                     let want_worth = goods::worth_at(&self.world, good) * qty as f32;
-                    let offer = livelihood::pick_offer(&self.world, who, want_worth, good);
+                    let offer: Vec<(String, u32)> = livelihood::pick_offer(&self.world, who, want_worth, good)
+                        .into_iter().filter(|(g, _)| Some(g.as_str()) != cargo).collect();
                     if !offer.is_empty() {
                         let offer_refs: Vec<(&str, u32)> = offer.iter()
                             .map(|(g, q)| (g.as_str(), *q)).collect();

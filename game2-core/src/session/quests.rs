@@ -540,16 +540,25 @@ impl Game {
     /// parcel, the loaf, the bundle. The word, the question and the
     /// trouble aren't goods. Their names stay out of the goods
     /// registry: an errand's loaf isn't a loaf to trade (#1603)
-    fn quest_good(kind: QuestKind) -> Option<&'static str> {
+    pub(super) fn quest_good(kind: QuestKind) -> Option<&'static str> {
         match kind {
             QuestKind::Note => Some("note"),
             QuestKind::Parcel => Some("parcel"),
             QuestKind::Deliver => Some("loaf"),
             QuestKind::Keep => Some("bundle"),
             QuestKind::Egg => Some("egg"),
-            QuestKind::Stone => Some("stone"),
+            QuestKind::Stone => Some("cobble"),
             _ => None,
         }
+    }
+
+    /// Whichever seat's hands hold the job's thing - it isn't for
+    /// giving, swapping or selling: it changes hands on the job alone
+    /// (#1603)
+    pub(super) fn quest_cargo(&self, e: Entity) -> Option<&'static str> {
+        self.seats.iter().find(|s| s.player == e)?.quest.as_ref()
+            .filter(|q| q.stage == QuestStage::ToCarry)
+            .and_then(|q| Self::quest_good(q.kind))
     }
 
     /// The job's thing lands in the Wanderer's bag (#1603)
@@ -569,8 +578,10 @@ impl Game {
         let Some(g) = Self::quest_good(q.kind) else { return };
         let pe = self.seats[seat].player;
         if let Some(s) = self.world.get_component_mut::<livelihood::Satchel>(pe) {
+            // a spent entry can linger at 0 (the bench's share does) -
+            // gone's gone, don't dig under it
             if let Some(n) = s.goods.get_mut(g) {
-                *n -= 1;
+                *n = n.saturating_sub(1);
                 if *n == 0 { s.goods.remove(g); }
             }
         }

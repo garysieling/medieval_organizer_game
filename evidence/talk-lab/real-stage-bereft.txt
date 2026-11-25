@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Dagny: Neighbor! Out early like the rest of us, wanderer.
-  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Their hand is heavy and their tongue heavier. They keep close to the church folk. They keep close to the market folk.)
+  (Dagny is the village luthier. They bow to no one. They'd sooner watch the clouds than the plough. Their hand is heavy and their tongue heavier. They keep close to the church folk. They keep close to the market folk.)
   Dagny: A fifth of all he had. For dying.   [gist]
     1) Morrow. I'd best keep moving.
     2) Out and about early today.

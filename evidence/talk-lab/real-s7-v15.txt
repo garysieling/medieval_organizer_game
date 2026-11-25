@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Rowena: Neighbor! Out early like the rest of us, wanderer.
-  (Rowena works the fields for a day's wage. They never miss a service. They keep close to the church folk.)
+  (Rowena is the village farmer. They never miss a service. They keep close to the church folk.)
   Rowena: No bench, no hearth - I work in the street.   [gist]
     1) Morrow. I'd best keep moving.
     2) Well enough - and yours?

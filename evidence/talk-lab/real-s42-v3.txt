@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Corvin: Neighbor! Out early like the rest of us, wanderer.
-  (Corvin works the fields for a day's wage. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
+  (Corvin is the village farmer. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
   Corvin: No bench, no hearth - I work in the street.   [gist]
     1) Out and about early today.
     2) Aye. Good day to you.
@@ -25,7 +25,7 @@
     4) Ask what they actually want
     l) take your leave
   you: As do we all, neighbor.
-  Corvin: True enough - the fields don't gossip.
+  Corvin: We have spoken our piece for today.
   Corvin: Is there bench work for a new hand?
     1) Answer plainly
     2) Reassure them

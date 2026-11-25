@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Corvin: wanderer - good to see a familiar face about.
-  (Corvin works the fields for a day's wage. They'd sooner watch the clouds than the plough. They keep close to the church folk. They keep close to the market folk.)
+  (Corvin is the village luthier. They'd sooner watch the clouds than the plough. They keep close to the church folk. They keep close to the market folk.)
   Corvin: Not a song in the village for a year.   [gist]
     1) Out and about early today.
     2) Aye. Good day to you.

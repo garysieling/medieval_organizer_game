@@ -18,7 +18,7 @@
     l) take your leave
   Wystan: They say a free hand makes warm neighbors. What's thy mind on it?
   you: What's spent on neighbors comes back doubled in the end.
-  Wystan: God witness. As thou sayest, friend.
+  Wystan: True enough - the fields don't gossip.
     1) Fair day to you, Wystan - 'twas good to pass the time.
     2) I take my leave.
     3) Ask who folk turn to around here

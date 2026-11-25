@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Rowena: Well met, wanderer - how does the morning find you?
-  (Rowena works the fields for a day's wage. They never miss a service. They keep close to the church folk.)
+  (Rowena is the village farmer. They never miss a service. They keep close to the church folk.)
   Rowena: No bench, no hearth - I work in the street.   [gist]
     1) Out and about early today.
     2) Aye. Good day to you.
@@ -18,25 +18,25 @@
     l) take your leave
   Rowena: Some say the old prayers are only words. And you?
   you: The saints help them as help themselves, I've heard.
-  Rowena: Bright enough for drying, thank God.
-    1) And the day's work - does it treat you kindly?
+  Rowena: A fine morning - the kind the hay wishes for.
+    1) Enough sky-talk - how goes the work these days?
     2) And how fares your folk in this cold snap?
     3) Put a question to them
     l) take your leave
-  you: And the day's work - does it treat you kindly?
-  Rowena: I hear the work keeps you busy at the day's work.
+  you: Enough sky-talk - how goes the work these days?
+  Rowena: God witness. How goes it at the day's work, wanderer?
     1) Honest work for honest pay at the day's work - can't complain, and wouldn't.
-    2) Ask the reeve about the day's work, not me. I keep my own count.
+    2) the day's work is my affair, and it fares as it fares.
     3) Put a question to them
     l) take your leave
   you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
   Rowena: God witness. A rider from the castle came through before dawn.
-    1) Let the miller and the rider sort their own affairs.
-    2) The reeve's hard but the law's the law - keeps us all honest.
+    1) I'll not repeat marketplace whispers.
+    2) God keep the lord and his men. They keep the peace, they say.
     3) Put a question to them
     l) take your leave
-  you: Oh… Let the miller and the rider sort their own affairs.
-  Rowena: Saints keep us. As you say, friend.
+  you: Oh… I'll not repeat marketplace whispers.
+  Rowena: Aye, words won't fill the storehouse.
   Rowena: Does the bread keep fair measure, where you lodges?
     1) Answer plainly
     2) Reassure them

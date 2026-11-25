@@ -3229,6 +3229,93 @@ mod tests {
     }
 
     #[test]
+    fn test_the_trades_lead_and_answer_in_their_own_voices() {
+        // #1617: a trade-holder leading a talk opens on the day's work -
+        // and the same holder, asked, answers with the day's account
+        let library = village_library();
+        let mut rng = Rng::new(7);
+        let mut farmer = Speaker::new("Hugh");
+        farmer.status.push("farmer");
+        let wat = Speaker::new("Wat");
+
+        // hugh leads: the field's own report, not generic smalltalk
+        let tr = converse(&farmer, &wat, Relation::Acquaintance, None, &library, None, &mut rng);
+        assert_eq!(tr.trees_walked[0], "the_ploughman", "{:?}", tr.trees_walked);
+        assert!(tr.turns.iter().any(|t| t.tree == "the_ploughman"));
+
+        // wat leads, hugh answers: the fields answer in voice too
+        let tr = converse(&wat, &farmer, Relation::Acquaintance, None, &library, None, &mut rng);
+        assert_eq!(tr.trees_walked[0], "farmer_fields", "{:?}", tr.trees_walked);
+        assert!(tr.turns.iter().any(|t| t.tree == "farmer_fields" && t.speaker == 1),
+            "the farmer should be the one telling it: {:?}", tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn test_the_days_facts_change_which_trade_account_speaks() {
+        // #1617: the live facts the day rides on pick the account - the
+        // day's voice lives inside the greet, so a baker at a real stall
+        // opens on the cross while one without keeps the market general
+        let library = village_library();
+        let wat = Speaker::new("Wat");
+
+        // a stall of her own: the greet names it
+        let mut baker = Speaker::new("Alys");
+        baker.status.extend(["baker", "market", "selling"]);
+        let mut stall = false;
+        for seed in 0..30 {
+            let tr = converse(&baker, &wat, Relation::Acquaintance, None, &library, None, &mut Rng::new(seed));
+            assert_eq!(tr.trees_walked[0], "the_bakers_oven", "{:?}", tr.trees_walked);
+            if tr.turns.iter().any(|t| t.speaker == 0 && t.text.contains("the stall's out")) {
+                stall = true; break;
+            }
+        }
+        assert!(stall, "a selling baker's greet should name her stall");
+
+        // the same baker at home on market day keeps the bustle but
+        // never claims a stall she didn't set
+        baker.status.retain(|s| *s != "selling");
+        let mut bustle = false;
+        for seed in 0..30 {
+            let tr = converse(&baker, &wat, Relation::Acquaintance, None, &library, None, &mut Rng::new(seed));
+            for t in &tr.turns {
+                assert!(!t.text.contains("stall's out"), "no stall was set: {}", t.text);
+            }
+            bustle |= tr.turns.iter().any(|t| t.speaker == 0 && t.text.contains("Market day's the oven's Sunday"));
+        }
+        assert!(bustle, "a market day's baker should still wear the day");
+
+        // and the replier's own day seasons the answer - the spring's
+        // lambing news is in the pool when the ewes are asked after
+        let mut shepherd = Speaker::new("Maud");
+        shepherd.status.extend(["shepherd", "season:spring"]);
+        let mut lambs = false;
+        for seed in 0..30 {
+            let tr = converse(&wat, &shepherd, Relation::Acquaintance, None, &library, None, &mut Rng::new(seed));
+            if tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("lambs")) { lambs = true; break; }
+        }
+        assert!(lambs, "a spring's shepherd should report the lambing");
+    }
+
+    #[test]
+    fn test_the_circumstances_speak_before_the_trades() {
+        // #1617 review: a sick or grieving trader opens on what ails
+        // them - the trade's day-lines ride inside the greet's voice,
+        // so one criterion can't crowd out another
+        let library = village_library();
+        let wat = Speaker::new("Wat");
+
+        let mut baker = Speaker::new("Alys");
+        baker.status.extend(["baker", "sick", "market", "selling"]);
+        let tr = converse(&baker, &wat, Relation::Acquaintance, None, &library, None, &mut Rng::new(7));
+        assert_eq!(tr.trees_walked[0], "the_sickness", "{:?}", tr.trees_walked);
+
+        let mut farmer = Speaker::new("Hugh");
+        farmer.status.extend(["farmer", "grieving", "season:spring"]);
+        let tr = converse(&farmer, &wat, Relation::Acquaintance, None, &library, None, &mut Rng::new(7));
+        assert_eq!(tr.trees_walked[0], "a_death_in_the_house", "{:?}", tr.trees_walked);
+    }
+
+    #[test]
     fn test_helplessness_registers_the_same_issue_resigned() {
         // a cold speaker's trouble lands as resignation, woven onto the
         // ordinary beats - and a dedicated pool answers for them (#1269)

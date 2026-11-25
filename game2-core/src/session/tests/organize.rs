@@ -114,6 +114,36 @@ fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
     assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
 }
 
+/// A vote beat reads the count and the names (#1612): each member's
+/// ballot lands on the meeting's record, and the call's lean - the log
+/// line - carries the tally
+#[test]
+fn test_a_founding_vote_shows_its_tally() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    let came = g.villagers[..3].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    let d = g.seats[0].pending_founding.as_ref().expect("the call's on the table");
+    assert!(d.vote.is_some(), "a room with a heard issue takes the vote");
+    // each member's pick named in the transcript
+    let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
+    let ballots: Vec<&crate::session::dialogue::TalkLine> = rec.lines.iter()
+        .filter(|l| l.text.starts_with("votes ") || l.text == "holds back").collect();
+    assert_eq!(ballots.len(), 3, "every member's ballot is named: {:?}",
+        rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    assert!(ballots.iter().all(|l| l.who.map(|w| came.contains(&w)).unwrap_or(false)),
+        "a ballot names its member");
+    // and the call reads the count - `resolve_meeting`'s returned line
+    // is what the log gets
+    let winner = crate::game::desires::issue_name(d.vote.as_ref().unwrap().winner.clone());
+    let tally = format!("3 for {}", winner);
+    assert!(msg.contains(&tally), "the tally rides the call: {}", msg);
+    // and the founding log line carries it too, once it's taken
+    let note = g.maybe_found_campaign(0).expect("the vote still stands");
+    assert!(note.contains(&tally), "the tally rides the log line: {}", note);
+}
+
 /// A house meeting is a real conversation: everyone who spoke counts in
 /// the sidebar's bond ledger even if the host never used Talk on them
 #[test]

@@ -139,6 +139,7 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
             rel: Relation::Stranger,
             worry: None,
             slip: None,
+            mystery: None,
             slips_left: 0,
             joke: None,
             story: None,

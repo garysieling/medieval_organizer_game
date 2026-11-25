@@ -161,6 +161,10 @@ pub struct Speaker {
     /// high-strung temperament shows through the words - `speaker_of`
     /// seeds it off the persona; hand-made speakers carry none
     pub slip: Option<Slip>,
+    /// The live mystery's title, when the seat's chasing one (#1608):
+    /// `{mystery}` slots and the ask's label read it so asks name the
+    /// actual story, not "the mystery". Set beside `status: mystery`
+    pub mystery: Option<&'static str>,
     /// Whether the arc's one slip is still unspent (E5-8): the caller
     /// enforces the budget - 0 for hand-made speakers until a caller
     /// opts in; the transcript's `slips` reports what fired so the
@@ -183,7 +187,7 @@ pub struct Speaker {
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, slips_left: 0, joke: None, idiolect: None, story: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, mystery: None, slips_left: 0, joke: None, idiolect: None, story: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     pub(crate) fn own_facts(&self) -> Vec<String> {
@@ -2455,10 +2459,17 @@ pub fn converse_with_at(
                     // yours, their answer, then the talk picks back up.
                     // A tell-named ask rides the same menu (E3-2)
                     let menu: Vec<usize> = open_topics.iter().chain(tell_topics.iter()).copied().collect();
-                    let mut tch: Vec<Choice> = menu.iter().map(|&ti| Choice {
-                        act: Act::Question, respond: Respond::Validate,
-                        preview: format!("Ask about {}",
-                            crate::game::dialogue_trees::ASK_TOPICS[ti].label) }).collect();
+                    let mut tch: Vec<Choice> = menu.iter().map(|&ti| {
+                        let tp = &crate::game::dialogue_trees::ASK_TOPICS[ti];
+                        // a mystery ask names the story itself - "the face
+                        // in the elder tree", not "the question" (#1608)
+                        let about = if matches!(tp.draws, crate::game::dialogue_trees::Draw::Mystery) {
+                            pair[caller].mystery.unwrap_or(tp.label)
+                        } else { tp.label };
+                        Choice {
+                            act: Act::Question, respond: Respond::Validate,
+                            preview: format!("Ask about {}", about) }
+                    }).collect();
                     tch.push(Choice { act: Act::Remark, respond: Respond::Validate,
                         preview: "Say nothing of it".into() });
                     match choose(&tch) {

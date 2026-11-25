@@ -1090,7 +1090,10 @@ fn test_a_live_mystery_is_its_own_ask() {
     g.seats[0].mystery = Some(SeatMystery { def: 0, known: 0, asker: v });
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
-    let p = menu.iter().position(|(_, _, l)| l == "Ask about the question folk whisper of")
+    // the ask names the actual mystery (#1608): "the face in the elder
+    // tree", not "the question folk whisper of"
+    let title = crate::game::mysteries::MYSTERIES[0].title;
+    let p = menu.iter().position(|(_, _, l)| *l == format!("Ask about {}", title))
         .expect("a live mystery opens the ask");
     let before = g.seats[0].mystery.as_ref().unwrap().heard();
     g.talk_pick_at(0, Some(p));
@@ -1098,9 +1101,15 @@ fn test_a_live_mystery_is_its_own_ask() {
     assert_eq!(m.heard(), before + 1, "the asking drew a fact");
     let t = g.seats[0].talk.as_ref().expect("still talking").clone();
     let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+    // the question asks about the named story and the answer lands in
+    // its frame - "About the face in the elder tree - ..." (#1608)
     let facts: Vec<&str> = crate::game::mysteries::MYSTERIES[0].clues.iter().map(|c| c.text).collect();
-    assert!(rec.lines.iter().any(|l| l.who == Some(v) && facts.contains(&l.text.as_str())),
-        "they passed the piece on: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    assert!(rec.lines.iter().any(|l| l.text.contains(title)),
+        "the exchange names the mystery: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    assert!(rec.lines.iter().any(|l| l.who == Some(v)
+            && l.text.starts_with(&format!("About {}", title))
+            && facts.iter().any(|f| l.text.contains(f))),
+        "they passed the piece on in the mystery's frame: {:?}", rec.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
 
 /// A villager pressed twice in a day runs dry (#1226): the second talk

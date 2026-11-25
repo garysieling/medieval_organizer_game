@@ -5356,8 +5356,10 @@ pub const ASK_TOPICS: &[Topic] = &[
         label: "the question folk whisper of",
         area: crate::game::conversation::Area::Village,
         tier: 1, needs: &["mystery"], any: &[], not: &[],
-        ask: &["Folk whisper of something - what is it they ask?", "There's a question going round the village - what do folk say?"],
-        tell: &["Ah, {2:subj} {2:have} heard the asking too.", "Aye, folk do talk - and some of it's true.", "I've a piece of it, if {2:subj} {2:want} the hearing."],
+        // the asks name the seat's live mystery - the asker can tell
+        // which story they're chasing (#1608)
+        ask: &["Folk whisper of {mystery} - what do they say?", "There's talk of {mystery} round the village - what's said of it?"],
+        tell: &["Ah, {mystery} - {2:subj} {2:have} heard the asking too.", "Aye, {mystery} - folk do talk, and some of it's true.", "I've a piece of {mystery}, if {2:subj} {2:want} the hearing."],
         concepts: &["mystery", "gossip"], draws: Draw::Mystery,
     },
     Topic {

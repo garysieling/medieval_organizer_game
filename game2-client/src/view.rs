@@ -1787,6 +1787,18 @@ impl View {
         }
 
         // the conversation box, top-right of the map: a Talk under way or
+        // a flyer's hover: mouse near a posted door and its words show.
+        // It runs before the convo box so a popup can't land on a reply
+        // mid-read (#1600)
+        if let Some((mx, my)) = self.mouse {
+            for &(fx, fy, ref f) in &m.postings {
+                let (sx, sy) = iso_to_screen_cam(fx as f32, fy as f32, cam_x, cam_y, zoom);
+                if (mx - sx).abs() < 20 && (my - sy).abs() < 20 {
+                    draw_overlay(&mut buf, 300, f, (220, 200, 160), &[f.as_str()], 60, None);
+                }
+            }
+        }
+
         // a house meeting's lines as they're said - and the call one
         // leaves. Drawn over the bubbles, toasts and banner so a popup
         // can't land on a reply mid-read; the modal overlays below
@@ -1817,15 +1829,6 @@ impl View {
             let refs: Vec<&str> = lines.iter().map(String::as_str).collect();
             draw_overlay(&mut buf, 480, "the board's postings", (255, 240, 200), &refs,
                 NOTICE_ROW, Some("Esc or a click away closes it"));
-        }
-        // a flyer's hover: mouse near a posted door and its words show
-        if let Some((mx, my)) = self.mouse {
-            for &(fx, fy, ref f) in &m.postings {
-                let (sx, sy) = iso_to_screen_cam(fx as f32, fy as f32, cam_x, cam_y, zoom);
-                if (mx - sx).abs() < 20 && (my - sy).abs() < 20 {
-                    draw_overlay(&mut buf, 300, f, (220, 200, 160), &[f.as_str()], 60, None);
-                }
-            }
         }
         // the ledger overlay: the public KPIs the model carried (F3)
         if self.ledger_open && !m.debug_lines.is_empty() {

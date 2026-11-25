@@ -213,10 +213,45 @@ fn test_the_player_picks_a_cap() {
     let t = g.mush_patches[pi].tile;
     let pe = g.seats[0].player;
     if let Some(p) = g.world.get_component_mut::<Pos>(pe) { p.x = t.0 as f32; p.y = t.1 as f32; }
-    g.update_ctx_actions_at(0);
-    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::PickCaps).expect("no pick-caps button");
-    g.ctx_act_at(0, i);
+    g.pick_caps_at(0);
     assert!(g.mush_patches[pi].next_ready > g.tick, "the patch was never picked");
+}
+
+/// The Pick caps button's gone (#1597): standing by a patch, the ctx
+/// row offers no picking whatever the belly knows
+#[test]
+fn test_no_pick_caps_button_whatever_the_patch() {
+    let mut g = Game::new();
+    let pi = kind_patch(&g, MushKind::Chanterelle);
+    let t = g.mush_patches[pi].tile;
+    let pe = g.seats[0].player;
+    if let Some(p) = g.world.get_component_mut::<Pos>(pe) { p.x = t.0 as f32; p.y = t.1 as f32; }
+    g.update_ctx_actions_at(0);
+    assert!(g.seats[0].ctx_actions.iter().all(|&a| ctx_button(a).label != "Pick caps"),
+        "the Pick caps button's back");
+}
+
+/// Agents keep their forage (#1597): the button's gone, but a villager
+/// seat standing by a flushed patch still picks through its own ask
+#[test]
+fn test_an_agent_forages_a_nearby_patch() {
+    let mut g = Game::new();
+    let pi = kind_patch(&g, MushKind::Chanterelle);
+    g.mush_patches[pi].next_ready = 0;
+    let t = g.mush_patches[pi].tile;
+    let who = g.villagers[0];
+    if let Some(p) = g.world.get_component_mut::<Pos>(who) { p.x = t.0 as f32; p.y = t.1 as f32; }
+    let seat = g.add_agent_seat(who);
+    g.agent_command(seat, AgentCmd::Context {
+        action: AgentAction::PickCaps, target: None,
+    }).unwrap();
+    assert!(g.mush_patches[pi].next_ready > g.tick, "the agent picked nothing");
+    // and where the wood holds no ready patch, the ask is refused
+    let seat2 = g.add_agent_seat(g.villagers[1]);
+    let err = g.agent_command(seat2, AgentCmd::Context {
+        action: AgentAction::PickCaps, target: None,
+    }).unwrap_err();
+    assert!(!err.is_empty(), "a bare spot should refuse");
 }
 
 #[test]
@@ -228,15 +263,9 @@ fn test_the_player_knows_a_killer_when_he_sees_one() {
     g.learn_shroom(pe, pi);
     let t = g.mush_patches[pi].tile;
     if let Some(p) = g.world.get_component_mut::<Pos>(pe) { p.x = t.0 as f32; p.y = t.1 as f32; }
-    g.update_ctx_actions_at(0);
-    // a patch the belly's learned isn't offered at all
-    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::PickCaps),
-        "a known killer stays off the card: {:?}", g.seats[0].ctx_actions);
-    // and a stale click still can't pick it - the verb re-checks
-    g.seats[0].ctx_actions.push(CtxAct::PickCaps);
-    let i = g.seats[0].ctx_actions.len() - 1;
-    g.ctx_act_at(0, i);
-    assert!(g.log.iter().any(|l| l.contains("death - you know it")), "the lore didn't speak");
+    // a patch the belly's learned can't be picked - the verb says why
+    let msg = g.pick_caps_at(0);
+    assert!(msg.contains("death - you know it"), "the lore didn't speak: {}", msg);
     assert_eq!(g.mush_patches[pi].next_ready, 0, "he picked a killer");
 }
 

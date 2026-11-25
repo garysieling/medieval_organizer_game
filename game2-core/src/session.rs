@@ -384,9 +384,11 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Board => Button { label: "Board".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
         CtxAct::Disembark => Button { label: "Disembark".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
         CtxAct::Fish => Button { label: "Fish".into(), key: ' ', x: UI_X as i32 + 150, y: 272, w: 62, h: 16, color: (80, 120, 100) },
-        // Gather's kept so a list from an older server still draws and
-        // clicks through - this server never pushes it (#1596)
+        // Gather, Pact, Give and Pick caps are kept so a list from an
+        // older server still draws and clicks through - this server
+        // never pushes them (#1594-#1597)
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
+        CtxAct::Pact => Button { label: "Swear aid".into(), key: ' ', x: UI_X as i32 + 10, y: 470, w: 130, h: 16, color: (80, 120, 90) },
         CtxAct::PetCat => Button { label: "Pet her".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
         // shares the row's right half with Pet her - pushed last, it
         // draws over her in the rare winter visit, and once the fight's
@@ -407,6 +409,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // the kind hand shares Pet her's slot on the big row's right half -
         // the wire's ctx_labels names the animal it reaches for (#1056)
         CtxAct::Tame => Button { label: "Pet it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
+        CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
     }
 }
 

@@ -11,10 +11,10 @@ fn test_ctx_buttons_never_overlap() {
     let acts = [
         CtxAct::Errand, CtxAct::PairUp, CtxAct::Matchmake,
         CtxAct::Delegate, CtxAct::Strike, CtxAct::Townhall, CtxAct::Petition,
-        CtxAct::Gather, CtxAct::PetCat,
+        CtxAct::Gather, CtxAct::Pact, CtxAct::PetCat,
         CtxAct::Snowballs, CtxAct::Douse,
         CtxAct::PickCaps, CtxAct::ShareFindings, CtxAct::TakeCache,
-        CtxAct::Tame,
+        CtxAct::Tame, CtxAct::Give,
     ];
     let btns = ctx_buttons(&acts);
     assert_eq!(btns.len(), acts.len(), "one button per action, in order");

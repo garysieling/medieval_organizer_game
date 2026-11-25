@@ -125,7 +125,7 @@ and Tame use the agent's position and don't need a target.
 Available actions are `TakeJob`, `Douse`, `Tame`, `Matchmake`,
 `Errand`, `PairUp`, `ShareFindings`, `PickCaps`, `Snowballs`, `PetCat`, and
 `Pact`. The server checks the same context availability and blockers as the
-player menu (the Pact button itself is gone for players; agents still swear). Campaign leadership actions remain player-only; the agent
+player menu (the Pact and Pick caps buttons themselves are gone for players; agents still swear and forage). Campaign leadership actions remain player-only; the agent
 surface does not include meeting, march, delegation, strike, or hall controls.
 
 Also: `"Idle"`, `"WorkDay"`, `"JoinOrg"`, `{"TalkTo":{"e":51}}`,

@@ -5,6 +5,4 @@ pub mod character_sheet;
 pub mod graph;
 pub mod tech_view;
 pub mod font;
-mod glyphs;
-mod glyphs_book;
 pub mod weather_fx;

@@ -11,14 +11,14 @@ its shape, and it carries the same per-glyph advance.
 
 Only 'Q' outspans the cell: its famous swash tail runs past 14 columns.
 The tail is clipped rather than the glyph squeezed - a crushed Q reads
-worse than a short-tailed one. Output is game2-core/src/ui/glyphs_book.rs.
+worse than a short-tailed one. Output is game2-core/src/engine/glyphs_book.rs.
 """
 import os
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TTF = os.path.join(ROOT, "scripts", "fonts", "IMFellEnglish.ttf")
-OUT = os.path.join(ROOT, "game2-core", "src", "ui", "glyphs_book.rs")
+OUT = os.path.join(ROOT, "game2-core", "src", "engine", "glyphs_book.rs")
 
 SIZE = 13          # the text size; its full ink band is rows 3..16
 Y0, Y1 = 3, 16     # the band - keeps descenders, clips a 1px serif tip

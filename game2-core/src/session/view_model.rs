@@ -2159,7 +2159,7 @@ fn card_px(x: i32) -> i32 { (CARD_RX - x).max(90) }
 /// the value
 fn card_prop(lines: &mut Vec<Line>, y: &mut i32, label: &str, value: &str, rgb: (u8, u8, u8)) {
     if value.is_empty() { return; }
-    let vx = CARD_X + crate::ui::font::measure(&format!("{}:  ", label)) + 4;
+    let vx = CARD_X + crate::engine::text::measure(&format!("{}:  ", label)) + 4;
     lines.push(Line { x: CARD_X, y: *y, text: format!("{}:", label), rgb: (150, 150, 170) });
     for w in wrap_px(value, card_px(vx)) {
         lines.push(Line { x: vx, y: *y, text: w, rgb });

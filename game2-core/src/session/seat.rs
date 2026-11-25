@@ -77,12 +77,17 @@ pub enum CtxAct {
     /// server's list still decodes and clicks through; a new server
     /// never offers it, meetings schedule in talk and convene themselves
     Gather,
+    /// Press wax with the picked villager - wire-only now (#1595, #1597):
+    /// kept so an older server's list still decodes and clicks through;
+    /// a new server never offers it, agents still swear pacts
+    Pact,
     /// Stroke the stray cat who's keeping you company
     PetCat,
     /// Call a snowball fight: everyone free comes out to play (winter)
     Snowballs,
-    /// Pick a cap off the patch you're standing by - the wood feeds,
-    /// and teaches its lessons the hard way
+    /// Pick a cap off the patch you're standing by - wire-only now
+    /// (#1597): kept so an older server's list still decodes and clicks
+    /// through; a new server never offers it, agents still forage
     PickCaps,
     /// Sit down at the table of the villager who's asked you in (#1241)
     Dine,
@@ -101,6 +106,11 @@ pub enum CtxAct {
     ReportMasterless,
     /// Throw water on the flames - offered standing by a fire
     Douse,
+    /// Give the picked villager something from your satchel - wire-only
+    /// now (#1594, #1597): kept so an older server's list still decodes
+    /// and clicks through; a new server never offers it, `give_at` still
+    /// hands the gift over
+    Give,
     /// Stroke the animal you're standing by - the kind hand, again and
     /// again, until it leaves the fold and follows
     Tame,
@@ -390,18 +400,32 @@ impl Game {
             }
             return if crate::game::contracts::has_pact(&self.world, who, v) { Ok(()) } else { Err(msg) };
         }
+        // foraging's between them and the wood now (#1597): the button's
+        // gone, but the sim still picks a cap for whoever asks it
+        if action == AgentAction::PickCaps {
+            if self.shroom_patch_at(seat).is_none() {
+                return Err("that action isn't available here".into());
+            }
+            let msg = self.pick_caps_at(seat);
+            if !msg.is_empty() {
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Negative, Sev::Minor),
+                    format!("t{}: {}", self.tick, msg));
+            }
+            return if msg.is_empty() { Ok(()) } else { Err(msg) };
+        }
         let ctx = match action {
             // taken in the Talk now (#1336) - the early return above has it
             AgentAction::TakeJob => unreachable!("handled above"),
-            // and the oath runs its own path (#1595) - the button's gone
+            // and these run their own paths (#1595, #1597) - the buttons' gone
             AgentAction::Pact => unreachable!("handled above"),
+            AgentAction::PickCaps => unreachable!("handled above"),
             AgentAction::Douse => CtxAct::Douse,
             AgentAction::Tame => CtxAct::Tame,
             AgentAction::Matchmake => CtxAct::Matchmake,
             AgentAction::Errand => CtxAct::Errand,
             AgentAction::PairUp => CtxAct::PairUp,
             AgentAction::ShareFindings => CtxAct::ShareFindings,
-            AgentAction::PickCaps => CtxAct::PickCaps,
             AgentAction::Snowballs => CtxAct::Snowballs,
             AgentAction::PetCat => CtxAct::PetCat,
         };

@@ -25,11 +25,6 @@ impl Game {
     /// with the reason beside it, like the main buttons' `blocked`
     pub fn ctx_blocker_at(&self, seat: usize, act: CtxAct) -> Option<String> {
         match act {
-            CtxAct::PickCaps => {
-                self.shroom_patch_at(seat).and_then(|pi|
-                    self.lore_of(self.seats[seat].player).contains(&pi)
-                        .then(|| "those caps are death - you know it".to_string()))
-            }
             CtxAct::Snowballs => {
                 if self.snowball_day == self.tick { Some("everyone's already played today".into()) }
                 else if self.world.get_component::<crate::sim::climate::Climate>(self.climate)
@@ -733,13 +728,6 @@ impl Game {
         if self.tame_animal_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::Tame);
         }
-        // caps in the shade: standing by a flushed patch offers the
-        // picking - and what the belly's learned shows up in why it won't
-        if let Some(pi) = self.shroom_patch_at(seat) {
-            if !self.lore_of(self.seats[seat].player).contains(&pi) {
-                self.seats[seat].ctx_actions.push(CtxAct::PickCaps);
-            }
-        }
         // a cache the bands left: standing by it offers the taking
         if self.rebel_store_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::TakeCache);
@@ -1173,17 +1161,16 @@ impl Game {
                 };
                 if repeat && !freed { String::new() } else { said }
             }
-            CtxAct::PickCaps => {
-                match self.shroom_patch_at(seat) {
-                    Some(pi) => {
-                        let kind = self.mush_patches[pi].kind;
-                        if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = self.tick + 60; }
-                        let pe = self.seats[seat].player;
-                        self.shroom_take(pe, pi, kind, self.tick);
-                        String::new()
-                    }
-                    None => String::new(),
-                }
+            // wire-only on a new server (#1594-#1597): never pushed, so
+            // unreachable in practice; the sim helpers still do the work
+            CtxAct::PickCaps => self.pick_caps_at(seat),
+            CtxAct::Give => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                self.give_at(self.seats[seat].player, v)
+            }
+            CtxAct::Pact => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                self.pact_at(self.seats[seat].player, v)
             }
             CtxAct::TakeCache => {
                 match self.rebel_store_at(seat).map(|si| self.rebel_stores.remove(si)) {
@@ -1389,6 +1376,22 @@ impl Game {
         }
     }
 
+    /// Pick a cap off the flushed patch `seat`'s player stands by, if the
+    /// belly doesn't know it for a killer - the Pick caps button's gone
+    /// (#1597); agents forage the same patches through their own ask.
+    /// Empty on a taken pick, the reason when there's nothing safe to take
+    pub(in crate::session) fn pick_caps_at(&mut self, seat: usize) -> String {
+        let Some(pi) = self.shroom_patch_at(seat) else { return String::new() };
+        if self.lore_of(self.seats[seat].player).contains(&pi) {
+            return "those caps are death - you know it".into();
+        }
+        let kind = self.mush_patches[pi].kind;
+        if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = self.tick + 60; }
+        let pe = self.seats[seat].player;
+        self.shroom_take(pe, pi, kind, self.tick);
+        String::new()
+    }
+
     /// The stray cat's entity when she's afoot, hasn't chosen yet, and the
     /// seat's player is close enough to stroke her. Cooldown isn't checked
     /// here - the button stays and greys with the reason instead
@@ -1404,8 +1407,8 @@ impl Game {
     }
 
     /// The nearest flushed patch within a gatherer's reach of the seat's
-    /// player - the Pick caps button lives and dies by this
-    fn shroom_patch_at(&self, seat: usize) -> Option<usize> {
+    /// player - a pick, player's or agent's, lives and dies by this
+    pub(in crate::session) fn shroom_patch_at(&self, seat: usize) -> Option<usize> {
         let (px, py) = self.player_pos_at(seat);
         self.mush_patches.iter().enumerate()
             .filter(|(_, p)| self.tick >= p.next_ready)

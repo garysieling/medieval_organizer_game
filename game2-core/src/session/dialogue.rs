@@ -580,6 +580,12 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
         _ => "season:winter",
     });
     if super::routine::is_market_day(tick) { s.status.push("market"); }
+    // a stall of their own, not only the date: the calendar puts
+    // "market" in every mouth, but a "my stall's out" line needs the
+    // day's plan to have actually set one (#1617)
+    if world.get_component::<super::routine::Routine>(who)
+        .map(|r| r.mode == super::routine::Mode::Selling && r.day == tick)
+        .unwrap_or(false) { s.status.push("selling"); }
     // the voice's own weight in the room (#1249): bonds, seniority,
     // standing, the moral pull of a dead loss - read live, not stored
     s.pull = crate::game::organizing::pull_of(world, who);

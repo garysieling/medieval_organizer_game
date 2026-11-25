@@ -106,6 +106,9 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
         // when a laborer asks. Half the roster stays tradeless hands
         let ti = rng.below(TRADES.len() * 2);
         if ti < TRADES.len() { status.push(TRADES[ti]); }
+        // a stall of their own on a third of market days, so the
+        // "selling"-gated lines show beside the general bustle
+        if market && rng.below(3) == 0 { status.push("selling"); }
         if status_pick != "well" {
             status.push(status_pick);
         }

@@ -2295,10 +2295,18 @@ const BAKER_BREAD: Exchange = Exchange {
     calls: &["Are the morning rye loaves ready to pull with the peel?", "{2:can} {2:subj} bake my barley dough in {2:poss} community oven?", "{2:have} {2:subj} any day-old trenchers left for a penny?", "Are the loaves golden brown on the oven bricks?"], voice: &[],
     replies: &[
         Reply {
-            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            criteria: &[Has("self:status:selling")], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:baker"],
             respond: None,
             lines: &["The stall's out by the cross - the loaves went before the second bell.", "Market day's the oven's Sunday; the batch never rests and the queue never shrinks.", "Sold the morning's bake already - the market crowd clears a board faster than any feast."],
+            voice: &[],
+            then: Some(BAKER_CRUST), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            act: Act::Answer, concepts: &["trade:baker"],
+            respond: None,
+            lines: &["Market day's the oven's Sunday; the batch never rests.", "The bakehouse smells the crowd before the bells do."],
             voice: &[],
             then: Some(BAKER_CRUST), end: None,
         },
@@ -2367,10 +2375,18 @@ const WEAVER_FLEECE: Exchange = Exchange {
     calls: &["Did the sheep shearers bring in the upland wool yet?", "{2:can} {2:subj} weave a yard of heavy russet for my work kirtle?", "Is the spun yarn dry enough to wind onto the spools?", "How many yards of wool cloth come off the loom today?"], voice: &[],
     replies: &[
         Reply {
-            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            criteria: &[Has("self:status:selling")], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:weaver"],
             respond: None,
             lines: &["There's a bolt of fustian on my stall and three lengths of woollen besides.", "Market day's the loom's market too - the weaver sells what the shepherd shears.", "I've cloth at the cross and buyers at the door; a good day for thread."],
+            voice: &[],
+            then: Some(WEAVER_CLOTH), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            act: Act::Answer, concepts: &["trade:weaver"],
+            respond: None,
+            lines: &["The market crowd's all dressed in somebody's winter.", "Every sleeve on the square was somebody's loomwork."],
             voice: &[],
             then: Some(WEAVER_CLOTH), end: None,
         },
@@ -3375,10 +3391,18 @@ const FARMER_SOW: Exchange = Exchange {
             then: Some(FARMER_TOLL), end: None,
         },
         Reply {
-            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            criteria: &[Has("self:status:selling")], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:farmer"],
             respond: None,
             lines: &["The mare's hitched and the sacks are up - my stall's by the north side of the cross today.", "A cart of barley's my price today, if the miller's thumb keeps off the scale.", "I've grain and a few fat capons on the square; the field's saved the day for me."],
+            voice: &[],
+            then: Some(FARMER_TOLL), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            act: Act::Answer, concepts: &["trade:farmer"],
+            respond: None,
+            lines: &["The market crowd needs feeding same as the village - the field grows for both.", "Half the square's dinner walked or grew off my strips this year."],
             voice: &[],
             then: Some(FARMER_TOLL), end: None,
         },
@@ -3447,10 +3471,18 @@ const TAILOR_SEAM: Exchange = Exchange {
     calls: &["What garment lies on {2:poss} board today?", "Is the warden's gown cut yet, or still folded?", "{2:do} {2:subj} sew the festival banners this year?", "What does the needle ask of {2:obj} this week?"], voice: &[],
     replies: &[
         Reply {
-            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            criteria: &[Has("self:status:selling")], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:tailor"],
             respond: None,
             lines: &["Stockings and a ribbon or two on my stall - the bespoke work waits at home.", "Market day's the haggler's holiday; I sell the smalls and take the gown orders there.", "I've gloves and hose at the cross today - smalls for the crowd, fittings by appointment."],
+            voice: &[],
+            then: Some(TAILOR_FITTING), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            act: Act::Answer, concepts: &["trade:tailor"],
+            respond: None,
+            lines: &["The crowd's all seams and hems - a tailor reads a market like a pattern book.", "The fitting book fills on market day; the board work comes after."],
             voice: &[],
             then: Some(TAILOR_FITTING), end: None,
         },
@@ -3703,10 +3735,18 @@ const GLAZIER_LEAD: Exchange = Exchange {
             then: Some(GLAZIER_PANES), end: None,
         },
         Reply {
-            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            criteria: &[Has("self:status:selling")], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["trade:glazier"],
             respond: None,
             lines: &["Lanterns and small bottles at the stall - the windows keep the door, the glassware pays the bread.", "I've vials and a small mirror or two on the stall today.", "The stall's out - glassware for the crowd, leaded work by the eye."],
+            voice: &[],
+            then: Some(GLAZIER_PANES), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:market")], weight: 1.00, bias: &[],
+            act: Act::Answer, concepts: &["trade:glazier"],
+            respond: None,
+            lines: &["Every lantern on the square was somebody's furnace day.", "Market folk look at glass the way the lord looks at land."],
             voice: &[],
             then: Some(GLAZIER_PANES), end: None,
         },
@@ -3802,31 +3842,8 @@ const PLOUGH_FIELDS: Exchange = Exchange {
 const PLOUGH_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:farmer"],
-    calls: &["Morrow, {other} - the north strip took the last of the seed this week.", "Well met! The plough's been walking since first light.", "Fair day! The furrows run straight and the lark's up early.", "Morrow - the field's quieter company than the square, but it answers better."], voice: &[],
-    replies: &[
-        Reply {
-            criteria: &[], weight: 1.00, bias: &[],
-            act: Act::Greet, concepts: &["trade:farmer"],
-            respond: None,
-            lines: &["And a straight furrow to {2:poss} plough, {other}.", "Morrow - the whole village eats what {2:poss} field grows.", "Well met - hard luck to {2:poss} weeds, good luck to {2:poss} corn.", "A fair day to the field's own man."],
-            voice: &[],
-            then: Some(PLOUGH_FIELDS), end: None,
-        },
-        Reply {
-            criteria: &[], weight: 0.40, bias: &[],
-            act: Act::Farewell, concepts: &["farewell"],
-            respond: None,
-            lines: &["I must be on, {other}. Fare well.", "Chores call; good day.", "Until next time, neighbor."],
-            voice: &[],
-            then: None, end: Some(Farewell),
-        },
-    ],
-};
-
-const PLOUGH_SPRING: Exchange = Exchange {
-    act: Act::Greet,
-    concepts: &["greeting", "trade:farmer"],
-    calls: &["Morrow, {other} - the last seed went in the north strip this week; pray a soft rain, not a washing one.", "Well met! Spring's half spent and the year's half made.", "Fair day - the lambs are up on the commons and my oats are in the ground.", "Morrow - the field's all in; a farmer's spring is mostly waiting."], voice: &[],
+    calls: &["Morrow, {other} - the north strip took the last of the seed this week.", "Well met! The plough's been walking since first light.", "Fair day! The furrows run straight and the lark's up early.", "Morrow - the field's quieter company than the square, but it answers better."],
+    voice: &[Voice { criteria: &[Has("self:status:season:spring")], lines: &["Morrow, {other} - the last seed went in the north strip this week; pray a soft rain, not a washing one.", "Well met! Spring's half spent and the year's half made.", "Fair day - the lambs are up on the commons and my oats are in the ground.", "Morrow - the field's all in; a farmer's spring is mostly waiting."] }],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -3890,31 +3907,11 @@ const OVEN_BATCH: Exchange = Exchange {
 const OVEN_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:baker"],
-    calls: &["Morrow, {other} - the oven's been roaring since the small hours.", "Well met! The batch is out and the second's rising.", "Fair day! The whole lane smells of my oven this morning.", "Morrow - flour to the elbows and loaves on every shelf."], voice: &[],
-    replies: &[
-        Reply {
-            criteria: &[], weight: 1.00, bias: &[],
-            act: Act::Greet, concepts: &["trade:baker"],
-            respond: None,
-            lines: &["And a hot oven to {2:obj}, baker.", "Morrow - {2:poss} loaves carry the village's mornings.", "Well met - nothing smells like a fresh bakehouse.", "A fair day to the one who feeds us all."],
-            voice: &[],
-            then: Some(OVEN_BATCH), end: None,
-        },
-        Reply {
-            criteria: &[], weight: 0.40, bias: &[],
-            act: Act::Farewell, concepts: &["farewell"],
-            respond: None,
-            lines: &["I must be on, {other}. Fare well.", "Chores call; good day.", "Until next time, neighbor."],
-            voice: &[],
-            then: None, end: Some(Farewell),
-        },
+    calls: &["Morrow, {other} - the oven's been roaring since the small hours.", "Well met! The batch is out and the second's rising.", "Fair day! The whole lane smells of my oven this morning.", "Morrow - flour to the elbows and loaves on every shelf."],
+    voice: &[
+        Voice { criteria: &[Has("self:status:selling")], lines: &["Morrow, {other} - the stall's out by the cross and the loaves went before the second bell.", "Well met! I've sold more than I've said good-morrow to this morning."] },
+        Voice { criteria: &[Has("self:status:market")], lines: &["Well met! Market day's the oven's Sunday - the batch never rests.", "Morrow - the square's already smelling the morning's bake."] },
     ],
-};
-
-const OVEN_MARKET: Exchange = Exchange {
-    act: Act::Greet,
-    concepts: &["greeting", "trade:baker"],
-    calls: &["Morrow, {other} - the stall's out by the cross and the loaves went before the second bell.", "Well met! Market day's the oven's Sunday - the batch never rests.", "Fair day - I've sold more than I've said good-morrow to this morning.", "Morrow - the oven's been roaring since the small hours, and the square's already smelling it."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -4106,31 +4103,8 @@ const ANVIL_IRON: Exchange = Exchange {
 const ANVIL_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:smith"],
-    calls: &["Morrow, {other} - the coals were white before the bells.", "Well met! The anvil's been singing since first light.", "Fair day - the forge smells of scorched hoof and hot iron, as it should.", "Morrow - mind the sparks on {2:poss} way through."], voice: &[],
-    replies: &[
-        Reply {
-            criteria: &[], weight: 1.00, bias: &[],
-            act: Act::Greet, concepts: &["trade:smith"],
-            respond: None,
-            lines: &["And white coals to {2:poss} hearth, smith.", "Morrow - the whole village hears {2:poss} hammer and takes heart.", "Well met - keep the iron honest, as ever.", "A fair day to the strongest arm in the parish."],
-            voice: &[],
-            then: Some(ANVIL_IRON), end: None,
-        },
-        Reply {
-            criteria: &[], weight: 0.40, bias: &[],
-            act: Act::Farewell, concepts: &["farewell"],
-            respond: None,
-            lines: &["I must be on, {other}. Fare well.", "Chores call; good day.", "Until next time, neighbor."],
-            voice: &[],
-            then: None, end: Some(Farewell),
-        },
-    ],
-};
-
-const ANVIL_MARKET: Exchange = Exchange {
-    act: Act::Greet,
-    concepts: &["greeting", "trade:smith"],
-    calls: &["Morrow, {other} - every cart in the square's shed a nail; I've a queue of mending past the door.", "Well met! The market's good for my trade and worse for my ears.", "Fair day - the coals ran white early; market days don't wait.", "Morrow - half the stall-holders owe me a hook or a hinge."], voice: &[],
+    calls: &["Morrow, {other} - the coals were white before the bells.", "Well met! The anvil's been singing since first light.", "Fair day - the forge smells of scorched hoof and hot iron, as it should.", "Morrow - mind the sparks on {2:poss} way through."],
+    voice: &[Voice { criteria: &[Has("self:status:market")], lines: &["Morrow, {other} - every cart in the square's shed a nail; I've a queue of mending past the door.", "Well met! The market's good for my trade and worse for my ears.", "Fair day - the coals ran white early; market days don't wait.", "Morrow - half the stall-holders owe me a hook or a hinge."] }],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -5664,25 +5638,6 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &MERCHANT_GREET, rejoin: Some(&MERCHANT_WARES) },
         DialogueTree { name: "the_lords_levee", criteria: &[Has("self:ideology:lord")],
             root: &LEVEE_GREET, rejoin: Some(&LEVEE_LAW) },
-        // the trades lead their own talks too (#1617): when the holder's
-        // the caller - the player's Talk included - the day at the bench
-        // opens the exchange
-        DialogueTree { name: "the_ploughman", criteria: &[Has("self:status:farmer")],
-            root: &PLOUGH_GREET, rejoin: Some(&PLOUGH_FIELDS) },
-        DialogueTree { name: "the_bakers_oven", criteria: &[Has("self:status:baker")],
-            root: &OVEN_GREET, rejoin: Some(&OVEN_BATCH) },
-        DialogueTree { name: "the_masons_yard", criteria: &[Has("self:status:mason")],
-            root: &CHISEL_GREET, rejoin: Some(&CHISEL_STONE) },
-        DialogueTree { name: "the_tailors_shears", criteria: &[Has("self:status:tailor")],
-            root: &NEEDLE_GREET, rejoin: Some(&NEEDLE_SEAM) },
-        DialogueTree { name: "the_smiths_anvil", criteria: &[Has("self:status:smith")],
-            root: &ANVIL_GREET, rejoin: Some(&ANVIL_IRON) },
-        DialogueTree { name: "the_luthiers_bench", criteria: &[Has("self:status:luthier")],
-            root: &BELLY_GREET, rejoin: Some(&BELLY_WOOD) },
-        DialogueTree { name: "the_printers_press", criteria: &[Has("self:status:printer")],
-            root: &PRESS_GREET, rejoin: Some(&PRESS_FORME) },
-        DialogueTree { name: "the_glaziers_lead", criteria: &[Has("self:status:glazier")],
-            root: &CAME_GREET, rejoin: Some(&CAME_GLASS) },
         DialogueTree { name: "lord_manor", criteria: &[Has("other:ideology:lord")],
             root: &LORD_GREET, rejoin: Some(&LORD_LEASES) },
         DialogueTree { name: "fisher_river", criteria: &[Has("other:status:fisher")],
@@ -5724,18 +5679,27 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: "the_cause_fellows",
             criteria: &[Has("self:status:cause_member"), Has("other:status:cause_member")],
             root: &FELLOW_GREET, rejoin: Some(&FELLOW_CHAT) },
-        // the day's own telling (#1617): two criteria each, so the trade
-        // greets in season or on the market's dust - but declared after
-        // the bonds, so the stage still speaks before the work does
-        DialogueTree { name: "the_ploughmans_spring",
-            criteria: &[Has("self:status:farmer"), Has("self:status:season:spring")],
-            root: &PLOUGH_SPRING, rejoin: Some(&PLOUGH_FIELDS) },
-        DialogueTree { name: "the_smiths_market",
-            criteria: &[Has("self:status:smith"), Has("self:status:market")],
-            root: &ANVIL_MARKET, rejoin: Some(&ANVIL_IRON) },
-        DialogueTree { name: "the_bakers_market",
-            criteria: &[Has("self:status:baker"), Has("self:status:market")],
-            root: &OVEN_MARKET, rejoin: Some(&OVEN_BATCH) },
+        // the trades lead their own talks too (#1617): when the holder's
+        // the caller - the player's Talk included - the day at the bench
+        // opens the exchange. One criterion each and declared last of the
+        // voices, so a circumstance, a bond or an elder speaks first; the
+        // day's own telling rides inside the greet's voice instead
+        DialogueTree { name: "the_ploughman", criteria: &[Has("self:status:farmer")],
+            root: &PLOUGH_GREET, rejoin: Some(&PLOUGH_FIELDS) },
+        DialogueTree { name: "the_bakers_oven", criteria: &[Has("self:status:baker")],
+            root: &OVEN_GREET, rejoin: Some(&OVEN_BATCH) },
+        DialogueTree { name: "the_masons_yard", criteria: &[Has("self:status:mason")],
+            root: &CHISEL_GREET, rejoin: Some(&CHISEL_STONE) },
+        DialogueTree { name: "the_tailors_shears", criteria: &[Has("self:status:tailor")],
+            root: &NEEDLE_GREET, rejoin: Some(&NEEDLE_SEAM) },
+        DialogueTree { name: "the_smiths_anvil", criteria: &[Has("self:status:smith")],
+            root: &ANVIL_GREET, rejoin: Some(&ANVIL_IRON) },
+        DialogueTree { name: "the_luthiers_bench", criteria: &[Has("self:status:luthier")],
+            root: &BELLY_GREET, rejoin: Some(&BELLY_WOOD) },
+        DialogueTree { name: "the_printers_press", criteria: &[Has("self:status:printer")],
+            root: &PRESS_GREET, rejoin: Some(&PRESS_FORME) },
+        DialogueTree { name: "the_glaziers_lead", criteria: &[Has("self:status:glazier")],
+            root: &CAME_GREET, rejoin: Some(&CAME_GLASS) },
         // a marked soul's name greets ahead of smalltalk (#950): single
         // criterion and declared late, so a trade, a circumstance or a
         // bond outranks it - the name only speaks when nothing else does

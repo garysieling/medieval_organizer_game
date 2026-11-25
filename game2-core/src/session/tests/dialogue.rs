@@ -2130,11 +2130,12 @@ fn test_the_responsive_guest_hears_more_than_the_curious() {
         for _ in 0..60 {
             let Some(t) = g.seats[0].talk.clone() else { break };
             let pos = if curious {
-                // only ever asks and remarks - never answers or agrees
+                // only ever asks and remarks - never answers or agrees;
+                // offered nothing but answers, they'd sooner part (#1604:
+                // the asks themselves keep the talk alive now)
                 t.options.iter().position(|(a, _, _)| *a == Act::Question)
                     .or_else(|| t.options.iter()
                         .position(|(a, _, _)| !matches!(a, Act::Farewell | Act::Answer | Act::Agree)))
-                    .or_else(|| t.options.iter().position(|(a, _, _)| *a != Act::Farewell))
             } else {
                 // answers and agrees where they're offered - tells of themself
                 t.options.iter()

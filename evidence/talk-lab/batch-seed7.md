@@ -14,7 +14,7 @@ Aldric [Remark in the_sickness]: Rest by the hearth and let the fever break in p
 Dagny [Farewell in the_sickness]: May the road be kind under your boots.
 -- Farewell, vibe: Safe
 
-## Eliza and Aelfric - Kin at kitchen (Backstage) (seed 218, picks [0, 2, 1, 2, 0])
+## Eliza and Aelfric - Kin at kitchen (Backstage) (seed 218, picks [0, 2, 1, 2, 0, 0, 0])
 them: Eliza holds the manor's leases. Their purse strings are knotted tight. They mean to be more than they were born. They bow to no one.
 you : Aelfric serves the village church. Their purse strings are knotted tight. Their temper's shorter than a winter's day. They buried one of their own last week.
 
@@ -26,9 +26,13 @@ Eliza [Answer in the_asking]: So thou sayest, so it is.
 Eliza [Remark in condolence_call]: We have flour and eggs; let us share with thy house.
 Aelfric [Question in the_asking]: What word of the village these days?
 Eliza [Answer in the_asking]: Folk fare as folk do - some well, some not so.
--- Exhausted
+Eliza [Remark in condolence_call]: My sons can plough thy furrow until thou art ready.
+Aelfric [Worry in condolence_call]: Is the grave the end of it? Folk by the stones say otherwise.
+Eliza [Remark in condolence_call]: I'll sit with thee a while yet, if it helps.
+Aelfric [Farewell in condolence_call]: Thy coming did the house good, Eliza!
+-- Farewell
 
-## Bram and Hob - Acquaintance at field (Public) (seed 219, picks [0, 1, 1, 1, 2, 1, 0, 1, 0])
+## Bram and Hob - Acquaintance at field (Public) (seed 219, picks [0, 1, 1, 1, 2, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0])
 them: Bram trades on the road between villages. They'd sooner watch the clouds than the plough. They're the first with a loaf when a house is bare. They bow to no one.
 you : Hob serves the village church. Their temper's shorter than a winter's day. A cough's had them these two weeks.
 
@@ -45,7 +49,20 @@ Bram [Answer in the_asking]: Folk fare as folk do - some well, some not so.
 Bram [Answer in village_smalltalk]: My knees ache with the damp, but I still walk, or do I hear wrong?
 Hob [Question in the_asking]: How fares your day's work?
 Bram [Answer in the_asking]: I take what work comes, and thank the saints for it.
--- Exhausted, vibe: Mismatch
+Bram [Answer in village_smalltalk]: We rub along as ever, by the saints' mercy.
+Hob [Agree in village_smalltalk]: Good to hear it - long may health stay under your roof.
+Bram [Remark in village_smalltalk]: We must thatch the hayrick before the clouds burst.
+Hob [Agree in village_smalltalk]: Every hand will be needed when the grain ripens!
+Bram [Remark in village_smalltalk]: A rider from the castle came through before dawn.
+Hob [Joke in village_smalltalk]: My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
+Bram [PushBack in village_smalltalk]: Laugh softer - the wrong mouth's always near.
+Bram [Bid in village_smalltalk]: Can you keep a thing quiet, just between us?
+Hob [Agree in village_smalltalk]: Walk with you a moment, gladly.
+Bram [Remark in village_smalltalk]: A stranger with two laden mules passed by the weir at noon, or so I hear.
+Hob [Agree in village_smalltalk]: Ha! I'll believe the half of it and no more.
+Bram [Remark in village_smalltalk]: True enough - the fields don't gossip, or do I hear wrong?
+Hob [Farewell in village_smalltalk]: Fair profit to you, trader.
+-- Farewell, vibe: Mismatch
 
 ## Corvin and Dagny - Stranger at kitchen (Public) (seed 220, picks [0, 1, 0, 0, 1, 0])
 them: Corvin serves the village church. They'd sooner watch the clouds than the plough. They're the first with a loaf when a house is bare. The store ran out and the belly knows it.
@@ -82,7 +99,7 @@ Eliza [Remark in kin_warmth]: True enough - the fields don't gossip.
 Dagny [Farewell in kin_warmth]: Thy servant, Eliza. Good day.
 -- Farewell
 
-## Corvin and Hob - Stranger at market (Public) (seed 222, picks [0, 0, 0, 0, 1, 2, 1, 2, 1, 0])
+## Corvin and Hob - Stranger at market (Public) (seed 222, picks [0, 0, 0, 0, 1, 2, 1, 2, 1, 0, 0])
 them: Corvin serves the village church. They'd sooner watch the clouds than the plough. They're the first with a loaf when a house is bare. The store ran out and the belly knows it.
 you : Hob serves the village church. Their temper's shorter than a winter's day. A cough's had them these two weeks.
 
@@ -102,9 +119,11 @@ Corvin [Answer in the_asking]: A holding keeps a soul busy, one way and another.
 Corvin [Remark in village_smalltalk]: A stranger with two laden mules passed by the weir at noon.
 Corvin [Remark in village_smalltalk]: The herb-wife was seen out past the abbey wall at dusk.
 Hob [PushBack in village_smalltalk]: That is not the way the elders told it.
--- Exhausted, vibe: Mismatch
+Corvin [Remark in village_smalltalk]: As you say, friend.
+Hob [Farewell in village_smalltalk]: Go well, traveler - the saints watch your path.
+-- Farewell, vibe: Mismatch
 
-## Bram and Marga - Acquaintance at alehouse (Public) (seed 223, picks [0, 1, 0, 1, 1])
+## Bram and Marga - Acquaintance at alehouse (Public) (seed 223, picks [0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0])
 them: Bram trades on the road between villages. They'd sooner watch the clouds than the plough. They're the first with a loaf when a house is bare. They bow to no one.
 you : Marga trades on the road between villages. They bow to no one. They know every soul and every soul's business. They mean to be more than they were born. The store ran out and the belly knows it.
 
@@ -117,7 +136,15 @@ Marga [Answer in the_merchants_ledger]: Barley and honest talk, trader - that is
 Bram [Remark in the_merchants_ledger]: The ledger forgets nothing - kindness least of all.
 Marga [Question in the_asking]: How fares your day's work?
 Bram [Answer in the_asking]: The fields are what they are - they want what they want.
--- Exhausted, vibe: Safe
+Bram [Remark in the_merchants_ledger]: Coin talks where the tongue falls short, Marga.
+Bram [Remark in the_merchants_ledger]: A bushel on credit is a bushel at interest, mark me.
+Marga [Question in the_asking]: How do folk fare here, to your eyes?
+Bram [Answer in the_asking]: Quieter than it was, and that's no bad thing, or am I mistook?
+Bram [Remark in the_merchants_ledger]: The price of wool has climbed a penny since the spring fair.
+Marga [Agree in the_merchants_ledger]: Aye, and debt is a chain that rattles at night, or do I hear wrong?
+Bram [Remark in the_merchants_ledger]: Silver coin or salted hams - sound goods are always welcome.
+Marga [Farewell in the_merchants_ledger]: May your shelves never stand empty of stock.
+-- Farewell, vibe: Safe
 
 ## Aldric and Gisela - Friend at churchdoor (Public) (seed 224, picks [0, 2, 0, 0, 0, 0])
 them: Aldric trades on the road between villages. They're the first with a loaf when a house is bare. They'd sooner watch the clouds than the plough. They never miss a service. A cough's had them these two weeks.

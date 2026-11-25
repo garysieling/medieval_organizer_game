@@ -1275,6 +1275,57 @@ fn test_the_scout_ask_names_who_the_room_follows() {
         "spent for the talk: {labels:?}");
 }
 
+/// The scouting read turns over (#1605): repeated asks prefer names the
+/// read hasn't aired lately and phrasings still fresh in the village's
+/// ears - it doesn't come back word for word
+#[test]
+fn test_the_scout_read_turns_over_fresh_names_and_words() {
+    let mut g = Game::new();
+    let (pe, talker) = (g.player, g.villagers[1]);
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: talker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    // three bellwethers, so the read has room to turn
+    let bws: Vec<Entity> = g.villagers[2..5].to_vec();
+    for (n, bw) in bws.iter().enumerate() {
+        for kin in g.villagers.iter().copied().skip(8 + n * 4).take(4) {
+            let r = g.world.create_entity();
+            g.world.add_component(r, Relationship { from: *bw, other: kin,
+                kind: RelKind::Family, strength: 0.9, interactions: 30, ..Default::default() });
+        }
+    }
+    let bw_names: Vec<String> = bws.iter().map(|&v| g.name_of(v)).collect();
+    let mut leads: Vec<String> = vec![];
+    for _ in 0..3 {
+        // a fresh talk each ask: the scout offer's spent per talk
+        let p = *g.world.get_component::<Pos>(talker).unwrap();
+        *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+        g.seats[0].selected_target = g.villagers.iter().position(|&x| x == talker).unwrap();
+        g.seats[0].picked = true;
+        g.act_at(0, 0);
+        let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
+        let pick = labels.iter().position(|l| l.starts_with("Ask who folk turn to"))
+            .unwrap_or_else(|| panic!("scout ask on offer: {labels:?}"));
+        g.talk_pick_at(0, Some(pick));
+        let id = g.seats[0].talk.as_ref().unwrap().id;
+        let texts: Vec<String> = g.talk_log.iter().find(|r| r.id == id).unwrap()
+            .lines.iter().map(|l| l.text.clone()).collect();
+        let at = texts.iter().position(|t| t.contains("Who do folk turn to")).unwrap();
+        leads.push(texts[at + 1].clone());
+        g.talk_pick_at(0, None);
+        g.tick += 1;
+    }
+    // each ask leads a villager the read hasn't named yet
+    let named_in: Vec<usize> = leads.iter()
+        .map(|l| bw_names.iter().position(|n| l.contains(n)).unwrap_or(usize::MAX))
+        .collect();
+    assert!(named_in[0] != usize::MAX && named_in[1] != usize::MAX,
+        "the reads name the bellwethers: {leads:?}");
+    assert_ne!(named_in[0], named_in[1],
+        "the second ask turns to someone else: {leads:?}");
+    // and when a name does come back round, it wears fresh words
+    assert_ne!(leads[0], leads[2], "a name's return doesn't restate: {leads:?}");
+}
+
 /// A plan on the organizer with a set day and promises: the inside
 /// news the cause's members carry (#1287)
 fn plan_news(g: &mut Game) {

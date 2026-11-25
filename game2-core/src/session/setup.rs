@@ -1242,6 +1242,7 @@ impl Game {
             rumor_marks: Default::default(),
             talk_log: vec![],
             said_lines: crate::engine::det::HashMap::default(),
+            scout_named: Default::default(),
             talk_next_id: 0,
             was_sick: vec![None; NAMES.len()],
             died_on: vec![None; NAMES.len()],

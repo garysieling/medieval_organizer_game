@@ -2558,15 +2558,62 @@ impl Game {
         }
     }
 
+    /// The scouting read's phrasings (#1605): a wider pool so the read
+    /// doesn't come back word-for-word - who folk go to for work, for a
+    /// row, for a favour, not only when the roof leaks. `{0}` is the
+    /// named villager; each draw passes over lines still fresh in the
+    /// village's ears (#1369)
+    const SCOUT_LEAD: &[&'static str] = &[
+        "When the roof leaks, it's {0} folk fetch.",
+        "For work or the want of it, {0} sets the pace here.",
+        "In a row, the room stands behind {0}.",
+        "For a favour done or owed, it's {0} folk ask.",
+        "{0}'s the one folk go to first, whatever the matter.",
+    ];
+    const SCOUT_ALSO: &[&'static str] = &[
+        "And {0} gets heard, most times.",
+        "{0} carries weight too, when it comes to it.",
+        "Mark {0} as well - folk heed what they say.",
+    ];
+    const SCOUT_RIVAL: &[&'static str] = &[
+        "{0} though - I'd not follow them anywhere, mind.",
+        "{0}? Cross them and the room goes cold.",
+        "Keep clear of {0}, is my advice - them and me don't see eye to eye.",
+    ];
+    const SCOUT_NONE: &[&'static str] = &[
+        "Folk keep their own counsel here - nobody the whole room looks to.",
+        "No one voice carries this room - folk mind their own hearths.",
+        "There's nobody folk all look to - each speaks for their own roof.",
+    ];
+    const SCOUT_SELF_HIGH: &[&'static str] = &[
+        "Me? Folk come to me when it counts.",
+        "Me? They come to my door when it matters, aye.",
+        "Me? When the room can't settle, it lands on me.",
+    ];
+    const SCOUT_SELF_MID: &[&'static str] = &[
+        "Me? They hear me out, mostly.",
+        "Me? I get a hearing, some days.",
+        "Me? My word's worth a nod, no more.",
+    ];
+    const SCOUT_SELF_LOW: &[&'static str] = &[
+        "Me? Nobody much minds me.",
+        "Me? I'm heard when the room's done talking, mostly.",
+        "Me? Folk pass me by on the way to louder mouths.",
+    ];
+
     /// The scouting read (#1249): who the room already follows, said in
     /// fuzzy words - no numbers, you build the map yourself. The names
     /// are the village's strongest voices (pull, computed live), one a
     /// resented one if they hold a grudge, and their own read on how
-    /// far their own voice carries
-    fn scout_read(&self, seat: usize) -> Vec<String> {
+    /// far their own voice carries. A repeated ask prefers names it
+    /// hasn't aired lately and fresh phrasings (#1605)
+    fn scout_read(&mut self, seat: usize) -> Vec<String> {
         use crate::game::relationships::{RelKind, Relationship};
         let Some(t) = self.seats[seat].talk.as_ref() else { return vec![] };
         let who = t.who;
+        // the read's own draws ride the talk's stream - a phrasing pick
+        // is the talk's business, not a shake of the world's dice
+        let mut sr = TalkRng::new(t.seed ^ 0x5C0A_7EAD);
         // clear-voiced: above this a name's worth naming
         const CLEAR: f32 = 0.85;
         let mut ranked: Vec<(f32, Entity)> = self.villagers.iter().copied()
@@ -2575,18 +2622,40 @@ impl Game {
             .collect();
         ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
             .then(a.1.cmp(&b.1)));
-        let mut out: Vec<String> = vec![];
-        let clear: Vec<Entity> = ranked.iter().take(2)
+        let recent = self.fresh_lines();
+        let draw = |pool: &[&'static str], sr: &mut TalkRng| -> &'static str {
+            let fresh: Vec<&'static str> = pool.iter().copied()
+                .filter(|l| !recent.contains(*l)).collect();
+            let lines = if fresh.is_empty() { pool.to_vec() } else { fresh };
+            lines[sr.below(lines.len())]
+        };
+        // names aired in the last few days come second (#1605): a
+        // repeated ask hears who else carries the room first
+        let named = |v: Entity| self.scout_named.get(&v)
+            .map_or(false, |d| *d + FRESH_LINE_DAYS >= self.tick);
+        let mut clear: Vec<Entity> = ranked.iter().take(4)
             .filter(|(p, _)| *p >= CLEAR).map(|&(_, v)| v).collect();
+        let unheard: Vec<Entity> = clear.iter().copied().filter(|&v| !named(v)).collect();
+        if !unheard.is_empty() { clear = unheard; }
+        clear.truncate(2);
+        let mut out: Vec<String> = vec![];
+        let mut said: Vec<&'static str> = vec![];
+        let mut aired: Vec<Entity> = vec![];
         if clear.is_empty() {
-            out.push("Folk keep their own counsel here - nobody the whole room looks to.".into());
+            let l = draw(Self::SCOUT_NONE, &mut sr);
+            out.push(l.into()); said.push(l);
         } else {
-            out.push(format!("When the roof leaks, it's {} folk fetch.", self.name_of(clear[0])));
+            let l = draw(Self::SCOUT_LEAD, &mut sr);
+            out.push(l.replacen("{0}", &self.name_of(clear[0]), 1));
+            said.push(l); aired.push(clear[0]);
             if clear.len() > 1 {
-                out.push(format!("And {} gets heard, most times.", self.name_of(clear[1])));
+                let l = draw(Self::SCOUT_ALSO, &mut sr);
+                out.push(l.replacen("{0}", &self.name_of(clear[1]), 1));
+                said.push(l); aired.push(clear[1]);
             }
         }
-        // who they resent: a rival bond they carry, worst first
+        // who they resent: a rival bond they carry, worst first - again
+        // preferring a name the read hasn't aired lately
         let mut rivals: Vec<(f32, Entity)> = crate::game::relationships::bonds_of(&self.world, who)
             .iter().filter_map(|&b| {
                 let r = self.world.get_component::<Relationship>(b)?;
@@ -2597,13 +2666,26 @@ impl Game {
             }).collect();
         rivals.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
             .then(a.1.cmp(&b.1)));
-        if let Some(&(_, r)) = rivals.first() {
-            out.push(format!("{} though - I'd not follow them anywhere, mind.", self.name_of(r)));
+        let rival = rivals.iter().map(|&(_, v)| v)
+            .find(|&v| !named(v) && !aired.contains(&v))
+            .or_else(|| rivals.first().map(|&(_, v)| v));
+        if let Some(r) = rival {
+            let l = draw(Self::SCOUT_RIVAL, &mut sr);
+            out.push(l.replacen("{0}", &self.name_of(r), 1));
+            said.push(l); aired.push(r);
         }
         let own = crate::game::organizing::pull_of(&self.world, who);
-        out.push(if own >= 1.2 { "Me? Folk come to me when it counts.".into() }
-            else if own >= 0.8 { "Me? They hear me out, mostly.".into() }
-            else { "Me? Nobody much minds me.".into() });
+        let band = if own >= 1.2 { Self::SCOUT_SELF_HIGH }
+            else if own >= 0.8 { Self::SCOUT_SELF_MID }
+            else { Self::SCOUT_SELF_LOW };
+        let l = draw(band, &mut sr);
+        out.push(l.into()); said.push(l);
+        // the read's lines and names go into the village's memory -
+        // tomorrow's ask doesn't restate what folk heard today
+        self.note_said_lines(said.into_iter());
+        for v in aired { self.scout_named.insert(v, self.tick); }
+        let today = self.tick;
+        self.scout_named.retain(|_, d| *d + FRESH_LINE_DAYS >= today);
         out
     }
 

@@ -1385,6 +1385,10 @@ pub struct Game {
     /// day it was last spoken, so nobody repeats a thing still fresh in
     /// ears (#1369)
     pub said_lines: crate::engine::det::HashMap<&'static str, u64>,
+    /// Whose name a scouting read last aired, and the day (#1605): a
+    /// repeated ask hears who else carries the room before it hears
+    /// the same name twice
+    pub scout_named: crate::engine::det::HashMap<Entity, u64>,
     pub talk_next_id: u64,
     pub frame_n: u32,
 

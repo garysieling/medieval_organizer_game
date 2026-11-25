@@ -129,6 +129,26 @@ fn test_the_numbered_rows_take_the_digit_keys() {
         Some(Command::Select(0)) => {}
         other => panic!("a digit with no talk picked: {:?}", other),
     }
+    // #1593: all ten digits - the tenth row wears "0)" and a 0 press
+    // answers it; an eleventh draws bare but still clicks
+    let wide = ConvoPanelV {
+        title: "PICK A CREW".into(),
+        rows: vec![],
+        options: (1..=12).map(|i| format!("send crew {}", i)).collect(),
+        decides: false, leave: false,
+    };
+    match digit_cmd(Some(&wide), 9) {
+        Some(Command::TalkPick(Some(9))) => {}
+        other => panic!("the tenth row's key picked: {:?}", other),
+    }
+    let (boxes, _) = convo_layout(&wide, &mut ConvoPin::default(), 30);
+    let picks: Vec<&ConvoBox> = boxes.iter().filter(|b| b.choice).collect();
+    assert_eq!(picks.len(), 12, "every option still draws and clicks");
+    assert!(picks[9].rows[0].1.starts_with("0)"), "the tenth row wears the 0 key: {:?}", picks[9].rows);
+    assert!(picks[10].rows[0].1.starts_with("send"), "the eleventh row draws bare: {:?}", picks[10].rows);
+    // and the TALK panel's own rows number the same
+    assert!(option_rows(9, "word").first().unwrap().starts_with("0)"));
+    assert!(option_rows(10, "word").first().unwrap().starts_with("word"));
     // X and Escape take the offered leave - the pick the "x)" row clicks
     assert!(c.leave || g.talk_panel_at(0).in_talk, "the leave is offered somewhere");
     g.command(Command::TalkPick(None));

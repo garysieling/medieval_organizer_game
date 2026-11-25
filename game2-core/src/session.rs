@@ -404,9 +404,6 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::MarkBook => Button { label: "Mark their book free".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
         CtxAct::ForgePass => Button { label: "Forge their pass".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
         CtxAct::ReportMasterless => Button { label: "Report them masterless".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
-        // a gift rides the card's bottom row between Seat and Strike
-        CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
-
         // the kind hand shares Pet her's slot on the big row's right half -
         // the wire's ctx_labels names the animal it reaches for (#1056)
         CtxAct::Tame => Button { label: "Pet it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },

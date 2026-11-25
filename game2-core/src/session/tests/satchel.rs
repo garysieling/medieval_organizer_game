@@ -44,13 +44,12 @@ fn test_a_gift_feeds_the_hungry_and_warms_the_bond() {
     let v = g.villagers[0];
     g.world.get_component_mut::<Satchel>(pe).unwrap().goods.insert("bread".into(), 1);
     g.world.get_component_mut::<Hunger>(v).unwrap().value = 10.0;
-    // near enough to hand it over
+    // near enough to hand it over - the button's gone (#1594), the
+    // giving itself still answers
     let (px, py) = { let p = g.world.get_component::<Pos>(pe).unwrap(); (p.x, p.y) };
     *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: px + 1.0, y: py };
-    g.seats[0].selected_target = 0;
-    g.seats[0].picked = true;
-    g.seats[0].ctx_actions = vec![CtxAct::Give];
-    g.ctx_act_at(0, 0);
+    let msg = g.give_at(pe, v);
+    assert!(msg.contains("you give"), "the gift went unsaid: {}", msg);
     assert_eq!(g.world.get_component::<Satchel>(v).unwrap().goods.get("bread").copied().unwrap_or(0), 1,
         "the bread never reached their bag");
     assert_eq!(g.world.get_component::<Satchel>(pe).unwrap().goods.get("bread").copied().unwrap_or(0), 0);
@@ -58,7 +57,23 @@ fn test_a_gift_feeds_the_hungry_and_warms_the_bond() {
         .and_then(|r| g.world.get_component::<crate::game::relationships::Relationship>(r))
         .map(|r| r.strength).unwrap_or(0.0);
     assert!(bond > 0.0, "the gift left them cold");
-    assert!(g.log.iter().any(|l| l.contains("you give")), "the giving went unlogged");
+}
+
+/// The Give button's gone (#1594): a full satchel in reach still never
+/// offers it - the row carries only what the day makes possible
+#[test]
+fn test_no_give_button_whatever_the_bag_holds() {
+    let mut g = Game::new();
+    let pe = g.seats[0].player;
+    let v = g.villagers[0];
+    g.world.get_component_mut::<Satchel>(pe).unwrap().goods.insert("bread".into(), 1);
+    let (px, py) = { let p = g.world.get_component::<Pos>(pe).unwrap(); (p.x, p.y) };
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: px + 1.0, y: py };
+    g.seats[0].selected_target = 0;
+    g.seats[0].picked = true;
+    g.update_ctx_actions();
+    assert!(g.seats[0].ctx_actions.iter().all(|&a| ctx_button(a).label != "Give"),
+        "the Give button's back");
 }
 
 #[test]

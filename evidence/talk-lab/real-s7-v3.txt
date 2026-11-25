@@ -4,7 +4,7 @@
   Corvin: wanderer - good to see a familiar face about.
   (Corvin holds the manor's leases. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
   Corvin: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Aye. Good day to you.
+    1) Well… Aye. Good day to you.
     2) Well enough - and yours?
     3) Ask who folk turn to around here
     4) Ask what they actually want
@@ -17,7 +17,7 @@
     4) Ask what they actually want
     l) take your leave
   Corvin: I say a body earns their rest. You will not disagree?
-  you: A wise back knows when to unbend.
+  you: The field'll keep till tomorrow, say I.
   Corvin: As you say, friend.
     1) Your servant, m'lady. Good day.
     2) I take my leave.

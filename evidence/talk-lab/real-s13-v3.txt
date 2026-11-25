@@ -5,37 +5,46 @@
   (Corvin is the village luthier. They'd sooner watch the clouds than the plough. They keep close to the church folk. They keep close to the market folk.)
   Corvin: Not a song in the village for a year.   [gist]
     1) Out and about early today.
-    2) Aye. Good day to you.
+    2) Well… Aye. Good day to you.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   you: Out and about early today.
-  Corvin: I say a body earns their rest. You will not disagree?
-    1) Rest's a harvest too, of a kind.
-    2) Work's what keeps a body honest.
+  Corvin: Hard work's for them as never learned better, eh?
+    1) Work's what keeps a body honest.
+    2) A wise back knows when to unbend.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  Corvin: I say a body earns their rest. You will not disagree?
-  you: The field'll keep till tomorrow, say I.
-  Corvin: Saw your lass helping at the press yesterday.
-    1) Good news, if it keeps.
+  Corvin: Hard work's for them as never learned better, eh?
+  you: Work's what keeps a body honest.
+  Corvin: Aye, the dew lay heavy on the clover this morning.
+    1) And how fares your folk in this cold snap?
+    2) Enough sky-talk - how goes the work these days?
+    3) Put a question to them
+    l) take your leave
+  you: And how fares your folk in this cold snap?
+  Corvin: We rub along as ever, by the saints' mercy.
+    1) May the coming season be kind to your cottage.
     2) Put a question to them
-    3) Ask who folk turn to around here
-    4) Ask what they actually want
+    3) Ask them to come to a meeting - press them on it
     l) take your leave
-  you: Good news, if it keeps.
-  Corvin: True enough - the fields don't gossip.
-  Corvin: Is there music at the feasts?
+  you: May the coming season be kind to your cottage.
+  Corvin: The ditch along the south pasture needs clearing.
+    1) Oh… Let the rain fall; my bones need a day's rest.
+    2) Every hand will be needed when the grain ripens.
+    3) Put a question to them
+    l) take your leave
+  you: Oh… Let the rain fall; my bones need a day's rest.
+  Corvin: As you say, friend.
+  Corvin: Does anyone here play of an evening?
     1) Answer plainly
     2) Reassure them
     3) Ask why
-    4) Ask what they actually want
     l) take your leave
-  you: Aye - take it for so.
-    1) Go well, Corvin, and mind the mud.
-    2) My day is waiting.
-    3) Ask who folk turn to around here
-    4) Ask what they actually want
+  you: From what I've seen - aye.
+    1) My day is waiting.
+    2) Go well, Corvin, and mind the mud.
+    3) Ask them to come to a meeting - press them on it
     l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 3 --picks 0,0,0,0,0 (talk seed 1006632974)
+REPRO: talk_lab talk --seed 13 --villager 3 --picks 0,0,0,0,0,0,0 (talk seed 1006632974)

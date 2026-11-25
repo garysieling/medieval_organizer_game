@@ -5,37 +5,30 @@
   (Wystan is the village mason. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They cut freestone and build field walls. They're forever turning the big questions over. They keep close to the church folk. They keep close to the market folk.)
   Wystan: By the rood. No one to learn from. I'll be a journeyman forever.   [gist]
     1) Fair enough, and to you.
-    2) Morrow. I'd best keep moving.
+    2) Ah… Morrow. I'd best keep moving.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   you: Fair enough, and to you.
   Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
-    1) An open hand finds open doors, say I.
-    2) A wise purse keeps its own counsel, say I.
+    1) What's spent on neighbors comes back doubled in the end.
+    2) Folk who give away their bread soon beg for mine.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
-  you: A loaf shared is a friend made - I'd not grudge it.
-  Wystan: Your roof's holding better than mine in this wind, I'd wager!
-    1) As do we all, neighbor.
+  you: What's spent on neighbors comes back doubled in the end.
+  Wystan: The lane's quieter since the rain, thank goodness.
+    1) Good news, if it keeps.
     2) Put a question to them
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  you: As do we all, neighbor.
-  Wystan: Aye, words won't fill the storehouse.
-  Wystan: Is there room at a hearth for one more?
-    1) Answer plainly
-    2) Reassure them
-    3) Ask why
-    4) Ask what they actually want
-    l) take your leave
-  you: I couldn't say truly.
-    1) My day is waiting.
-    2) Fair day to you, Wystan - 'twas good to pass the time.
+  you: Good news, if it keeps.
+  Wystan: God witness. As you say, friend.
+    1) I must walk on; fair day.
+    2) Go well, Wystan, and mind the mud.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 8 --picks 0,0,0,0,0 (talk seed 989855755)
+REPRO: talk_lab talk --seed 42 --villager 8 --picks 0,0,0,0 (talk seed 989855755)

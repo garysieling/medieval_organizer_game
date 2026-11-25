@@ -4,12 +4,12 @@
   Aldric: Well met, wanderer - how does the morning find you?
   (Aldric is the village smith. Their purse strings are knotted tight. They work the village anvil and forge. They keep close to the church folk. They keep close to the market folk.)
   Aldric: No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Morrow. I'd best keep moving.
-    2) Fair enough, and to you.
+    1) Ah… Morrow. I'd best keep moving.
+    2) Out and about early today.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  you: Oh… Morrow. I'd best keep moving.
+  you: Ah… Morrow. I'd best keep moving.
   Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and you?
     1) Folk who give away their bread soon beg for mine.
     2) What's spent on neighbors comes back doubled in the end.
@@ -17,8 +17,8 @@
     4) Ask what they actually want
     l) take your leave
   Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and you?
-  you: A wise purse keeps its own counsel, say I.
-  Aldric: Bright enough for drying, thank God.
+  you: Folk who give away their bread soon beg for mine.
+  Aldric: Aye, the dew lay heavy on the clover this morning, or so I make it.
     1) Enough sky-talk - how goes the work these days?
     2) Has your brother returned from the market town?
     3) Put a question to them
@@ -44,11 +44,11 @@
     l) take your leave
   you: Hm. There's work waiting yet.
   Aldric: Old Wulfric swore he saw an owl perched on the tavern roof.
-    1) I have heard that lie three times this week. - a quarrel
-    2) Well, that is talk enough for one morning.
+    1) Oh… I have heard that lie three times this week. - a quarrel
+    2) Ha! I'll believe the half of it and no more.
     3) Put a question to them
     l) take your leave
-  you: Well… I have heard that lie three times this week.
+  you: Oh… I have heard that lie three times this week.
   Aldric: True enough - the fields don't gossip.
     1) The saints keep your roof whole.
     2) My day is waiting.

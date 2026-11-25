@@ -5,46 +5,52 @@
   (Rowena is the village farmer. They never miss a service. They keep close to the church folk.)
   Rowena: No bench, no hearth - I work in the street.   [gist]
     1) Out and about early today.
-    2) Aye. Good day to you.
+    2) Ah… Aye. Good day to you.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   you: Out and about early today.
-  Rowena: Some say the old prayers are only words. And you?
-    1) I bow when the neighbors bow. It keeps the peace.
+  Rowena: By the rood. The bells call us all the same. Do keep the faith?
+    1) The priest talks much and mends little, say I.
     2) The Word's a lamp in dark times - I'd not put it out.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  Rowena: Some say the old prayers are only words. And you?
-  you: The saints help them as help themselves, I've heard.
-  Rowena: A fine morning - the kind the hay wishes for.
-    1) Enough sky-talk - how goes the work these days?
-    2) And how fares your folk in this cold snap?
+  Rowena: By the rood. The bells call us all the same. Do keep the faith?
+  you: The priest talks much and mends little, say I.
+  Rowena: Bright enough for drying, thank God.
+    1) And how fares your folk in this cold snap?
+    2) Weather aside, Rowena - how does the season treat you?
     3) Put a question to them
     l) take your leave
-  you: Enough sky-talk - how goes the work these days?
-  Rowena: God witness. How goes it at the day's work, wanderer?
-    1) Honest work for honest pay at the day's work - can't complain, and wouldn't.
-    2) the day's work is my affair, and it fares as it fares.
+  you: And how fares your folk in this cold snap?
+  Rowena: God witness. The little ones keep me running from dawn to dusk.
+    1) Good to hear it - long may health stay under your roof.
+    2) Put a question to them
+    3) Ask them to come to a meeting - for 18g
+    l) take your leave
+  you: Good to hear it - long may health stay under your roof.
+  Rowena: By the rood. Rooks are gathering thick in the elm trees.
+    1) Aye, work never sleeps in this valley.
+    2) Hm… Let the rain fall; my bones need a day's rest.
     3) Put a question to them
     l) take your leave
-  you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
-  Rowena: God witness. A rider from the castle came through before dawn.
-    1) I'll not repeat marketplace whispers.
+  you: Aye, work never sleeps in this valley.
+  Rowena: Did you hear who was seen down by the mill?
+    1) Careful - walls have ears, goodman Rowena.
     2) God keep the lord and his men. They keep the peace, they say.
     3) Put a question to them
     l) take your leave
-  you: Oh… I'll not repeat marketplace whispers.
-  Rowena: Aye, words won't fill the storehouse.
-  Rowena: Does the bread keep fair measure, where you lodges?
-    1) Answer plainly
-    2) Reassure them
-    3) Ask why
+  you: Careful - walls have ears, goodman Rowena.
+  Rowena: The herb-wife was seen out past the abbey wall at dusk.
+    1) Every tongue in the parish wags before sunset.
+    2) Ah… I have heard that lie three times this week. - a quarrel
+    3) Put a question to them
     l) take your leave
-  you: From what I've seen - aye.
-    1) The saints keep your roof whole.
-    2) My day is waiting.
+  you: Every tongue in the parish wags before sunset.
+  Rowena: By the rood. True enough - the fields don't gossip.
+    1) Go well, Rowena, and mind the mud.
+    2) I have no leisure to stand about, Rowena.
     3) Ask them to come to a meeting - for 18g
     l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 15 --picks 0,0,0,0,0,0,0 (talk seed 1207959566)
+REPRO: talk_lab talk --seed 13 --villager 15 --picks 0,0,0,0,0,0,0,0 (talk seed 1207959566)

@@ -4,21 +4,21 @@
   you : Voice works the fields for a day's wage.
   Probe: Peace be upon your journey, traveler. Who are you?
     1) [Greet] Well met. I am but a traveler seeking the ford across the water.
-    2) [PushBack] Nay, I see it differently, mark me.
+    2) [PushBack] Oh… Nay, I see it differently, mark me.
   Voice: Well met. I am but a traveler seeking the ford across the water.
-  Probe: Where does this trail lead past the ridge, traveler?
-    1) [Evade] Some things keep.
-    2) [Answer] It leads down to the cathedral town and the salt wharves.
+  Probe: What town do you hail from, stranger?
+    1) [Answer] It leads down to the cathedral town and the salt wharves.
+    2) [Evade] We don't know each other so well as that.
     3) [Question] Put a question to them
-  Voice: Some things keep.
+  Voice: It leads down to the cathedral town and the salt wharves.
   Probe: The alehouse by the bridge offers straw beds if you have coin.
-    1) [Worry] They say the levy rides again come spring - is it true, Probe?
-    2) [Agree] Then the parish wishes you well of it.
+    1) [Agree] Then the parish wishes you well of it.
+    2) [Worry] They say the levy rides again come spring - is it true, Probe?
     3) [Question] Put a question to them
-  Voice: They say the levy rides again come spring - is it true, Probe?
-  Probe: True enough - the fields don't gossip.
+  Voice: Then the parish wishes you well of it.
+  Probe: As you say, friend.
     1) [Farewell] Fair road to you, stranger.
-    2) [Farewell] I have no leisure to stand about, Probe.
+    2) [Farewell] I take my leave.
   Voice: Fair road to you, stranger.
   -- Farewell (trees: ["stranger_road"])
 REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Stranger --picks 0,0,0,0

@@ -4,15 +4,20 @@
   you : Voice works the fields for a day's wage.
   Probe: *cough* Voice. Keep to thy side - I'd not give thee even my sickness.
     1) [Agree] Even I'd not wish this on thee, Probe. Perhaps.
-    2) [PushBack] Keep thy plague and thy distance both.
+    2) [PushBack] Oh… Keep thy plague and thy distance both.
   Voice: Even I'd not wish this on thee, Probe. Perhaps.
-  Probe: The calves won't feed themselves - and I'd not ask thee for help, Voice.
-    1) [Remark] Thy beasts I'll see to; thee, I'll suffer at a distance.
-    2) [Agree] Aye, work or starve - thou knowest it as well as I.
+  Probe: I'd rest, but who'd do it? Not thee, I reckon.
+    1) [Agree] Aye, work or starve - thou knowest it as well as I.
+    2) [Remark] Thy beasts I'll see to; thee, I'll suffer at a distance.
     3) [Question] Put a question to them
-  Voice: Thy beasts I'll see to; thee, I'll suffer at a distance.
-  Probe: My thanks. A warm bowl does more than herbs.
-    1) [Farewell] The village stands together or it falls. Fare well.
-  Voice: The village stands together or it falls. Fare well.
-  -- Farewell (trees: ["the_sickness"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Rival --picks 0,0,0
+  Voice: Aye, work or starve - thou knowest it as well as I.
+  Probe: Thy lot still owes mine three groats, whatever lies thou tellest.
+    1) [PushBack] Well… Thy pasture is mostly thistles anyway.
+    2) [PushBack] Ah… Say that again, if thou darest.
+    3) [Question] Put a question to them
+  Voice: Well… Thy pasture is mostly thistles anyway.
+  Probe: Take thy shadow off my land.
+    1) [Farewell] Aye. Done.
+  Voice: Aye. Done.
+  -- Farewell (trees: ["the_sickness", "old_scores"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Rival --picks 0,0,0,0

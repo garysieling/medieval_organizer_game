@@ -26,10 +26,10 @@
     3) [Question] Put a question to them
   Voice: Never better. And yourself - is the day's work kind to you?
   Probe: They say the miller took an extra scoop of meal again.
-    1) [PushBack] That is not the way the elders told it.
-    2) [Evade] That's kitchen talk, not street talk.
+    1) [PushBack] Oh… That is not the way the elders told it.
+    2) [Evade] Hush - some things are best said where the law can't hear.
     3) [Question] Put a question to them
-  Voice: Ah… That is not the way the elders told it.
+  Voice: Oh… That is not the way the elders told it.
   Probe: True enough - the fields don't gossip.
     1) [Farewell] The saints keep your roof whole.
     2) [Farewell] My day is waiting.

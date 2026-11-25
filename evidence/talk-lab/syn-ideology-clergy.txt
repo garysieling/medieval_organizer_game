@@ -24,10 +24,10 @@
     2) [Question] Put a question to them
   Voice: A full hearth is a blessing in hard times.
   Voice: Rooks are gathering thick in the elm trees.
-    1) [PushBack] Let the rain fall; my bones need a day's rest.
-    2) [Agree] Aye, work never sleeps in this valley.
+    1) [PushBack] Oh… Let the rain fall; my bones need a day's rest.
+    2) [Agree] A dry spade makes for a hungry winter.
     3) [Question] Put a question to them
-  Voice: Well… Let the rain fall; my bones need a day's rest.
+  Voice: Oh… Let the rain fall; my bones need a day's rest.
   Voice: True enough - the fields don't gossip.
     1) [Farewell] Fare you well until the morrow.
     2) [Farewell] I have no leisure to stand about, Voice.

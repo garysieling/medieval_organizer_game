@@ -7,17 +7,17 @@
   Voice: Thin porridge for us both, Probe - but half my loaf is thine.
   Probe: My store bin has nothing but dust and two dried apples.
     1) [Agree] Take half my loaf, neighbor. No child should hunger in this village.
-    2) [PushBack] We each must stretch our own store as best we can.
+    2) [PushBack] Ah… We each must stretch our own store as best we can.
     3) [Question] Put a question to them
   Voice: Take half my loaf, neighbor. No child should hunger in this village.
-  Probe: A shared loaf tastes twice as sweet in hard times.
-    1) [Agree] Here's to a fat harvest, neighbor.
+  Probe: If the rye crop ripens before the frost, we'll see another spring.
+    1) [Agree] Aye, hold fast - the year's not written yet.
     2) [Joke] The reeve's horse eats better than my children. Mind, it works harder.
     3) [Question] Put a question to them
-  Voice: Here's to a fat harvest, neighbor.
+  Voice: Aye, hold fast - the year's not written yet.
   Probe: True enough - the fields don't gossip.
-    1) [Farewell] I have no leisure to stand about, Probe.
-    2) [Farewell] Go well, my friend - come by the house when thou canst.
-  Voice: I have no leisure to stand about, Probe.
+    1) [Farewell] Go well, my friend - come by the house when thou canst.
+    2) [Farewell] I must walk on; fair day.
+  Voice: Go well, my friend - come by the house when thou canst.
   -- Farewell (trees: ["hunger_lean_times"])
 REPRO: talk_lab talk --name Probe --status hungry --seed 11 --rel Friend --picks 0,0,0,0

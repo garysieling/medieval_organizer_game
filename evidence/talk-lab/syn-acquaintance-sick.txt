@@ -4,15 +4,40 @@
   you : Voice works the fields for a day's wage.
   Probe: *cough* Fair morning, Voice. Mind the breeze between us.
     1) [Agree] A rough fever, by the look of you.
-    2) [PushBack] Keep your distance, neighbor. I have no wish to catch it.
+    2) [PushBack] Oh… Keep your distance, neighbor. I have no wish to catch it.
   Voice: A rough fever, by the look of you.
-  Probe: I'd rest in the straw if the chores would do themselves.
-    1) [Remark] Aye, words have weight in a small village.
-    2) [Agree] A poor man's bed is a luxury he can rarely afford.
+  Probe: There is no one else to fetch water from the river.
+    1) [Agree] A poor man's bed is a luxury he can rarely afford.
+    2) [Remark] I have barley meal to spare for your kettle.
     3) [Question] Put a question to them
-  Voice: Aye, words have weight in a small village.
-  Probe: My thanks. A warm bowl does more than herbs.
-    1) [Farewell] The village stands together or it falls. Fare well.
-  Voice: The village stands together or it falls. Fare well.
-  -- Farewell (trees: ["the_sickness"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Acquaintance --picks 0,0,0
+  Voice: A poor man's bed is a luxury he can rarely afford.
+  Probe: The sky does what it does, Voice.
+    1) [Question] Has your brother returned from the market town?
+    2) [Question] And the day's work - does it treat you kindly?
+    3) [Question] Put a question to them
+  Voice: Has your brother returned from the market town?
+  Probe: Well enough, thank you, Voice.
+    1) [Agree] A full hearth is a blessing in hard times.
+    2) [Question] Put a question to them
+  Voice: A full hearth is a blessing in hard times.
+  Probe: We must thatch the hayrick before the clouds burst.
+    1) [Agree] Every hand will be needed when the grain ripens.
+    2) [PushBack] Well… Let the rain fall; my bones need a day's rest.
+    3) [Question] Put a question to them
+  Voice: Every hand will be needed when the grain ripens.
+  Probe: They say the miller took an extra scoop of meal again.
+    1) [Remark] Aye, the tithe's the tithe. It was ever so, and ever will be.
+    2) [Joke] My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
+    3) [Question] Put a question to them
+  Voice: Aye, the tithe's the tithe. It was ever so, and ever will be.
+  Probe: They do say the reeve counts the sheep twice over.
+    1) [Agree] Every tongue in the parish wags before sunset.
+    2) [PushBack] Oh… Better to tend your own hearth than watch the road.
+    3) [Question] Put a question to them
+  Voice: Every tongue in the parish wags before sunset.
+  Probe: Aye, words won't fill the storehouse.
+    1) [Farewell] Fare you well until the morrow.
+    2) [Farewell] I take my leave.
+  Voice: Fare you well until the morrow.
+  -- Farewell (trees: ["the_sickness", "village_smalltalk"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Acquaintance --picks 0,0,0,0,0,0,0,0

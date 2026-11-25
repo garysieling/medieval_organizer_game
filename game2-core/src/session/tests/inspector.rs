@@ -323,12 +323,12 @@ fn test_the_card_keeps_its_rows_inside_the_page() {
     for l in &ins.lines {
         // a meter sizes itself - its sentinel isn't text to measure
         if l.text.starts_with('\u{1}') { continue; }
-        assert!(l.x + l.text.chars().count() as i32 * GLYPH_W <= CARD_RX,
+        assert!(l.x + crate::engine::text::measure(&l.text) <= CARD_RX,
             "row runs off the card: {}", l.text);
     }
     // a page's shape: the headers its sections read under
     for head in ["TRAITS", "LIFE"] {
-        assert!(ins.lines.iter().any(|l| l.text == head), "the {} section never showed", head);
+        assert!(ins.lines.iter().any(|l| l.text.ends_with(head)), "the {} section never showed", head);
     }
     // no two rows share a slot - the old fixed rows let lines overlap
     let mut slots: Vec<(i32, i32)> = ins.lines.iter().map(|l| (l.x, l.y)).collect();

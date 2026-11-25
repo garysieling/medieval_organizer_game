@@ -221,7 +221,6 @@ fn drive_agitator(
         CtxAct::Gather,
         CtxAct::Attend,
         CtxAct::Pact,
-        CtxAct::Give,
     ];
     for &act in PRESS {
         if game.seats[seat].ctx_actions.contains(&act) && game.ctx_blocker_at(seat, act).is_none() {

@@ -102,9 +102,6 @@ pub enum CtxAct {
     ReportMasterless,
     /// Throw water on the flames - offered standing by a fire
     Douse,
-    /// Give the picked villager something from your satchel - the meal
-    /// for the hungry, the thing they're after, or the best of the bag
-    Give,
     /// Stroke the animal you're standing by - the kind hand, again and
     /// again, until it leaves the fold and follows
     Tame,

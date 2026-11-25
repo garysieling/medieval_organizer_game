@@ -14,6 +14,26 @@ const TESTIMONY_WARM_TIE: f32 = 0.3;
 /// this much more (#1333)
 const TESTIMONY_OPEN: f32 = 0.10;
 
+/// The vote's count in words (#1612): "3 for the taxes, 1 for bread,
+/// 1 held back" - the room's lean as a number you can read, not just a
+/// name
+fn ballot_tally(vote: &crate::game::campaign::IssueVote) -> String {
+    let mut counts: Vec<(String, usize)> = vec![];
+    for b in &vote.ballots {
+        if let Some(c) = &b.choice {
+            let n = desires::issue_name(c.clone());
+            match counts.iter_mut().find(|(x, _)| *x == n) {
+                Some((_, k)) => *k += 1,
+                None => counts.push((n, 1)),
+            }
+        }
+    }
+    let held = vote.ballots.iter().filter(|b| b.choice.is_none()).count();
+    let mut parts: Vec<String> = counts.iter().map(|(n, k)| format!("{} for {}", k, n)).collect();
+    if held > 0 { parts.push(format!("{} held back", held)); }
+    parts.join(", ")
+}
+
 impl Game {
     /// The org behind a campaign as conversation `Speaker`s (E4-4): the
     /// arc's deliberations realize each line's thee and you against the
@@ -213,7 +233,8 @@ impl Game {
         // till a storm or the roof's own mending says otherwise
         self.world.add_component(org, crate::game::organizing::MeetingHall);
         self.toasts.push((format!("{} take a vote", oname), self.tick + 40));
-        let mut msg = format!("{} take a vote - they'll fight for {}", oname, vote.winner);
+        let mut msg = format!("{} take a vote - {} - they'll fight for {}",
+            oname, ballot_tally(vote), vote.winner);
         // they came along, but when the framing sits wrong on a stake they
         // grumble - heard in the log, not just counted on the ballots
         let grumbler = vote.ballots.iter().find(|b| b.grumbles).map(|b| b.member);
@@ -237,7 +258,20 @@ impl Game {
             None => (None, self.world.get_component::<Organization>(org).map(|o| o.name.clone()).unwrap_or_default()),
         };
         let lean = match &vote {
-            Some(v) => format!("{} lean to {} - your call.", oname, desires::issue_name(v.winner.clone())),
+            Some(v) => {
+                // the ballots go on the meeting's record (#1612): each
+                // member's pick named in the transcript - an organizing
+                // read on who broke which way
+                for b in &v.ballots {
+                    let said = match &b.choice {
+                        Some(c) => format!("votes {}", desires::issue_name(c.clone())),
+                        None => "holds back".into(),
+                    };
+                    self.note_talk(record, Some(b.member), &said);
+                }
+                format!("{} lean to {} - {} - your call.", oname,
+                    desires::issue_name(v.winner.clone()), ballot_tally(v))
+            }
             None => "They'd gather again - or take it further. Your call.".into(),
         };
         self.seats[seat].pending_founding = Some(PendingFounding {

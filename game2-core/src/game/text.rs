@@ -417,11 +417,21 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
         },
         _ => match cx.refs.iter().find(|r| r.slot == slot) {
             Some(r) => push(out, &r.text),
-            None => {
-                out.push('{');
-                out.push_str(slot);
-                out.push('}');
-            }
+            // a referent slot the caller meant to fill but didn't
+            // (#1606): the player reads a plain word, not raw braces -
+            // a slot nobody owns stays literal so tests still see it
+            None => match slot {
+                "someone" | "name" => push(out, "someone"),
+                "issue" | "label" => push(out, "the matter"),
+                "grievance" => push(out, "the times"),
+                "lads" => push(out, "the lads"),
+                "grandda" => push(out, "my grandda"),
+                _ => {
+                    out.push('{');
+                    out.push_str(slot);
+                    out.push('}');
+                }
+            },
         },
     }
 }
@@ -944,8 +954,13 @@ mod tests {
     #[test]
     fn a_slot_nobody_owns_stays_for_the_next_fill() {
         let (alys, corvin) = pair();
+        // a known referent the caller didn't fill reads as a plain
+        // word, never raw braces on the player's screen (#1606)
         let got = realize_plain("{other}, about {issue}: I say {name}.", &alys, &corvin, &[]);
-        assert_eq!(got, "Corvin, about {issue}: I say {name}.");
+        assert_eq!(got, "Corvin, about the matter: I say someone.");
+        // a slot nobody owns still stays literal - tests see the slip
+        assert_eq!(realize_plain("of {kittens} we say naught", &alys, &corvin, &[]),
+            "of {kittens} we say naught");
         // and a brace that never closes renders as it always did
         assert_eq!(realize_plain("an open {", &alys, &corvin, &[]), "an open {");
     }
@@ -964,14 +979,20 @@ mod tests {
         let mut migrated = 0;
         for t in all_library_lines() {
             if t.contains("{2:") || t.contains("{2p:") || t.contains("{addr}")
-                || t.contains("{self}") || t.contains(":self}") {
+                || t.contains("{self}") || t.contains(":self}")
+                || t.contains("{someone}") || t.contains("{name}")
+                || t.contains("{issue}") || t.contains("{label}")
+                || t.contains("{grievance}") || t.contains("{lads}")
+                || t.contains("{grandda}") || t.contains("{mystery}") {
                 // E4-2/E4-4/E4-7 migrated this line - the old fills never
-                // owned these slots, so there is no old render to
-                // match; it must only resolve every owned slot
+                // owned these slots (the referent slots leak through
+                // them, which is why #1606 gives them plain-word
+                // stand-ins), so there is no old render to match; it
+                // must only resolve every owned slot
                 migrated += 1;
                 let got = realize(t, &Cx::plain(&alys, &corvin, &[]), &mut rng);
-                assert!(!got.contains("{2:") && !got.contains("{2p:") && !got.contains("{addr}")
-                    && !got.contains("{self}") && !got.contains(":self}"), "line: {t}");
+                assert!(!got.contains('{') && !got.contains('}'),
+                    "a slot survived, literal: {got} <- {t}");
                 continue;
             }
             let want = t.replace("{other}", "Corvin")
@@ -983,6 +1004,23 @@ mod tests {
         // the sweep must actually reach the corpus, not vacuously pass
         assert!(n > 1500, "only {n} lines swept");
         assert!(migrated > 10, "the lord lines should be slotted by now");
+    }
+
+    #[test]
+    fn no_authored_line_shows_a_brace() {
+        // #1606's done-when: every authored line renders clean on an
+        // empty ref table - the ref slots take their plain-word
+        // stand-ins, so a `{` on screen can only be a stray
+        let (alys, corvin) = pair();
+        let mut rng = Rng::new(7);
+        let mut bad = vec![];
+        for t in all_library_lines() {
+            let got = realize(t, &Cx::plain(&alys, &corvin, &[]), &mut rng);
+            if got.contains('{') || got.contains('}') {
+                bad.push(format!("{got} <- {t}"));
+            }
+        }
+        assert!(bad.is_empty(), "unfilled slots reached the page:\n{}", bad.join("\n"));
     }
 
     #[test]

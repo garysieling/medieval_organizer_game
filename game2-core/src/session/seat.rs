@@ -73,6 +73,10 @@ pub enum CtxAct {
     Disembark,
     /// Drop a line off the boat: the river feeds you where it runs
     Fish,
+    /// Call the house meeting - wire-only now (#1596): kept so an older
+    /// server's list still decodes and clicks through; a new server
+    /// never offers it, meetings schedule in talk and convene themselves
+    Gather,
     /// Stroke the stray cat who's keeping you company
     PetCat,
     /// Call a snowball fight: everyone free comes out to play (winter)
@@ -139,6 +143,12 @@ pub struct Seat {
     /// conversation box, waiting on their pick (Command::Decide). Each
     /// organizer holds their own - another seat's meeting can't erase it
     pub pending_founding: Option<PendingFounding>,
+    /// The date question a scheduling answer leaves open on the
+    /// conversation box ("when do they gather"), waiting on their pick
+    /// (Command::Decide) - the Meet again answer asks it now that the
+    /// Gather button's gone (#1596). The tick it was asked, so an
+    /// unanswered one can lapse like the founding's
+    pub meet_offer: Option<u64>,
     /// The question-question the day pick leaves open (#1267): put the
     /// matter or probe what they want, waiting on their pick
     /// (Command::Decide). The tick it was asked; it lapses like the day's
@@ -224,7 +234,7 @@ impl Default for Seat {
                player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
-               pending_founding: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
+               pending_founding: None, meet_offer: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
                quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, mystery_solved: 0, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,

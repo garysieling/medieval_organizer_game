@@ -977,6 +977,13 @@ impl Game {
                 }
             }
             CtxAct::Townhall => self.townhall_at(seat),
+            CtxAct::Gather => {
+                // wire-only on a new server (#1596) - never pushed, so
+                // unreachable in practice; if it fires, the date
+                // question is still the right landing
+                self.seats[seat].meet_offer = Some(self.tick);
+                "The plan's made - now the word wants a day.".into()
+            }
             CtxAct::Interview => {
                 let t = self.villagers[self.seats[seat].selected_target];
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
@@ -2612,6 +2619,13 @@ impl Game {
             }
             return;
         }
+        // the call's own day: two days out, four, or a week - the plan
+        // keeps taking yeses and roles until the door
+        if self.seats[seat].meet_offer.take().is_some() {
+            let n = [2u64, 4, 7][pick.min(2)];
+            self.the_words_out(seat, n);
+            return;
+        }
         // the agenda the cadence's own date left open (#1337): the room
         // votes the pick and the meeting runs on it - a founding call
         // sitting on the same box resolves first, matching what the
@@ -2692,6 +2706,9 @@ impl Game {
                 let oe = self.seats[seat].org;
                 let plan = crate::game::organizing::plan_for(&mut self.world, oe);
                 for &e in &d.meet_again { if !plan.coming.contains(&e) { plan.coming.push(e); } }
+                // the button that asked the day's gone (#1596): the
+                // yeses are already in, so the box asks the day itself
+                self.seats[seat].meet_offer = Some(self.tick);
                 let msg = "They'll gather again - you'll need a place to meet.".to_string();
                 self.log.push_ev(
                     EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),

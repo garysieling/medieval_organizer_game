@@ -139,8 +139,12 @@ impl Game {
                 format!("t{}: {}", tick, msg),
             );
         }
-        // a question nobody answers lapses like any unanswered call
+        // a date question nobody answers lapses like any unanswered call
         for seat in 0..self.seats.len() {
+            if self.seats[seat].meet_offer
+                .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+                self.seats[seat].meet_offer = None;
+            }
             if self.seats[seat].frame_offer
                 .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
                 self.seats[seat].frame_offer = None;

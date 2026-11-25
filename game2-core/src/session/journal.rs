@@ -97,8 +97,10 @@ impl Game {
 /// ledger that flips souls in and out of the cause (#1454), so an
 /// old journal's orgs keep different members; and the music_tick's
 /// "tune turns" lines left the log (#1504), so an old journal's digest
-/// holds lines a new replay no longer writes)
-pub const JOURNAL_VERSION: u32 = 11;
+/// holds lines a new replay no longer writes; and the ctx band lost its
+/// buttons (#1594-#1596), so an old journal's Ctx(n) clicks land on
+/// different acts - or on a Gather press there's no longer a panel for)
+pub const JOURNAL_VERSION: u32 = 12;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

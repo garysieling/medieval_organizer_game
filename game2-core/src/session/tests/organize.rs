@@ -1140,6 +1140,34 @@ fn test_the_matter_plants_nothing() {
 }
 
 #[test]
+fn test_each_round_answers_the_question_its_prompt_asks() {
+    // "what's on your minds" draws the airing, "what would make the
+    // most difference" the doing (#1610, #1624): once the second
+    // prompt lands, no grievance-table line may still come up
+    let mut g = Game::new();
+    let came = g.villagers[..3].to_vec();
+    let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), false, None);
+    let concerns = ["the food running short", "the sickness", "fair wages",
+        "safe roads", "the faith", "lower rents", "the coming harvest"];
+    let saying = |text: &str| concerns.iter().enumerate()
+        .find_map(|(i, c)| { let (air, doing) = crate::game::organizing::meeting_sayings(c);
+            if air.contains(&text) { Some(("air", i)) }
+            else if doing.contains(&text) { Some(("do", i)) } else { None } });
+    let asked = lines.iter().position(|(_, t)| t.contains("most difference"))
+        .expect("the difference prompt lands between the rounds");
+    for (_, text) in &lines[..asked] {
+        if let Some((act, _)) = saying(text) {
+            assert_eq!(act, "air", "a resolve opened the meeting: {text}");
+        }
+    }
+    for (_, text) in &lines[asked + 1..] {
+        if let Some((act, _)) = saying(text) {
+            assert_eq!(act, "do", "a grievance answered the doing round: {text}");
+        }
+    }
+}
+
+#[test]
 fn test_a_planted_want_dies_with_its_hearer() {
     use crate::game::desires::{InnerLife, Planted, PLANT_RIPEN_DAYS};
     let mut g = Game::new();

@@ -15,7 +15,8 @@ use game2_core::game::tilemap::{Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use game2_core::sim::climate::Season;
 use game2_core::sim::precipitation::PrecipKind;
 use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled,
-    draw_rubric, measure, measure_rubric, draw_tier, TextTier};
+    draw_rubric, draw_text_face, measure, measure_rubric,
+    draw_tier, TextTier, Face};
 use game2_core::ui::weather_fx;
 
 /// A `println!` that doesn't panic when stdout's closed (#1370): the

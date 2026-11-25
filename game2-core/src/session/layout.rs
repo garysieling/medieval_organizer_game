@@ -199,7 +199,15 @@ pub fn wrap_text(text: &str, max: usize) -> Vec<String> {
 /// wraps for are laid out in pixels (a word wider than a line is split
 /// where it stops fitting)
 pub fn wrap_px(text: &str, max_px: i32) -> Vec<String> {
-    use crate::engine::text::measure;
+    wrap_px_face(text, max_px, crate::engine::text::Face::Book)
+}
+
+/// `wrap_px` in a named face - the conversation box lays out in the
+/// book's larger tier (`Face::BookBig`, #1602), so its lines wrap to
+/// what that hand actually measures
+pub fn wrap_px_face(text: &str, max_px: i32, face: crate::engine::text::Face) -> Vec<String> {
+    use crate::engine::text::measure_face;
+    let measure = |s: &str| measure_face(s, face);
     let mut lines = vec![];
     let mut line = String::new();
     for word in text.split_whitespace() {

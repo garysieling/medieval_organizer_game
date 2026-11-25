@@ -4,16 +4,20 @@
 //! `ui::font`, which reads the same tables.
 use crate::engine::glyphs::ADVANCES;
 use crate::engine::glyphs_book::BOOK_ADVANCES;
+use crate::engine::glyphs_book_big::BOOK_BIG_ADVANCES;
 
 /// Which hand a string draws in - the book face (body text, the
-/// default) or the blackletter rubric (titles, heads, quotes)
+/// default) or the blackletter rubric (titles, heads, quotes); the
+/// book's larger tier (`BookBig`, ~150%, #1602) is the conversation
+/// box's face
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Face { Rubric, Book }
+pub enum Face { Rubric, Book, BookBig }
 
 fn advances(face: Face) -> &'static [u8; 95] {
     match face {
         Face::Rubric => &ADVANCES,
         Face::Book => &BOOK_ADVANCES,
+        Face::BookBig => &BOOK_BIG_ADVANCES,
     }
 }
 
@@ -36,4 +40,10 @@ pub fn measure(text: &str) -> i32 {
 /// heads, which draw in blackletter
 pub fn measure_rubric(text: &str) -> i32 {
     text.chars().map(|c| advance_for(c as u8, Face::Rubric)).sum()
+}
+
+/// The string's true width in a named face - the convo box lays out in
+/// `Face::BookBig`, so its wrap and click rects measure with it
+pub fn measure_face(text: &str, face: Face) -> i32 {
+    text.chars().map(|c| advance_for(c as u8, face)).sum()
 }

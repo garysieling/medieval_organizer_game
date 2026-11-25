@@ -5,4 +5,5 @@ pub mod sprite;
 pub mod det;
 pub mod glyphs;
 pub mod glyphs_book;
+pub mod glyphs_book_big;
 pub mod text;

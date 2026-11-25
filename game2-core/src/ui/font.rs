@@ -1,7 +1,8 @@
 //! Bitmap font renderer - draws text into pixel buffers.
 //! Two hands, baked to the same 14x13 cells by scripts/bake_font.py and
 //! scripts/bake_book_font.py (tables in engine/glyphs.rs /
-//! engine/glyphs_book.rs), so a face swap never moves a layout.
+//! engine/glyphs_book.rs), so a face swap never moves a layout - plus
+//! the book's 22x20 tier in engine/glyphs_book_big.rs (--big, #1602).
 //! No runtime font dep.
 //!
 //! - `Face::Rubric` - Jacquarda Bastarda 9 blackletter, the manuscript's
@@ -10,36 +11,42 @@
 //! - `Face::Book` - IM Fell English, the book hand: names, lists, the log,
 //!   everything read often. `draw_text` and `measure` are this face; ask
 //!   for the rubric by name.
+//! - `Face::BookBig` - the same Fell letter a tier up (#1602): 22x20
+//!   cells, u32 rows. The conversation box sets its lines in it.
 //!
-//! Each glyph carries its own advance - both faces read tracked the way
-//! they were drawn rather than monospaced.
+//! Each glyph carries its own advance - all the faces read tracked the
+//! way they were drawn rather than monospaced.
 
 use crate::engine::render::Buffer;
 use crate::engine::glyphs::GLYPHS;
 use crate::engine::glyphs_book::BOOK_GLYPHS;
+use crate::engine::glyphs_book_big::BOOK_BIG_GLYPHS;
 // the metrics live in `engine::text` (pure data - the session's layout
 // reads them too); font::measure stays the name callers know
-pub use crate::engine::text::{measure, measure_rubric, Face};
+pub use crate::engine::text::{measure, measure_face, measure_rubric, Face};
 pub(crate) use crate::engine::text::advance_for;
 
 /// Cell columns / rows, matching layout's GLYPH_H (the width's per
 /// glyph now - `measure` gives a string's true pixels)
 const COLS: usize = 14;
+/// The book's larger tier sets wider cells (book_big 22x20, u32 rows)
+const BIG_COLS: usize = 22;
 
 fn glyphs(face: Face) -> &'static [[u16; 13]; 95] {
     match face {
         Face::Rubric => &GLYPHS,
         Face::Book => &BOOK_GLYPHS,
+        Face::BookBig => unreachable!("BookBig's table is u32 - draw_char branches first"),
     }
 }
 
-/// Draw a single char at (x,y) in `face`. Returns advance width.
-pub fn draw_char(buf: &mut Buffer, x: i32, y: i32, c: char, face: Face, r: u8, g: u8, b: u8) -> i32 {
-    let glyphs = glyphs(face);
-    let glyph = if (c as u8) < 32 || (c as u8) > 126 { [0u16; 13] } else { glyphs[(c as u8 - 32) as usize] };
+/// Set every ink pixel of a cell - bit `cols-1` of each row = the
+/// leftmost column. Shared by the 14x13 faces and the 22x20 tier.
+fn draw_glyph<T: Into<u64> + Copy>(buf: &mut Buffer, x: i32, y: i32, glyph: &[T], cols: usize, r: u8, g: u8, b: u8) {
     for (row, bits) in glyph.iter().enumerate() {
-        for col in 0..COLS {
-            if bits & (1 << (COLS - 1 - col)) != 0 {
+        let bits: u64 = (*bits).into();
+        for col in 0..cols {
+            if bits & (1 << (cols - 1 - col)) != 0 {
                 let px = x + col as i32;
                 let py = y + row as i32;
                 if px >= 0 && py >= 0 && (px as usize) < buf.width && (py as usize) < buf.height {
@@ -48,7 +55,20 @@ pub fn draw_char(buf: &mut Buffer, x: i32, y: i32, c: char, face: Face, r: u8, g
             }
         }
     }
-    advance_for(c as u8, face)
+}
+
+/// Draw a single char at (x,y) in `face`. Returns advance width.
+pub fn draw_char(buf: &mut Buffer, x: i32, y: i32, c: char, face: Face, r: u8, g: u8, b: u8) -> i32 {
+    let code = c as u8;
+    if face == Face::BookBig {
+        let glyph = if !(32..=126).contains(&code) { [0u32; 20] } else { BOOK_BIG_GLYPHS[(code - 32) as usize] };
+        draw_glyph(buf, x, y, &glyph, BIG_COLS, r, g, b);
+        return advance_for(code, face);
+    }
+    let glyphs = glyphs(face);
+    let glyph = if code < 32 || code > 126 { [0u16; 13] } else { glyphs[(code - 32) as usize] };
+    draw_glyph(buf, x, y, &glyph, COLS, r, g, b);
+    advance_for(code, face)
 }
 
 /// Draw a string at (x,y) in the book hand. Returns total width drawn.

@@ -51,7 +51,7 @@ impl Game {
     /// know you a little better (organizing::house_meeting). The meeting
     /// belongs to the seat that called it; `record` is its talk_log id, so
     /// a founding call can keep its tail showing on the conversation box.
-    pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize, record: u64, roles: (bool, bool, bool, bool, bool)) -> String {
+    pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize, record: u64, roles: (bool, bool, bool, bool, bool), impromptu: bool) -> String {
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
         let members_before = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()).unwrap_or_default();
         let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited, self.tick);
@@ -154,7 +154,10 @@ impl Game {
         } else if invited.len() >= 2 || roles_filled >= 1 {
             crate::sim::organized_power::ActionQuality::Transactional
         } else { crate::sim::organized_power::ActionQuality::Overreach });
-        let founded = self.meeting_call(seat, record, invited).map(|s| format!(" {}", s)).unwrap_or_default();
+        // an impromptu room convenes for the cause's slate alone (#1615) -
+        // the generic meet-again call would ask the same thing twice
+        let founded = if impromptu { String::new() }
+            else { self.meeting_call(seat, record, invited).map(|s| format!(" {}", s)).unwrap_or_default() };
         // the called meeting IS the cadence (#1337): a cause come due
         // takes its floor on the resolve - the day's own tick stood
         // down for the gathering, so the slate opens here instead
@@ -387,6 +390,17 @@ impl Game {
                 .map(|m| tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
             if !due { continue; }
             if let Some(s) = seat.filter(|&s| !self.seats[s].agent) {
+                // the floor's called, not popped (#1615): the cause's
+                // folk convene on the organizer - an impromptu meeting -
+                // and the slate opens in the room once they've talked.
+                // Another room already standing holds the day - the cause
+                // convenes on the next clear one, no slate floating over
+                // a meeting of something else. Nobody near enough to
+                // gather lands the slate the old way
+                if self.meeting.is_some() { continue; }
+                if self.call_impromptu_meeting(s, tick) {
+                    continue;
+                }
                 self.seats[s].pending_agenda = Some((self.agenda_motions(s, c), tick));
                 continue;
             }
@@ -404,6 +418,69 @@ impl Game {
                     format!("t{}: {}", tick, msg));
             }
         }
+    }
+
+    /// The cause's floor comes to the organizer, not a popup (#1615):
+    /// on the meeting's due day its members convene where the organizer
+    /// stands - an impromptu meeting, gathered round without a plan.
+    /// The slate opens when the room resolves (resolve_meeting's floor
+    /// arm sees the date still due). Returns false when fewer than two
+    /// members can be called - no room, no meeting
+    fn call_impromptu_meeting(&mut self, seat: usize, tick: u64) -> bool {
+        let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
+        let (px, py) = self.player_pos_at(seat);
+        let mut members: Vec<Entity> = self.world.get_component::<Organization>(oe)
+            .map(|o| o.members.clone()).unwrap_or_default()
+            .into_iter()
+            .filter(|&m| m != pe && self.villagers.contains(&m)
+                && !villager::is_dead(&self.world, m)
+                && !crate::game::dungeon::unavailable(&self.world, m)
+                && self.world.get_component::<rebels::Rebel>(m).is_none())
+            .collect();
+        members.sort_by_key(|&m| self.world.get_component::<Pos>(m)
+            .map(|p| ((p.x - px).abs() + (p.y - py).abs()) as i32).unwrap_or(i32::MAX));
+        members.truncate(12);
+        let venue = (px.round() as i32, py.round() as i32);
+        let mut ground: Vec<(i32, i32)> = (-3..=3).flat_map(|dy| (-3..=3).map(move |dx| (venue.0 + dx, venue.1 + dy)))
+            .filter(|&at| at != venue && self.map.passable(at.0, at.1)).collect();
+        ground.sort_by_key(|&(x, y)| (x - venue.0).abs() + (y - venue.1).abs());
+        // only folk with a way there get called - a room nobody can
+        // reach resolves empty and the floor never opens (#1615)
+        let mut came: Vec<(Entity, (i32, i32), Vec<(i32, i32)>)> = vec![];
+        for (i, &v) in members.iter().enumerate() {
+            let spot = *ground.get(i).unwrap_or(&venue);
+            let Some(p) = self.world.get_component::<Pos>(v).copied() else { continue };
+            let from = (p.x.round() as i32, p.y.round() as i32);
+            if let Some(path) = if from == spot { Some(vec![spot]) } else { self.trail_path(from, spot) } {
+                came.push((v, spot, path));
+                if came.len() >= 8 { break; }
+            }
+        }
+        if came.len() < 2 { return false; }
+        let members: Vec<Entity> = came.iter().map(|(v, _, _)| *v).collect();
+        let spots: Vec<(i32, i32)> = came.iter().map(|(_, s, _)| *s).collect();
+        let paths: Vec<Option<Vec<(i32, i32)>>> = came.into_iter().map(|(_, _, p)| Some(p)).collect();
+        // a Talk one of them's standing in gives way to the call
+        for s in 0..self.seats.len() {
+            if self.seats[s].talk.as_ref().map(|t| members.contains(&t.who)).unwrap_or(false) {
+                self.close_player_talk(s, None);
+            }
+        }
+        self.meeting = Some(Meeting {
+            label: "the lane where you stand".into(), venue, born: tick,
+            invited: members, spots, paths, frames: 0, talk_from: None,
+            lines: vec![], talk_id: 0, seat,
+            roles: (false, false, false, false, false), role_people: [None; 5],
+            probe: false, testimony: None, agenda: None,
+            steer_at: None, steer_wait: 0, steered: false,
+            bought: vec![], promised: vec![], marks: vec![],
+            impromptu: true,
+        });
+        let oname = self.world.get_component::<Organization>(oe)
+            .map(|o| o.name.clone()).unwrap_or_default();
+        self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+            format!("t{}: {}'s folk come to call - the cause's day is due.", tick, oname));
+        true
     }
 
     /// Put a speech bubble over `who` for `secs` seconds (replacing any
@@ -560,7 +637,7 @@ impl Game {
         // the plan's spent by the call - its promise-holders are
         // snapshotted on the meeting so a keeper's arrival still counts
         let promised = plan.holders();
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised, marks: vec![] });
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised, marks: vec![], impromptu: false });
         msg
     }
 
@@ -1222,7 +1299,7 @@ impl Game {
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
-                    else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.credit_roles()) };
+                    else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.credit_roles(), m.impromptu) };
                 let at = toast_spot(&self.world, self.seats[m.seat].player);
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),

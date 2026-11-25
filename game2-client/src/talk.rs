@@ -131,7 +131,11 @@ pub const CONVO_Y: i32 = 46;
 pub const CONVO_W: i32 = 336;
 /// Pixels to a row inside a button: the box less its padding
 pub(crate) const CONVO_PX: i32 = CONVO_W - 24;
-pub(crate) const CONVO_ROW_H: i32 = LINE_H;
+/// The face the box's lines draw and wrap in - the book hand a tier up
+/// (#1602), so the words you actually read stay legible
+pub(crate) const CONVO_FACE: Face = Face::BookBig;
+/// One text row's pitch: the big face's 20 ink rows + 2px of air
+pub(crate) const CONVO_ROW_H: i32 = 22;
 /// The tallest the box gets before the oldest lines drop off the top:
 /// most of the window's height (#1317)
 pub(crate) const CONVO_MAX_H: i32 = 660;
@@ -143,8 +147,9 @@ pub(crate) const CONVO_FADE: u32 = 10;
 pub(crate) const CONVO_PORT: i32 = 16;
 /// `CONVO_PORT` in pixels, off a speaker row's wrap width
 pub(crate) const CONVO_PORT_PX: i32 = CONVO_PORT + 4;
-/// The drop cap's decorated box, opening a talk or meeting (#1321)
-pub(crate) const CONVO_CAP: i32 = 28;
+/// The drop cap's decorated box, opening a talk or meeting (#1321) -
+/// sized to the big face's rows so it still spans ~a row and a half
+pub(crate) const CONVO_CAP: i32 = 36;
 /// Rows that sit beside the cap before the text takes the full width
 pub(crate) const CONVO_CAP_ROWS: usize = 2;
 /// `CONVO_CAP` plus its gap, in glyphs off the opener's wrap width
@@ -237,7 +242,7 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
         // the digit on the row is the key that answers it: 1-9 then 0 for
         // the tenth - past ten the row draws bare (#1593)
         let label = if i < 10 { format!("{}) {}", (i + 1) % 10, o) } else { o.clone() };
-        let mut ws = super::wrap_px(&label, CONVO_PX);
+        let mut ws = super::wrap_px_face(&label, CONVO_PX, CONVO_FACE);
         ws.truncate(3);
         opts.push(ws);
     }
@@ -270,14 +275,14 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
             Some(n) => {
                 let capped: String = if cap.is_some() { n.chars().skip(1).collect() } else { n.clone() };
                 let lead = format!("{}: ", capped.to_uppercase());
-                for (k, w) in super::wrap_px(&format!("{}{}", lead, text), width).into_iter().enumerate() {
+                for (k, w) in super::wrap_px_face(&format!("{}{}", lead, text), width, CONVO_FACE).into_iter().enumerate() {
                     match w.strip_prefix(lead.trim_end()) {
                         Some(rest) if k == 0 => ws.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)), false)),
                         _ => ws.push((w, body, None, false)),
                     }
                 }
             }
-            None => for w in super::wrap_px(text, width) { ws.push((w, body, None, r.rule)) },
+            None => for w in super::wrap_px_face(text, width, CONVO_FACE) { ws.push((w, body, None, r.rule)) },
         }
         ws
     };
@@ -417,9 +422,9 @@ pub fn draw_convo_panel<'a>(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)
         let cap_x = if b.cap.is_some() { CONVO_CAP + 4 } else { 0 };
         for (k, (y, text, (r, g, b), name, rubric)) in b.rows.iter().enumerate() {
             let mut x = words_x + if k < CONVO_CAP_ROWS { cap_x } else { 0 };
-            if let Some((n, (nr, ng, nb))) = name { x += draw_text(buf, x, *y, n, *nr, *ng, *nb); }
+            if let Some((n, (nr, ng, nb))) = name { x += draw_text_face(buf, x, *y, n, CONVO_FACE, *nr, *ng, *nb); }
             if *rubric { draw_tier(buf, x, *y, text, TextTier::H2, *r, *g, *b); }
-            else { draw_text(buf, x, *y, text, *r, *g, *b); }
+            else { draw_text_face(buf, x, *y, text, CONVO_FACE, *r, *g, *b); }
         }
     }
 }

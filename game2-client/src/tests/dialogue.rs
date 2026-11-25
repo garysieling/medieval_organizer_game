@@ -8,7 +8,7 @@ use game2_core::game::vocation::Kid;
 use game2_core::session::model::{BubbleV, ConvoPanelV, TalkPanelV, TalkRowV};
 use crate::draw::{bubble_rect, BUBBLE_H};
 use crate::talk::*;
-use game2_core::ui::font::measure;
+use game2_core::ui::font::{measure, measure_face, Face};
 use crate::UiFrame;
 use game2_core::sim::climate::Season;
 use game2_core::game::villager::Pos;
@@ -426,7 +426,7 @@ fn test_a_speaker_line_carries_their_portrait() {
     }
     // the speaker's row wraps a touch narrower for the slot: the lead's
     // rest can't outrun the shrunken width
-    assert!(measure(&said.rows[0].1) <= CONVO_PX - CONVO_PORT_PX - measure("Eliza: "),
+    assert!(measure_face(&said.rows[0].1, Face::BookBig) <= CONVO_PX - CONVO_PORT_PX - measure_face("Eliza: ", Face::BookBig),
         "the speaker's lead didn't narrow for the head: {:?}", said.rows[0].1);
     // a line nobody owns keeps the plain lead: identical pixels
     let plain = boxes.iter().find(|b| b.click.is_none() && !b.choice).expect("an unowned line");
@@ -606,7 +606,7 @@ fn test_the_opener_carries_a_drop_cap() {
     // the box stands taller than one row for the cap's span
     assert!(opener.h >= CONVO_CAP + 8, "the cap's span didn't raise the box: {}", opener.h);
     // and it wraps narrower beside it
-    assert!(measure(&opener.rows[0].1) <= CONVO_PX - CONVO_PORT_PX - CAP_PX,
+    assert!(measure_face(&opener.rows[0].1, Face::BookBig) <= CONVO_PX - CONVO_PORT_PX - CAP_PX,
         "the opener didn't narrow for the cap: {:?}", opener.rows[0].1);
     // an unowned opener caps its first word instead
     let q = ConvoPanelV { title: "talk".into(),
@@ -681,4 +681,47 @@ fn test_the_convo_box_tiers_its_text() {
     }
     // plain "day 12" ends ~31px in; the tracked capitals reach past 38
     assert!(right - TALK_X - 6 >= 38, "the rubric didn't draw tracked: {}", right);
+}
+
+#[test]
+fn test_the_conversation_box_sets_the_bigger_book() {
+    // #1602: the box's lines draw in the book face a tier up
+    // (Face::BookBig) - a body row's ink stands ~20px tall where the
+    // small book reaches 13
+    let p = ConvoPanelV {
+        title: "talk".into(),
+        rows: vec![
+            TalkRowV { name: None, text: "My rye grows thin where the brook bends low".into(),
+                gist: false, you: false, rule: false, who: None, mood: 0 },
+        ],
+        options: vec![], decides: false, leave: false,
+    };
+    let (boxes, _) = convo_layout(&p, &mut ConvoPin::default(), 30);
+    let line = boxes.iter().find(|b| b.click.is_none() && !b.choice).expect("a body line");
+    let mut buf = Buffer::new(game2_core::session::W, game2_core::session::H);
+    draw_convo_panel(&mut buf, &p, (-1, -1), &mut ConvoPin::default(), 30, &|_| None, &UiFrame::default(), Season::Summer);
+    // the ink's tallest column within the line: descenders and capitals
+    // together must clear the small face's 13 rows
+    let mut tallest = 0;
+    for x in line.x + 4..line.x + line.w - 4 {
+        let (mut hi, mut lo) = (-1i32, -1i32);
+        for y in line.y + 2..line.y + line.h - 2 {
+            let i = (y as usize * buf.width + x as usize) * 4;
+            let (r, g, b) = (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]);
+            if (r, g, b) != (31, 31, 47) && (r, g, b) != (90, 110, 140) {
+                if hi < 0 { hi = y; }
+                lo = y;
+            }
+        }
+        tallest = tallest.max(if hi < 0 { 0 } else { lo - hi + 1 });
+    }
+    assert!(tallest > 13, "the body drew the small book - tallest ink: {}", tallest);
+    // and rows pitch on the bigger face's 22px line
+    let p2 = ConvoPanelV { title: "talk".into(), rows: vec![
+        TalkRowV { name: Some("A".into()), text: "one".into(), gist: false, you: false, rule: false, who: None, mood: 0 },
+        TalkRowV { name: Some("B".into()), text: "two".into(), gist: false, you: false, rule: false, who: None, mood: 0 },
+    ], options: vec![], decides: false, leave: false };
+    let (boxes2, _) = convo_layout(&p2, &mut ConvoPin::default(), 30);
+    let step = boxes2[1].y - boxes2[0].y;
+    assert!(step >= CONVO_ROW_H, "the rows pitch too tight for the big face: {}", step);
 }

@@ -60,19 +60,6 @@ impl Game {
                         .then(|| format!("the Reeve has answered - the grant stands till day {}", g.until))
                 }
             }
-            // an oath needs a name: greyed for a stranger, and while the
-            // purse can't cover the wax (#1061)
-            CtxAct::Pact => {
-                let pe = self.seats[seat].player;
-                let v = self.villagers[self.seats[seat].selected_target];
-                if crate::game::player::rapport(&self.world, pe, v) <= 0.0 {
-                    Some("they don't know you - talk first".into())
-                } else {
-                    let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
-                    (gold < crate::game::contracts::PACT_AID)
-                        .then(|| format!("the oath's wax costs {:.0} gold", crate::game::contracts::PACT_AID))
-                }
-            }
             CtxAct::Reach => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 if self.world.get_component::<crate::game::leadership::Reach>(v).is_some() {
@@ -744,16 +731,6 @@ impl Game {
                 && !org_has(v) && org_has(pe) {
                 self.seats[seat].ctx_actions.push(CtxAct::ReportMasterless);
             }
-            // a picked neighbour with no pact yet can be sworn to; the
-            // button greys until they've heard you speak and the wax's
-            // paid for - an oath needs a name (#1061)
-            let pe = self.seats[seat].player;
-            if (self.seats[seat].picked || self.seats[seat].agent) && !villager::is_dead(&self.world, v)
-                && self.world.get_component::<Kid>(v).is_none()
-                && !crate::game::dungeon::unavailable(&self.world, v)
-                && !crate::game::contracts::has_pact(&self.world, pe, v) {
-                self.seats[seat].ctx_actions.push(CtxAct::Pact);
-            }
         }
         // a stray cat keeping you company can be stroked - "Pet her"
         // shows while she's in reach, whatever else is going on
@@ -1248,26 +1225,6 @@ impl Game {
                     None => String::new(),
                 }
             }
-            CtxAct::Pact => {
-                let v = self.villagers[self.seats[seat].selected_target];
-                let pe = self.seats[seat].player;
-                let mut gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
-                match crate::game::contracts::seal_aid_pact(&mut self.world, pe, v, &mut gold) {
-                    Some(_) => {
-                        // both purses: trades move the Purse, the panel
-                        // reads resources - a build only syncs one way
-                        if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold = gold; }
-                        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources = gold; }
-                        let n = self.name_of(v);
-                        self.say(v, "It's sworn - you've a friend in me.", TALK_BUBBLE_SECS);
-                        note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names,
-                            self.seats[seat].selected_target, tick,
-                            crate::sim::story::EventKind::Alliance, "sworn to aid the Wanderer".into());
-                        format!("You press wax with {} - sworn to aid each other ({:.0}g).", n, crate::game::contracts::PACT_AID)
-                    }
-                    None => "There's no sealing it - too poor, or sworn already.".into(),
-                }
-            }
             CtxAct::ShareFindings => self.mystery_deliver_at(seat),
             CtxAct::Dine => self.sit_at_table(seat),
             CtxAct::AskAfter => self.ask_after_at(seat),
@@ -1397,6 +1354,44 @@ impl Game {
                 format!("you give {} the {} - and it warms them.", who, g)
             }
             None => "your satchel's empty - nothing to give.".into(),
+        }
+    }
+
+    /// The oath's price of entry: they've heard you speak, and the purse
+    /// can cover the wax (#1061). The button's gone (#1595) but the gate
+    /// still stands for whoever swears it
+    pub(in crate::session) fn pact_blocker(&self, pe: Entity, v: Entity) -> Option<String> {
+        if crate::game::player::rapport(&self.world, pe, v) <= 0.0 {
+            Some("they don't know you - talk first".into())
+        } else {
+            let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+            (gold < crate::game::contracts::PACT_AID)
+                .then(|| format!("the oath's wax costs {:.0} gold", crate::game::contracts::PACT_AID))
+        }
+    }
+
+    /// Press wax with `v`: ten gold of aid, sworn both ways. The Swear
+    /// aid button's gone (#1595); the oath itself stays in the sim for
+    /// the agents who still seal pacts between them
+    pub(in crate::session) fn pact_at(&mut self, pe: Entity, v: Entity) -> String {
+        if let Some(reason) = self.pact_blocker(pe, v) { return reason; }
+        let mut gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+        match crate::game::contracts::seal_aid_pact(&mut self.world, pe, v, &mut gold) {
+            Some(_) => {
+                // both purses: trades move the Purse, the panel
+                // reads resources - a build only syncs one way
+                if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold = gold; }
+                if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources = gold; }
+                let n = self.name_of(v);
+                self.say(v, "It's sworn - you've a friend in me.", TALK_BUBBLE_SECS);
+                if let Some(vi) = self.villagers.iter().position(|&x| x == v) {
+                    note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names,
+                        vi, self.tick,
+                        crate::sim::story::EventKind::Alliance, "sworn to aid the Wanderer".into());
+                }
+                format!("You press wax with {} - sworn to aid each other ({:.0}g).", n, crate::game::contracts::PACT_AID)
+            }
+            None => "There's no sealing it - too poor, or sworn already.".into(),
         }
     }
 

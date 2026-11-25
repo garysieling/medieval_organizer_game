@@ -220,7 +220,6 @@ fn drive_agitator(
         CtxAct::Townhall,
         CtxAct::Gather,
         CtxAct::Attend,
-        CtxAct::Pact,
     ];
     for &act in PRESS {
         if game.seats[seat].ctx_actions.contains(&act) && game.ctx_blocker_at(seat, act).is_none() {

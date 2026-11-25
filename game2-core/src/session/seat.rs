@@ -76,8 +76,6 @@ pub enum CtxAct {
     /// Call the house meeting the organizer has earned - a venue promised
     /// and folk who've said they'll come
     Gather,
-    /// Press wax with the picked villager: ten gold of aid, sworn
-    Pact,
     /// Stroke the stray cat who's keeping you company
     PetCat,
     /// Call a snowball fight: everyone free comes out to play (winter)
@@ -372,9 +370,28 @@ impl Game {
             self.seats[seat].selected_building = old_building;
             return if took { Ok(()) } else { Err(msg) };
         }
+        // the oath's between the two of them now (#1595): the button's
+        // gone, but the sim still seals a pact for whoever asks it
+        if action == AgentAction::Pact {
+            let v = self.villagers[target_index];
+            let offered = !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Kid>(v).is_none()
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && !crate::game::contracts::has_pact(&self.world, who, v);
+            if !offered { return Err("that action isn't available here".into()); }
+            let msg = self.pact_at(who, v);
+            if !msg.is_empty() {
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}", self.tick, msg));
+            }
+            return if crate::game::contracts::has_pact(&self.world, who, v) { Ok(()) } else { Err(msg) };
+        }
         let ctx = match action {
             // taken in the Talk now (#1336) - the early return above has it
             AgentAction::TakeJob => unreachable!("handled above"),
+            // and the oath runs its own path (#1595) - the button's gone
+            AgentAction::Pact => unreachable!("handled above"),
             AgentAction::Douse => CtxAct::Douse,
             AgentAction::Tame => CtxAct::Tame,
             AgentAction::Matchmake => CtxAct::Matchmake,
@@ -384,7 +401,6 @@ impl Game {
             AgentAction::PickCaps => CtxAct::PickCaps,
             AgentAction::Snowballs => CtxAct::Snowballs,
             AgentAction::PetCat => CtxAct::PetCat,
-            AgentAction::Pact => CtxAct::Pact,
         };
         let old_target = self.seats[seat].selected_target;
         let old_building = self.seats[seat].selected_building;

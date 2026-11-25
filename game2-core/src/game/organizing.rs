@@ -297,17 +297,40 @@ pub(crate) fn meeting_sayings(concern: &str) -> ([&'static str; 2], [&'static st
     }
 }
 
+/// The concerns a meeting can air - the whole table, so a spent
+/// concern's act pool can lend the next concern's same-act sayings
+/// (#1623)
+pub(crate) const MEETING_CONCERNS: [&str; 7] = [
+    "the food running short", "the sickness", "fair wages", "safe roads",
+    "the faith", "lower rents", "the coming harvest",
+];
+
 /// What `name` says at a house meeting on round `round`: one of their own
 /// concerns, in words of their own (each person puts it differently). The
 /// round picks the act - the airing draws the grievance lines, the doing
-/// round the proposals - so the answer fits the question asked
-pub fn meeting_remark(world: &World, person: Entity, name: &str, round: usize) -> String {
+/// round the proposals - so the answer fits the question asked, and
+/// nobody repeats a line the room already heard: a spent saying's
+/// passed over for another in the same act, their own concern first,
+/// then the rest of the table's (#1623)
+pub fn meeting_remark(world: &World, person: Entity, name: &str, round: usize,
+    said: &mut crate::engine::det::HashSet<&'static str>) -> String {
     let concerns = village_concerns(world, &[person]);
-    let concern = &concerns[round % concerns.len()];
+    let concern = concerns[round % concerns.len()].clone();
     let voice = name.bytes().map(|b| b as usize).sum::<usize>();
-    let (air, doing) = meeting_sayings(concern);
-    let pool = if round == 0 { &air } else { &doing };
-    pool[voice % pool.len()].to_string()
+    let act_pool = |c: &str| { let (air, doing) = meeting_sayings(c);
+        if round == 0 { air } else { doing } };
+    let pick = std::iter::once(concern.as_str())
+        .chain(MEETING_CONCERNS.iter().copied().filter(|&c| c != concern.as_str()))
+        .find_map(|c| {
+            let open: Vec<&'static str> =
+                act_pool(c).iter().copied().filter(|l| !said.contains(l)).collect();
+            if open.is_empty() { None } else { Some(open[voice % open.len()]) }
+        })
+        // the whole table's spent its sayings - say it again rather
+        // than stand mute
+        .unwrap_or_else(|| act_pool(&concern)[voice % 2]);
+    said.insert(pick);
+    pick.to_string()
 }
 
 /// Small talk, for someone who has already told you what's on their mind
@@ -520,10 +543,11 @@ mod tests {
         let mut w = World::new();
         let (a, b) = (w.create_entity(), w.create_entity());
         for v in [a, b] { w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() }); }
-        let (ra, rb) = (meeting_remark(&w, a, "Eliza", 0), meeting_remark(&w, b, "Bram", 0));
+        let mut said = crate::engine::det::HashSet::default();
+        let (ra, rb) = (meeting_remark(&w, a, "Eliza", 0, &mut said), meeting_remark(&w, b, "Bram", 0, &mut said));
         assert_ne!(ra, rb, "two laborers shouldn't say the very same thing");
         assert!(meeting_sayings("fair wages").0.contains(&ra.as_str()));
-        assert_ne!(meeting_remark(&w, a, "Eliza", 0), meeting_remark(&w, a, "Eliza", 1), "nor repeat themselves");
+        assert_ne!(meeting_remark(&w, a, "Eliza", 0, &mut said), meeting_remark(&w, a, "Eliza", 1, &mut said), "nor repeat themselves");
     }
 
     #[test]
@@ -534,11 +558,34 @@ mod tests {
         let mut w = World::new();
         let a = w.create_entity();
         w.add_component(a, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        let mut said = crate::engine::det::HashSet::default();
         let (air, doing) = meeting_sayings("fair wages");
-        assert!(air.contains(&meeting_remark(&w, a, "Eliza", 0).as_str()),
-            "round one aired a resolve: {}", meeting_remark(&w, a, "Eliza", 0));
-        assert!(doing.contains(&meeting_remark(&w, a, "Eliza", 1).as_str()),
-            "round two answered with a grievance: {}", meeting_remark(&w, a, "Eliza", 1));
+        assert!(air.contains(&meeting_remark(&w, a, "Eliza", 0, &mut said).as_str()),
+            "round one aired a resolve: {}", meeting_remark(&w, a, "Eliza", 0, &mut crate::engine::det::HashSet::default()));
+        assert!(doing.contains(&meeting_remark(&w, a, "Eliza", 1, &mut said).as_str()),
+            "round two answered with a grievance: {}", meeting_remark(&w, a, "Eliza", 1, &mut crate::engine::det::HashSet::default()));
+    }
+
+    #[test]
+    fn test_no_line_plays_twice_in_one_meeting() {
+        // four laborers share a concern on a two-saying pool: the late
+        // speakers can't echo the first ones - the rest of the table's
+        // same-act sayings lend the material (#1623)
+        let mut w = World::new();
+        let mut said = crate::engine::det::HashSet::default();
+        let mut heard = crate::engine::det::HashSet::default();
+        for name in ["Eliza", "Bram", "Nell", "Hob"] {
+            let v = w.create_entity();
+            w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+            let line = meeting_remark(&w, v, name, 0, &mut said);
+            assert!(heard.insert(line.clone()), "the same line played twice: {line}");
+        }
+        for name in ["Eliza", "Bram", "Nell", "Hob"] {
+            let v = w.create_entity();
+            w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+            let line = meeting_remark(&w, v, name, 1, &mut said);
+            assert!(heard.insert(line.clone()), "the same line played twice in round two: {line}");
+        }
     }
 
     #[test]

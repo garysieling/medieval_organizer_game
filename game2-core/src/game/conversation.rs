@@ -2046,31 +2046,50 @@ pub(crate) fn fill(t: &str, speaker: &Speaker, other: &Speaker, rng: &mut Rng) -
 }
 
 /// An unused variant of a line set: the template (so it can be spent) and
-/// the rendered text with the pair's slots filled
-fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
+/// the rendered text with the pair's slots filled. `strict` also keeps
+/// the village's memory (#1369): a content line someone said lately is
+/// passed over for fresher words - the stock phrases are common
+/// property. Loose keeps only this talk's spending, for ritual speech
+/// and the talk's last resort.
+fn spare_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, strict: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
     let fresh: Vec<&'static str> = lines.iter().copied().filter(|l| !used.contains(*l)).collect();
-    // the village remembers (#1369): a content line someone said lately
-    // is passed over for fresher words - ritual speech and the stock
-    // phrases are common property, and when everything left is a repeat
-    // the talk repeats rather than starve
-    let pick: Vec<&'static str> = if ritual { fresh } else {
-        let newer: Vec<&'static str> = fresh.iter().copied()
-            .filter(|l| !recent.contains(*l) || crate::game::dialogue_trees::STOCK_LINES.contains(l)).collect();
-        if newer.is_empty() { fresh } else { newer }
-    };
+    let pick: Vec<&'static str> = if strict {
+        fresh.iter().copied()
+            .filter(|l| !recent.contains(*l) || crate::game::dialogue_trees::STOCK_LINES.contains(l)).collect()
+    } else { fresh };
+    if pick.is_empty() { return None; }
     pick.get(rng.below(pick.len())).map(|&t| (t, fill(t, speaker, other, rng)))
+}
+
+/// An unused variant, passing lately-said lines over (#1369); when the
+/// set's all repeats the talk repeats rather than starve
+fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
+    if ritual { spare_line(lines, speaker, other, used, recent, false, rng) } else {
+        spare_line(lines, speaker, other, used, recent, true, rng)
+            .or_else(|| spare_line(lines, speaker, other, used, recent, false, rng))
+    }
 }
 
 /// A variant in the speaker's register: voice sets whose criteria the
 /// speaker's facts satisfy are drawn from first, in authored order; the
-/// base lines take over once the register's material is spent
+/// base lines take over once the register's material is spent. The
+/// freshness pass runs over all the fitting sets before any repeat is
+/// allowed (#1623): a spent voice set falls through to wider words
+/// rather than echo a line the village just heard
 fn fresh_voiced(lines: &[&'static str], voice: &[Voice], facts: &Facts, speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
     for v in voice {
         if v.criteria.iter().all(|c| c.holds(facts)) {
-            if let Some(f) = fresh_line(v.lines, speaker, other, used, recent, ritual, rng) { return Some(f); }
+            if let Some(f) = spare_line(v.lines, speaker, other, used, recent, !ritual, rng) { return Some(f); }
         }
     }
-    fresh_line(lines, speaker, other, used, recent, ritual, rng)
+    if let Some(f) = spare_line(lines, speaker, other, used, recent, !ritual, rng) { return Some(f); }
+    if ritual { return None; }
+    for v in voice {
+        if v.criteria.iter().all(|c| c.holds(facts)) {
+            if let Some(f) = spare_line(v.lines, speaker, other, used, recent, false, rng) { return Some(f); }
+        }
+    }
+    spare_line(lines, speaker, other, used, recent, false, rng)
 }
 
 /// The matching trees, most specific first (Ruskin's scoring: criterion

@@ -54,7 +54,7 @@ pub fn voice_for(cue: CueKind) -> VoiceSpec {
         CueKind::Door { .. } => spec(Some("door"), SynthKind::Door, 1.0),
         CueKind::CartArrive { .. } => spec(Some("cart_arrive"), SynthKind::CartArrive, 0.9),
         CueKind::Gate { .. } => spec(Some("gate"), SynthKind::Gate, 0.9),
-        CueKind::Mood { .. } => spec(None, SynthKind::Mood, 1.0),
+        CueKind::Blip { .. } => spec(None, SynthKind::Blip, 1.0),
     }
 }
 
@@ -68,7 +68,7 @@ mod tests {
     const ALL_CUE_NAMES: &[&'static str] = &[
         "rain", "anvil", "festival", "wonder", "bell", "snowballs", "splash",
         "alarm", "toll", "cheer", "chant", "coins", "quill", "door",
-        "cart_arrive", "gate", "mood",
+        "cart_arrive", "gate",
     ];
 
     fn cue_source(engine: &Engine, spec: VoiceSpec) -> Source {

@@ -1198,13 +1198,11 @@ mod tests {
             CueKind::Door { .. } => "door",
             CueKind::CartArrive { .. } => "cart_arrive",
             CueKind::Gate { .. } => "gate",
-            CueKind::Mood { .. } => "mood",
-            // the A5 scene cues (alarm, toll, cheer, ...) - the legacy
-            // list this test builds never produces them
-            _ => "other",
+            CueKind::Blip { .. } => "blip",
         }).collect();
+        // "mood" and the unheard-of name both fall back to the blip
         assert_eq!(kinds, ["rain", "anvil", "festival", "wonder", "bell",
-                           "snowballs", "splash", "mood", "mood"]);
+                           "snowballs", "splash", "blip", "blip"]);
     }
 
     /// The dialog's populate string round-trips the same rows the

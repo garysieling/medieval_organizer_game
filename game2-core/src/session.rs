@@ -1382,9 +1382,6 @@ pub struct Game {
     pub precip: Option<PrecipKind>, // what is falling today
     pub rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
     pub was_sick: Vec<Option<String>>, // per villager, the disease they're showing - to log when someone falls ill or recovers
-    /// The village's tune: the evolving-music state the day's world
-    /// metrics steer
-    pub music: Entity,
     /// The weather event rolling through: storm, dry spell, heat or
     /// hard frost - fields and bones feel it while it lasts
     pub weather: Entity,

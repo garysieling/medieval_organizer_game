@@ -32,8 +32,8 @@ pub enum SynthKind {
     CartArrive,
     /// The palisade gap's hinge: a slow creak
     Gate,
-    /// "mood" and any cue without a voice of its own: a small blip.
-    Mood,
+    /// Any cue without a voice of its own: a small blip.
+    Blip,
 }
 
 impl SynthKind {
@@ -57,7 +57,7 @@ impl SynthKind {
             "door" => SynthKind::Door,
             "cart_arrive" => SynthKind::CartArrive,
             "gate" => SynthKind::Gate,
-            _ => SynthKind::Mood,
+            _ => SynthKind::Blip,
         }
     }
 
@@ -80,7 +80,7 @@ impl SynthKind {
             SynthKind::Door => 0.7,
             SynthKind::CartArrive => 1.0,
             SynthKind::Gate => 0.9,
-            SynthKind::Mood => 0.25,
+            SynthKind::Blip => 0.25,
         }
     }
 
@@ -149,7 +149,7 @@ impl SynthKind {
                 + noise * 0.15 * (2.0 * PI * 6.0 * t).sin().abs())
                 * (1.0 - (-8.0 * t).exp()) * (-4.0 * t).exp() * 0.5,
             // anything else: a small blip so it isn't silent
-            SynthKind::Mood => (2.0 * PI * 520.0 * t).sin() * (-15.0 * t).exp() * 0.4,
+            SynthKind::Blip => (2.0 * PI * 520.0 * t).sin() * (-15.0 * t).exp() * 0.4,
         }
     }
 }

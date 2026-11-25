@@ -368,7 +368,7 @@ count toward `met` - a barter or a shared meal alone doesn't.
 Scenes from an older server may omit `social`; read it as all zeroes.
 
 `weather`, `calendar` and `clock` carry the sky, the village calendar
-and the frame clock for sound/music layers that can't watch the screen
+and the frame clock for the sound layer that can't watch the screen
 (P1): `weather` is the current weather event (`kind` one of `storm`,
 `drought`, `heat`, `frost`; `intensity` 0..1; `days_left` the days it
 still has) or `null` on a clear day; `calendar` is `holy_day`,
@@ -394,7 +394,7 @@ voice (A5). `x`/`y` are the tile the cue rose at, `intensity` its
 loudness 0..1. `kind` is one of:
 
 - `rain`, `anvil`, `festival`, `wonder`, `bell`, `snowballs`,
-  `splash`, `mood` - the legacy cues
+  `splash` - the legacy cues
 - `alarm` - a fire caught (chimney, lightning, an oil flare) or the
   knights rode out on a crackdown
 - `toll` - the passing bell: a death, or a funeral column's beat

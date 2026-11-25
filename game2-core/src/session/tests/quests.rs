@@ -553,3 +553,32 @@ fn test_a_carry_job_puts_the_goods_in_your_satchel() {
     g.update();
     assert_eq!(held(&g, "egg"), 1, "picked up, the egg's in the satchel");
 }
+
+/// An errand's thing is never a tradeable (#1603): the names stay out
+/// of the goods registry, so a mason's bench can't burn the job's
+/// stone - and a spent satchel entry can't dig under zero at handover
+#[test]
+fn test_errand_goods_stay_off_the_registry() {
+    use crate::game::livelihood::Satchel;
+    for kind in [QuestKind::Note, QuestKind::Parcel, QuestKind::Deliver,
+                 QuestKind::Keep, QuestKind::Egg, QuestKind::Stone] {
+        let good = Game::quest_good(kind).unwrap();
+        assert!(crate::game::goods::spec(good).is_none(),
+            "{:?}'s {} is in the registry - the bench could burn the job's cargo", kind, good);
+    }
+    // a stone the bench already burned sits in the bag at 0 - the
+    // handover mustn't count down from there
+    let mut g = Game::new();
+    let giver = askers(&g)[0];
+    g.seats[0].quest = Some(PlayerQuest {
+        giver, kind: QuestKind::Stone, target: QuestTarget::Villager(giver),
+        stage: QuestStage::ToCarry, pickup: None,
+        expires: g.tick + 10, errand: None });
+    if let Some(s) = g.world.get_component_mut::<Satchel>(g.player) {
+        s.goods.insert("cobble".into(), 0);
+    }
+    g.quest_talk_done(0, giver);
+    let n = g.world.get_component::<Satchel>(g.player)
+        .and_then(|s| s.goods.get("cobble").copied()).unwrap_or(0);
+    assert_eq!(n, 0, "a spent entry can't dig under zero when the job ends");
+}

@@ -982,6 +982,7 @@ impl Game {
         let folk: Vec<Entity> = folk.iter().copied().filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)).collect();
         let slots = self.ring_round(mp, folk.len(), 2.5);
         self.assemble(tick, Mode::Feasting, Spot::Green, None, &folk, &slots, mp, 30);
+        if !folk.is_empty() { self.emit_sfx("festival", mp.0, mp.1, 0.8); }
     }
 
     /// A small celebration in one spot - a coming of age, a birth, a win:
@@ -1000,6 +1001,7 @@ impl Game {
         let going = self.assemble(tick, Mode::Feasting, Spot::Home,
             leader.map(|l| (l, at)), &folk, &slots, at, 15);
         if going == 0 { return; }
+        self.emit_sfx("festival", at.0, at.1, 0.7);
         self.celebrating = Some((tick + 1, (at.0.round() as i32, at.1.round() as i32)));
         let honouree = leader.and_then(|l| self.villagers.iter().position(|&v| v == l));
         self.log.push_ev_at_who(

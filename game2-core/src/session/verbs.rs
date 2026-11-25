@@ -3208,6 +3208,10 @@ impl Game {
             crate::game::rhetoric::witness_all(&mut self.world, present, oe, l, tick);
             let out = self.line_defections(seat, oe, l, present, &walked_in_against);
             if !out.is_empty() { walked = format!(" {} storms out over it.", out.join(", ")); }
+            // the room's reaction is heard (#1619): a murmur when the
+            // word settles, louder when folk storm over it
+            let (px, py) = self.player_pos_at(seat);
+            self.emit_sfx("murmur", px, py, if walked.is_empty() { 0.6 } else { 0.85 });
         }
         format!("The room settles on {}{}.{}", winner, mandate, walked)
     }
@@ -3468,6 +3472,9 @@ impl Game {
                 if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick, &speakers) {
                     self.record_campaign_talk(vec![self.seats[seat].player], &d);
                 }
+                // the ballot's read aloud: the floor's murmur answers it
+                let (px, py) = self.player_pos_at(seat);
+                self.emit_sfx("murmur", px, py, if out.called { 0.85 } else { 0.5 });
                 format!("{} of {} say yes{}. {}", out.yes, out.yes + out.no,
                     if out.called { " - the strike is on" } else { "" },
                     if out.called { "The trade stands together." } else { "Less than nine of ten: it fails in public." })

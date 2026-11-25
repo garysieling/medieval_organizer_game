@@ -740,18 +740,25 @@ fn main() {
                 let ctx_specs: Vec<session::Button> = session::ctx_buttons(&m.ctx);
                 // one click, one button: overlapping rects (a shared slot
                 // like Pet her / Snowballs!) answer only the topmost
+                // a button answer takes the ClickMap's place at the head,
+                // not the tail - a Walk collected first would clear the
+                // picked villager the act means to reach
+                let click_slot = |cmds: &mut Vec<Command>, cmd: Command| {
+                    match cmds.iter().position(|x| matches!(x, Command::ClickMap { .. })) {
+                        Some(i) => cmds[i] = cmd,
+                        None => cmds.push(cmd),
+                    }
+                };
                 if let Some(i) = ctx_specs.iter().enumerate().rev()
                     .find(|(_, b)| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
                     .map(|(i, _)| i) {
-                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
-                    cmds.push(Command::CtxAct(i));
+                    click_slot(&mut cmds, Command::CtxAct(i));
                 }
                 // Talk rides the band's next cell (#1599): the draw and
                 // this test read the same talk_button rect
                 let tb = session::talk_button(m.ctx.len());
                 if mx >= tb.x && mx < tb.x + tb.w && my >= tb.y && my < tb.y + tb.h {
-                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
-                    cmds.push(Command::Act(0));
+                    click_slot(&mut cmds, Command::Act(0));
                 }
                 // a reply on the TALK panel
                 if let Some(pick) = client::talk::talk_click(&m.talk, mx, my) {

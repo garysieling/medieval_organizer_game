@@ -102,8 +102,10 @@ impl Game {
 /// different acts - or on a press there's no longer a button for; and
 /// the meeting's floor now holds for the organizer's steer (#1611), so
 /// an old journal's Decide(n) lands mid-pause on a steer row, not the
-/// founding slate it was recorded against)
-pub const JOURNAL_VERSION: u32 = 15;
+/// founding slate it was recorded against; and the call's steps gained
+/// a form-a-team row (#1614), so an old journal's Decide(n) can land on
+/// the street when it meant the team)
+pub const JOURNAL_VERSION: u32 = 16;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

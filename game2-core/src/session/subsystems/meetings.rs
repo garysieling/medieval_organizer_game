@@ -898,6 +898,20 @@ impl Game {
         self.loudest_voiced().or_else(|| self.meeting.as_ref().and_then(|m| m.agenda.clone()))
     }
 
+    /// Who a "form a team" step would sign on (#1614): the came-back
+    /// willing - alive, grown, about, and not already on the rolls.
+    /// Panel and pick read the one list, the same filter enroll_room keeps
+    pub(in crate::session) fn team_prospects(&self, seat: usize, came: &[Entity]) -> Vec<Entity> {
+        let org = self.seats[seat].org;
+        came.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Kid>(v).is_none()
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && !self.world.get_component::<Organization>(org)
+                    .map(|o| o.members.contains(&v)).unwrap_or(false))
+            .collect()
+    }
+
     /// The organizer's steer at the floor's pause (#1611): press the
     /// loudest grievance (or the call's agenda), open the floor and let
     /// them talk it out, or bring it home - cut the floor to the close

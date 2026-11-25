@@ -441,6 +441,43 @@ fn test_pressing_talk_again_keeps_the_conversation_going() {
 }
 
 #[test]
+fn test_a_new_approach_closes_the_talk_still_open() {
+    // the bug: picking a second villager left the first talk's box up,
+    // and picks landed in the stale list (#1630). Starting the approach
+    // is taking your leave - the talk closes clean on the spot
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let a = talk_beside(&mut g, i);
+    assert!(g.seats[0].talk.is_some(), "no talk open to leave");
+    let j = adults(&g).into_iter()
+        .find(|&k| g.dist_to_at(0, k) > 4.0)
+        .expect("someone far enough to walk to");
+    assert!(g.start_approach_at(0, j, 0).is_some(), "the walk must start");
+    assert!(g.seats[0].talk.is_none(), "the open talk rode the approach");
+    assert!(g.world.get_component::<crate::game::villager::InPlayerTalk>(a).is_none(),
+        "they still carry the in-talk flag");
+}
+
+#[test]
+fn test_opening_a_second_talk_leaves_the_first_cleanly() {
+    // adjacent or not, a fresh approach settles the old talk the way
+    // take-your-leave does (#1630): flag cleared, the memory written,
+    // the new talk the only one open
+    let mut g = Game::new();
+    let (a, b) = (g.villagers[7], g.villagers[8]);
+    g.open_player_talk(0, a, crate::game::conversation::Relation::Acquaintance, "the day's work");
+    g.open_player_talk(0, b, crate::game::conversation::Relation::Acquaintance, "the rents");
+    let t = g.seats[0].talk.as_ref().expect("the new talk open");
+    assert_eq!(t.who, b, "the open talk must be the new one");
+    assert!(g.world.get_component::<crate::game::villager::InPlayerTalk>(a).is_none(),
+        "the first still carries the in-talk flag");
+    assert!(g.world.get_component::<crate::game::villager::InPlayerTalk>(b).is_some(),
+        "the second never got the in-talk flag");
+    assert!(g.world.get_component::<crate::session::dialogue::TalkMemory>(a).is_some(),
+        "the closed talk left no memory behind");
+}
+
+#[test]
 fn test_a_fresh_talk_always_offers_something_to_say() {
     // a normal opening offers replies, or at least the leave - never a
     // bare panel that hangs up on its own (#1058)

@@ -385,6 +385,12 @@ impl Game {
         if self.dist_to_at(seat, who) <= TALK_DIST { return None; }
         match self.path_to_at(seat, who) {
             Some(path) => {
+                // walking off is taking your leave (#1630): an open
+                // talk closes clean when the approach starts - no stale
+                // options ride the walk over
+                if self.seats[seat].talk.is_some() {
+                    self.close_player_talk(seat, Some("You take your leave."));
+                }
                 self.seats[seat].approach = Some(Approach { who, action, path, stuck: 0 });
                 Some(format!("You walk over to {}.", self.cast_name(who)))
             }

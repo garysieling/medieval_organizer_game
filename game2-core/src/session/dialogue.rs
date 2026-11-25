@@ -1313,6 +1313,12 @@ impl Game {
     /// panel opens, and the personal tier's "two talks" means prior ones
     pub(in crate::session) fn open_player_talk_familiar(&mut self, seat: usize, v: Entity,
         rel: Relation, gist: &str, talks: Option<u32>) {
+        // an approach while a talk's still open closes the old one
+        // first (#1630) - same clean close as taking your leave, then
+        // the new one opens on a settled box
+        if self.seats[seat].talk.is_some() {
+            self.close_player_talk(seat, Some("You take your leave."));
+        }
         let pe = self.seats[seat].player;
         let rare = self.rare.iter().find(|r| r.e == Some(v)).map(|r| r.id);
         let name = rare.map(|id| super::events::spec(id).name.to_string())

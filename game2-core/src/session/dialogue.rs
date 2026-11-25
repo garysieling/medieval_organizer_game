@@ -2788,10 +2788,11 @@ impl Game {
         match sold {
             Some(paid) => {
                 self.argue_line(seat, Some(pe), format!("I'll take the {}.", good));
-                if stocked(self).is_none() {
-                    if let Some(cur) = self.seats[seat].talk.as_mut() {
-                        cur.wares.retain(|w| *w != good);
-                    }
+                // a bought good leaves the offer rows for the rest of
+                // the talk (#1613) - the next talk rebuilds the list,
+                // so tomorrow's loaf still sells
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.wares.retain(|w| *w != good);
                 }
                 self.narrate_talk(seat, &format!("You buy the {} for {:.0} gold.", good, paid));
             }

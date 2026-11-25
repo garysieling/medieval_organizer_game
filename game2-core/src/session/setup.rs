@@ -50,7 +50,9 @@ impl Game {
         // the felt-worth ledger rides beside the climate - what the
         // shelves show leans what a swap is worth, quietly
         goods::spawn_worths(&mut world);
-        let music = crate::game::music::spawn_music(&mut world);
+        // the music entity's slot (M6): ids seed per-villager rolls, so
+        // a bare entity keeps every later index - and the world - stable
+        let _ = world.create_entity();
         let weather = crate::sim::weather::spawn_weather(&mut world,
             crate::sim::weather::Weather::Clear, 0.0, 0);
         // tell the sim where the tile edge is, or its fixed bound pinches
@@ -1183,7 +1185,7 @@ impl Game {
 
         let mut g = Game {
             world, sched, map, heights, flood: crate::game::flood::Flood::new(),
-            climate, music, weather, congregation, factions: vec![], villagers, rivals,
+            climate, weather, congregation, factions: vec![], villagers, rivals,
             splinter: None, reformation_spark: None,
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,

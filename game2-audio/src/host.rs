@@ -38,8 +38,8 @@ pub enum CueKind {
     Door { pan: f32, gain: f32 },
     CartArrive { pan: f32, gain: f32 },
     Gate { pan: f32, gain: f32 },
-    /// "mood" and cues without their own voice: a small blip
-    Mood { pan: f32, gain: f32 },
+    /// Cues without their own voice: a small blip
+    Blip { pan: f32, gain: f32 },
 }
 
 impl CueKind {
@@ -61,7 +61,7 @@ impl CueKind {
             "door" => CueKind::Door { pan, gain },
             "cart_arrive" => CueKind::CartArrive { pan, gain },
             "gate" => CueKind::Gate { pan, gain },
-            _ => CueKind::Mood { pan, gain },
+            _ => CueKind::Blip { pan, gain },
         }
     }
 
@@ -78,7 +78,7 @@ impl CueKind {
             | CueKind::Chant { pan, gain } | CueKind::Coins { pan, gain }
             | CueKind::Quill { pan, gain } | CueKind::Door { pan, gain }
             | CueKind::CartArrive { pan, gain } | CueKind::Gate { pan, gain }
-            | CueKind::Mood { pan, gain } => (pan, gain),
+            | CueKind::Blip { pan, gain } => (pan, gain),
         }
     }
 }

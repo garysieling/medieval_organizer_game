@@ -2357,6 +2357,11 @@ impl Game {
             let roll = (self.rng.next() % 1000) as f32 / 1000.0;
             let (msg, named) = crate::game::organizing::propose_keyed(
                 &mut self.world, pe, oe, who, o.kind, &name, roll, self.tick, o.key, o.price);
+            // the {name} slot an introduction leaves is the friend's (#1609)
+            let msg = match named {
+                Some(f) => msg.replace("{name}", &self.name_of(f)),
+                None => msg,
+            };
             // an introduction's name is the one to look at: select them
             // and ask the camera over
             if let Some(f) = named {

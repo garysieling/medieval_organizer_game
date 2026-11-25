@@ -1530,7 +1530,7 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
         // a purchased yes lands like a given one, and the plan keeps
         // whose it was: at the meeting the room reads it cheaper (#1225)
         if p != PropKind::Introduce { plan_for(world, org).bought.push(person); }
-        if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
+        if p == PropKind::Introduce { return introduce(world, organizer, org, person, name, tick); }
         let msg = land_ask(world, org, person, p, name);
         // a promised meeting part isn't kept until its keeper's in the
         // room; the name on paper is kept in the signing (#1442)
@@ -1550,7 +1550,7 @@ pub fn propose_keyed(world: &mut World, organizer: Entity, org: Entity, person: 
     }
     // the ask itself is practice at the craft
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, 0.01);
-    if p == PropKind::Introduce { return introduce(world, organizer, person, name, tick); }
+    if p == PropKind::Introduce { return introduce(world, organizer, org, person, name, tick); }
     let msg = land_ask(world, org, person, p, name);
     // a promised meeting part isn't kept until its keeper's in the
     // room; the name on paper is kept in the signing (#1442)
@@ -1618,17 +1618,36 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
 /// something with them - the same trade, or a trouble you've heard them
 /// voice. The word of a friend opens a door: the named person starts a
 /// little warm to you.
-fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, tick: u64) -> (String, Option<Entity>) {
-    use crate::game::relationships::{bonds_of, record_interaction, Interaction, InteractionKind, Relationship};
-    use crate::game::desires::{issue_tag, unrevealed};
+fn introduce(world: &mut World, organizer: Entity, org: Entity, person: Entity, name: &str, tick: u64) -> (String, Option<Entity>) {
+    use crate::game::relationships::{bonds_of, find_relationship, record_interaction, Interaction, InteractionKind, Relationship, RelKind};
+    use crate::game::desires::{issue_name, issue_tag, unrevealed};
     // a word well spent comes back around: they said they'd think on it,
     // and come find you about it
     world.add_component(person, RoundBack { to: organizer, after: tick + 1, misses: 0 });
     let voc = world.get_component::<crate::game::vocation::Craft>(person).map(|c| c.vocation);
     let their_tags: Vec<String> = crate::game::desires::known(world, organizer, person)
         .iter().map(|r| issue_tag(world, person, r)).collect();
-    // candidates: who they know, strongest first, sharing something
-    let mut cands: Vec<(f32, Entity)> = bonds_of(world, person).iter().filter_map(|&r| {
+    // the cause's ledger: what the organizer's heard plus what the
+    // campaign fights over mark who's worth knowing (#1609)
+    let mut chase: Vec<String> = world.get_component::<crate::game::desires::Organizer>(organizer)
+        .map(|o| o.issues.clone()).unwrap_or_default();
+    if let Some(c) = crate::game::campaign::campaign_of(world, org) {
+        if let Some(c) = world.get_component::<crate::game::campaign::Campaign>(c) {
+            if !chase.contains(&c.issue) { chase.push(c.issue.clone()); }
+        }
+    }
+    let host = world.get_component::<MeetingPlan>(org)
+        .and_then(|p| p.venue).and_then(|v| v.host());
+    let members: Vec<Entity> = world.get_component::<Organization>(org)
+        .map(|o| o.members.clone()).unwrap_or_default();
+    let nearly_ours = |w: &World, e: Entity| !members.contains(&e)
+        && find_relationship(w, organizer, e)
+            .and_then(|r| w.get_component::<Relationship>(r))
+            .map(|r| r.kind == RelKind::Friend).unwrap_or(false);
+    // candidates: who they know, strongest first, sharing something.
+    // The chase's reasons lift the pick and ride the naming, so "go
+    // see her" says why (#1609)
+    let mut cands: Vec<(f32, Entity, String)> = bonds_of(world, person).iter().filter_map(|&r| {
         let rel = world.get_component::<Relationship>(r)?;
         let other = if rel.from == person { rel.other } else { rel.from };
         if other == organizer || crate::game::villager::is_dead(world, other) { return None; }
@@ -1638,15 +1657,30 @@ fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, t
         their_reveals.extend(unrevealed(world, organizer, other, tick));
         let shared_trouble = their_reveals.iter()
             .any(|r| their_tags.contains(&issue_tag(world, other, r)));
-        (same_trade || shared_trouble).then_some((rel.strength, other))
+        if !(same_trade || shared_trouble) { return None; }
+        let held = their_reveals.iter().map(|r| issue_tag(world, other, r))
+            .find(|t| chase.contains(t));
+        let (weight, why) = if let Some(tag) = held {
+            (2.0, format!("{} sits on them too", issue_name(tag)))
+        } else if host == Some(other) {
+            (1.0, "the meet's at their place".to_string())
+        } else if nearly_ours(world, other) {
+            (0.5, "they're nearly with us".to_string())
+        } else if same_trade {
+            (0.0, "they work the same bench as me".to_string())
+        } else {
+            (0.0, "their trouble's much the same as mine".to_string())
+        };
+        Some((rel.strength + weight, other, why))
     }).collect();
     cands.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
     match cands.first() {
-        Some(&(_, friend)) => {
+        Some(&(_, friend, ref why)) => {
             // a friend's word opens a door: a little warmth to start on
             record_interaction(world, organizer, Interaction {
                 other: friend, kind: InteractionKind::Conversation, intensity: 0.6 });
-            (format!("{} names a friend - someone you should know. A word from {} opens the door.", name, name), Some(friend))
+            // {name} is the friend's slot - the caller fills it
+            (format!("{} names a friend - go see {{name}}; {}. A word from {} opens the door.", name, why, name), Some(friend))
         }
         None => match someone_to_send_to(world, organizer, person) {
             // no friend comes to mind, but folk know where the village's

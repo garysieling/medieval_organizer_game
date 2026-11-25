@@ -1958,6 +1958,9 @@ pub struct Game {
     /// window's end) - beat it fast and the scandal's his, let it run
     /// and the repression's just how things are
     pub emergency: Option<(u64, u64)>,
+    /// The day its counter-window was last waved off (#1627): the ban
+    /// still stands, the offer box just isn't pressed again today
+    pub emergency_declined: Option<u64>,
     /// Witnesses gathered inside the window: each one's a word the
     /// lord's story can't stand - at a count the scandal lands
     pub witnesses: u32,

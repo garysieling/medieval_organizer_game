@@ -3410,19 +3410,25 @@ impl Game {
                 decides: true, leave: false });
         }
         if self.counter_intel >= 2 && self.proposal.is_none() && self.seat_offer.is_none()
-            && self.emergency.is_none() && (s.talk.is_none() || seat == 0)
+            && self.emergency.is_none() && self.dilemma.is_none()
+            && (s.talk.is_none() || seat == 0)
             && self.counter_played != Some(self.tick) {
             let mut options = vec!["Feed the watcher false word - the eyes read what we show".into()];
             if self.counter_intel >= 3 {
                 options.push("Read the watcher out - his own papers in the open".into());
             }
+            // a decision box never lists a lone option (#1627)
+            options.push("Let the watching stand - the eyes read what they read".into());
             return Some(ConvoPanelV {
                 title: "THE ORG'S OWN EYES".into(),
                 rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "The cause's own eyes read the lord's - counter the watching.".into() }],
                 options, decides: true, leave: false });
         }
-        if self.emergency.is_some() {
+        // a declined counter-window waits out its own day (#1627) -
+        // and a knot card out owns the picks while it stands
+        if self.emergency.is_some() && self.dilemma.is_none()
+            && self.emergency_declined != Some(self.tick) {
             let rows = vec![
                 TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: "The lord's man calls it the cause's own brawl - the square's banned while the tale stands.".into() },
@@ -3431,7 +3437,9 @@ impl Game {
             ];
             return Some(ConvoPanelV {
                 title: "THE LORD'S EMERGENCY".into(),
-                rows, options: vec!["Gather the witnesses".into()],
+                rows, options: vec!["Gather the witnesses".into(),
+                    // a decision box never lists a lone option (#1627)
+                    "Let the ban stand - the tale's the tale today".into()],
                 decides: true, leave: false });
         }
         if self.proposal.is_some() && self.plant.is_some() {
@@ -3484,13 +3492,21 @@ impl Game {
                 decides: true, leave: false });
         }
         if let Some((_, events)) = &s.testimony_offer {
+            let mut options = events.clone();
+            // a decision box never lists a lone option (#1627): a thin
+            // history can leave one story or none - the plain telling
+            // and the held tongue keep the pick a pick
+            if options.is_empty() {
+                options.push("Put the matter plain - no story of yours".into());
+            }
+            options.push("Hold your story - let them talk first".into());
             return Some(ConvoPanelV {
                 title: "THE CALL - WHAT WILL YOU TELL".into(),
                 rows: vec![
                     TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "Tell them why you're here: a thing you lived through, then what this room shares, then what tonight asks.".into() },
                 ],
-                options: events.clone(),
+                options,
                 decides: true, leave: false });
         }
         if s.frame_offer.is_some() {
@@ -3546,6 +3562,9 @@ impl Game {
             let mut options: Vec<String> = motions.iter()
                 .map(|&m| crate::game::campaign::motion_label(m)).collect();
             options.push("Just meet - the resolves, no action".into());
+            // a decision box never lists a lone option (#1627): the
+            // night's floor can always be declined
+            options.push("Adjourn for tonight - the floor keeps".into());
             return Some(ConvoPanelV {
                 title: format!("{} - THE FLOOR'S YOURS", oname.to_uppercase()),
                 rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,

@@ -1198,6 +1198,11 @@ mod tests {
             CueKind::Door { .. } => "door",
             CueKind::CartArrive { .. } => "cart_arrive",
             CueKind::Gate { .. } => "gate",
+            CueKind::Gale { .. } => "gale",
+            CueKind::Murmur { .. } => "murmur",
+            CueKind::Bells { .. } => "bells",
+            CueKind::Baying { .. } => "baying",
+            CueKind::Hens { .. } => "hens",
             CueKind::Blip { .. } => "blip",
         }).collect();
         // "mood" and the unheard-of name both fall back to the blip

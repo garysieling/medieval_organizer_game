@@ -76,6 +76,17 @@ impl SynthKind {
         }
     }
 
+    /// How hard the voice's noise draw integrates before `sample`
+    /// sees it (like `BedKind::smooth`): the weather voices hiss for
+    /// their whole length, so raw white crackles past the click bar -
+    /// a burst's scratch can stay brighter behind its own transient.
+    pub fn smooth(self) -> f32 {
+        match self {
+            SynthKind::Rain | SynthKind::Gale => 0.15,
+            _ => 0.4,
+        }
+    }
+
     /// How long the voice rings, in seconds (the legacy `voice_len`).
     pub fn len(self) -> f32 {
         match self {

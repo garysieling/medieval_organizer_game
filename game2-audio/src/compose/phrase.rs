@@ -399,6 +399,19 @@ impl Composer {
             motif.degrees.iter().min().copied().unwrap_or(1) - 2,
             motif.degrees.iter().max().copied().unwrap_or(1) + 2,
         );
+        // The heads a figure can take: transposing it there keeps its
+        // register inside the motif's window - the same bound the
+        // moved-check below applies, so a clamped head always fits.
+        let head_ok = |fig: &crate::theory::Motif| -> (i8, i8) {
+            let head = fig.degrees[0];
+            let rel = med(fig) - head as i32;
+            let (lo, hi) = (med0 - 4 - rel, med0 + 4 - rel);
+            if lo <= hi {
+                (lo as i8, hi as i8)
+            } else {
+                (dlo, dhi)
+            }
+        };
 
         // Six body bars draft at once: punctus A's, then B's - the
         // same figures restated a sequence on (the motif recurs, the
@@ -424,7 +437,8 @@ impl Composer {
             // ended, else it lands a third of the way there - a bar
             // boundary always steps, never vaults. The statement
             // itself is exempt: it has no predecessor to step from.
-            let ht = head_t(k).clamp(dlo, dhi);
+            let (rlo, rhi) = head_ok(&fig);
+            let ht = head_t(k).clamp(rlo, rhi);
             let want = if k == 0 {
                 ht
             } else {
@@ -436,9 +450,9 @@ impl Composer {
                     moved
                 } else {
                     // the target would drag the figure off compass -
-                    // its head holds where the tail ended (staying on
-                    // staff), so the boundary still steps
-                    fig.transpose(last_deg.clamp(dlo, dhi) - fig.degrees[0])
+                    // hold the nearest reachable head instead, so the
+                    // boundary steps and the figure still sings
+                    fig.transpose(last_deg.clamp(rlo, rhi) - fig.degrees[0])
                 };
             }
             let base16 = bar as i32 * bar16;
@@ -483,7 +497,14 @@ impl Composer {
                 events.truncate(mark);
             }
             // A punctus's cadence degree is fixed before its tail
-            // fills - the fill runs TO the ending.
+            // fills - the fill runs TO the ending. Mid-bar fills run
+            // to the next bar's head and stay inside what that figure
+            // can reach, so the boundary always closes.
+            let (flo_b, fhi_b) = if last_body {
+                (dlo, dhi)
+            } else {
+                head_ok(&figures[(k + 1) % BODY_BARS as usize])
+            };
             let fill_t = if last_body {
                 let goal = if in_a {
                     let near = |dg: i8| (nearest_deg(last_deg, dg) - last_deg).abs();
@@ -505,7 +526,7 @@ impl Composer {
             } else {
                 head_t(k + 1)
             }
-            .clamp(dlo, dhi);
+            .clamp(flo_b, fhi_b);
             // Free notes fill what the figure left, and they run
             // somewhere: toward the next bar's head, or the cadence on
             // a closing bar. A step toward the goal 70%, a third 15%,
@@ -528,16 +549,14 @@ impl Composer {
                             -toward
                         }
                     };
-                    // a step that would leave the register turns back -
-                    // but a tail that starts already outside it (a
-                    // wide figure ran off the window) must head for the
-                    // nearest bound instead, or reflecting keeps
-                    // walking it further out
+                    // a step that would leave the bound turns back -
+                    // and a tail already outside it walks back in
                     let next = last_deg + step;
-                    last_deg = if !(dlo..=dhi).contains(&last_deg) {
-                        let toward_bound = if last_deg < dlo { 1 } else { -1 };
-                        last_deg + toward_bound * step.abs()
-                    } else if (dlo..=dhi).contains(&next) {
+                    last_deg = if last_deg < flo_b {
+                        last_deg + step.abs()
+                    } else if last_deg > fhi_b {
+                        last_deg - step.abs()
+                    } else if (flo_b..=fhi_b).contains(&next) {
                         next
                     } else {
                         last_deg - step
@@ -706,16 +725,16 @@ impl Composer {
                         // sound after the shift, not the ones it kills
                         let offs: &[i32] = if is_a { &[0, 1, -1] } else { &[0] };
                         for &boff in offs {
-                            let sv: Vec<i32> = line[i + 1..]
+                            let sv: Vec<(i32, bool, i32)> = line[i + 1..]
                                 .iter()
                                 .zip(placed[i + 1..].iter())
                                 .filter(|(m, _)| !m.cadence)
-                                .filter_map(|(_, o)| {
+                                .filter_map(|(m, o)| {
                                     o.filter(|x| {
                                         (lo as i32..=hi as i32)
                                             .contains(&(x + 12 * boff))
                                     })
-                                    .map(|x| x + 12 * boff)
+                                    .map(|x| (x + 12 * boff, m.fig, m.at16 / bar16))
                                 })
                                 .take(10)
                                 .collect();
@@ -732,14 +751,18 @@ impl Composer {
                                 })
                                 .count() as i32;
                             let mut xcost = 0i32;
-                            for (k, &nv) in sv.iter().enumerate() {
+                            for (k, &(nv, nfig, nb)) in sv.iter().enumerate() {
                                 let gap = nv - c;
                                 let clean = gap.abs() <= 7
                                     && (gap.abs() < 5
-                                        || sv.get(k + 1).map_or(false, |&n2| {
-                                            let st = n2 - nv;
-                                            st.signum() == -gap.signum()
-                                                && st.abs() <= 4
+                                        || sv.get(k + 1).map_or(false, |&(n2, f2, b2)| {
+                                            // a figure's own leaps are
+                                            // the cell's grammar
+                                            (nfig && f2 && b2 == nb) || {
+                                                let st = n2 - nv;
+                                                st.signum() == -gap.signum()
+                                                    && st.abs() <= 4
+                                            }
                                         }));
                                 if clean {
                                     break;
@@ -787,10 +810,19 @@ impl Composer {
                         let clean = gap.abs() <= 7
                             && (gap.abs() < 5
                                 || (ni + 1..line.len())
-                                    .find_map(|x| placed[x])
-                                    .map_or(false, |n2| {
-                                        let st = n2 - n;
-                                        st.signum() == -gap.signum() && st.abs() <= 4
+                                    .find(|&x| placed[x].is_some())
+                                    .map_or(false, |nj| {
+                                        // a figure's own leaps are the
+                                        // cell's grammar
+                                        line[ni].fig
+                                            && line[nj].fig
+                                            && line[nj].at16 / bar16
+                                                == line[ni].at16 / bar16
+                                            || {
+                                                let st = placed[nj].unwrap() - n;
+                                                st.signum() == -gap.signum()
+                                                    && st.abs() <= 4
+                                            }
                                     }));
                         if clean {
                             break;
@@ -842,8 +874,17 @@ impl Composer {
                 } else if gap.abs() >= 5.0 && !cadence[i + 1] && !figpair {
                     match notes.get(i + 2) {
                         Some(nx) => {
-                            let st = nx.midi - notes[i + 1].midi;
-                            !(st.abs() <= 4.0 && st.signum() == -gap.signum())
+                            // a figure's own continuation is the cell's
+                            // grammar, no step-back owed
+                            if figv[i + 1]
+                                && figv.get(i + 2) == Some(&true)
+                                && notes[i + 1].at_sample / bar == nx.at_sample / bar
+                            {
+                                false
+                            } else {
+                                let st = nx.midi - notes[i + 1].midi;
+                                !(st.abs() <= 4.0 && st.signum() == -gap.signum())
+                            }
                         }
                         None => false,
                     }

@@ -66,3 +66,54 @@ fn test_no_decision_box_lists_a_lone_option() {
     assert!(g.log.iter().any(|l| l.contains("adjourned")),
         "the adjourn logged nothing - or a meeting seated anyway");
 }
+
+/// The knot's card shows while it's out (#1628): its rows name the
+/// ways to be wrong, and the pick echoes what was carried out
+#[test]
+fn test_the_knot_shows_its_own_card_and_echoes_the_pick() {
+    let mut g = Game::new();
+    let victim = g.villagers[0];
+    g.dilemma = Some(crate::session::events::MoralKnot {
+        text: "the grain or the children?".into(),
+        branches: vec![
+            crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
+            crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
+        ] });
+    let panel = g.convo_panel_at(0).expect("the knot's card never showed");
+    assert_eq!(panel.title, "THE KNOT");
+    assert!(panel.decides && panel.options.len() == 2, "{:?}", panel.options);
+    assert!(panel.options.iter().any(|o| o == "the grain"));
+    g.decide_at(0, 0);
+    assert!(g.dilemma.is_none(), "the knot never answered");
+    assert!(g.log.iter().any(|l| l.contains("the grain") && l.contains("carried out")),
+        "no resolution echo: {:?}", g.log.first());
+}
+
+/// The traveller's ask can't be eaten by a card the seat can't see
+/// (#1628): while a knot's out its own card shows instead, and once
+/// it's answered the survey box comes back and takes the pick
+#[test]
+fn test_a_standing_knot_cant_eat_the_travellers_ask() {
+    let mut g = Game::new();
+    let victim = g.villagers[0];
+    g.seats[0].survey = Some(crate::session::survey::SurveyOffer {
+        beat: crate::session::survey::SurveyBeat::OrgFounded, asked: g.tick });
+    g.dilemma = Some(crate::session::events::MoralKnot {
+        text: "the grain or the children?".into(),
+        branches: vec![
+            crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
+            crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
+        ] });
+    // the knot's card outranks the ask - the box that shows is the box
+    // that answers
+    assert_eq!(g.convo_panel_at(0).map(|p| p.title).as_deref(), Some("THE KNOT"));
+    g.decide_at(0, 0);
+    assert!(g.dilemma.is_none(), "the knot never answered");
+    // the ask's box is back, and this pick lands on it
+    let p = g.convo_panel_at(0).expect("the ask never came back");
+    assert_eq!(p.title, "THE TRAVELLER ASKS");
+    g.decide_at(0, 0);
+    assert!(g.seats[0].survey.is_none(), "the ask never answered");
+    assert!(g.log.iter().any(|l| l.contains("you tell the pedlar")),
+        "no echo for the answer");
+}

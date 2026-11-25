@@ -2063,6 +2063,15 @@ impl Game {
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
         // the answering seat's own cause bears what their pick costs (#962)
         let oe = self.seats[seat].org;
+        // the pick belongs to the box that's actually up (#1628): the
+        // traveller's ask sits last on the render chain, so when his
+        // card IS showing nothing louder may eat the pick first
+        if self.seats[seat].survey.is_some()
+            && self.convo_panel_at(seat)
+                .map(|p| p.title == "THE TRAVELLER ASKS").unwrap_or(false) {
+            self.survey_answered(seat, pick);
+            return;
+        }
         // the Act's officer waits on his answer: the scratch, the
         // fine, or the village's own counter-institution
         if let Some(offer) = self.vax_offer.take() {
@@ -2604,6 +2613,13 @@ impl Game {
                         "t{}: {} - the choice is carried out, and the remembering begins.",
                         self.tick, b.text
                     ),
+                );
+            } else {
+                // a Decide always echoes something (#1628): a pick past
+                // the card's rows still closes it, and says so
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: the knot's let be - the answer never landed.", self.tick),
                 );
             }
             return;

@@ -3475,6 +3475,19 @@ impl Game {
                 title: "THE LORD'S OFFER".into(),
                 rows, options, decides: true, leave: false });
         }
+        // the road's own knot (#1628): the card two ways to be wrong -
+        // it answers ahead of the meeting asks and the traveller's
+        // question, so it shows ahead of them too
+        if let Some(k) = &self.dilemma {
+            return Some(ConvoPanelV {
+                title: "THE KNOT".into(),
+                rows: vec![
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                        text: k.text.clone() },
+                ],
+                options: k.branches.iter().map(|b| b.text.clone()).collect(),
+                decides: true, leave: false });
+        }
         if s.meet_offer.is_some() {
             return Some(ConvoPanelV {
                 title: "THE CALL - WHEN DO THEY GATHER".into(),

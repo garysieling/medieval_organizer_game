@@ -39,6 +39,34 @@ fn test_speaker_reads_traits_trade_and_circumstance_off_the_world() {
 }
 
 #[test]
+fn test_the_day_rides_into_the_speakers_statuses() {
+    // #1617: the trades' "what's going on" lines gate on the world's
+    // real turn - every speaker carries the season underfoot, and a
+    // market day adds its own word to the talk
+    let g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    let s = speaker_of(&g.world, v, "Eliza", g.tick);
+    assert!(s.status.iter().any(|st| st.starts_with("season:")), "{:?}", s.status);
+    assert!(speaker_of(&g.world, v, "Eliza", routine::MARKET_DAY + 60).status.contains(&"market"));
+    assert!(!speaker_of(&g.world, v, "Eliza", routine::MARKET_DAY + 61).status.contains(&"market"));
+}
+
+#[test]
+fn test_the_common_trades_carry_their_status_into_talk() {
+    // the vocations the village actually rolls (#1617): each carries
+    // the status word its trees gate on
+    let mut g = Game::new();
+    let v = g.villagers[adults(&g)[0]];
+    for (voc, slug) in [(Vocation::Farmer, "farmer"), (Vocation::Tailor, "tailor"),
+                        (Vocation::Luthier, "luthier"), (Vocation::Printmaker, "printer"),
+                        (Vocation::Glazier, "glazier")] {
+        g.world.add_component(v, crate::game::vocation::craft(voc, 0.5));
+        let s = speaker_of(&g.world, v, "Eliza", g.tick);
+        assert!(s.status.contains(&slug), "{slug}: {:?}", s.status);
+    }
+}
+
+#[test]
 fn test_a_speakers_persona_wears_the_tells() {
     // E3-4 (#1425): the wound's habits ride the speaker as statuses -
     // the gossip criteria and the ask gate's tell bonus both read them

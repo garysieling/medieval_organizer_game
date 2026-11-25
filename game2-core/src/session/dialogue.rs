@@ -527,6 +527,11 @@ fn trade_status(v: Vocation) -> Option<&'static str> {
         Vocation::Baker => "baker",
         Vocation::Taverner => "taverner",
         Vocation::Cooper => "carpenter",
+        Vocation::Farmer => "farmer",
+        Vocation::Tailor => "tailor",
+        Vocation::Luthier => "luthier",
+        Vocation::Printmaker => "printer",
+        Vocation::Glazier => "glazier",
         _ => return None,
     })
 }
@@ -555,15 +560,26 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     // the sky overhead (#1388): the day's weather rides as a status so
     // weather talk gates on what the day is actually doing - rain lines
     // only fall out of a wet sky
-    let wx = world.query::<crate::sim::climate::Climate>().first()
-        .and_then(|&e| world.get_component::<crate::sim::climate::Climate>(e))
-        .and_then(crate::sim::precipitation::precip_kind);
+    let climate = world.query::<crate::sim::climate::Climate>().first()
+        .and_then(|&e| world.get_component::<crate::sim::climate::Climate>(e));
+    let wx = climate.and_then(crate::sim::precipitation::precip_kind);
     s.status.push(match wx {
         Some(k) if k.is_snow() => "wx-snow",
         Some(crate::sim::precipitation::PrecipKind::Haar) => "wx-fog",
         Some(_) => "wx-rain",
         None => "wx-fair",
     });
+    // the year under the sky (#1617): the season and a market day's
+    // bustle ride as statuses too, so the trades' "what's going on"
+    // lines gate on the day's real turn - lambs in spring, the stall
+    // round the cross on the twentieth
+    s.status.push(match climate.map(|c| c.season) {
+        Some(crate::sim::climate::Season::Spring) => "season:spring",
+        Some(crate::sim::climate::Season::Summer) => "season:summer",
+        Some(crate::sim::climate::Season::Autumn) => "season:autumn",
+        _ => "season:winter",
+    });
+    if super::routine::is_market_day(tick) { s.status.push("market"); }
     // the voice's own weight in the room (#1249): bonds, seniority,
     // standing, the moral pull of a dead loss - read live, not stored
     s.pull = crate::game::organizing::pull_of(world, who);

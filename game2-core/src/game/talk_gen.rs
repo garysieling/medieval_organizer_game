@@ -11,6 +11,16 @@ use crate::session::NAMES;
 
 pub const IDEOLOGIES: [&str; 4] = ["laborer", "merchant", "clergy", "lord"];
 pub const STATUSES: [&str; 5] = ["well", "sick", "hungry", "grieving", "drunk"];
+
+/// The trades the corpus can deal (#1617): the slugs `speaker_of`
+/// pushes for the village's craft-holders, so a synthetic batch hears
+/// the vocation voices too
+const TRADES: [&str; 12] = ["farmer", "baker", "mason", "tailor", "smith", "luthier",
+    "printer", "glazier", "weaver", "shepherd", "brewer", "fisher"];
+
+/// The year's four turns, dealt like the sky (#1617): season-gated
+/// lines read as the day the corpus stands on
+const SEASONS: [&str; 4] = ["season:spring", "season:summer", "season:autumn", "season:winter"];
 pub const ALL_TRAITS: [Trait; 8] = [
     Trait::Lazy,
     Trait::Ambitious,
@@ -67,6 +77,10 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
     // lines show in the generated corpus, keyed on the wx-* statuses
     // speaker_of pushes in-game
     let wx = ["wx-rain", "wx-snow", "wx-fog", "wx-fair"][rng.below(4)];
+    // and the same day's other facts (#1617): one season, and the
+    // market's up on every fourth batch
+    let season = SEASONS[rng.below(4)];
+    let market = rng.below(4) == 0;
     for i in 0..n {
         let name = NAMES[i % NAMES.len()];
         let ideology = IDEOLOGIES[rng.below(IDEOLOGIES.len())];
@@ -85,6 +99,13 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
         let status_pick = STATUSES[rng.below(STATUSES.len())];
         let mut status = Vec::new();
         status.push(wx);
+        status.push(season);
+        if market { status.push("market"); }
+        // a craft to answer and lead with (#1617): the trade's voice
+        // rides both sides of the corpus - calls when it leads, replies
+        // when a laborer asks. Half the roster stays tradeless hands
+        let ti = rng.below(TRADES.len() * 2);
+        if ti < TRADES.len() { status.push(TRADES[ti]); }
         if status_pick != "well" {
             status.push(status_pick);
         }

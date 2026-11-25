@@ -3229,6 +3229,60 @@ mod tests {
     }
 
     #[test]
+    fn test_the_trades_lead_and_answer_in_their_own_voices() {
+        // #1617: a trade-holder leading a talk opens on the day's work -
+        // and the same holder, asked, answers with the day's account
+        let library = village_library();
+        let mut rng = Rng::new(7);
+        let mut farmer = Speaker::new("Hugh");
+        farmer.status.push("farmer");
+        let wat = Speaker::new("Wat");
+
+        // hugh leads: the field's own report, not generic smalltalk
+        let tr = converse(&farmer, &wat, Relation::Acquaintance, None, &library, None, &mut rng);
+        assert_eq!(tr.trees_walked[0], "the_ploughman", "{:?}", tr.trees_walked);
+        assert!(tr.turns.iter().any(|t| t.tree == "the_ploughman"));
+
+        // wat leads, hugh answers: the fields answer in voice too
+        let tr = converse(&wat, &farmer, Relation::Acquaintance, None, &library, None, &mut rng);
+        assert_eq!(tr.trees_walked[0], "farmer_fields", "{:?}", tr.trees_walked);
+        assert!(tr.turns.iter().any(|t| t.tree == "farmer_fields" && t.speaker == 1),
+            "the farmer should be the one telling it: {:?}", tr.turns.iter().map(|t| &t.text).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn test_the_days_facts_change_which_trade_account_speaks() {
+        // #1617: the live facts the day rides on pick the account - a
+        // market day's baker opens differently, and a spring's shepherd
+        // carries the lambing in her answer
+        let library = village_library();
+        let mut rng = Rng::new(11);
+        let wat = Speaker::new("Wat");
+
+        // market day outranks the plain tree: two criteria to one's one
+        let mut baker = Speaker::new("Alys");
+        baker.status.extend(["baker", "market"]);
+        let tr = converse(&baker, &wat, Relation::Acquaintance, None, &library, None, &mut rng);
+        assert_eq!(tr.trees_walked[0], "the_bakers_market", "{:?}", tr.trees_walked);
+
+        // off-market the same baker falls back to the steady account
+        baker.status.retain(|s| *s != "market");
+        let tr = converse(&baker, &wat, Relation::Acquaintance, None, &library, None, &mut rng);
+        assert_eq!(tr.trees_walked[0], "the_bakers_oven", "{:?}", tr.trees_walked);
+
+        // and the replier's own day seasons the answer - the spring's
+        // lambing news is in the pool when the ewes are asked after
+        let mut shepherd = Speaker::new("Maud");
+        shepherd.status.extend(["shepherd", "season:spring"]);
+        let mut lambs = false;
+        for seed in 0..30 {
+            let tr = converse(&wat, &shepherd, Relation::Acquaintance, None, &library, None, &mut Rng::new(seed));
+            if tr.turns.iter().any(|t| t.speaker == 1 && t.text.contains("lambs")) { lambs = true; break; }
+        }
+        assert!(lambs, "a spring's shepherd should report the lambing");
+    }
+
+    #[test]
     fn test_helplessness_registers_the_same_issue_resigned() {
         // a cold speaker's trouble lands as resignation, woven onto the
         // ordinary beats - and a dedicated pool answers for them (#1269)

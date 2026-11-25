@@ -661,15 +661,6 @@ impl Game {
             let v = self.villagers[self.seats[seat].selected_target];
             if self.world.get_component::<Kid>(v).is_some() {
                 self.seats[seat].ctx_actions.push(CtxAct::Errand);
-            } else if let Some(c) = self.world.get_component::<Craft>(v) {
-                let junior = vocation::level_of(c.skill) < Level::Master && c.master.is_none();
-                let has_master = junior && self.villagers.iter().any(|&m| {
-                    m != v && self.world.get_component::<Craft>(m)
-                        .map(|mc| mc.vocation == c.vocation && vocation::level_of(mc.skill) == Level::Master).unwrap_or(false)
-                });
-                if has_master {
-                    self.seats[seat].ctx_actions.push(CtxAct::PairUp);
-                }
             }
             // you know two hearts that are looking: put a word between them
             let pe = self.seats[seat].player;
@@ -832,25 +823,7 @@ impl Game {
             return;
         }
         let msg = match act {
-            CtxAct::PairUp => {
-                let v = self.villagers[self.seats[seat].selected_target];
-                let voc = self.world.get_component::<Craft>(v).map(|c| c.vocation);
-                let master = voc.and_then(|voc| self.villagers.iter().copied().find(|&m| {
-                    m != v && self.world.get_component::<Craft>(m)
-                        .map(|mc| mc.vocation == voc && vocation::level_of(mc.skill) == Level::Master).unwrap_or(false)
-                        && !crate::game::dungeon::unavailable(&self.world, m)
-                }));
-                match master {
-                    Some(m) => {
-                        self.world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
-                        relationships::add_relationship(&mut self.world, relationships::Relationship {
-                            from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1, ..Default::default() });
-                        let mi = self.villagers.iter().position(|x| *x == m).unwrap();
-                        format!("You pair {} with {} - he'll learn faster now.", self.cast_name(self.seats[seat].selected_target), self.cast_name(mi))
-                    }
-                    None => "No master of their trade to pair them with.".into(),
-                }
-            }
+            CtxAct::PairUp => self.pair_up_at(self.seats[seat].selected_target),
             CtxAct::Matchmake => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 self.match_attempt(v, tick, Some(self.seats[seat].player), "You");
@@ -1390,6 +1363,35 @@ impl Game {
         let pe = self.seats[seat].player;
         self.shroom_take(pe, pi, kind, self.tick);
         String::new()
+    }
+
+    /// Pair `villagers[vi]` - a junior of their trade with no master -
+    /// with the first free master of it; the Pair up button's gone
+    /// (#1598), agents apprentice through their own ask. Returns the
+    /// line the press spoke, "No master..." when there's no one to take them
+    pub(in crate::session) fn pair_up_at(&mut self, vi: usize) -> String {
+        let v = self.villagers[vi];
+        match self.pair_master_for(v) {
+            Some(m) => {
+                self.world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
+                relationships::add_relationship(&mut self.world, relationships::Relationship {
+                    from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1, ..Default::default() });
+                let mi = self.villagers.iter().position(|x| *x == m).unwrap();
+                format!("You pair {} with {} - he'll learn faster now.", self.cast_name(vi), self.cast_name(mi))
+            }
+            None => "No master of their trade to pair them with.".into(),
+        }
+    }
+
+    /// The first available master of `v`'s trade - the pairing the old
+    /// Pair up button offered, and what the agent's ask still checks
+    pub(in crate::session) fn pair_master_for(&self, v: Entity) -> Option<Entity> {
+        let voc = self.world.get_component::<Craft>(v).map(|c| c.vocation)?;
+        self.villagers.iter().copied().find(|&m| {
+            m != v && self.world.get_component::<Craft>(m)
+                .map(|mc| mc.vocation == voc && vocation::level_of(mc.skill) == Level::Master).unwrap_or(false)
+                && !crate::game::dungeon::unavailable(&self.world, m)
+        })
     }
 
     /// The stray cat's entity when she's afoot, hasn't chosen yet, and the

@@ -849,6 +849,12 @@ fn test_the_founding_call_enrolls_everyone_who_came() {
     let members = &g.world.get_component::<Organization>(g.org).unwrap().members;
     assert!(members.contains(&listener),
         "the room joins as a body (was sworn by the meeting: {was}): {members:?}");
+    // and the roll-call's grammar agrees: the one new name joins,
+    // never "join" (#1626)
+    assert!(g.log.iter().any(|l| l.contains("joins the rolls")),
+        "the enrollment never logged: {:?}", g.log.last());
+    assert!(!g.log.iter().any(|l| l.contains(" join the rolls")),
+        "a lone name took the plural verb");
     // and the dues book opens with the cause - the flat rate the vote set
     let dues = g.world.get_component::<crate::game::campaign::Dues>(g.org)
         .expect("the founding opened the roll");

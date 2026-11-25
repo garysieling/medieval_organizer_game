@@ -1050,13 +1050,20 @@ impl Game {
                     if crate::game::organizing::storm_strikes_hall(&mut self.world, oe) {
                         let oname = self.world.get_component::<Organization>(oe)
                             .map(|o| o.name.clone()).unwrap_or_default();
+                        // a name already ending in s takes the bare
+                        // apostrophe (#1626): "the Harvesters' roof"
+                        let poss = if oname.ends_with('s') {
+                            format!("{oname}'")
+                        } else {
+                            format!("{oname}'s")
+                        };
                         let hall = household::home_of(&self.world, self.player)
                             .and_then(|h| toast_spot(&self.world, h));
                         self.log.push_ev_at_who(
                             EvTag::new(Thread::Weather, Valence::Negative, Sev::Notable),
                             format!(
-                                "t{}: the storm takes {}'s roof - the hall's unfit to meet in.",
-                                tick, oname
+                                "t{}: the storm takes {} roof - the hall's unfit to meet in.",
+                                tick, poss
                             ),
                             hall,
                             None,

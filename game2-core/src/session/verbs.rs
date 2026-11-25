@@ -2721,7 +2721,10 @@ impl Game {
                     .filter_map(|e| self.villagers.iter().position(|v| v == e)
                         .map(|i| self.cast_name(i).to_string()))
                     .collect();
-                msg += &format!(" - {} join the rolls", names.join(", "));
+                // one name takes the singular (#1626): "Greta joins",
+                // not "Greta join"
+                let verb = if names.len() == 1 { "joins" } else { "join" };
+                msg += &format!(" - {} {} the rolls", names.join(", "), verb);
             }
             self.log.push_ev(
                 EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),

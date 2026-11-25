@@ -59,3 +59,24 @@ fn test_the_haar_lifts_without_a_rainbow() {
     assert!(!g.log.iter().any(|l| l.contains("rainbow")), "fog leaves no rainbow");
     assert_eq!(g.rainbow_from, None);
 }
+
+/// The storm line's possessive reads clean on a plural name (#1626):
+/// "the Harvesters' roof", never "the Harvesters's roof"
+#[test]
+fn test_the_storm_line_handles_a_plural_name() {
+    let mut g = Game::new();
+    // the cause's hall stands; roll the days till a storm lands
+    g.world.add_component(g.seats[0].org, crate::game::organizing::MeetingHall);
+    let mut struck = false;
+    for t in 0..800 {
+        if let Some(w) = g.world.get_component_mut::<CurrentWeather>(g.weather) {
+            w.kind = Weather::Clear; w.duration = 0;
+        }
+        g.weather_tick(t);
+        if g.log.iter().any(|l| l.contains("unfit to meet")) { struck = true; break; }
+    }
+    assert!(struck, "no storm ever landed on the hall");
+    let line = g.log.iter().find(|l| l.contains("unfit to meet")).unwrap().clone();
+    assert!(line.contains("Harvesters' roof"), "{line}");
+    assert!(!line.contains("s's"), "{line}");
+}

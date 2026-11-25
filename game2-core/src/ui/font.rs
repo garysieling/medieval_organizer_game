@@ -1,7 +1,8 @@
 //! Bitmap font renderer - draws text into pixel buffers.
 //! Two hands, baked to the same 14x13 cells by scripts/bake_font.py and
-//! scripts/bake_book_font.py (tables in glyphs.rs / glyphs_book.rs), so a
-//! face swap never moves a layout. No runtime font dep.
+//! scripts/bake_book_font.py (tables in engine/glyphs.rs /
+//! engine/glyphs_book.rs), so a face swap never moves a layout.
+//! No runtime font dep.
 //!
 //! - `Face::Rubric` - Jacquarda Bastarda 9 blackletter, the manuscript's
 //!   rubric hand: titles, section heads, quotes, the explanatory words a
@@ -14,49 +15,27 @@
 //! they were drawn rather than monospaced.
 
 use crate::engine::render::Buffer;
-use crate::ui::glyphs::{ADVANCES, GLYPHS};
-use crate::ui::glyphs_book::{BOOK_ADVANCES, BOOK_GLYPHS};
+use crate::engine::glyphs::GLYPHS;
+use crate::engine::glyphs_book::BOOK_GLYPHS;
+// the metrics live in `engine::text` (pure data - the session's layout
+// reads them too); font::measure stays the name callers know
+pub use crate::engine::text::{measure, measure_rubric, Face};
+pub(crate) use crate::engine::text::advance_for;
 
 /// Cell columns / rows, matching layout's GLYPH_H (the width's per
 /// glyph now - `measure` gives a string's true pixels)
 const COLS: usize = 14;
 
-/// Which hand a string draws in - the book face (body text, the default)
-/// or the blackletter rubric (titles, heads, quotes)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Face { Rubric, Book }
-
-fn tables(face: Face) -> (&'static [[u16; 13]; 95], &'static [u8; 95]) {
+fn glyphs(face: Face) -> &'static [[u16; 13]; 95] {
     match face {
-        Face::Rubric => (&GLYPHS, &ADVANCES),
-        Face::Book => (&BOOK_GLYPHS, &BOOK_ADVANCES),
+        Face::Rubric => &GLYPHS,
+        Face::Book => &BOOK_GLYPHS,
     }
-}
-
-/// The glyph's own advance: its ink plus a pixel of air. Unsupported
-/// codes take the space advance.
-fn advance_for(c: u8, face: Face) -> i32 {
-    let (_, advs) = tables(face);
-    if c < 32 || c > 126 { return advs[0] as i32; }
-    advs[(c - 32) as usize] as i32
-}
-
-/// The string's true drawn width in pixels - what `draw_text` (the book
-/// face) would return, without a buffer. Centering and bubble sizing
-/// should ask this, not count chars times a fixed width.
-pub fn measure(text: &str) -> i32 {
-    text.chars().map(|c| advance_for(c as u8, Face::Book)).sum()
-}
-
-/// The string's width in the rubric hand - for centering titles and
-/// heads, which draw in blackletter
-pub fn measure_rubric(text: &str) -> i32 {
-    text.chars().map(|c| advance_for(c as u8, Face::Rubric)).sum()
 }
 
 /// Draw a single char at (x,y) in `face`. Returns advance width.
 pub fn draw_char(buf: &mut Buffer, x: i32, y: i32, c: char, face: Face, r: u8, g: u8, b: u8) -> i32 {
-    let (glyphs, _) = tables(face);
+    let glyphs = glyphs(face);
     let glyph = if (c as u8) < 32 || (c as u8) > 126 { [0u16; 13] } else { glyphs[(c as u8 - 32) as usize] };
     for (row, bits) in glyph.iter().enumerate() {
         for col in 0..COLS {
@@ -113,7 +92,7 @@ pub fn draw_text_scaled(buf: &mut Buffer, x: i32, y: i32, text: &str, scale: usi
     if scale <= 1 { return draw_rubric(buf, x, y, text, r, g, b); }
     let mut cx = x;
     for c in text.chars() {
-        let (glyphs, _) = tables(Face::Rubric);
+        let glyphs = glyphs(Face::Rubric);
         let glyph = if (c as u8) < 32 || (c as u8) > 126 { [0u16; 13] } else { glyphs[(c as u8 - 32) as usize] };
         for (row, bits) in glyph.iter().enumerate() {
             for col in 0..COLS {
@@ -164,7 +143,7 @@ mod tests {
     use super::*;
 
     fn ink_of(c: u8, face: Face) -> u32 {
-        let (glyphs, _) = tables(face);
+        let glyphs = glyphs(face);
         if c < 32 || c > 126 { return 0; }
         glyphs[(c - 32) as usize].iter().map(|r| r.count_ones()).sum()
     }
@@ -180,10 +159,10 @@ mod tests {
                     "'{}' (ascii {}) draws nothing in {:?}", c as char, c, face);
             }
         }
-        let (glyphs, _) = tables(Face::Book);
-        assert_eq!(glyphs[0], [0; 13], "space stays empty");
-        let (glyphs, _) = tables(Face::Rubric);
-        assert_eq!(glyphs[0], [0; 13], "space stays empty");
+        let book = glyphs(Face::Book);
+        assert_eq!(book[0], [0; 13], "space stays empty");
+        let rubric = glyphs(Face::Rubric);
+        assert_eq!(rubric[0], [0; 13], "space stays empty");
     }
 
     #[test]

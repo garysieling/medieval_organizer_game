@@ -157,7 +157,7 @@ pub fn edge_scroll(mx: i32, my: i32) -> (f32, f32) {
 /// Font glyph budget and height (ui::font): the Jacquarda blackletter
 /// draws per-glyph now - advances run ~4-12px, so this is the
 /// chars-per-line budget only; a real string width comes from
-/// `font::measure` (#1322, #1562)
+/// `engine::text::measure` (#1322, #1562)
 pub const GLYPH_W: i32 = 9;
 
 pub const GLYPH_H: i32 = 13;
@@ -195,11 +195,11 @@ pub fn wrap_text(text: &str, max: usize) -> Vec<String> {
 /// Word-wrap `text` into lines of at most `max_px` pixels in the book
 /// face, breaking at spaces. The glyph budget version (`wrap_text`)
 /// counts chars, which only ever approximated the old fixed-width face;
-/// a string's real width comes from `font::measure`, and the columns it
+/// a string's real width comes from `engine::text::measure`, and the columns it
 /// wraps for are laid out in pixels (a word wider than a line is split
 /// where it stops fitting)
 pub fn wrap_px(text: &str, max_px: i32) -> Vec<String> {
-    use crate::ui::font::measure;
+    use crate::engine::text::measure;
     let mut lines = vec![];
     let mut line = String::new();
     for word in text.split_whitespace() {

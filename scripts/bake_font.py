@@ -9,14 +9,14 @@ than a wide one) into 14-column cells so the widest glyphs (m, w, @)
 keep their full ink instead of cropping at the cell edge, and each
 glyph carries its own advance: ink width plus a pixel of air, so the
 tracking tightens up where the old fixed 11px advance spread thin
-letters apart. Output is game2-core/src/ui/glyphs.rs.
+letters apart. Output is game2-core/src/engine/glyphs.rs.
 """
 import os
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TTF = os.path.join(ROOT, "scripts", "fonts", "JacquardaBastarda9.ttf")
-OUT = os.path.join(ROOT, "game2-core", "src", "ui", "glyphs.rs")
+OUT = os.path.join(ROOT, "game2-core", "src", "engine", "glyphs.rs")
 
 SIZE = 13          # the face's native crisp raster
 Y0, Y1 = 4, 17     # global ink band (measured across ASCII 32-126)

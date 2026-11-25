@@ -1385,6 +1385,9 @@ pub struct Game {
     /// day it was last spoken, so nobody repeats a thing still fresh in
     /// ears (#1369)
     pub said_lines: crate::engine::det::HashMap<&'static str, u64>,
+    /// Names the scouting read has said lately, villager -> the day -
+    /// the read prefers people it hasn't just named (#1605)
+    pub scout_named: crate::engine::det::HashMap<Entity, u64>,
     pub talk_next_id: u64,
     pub frame_n: u32,
 

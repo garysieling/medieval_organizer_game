@@ -2563,10 +2563,10 @@ impl Game {
     /// are the village's strongest voices (pull, computed live), one a
     /// resented one if they hold a grudge, and their own read on how
     /// far their own voice carries
-    fn scout_read(&self, seat: usize) -> Vec<String> {
+    pub(in crate::session) fn scout_read(&mut self, seat: usize) -> Vec<String> {
         use crate::game::relationships::{RelKind, Relationship};
         let Some(t) = self.seats[seat].talk.as_ref() else { return vec![] };
-        let who = t.who;
+        let (who, tseed) = (t.who, t.seed);
         // clear-voiced: above this a name's worth naming
         const CLEAR: f32 = 0.85;
         let mut ranked: Vec<(f32, Entity)> = self.villagers.iter().copied()
@@ -2575,15 +2575,44 @@ impl Game {
             .collect();
         ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
             .then(a.1.cmp(&b.1)));
-        let mut out: Vec<String> = vec![];
-        let clear: Vec<Entity> = ranked.iter().take(2)
+        // the read prefers names it hasn't said lately (#1605): a name
+        // still warm in the village's ears waits its turn again
+        let tick = self.tick;
+        let fresh = |v: Entity| self.scout_named.get(&v)
+            .map(|d| *d + FRESH_LINE_DAYS >= tick).unwrap_or(false);
+        let clear: Vec<Entity> = ranked.iter()
             .filter(|(p, _)| *p >= CLEAR).map(|&(_, v)| v).collect();
-        if clear.is_empty() {
-            out.push("Folk keep their own counsel here - nobody the whole room looks to.".into());
+        let mut picks: Vec<Entity> = clear.iter().copied()
+            .filter(|&v| !fresh(v)).take(2).collect();
+        for &v in &clear {
+            if picks.len() >= 2 { break; }
+            if !picks.contains(&v) { picks.push(v); }
+        }
+        for &v in &picks { self.scout_named.insert(v, tick); }
+        // the occasions pool - who folk go to for work, a row, a
+        // favour - so a second ask doesn't restate the first (#1605)
+        const OCCASIONS: &[&str] = &[
+            "When the roof leaks, it's {} folk fetch.",
+            "Short a hand come harvest, it's {} they ask.",
+            "A row wants settling - folk fetch {}.",
+            "A favour's best asked of {}.",
+            "The rent man at the door, folk look to {}.",
+            "A body takes sick, it's {} they send for.",
+        ];
+        // the wording draws from the talk's own stream, not the game's -
+        // an ask that spends rng shifts every later roll (#1605)
+        let mut wr = TalkRng::new(tseed ^ tick);
+        let base = wr.below(OCCASIONS.len());
+        let mut out: Vec<String> = vec![];
+        if picks.is_empty() {
+            const NOBODY: &[&str] = &[
+                "Folk keep their own counsel here - nobody the whole room looks to.",
+                "Nobody's word carries far here - every house minds its own.",
+            ];
+            out.push(NOBODY[wr.below(NOBODY.len())].into());
         } else {
-            out.push(format!("When the roof leaks, it's {} folk fetch.", self.name_of(clear[0])));
-            if clear.len() > 1 {
-                out.push(format!("And {} gets heard, most times.", self.name_of(clear[1])));
+            for (k, &v) in picks.iter().enumerate() {
+                out.push(OCCASIONS[(base + k) % OCCASIONS.len()].replace("{}", &self.name_of(v)));
             }
         }
         // who they resent: a rival bond they carry, worst first
@@ -2598,12 +2627,21 @@ impl Game {
         rivals.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
             .then(a.1.cmp(&b.1)));
         if let Some(&(_, r)) = rivals.first() {
-            out.push(format!("{} though - I'd not follow them anywhere, mind.", self.name_of(r)));
+            const WARNS: &[&str] = &[
+                "{} though - I'd not follow them anywhere, mind.",
+                "But {} - them I'd sooner walk against than after.",
+            ];
+            out.push(WARNS[wr.below(WARNS.len())].replace("{}", &self.name_of(r)));
         }
         let own = crate::game::organizing::pull_of(&self.world, who);
-        out.push(if own >= 1.2 { "Me? Folk come to me when it counts.".into() }
-            else if own >= 0.8 { "Me? They hear me out, mostly.".into() }
-            else { "Me? Nobody much minds me.".into() });
+        const PROUD: &[&str] = &["Me? Folk come to me when it counts.",
+            "Me? They fetch me when it matters."];
+        const HEARD: &[&str] = &["Me? They hear me out, mostly.",
+            "Me? I get my say, most times."];
+        const SMALL: &[&str] = &["Me? Nobody much minds me.",
+            "Me? My word doesn't travel far."];
+        let pool = if own >= 1.2 { PROUD } else if own >= 0.8 { HEARD } else { SMALL };
+        out.push(pool[wr.below(pool.len())].into());
         out
     }
 

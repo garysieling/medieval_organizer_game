@@ -384,7 +384,8 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Board => Button { label: "Board".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
         CtxAct::Disembark => Button { label: "Disembark".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
         CtxAct::Fish => Button { label: "Fish".into(), key: ' ', x: UI_X as i32 + 150, y: 272, w: 62, h: 16, color: (80, 120, 100) },
-        // Gather sits where Organize used to - the meeting is earned now
+        // Gather's kept so a list from an older server still draws and
+        // clicks through - this server never pushes it (#1596)
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
         CtxAct::PetCat => Button { label: "Pet her".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
         // shares the row's right half with Pet her - pushed last, it

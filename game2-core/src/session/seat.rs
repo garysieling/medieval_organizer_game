@@ -73,8 +73,9 @@ pub enum CtxAct {
     Disembark,
     /// Drop a line off the boat: the river feeds you where it runs
     Fish,
-    /// Call the house meeting the organizer has earned - a venue promised
-    /// and folk who've said they'll come
+    /// Call the house meeting - wire-only now (#1596): kept so an older
+    /// server's list still decodes and clicks through; a new server
+    /// never offers it, meetings schedule in talk and convene themselves
     Gather,
     /// Stroke the stray cat who's keeping you company
     PetCat,
@@ -142,9 +143,11 @@ pub struct Seat {
     /// conversation box, waiting on their pick (Command::Decide). Each
     /// organizer holds their own - another seat's meeting can't erase it
     pub pending_founding: Option<PendingFounding>,
-    /// The day-question a Gather press leaves open on the conversation
-    /// box, waiting on their pick (Command::Decide). The tick it was
-    /// asked, so an unanswered one can lapse like the founding's
+    /// The date question a scheduling answer leaves open on the
+    /// conversation box ("when do they gather"), waiting on their pick
+    /// (Command::Decide) - the Meet again answer asks it now that the
+    /// Gather button's gone (#1596). The tick it was asked, so an
+    /// unanswered one can lapse like the founding's
     pub meet_offer: Option<u64>,
     /// The question-question the day pick leaves open (#1267): put the
     /// matter or probe what they want, waiting on their pick

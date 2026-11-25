@@ -254,8 +254,10 @@ fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
     let (oe, tick) = (g.org, g.tick); let _ = propose(&mut g.world, pe, oe, guest, PropKind::ComeAlong, "Bram", 0.0, tick);
     assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().ready());
     g.update_ctx_actions();
-    assert!(g.seats[0].ctx_actions.contains(&crate::session::CtxAct::Gather));
-    // Gather calls it: the committed walk over
+    // the Gather button's gone (#1596): no ctx button calls the meeting
+    assert!(g.seats[0].ctx_actions.iter().all(|&a| ctx_button(a).label != "Gather"),
+        "the Gather button's back");
+    // the call itself still convenes the committed
     let msg = g.call_meeting();
     assert!(g.meeting.is_some(), "{}", msg);
 }
@@ -363,11 +365,11 @@ fn test_a_called_meeting_waits_for_the_day_its_word_names() {
     g.world.add_component(rel, Relationship { from: g.player, other: host,
         kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
-    // the press asks the day - nothing gathers yet
-    g.update_ctx_actions_at(0);
-    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::Gather).unwrap();
-    g.ctx_act_at(0, i);
-    assert!(g.meeting.is_none(), "the press asks a day, it doesn't fire");
+    // a scheduling answer - the Meet again one, since the Gather
+    // button's gone (#1596) - asks the day on the box; nothing
+    // gathers until it's picked
+    g.seats[0].meet_offer = Some(g.tick);
+    assert!(g.meeting.is_none(), "the ask waits for a day, it doesn't fire");
     let panel = g.convo_panel_at(0).expect("the day question's on the box");
     assert!(panel.decides && panel.options.len() == 3, "{:?}", panel.options);
     // two days out: the plan keeps its promises and the board carries it
@@ -377,8 +379,6 @@ fn test_a_called_meeting_waits_for_the_day_its_word_names() {
     assert!(plan.coming.contains(&bram), "the plan stays open on the org");
     assert!(g.notices.iter().any(|(k, _, u)| k == "meet" && *u == g.tick + 2),
         "the board carries the call till the day: {:?}", g.notices);
-    assert_eq!(g.ctx_blocker_at(0, CtxAct::Gather).as_deref(), Some("the word's already out"),
-        "a second press just hears the word's out");
     // the day arrives: the door rolls then, not before
     g.livelihood_tick(g.tick + 1);
     assert!(g.meeting.is_none(), "a day early is a day early");
@@ -436,10 +436,17 @@ fn test_a_meeting_with_a_cause_ends_in_next_steps() {
     let call = g.convo_panel_at(0).expect("the call on the box");
     assert!(call.options.iter().any(|o| o.contains("Meet again")), "{:?}", call.options);
     assert!(call.options.iter().any(|o| o.contains("street")), "{:?}", call.options);
-    // meet again reseeds the plan: they'd come back
+    // meet again reseeds the plan: they'd come back - and the answer
+    // reopens the day question itself now that no button's left to (#1596)
     g.decide_at(0, 0);
     let plan = g.world.get_component::<crate::game::organizing::MeetingPlan>(g.org).unwrap();
     assert!(!plan.coming.is_empty(), "the willing are on the next plan");
+    assert!(g.seats[0].meet_offer.is_some(), "the box asks when they'll gather");
+    let panel = g.convo_panel_at(0).expect("the day question follows the answer");
+    assert!(panel.decides && panel.options.len() == 3, "{:?}", panel.options);
+    g.decide_at(0, 0); // two days out
+    assert_eq!(g.world.get_component::<crate::game::organizing::MeetingPlan>(g.org)
+        .unwrap().for_day, Some(g.tick + 2), "the follow-up's dated");
 }
 
 #[test]

@@ -25,15 +25,6 @@ impl Game {
     /// with the reason beside it, like the main buttons' `blocked`
     pub fn ctx_blocker_at(&self, seat: usize, act: CtxAct) -> Option<String> {
         match act {
-            CtxAct::Gather => {
-                if self.meeting.is_some() { Some("a meeting is under way".into()) }
-                else if self.seats[seat].meet_offer.is_some() { Some("the call's day isn't picked yet".into()) }
-                else {
-                    self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
-                        .map(|p| if p.for_day.is_some() { Some("the word's already out".into()) }
-                            else if p.ready() { None } else { Some(p.missing().to_string()) }).flatten()
-                }
-            }
             CtxAct::PickCaps => {
                 self.shroom_patch_at(seat).and_then(|pi|
                     self.lore_of(self.seats[seat].player).contains(&pi)
@@ -753,12 +744,12 @@ impl Game {
         if self.rebel_store_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::TakeCache);
         }
-        // a house meeting is earned: the button shows once a place and a
-        // promise are on the plan, and only while no meeting is under way
+        // a meeting the word alone convenes earns no button (#1596):
+        // the call's day is picked in talk now. The acts below still
+        // stand on the same gate - a ready plan, no meeting under way
         if self.meeting.is_none()
             && self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
                 .map(|p| p.ready()).unwrap_or(false) {
-            self.seats[seat].ctx_actions.push(CtxAct::Gather);
             // a gathering today the player can join: the service, the
             // feast, or a celebrant's day - standing in it counts
             if routine::is_holy(self.tick) || self.tick % 90 == 45
@@ -987,6 +978,9 @@ impl Game {
             }
             CtxAct::Townhall => self.townhall_at(seat),
             CtxAct::Gather => {
+                // wire-only on a new server (#1596) - never pushed, so
+                // unreachable in practice; if it fires, the date
+                // question is still the right landing
                 self.seats[seat].meet_offer = Some(self.tick);
                 "The plan's made - now the word wants a day.".into()
             }
@@ -2712,6 +2706,9 @@ impl Game {
                 let oe = self.seats[seat].org;
                 let plan = crate::game::organizing::plan_for(&mut self.world, oe);
                 for &e in &d.meet_again { if !plan.coming.contains(&e) { plan.coming.push(e); } }
+                // the button that asked the day's gone (#1596): the
+                // yeses are already in, so the box asks the day itself
+                self.seats[seat].meet_offer = Some(self.tick);
                 let msg = "They'll gather again - you'll need a place to meet.".to_string();
                 self.log.push_ev(
                     EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),

@@ -218,7 +218,6 @@ fn drive_agitator(
     const PRESS: &[CtxAct] = &[
         CtxAct::Strike,
         CtxAct::Townhall,
-        CtxAct::Gather,
         CtxAct::Attend,
     ];
     for &act in PRESS {

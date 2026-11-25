@@ -1413,8 +1413,8 @@ impl View {
 
         // the bond ledger: the reward for keeping company - who the
         // seat has spoken to and how far each bond has climbed. It sits
-        // between the Build button (ends 184) and the Gather ctx button
-        // (starts 236), so the block can't outgrow three lines
+        // between the Build button (ends 184) and the ctx row that once
+        // held Gather (starts 236), so the block can't outgrow three lines
         let s = &m.panel.social;
         draw_rubric(&mut buf, UI_X as i32 + 18, 240, "BONDS", 255, 215, 0);
         for (n, line) in bond_lines(s).iter().enumerate() {

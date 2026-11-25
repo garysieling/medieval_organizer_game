@@ -2353,8 +2353,8 @@ impl Game {
             }
             // the first invitation to an un-called meet earns the
             // follow-up (#1337): they'll come - then "when are we
-            // gathering?" The call panel's day pick stays the way when
-            // no invite asks it first
+            // gathering?" The invite's day pick is the call's whole
+            // way now - the Gather button's gone (#1596)
             if o.kind == crate::game::organizing::PropKind::ComeAlong {
                 let came = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
                     .map(|p| p.coming.contains(&who) && p.for_day.is_none())

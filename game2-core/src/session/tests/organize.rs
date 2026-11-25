@@ -2106,3 +2106,58 @@ fn test_bringing_it_home_leaves_the_unaired_untold() {
     assert_eq!(g.voiced.len(), voices, "a cut turn left a voice in the tally");
     assert_eq!(heard(&g), told, "a cut turn still told the organizer its secret");
 }
+
+/// "Take it on together" leaves a next step (#1614): the call can form
+/// the team - the willing sign on, the rolls show who took it, and the
+/// box said so before the pick
+#[test]
+fn test_the_calls_form_a_team_signs_on_the_willing() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    // a cause exists, so the call's steps not a vote - and the meeting
+    // drew folk who aren't on the rolls yet
+    let (oe, tick) = (g.org, g.tick);
+    crate::game::campaign::found_campaign(&mut g.world, oe,
+        &crate::game::campaign::IssueVote { winner: "the taxes".into(), ballots: vec![] },
+        crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
+    let came = g.villagers[..10].to_vec();
+    let prospects = g.team_prospects(0, &came);
+    assert!(!prospects.is_empty(), "someone new came to sign on");
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    // the step's on the box between gathering again and the street
+    let call = g.convo_panel_at(0).expect("the call on the box");
+    let pick = call.options.iter().position(|o| o.contains("Form a team"))
+        .unwrap_or_else(|| panic!("no team step offered: {:?}", call.options));
+    g.decide_at(0, pick);
+    // who took it: the willing land on the org's rolls - the campaign's
+    // own body - and the log names them
+    let members = g.world.get_component::<crate::sim::community::Organization>(g.org).unwrap().members.clone();
+    for &v in &prospects {
+        assert!(members.contains(&v), "a willing soul stayed off the rolls");
+    }
+    assert!(g.log.iter().any(|l| l.contains("sign on")), "{:?}", g.log.last());
+    // and the room's record hears it said
+    let rec = g.talk_log.iter().find(|r| r.id == id).expect("the meeting's record");
+    assert!(rec.lines.iter().any(|l| l.text.contains("sign on")), "{:?}", rec.lines.last());
+}
+
+/// With everyone who came already on the rolls, there's no team left to
+/// form - the call offers gathering and the street, no empty step
+#[test]
+fn test_no_team_step_when_the_willing_are_all_in() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    let (oe, tick) = (g.org, g.tick);
+    crate::game::campaign::found_campaign(&mut g.world, oe,
+        &crate::game::campaign::IssueVote { winner: "the taxes".into(), ballots: vec![] },
+        crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
+    let came = g.villagers[..3].to_vec(); // all members already
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    let call = g.convo_panel_at(0).expect("the call on the box");
+    assert!(call.options.iter().all(|o| !o.contains("Form a team")), "{:?}", call.options);
+    // and a pick past the listed rows is the rest, not a phantom team
+    g.decide_at(0, call.options.len());
+    assert!(g.log.last().unwrap().contains("The talk stays talk"), "{:?}", g.log.last());
+}

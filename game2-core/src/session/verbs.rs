@@ -2789,7 +2789,8 @@ impl Game {
             return;
         }
         // no founding on the table: the follow-up steps - meet again with
-        // the same folks, take it to the street, or let it rest
+        // the same folks, form the team while the agreement's warm, take
+        // it to the street, or let it rest
         let mut idx = 0;
         if !d.meet_again.is_empty() {
             if pick == idx {
@@ -2802,6 +2803,31 @@ impl Game {
                 let msg = "They'll gather again - you'll need a place to meet.".to_string();
                 self.log.push_ev(
                     EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}", self.tick, msg),
+                );
+                self.note_talk(d.record, None, &msg);
+                return;
+            }
+            idx += 1;
+        }
+        // "take it on together" gets a next step (#1614): the willing
+        // sign on for the work the room agreed to - a named team on the
+        // rolls, not a thread gone cold
+        let team = self.team_prospects(seat, &d.meet_again);
+        if !team.is_empty() {
+            if pick == idx {
+                let joined = campaign::enroll_room(&mut self.world, self.seats[seat].org, &team);
+                let names: Vec<String> = joined.iter()
+                    .filter_map(|&e| self.villagers.iter().position(|&v| v == e)
+                        .map(|i| self.cast_name(i).to_string()))
+                    .collect();
+                let msg = if names.is_empty() {
+                    "The willing are already in - the team stands as it is.".to_string()
+                } else {
+                    format!("A team for it - {} sign on for the work.", names.join(", "))
+                };
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
                     format!("t{}: {}", self.tick, msg),
                 );
                 self.note_talk(d.record, None, &msg);

@@ -3566,6 +3566,11 @@ impl Game {
                 None => {
                     let mut opts = vec![];
                     if !d.meet_again.is_empty() { opts.push("Meet again - they'll come back".into()); }
+                    // a concrete step past the agreement (#1614): the
+                    // willing sign on as the team for the work
+                    if !self.team_prospects(seat, &d.meet_again).is_empty() {
+                        opts.push("Form a team for it - the willing sign on".into());
+                    }
                     if d.street { opts.push("Take it to the street - show the numbers".into()); }
                     opts.push("Let it rest - keep talking".into());
                     ("They'd gather again - or take it further. Your call.".to_string(), opts)

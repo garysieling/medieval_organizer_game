@@ -254,8 +254,10 @@ fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
     let (oe, tick) = (g.org, g.tick); let _ = propose(&mut g.world, pe, oe, guest, PropKind::ComeAlong, "Bram", 0.0, tick);
     assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().ready());
     g.update_ctx_actions();
-    assert!(g.seats[0].ctx_actions.contains(&crate::session::CtxAct::Gather));
-    // Gather calls it: the committed walk over
+    // the Gather button's gone (#1596): no ctx button calls the meeting
+    assert!(g.seats[0].ctx_actions.iter().all(|&a| ctx_button(a).label != "Gather"),
+        "the Gather button's back");
+    // the call itself still convenes the committed
     let msg = g.call_meeting();
     assert!(g.meeting.is_some(), "{}", msg);
 }
@@ -363,22 +365,14 @@ fn test_a_called_meeting_waits_for_the_day_its_word_names() {
     g.world.add_component(rel, Relationship { from: g.player, other: host,
         kind: RelKind::Friend, strength: 0.7, interactions: 6, ..Default::default() });
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
-    // the press asks the day - nothing gathers yet
-    g.update_ctx_actions_at(0);
-    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::Gather).unwrap();
-    g.ctx_act_at(0, i);
-    assert!(g.meeting.is_none(), "the press asks a day, it doesn't fire");
-    let panel = g.convo_panel_at(0).expect("the day question's on the box");
-    assert!(panel.decides && panel.options.len() == 3, "{:?}", panel.options);
-    // two days out: the plan keeps its promises and the board carries it
-    g.decide_at(0, 0);
+    // the word goes out two days out - the landing the invitation's
+    // day pick makes in talk now that the Gather button's gone (#1596)
+    g.the_words_out(0, 2);
     let plan = g.world.get_component::<MeetingPlan>(g.org).unwrap();
     assert_eq!(plan.for_day, Some(g.tick + 2), "the call's dated");
     assert!(plan.coming.contains(&bram), "the plan stays open on the org");
     assert!(g.notices.iter().any(|(k, _, u)| k == "meet" && *u == g.tick + 2),
         "the board carries the call till the day: {:?}", g.notices);
-    assert_eq!(g.ctx_blocker_at(0, CtxAct::Gather).as_deref(), Some("the word's already out"),
-        "a second press just hears the word's out");
     // the day arrives: the door rolls then, not before
     g.livelihood_tick(g.tick + 1);
     assert!(g.meeting.is_none(), "a day early is a day early");
@@ -394,8 +388,7 @@ fn test_a_lost_house_calls_the_meeting_off() {
     let host = g.villagers[1];
     let bram = g.villagers[2];
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
-    g.seats[0].meet_offer = Some(g.tick);
-    g.decide_at(0, 2); // a week out
+    g.the_words_out(0, 7); // a week out
     let for_day = g.world.get_component::<MeetingPlan>(g.org).unwrap().for_day.unwrap();
     // the house's keeper dies before the day
     g.world.add_component(host, villager::Dead);
@@ -404,20 +397,6 @@ fn test_a_lost_house_calls_the_meeting_off() {
     assert!(g.world.get_component::<MeetingPlan>(g.org).is_none(),
         "the plan's dropped with the call");
     assert!(g.log.iter().any(|l| l.contains("the meeting's off")), "{}", g.log.last().unwrap());
-}
-
-/// A date question nobody answers lapses like any unanswered call
-#[test]
-fn test_an_unanswered_date_question_lapses() {
-    let mut g = Game::new();
-    let host = g.villagers[1];
-    let bram = g.villagers[2];
-    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
-    g.seats[0].meet_offer = Some(g.tick);
-    g.livelihood_tick(g.tick + FOUNDING_OFFER_EXPIRY_DAYS);
-    assert!(g.seats[0].meet_offer.is_none(), "the question lapses");
-    assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().for_day.is_none(),
-        "and nothing's dated");
 }
 
 #[test]
@@ -972,8 +951,7 @@ fn test_the_day_pick_asks_what_the_call_will_ask() {
     let mut g = Game::new();
     let (host, bram) = (g.villagers[1], g.villagers[2]);
     plan_ready_meeting(&mut g, host, (17.0, 16.0), &[bram]);
-    g.seats[0].meet_offer = Some(g.tick);
-    g.decide_at(0, 1);
+    g.the_words_out(0, 4);
     assert!(g.seats[0].frame_offer.is_some(), "the day picked, the question's asked");
     let p = g.convo_panel_at(0).expect("the question on the box");
     assert_eq!(p.title, "THE CALL - WHAT WILL YOU ASK");

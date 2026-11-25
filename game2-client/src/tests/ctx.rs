@@ -11,7 +11,7 @@ fn test_ctx_buttons_never_overlap() {
     let acts = [
         CtxAct::Errand, CtxAct::PairUp, CtxAct::Matchmake,
         CtxAct::Delegate, CtxAct::Strike, CtxAct::Townhall, CtxAct::Petition,
-        CtxAct::Gather, CtxAct::PetCat,
+        CtxAct::PetCat,
         CtxAct::Snowballs, CtxAct::Douse,
         CtxAct::PickCaps, CtxAct::ShareFindings, CtxAct::TakeCache,
         CtxAct::Tame,

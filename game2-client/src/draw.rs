@@ -427,12 +427,9 @@ pub(crate) const ACTION_ICONS: [&str; 1] = ["icon-talk"];
 
 /// The icon a contextual action's button takes: only the acts a token
 /// clearly reads for get one ("" = none, the label carries it alone)
-pub(crate) fn ctx_icon(act: game2_core::session::CtxAct) -> &'static str {
-    use game2_core::session::CtxAct::*;
-    match act {
-        Gather => "icon-organize",
-        _ => "",
-    }
+pub(crate) fn ctx_icon(_act: game2_core::session::CtxAct) -> &'static str {
+    // no act carries a token at the moment - the label does the work
+    ""
 }
 
 /// Which event icon a log line takes, by the word it names. Ordered:

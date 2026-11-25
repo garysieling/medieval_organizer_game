@@ -2353,8 +2353,8 @@ impl Game {
             }
             // the first invitation to an un-called meet earns the
             // follow-up (#1337): they'll come - then "when are we
-            // gathering?" The call panel's day pick stays the way when
-            // no invite asks it first
+            // gathering?" The invite's day pick is the call's whole
+            // way now - the Gather button's gone (#1596)
             if o.kind == crate::game::organizing::PropKind::ComeAlong {
                 let came = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
                     .map(|p| p.coming.contains(&who) && p.for_day.is_none())
@@ -3393,22 +3393,6 @@ impl Game {
             return Some(ConvoPanelV {
                 title: "THE LORD'S OFFER".into(),
                 rows, options, decides: true, leave: false });
-        }
-        if s.meet_offer.is_some() {
-            return Some(ConvoPanelV {
-                title: "THE CALL - WHEN DO THEY GATHER".into(),
-                rows: vec![
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
-                        text: "The plan's made - the word just wants a day.".into() },
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
-                        text: "Till then the asks still count - roles and yeses fill until the door.".into() },
-                ],
-                options: vec![
-                    "Two days out - a quick word round".into(),
-                    "Four days out - the word gets round".into(),
-                    "A week out - the far ones can come".into(),
-                ],
-                decides: true, leave: false });
         }
         if let Some((_, events)) = &s.testimony_offer {
             return Some(ConvoPanelV {

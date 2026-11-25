@@ -69,6 +69,9 @@ pub struct View {
     /// which row the keyboard focus sits on
     pub sound_menu: bool,
     pub sound_row: usize,
+    /// The sound-caption feed (#1508): what the ear heard named for the
+    /// eye, when the settings ask for it. Fed by the client each frame.
+    pub captions: Captions,
     /// The frame stamp of the last sim camera-ask answered, so the same
     /// ask isn't answered twice
     pub focus_seen: std::cell::Cell<Option<u32>>,
@@ -169,6 +172,7 @@ impl View {
             search_focus: false,
             sound_menu: false,
             sound_row: 0,
+            captions: Captions::default(),
             focus_seen: std::cell::Cell::new(None),
             convo_pin: std::cell::RefCell::new(talk::ConvoPin::default()),
             ground: std::cell::RefCell::new(None),
@@ -204,6 +208,16 @@ impl View {
             st.2 += d;
         }
         (st.2 / STRIDE_TILES * 6.0 * cycle.max(1) as f32) as u32
+    }
+
+    /// The inspector card's top edge - 948 less its clamped height, or
+    /// the flat 948 bottom line when no card is up. The card's plate
+    /// and the sound captions' anchor share it so the two never lie.
+    fn card_top(&self, m: &UiModel) -> i32 {
+        if !(self.inspector_open && m.inspector.is_some()) { return 948; }
+        let deep = m.inspector.as_ref().unwrap().lines.iter()
+            .map(|l| l.y).max().unwrap_or(460) + LINE_H;
+        948 - (deep - 316).clamp(120, 560)
     }
 
     /// Where each live toast draws and how faded it is: (index into
@@ -1334,9 +1348,8 @@ impl View {
         const INSP_W: i32 = 364;
         if self.inspector_open && m.inspector.is_some() {
             let insp = m.inspector.as_ref().unwrap();
-            let deep = insp.lines.iter().map(|l| l.y).max().unwrap_or(460) + LINE_H;
-            let card_h = (deep - 316).clamp(120, 560);
-            let top = 948 - card_h;
+            let top = self.card_top(m);
+            let card_h = 948 - top;
             let lx = |k: i32| INSP_X + k - 10;
             let ly = |k: i32| top + k - 316;
             draw_rect(&mut buf, lx(10), ly(316), INSP_W, card_h, 45, 45, 65);
@@ -1719,6 +1732,10 @@ impl View {
                 buf.rect(bx, by + 19, bw, 1, hr, hg, hb);
             }
         }
+
+        // sound captions (#1508): the ear's signals named bottom-left,
+        // anchored just above the inspector card when one's open
+        draw_captions(&mut buf, &self.captions, self.card_top(m) - 26);
 
         // season banner
         let hud = hud_text(season, tick, food_stock, m.precip.map(|k| k.label()), m.paused, m.food_yield, m.harsh_winter);

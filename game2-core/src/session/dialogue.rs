@@ -227,6 +227,10 @@ pub struct PlayerTalk {
     pub gist: String,
     /// The replies on offer now: (act, its responsiveness tag, the line)
     pub options: Vec<(Act, crate::game::conversation::Respond, String)>,
+    /// The village's memory of said lines, frozen when the talk opened
+    /// (#1622): every replay draws against it, so the options a pick
+    /// was shown are the options the pick lands on
+    pub fresh: crate::engine::det::HashSet<&'static str>,
     /// Which tree's fork offered them - a greeting on old_scores is no
     /// greeting
     pub opt_tree: Option<&'static str>,
@@ -489,10 +493,11 @@ impl PlayerTalk {
             .chain(self.wares.iter()
                 .map(|g| format!("I'll take the {} - {:.0} gold", g, crate::game::goods::worth_at(world, g))))
             .chain(self.options.iter().map(|o| {
-                // the words that pick a fight say so (#1348)
+                // the words that pick a fight say so (#1348): the shown
+                // line carries its stance ops round the bare one (#1622)
                 if crate::game::persuasion::is_argumentative(&o.2)
                     || crate::game::persuasion::ARGUMENTATIVE_LINES.iter()
-                        .any(|l| o.2 == self.said(l, true)) {
+                        .any(|l| o.2.contains(&self.said(l, true))) {
                     format!("{} - a quarrel", o.2)
                 } else { o.2.clone() }
             }))
@@ -735,7 +740,7 @@ impl Game {
 
     /// Mark the transcript's tree lines as spoken today, and let the
     /// village's memory of what's said fall off past the window
-    fn note_said_lines(&mut self, lines: impl Iterator<Item = &'static str>) {
+    pub(in crate::session) fn note_said_lines(&mut self, lines: impl Iterator<Item = &'static str>) {
         for t in lines { self.said_lines.insert(t, self.tick); }
         let today = self.tick;
         self.said_lines.retain(|_, day| *day + FRESH_LINE_DAYS >= today);
@@ -1581,6 +1586,7 @@ impl Game {
             .unwrap_or(crate::game::setting::STREET);
         self.seats[seat].talk = Some(PlayerTalk {
             id, who: v, knower: pe, villager, player, rel, kind, seed, picks: vec![],
+            fresh: self.fresh_lines(),
             setting,
             profile,
             gist: gist.to_string(),
@@ -1611,8 +1617,7 @@ impl Game {
     fn refresh_player_talk(&mut self, seat: usize) {
         let Some(t) = self.seats[seat].talk.clone() else { return };
         let pe = self.seats[seat].player;
-        let recent = self.fresh_lines();
-        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions, worry_told, slips, jokes) = replay(&t, Some(&recent));
+        let (said, offered, ending, tree, vibe, asked, forward, shared, call_act, evasions, worry_told, slips, jokes) = replay(&t, Some(&t.fresh));
         if shared > t.shared {
             // the deepest telling so far this talk (E3-3): the running
             // gate already lives in the replay - this only carries the
@@ -2508,16 +2513,16 @@ impl Game {
         // puts the fork on the card; the squeeze spends the held name;
         // the robbed one's answer names him in the record
         if opt_tree == Some(crate::game::dialogue_trees::EWE_TREE)
-            && pick_text == talk_said(&said_v, &said_p, said_rel,
-                crate::game::dialogue_trees::EWE_GIFT, true) {
+            && pick_text.contains(&talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::EWE_GIFT, true)) {
             self.ewe_cracked(seat);
         } else if opt_tree == Some(crate::game::dialogue_trees::EWE_PRICE_TREE)
-            && pick_text == talk_said(&said_v, &said_p, said_rel,
-                crate::game::dialogue_trees::EWE_SQUEEZE, true) {
+            && pick_text.contains(&talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::EWE_SQUEEZE, true)) {
             self.ewe_squeezed(seat);
         } else if opt_tree == Some(crate::game::dialogue_trees::EWE_VICTIM_TREE)
-            && pick_text == talk_said(&said_v, &said_p, said_rel,
-                crate::game::dialogue_trees::EWE_WHOSE_POT, true) {
+            && pick_text.contains(&talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::EWE_WHOSE_POT, true)) {
             if let Some(th) = self.ewe_theft.as_ref().map(|t| t.thief) {
                 let tn = self.name_of(th);
                 self.narrate_talk(seat, &format!("She names him at last: {tn}."));
@@ -2526,11 +2531,11 @@ impl Game {
         // the Noah row (#1257): the mediator's word talks one down, or
         // the pick takes a side where the street can see it
         if opt_tree == Some(crate::game::dialogue_trees::NOAH_ROW_TREE) {
-            if pick_text == talk_said(&said_v, &said_p, said_rel,
-                crate::game::dialogue_trees::NOAH_PEACE, true) {
+            if pick_text.contains(&talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::NOAH_PEACE, true)) {
                 self.row_calmed(seat, twho);
-            } else if pick_text == talk_said(&said_v, &said_p, said_rel,
-                crate::game::dialogue_trees::NOAH_SIDE_THEM, true) {
+            } else if pick_text.contains(&talk_said(&said_v, &said_p, said_rel,
+                crate::game::dialogue_trees::NOAH_SIDE_THEM, true)) {
                 self.row_sided(seat, twho);
             }
         }
@@ -2539,10 +2544,10 @@ impl Game {
         if matches!(opt_tree, Some(crate::game::dialogue_trees::FT_SPY_TREE)
             | Some(crate::game::dialogue_trees::FT_THIEF_TREE)
             | Some(crate::game::dialogue_trees::FT_RUN_TREE))
-            && (pick_text == talk_said(&said_v, &said_p, said_rel,
-                    crate::game::dialogue_trees::FT_ACCUSE, true)
-                || pick_text == talk_said(&said_v, &said_p, said_rel,
-                    crate::game::dialogue_trees::FT_ACCUSE_RUN, true)) {
+            && (pick_text.contains(&talk_said(&said_v, &said_p, said_rel,
+                    crate::game::dialogue_trees::FT_ACCUSE, true))
+                || pick_text.contains(&talk_said(&said_v, &said_p, said_rel,
+                    crate::game::dialogue_trees::FT_ACCUSE_RUN, true))) {
             self.false_accused(seat);
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }
@@ -2552,7 +2557,7 @@ impl Game {
         // same flow, where they know you well enough to take it up
         if crate::game::persuasion::is_argumentative(&pick_text)
             || crate::game::persuasion::ARGUMENTATIVE_LINES.iter()
-                .any(|l| pick_text == talk_said(&said_v, &said_p, said_rel, l, true)) {
+                .any(|l| pick_text.contains(&talk_said(&said_v, &said_p, said_rel, l, true))) {
             let stage = crate::game::organizing::stage_of(&self.world,
                 self.seats[seat].player, who);
             if crate::game::persuasion::can_argue(stage) {
@@ -2872,8 +2877,7 @@ impl Game {
     /// been said so far (#1234)
     fn argue_line(&mut self, seat: usize, who: Option<Entity>, text: String) {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
-        let recent = self.fresh_lines();
-        let at = replay(t, Some(&recent)).0.len().max(1);
+        let at = replay(t, Some(&t.fresh)).0.len().max(1);
         let name = match who { Some(w) if w == t.who => t.villager.name.clone(), Some(w) => self.speaker_name(w), None => String::new() };
         if let Some(cur) = self.seats[seat].talk.as_mut() {
             cur.argued.push((at, TalkLine { who, name, text, gist: false }));

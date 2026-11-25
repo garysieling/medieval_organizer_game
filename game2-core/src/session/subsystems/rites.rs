@@ -248,6 +248,8 @@ impl Game {
             format!("t{}: {} and {} are wed.", tick, an, bn),
         );
         self.toasts.push_at((format!("{} and {} are wed!", an, bn), tick + 30), Some(at));
+        // the peal rings the pair out of the rite (#1619)
+        self.emit_sfx("bells", at.0, at.1, 0.8);
         for e in [a, b] {
             desires::satisfy(&mut self.world, e, Want::Joy, tick + 60);
         }

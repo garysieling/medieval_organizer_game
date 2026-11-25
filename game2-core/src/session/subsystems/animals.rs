@@ -127,15 +127,18 @@ impl Game {
                 p.y = (p.y + self.rng.around(6) as f32).clamp(1.0, self.map.height as f32 - 2.0);
             }
         }
+        let spot = toast_spot(&self.world, fold);
         self.log.push_ev_at_who(
             EvTag::new(Thread::Beast, Valence::Negative, Sev::Notable),
             format!(
                 "t{}: a wolf got into the fold in the night - {} lost.",
                 tick, losses
             ),
-            toast_spot(&self.world, fold),
+            spot,
             None,
         );
+        // the night sounds it too (#1619): the baying off the fold
+        if let Some((x, y)) = spot { self.emit_sfx("baying", x, y, 0.8); }
         if let Some(sh) = self.shepherd {
             desires::add_grievance(&mut self.world, sh, desires::Problem::Loss, tick + 90);
             self.say(sh, "The wolf came in the night.", CHAT_BUBBLE_SECS);
@@ -155,15 +158,18 @@ impl Game {
             .get_component::<Building>(h)
             .map(|b| b.name.clone())
             .unwrap_or_else(|| "the yard".into());
+        let spot = toast_spot(&self.world, h);
         self.log.push_ev_at_who(
             EvTag::new(Thread::Beast, Valence::Negative, Sev::Minor),
             format!(
                 "t{}: a fox got into {} - a hen gone in the night.",
                 tick, name
             ),
-            toast_spot(&self.world, h),
+            spot,
             None,
         );
+        // the yard scatters squawking as the fox lifts her (#1619)
+        if let Some((x, y)) = spot { self.emit_sfx("hens", x, y, 0.6); }
         // the house grieves her through whoever can feel it - the
         // held and the dead take no grief
         if let Some(&occ) = self.world.get_component::<Building>(h)

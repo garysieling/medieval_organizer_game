@@ -32,6 +32,16 @@ pub enum SynthKind {
     CartArrive,
     /// The palisade gap's hinge: a slow creak
     Gate,
+    /// Snow or the haar rolling in: a low wind rush (#1619)
+    Gale,
+    /// The floor answering a ballot: a low crowd swell (#1619)
+    Murmur,
+    /// A wedding's peal: the bell struck thrice and bright (#1619)
+    Bells,
+    /// A wolf in the night: a rising howl off the fold (#1619)
+    Baying,
+    /// A fox in the yard: descending squawk chirps (#1619)
+    Hens,
     /// Any cue without a voice of its own: a small blip.
     Blip,
 }
@@ -57,6 +67,11 @@ impl SynthKind {
             "door" => SynthKind::Door,
             "cart_arrive" => SynthKind::CartArrive,
             "gate" => SynthKind::Gate,
+            "gale" => SynthKind::Gale,
+            "murmur" => SynthKind::Murmur,
+            "bells" => SynthKind::Bells,
+            "baying" => SynthKind::Baying,
+            "hens" => SynthKind::Hens,
             _ => SynthKind::Blip,
         }
     }
@@ -80,6 +95,11 @@ impl SynthKind {
             SynthKind::Door => 0.7,
             SynthKind::CartArrive => 1.0,
             SynthKind::Gate => 0.9,
+            SynthKind::Gale => 1.8,
+            SynthKind::Murmur => 1.0,
+            SynthKind::Bells => 1.6,
+            SynthKind::Baying => 1.8,
+            SynthKind::Hens => 0.7,
             SynthKind::Blip => 0.25,
         }
     }
@@ -148,6 +168,32 @@ impl SynthKind {
             SynthKind::Gate => ((2.0 * PI * (180.0 + 160.0 * t) * t).sin()
                 + noise * 0.15 * (2.0 * PI * 6.0 * t).sin().abs())
                 * (1.0 - (-8.0 * t).exp()) * (-4.0 * t).exp() * 0.5,
+            // the cold front: a noise rush swelling over a low moan,
+            // slower than rain's patter
+            SynthKind::Gale => (noise * 0.5 + (2.0 * PI * 150.0 * t).sin() * 0.2)
+                * (1.0 - (-2.5 * t).exp()) * (-1.8 * t).exp() * 0.55,
+            // the floor answering: a low babble that swells and falls
+            SynthKind::Murmur => ((2.0 * PI * 110.0 * t).sin() + (2.0 * PI * 146.0 * t).sin()
+                + (2.0 * PI * 196.0 * t).sin()) / 3.0 * (0.6 + 0.4 * (2.0 * PI * 7.0 * t).sin())
+                * (1.0 - (-8.0 * t).exp()) * (-5.0 * t).exp() * 0.5
+                + noise * (1.0 - (-8.0 * t).exp()) * (-5.0 * t).exp() * 0.15,
+            // the wedding peal: three strikes, each a bright bell
+            SynthKind::Bells => {
+                let s = t % 0.45;
+                ((2.0 * PI * 392.0 * s).sin() + 0.5 * (2.0 * PI * 784.0 * s).sin()
+                    + 0.3 * (2.0 * PI * 1175.0 * s).sin())
+                    * (-4.0 * s).exp() * (1.0 - t / 1.7).max(0.0) * 0.55
+            }
+            // the wolf: a voice rising through the octave then holding
+            SynthKind::Baying => (2.0 * PI * (220.0 + 160.0 * t.min(0.6)) * t).sin()
+                * (1.0 + 0.06 * (2.0 * PI * 5.0 * t).sin())
+                * (1.0 - (-4.0 * t).exp()) * (-2.0 * t).exp() * 0.5,
+            // the yard scatters: a run of dropping chirps
+            SynthKind::Hens => {
+                let s = t % 0.18;
+                ((2.0 * PI * (1500.0 - 900.0 * s) * s).sin() + noise * 0.3)
+                    * (-30.0 * s).exp() * (1.0 - t / 0.75).max(0.0) * 0.45
+            }
             // anything else: a small blip so it isn't silent
             SynthKind::Blip => (2.0 * PI * 520.0 * t).sin() * (-15.0 * t).exp() * 0.4,
         }

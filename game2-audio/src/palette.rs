@@ -54,6 +54,12 @@ pub fn voice_for(cue: CueKind) -> VoiceSpec {
         CueKind::Door { .. } => spec(Some("door"), SynthKind::Door, 1.0),
         CueKind::CartArrive { .. } => spec(Some("cart_arrive"), SynthKind::CartArrive, 0.9),
         CueKind::Gate { .. } => spec(Some("gate"), SynthKind::Gate, 0.9),
+        // a wind sample can land with the A4b batch; the synth gusts until then
+        CueKind::Gale { .. } => spec(Some("gale"), SynthKind::Gale, 0.8),
+        CueKind::Murmur { .. } => spec(Some("murmur"), SynthKind::Murmur, 0.8),
+        CueKind::Bells { .. } => spec(Some("bells"), SynthKind::Bells, 0.9),
+        CueKind::Baying { .. } => spec(Some("baying"), SynthKind::Baying, 0.9),
+        CueKind::Hens { .. } => spec(Some("hens"), SynthKind::Hens, 0.9),
         CueKind::Blip { .. } => spec(None, SynthKind::Blip, 1.0),
     }
 }
@@ -68,7 +74,7 @@ mod tests {
     const ALL_CUE_NAMES: &[&'static str] = &[
         "rain", "anvil", "festival", "wonder", "bell", "snowballs", "splash",
         "alarm", "toll", "cheer", "chant", "coins", "quill", "door",
-        "cart_arrive", "gate",
+        "cart_arrive", "gate", "gale", "murmur", "bells", "baying", "hens",
     ];
 
     fn cue_source(engine: &Engine, spec: VoiceSpec) -> Source {

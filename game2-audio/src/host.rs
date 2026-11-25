@@ -38,6 +38,16 @@ pub enum CueKind {
     Door { pan: f32, gain: f32 },
     CartArrive { pan: f32, gain: f32 },
     Gate { pan: f32, gain: f32 },
+    /// The sky turning cold: a wind rush for snow and the haar (#1619)
+    Gale { pan: f32, gain: f32 },
+    /// The floor answering a ballot or a settled word (#1619)
+    Murmur { pan: f32, gain: f32 },
+    /// A wedding's peal: the bell struck thrice and bright (#1619)
+    Bells { pan: f32, gain: f32 },
+    /// A wolf in the night: a howl off the fold (#1619)
+    Baying { pan: f32, gain: f32 },
+    /// A fox in the yard: the hens scatter squawking (#1619)
+    Hens { pan: f32, gain: f32 },
     /// Cues without their own voice: a small blip
     Blip { pan: f32, gain: f32 },
 }
@@ -61,6 +71,11 @@ impl CueKind {
             "door" => CueKind::Door { pan, gain },
             "cart_arrive" => CueKind::CartArrive { pan, gain },
             "gate" => CueKind::Gate { pan, gain },
+            "gale" => CueKind::Gale { pan, gain },
+            "murmur" => CueKind::Murmur { pan, gain },
+            "bells" => CueKind::Bells { pan, gain },
+            "baying" => CueKind::Baying { pan, gain },
+            "hens" => CueKind::Hens { pan, gain },
             _ => CueKind::Blip { pan, gain },
         }
     }
@@ -78,7 +93,9 @@ impl CueKind {
             | CueKind::Chant { pan, gain } | CueKind::Coins { pan, gain }
             | CueKind::Quill { pan, gain } | CueKind::Door { pan, gain }
             | CueKind::CartArrive { pan, gain } | CueKind::Gate { pan, gain }
-            | CueKind::Blip { pan, gain } => (pan, gain),
+            | CueKind::Gale { pan, gain } | CueKind::Murmur { pan, gain }
+            | CueKind::Bells { pan, gain } | CueKind::Baying { pan, gain }
+            | CueKind::Hens { pan, gain } | CueKind::Blip { pan, gain } => (pan, gain),
         }
     }
 }

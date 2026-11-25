@@ -581,4 +581,30 @@ fn test_errand_goods_stay_off_the_registry() {
     let n = g.world.get_component::<Satchel>(g.player)
         .and_then(|s| s.goods.get("cobble").copied()).unwrap_or(0);
     assert_eq!(n, 0, "a spent entry can't dig under zero when the job ends");
+
+    // and it can't be swapped away: cargo is never an offer, and the
+    // thing itself isn't for sale
+    let held = |g: &Game, e, good: &str| g.world.get_component::<Satchel>(e)
+        .map(|s| s.goods.get(good).copied().unwrap_or(0)).unwrap_or(0);
+    let buyer = askers(&g)[1];
+    g.seats[0].quest = Some(PlayerQuest {
+        giver, kind: QuestKind::Stone, target: QuestTarget::Villager(giver),
+        stage: QuestStage::ToCarry, pickup: None,
+        expires: g.tick + 10, errand: None });
+    if let Some(s) = g.world.get_component_mut::<Satchel>(g.player) {
+        s.goods.insert("cobble".into(), 1);
+    }
+    if let Some(s) = g.world.get_component_mut::<Satchel>(buyer) {
+        s.goods.insert("bread".into(), 1);
+    }
+    if let Some(p) = g.world.get_component_mut::<Purse>(g.player) { p.gold = 0.0; }
+    if let Some(p) = g.world.get_component_mut::<Purse>(buyer) { p.gold = 20.0; }
+    // short of coin the Wanderer swaps for bread - out of everything
+    // but the job's stone
+    g.arrive(g.player, Goal::BuyFrom(buyer, "bread", 1));
+    assert_eq!(held(&g, g.player, "cobble"), 1, "the cobble was never an offer");
+    // and nobody talks the stone itself out of the bag
+    g.arrive(buyer, Goal::BuyFrom(g.player, "cobble", 1));
+    assert_eq!(held(&g, g.player, "cobble"), 1, "the cobble isn't for sale");
+    assert_eq!(held(&g, buyer, "cobble"), 0);
 }

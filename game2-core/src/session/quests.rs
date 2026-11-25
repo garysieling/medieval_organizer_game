@@ -552,6 +552,15 @@ impl Game {
         }
     }
 
+    /// Whichever seat's hands hold the job's thing - it isn't for
+    /// giving, swapping or selling: it changes hands on the job alone
+    /// (#1603)
+    pub(super) fn quest_cargo(&self, e: Entity) -> Option<&'static str> {
+        self.seats.iter().find(|s| s.player == e)?.quest.as_ref()
+            .filter(|q| q.stage == QuestStage::ToCarry)
+            .and_then(|q| Self::quest_good(q.kind))
+    }
+
     /// The job's thing lands in the Wanderer's bag (#1603)
     fn quest_good_take(&mut self, seat: usize, kind: QuestKind) {
         let Some(g) = Self::quest_good(kind) else { return };

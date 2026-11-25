@@ -1340,9 +1340,7 @@ impl Game {
                 let pe = self.seats[seat].player;
                 let v = self.villagers[self.seats[seat].selected_target];
                 // the job's cargo isn't yours to hand round (#1603)
-                let job_good = self.seats[seat].quest.as_ref()
-                    .filter(|q| q.stage == quests::QuestStage::ToCarry)
-                    .and_then(|q| Self::quest_good(q.kind));
+                let job_good = self.quest_cargo(pe);
                 let bag: Vec<String> = self.world.get_component::<Satchel>(pe)
                     .map(|s| s.goods.iter()
                         .filter(|(g, &n)| n > 0 && Some(g.as_str()) != job_good)

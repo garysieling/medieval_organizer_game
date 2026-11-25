@@ -95,8 +95,10 @@ impl Game {
 /// verbs left the wire enum, so an old journal's Ctx(n) names a
 /// different act (#1337); and the day's pulls now strain a tension
 /// ledger that flips souls in and out of the cause (#1454), so an
-/// old journal's orgs keep different members)
-pub const JOURNAL_VERSION: u32 = 10;
+/// old journal's orgs keep different members; and the music_tick's
+/// "tune turns" lines left the log (#1504), so an old journal's digest
+/// holds lines a new replay no longer writes)
+pub const JOURNAL_VERSION: u32 = 11;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

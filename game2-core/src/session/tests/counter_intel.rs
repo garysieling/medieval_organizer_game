@@ -70,3 +70,24 @@ fn test_reading_the_watcher_out_costs_him() {
     // way the play ran its course
     assert!(after < 0.8 || g.log.iter().any(|l| l.contains("hardens")), "the read never landed");
 }
+
+/// A decision box never lists a lone option (#1627): the eyes' menu
+/// always carries the out, and taking it spends the day on no card
+#[test]
+fn test_the_eyes_menu_always_carries_an_out() {
+    let mut g = Game::new();
+    g.counter_intel = 2;
+    let options = g.convo_panel_at(0).map(|p| p.options).unwrap_or_default();
+    assert!(options.len() >= 2, "a pick list of one isn't a choice");
+    // the last row's the decline - it spends the day but plays no card
+    g.decide_at(0, options.len() - 1);
+    assert_eq!(g.counter_played, Some(g.tick), "the decline never spent the day");
+    assert!(!g.log.iter().any(|l| l.contains("false word")), "the decline played a card");
+    // and the same holds when the read-out row shows too
+    let mut g = Game::new();
+    g.counter_intel = 3;
+    let options = g.convo_panel_at(0).map(|p| p.options).unwrap_or_default();
+    assert_eq!(options.len(), 3, "the full menu lost a row");
+    g.decide_at(0, options.len() - 1);
+    assert!(!g.log.iter().any(|l| l.contains("watcher")), "the decline played a card");
+}

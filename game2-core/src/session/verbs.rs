@@ -2308,9 +2308,21 @@ impl Game {
             return;
         }
         // the org's own counter-intel plays: feed the watcher a false
-        // word, or read his papers out to the room - once a day each
+        // word, or read his papers out to the room - once a day each.
+        // the gate mirrors the box's own so a hidden menu can't eat
+        // another panel's pick
         if self.counter_intel >= 2 && self.dilemma.is_none()
+            && self.proposal.is_none() && self.seat_offer.is_none()
+            && self.emergency.is_none()
             && self.counter_played != Some(self.tick) {
+            // the last row's the decline - the watching stands (#1627)
+            let declined = pick > if self.counter_intel >= 3 { 1 } else { 0 };
+            if declined {
+                self.counter_played = Some(self.tick);
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: the watching's let be - the eyes read what they read.", self.tick));
+                return;
+            }
             if pick == 0 {
                 self.counter_played = Some(self.tick);
                 for site in &self.sites {
@@ -2362,8 +2374,18 @@ impl Game {
             }
         }
         // the emergency's own window answers first: gather the
-        // witnesses against the lord's staged tale
-        if self.emergency.is_some() && pick == 0 {
+        // witnesses against the lord's staged tale - or let the ban
+        // stand for the day (#1627). on a declined day the box stays
+        // hidden, so its picks can't eat a lower panel's
+        if self.emergency.is_some() && self.dilemma.is_none()
+            && self.emergency_declined != Some(self.tick) && pick == 1 {
+            self.emergency_declined = Some(self.tick);
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the tale's let stand for now - the square stays banned while it holds.", self.tick));
+            return;
+        }
+        if self.emergency.is_some() && self.dilemma.is_none()
+            && self.emergency_declined != Some(self.tick) && pick == 0 {
             self.witnesses += 1;
             self.log.push_ev(
                 EvTag::new(Thread::Org, Valence::Positive, Sev::Notable),
@@ -2637,8 +2659,13 @@ impl Game {
         // panel showed
         if self.seats[seat].pending_founding.is_none() {
             if let Some((motions, _)) = self.seats[seat].pending_agenda.take() {
-                // the last row's always "just meet" - a pick past the
-                // slate is the resolves alone
+                // past the slate: "just meet", then the adjourn - the
+                // floor keeps for another night (#1627)
+                if pick > motions.len() {
+                    self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                        format!("t{}: the floor's adjourned for tonight - the cause meets again soon enough.", self.tick));
+                    return;
+                }
                 let motion = motions.get(pick).copied();
                 let msg = self.meet_with_motion(seat, motion);
                 self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Notable),

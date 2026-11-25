@@ -1414,6 +1414,7 @@ impl Game {
             plant: None,
             proposal: None,
             emergency: None,
+            emergency_declined: None,
             witnesses: 0,
             counter_intel: 0,
             counter_played: None,

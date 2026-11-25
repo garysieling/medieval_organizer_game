@@ -30,3 +30,24 @@ fn test_the_window_that_runs_out_normalizes() {
     assert!(g.log.iter().any(|l| l.contains("just how things are")),
         "the normalization never landed");
 }
+
+/// A decision box never lists a lone option (#1627): the ban's window
+/// always carries the out - let the tale stand today and the box waits
+/// out its own day while the ban still stands
+#[test]
+fn test_the_ban_can_be_let_stand_for_the_day() {
+    let mut g = Game::new();
+    g.emergency = Some((g.tick, g.tick + 20));
+    let panel = g.convo_panel_at(0).expect("the ban's window never offered");
+    assert_eq!(panel.title, "THE LORD'S EMERGENCY");
+    assert!(panel.options.len() >= 2, "a pick list of one isn't a choice");
+    g.decide_at(0, panel.options.len() - 1);
+    assert!(g.emergency.is_some(), "letting it stand broke the ban itself");
+    assert_eq!(g.emergency_declined, Some(g.tick), "the wave-off never marked the day");
+    assert_ne!(g.convo_panel_at(0).map(|p| p.title).as_deref(), Some("THE LORD'S EMERGENCY"),
+        "the box re-offered on a declined day");
+    // tomorrow the window presses again while the ban still stands
+    g.tick += 1;
+    assert_eq!(g.convo_panel_at(0).map(|p| p.title).as_deref(), Some("THE LORD'S EMERGENCY"),
+        "the window never came round a new day");
+}

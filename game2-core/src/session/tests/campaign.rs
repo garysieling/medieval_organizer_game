@@ -26,13 +26,14 @@ fn test_the_harvesters_take_a_vote_and_then_they_meet() {
     assert!(!cv.due, "just founded - the cadence still has to run");
 
     // and the cadence's own date opens the agenda when it's due - the
-    // meeting runs on the floor's pick (#1337): the last row's "just meet"
+    // meeting runs on the floor's pick (#1337): "just meet" then the
+    // adjourn sit past the slate (#1627)
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days = 0;
     sit_floor(&mut g, 0);
     let (slate, _) = g.seats[0].pending_agenda.clone().expect("the agenda's left open");
     let convo = g.ui_model().convo.expect("the slate shows on the box");
-    assert!(convo.decides && convo.options.len() == slate.len() + 1, "{:?}", convo.options);
+    assert!(convo.decides && convo.options.len() == slate.len() + 2, "{:?}", convo.options);
     g.decide_at(0, slate.len()); // "just meet": the resolves, no action
     assert!(g.seats[0].pending_agenda.is_none());
     // the log keeps the outcome; the room's talk is on the TALK panel
@@ -1024,7 +1025,7 @@ fn test_the_gathered_meeting_holds_the_cadence() {
     g.decide_at(0, call.options.len() - 1);
     let convo = g.convo_panel_at(0).expect("the floor's slate shows next");
     assert!(convo.options.iter().any(|o| o.contains("cadence")), "{:?}", convo.options);
-    assert!(convo.options.last().unwrap().contains("Just meet"), "{:?}", convo.options);
+    assert!(convo.options.iter().any(|o| o.contains("Just meet")), "{:?}", convo.options);
 }
 
 /// A rhythm verb on the floor (#1337): the slate carries the cadence

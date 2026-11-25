@@ -5,40 +5,58 @@
   (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
   Roderick: Hah! No one to learn from. I'll be a journeyman forever, or am I mistook?   [gist]
     1) Well enough - and yours?
-    2) Aye. Good day to you.
+    2) Well… Aye. Good day to you.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   you: Well enough - and yours?
   Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
     1) Aye... I suppose you are right about that.
-    2) You will not put words in my mouth, friend.
+    2) I say no such thing. The miller was half to blame and more.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
-  you: As you say, no doubt it's so.
+  you: Aye... I suppose you are right about that.
   Roderick: A fine morning - the kind the hay wishes for.
-    1) Weather aside, Roderick - how does the season treat you?
-    2) And how fares your folk in this cold snap?
+    1) And how fares your folk in this cold snap?
+    2) And the day's work - does it treat you kindly?
     3) Put a question to them
     l) take your leave
-  you: Weather aside, Roderick - how does the season treat you?
-  Roderick: Why, Hard at it down at the day's work, are we?
-    1) the day's work is my affair, and it fares as it fares.
-    2) The lord's acres are kind to a steady hand, goodman Roderick - I'll say it anywhere.
+  you: And how fares your folk in this cold snap?
+  Roderick: We rub along as ever, by the saints' mercy!
+    1) Good to hear it - long may health stay under your roof.
+    2) Put a question to them
+    3) Ask them to come to a meeting - for 18g
+    l) take your leave
+  you: Good to hear it - long may health stay under your roof.
+  Roderick: The kitchen gardens are dry as a bone this month.
+    1) Aye, work never sleeps in this valley.
+    2) Hm… Nay, I see it differently, mark me. - a quarrel
     3) Put a question to them
     l) take your leave
-  you: Well… the day's work is my affair, and it fares as it fares.
-  Roderick: Aye, words won't fill the storehouse, and that's the long of it.
-  Roderick: Are the nights long for you too?
+  you: Aye, work never sleeps in this valley.
+  Roderick: A rider from the castle came through before dawn.
+    1) God keep the lord and his men. They keep the peace, they say.
+    2) Oh… I'll not repeat marketplace whispers.
+    3) Put a question to them
+    l) take your leave
+  you: God keep the lord and his men. They keep the peace, they say.
+  Roderick: A stranger with two laden mules passed by the weir at noon, and more besides!
+    1) Ha! I'll believe the half of it and no more.
+    2) Hm… Nay, I see it differently, mark me. - a quarrel
+    3) Put a question to them
+    l) take your leave
+  you: Ha! I'll believe the half of it and no more.
+  Roderick: As you say, friend, and that's the long of it, or am I mistook?
+  Roderick: Does the dark keep you?
     1) Answer plainly
     2) Reassure them
     3) Ask why
     l) take your leave
-  you: I couldn't say truly.
-    1) The saints keep your roof whole.
-    2) I must walk on; fair day.
+  you: Aye - take it for so.
+    1) My day is waiting.
+    2) The saints keep your roof whole.
     3) Ask them to come to a meeting - for 18g
     l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0,0,0,0,0 (talk seed 1325400078)
+REPRO: talk_lab talk --seed 13 --villager 22 --picks 0,0,0,0,0,0,0,0,0 (talk seed 1325400078)

@@ -3534,6 +3534,12 @@ impl Game {
                 "Probe - what do you actually want, and for whom?".into(),
             ];
             if self.testimony_ready(seat) { options.push("Testify - tell them why you're here".into()); }
+            // the call's agenda (#1611): press a heard issue yourself -
+            // its carriers get called on in the room
+            for i in &s.frame_issues {
+                options.push(format!("Press {} - put it to them yourself",
+                    crate::game::desires::issue_name(i.clone())));
+            }
             return Some(ConvoPanelV {
                 title: "THE CALL - WHAT WILL YOU ASK".into(),
                 rows: vec![
@@ -3596,6 +3602,24 @@ impl Game {
                 if m.talk_from.is_none() {
                     rows.push(TalkRowV { name: None, gist: false, you: false, rule: false, who: None, mood: 0,
                         text: "folk are on their way".into() });
+                }
+                // the floor's first round is heard and the script holds
+                // (#1611): press the matter, open the floor, or name the
+                // next step - the organizer's steer, not the room's
+                if s.steer_offer.is_some() {
+                    rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                        text: "The floor's heard them once round - your steer, organizer.".into() });
+                    // the label names what the pick presses (#1611):
+                    // the same target steer_meeting_at will take
+                    let press = self.steer_press_target().map(|t| format!("Press it - {} on the table",
+                            crate::game::desires::issue_name(t)))
+                        .unwrap_or_else(|| "Press the matter - put it to them plain".into());
+                    let options = vec![press,
+                        "Open the floor - let them talk it out".into(),
+                        "Name the next step - bring it home".into()];
+                    return Some(ConvoPanelV {
+                        title: format!("HOUSE MEETING - {}", m.label.to_uppercase()),
+                        rows, options, decides: true, leave: false });
                 }
                 return Some(ConvoPanelV {
                     title: format!("HOUSE MEETING - {}", m.label.to_uppercase()),

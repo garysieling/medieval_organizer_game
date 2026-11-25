@@ -96,7 +96,7 @@ you : Hob trades on the road between villages. They never miss a service. The st
 Dagny [Greet in morning_after_drunk]: Well met, Hob - thou wouldst have warned me off that third cup, I know - so it goes.
 Hob [Answer in morning_after_drunk]: Thou lookest like death's cousin - and I should know, I feel the same.
 Dagny [Remark in morning_after_drunk]: In all my years I never saw the like, friend Hob.
-Hob [PushBack in morning_after_drunk]: Oh… Nay, I see it differently, mark me.
+Hob [PushBack in morning_after_drunk]: Well… Nay, I see it differently, mark me.
 Dagny [Remark in morning_after_drunk]: Bread and pickled onions, that's what the stomach needs.
 Hob [Farewell in morning_after_drunk]: God witness. May the sun be gentle on thy poor eyes today.
 -- Farewell

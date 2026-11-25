@@ -111,11 +111,11 @@ them: Hob trades on the road between villages. They're the first with a loaf whe
 you : Marga trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 
 Hob [Greet in the_sickness]: *cough* Fair morning, Marga. Mind the breeze between us - and what of it.
-Marga [PushBack in the_sickness]: Ah… That is not the way the elders told it.
+Marga [PushBack in the_sickness]: Hm… That is not the way the elders told it.
 Hob [Remark in the_audition]: Caution's a warm cloak, and a heavy one.
 Marga [Answer in the_audition]: That's a hard row. Can I carry aught for you?
 Hob [Remark in the_sickness]: It is not the black pestilence, keep your wits about you.
-Marga [PushBack in the_sickness]: Ah… Stay in your own yard if you are frightened.
+Marga [PushBack in the_sickness]: Oh… Stay in your own yard if you are frightened.
 -- WalksOff, vibe: Safe
 
 ## Gisela and Wystan - Stranger at alehouse (Public) (seed 3138, picks [0, 0, 0, 1, 0])

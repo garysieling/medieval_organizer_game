@@ -4,15 +4,15 @@
   you : Voice works the fields for a day's wage.
   Probe: Voice. Still walking upright, I see.
     1) [Greet] Save thy bile for someone who fears it.
-    2) [PushBack] I have nothing to say to thee, scoundrel.
+    2) [PushBack] Oh… I have nothing to say to thee, scoundrel.
   Voice: Save thy bile for someone who fears it.
-  Probe: Heard about thy boundary fence. Shoddy timber, that.
-    1) [Evade] Some things keep.
-    2) [PushBack] We paid that debt at Michaelmas, as the reeve well knows.
+  Probe: Thy lot still owes mine three groats, whatever lies thou tellest.
+    1) [PushBack] Well… We paid that debt at Michaelmas, as the reeve well knows.
+    2) [Evade] We don't know each other so well as that.
     3) [Question] Put a question to them
-  Voice: Some things keep.
-  Probe: I have looked upon thy face long enough.
-    1) [Farewell] Gladly. The sight of thee sours my stomach.
-  Voice: Gladly. The sight of thee sours my stomach.
+  Voice: Well… We paid that debt at Michaelmas, as the reeve well knows.
+  Probe: We are done here.
+    1) [Farewell] Aye. Done.
+  Voice: Aye. Done.
   -- Farewell (trees: ["old_scores"])
 REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Rival --picks 0,0,0

@@ -5,30 +5,37 @@
   (Aldric holds the manor's leases. Their purse strings are knotted tight. They keep close to the church folk.)
   Aldric: I bar my door at night and still don't sleep.   [gist]
     1) Fair enough, and to you.
-    2) Morrow. I'd best keep moving.
+    2) Well… Morrow. I'd best keep moving.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   you: Fair enough, and to you.
   Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
     1) An open hand finds open doors, say I.
-    2) Charity begins at home, and mostly stays there.
+    2) Folk who give away their bread soon beg for mine.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
-  you: A loaf shared is a friend made - I'd not grudge it.
-  Aldric: Folk say the well water runs sweet again.
-    1) Good news, if it keeps.
+  you: An open hand finds open doors, say I.
+  Aldric: The lane's quieter since the rain, thank goodness.
+    1) As do we all, neighbor.
     2) Put a question to them
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  you: Good news, if it keeps.
-  Aldric: True enough - the fields don't gossip.
-    1) God keep the manor and you with it, m'lady.
-    2) I have no leisure to stand about, Aldric.
+  you: As do we all, neighbor.
+  Aldric: As thou sayest, friend.
+  Aldric: Is the road safe for a lone cart?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    4) Ask what they actually want
+    l) take your leave
+  you: I couldn't say truly.
+    1) Your servant, m'lady. Good day.
+    2) Enough chatter. Good day.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 0 --picks 0,0,0,0 (talk seed 905969685)
+REPRO: talk_lab talk --seed 7 --villager 0 --picks 0,0,0,0,0 (talk seed 905969685)

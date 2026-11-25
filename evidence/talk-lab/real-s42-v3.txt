@@ -5,37 +5,30 @@
   (Corvin is the village farmer. They'd sooner watch the clouds than the plough. They keep close to the church folk.)
   Corvin: No bench, no hearth - I work in the street.   [gist]
     1) Out and about early today.
-    2) Aye. Good day to you.
+    2) Ah… Aye. Good day to you.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   you: Out and about early today.
   Corvin: I say a body earns their rest. You will not disagree?
-    1) The field'll keep till tomorrow, say I.
+    1) Rest's a harvest too, of a kind.
     2) The saints gave us six days for a reason.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   Corvin: I say a body earns their rest. You will not disagree?
   you: Rest's a harvest too, of a kind.
-  Corvin: The lane's quieter since the rain, thank goodness.
+  Corvin: Folk say the well water runs sweet again.
     1) As do we all, neighbor.
     2) Put a question to them
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   you: As do we all, neighbor.
-  Corvin: We have spoken our piece for today.
-  Corvin: Is there bench work for a new hand?
-    1) Answer plainly
-    2) Reassure them
-    3) Ask why
-    4) Ask what they actually want
-    l) take your leave
-  you: From what I've seen - aye.
-    1) I take my leave.
-    2) Fair day to you, Corvin - 'twas good to pass the time.
+  Corvin: True enough - the fields don't gossip.
+    1) Fair day to you, Corvin - 'twas good to pass the time.
+    2) My day is waiting.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 3 --picks 0,0,0,0,0 (talk seed 905969676)
+REPRO: talk_lab talk --seed 42 --villager 3 --picks 0,0,0,0 (talk seed 905969676)

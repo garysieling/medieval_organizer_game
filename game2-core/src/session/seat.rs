@@ -169,6 +169,14 @@ pub struct Seat {
     /// Testimony's own question (#1248): which of the organizer's own
     /// history to tell - (the tick asked, the events on offer)
     pub testimony_offer: Option<(u64, Vec<String>)>,
+    /// The issues the call's agenda can press (#1611): the organizer's
+    /// heard ledger, snapshotted when the word went out like testimony's
+    /// events are - a learnt issue mid-window can't shift the pick's rows
+    pub frame_issues: Vec<crate::game::desires::IssueTag>,
+    /// The live meeting's steering pause (#1611): the floor's heard its
+    /// first round and waits on the organizer's steer (Command::Decide).
+    /// The tick it was asked; the meeting itself holds till it lapses
+    pub steer_offer: Option<u64>,
     /// The tick the organizer last testified - testimony repeated is a
     /// speech, so it waits out TESTIMONY_COOLDOWN_DAYS
     pub last_testimony: Option<u64>,
@@ -248,6 +256,7 @@ impl Default for Seat {
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
                pending_founding: None, meet_offer: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
+               frame_issues: vec![], steer_offer: None,
                quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, mystery_solved: 0, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,

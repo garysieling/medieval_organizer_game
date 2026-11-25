@@ -31,10 +31,10 @@ Eliza [Question in the_audition]: God witness. Some say the old prayers are only
 Gisela [Agree in the_audition]: I keep the faith as my mother taught me, and gladly.
 Eliza [Remark in hunger_lean_times]: Saints keep us. The children went to sleep crying with empty bellies last night.
 Gisela [Agree in hunger_lean_times]: Come by our hearth; there is pottage enough for two more bowls.
-Eliza [Remark in hunger_lean_times]: A shared loaf tastes twice as sweet in hard times.
+Eliza [Remark in hunger_lean_times]: We have boiled nettles and wild leeks before, and survived, or so I make it.
 Gisela [Agree in hunger_lean_times]: Here's to a fat harvest, neighbor.
 Eliza [Remark in hunger_lean_times]: True enough - the fields don't gossip.
-Gisela [Farewell in hunger_lean_times]: My day is waiting.
+Gisela [Farewell in hunger_lean_times]: Enough chatter. Good day.
 -- Farewell, vibe: Safe
 
 ## Bram and Dagny - Rival at field (Public) (seed 33, picks [0, 1, 1, 1, 1, 0, 0, 2, 1])

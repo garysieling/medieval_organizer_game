@@ -1082,7 +1082,7 @@ fn test_a_probe_meeting_asks_what_they_want_and_who_for() {
     tie(&mut g, deep, loved, 0.95);
     g.world.get_component_mut::<InnerLife>(guarded).unwrap().wants = vec![Want::Music];
     let came = vec![deep, guarded];
-    let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), true, None);
+    let (lines, _, _) = g.meeting_lines(&came, 0, (false, false, false, false, false), true, None, None);
     assert!(lines.iter().any(|(e, l)| *e == pe
             && *l == g.pair_said(pe, g.player, crate::game::dialogue_trees::MEET_PROBE.text)),
         "the host asks the probe: {:?}", lines);
@@ -1103,7 +1103,7 @@ fn test_the_lords_ear_takes_the_name_home() {
     tie(&mut g, pe, deep, 0.8);
     tie(&mut g, deep, loved, 0.95);
     g.plant = Some(spy);
-    g.meeting_lines(&[deep, spy], 0, (false, false, false, false, false), true, None);
+    g.meeting_lines(&[deep, spy], 0, (false, false, false, false, false), true, None, None);
     assert!(g.world.get_component::<InnerLife>(loved).unwrap().grievances.iter()
         .any(|(p, _)| *p == Problem::WritBorne), "a writ finds the one named");
 }
@@ -1119,7 +1119,7 @@ fn test_the_probe_plants_a_want_that_ripens() {
     tie(&mut g, pe, v, 0.3);
     let bond = relationships::find_relationship(&g.world, pe, v).unwrap();
     g.world.add_component(bond, crate::game::organizing::Deeds { n: 1 });
-    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None);
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None, None);
     let (w, _, _) = g.world.get_component::<Planted>(v).expect("the question stays with them").wants[0];
     assert!(!g.world.get_component::<InnerLife>(v).unwrap().wants.contains(&w), "only a thought yet");
     let before = g.world.get_component::<relationships::Relationship>(bond).unwrap().strength;
@@ -1135,7 +1135,7 @@ fn test_the_matter_plants_nothing() {
     use crate::game::desires::Planted;
     let mut g = Game::new();
     let v = g.villagers[3];
-    g.meeting_lines(&[v], 0, (false, false, false, false, false), false, None);
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), false, None, None);
     assert!(g.world.get_component::<Planted>(v).is_none());
 }
 
@@ -1145,7 +1145,7 @@ fn test_a_planted_want_dies_with_its_hearer() {
     let mut g = Game::new();
     let v = g.villagers[3];
     g.world.get_component_mut::<InnerLife>(v).unwrap().wants.clear();
-    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None);
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, None, None);
     assert!(g.world.get_component::<Planted>(v).is_some());
     g.world.add_component(v, crate::game::villager::Dead);
     let t = g.tick + PLANT_RIPEN_DAYS;
@@ -1203,7 +1203,7 @@ fn test_testimony_tells_self_us_now_and_lands_on_a_warm_room() {
     tie(&mut g, a, pe, 0.6);
     tie(&mut g, b, pe, 0.6);
     let before = (episodes(&g, a), episodes(&g, b));
-    let lines = g.meeting_lines(&[a, b], 0, (false, false, false, false, false), false, Some(&ev));
+    let (lines, _, _) = g.meeting_lines(&[a, b], 0, (false, false, false, false, false), false, Some(&ev), None);
     let host: Vec<&String> = lines.iter().filter(|(e, _)| *e == pe).map(|(_, l)| l).collect();
     assert!(host.iter().any(|l| l.contains(&ev)), "Self tells the event: {:?}", host);
     assert!(host.iter().any(|l| l.starts_with("And it's not mine alone")), "Us");
@@ -1220,7 +1220,7 @@ fn test_testimony_to_a_cold_room_lands_weaker_but_never_hurts() {
     let ev = hard_news(&mut g);
     tie(&mut g, a, pe, 0.0);
     let before = episodes(&g, a);
-    g.meeting_lines(&[a], 0, (false, false, false, false, false), false, Some(&ev));
+    g.meeting_lines(&[a], 0, (false, false, false, false, false), false, Some(&ev), None);
     assert_eq!(episodes(&g, a), before + 1);
     assert!(g.log.last().unwrap().contains("cold room"));
 }
@@ -1233,9 +1233,11 @@ fn test_a_told_testimony_lets_more_of_the_room_speak() {
         let mut g = Game::new();
         let ev = hard_news(&mut g);
         let came: Vec<Entity> = g.villagers[1..25].to_vec();
-        g.meeting_lines(&came, 0, (false, false, false, false, false), false,
-            if testify { Some(&ev) } else { None });
-        g.voiced.len()
+        // the voices a line carries land as it airs (#1611) - the marks
+        // are what the meeting's scripted to put in the room
+        let (_, _, marks) = g.meeting_lines(&came, 0, (false, false, false, false, false), false,
+            if testify { Some(&ev) } else { None }, None);
+        marks.len()
     };
     let (with, without) = (secrets(true), secrets(false));
     assert!(with > without, "testimony should open the room: {with} vs {without} shared");
@@ -1259,7 +1261,7 @@ fn test_a_hearer_answers_deeper_and_opens_warm() {
     add_grievance(&mut g.world, v, Problem::Taxed, g.tick + 30);
     assert!(!heard_testimony(&g.world, v, host), "no telling yet");
     let ev = hard_news(&mut g);
-    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, Some(&ev));
+    g.meeting_lines(&[v], 0, (false, false, false, false, false), true, Some(&ev), None);
     assert!(heard_testimony(&g.world, v, host), "the telling rides their journal");
     assert!(crate::game::desires::known(&g.world, host, v)
         .iter().any(|r| matches!(r, Reveal::Problem(_))),
@@ -1927,4 +1929,180 @@ fn the_strain_lands_on_the_acting_seats_cause() {
         "the acting seat's cause loses them");
     assert!(g.world.get_component::<crate::sim::community::Organization>(g.org)
         .unwrap().members.contains(&v), "the first seat's roll is untouched");
+}
+
+/// Four villagers by the venue, planned and called: a real meeting under
+/// way whose floor is full enough to leave a steering seam (#1611)
+fn meeting_under_way(g: &mut Game) -> Vec<Entity> {
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    let came: Vec<Entity> = g.villagers[1..=4].to_vec();
+    for (k, &v) in came.iter().enumerate() {
+        *g.world.get_component_mut::<Pos>(v).unwrap() =
+            Pos { x: 16.0 + k as f32, y: 18.0 };
+    }
+    for (i, &v) in g.villagers.clone().iter().enumerate() {
+        if !(1..=4).contains(&i) { *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32, y: 3.0 }; }
+    }
+    plan_ready_meeting(g, came[0], (18.0, 16.0), &came[1..]);
+    g.call_meeting();
+    let mut n = 0;
+    while g.meeting.as_ref().map_or(false, |m| m.talk_from.is_none()) {
+        g.update(); n += 1;
+        assert!(n < 60 * FPS, "the talk never began");
+    }
+    came
+}
+
+/// The floor's heard them once round, then the box holds for the
+/// organizer's steer
+fn update_to_the_pause(g: &mut Game) {
+    let mut n = 0;
+    while g.seats[0].steer_offer.is_none() {
+        g.update(); n += 1;
+        assert!(n < 60 * FPS, "the steering seam never came: {:?}", g.meeting.as_ref().map(|m| m.frames));
+    }
+}
+
+#[test]
+fn test_the_calls_agenda_presses_an_issue_the_organizer_heard() {
+    let mut g = Game::new();
+    // the organizer's ledger knows the taxes: the call can press it
+    g.world.get_component_mut::<crate::game::desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.the_words_out(0, 2);
+    assert!(g.seats[0].frame_offer.is_some(), "the call still asks its question");
+    assert_eq!(g.seats[0].frame_issues, vec!["the taxes".to_string()],
+        "the heard issues ride the call's question");
+    // the agenda rows sit past matter/probe/testify - the same base the
+    // box lays them out on
+    let oe = g.org;
+    crate::game::organizing::plan_for(&mut g.world, oe);
+    g.decide_at(0, if g.testimony_ready(0) { 3 } else { 2 });
+    let p = g.world.get_component::<MeetingPlan>(g.org).unwrap();
+    assert_eq!(p.agenda.as_deref(), Some("the taxes"), "the pick sets the call's agenda");
+    // and in the room the host opens on it by name, its carriers heard
+    let came = g.villagers[1..4].to_vec();
+    for &v in &came {
+        crate::game::desires::add_grievance(&mut g.world, v, crate::game::desires::Problem::Taxed, g.tick + 200);
+    }
+    let agenda = "the taxes".to_string();
+    let (lines, _, marks) = g.meeting_lines(&came, 0, (false, false, false, false, false), false, None, Some(&agenda));
+    let ask = lines.iter().find(|(e, _)| *e == g.seats[0].player).map(|(_, t)| t.clone()).unwrap();
+    assert!(ask.contains("you all know the matter"), "the host opens on the matter: {}", ask);
+    assert!(marks.iter().any(|(_, mk)| matches!(mk, MeetMark::Reveal { tag, .. } if tag == "the taxes")),
+        "the matter's carriers got called on: {:?}", marks);
+}
+
+#[test]
+fn test_the_floor_holds_for_the_organizers_steer_then_plays_on() {
+    let mut g = Game::new();
+    meeting_under_way(&mut g);
+    assert!(g.meeting.as_ref().unwrap().steer_at.is_some(), "a full floor leaves a steering seam");
+    update_to_the_pause(&mut g);
+    // the script holds at the marker - no line airs while it waits
+    let held = g.meeting.as_ref().unwrap().frames;
+    g.update();
+    assert_eq!(g.meeting.as_ref().unwrap().frames, held, "the floor waits on the steer");
+    // open the floor: the script plays on as written
+    g.decide_at(0, 1);
+    assert!(g.seats[0].steer_offer.is_none());
+    assert!(g.meeting.as_ref().unwrap().steered);
+    let mut n = 0;
+    while g.meeting.is_some() {
+        g.update(); n += 1;
+        assert!(n < 60 * FPS, "the meeting never ended");
+    }
+}
+
+#[test]
+fn test_the_steer_presses_the_loudest_matter_or_brings_it_home() {
+    let mut g = Game::new();
+    let came = meeting_under_way(&mut g);
+    for &v in &came[..3] {
+        crate::game::desires::add_grievance(&mut g.world, v, crate::game::desires::Problem::Taxed, g.tick + 200);
+    }
+    update_to_the_pause(&mut g);
+    let at = g.meeting.as_ref().unwrap().steer_at.unwrap();
+    // press it: the prompt becomes a press on what the room circled
+    g.decide_at(0, 0);
+    let m = g.meeting.as_ref().unwrap();
+    assert_ne!(m.lines[at].1, MEETING_PROMPTS[1], "the prompt's now a press: {}", m.lines[at].1);
+    let mut n = 0;
+    while g.meeting.is_some() {
+        g.update(); n += 1;
+        assert!(n < 60 * FPS, "the meeting never ended");
+    }
+    // fresh meeting, same seam - bring it home cuts the floor to the close
+    let mut g = Game::new();
+    meeting_under_way(&mut g);
+    update_to_the_pause(&mut g);
+    let at = g.meeting.as_ref().unwrap().steer_at.unwrap();
+    g.decide_at(0, 2);
+    let m = g.meeting.as_ref().unwrap();
+    assert_eq!(m.lines.len(), at + 2, "the floor's middle is cut to the close: {}", m.lines.len());
+    assert_eq!(m.lines[at].1, MEETING_PROMPTS[2]);
+}
+
+#[test]
+fn test_an_unanswered_steer_lapses_to_an_open_floor() {
+    let mut g = Game::new();
+    meeting_under_way(&mut g);
+    update_to_the_pause(&mut g);
+    // a client that never sends Decide can't hold the room: the floor
+    // opens on its own, same as the founding call lapses
+    for _ in 0..STEER_WAIT_FRAMES + 2 { g.update(); }
+    assert!(g.meeting.as_ref().map_or(true, |m| m.steered), "the floor opened on its own");
+    assert!(g.seats[0].steer_offer.is_none());
+    let mut n = 0;
+    while g.meeting.is_some() {
+        g.update(); n += 1;
+        assert!(n < 60 * FPS, "the meeting never ended");
+    }
+}
+
+/// And what the steer cuts away was never said (#1611): a turn that
+/// doesn't air leaves no voice in the tally and no secret in the
+/// organizer's ledger
+#[test]
+fn test_bringing_it_home_leaves_the_unaired_untold() {
+    let mut g = Game::new();
+    // a full floor with two shared troubles and the call pressing one:
+    // the first round empties on the taxes, the second still carries
+    // secrets - the turns the steer cuts
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    let came: Vec<Entity> = g.villagers[1..=8].to_vec();
+    for (k, &v) in came.iter().enumerate() {
+        *g.world.get_component_mut::<Pos>(v).unwrap() =
+            Pos { x: 16.0 + k as f32, y: 18.0 };
+        crate::game::desires::add_grievance(&mut g.world, v, crate::game::desires::Problem::Taxed, g.tick + 200);
+        crate::game::desires::add_grievance(&mut g.world, v, crate::game::desires::Problem::Broke, g.tick + 200);
+    }
+    for (i, &v) in g.villagers.clone().iter().enumerate() {
+        if !(1..=8).contains(&i) { *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32, y: 3.0 }; }
+    }
+    plan_ready_meeting(&mut g, came[0], (18.0, 16.0), &came[1..]);
+    g.world.get_component_mut::<MeetingPlan>(g.org).unwrap().agenda = Some("the taxes".into());
+    g.call_meeting();
+    let mut n = 0;
+    while g.meeting.as_ref().map_or(false, |m| m.talk_from.is_none()) {
+        g.update(); n += 1;
+        assert!(n < 60 * FPS, "the talk never began");
+    }
+    update_to_the_pause(&mut g);
+    let host = g.seats[0].player;
+    let heard = |g: &Game| g.world.get_component::<crate::game::desires::Organizer>(host).unwrap().heard.len();
+    let (voices, told) = (g.voiced.len(), heard(&g));
+    let m = g.meeting.as_ref().unwrap();
+    let at = m.steer_at.unwrap();
+    assert!(m.marks.iter().any(|(i, _)| *i > at),
+        "the cut turns carried secrets - else the test says nothing: {:?}", m.marks.len());
+    // bring it home: the rest of the floor's turns go out unaired
+    g.decide_at(0, 2);
+    let mut n = 0;
+    while g.meeting.is_some() {
+        g.update(); n += 1;
+        assert!(n < 60 * FPS, "the meeting never ended");
+    }
+    assert_eq!(g.voiced.len(), voices, "a cut turn left a voice in the tally");
+    assert_eq!(heard(&g), told, "a cut turn still told the organizer its secret");
 }

@@ -4,7 +4,7 @@
   Rowena: Neighbor! Out early like the rest of us, wanderer.
   (Rowena is the village farmer. They never miss a service. They keep close to the church folk.)
   Rowena: No bench, no hearth - I work in the street.   [gist]
-    1) Morrow. I'd best keep moving.
+    1) Hm… Morrow. I'd best keep moving.
     2) Well enough - and yours?
     3) Ask who folk turn to around here
     4) Ask what they actually want
@@ -17,7 +17,7 @@
     4) Ask what they actually want
     l) take your leave
   Rowena: Some say the old prayers are only words. And you?
-  you: Prayer and work, friend - that's the whole of it.
+  you: I keep the faith as my mother taught me, and gladly.
   Rowena: Saints keep us. As you say, friend.
     1) Go well, Rowena, and mind the mud.
     2) I must walk on; fair day.

@@ -17,11 +17,11 @@
   Voice: Gently does it, friend. Day by day.
   Probe: Thy lot still owes mine three groats, whatever lies thou tellest.
     1) [Evade] That's not for the telling, friend.
-    2) [PushBack] Thou hast a treacherous tongue in thy skull.
+    2) [PushBack] Hm… Thou hast a treacherous tongue in thy skull.
     3) [Question] Put a question to them
   Voice: That's not for the telling, friend.
-  Probe: Take thy shadow off my land.
-    1) [Farewell] Aye. Done.
-  Voice: Aye. Done.
+  Probe: We are done here.
+    1) [Farewell] Until we meet at the boundary ditch.
+  Voice: Until we meet at the boundary ditch.
   -- Farewell (trees: ["a_death_in_the_house", "old_scores"])
 REPRO: talk_lab talk --name Probe --status grieving --seed 11 --rel Rival --picks 0,0,0,0,0

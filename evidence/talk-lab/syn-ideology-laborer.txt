@@ -17,17 +17,22 @@
   Voice: Enough sky-talk - how goes the work these days?
   Voice: I hear the work keeps you busy at the day's work.
     1) [Answer] The lord's acres are kind to a steady hand, Voice - I'll say it anywhere.
-    2) [PushBack] the day's work is my affair, and it fares as it fares.
+    2) [PushBack] Hm… the day's work is my affair, and it fares as it fares.
     3) [Question] Put a question to them
   Voice: The lord's acres are kind to a steady hand, Voice - I'll say it anywhere.
   Voice: The peddler's cart lost a wheel at the bridge.
-    1) [PushBack] Idle tongues, that. It breeds mischief.
-    2) [Joke] I told the rain to stop and it came down the harder. So much for commanding the weather.
+    1) [Joke] I told the rain to stop and it came down the harder. So much for commanding the weather.
+    2) [PushBack] Well… Idle tongues, that. It breeds mischief.
     3) [Question] Put a question to them
-  Voice: Oh… Idle tongues, that. It breeds mischief.
-  Voice: True enough - the fields don't gossip.
-    1) [Farewell] Go well, Voice, and mind the mud.
-    2) [Farewell] My day is waiting.
-  Voice: Go well, Voice, and mind the mud.
+  Voice: I told the rain to stop and it came down the harder. So much for commanding the weather.
+  Voice: Ha! Aye - and the half of it's left unsaid.
+  Voice: Walk with me a moment, Voice - the light's good this hour, or do I hear wrong?
+    1) [PushBack] Hm… Keep your swallows. I've troubles enough.
+    2) [Question] Put a question to them
+  Voice: Hm… Keep your swallows. I've troubles enough.
+  Voice: As you say, friend.
+    1) [Farewell] Fair day to you, Voice - 'twas good to pass the time.
+    2) [Farewell] I have no leisure to stand about, Voice.
+  Voice: Fair day to you, Voice - 'twas good to pass the time.
   -- Farewell (trees: ["village_smalltalk", "the_audition"], vibe: Safe)
-REPRO: talk_lab talk --name Voice --ideology laborer --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0,0
+REPRO: talk_lab talk --name Voice --ideology laborer --trait proud --seed 23 --rel Acquaintance --picks 0,0,0,0,0,0,0

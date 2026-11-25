@@ -5,30 +5,37 @@
   (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
   Roderick: Hah! No one to learn from. I'll be a journeyman forever, or am I mistook?   [gist]
     1) Well enough - and yours?
-    2) Aye. Good day to you.
+    2) Well… Aye. Good day to you.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   you: Well enough - and yours?
-  Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
+  Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
     1) You will not put words in my mouth, friend.
     2) I'll not argue it, if it pleases you.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
-  you: I say no such thing. The miller was half to blame and more.
-  Roderick: Your roof's holding better than mine in this wind, I'd wager.
-    1) Aye, the village turns on small things.
+  Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
+  you: You will not put words in my mouth, friend.
+  Roderick: Folk say the well water runs sweet again.
+    1) As do we all, neighbor.
     2) Put a question to them
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  you: Aye, the village turns on small things.
-  Roderick: As you say, friend, and that's the long of it, or am I mistook?
-    1) Go well, Roderick, and mind the mud.
-    2) Enough chatter. Good day.
+  you: As do we all, neighbor.
+  Roderick: True enough - the fields don't gossip.
+  Roderick: Do folk hold the smell of honest work against a body?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    4) Ask what they actually want
+    l) take your leave
+  you: From what I've seen - aye.
+    1) Fare you well until the morrow.
+    2) I take my leave.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 22 --picks 0,0,0,0 (talk seed 1224736781)
+REPRO: talk_lab talk --seed 42 --villager 22 --picks 0,0,0,0,0 (talk seed 1224736781)

@@ -34,7 +34,7 @@ Osric [Agree in the_cleric_blesses]: Thou hast spoken the plain heart of the mat
 Eliza [Remark in morning_after_drunk]: They say we sang every verse of the Harvest ballad three times over, or so I make it.
 Osric [Agree in morning_after_drunk]: Thou didst indeed! And fell backwards over the ale barrel!
 Eliza [Remark in morning_after_drunk]: A bucket of icy well water over the skull will clear the cobwebs.
-Osric [Farewell in morning_after_drunk]: Walk straight, Eliza, or the reeve will notice.
+Osric [Farewell in morning_after_drunk]: No more brown ale for thee until Sunday! Fare well.
 -- Farewell
 
 ## Aldric and Bram - Friend at kitchen (Backstage) (seed 1304, picks [1, 1, 0, 1, 0, 0, 1, 0])
@@ -69,9 +69,9 @@ Corvin [Answer in the_asking]: A holding keeps a soul busy, one way and another.
 Corvin [Remark in the_cleric_blesses]: The church altar is always open to the weary soul.
 Dagny [Agree in the_cleric_blesses]: The season has been lean, father, but faith sustains us.
 Corvin [Remark in old_scores]: Thy lot still owes mine three groats, whatever lies thou tellest.
-Dagny [PushBack in old_scores]: Ah… Thou hast a treacherous tongue in thy skull, and more besides, or so I make it.
+Dagny [PushBack in old_scores]: Well… Thou hast a treacherous tongue in thy skull, and more besides, or so I make it.
 Corvin [Remark in old_scores]: Come closer and say that to my beard.
-Dagny [PushBack in old_scores]: Hm… Take thy shadow off my path.
+Dagny [PushBack in old_scores]: Well… Get out of my sight, Corvin.
 -- WalksOff
 
 ## Dagny and Osric - Rival at alehouse (Public) (seed 1306, picks [1, 2, 0, 0, 0])
@@ -79,17 +79,17 @@ them: Dagny trades on the road between villages. They mean to be more than they 
 you : Osric trades on the road between villages. They'd sooner watch the clouds than the plough. Last night's cup is still on them.
 
 Dagny [Greet in old_scores]: Look what the crows dropped on the highway - so it goes.
-Osric [PushBack in old_scores]: Hm… Still breathing, I see. A great pity for the town.
+Osric [PushBack in old_scores]: Oh… The parish got poorer the day thou drewest breath.
 Dagny [Remark in old_scores]: In all my years I never saw the like, Osric.
 Osric [Question in the_asking]: How do folk fare here, to thy eyes?
-Dagny [Answer in the_asking]: Quieter than it was, and that's no bad thing.
-Dagny [Remark in old_scores]: Thou art all mouth and no marrow.
-Osric [Remark in old_scores]: I'll settle this before the magistrate, not in the dirt.
-Dagny [Remark in old_scores]: Take thy shadow off my land.
-Osric [Farewell in old_scores]: May the road be kind under thy boots.
+Dagny [Answer in the_asking]: There's grumbling at the well, but when isn't there.
+Dagny [Remark in old_scores]: I have no words to waste on a crooked knave.
+Osric [Remark in old_scores]: Not worth the breath or the bruise.
+Dagny [Remark in old_scores]: We are done here.
+Osric [Farewell in old_scores]: Until we meet at the boundary ditch.
 -- Farewell
 
-## Hob and Osric - Acquaintance at market (Public) (seed 1307, picks [0, 1, 0, 2, 1, 2, 0, 1, 0, 0])
+## Hob and Osric - Acquaintance at market (Public) (seed 1307, picks [0, 1, 0, 1, 1, 0, 1, 2, 0, 0, 0, 0])
 them: Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
 you : Osric trades on the road between villages. They'd sooner watch the clouds than the plough. Last night's cup is still on them.
 
@@ -98,18 +98,22 @@ Osric [Agree in the_sickness]: A rough fever, by the look of you.
 Hob [Question in the_audition]: Folk here know to speak fair to me. You will have heard as much?
 Osric [Remark in the_audition]: Can't say the name reached me - I keep to my own lane.
 Hob [Remark in village_smalltalk]: A barred door keeps out friends as well as wolves, and more besides.
-Osric [Question in village_smalltalk]: Enough sky-talk - how goes the work these days?
-Hob [Remark in village_smalltalk]: How goes it at the ledger, Osric?
+Osric [Question in village_smalltalk]: Tell me true, Hob - how goes it with you?
+Hob [Answer in village_smalltalk]: The little ones keep me running from dawn to dusk.
 Osric [Question in the_asking]: How fares your day's work?
 Hob [Answer in the_asking]: A holding keeps a soul busy, one way and another.
-Hob [Remark in village_smalltalk]: Osric - how goes the ledger with you this season?
-Osric [Question in the_asking]: What word of the village these days?
-Hob [Answer in the_asking]: There's grumbling at the well, but when isn't there, as I see it.
-Hob [Remark in village_smalltalk]: I hear the work keeps you busy at the ledger.
-Osric [Answer in village_smalltalk]: Honest work for honest pay at the ledger - can't complain, and wouldn't.
-Hob [Remark in village_smalltalk]: A rider from the castle came through before dawn.
-Osric [PushBack in village_smalltalk]: Ah… Let the miller and the rider sort their own affairs.
-Hob [Remark in village_smalltalk]: True enough - the fields don't gossip.
+Hob [Answer in village_smalltalk]: Well enough, thank you, Osric, and that's the long of it.
+Osric [Agree in village_smalltalk]: Good to hear it - long may health stay under your roof.
+Hob [Remark in village_smalltalk]: Rooks are gathering thick in the elm trees, or so I make it.
+Osric [Agree in village_smalltalk]: Every hand will be needed when the grain ripens.
+Hob [Remark in village_smalltalk]: They say the miller took an extra scoop of meal again, for my part.
+Osric [Question in the_asking]: How do folk fare here, to your eyes?
+Hob [Answer in the_asking]: Folk fare as folk do - some well, some not so.
+Hob [Remark in village_smalltalk]: The peddler's cart lost a wheel at the bridge.
+Osric [Remark in village_smalltalk]: The reeve's hard but the law's the law - keeps us all honest.
+Hob [Remark in village_smalltalk]: They do say the reeve counts the sheep twice over, and that's the long of it, or so I make it.
+Osric [PushBack in village_smalltalk]: Hm… I have heard that lie three times this week.
+Hob [Remark in village_smalltalk]: As you say, friend.
 Osric [Farewell in village_smalltalk]: Fair profit to you, trader.
 -- Farewell, vibe: Mismatch
 
@@ -216,11 +220,11 @@ Osric [Agree in the_audition]: The Word's a lamp in dark times - I'd not put it 
 Eliza [Remark in the_cleric_blesses]: How fares your house in these lean weeks, child?
 Osric [Agree in the_cleric_blesses]: I try to walk uprightly before God and my neighbors.
 Eliza [Remark in morning_after_drunk]: We do what we must while daylight holds.
-Osric [Question in the_asking]: How fares your day's work?
+Osric [Question in the_asking]: The day's labor - how does it treat you?
 Eliza [Answer in the_asking]: Heard, and heard again - aye.
-Eliza [Remark in morning_after_drunk]: They say we sang every verse of the Harvest ballad three times over, or so I make it.
-Osric [Agree in morning_after_drunk]: Aye, there is truth in what you say.
-Eliza [Remark in morning_after_drunk]: A bucket of icy well water over the skull will clear the cobwebs.
-Osric [Farewell in morning_after_drunk]: Walk straight, Eliza, or the reeve will notice.
+Eliza [Remark in morning_after_drunk]: My purse is six silver pennies lighter than when dusk fell.
+Osric [Agree in morning_after_drunk]: It was a merry night, though the morning pays the reckoning.
+Eliza [Remark in morning_after_drunk]: Bread and pickled onions, that's what the stomach needs.
+Osric [Farewell in morning_after_drunk]: God's peace be upon your cottage, Eliza.
 -- Farewell, vibe: Safe
 

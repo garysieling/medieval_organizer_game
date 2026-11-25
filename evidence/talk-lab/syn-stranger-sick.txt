@@ -4,15 +4,26 @@
   you : Voice works the fields for a day's wage.
   Probe: *cough* Morrow, traveler. Best keep to the far side of the path.
     1) [Agree] Keep your strength - and your distance.
-    2) [PushBack] Keep your distance, stranger - I want no new sickness.
+    2) [PushBack] Oh… Keep your distance, stranger - I want no new sickness.
   Voice: Keep your strength - and your distance.
-  Probe: There is no one else to fetch water from the river, stranger.
-    1) [Remark] Aye, words have weight in a small village.
-    2) [Agree] A poor man's bed is a luxury he can rarely afford.
+  Probe: The rent waits for no man's cough.
+    1) [Agree] A poor man's bed is a luxury he can rarely afford.
+    2) [Remark] I have barley meal to spare for your kettle.
     3) [Question] Put a question to them
-  Voice: Aye, words have weight in a small village.
-  Probe: My thanks. A warm bowl does more than herbs.
-    1) [Farewell] The village stands together or it falls. Fare well.
-  Voice: The village stands together or it falls. Fare well.
-  -- Farewell (trees: ["the_sickness"])
-REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Stranger --picks 0,0,0
+  Voice: A poor man's bed is a luxury he can rarely afford.
+  Probe: What town do you hail from, stranger?
+    1) [Answer] I come from the valley beyond the high moors.
+    2) [Evade] We don't know each other so well as that.
+    3) [Question] Put a question to them
+  Voice: I come from the valley beyond the high moors.
+  Probe: Keep to the beaten track; the marshes to the east are treacherous.
+    1) [Agree] A fair road and fair talk, traveler.
+    2) [Worry] They say the levy rides again come spring - is it true, Probe?
+    3) [Question] Put a question to them
+  Voice: A fair road and fair talk, traveler.
+  Probe: True enough - the fields don't gossip.
+    1) [Farewell] Go well, traveler - the saints watch your path.
+    2) [Farewell] I have no leisure to stand about, Probe.
+  Voice: Go well, traveler - the saints watch your path.
+  -- Farewell (trees: ["the_sickness", "stranger_road"])
+REPRO: talk_lab talk --name Probe --status sick --seed 11 --rel Stranger --picks 0,0,0,0,0

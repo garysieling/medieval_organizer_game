@@ -104,8 +104,12 @@ impl Game {
 /// an old journal's Decide(n) lands mid-pause on a steer row, not the
 /// founding slate it was recorded against; and the call's steps gained
 /// a form-a-team row (#1614), so an old journal's Decide(n) can land on
-/// the street when it meant the team)
-pub const JOURNAL_VERSION: u32 = 16;
+/// the street when it meant the team; and the standing asks - postings,
+/// stall, mystic, charter, the eyes' hold, parley, the unsworn oath -
+/// answer on their own cards now (#1663), so an old journal's Decide(n)
+/// resolves the box it was recorded against, not the standing state
+/// that used to eat it)
+pub const JOURNAL_VERSION: u32 = 17;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

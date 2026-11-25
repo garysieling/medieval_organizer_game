@@ -18,7 +18,7 @@
     l) take your leave
   Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
   you: I'll not argue it, if it pleases you.
-  Roderick: Aye, the dew lay heavy on the clover this morning.
+  Roderick: Gray skies, gray days - it's the weather of us, wanderer, and nothing moves it.
     1) Weather aside, Roderick - how does the season treat you?
     2) And how fares your folk in this cold snap?
     3) Put a question to them

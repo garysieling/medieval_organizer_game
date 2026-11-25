@@ -2092,8 +2092,15 @@ impl Game {
         }
         // the compliance work's its own answer: spend the cause's own
         // resources to satisfy the lord's postings, else the burden
-        // ticks the capacity down
-        if self.compliance_burden > 0.0 && pick == 0 && self.dilemma.is_none() {
+        // ticks the capacity down. its card shows on the box (#1663) -
+        // the second row lets them stand for the day
+        if self.compliance_burden > 0.0 && self.dilemma.is_none()
+            && self.postings_declined != Some(self.tick) {
+            if pick != 0 {
+                self.postings_declined = Some(self.tick);
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor), format!("t{}: the postings stand for the day - the burden keeps ticking.", self.tick));
+                return;
+            }
             let paid = if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(oe) {
                 if o.resources > 0.05 { o.resources -= 0.05; true } else { false }
             } else { false };
@@ -2196,7 +2203,15 @@ impl Game {
         // the exposed one's own release: cut loose WITH the support -
         // the compassion's the counter-intelligence, the informer's
         // leverage fails
-        if self.inquisition.is_some() && self.penetration > 0.3 && pick == 0 && self.dilemma.is_none() {
+        if self.inquisition.is_some() && self.penetration > 0.3
+            && self.dilemma.is_none() && self.leverage_declined != Some(self.tick) {
+            if pick != 0 {
+                // let the hold stand for the day (#1663) - the card's
+                // second row, off the box till tomorrow
+                self.leverage_declined = Some(self.tick);
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor), format!("t{}: the exposed stay where the eyes hold them - for today.", self.tick));
+                return;
+            }
             self.penetration = (self.penetration - 0.2).max(0.0);
             self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: an exposed one walks free with bread and a door - the leverage the eyes built on them fails.", self.tick));
             return;
@@ -2256,7 +2271,15 @@ impl Game {
         // the deference's own refusal: a small thing alone - the honor
         // unpaid, the oath unsworn - but a commitment-display for the
         // movement, and a cost on the castle's own standing
-        if self.separation_pressure > 0.4 && pick == 1 && self.dilemma.is_none() {
+        // the oath card's own rows (#1663): refuse the honor, or keep
+        // the custom - the deference paid as ever, off the box today
+        if self.separation_pressure > 0.4 && self.dilemma.is_none()
+            && self.deference_paid != Some(self.tick) {
+            if pick != 0 {
+                self.deference_paid = Some(self.tick);
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor), format!("t{}: the deference's paid as ever - the custom kept for today.", self.tick));
+                return;
+            }
             for site in &self.sites {
                 let Some(l) = site.lord else { continue };
                 if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
@@ -2270,7 +2293,10 @@ impl Game {
         // or call the lord's hand - the last replicates the cage's own
         let cultish = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
             .map(|c| c.cultish).unwrap_or(false);
-        if cultish && self.dilemma.is_none() {
+        // the fold's card yields to the louder boxes (#1663): the gate
+        // mirrors the panel's own so a hidden fold can't eat their pick
+        if cultish && self.dilemma.is_none() && self.proposal.is_none()
+            && self.seat_offer.is_none() && self.emergency.is_none() {
             match pick {
                 0 => { // shelter: a soul walks free, the cage's cost aside
                     let m = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
@@ -2309,41 +2335,44 @@ impl Game {
                 }
             }
         }
-        // the arc's own early contest: while the watching's young,
-        // contest the word - the next rung costs him more
-        if self.suppression_arc > 0 && pick == 0 && self.counter_intel >= 2
-            && self.counter_played != Some(self.tick) {
-            self.counter_played = Some(self.tick);
-            for site in &self.sites {
-                let Some(l) = site.lord else { continue };
-                if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
-                    w.legitimacy = (w.legitimacy - 0.05).max(0.0);
-                }
-            }
-            let rung = match self.suppression_arc {
-                1 => "the offer",
-                2 => "the planted word",
-                _ => "the ban",
-            };
-            self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the cause reads {} coming - the word's contested early, the lord's own standing wears.", self.tick, rung));
-            return;
-        }
         // the org's own counter-intel plays: feed the watcher a false
         // word, or read his papers out to the room - once a day each.
         // the gate mirrors the box's own so a hidden menu can't eat
-        // another panel's pick
+        // another panel's pick; the arc's early contest rides the same
+        // card as its first row while the watching's young (#1663)
         if self.counter_intel >= 2 && self.dilemma.is_none()
             && self.proposal.is_none() && self.seat_offer.is_none()
             && self.emergency.is_none()
+            && (self.seats[seat].talk.is_none() || seat == 0)
             && self.counter_played != Some(self.tick) {
+            let arc_up = self.suppression_arc > 0;
+            let plays = arc_up as usize + 1 + (self.counter_intel >= 3) as usize;
             // the last row's the decline - the watching stands (#1627)
-            let declined = pick > if self.counter_intel >= 3 { 1 } else { 0 };
-            if declined {
+            if pick >= plays {
                 self.counter_played = Some(self.tick);
                 self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
                     format!("t{}: the watching's let be - the eyes read what they read.", self.tick));
                 return;
             }
+            // the arc's own early contest: while the watching's young,
+            // contest the word - the next rung costs him more
+            if arc_up && pick == 0 {
+                self.counter_played = Some(self.tick);
+                for site in &self.sites {
+                    let Some(l) = site.lord else { continue };
+                    if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                        w.legitimacy = (w.legitimacy - 0.05).max(0.0);
+                    }
+                }
+                let rung = match self.suppression_arc {
+                    1 => "the offer",
+                    2 => "the planted word",
+                    _ => "the ban",
+                };
+                self.log.push_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Notable), format!("t{}: the cause reads {} coming - the word's contested early, the lord's own standing wears.", self.tick, rung));
+                return;
+            }
+            let pick = pick - arc_up as usize;
             if pick == 0 {
                 self.counter_played = Some(self.tick);
                 for site in &self.sites {

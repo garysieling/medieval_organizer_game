@@ -3400,6 +3400,91 @@ impl Game {
                 ],
                 decides: true, leave: false });
         }
+        // the standing asks announce in the log and answer on the box
+        // (#1663): each sits where its resolver sits in decide_at, so
+        // the box that shows is the box that answers
+        if self.compliance_burden > 0.0 && self.dilemma.is_none()
+            && self.postings_declined != Some(self.tick) {
+            return Some(ConvoPanelV {
+                title: "THE POSTINGS".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                    text: "The lord's postings pile up - the reporting, the audits. Unanswered, the burden ticks the cause's own capacity down.".into() }],
+                options: vec![
+                    "Answer the postings - the cause's own coin satisfies them".into(),
+                    "Let them stand - the burden ticks today".into(),
+                ],
+                decides: true, leave: false });
+        }
+        if self.council.is_some() && self.dilemma.is_none() {
+            return Some(ConvoPanelV {
+                title: "THE STALL".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                    text: "The fold's own stall - the split can't settle itself. A council's called to break what the silence can't.".into() }],
+                options: vec![
+                    "Convene the council - the influence settles, the convener pays".into(),
+                    "Let the stall go on - the silence deepens".into(),
+                ],
+                decides: true, leave: false });
+        }
+        if self.mystic.is_some() && self.dilemma.is_none() {
+            return Some(ConvoPanelV {
+                title: "THE MYSTIC".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                    text: "A mystic walks the lanes - the spirit's own marking, and the fold must answer.".into() }],
+                options: vec![
+                    "Canonize the marking - folded into the fold's own telling".into(),
+                    "License it - tolerated under the fold's own terms".into(),
+                    "Suppress it - the quieting, and the martyr's own risk".into(),
+                ],
+                decides: true, leave: false });
+        }
+        if self.incorporation_offer.is_some() && self.dilemma.is_none() {
+            return Some(ConvoPanelV {
+                title: "THE CHARTER".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                    text: "The crown's man brings a charter - legal status for the fold, and the gold that comes with it.".into() }],
+                options: vec![
+                    "Take the charter - the gold and the crown's own terms".into(),
+                    "Refuse it - the fold keeps its edge, and its poverty".into(),
+                ],
+                decides: true, leave: false });
+        }
+        if self.inquisition.is_some() && self.penetration > 0.3
+            && self.dilemma.is_none() && self.leverage_declined != Some(self.tick) {
+            return Some(ConvoPanelV {
+                title: "THE EYES' HOLD".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                    text: "The eyes hold some of your own - the informers' leverage, bread-and-door pressure on the exposed.".into() }],
+                options: vec![
+                    "Take an exposed one in - with the support, the leverage fails".into(),
+                    "Leave them to the eyes - the hold stands today".into(),
+                ],
+                decides: true, leave: false });
+        }
+        if self.parley.is_some() && self.dilemma.is_none() {
+            return Some(ConvoPanelV {
+                title: "THE PARLEY".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                    text: "A herald under a white flag - the lord offers to talk. The flag's own honor's the question.".into() }],
+                options: vec![
+                    "Ride to the parley - the talk, or the trap".into(),
+                    "Hold the distance - no talk, no trap".into(),
+                    "Demand hostages - the guarantee costs the castle".into(),
+                ],
+                decides: true, leave: false });
+        }
+        if self.separation_pressure > 0.4 && self.dilemma.is_none()
+            && self.deference_paid != Some(self.tick) {
+            return Some(ConvoPanelV {
+                title: "THE UNSWORN OATH".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                    text: "The fold's own pressure wants a public sign - the honor unpaid, the oath unsworn where the castle reads it.".into() }],
+                options: vec![
+                    "Refuse the honor - a small defiance, and the castle reads it".into(),
+                    "Keep the custom - the deference paid as ever today".into(),
+                ],
+                decides: true, leave: false });
+        }
         let cultish = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
             .map(|c| c.cultish).unwrap_or(false);
         if cultish && self.proposal.is_none() && self.seat_offer.is_none()
@@ -3419,7 +3504,14 @@ impl Game {
             && self.emergency.is_none() && self.dilemma.is_none()
             && (s.talk.is_none() || seat == 0)
             && self.counter_played != Some(self.tick) {
-            let mut options = vec!["Feed the watcher false word - the eyes read what we show".into()];
+            let mut options = vec![];
+            // the arc's own early contest rides this card (#1663):
+            // while the watching's young the word can be contested -
+            // the eyes' plays share the day's one attention
+            if self.suppression_arc > 0 {
+                options.push("Contest the word early - his play's read before it lands".into());
+            }
+            options.push("Feed the watcher false word - the eyes read what we show".into());
             if self.counter_intel >= 3 {
                 options.push("Read the watcher out - his own papers in the open".into());
             }
@@ -3494,22 +3586,6 @@ impl Game {
                 options: k.branches.iter().map(|b| b.text.clone()).collect(),
                 decides: true, leave: false });
         }
-        if s.meet_offer.is_some() {
-            return Some(ConvoPanelV {
-                title: "THE CALL - WHEN DO THEY GATHER".into(),
-                rows: vec![
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
-                        text: "The plan's made - the word just wants a day.".into() },
-                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
-                        text: "Till then the asks still count - roles and yeses fill until the door.".into() },
-                ],
-                options: vec![
-                    "Two days out - a quick word round".into(),
-                    "Four days out - the word gets round".into(),
-                    "A week out - the far ones can come".into(),
-                ],
-                decides: true, leave: false });
-        }
         if let Some((_, events)) = &s.testimony_offer {
             let mut options = events.clone();
             // a decision box never lists a lone option (#1627): a thin
@@ -3549,6 +3625,25 @@ impl Game {
                         text: "Put the matter and they'll talk the village's troubles. Ask what they want and you'll hear them - and it stays with them after.".into() },
                 ],
                 options,
+                decides: true, leave: false });
+        }
+        // the day pick sits under the asks (#1663): decide_at resolves
+        // testimony, then the question, then the day - the box shows in
+        // the same order so the shown card's the one that answers
+        if s.meet_offer.is_some() {
+            return Some(ConvoPanelV {
+                title: "THE CALL - WHEN DO THEY GATHER".into(),
+                rows: vec![
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                        text: "The plan's made - the word just wants a day.".into() },
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                        text: "Till then the asks still count - roles and yeses fill until the door.".into() },
+                ],
+                options: vec![
+                    "Two days out - a quick word round".into(),
+                    "Four days out - the word gets round".into(),
+                    "A week out - the far ones can come".into(),
+                ],
                 decides: true, leave: false });
         }
         if let Some(d) = &s.pending_founding {

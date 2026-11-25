@@ -353,7 +353,7 @@ impl Engine {
                     // the noise voices (rain hiss, splash, cheer, cart,
                     // quill) crackle past the click bar on raw white
                     // draws - band-limit like the synth beds do
-                    v.lp2 += 0.4 * (rng.range(-1.0, 1.0) - v.lp2);
+                    v.lp2 += kind.smooth() * (rng.range(-1.0, 1.0) - v.lp2);
                     kind.sample(t, v.lp2)
                 }
             }

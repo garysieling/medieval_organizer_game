@@ -649,6 +649,10 @@ impl Game {
         // reply is only said once what it answers has been (statements 0
         // and 1 - the rite and the host's question - air before any floor)
         let mut aired: crate::engine::det::HashSet<usize> = [0, 1].into_iter().collect();
+        // a saying once said is spent for the night (#1623): the
+        // meeting's own used-set, so nobody's answer echoes another's
+        let mut meeting_said: crate::engine::det::HashSet<&'static str> =
+            crate::engine::det::HashSet::default();
         // the furthest floor statement heard so far - pull-backs air
         // once the room's reached where they happened
         let mut reached = 1usize;
@@ -716,7 +720,7 @@ impl Game {
                     let (line, done) = match ready {
                         Some(j) => { let (k, _, text) = said[ci].remove(j);
                             aired.insert(k); reached = reached.max(k); (text, true) }
-                        None => (meeting_remark(&self.world, v, self.cast_name(i), round), false),
+                        None => (meeting_remark(&self.world, v, self.cast_name(i), round, &mut meeting_said), false),
                     };
                     lines.push((v, line, done));
                 }

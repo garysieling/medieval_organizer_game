@@ -1146,25 +1146,27 @@ fn test_each_round_answers_the_question_its_prompt_asks() {
     // prompt lands, no grievance-table line may still come up
     let mut g = Game::new();
     let came = g.villagers[..3].to_vec();
-    let lines = g.meeting_lines(&came, 0, (false, false, false, false, false), false, None);
-    let concerns = ["the food running short", "the sickness", "fair wages",
-        "safe roads", "the faith", "lower rents", "the coming harvest"];
-    let saying = |text: &str| concerns.iter().enumerate()
-        .find_map(|(i, c)| { let (air, doing) = crate::game::organizing::meeting_sayings(c);
-            if air.contains(&text) { Some(("air", i)) }
-            else if doing.contains(&text) { Some(("do", i)) } else { None } });
+    let (lines, _, _) = g.meeting_lines(&came, 0, (false, false, false, false, false), false, None, None);
+    let saying = |text: &str| crate::game::organizing::MEETING_CONCERNS.iter()
+        .find_map(|c| { let (air, doing) = crate::game::organizing::meeting_sayings(c);
+            if let Some(l) = air.iter().find(|l| text.contains(**l)) { Some(("air", *l)) }
+            else { doing.iter().find(|l| text.contains(**l)).map(|l| ("do", *l)) } });
     let asked = lines.iter().position(|(_, t)| t.contains("most difference"))
         .expect("the difference prompt lands between the rounds");
+    let mut heard = crate::engine::det::HashSet::default();
     for (_, text) in &lines[..asked] {
-        if let Some((act, _)) = saying(text) {
+        if let Some((act, l)) = saying(text) {
             assert_eq!(act, "air", "a resolve opened the meeting: {text}");
+            assert!(heard.insert(l), "a saying played twice in one meeting: {text}");
         }
     }
     for (_, text) in &lines[asked + 1..] {
-        if let Some((act, _)) = saying(text) {
+        if let Some((act, l)) = saying(text) {
             assert_eq!(act, "do", "a grievance answered the doing round: {text}");
+            assert!(heard.insert(l), "a saying played twice in one meeting: {text}");
         }
     }
+    assert!(!heard.is_empty(), "no meeting sayings landed to check: {lines:?}");
 }
 
 #[test]

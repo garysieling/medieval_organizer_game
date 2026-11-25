@@ -560,7 +560,7 @@ impl Game {
         // the plan's spent by the call - its promise-holders are
         // snapshotted on the meeting so a keeper's arrival still counts
         let promised = plan.holders();
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised });
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised, marks: vec![] });
         msg
     }
 
@@ -568,12 +568,15 @@ impl Game {
     /// what's on their mind - now and then a secret slips out, and every
     /// parallel complaint already voiced makes the next speaker likelier
     /// to share their own. Three voices in a family surface an issue.
-    /// Returns the lines and, for a full floor, the index where the
-    /// first round's heard and the organizer steers (#1611).
-    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool), probe: bool, testimony: Option<&str>, agenda: Option<&desires::IssueTag>) -> (Vec<(Entity, String)>, Option<usize>) {
+    /// Returns the lines, for a full floor the index where the first
+    /// round's heard and the organizer steers (#1611), and the marks
+    /// each scripted line lands as it airs - a steered-away turn
+    /// carries nothing to the tally or the ledger.
+    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool), probe: bool, testimony: Option<&str>, agenda: Option<&desires::IssueTag>) -> (Vec<(Entity, String)>, Option<usize>, Vec<(usize, MeetMark)>) {
         // the seat that called it hosts: its player asks, and hears what comes out
         let host_e = self.seats[seat].player;
-        if came.is_empty() { return (vec![], None); }
+        if came.is_empty() { return (vec![], None, vec![]); }
+        let mut marks: Vec<(usize, MeetMark)> = vec![];
         // the probe replaces the host's question (#1267); a set agenda
         // opens on the matter by name instead (#1611)
         let ask = if probe { crate::game::dialogue_trees::MEET_PROBE.text.to_string() }
@@ -663,7 +666,13 @@ impl Game {
                 let mine: crate::engine::det::HashSet<desires::IssueTag> =
                     desires::unrevealed(&self.world, host_e, v, self.tick).iter()
                         .map(|r| desires::issue_tag(&self.world, v, r)).collect();
-                let parallel = self.voiced.iter().filter(|(_, t)| mine.contains(t)).count();
+                // the room's heard what the script's aired so far: voices
+                // already landed plus the ones the earlier turns carry
+                let parallel = self.voiced.iter().map(|(_, t)| t)
+                    .chain(marks.iter().filter_map(|(_, mk)| match mk {
+                        MeetMark::Reveal { tag, .. } => Some(tag),
+                    }))
+                    .filter(|t| mine.contains(*t)).count();
                 let mut chance = desires::REVEAL_BASE + desires::REVEAL_PARALLEL * parallel as f32;
                 // the call's agenda calls its carriers on (#1611): when
                 // the organizer presses a matter, the folk it presses
@@ -694,23 +703,10 @@ impl Game {
                     if let Some(r) = r {
                         let (_, said) = desires::reveal_speech(self.cast_name(i), &r);
                         let tag = desires::issue_tag(&self.world, v, &r);
-                        self.voiced.push((v, tag.clone()));
-                        // a complaint aired is company (#1442): the
-                        // speaker's heard, and every hearer whose own
-                        // trouble echoes it stands a little less alone
-                        self.parallel_push(v, &tag, came);
-                        let pe = host_e;
-                        if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
-                            self.toasts.push((
-                                format!("Organizer discovers issue {}", issue),
-                                self.tick + 40,
-                            ));
-                            self.log_entity_ev(
-                                EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
-                                pe,
-                                format!("t{}: Organizer discovers issue {}", self.tick, issue),
-                            );
-                        }
+                        // the voice lands as the line airs (#1611): a turn
+                        // the steer cuts leaves no voice, no comfort, no
+                        // ledger mark - only what the room heard counts
+                        marks.push((lines.len(), MeetMark::Reveal { who: v, tag, r }));
                         lines.push((v, said, false));
                         shared = true;
                     }
@@ -747,6 +743,7 @@ impl Game {
         // is the last word of the night (#1185)
         lines.insert(0, (rite.0, rite.1, true));
         steer_at = steer_at.map(|a| a + 1);
+        for (i, _) in &mut marks { *i += 1; }
         lines.push((send_off.0, send_off.1, true));
         // the question stays with them: each who heard it goes home with
         // a want they didn't carry, ripening in its own time (#1267)
@@ -759,7 +756,7 @@ impl Game {
         let lines = lines.into_iter()
             .map(|(e, t, done)| (e, if done { t } else { self.pair_said(e, self.seats[seat].player, &t) }))
             .collect();
-        (lines, steer_at)
+        (lines, steer_at, marks)
     }
 
     /// The organizer's history worth testifying to (#1248): the latest
@@ -860,6 +857,30 @@ impl Game {
         }
     }
 
+    /// A scripted line's effect lands as it airs (#1611): the voice
+    /// joins the meeting's tally, the room's hearers stand a little
+    /// less alone (#1442), the organizer's ledger hears the secret told
+    fn air_meeting_mark(&mut self, mk: &MeetMark, seat: usize, came: &[Entity]) {
+        match mk {
+            MeetMark::Reveal { who, tag, r } => {
+                self.voiced.push((*who, tag.clone()));
+                self.parallel_push(*who, tag, came);
+                let pe = self.seats[seat].player;
+                if let Some(issue) = desires::hear(&mut self.world, pe, *who, *r, self.tick) {
+                    self.toasts.push((
+                        format!("Organizer discovers issue {}", issue),
+                        self.tick + 40,
+                    ));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                        pe,
+                        format!("t{}: Organizer discovers issue {}", self.tick, issue),
+                    );
+                }
+            }
+        }
+    }
+
     /// The loudest grievance the room's aired so far (#1611): the tag
     /// most voiced, first-voiced on a tie - what a "press it" steer
     /// would name. None: nothing's come out yet
@@ -870,6 +891,13 @@ impl Game {
         self.voiced.iter().find(|(_, t)| counts.get(t) == Some(&max)).map(|(_, t)| t.clone())
     }
 
+    /// What "press it" would name (#1611): the loudest grievance the
+    /// room's aired, else the call's agenda - the panel's label and the
+    /// pick read the one target
+    pub(in crate::session) fn steer_press_target(&self) -> Option<desires::IssueTag> {
+        self.loudest_voiced().or_else(|| self.meeting.as_ref().and_then(|m| m.agenda.clone()))
+    }
+
     /// The organizer's steer at the floor's pause (#1611): press the
     /// loudest grievance (or the call's agenda), open the floor and let
     /// them talk it out, or bring it home - cut the floor to the close
@@ -877,7 +905,7 @@ impl Game {
         self.seats[seat].steer_offer = None;
         if self.meeting.as_ref().map_or(true, |m| m.seat != seat) { return; }
         let host = self.seats[seat].player;
-        let tag = self.loudest_voiced().or_else(|| self.meeting.as_ref().and_then(|m| m.agenda.clone()));
+        let tag = self.steer_press_target();
         let Some(m) = self.meeting.as_mut() else { return };
         m.steered = true;
         let at = m.steer_at.unwrap_or(m.lines.len());
@@ -898,9 +926,11 @@ impl Game {
             2 => {
                 // bring it home: the floor's remaining turns come out to
                 // the close - the organizer names the next step and the
-                // send-off still lands
+                // send-off still lands. The cut turns' marks go with
+                // them: what never aired left no voice and told nothing
                 let off = m.lines.pop();
                 m.lines.truncate(at);
+                m.marks.retain(|(i, _)| *i < at);
                 m.lines.push((host, MEETING_PROMPTS[2].to_string()));
                 if let Some(off) = off { m.lines.push(off); }
             }
@@ -1121,10 +1151,11 @@ impl Game {
                     if !departed.is_empty() {
                         m.invited.retain(|v| !departed.contains(v));
                     }
-                    let (lines, steer_at) = self.meeting_lines(&m.invited, m.seat,
+                    let (lines, steer_at, marks) = self.meeting_lines(&m.invited, m.seat,
                         m.credit_roles(), m.probe, m.testimony.as_deref(), m.agenda.as_ref());
                     m.lines = lines;
                     m.steer_at = steer_at;
+                    m.marks = marks;
                     self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);
                     // the TALK panel keeps the meeting's record as it's said
@@ -1164,6 +1195,12 @@ impl Game {
                     let (who, text) = m.lines[k].clone();
                     self.think(who, &text, line); // gone as the next one speaks
                     if k > 0 { self.note_talk(m.talk_id, Some(who), &text); }
+                    // what the aired line does lands now (#1611): a turn
+                    // the steer cut away never marked the room
+                    while let Some(j) = m.marks.iter().position(|(i, _)| *i <= k) {
+                        let (_, mk) = m.marks.remove(j);
+                        self.air_meeting_mark(&mk, m.seat, &m.invited);
+                    }
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }

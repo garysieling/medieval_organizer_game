@@ -3571,10 +3571,10 @@ impl Game {
                 if s.steer_offer.is_some() {
                     rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                         text: "The floor's heard them once round - your steer, organizer.".into() });
-                    let press = m.agenda.as_ref().map(|t| format!("Press it - {} on the table",
-                            crate::game::desires::issue_name(t.clone())))
-                        .or_else(|| self.loudest_voiced().map(|t| format!("Press it - {} on every tongue",
-                            crate::game::desires::issue_name(t))))
+                    // the label names what the pick presses (#1611):
+                    // the same target steer_meeting_at will take
+                    let press = self.steer_press_target().map(|t| format!("Press it - {} on the table",
+                            crate::game::desires::issue_name(t)))
                         .unwrap_or_else(|| "Press the matter - put it to them plain".into());
                     let options = vec![press,
                         "Open the floor - let them talk it out".into(),

@@ -195,6 +195,7 @@ fn test_a_kept_part_marks_the_holder_and_the_room() {
         role_people: [None, None, Some(holder), None, None],
         bought: vec![], probe: false, testimony: None,
         agenda: None, steer_at: None, steer_wait: 0, steered: false, promised: vec![],
+        marks: vec![],
     };
     g.meeting_beats(&mut m);
     let hm = g.world.get_component::<JobMarks>(holder).expect("the keeper's marked");

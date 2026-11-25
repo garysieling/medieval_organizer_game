@@ -631,13 +631,30 @@ pub struct Meeting {
     /// snapshotted at call_meeting_at because the plan itself is
     /// consumed there - a keeper's arrival is checked against this
     pub promised: Vec<Entity>,
+    /// What each scripted line does when it airs (#1611): (index in
+    /// `lines`, the effect) - a reveal's voice lands on airing, so a
+    /// steered-away turn carries nothing to the tally or the ledger
+    pub marks: Vec<(usize, MeetMark)>,
+}
+
+/// What a scripted meeting line does when it airs (#1611): the script
+/// is written ahead of the floor's pause, but a turn that never reaches
+/// the room must leave no mark
+#[derive(Debug, Clone)]
+pub enum MeetMark {
+    /// A grievance aired: the voice joins the meeting's tally, the
+    /// room's hearers stand a little less alone, the organizer's
+    /// ledger hears the secret told
+    Reveal { who: Entity, tag: desires::IssueTag, r: desires::Reveal },
 }
 
 impl Meeting {
     /// A line spliced in ahead of the steering marker pushes it back
-    /// (#1611): meeting_beats' kept parts all insert, never append
+    /// (#1611): meeting_beats' kept parts all insert, never append -
+    /// and the marks' line indices shift with it
     fn note_insert(&mut self, pos: usize) {
         if let Some(at) = self.steer_at.as_mut() { if pos <= *at { *at += 1; } }
+        for (i, _) in &mut self.marks { if pos <= *i { *i += 1; } }
     }
 }
 

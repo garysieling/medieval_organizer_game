@@ -99,8 +99,11 @@ impl Game {
 /// "tune turns" lines left the log (#1504), so an old journal's digest
 /// holds lines a new replay no longer writes; and the ctx band lost its
 /// buttons (#1594-#1598), so an old journal's Ctx(n) clicks land on
-/// different acts - or on a press there's no longer a button for)
-pub const JOURNAL_VERSION: u32 = 14;
+/// different acts - or on a press there's no longer a button for; and
+/// the meeting's floor now holds for the organizer's steer (#1611), so
+/// an old journal's Decide(n) lands mid-pause on a steer row, not the
+/// founding slate it was recorded against)
+pub const JOURNAL_VERSION: u32 = 15;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

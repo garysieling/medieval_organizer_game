@@ -675,6 +675,12 @@ fn main() {
                             view.sound_menu = true;
                             view.sound_row = 0;
                         }
+                        // the discoverable F11 (#1601): same swap the key
+                        // does, menu stays up either way
+                        Some(client::MenuPick::Fullscreen) => {
+                            fullscreen = !fullscreen;
+                            window = make_window(fullscreen);
+                        }
                         Some(client::MenuPick::Quit) => quit = true,
                         None => {}
                     }

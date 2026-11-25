@@ -6,14 +6,15 @@ use game2_audio::settings::{AudioSettings, Presence};
 use std::time::{Duration, Instant};
 
 #[test]
-fn pause_menu_has_three_rows() {
+fn pause_menu_has_four_rows() {
     let rows = pause_menu_rows();
-    assert_eq!(rows.len(), 3);
+    assert_eq!(rows.len(), 4);
     assert_eq!(rows[0].4, MenuPick::Resume);
     assert_eq!(rows[1].4, MenuPick::Sound);
-    assert_eq!(rows[2].4, MenuPick::Quit);
-    assert!(rows[0].1 < rows[1].1 && rows[1].1 < rows[2].1,
-        "Sound sits between Resume and Quit");
+    assert_eq!(rows[2].4, MenuPick::Fullscreen);
+    assert_eq!(rows[3].4, MenuPick::Quit);
+    assert!(rows[0].1 < rows[1].1 && rows[1].1 < rows[2].1 && rows[2].1 < rows[3].1,
+        "the settings sit between Resume and Quit");
 }
 
 #[test]

@@ -1313,19 +1313,14 @@ impl View {
         }
 
 
-        // buttons
-        for (i, b) in action_buttons().iter().enumerate() {
-            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            let reason = m.blocked[i].as_deref();
-            draw_button(&mut buf, b, hover, reason.is_some());
-            draw_icon(&mut buf, art.icon(ACTION_ICONS[i]), b.x + 6, b.y + (b.h - 20) / 2, 20);
-            // a greyed-out button always says why; others explain themselves on hover
-            if let Some(r) = &reason {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, r, 200, 140, 120);
-            } else if hover {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, TOOLTIPS[i], 220, 220, 160);
-            }
-        }
+        // the lone action button rides the ctx band's next cell (#1599) -
+        // alone on the old rail it read stranded at the panel's edge; its
+        // why and its hint draw under the band like the ctx reasons, a
+        // right-column cell would clip them at the panel's edge otherwise
+        let talk = talk_button(m.ctx.len());
+        let talk_hover = mx >= talk.x && mx < talk.x + talk.w && my >= talk.y && my < talk.y + talk.h;
+        draw_button(&mut buf, &talk, talk_hover, m.blocked[0].is_some());
+        draw_icon(&mut buf, art.icon(ACTION_ICONS[0]), talk.x + 3, talk.y + (talk.h - 12) / 2, 12);
 
         // the house-meeting plan filling in: who's said yes, by name -
         // it sits right of the BONDS block, clear of the ctx band below
@@ -1401,13 +1396,23 @@ impl View {
         }
         // a greyed reason reads on one line under the band - beside its
         // button it would land on the neighbouring column; a button with
-        // nothing barring it shows its hint there instead (#1071)
+        // nothing barring it shows its hint there instead (#1071). The
+        // Talk cell rides the same slot: a barred Talk always says why,
+        // a hovered one explains itself - like the old rail's buttons did
+        let band_bottom = ctx_btns.iter().map(|(b, _)| b.y + b.h).max()
+            .unwrap_or(CTX_BAND_Y).max(talk.y + talk.h);
+        let mut reason_y = band_bottom + 4;
+        if let Some(r) = m.blocked[0].as_deref() {
+            draw_text(&mut buf, UI_X as i32 + 18, reason_y, r, 200, 140, 120);
+            reason_y += LINE_H;
+        } else if talk_hover {
+            draw_text(&mut buf, UI_X as i32 + 18, reason_y, TOOLTIPS[0], 220, 220, 160);
+        }
         if let Some(i) = ctx_btns.iter()
             .position(|(b, _)| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h) {
             if let Some(r) = ctx_btns[i].1.map(|s| s.as_str())
                 .or_else(|| m.ctx_hint.get(i).and_then(|h| h.as_deref())) {
-                let bottom = ctx_btns.iter().map(|(b, _)| b.y + b.h).max().unwrap_or(CTX_BAND_Y);
-                draw_text(&mut buf, UI_X as i32 + 18, bottom + 4, r, 255, 180, 140);
+                draw_text(&mut buf, UI_X as i32 + 18, reason_y, r, 255, 180, 140);
             }
         }
 

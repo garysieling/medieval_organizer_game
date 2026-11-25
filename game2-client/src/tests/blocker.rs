@@ -11,9 +11,10 @@ fn test_talk_is_greyed_out_with_no_one_near() {
     // the log line must say why, not read as a talk
     game.act(0);
     assert!(game.log.last().unwrap().contains("Can't talk"), "{}", game.log.last().unwrap());
-    // and the button is drawn disabled, with the reason beside it
-    let buf = view.render(&game.ui_model(), (-1, -1));
-    let b = &action_buttons()[0];
+    // and the button is drawn disabled, with the reason under the band
+    let m = game.ui_model();
+    let buf = view.render(&m, (-1, -1));
+    let b = talk_button(m.ctx.len());
     let i = ((b.y + 4) as usize * W + (b.x + 4) as usize) * 4;
     assert_ne!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), b.color, "Talk still drawn in its live colour");
 }

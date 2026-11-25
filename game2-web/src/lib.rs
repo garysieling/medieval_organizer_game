@@ -1118,6 +1118,11 @@ mod tests {
         c.host.model = Some(g.ui_model_lean_at(0));
         let c0 = c.digit_command(0);
         assert!(c0.contains("Select"), "digit one selects, got {c0}");
+        // the full ten-slot row a browser Digit9/Digit0 can reach (#1593)
+        for n in [8, 9] {
+            let c = c.digit_command(n);
+            assert!(c.contains("Select"), "row {n} selects, got {c}");
+        }
     }
 
     /// IndexedDB's round-trip: play a while, save, reload - the same

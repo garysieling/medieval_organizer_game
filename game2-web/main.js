@@ -248,8 +248,9 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { send('TogglePause'); e.preventDefault(); }
   else if (e.code === 'Escape') send('Unselect');
   else if (e.code === 'KeyX') send({ TalkPick: null });
-  else if (/^Digit[1-8]$/.test(e.code)) {
-    const c = g.digit_command(+e.code[5] - 1);
+  else if (/^Digit[0-9]$/.test(e.code)) {
+    // keyboard order 1-9 then 0: Digit1 -> row 0, Digit0 -> row 9
+    const c = g.digit_command((+e.code[5] + 9) % 10);
     if (c) send(JSON.parse(c));
   }
 });

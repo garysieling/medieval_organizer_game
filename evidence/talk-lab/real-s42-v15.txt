@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Rowena: Morrow, wanderer - a fine day to be out, isn't it?
-  (Rowena works the fields for a day's wage. They never miss a service. They keep close to the church folk. They keep close to the market folk.)
+  (Rowena is the village tailor. They never miss a service. They keep close to the church folk. They keep close to the market folk.)
   Rowena: This isn't the life I pictured.   [gist]
     1) Aye. Good day to you.
     2) Out and about early today.
@@ -19,26 +19,26 @@
   Rowena: By the rood. The bells call us all the same. Do keep the faith?
   you: The saints help them as help themselves, I've heard.
   Rowena: Bright enough for drying, thank God.
-    1) And the day's work - does it treat you kindly?
+    1) Weather aside, Rowena - how does the season treat you?
     2) Has your brother returned from the market town?
     3) Put a question to them
     l) take your leave
-  you: And the day's work - does it treat you kindly?
-  Rowena: wanderer - how goes the day's work with you this season?
-    1) Never better. And yourself - is the day's work kind to you?
+  you: Weather aside, Rowena - how does the season treat you?
+  Rowena: I hear the work keeps you busy at the day's work.
+    1) Well enough, aye. And how does the tailor's treat you?
     2) the day's work is my affair, and it fares as it fares.
     3) Put a question to them
     l) take your leave
-  you: Never better. And yourself - is the day's work kind to you?
-  Rowena: They say the miller took an extra scoop of meal again.
+  you: Well enough, aye. And how does the tailor's treat you?
+  Rowena: Did you hear who was seen down by the mill?
     1) Aye, the tithe's the tithe. It was ever so, and ever will be.
-    2) My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
+    2) The cat catches nothing and eats like a deacon. We've a prior in the house.
     3) Put a question to them
     l) take your leave
   you: Aye, the tithe's the tithe. It was ever so, and ever will be.
   Rowena: Saints keep us. Old Wulfric swore he saw an owl perched on the tavern roof.
     1) Ha! I'll believe the half of it and no more.
-    2) I have heard that lie three times this week. - a quarrel
+    2) Nay, I see it differently, mark me. - a quarrel
     3) Put a question to them
     l) take your leave
   you: Ha! I'll believe the half of it and no more.

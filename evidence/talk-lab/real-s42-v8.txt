@@ -25,7 +25,7 @@
     4) Ask what they actually want
     l) take your leave
   you: As do we all, neighbor.
-  Wystan: God witness. As you say, friend.
+  Wystan: Aye, words won't fill the storehouse.
   Wystan: Is there room at a hearth for one more?
     1) Answer plainly
     2) Reassure them

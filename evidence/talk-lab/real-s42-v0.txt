@@ -18,9 +18,9 @@
     l) take your leave
   Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and you?
   you: A wise purse keeps its own counsel, say I.
-  Aldric: Aye, the dew lay heavy on the clover this morning, or so I make it.
+  Aldric: A fine morning - the kind the hay wishes for.
     1) Enough sky-talk - how goes the work these days?
-    2) And how fares your folk in this cold snap?
+    2) Tell me true, Aldric - how goes it with you?
     3) Put a question to them
     l) take your leave
   you: Enough sky-talk - how goes the work these days?
@@ -31,18 +31,18 @@
     l) take your leave
   you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
   Aldric: A rider from the castle came through before dawn.
-    1) Aye, the tithe's the tithe. It was ever so, and ever will be.
+    1) God keep the lord and his men. They keep the peace, they say.
     2) The cat catches nothing and eats like a deacon. We've a prior in the house.
     3) Put a question to them
     l) take your leave
-  you: Aye, the tithe's the tithe. It was ever so, and ever will be.
+  you: God keep the lord and his men. They keep the peace, they say.
   Aldric: They do say the reeve counts the sheep twice over.
     1) Tavern tales grow taller with each ale drawn.
-    2) Better to tend your own hearth than watch the road.
+    2) Folk will invent dragons where there's only sheep.
     3) Put a question to them
     l) take your leave
   you: Tavern tales grow taller with each ale drawn.
-  Aldric: True enough - the fields don't gossip.
+  Aldric: We have spoken our piece for today.
     1) Fair day to you, Aldric - 'twas good to pass the time.
     2) My day is waiting.
     3) Ask who you should talk to next - for 6g

@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Dagny: Neighbor! Out early like the rest of us, wanderer.
-  (Dagny works the fields for a day's wage. They bow to no one. They'd sooner watch the clouds than the plough. Their hand is heavy and their tongue heavier. They keep close to the church folk.)
+  (Dagny is the village luthier. They bow to no one. They'd sooner watch the clouds than the plough. Their hand is heavy and their tongue heavier. They keep close to the church folk.)
   Dagny: No one to learn from. I'll be a journeyman forever.   [gist]
     1) Out and about early today.
     2) Aye. Good day to you.
@@ -27,22 +27,22 @@
     4) Ask how they think the lord will answer
     l) take your leave
   you: And the day's work - does it treat you kindly?
-  Dagny: I hear the work keeps you busy at the day's work.
-    1) The lord's acres are kind to a steady hand, goodwife Dagny - I'll say it anywhere.
-    2) Well enough, aye. And how does the day's work treat you?
+  Dagny: How goes it at the day's work, wanderer?
+    1) Honest work for honest pay at the day's work - can't complain, and wouldn't.
+    2) Well enough, aye. And how does the workshop treat you?
     3) Put a question to them
     4) Ask how they think the lord will answer
     l) take your leave
-  you: The lord's acres are kind to a steady hand, goodwife Dagny - I'll say it anywhere.
-  Dagny: A rider from the castle came through before dawn.
+  you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
+  Dagny: The peddler's cart lost a wheel at the bridge.
     1) My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
-    2) Idle tongues, that. It breeds mischief.
+    2) Let the miller and the rider sort their own affairs.
     3) Put a question to them
     4) Ask how they think the lord will answer
     l) take your leave
   you: My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
   Dagny: Mm.
-  Dagny: Walk with me a moment, wanderer - the light's good this hour.
+  Dagny: Can you keep a thing quiet, just between us?
     1) Aye, so they are - I'd not have seen it.
     2) Aye, the light's the light.
     3) Put a question to them
@@ -51,12 +51,12 @@
   you: Aye, so they are - I'd not have seen it.
   Dagny: They do say the reeve counts the sheep twice over.
     1) Every tongue in the parish wags before sunset.
-    2) I have heard that lie three times this week. - a quarrel
+    2) Better to tend your own hearth than watch the road.
     3) Put a question to them
     4) Ask how they think the lord will answer
     l) take your leave
   you: Every tongue in the parish wags before sunset.
-  Dagny: As you say, friend.
+  Dagny: Aye, words won't fill the storehouse.
   Dagny: Do the crafts take on here?
     1) Answer plainly
     2) Reassure them

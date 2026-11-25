@@ -400,7 +400,7 @@ fn test_deciding_founds_the_campaign_on_the_picked_framing() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
     g.decide_at(0, 1); // take it on, naming the foe
     let c = crate::game::campaign::campaign_of(&g.world, g.org).expect("the campaign founded");
     let cp = g.world.get_component::<crate::game::campaign::Campaign>(c).unwrap();

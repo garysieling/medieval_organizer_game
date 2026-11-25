@@ -267,8 +267,11 @@ mod talk_checks;
 
 /// What pressing Meet did before the cause's verbs left the panel
 /// (#1337): the cadence's own date sits the floor - the slate opens
-/// the way the day's tick opens it. A slate still open from the last
-/// call clears first, the way the next due day's own lapse would.
+/// the way the day's tick opens it. Since #1615 the due date convenes
+/// the cause on the seat first - an impromptu meeting - and the slate
+/// opens when the room resolves, so this runs the gathering out. A
+/// slate still open from the last call clears first, the way the next
+/// due day's own lapse would.
 pub fn sit_floor(g: &mut crate::session::Game, seat: usize) {
     let c = crate::game::campaign::campaign_of(&g.world, g.seats[seat].org).unwrap();
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
@@ -276,4 +279,5 @@ pub fn sit_floor(g: &mut crate::session::Game, seat: usize) {
     g.seats[seat].pending_agenda = None;
     let tick = g.tick;
     g.campaign_meeting_tick(tick);
+    while g.meeting.is_some() { g.advance_meeting(); }
 }

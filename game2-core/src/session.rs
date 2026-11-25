@@ -635,6 +635,10 @@ pub struct Meeting {
     /// `lines`, the effect) - a reveal's voice lands on airing, so a
     /// steered-away turn carries nothing to the tally or the ledger
     pub marks: Vec<(usize, MeetMark)>,
+    /// The cause's own date convened it on the seat (#1615): no plan
+    /// called it, so the resolve opens the campaign's slate instead of
+    /// the generic meet-again call - the slate IS this room's business
+    pub impromptu: bool,
 }
 
 /// What a scripted meeting line does when it airs (#1611): the script

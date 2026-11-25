@@ -2397,10 +2397,10 @@ pub fn converse_with_at(
         }
         let weights: Vec<f32> = pool.iter().map(|r| draw_weight(r, &pair[responder])).collect();
 
-        // (fork index, line template): the fork picked and the variant it
-        // will speak. For a player turn the variants are rolled with the
-        // options so the preview is exactly the line they get.
-        let (pick, line_t): (usize, &'static str) = if responder == player {
+        // (fork index, line template, shown line): the fork picked and
+        // the variant it will speak - and for a player turn the shaped
+        // preview itself, said verbatim (#1622).
+        let (pick, line_t, spoken): (usize, &'static str, Option<String>) = if responder == player {
             // The player sees up to two weighted-sampled options without replacement + "leave"
             let mut available: Vec<usize> = (0..pool.len()).collect();
             let mut sampled: Vec<usize> = vec![];
@@ -2412,12 +2412,18 @@ pub fn converse_with_at(
                 sampled.push(chosen_pool_idx);
             }
             let mut rolled: Vec<(&'static str, Choice)> = vec![];
+            // the label is the utterance (#1622): the stance ops a pick
+            // earns are baked into the preview, so what the player reads
+            // is what they're heard to say
+            let st = crate::game::text::stance_of(&pair[responder], &pair[caller]);
             for &i in &sampled {
                 let r = pool[i];
                 let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
                     .map(|(t, s)| (t, s))
                     .unwrap_or((r.lines[0], fill(r.lines[0], &pair[responder], &pair[caller], rng)));
-                rolled.push((t, Choice { act: r.act, respond: r.respond.unwrap_or_else(|| respond_of(r.act)), preview }));
+                let ops = crate::game::text::shape(r.act, &st, None);
+                rolled.push((t, Choice { act: r.act, respond: r.respond.unwrap_or_else(|| respond_of(r.act)),
+                    preview: crate::game::text::shaped(&ops, &preview, None, &st, rng) }));
             }
             // a farewell's the tail of a talk, not a per-turn option (#1179):
             // it only sits on the list once the talk's run dry - while
@@ -2572,13 +2578,13 @@ pub fn converse_with_at(
                         None => { tr.ending = Some(Ending::LeavesEarly); break; }
                     }
                 }
-                Some(&(i, (t, _))) => (i, t),
+                Some(&(i, (t, ref c))) => (i, t, Some(c.preview.clone())),
                 None => { tr.ending = Some(Ending::LeavesEarly); break; }
             }
         } else {
             let i = rng.weighted(&weights);
             match fresh_voiced(pool[i].lines, pool[i].voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(pool[i].act, Act::Greet | Act::Farewell), rng) {
-                Some((t, _)) => (i, t),
+                Some((t, _)) => (i, t, None),
                 None => { tr.ending = Some(Ending::Exhausted); break; }
             }
         };
@@ -2587,11 +2593,18 @@ pub fn converse_with_at(
         let tag = reply.respond.unwrap_or_else(|| respond_of(reply.act));
         // the reply's shape (E4-5): a dispreferred answer - or a
         // guarded, cold agreement - draws the padding ops its stance
-        // calls for; a proud, certain no still lands bare
-        let st = crate::game::text::stance_of(&pair[responder], &pair[caller]);
-        let ops = crate::game::text::shape(reply.act, &st, None);
-        let text = crate::game::text::shaped(&ops,
-            &fill(line_t, &pair[responder], &pair[caller], rng), None, &st, rng);
+        // calls for; a proud, certain no still lands bare. The player's
+        // own lines were shaped when the previews were rolled (#1622) -
+        // the pick says exactly the line it showed
+        let text = match spoken {
+            Some(s) => s,
+            None => {
+                let st = crate::game::text::stance_of(&pair[responder], &pair[caller]);
+                let ops = crate::game::text::shape(reply.act, &st, None);
+                crate::game::text::shaped(&ops,
+                    &fill(line_t, &pair[responder], &pair[caller], rng), None, &st, rng)
+            }
+        };
         say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: responder, act: reply.act, respond: Some(tag),
             text,
             concepts: reply.concepts.to_vec(), tree: node_tree, line: Some(line_t) });

@@ -226,6 +226,23 @@ fn test_talk_opens_a_conversation_on_the_talk_panel_with_replies() {
 }
 
 #[test]
+fn test_a_pick_stays_the_line_it_showed_as_the_village_talks_on() {
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    talk_beside(&mut g, i);
+    let shown = g.seats[0].talk.as_ref().unwrap().options[0].2.clone();
+    // the village talks on while the pick hangs: every authored line
+    // gets marked said before the player's answer lands - the replay
+    // draws against the talk's own snapshot, so the pick still lands
+    // on the line it showed (#1622)
+    g.note_said_lines(crate::game::text::authored_lines().into_iter());
+    g.talk_pick_at(0, Some(0));
+    let rec = g.talk_log.last().unwrap();
+    assert!(rec.lines.iter().any(|l| l.who == Some(g.player) && l.text == shown),
+        "shown {shown:?}, said {:?}", rec.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+}
+
+#[test]
 fn test_the_choice_list_stops_at_three() {
     use crate::game::desires::{Problem, Reveal};
     let mut g = Game::new();

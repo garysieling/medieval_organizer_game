@@ -237,3 +237,117 @@ fn gate_edge_triggered_once() {
     }
     assert_eq!(heard, 1, "the crossing creaks once, then not again");
 }
+
+/// The sky turning wet cues the first drops where the village stands.
+#[test]
+fn rain_cues_the_wet_onset() {
+    use crate::sim::{climate, precipitation::PrecipKind};
+    let mut g = Game::new();
+    g.precip = Some(PrecipKind::Drizzle);
+    g.update(); // drain any cues the birth frames raised
+    g.sfx.clear();
+    g.precip = None;
+    {
+        let c = g.world.get_component_mut::<climate::Climate>(g.climate).unwrap();
+        c.season = climate::Season::Summer;
+        c.rainfall_drift = 0.9; // HeavyRain, well past the threshold
+    }
+    g.update();
+    let cue = g.sfx.iter().find(|c| c.kind == "rain")
+        .expect("the onset should cue the first drops");
+    assert!(cue.intensity > 0.5, "a heavy onset lands loud: {}", cue.intensity);
+}
+
+/// Snow and the haar cue the wind instead of drops.
+#[test]
+fn gale_cues_the_cold_onsets() {
+    use crate::sim::climate;
+    let mut g = Game::new();
+    g.precip = None;
+    g.update();
+    g.sfx.clear();
+    {
+        let c = g.world.get_component_mut::<climate::Climate>(g.climate).unwrap();
+        c.season = climate::Season::Winter;
+        c.rainfall_drift = 0.9; // HeavySnow
+    }
+    g.update();
+    assert!(g.sfx.iter().any(|c| c.kind == "gale"),
+        "snow should cue the wind: {:?}", g.sfx.iter().map(|c| &c.kind).collect::<Vec<_>>());
+    // and the haar - a damp spring day just short of rain - sounds it too
+    g.sfx.clear();
+    g.precip = None;
+    {
+        let c = g.world.get_component_mut::<climate::Climate>(g.climate).unwrap();
+        c.season = climate::Season::Spring;
+        c.rainfall_drift = 0.48; // just under RAIN_THRESHOLD, inside the haar band
+    }
+    g.update();
+    assert!(g.sfx.iter().any(|c| c.kind == "gale"),
+        "the haar's fog rolls in on a gust too");
+}
+
+/// A celebration's ring sounds where the neighbours gather.
+#[test]
+fn festival_rings_the_celebration() {
+    let mut g = Game::new();
+    let at = (g.village.0 as f32 + 0.5, g.village.1 as f32 + 0.5);
+    g.local_celebration(1, at, None, "a coming of age");
+    assert!(g.sfx.iter().any(|c| c.kind == "festival"),
+        "the gathered ring should ring: {:?}", g.sfx.iter().map(|c| &c.kind).collect::<Vec<_>>());
+}
+
+/// The floor's answer to the settled word is a murmur, not silence.
+#[test]
+fn murmur_answers_the_settled_word() {
+    use crate::game::campaign::{self, DecisionRule, Framing, IssueVote};
+    let mut g = Game::new();
+    let org = g.seats[0].org;
+    let vote = IssueVote { winner: "the taxes".into(), ballots: vec![] };
+    campaign::found_campaign(&mut g.world, org, &vote,
+        Framing::CommonFoe, DecisionRule::Majority, 0);
+    let present: Vec<Entity> = g.villagers.iter().copied().take(4).collect();
+    g.debrief_at(0, &present);
+    assert!(g.sfx.iter().any(|c| c.kind == "murmur"),
+        "the debrief's settled word should get its murmur");
+}
+
+/// The wedding's peal rings the couple out of the rite.
+#[test]
+fn bells_peal_the_wedding() {
+    let mut g = Game::new();
+    let (a, b, by) = (g.villagers[0], g.villagers[1], g.villagers[2]);
+    let site = (10, 10);
+    for e in [a, b, by] {
+        g.world.get_component_mut::<Pos>(e).unwrap().x = 10.0;
+        g.world.get_component_mut::<Pos>(e).unwrap().y = 10.0;
+    }
+    for (me, them) in [(a, b), (b, a)] {
+        g.world.add_component(me, villager::Betrothed {
+            partner: them, site, by, old: false, since: 0 });
+    }
+    g.rites_tick(1);
+    assert!(g.sfx.iter().any(|c| c.kind == "bells"),
+        "the wedding should ring a peal: {:?}",
+        g.sfx.iter().map(|c| &c.kind).collect::<Vec<_>>());
+}
+
+/// A wolf in the fold bays where it struck.
+#[test]
+fn baying_off_the_fold_on_wolf_night() {
+    let mut g = Game::new();
+    assert!(g.fold.is_some(), "a fresh village keeps a fold");
+    g.wolf_night(1);
+    assert!(g.sfx.iter().any(|c| c.kind == "baying"),
+        "the wolf's taking should howl");
+}
+
+/// A fox in the yard scatters the hens with a squawk.
+#[test]
+fn hens_scatter_on_fox_night() {
+    let mut g = Game::new();
+    assert!(!g.hen_houses.is_empty(), "a fresh village keeps hens");
+    g.fox_night(1);
+    assert!(g.sfx.iter().any(|c| c.kind == "hens"),
+        "the yard should scatter squawking");
+}

@@ -2224,6 +2224,19 @@ impl Game {
                 ),
                 (None, None) => {}
             }
+            // the sky's turn is heard too (#1619): wet onsets cue the
+            // first drops, snow and the haar cue the wind, all where
+            // the village stands, weighted by the kind's own strength
+            if let Some(k) = now {
+                let (kind, gain) = if k.is_snow() || k.is_fog() {
+                    ("gale", 0.4 + 0.4 * k.intensity())
+                } else {
+                    ("rain", 0.4 + 0.4 * k.intensity())
+                };
+                self.sfx.push(SfxCue { kind,
+                    x: self.village.0 as f32 + 0.5, y: self.village.1 as f32 + 0.5,
+                    intensity: gain });
+            }
             if now.is_some() { self.rainbow_from = None; }
             self.precip = now;
         }

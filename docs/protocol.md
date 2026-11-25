@@ -393,8 +393,7 @@ a cue lives exactly one scene and the audio layer turns it into a
 voice (A5). `x`/`y` are the tile the cue rose at, `intensity` its
 loudness 0..1. `kind` is one of:
 
-- `rain`, `anvil`, `festival`, `wonder`, `bell`, `snowballs`,
-  `splash` - the legacy cues
+- `anvil`, `wonder`, `bell`, `snowballs`, `splash` - the legacy cues
 - `alarm` - a fire caught (chimney, lightning, an oil flare) or the
   knights rode out on a crackdown
 - `toll` - the passing bell: a death, or a funeral column's beat
@@ -408,6 +407,14 @@ loudness 0..1. `kind` is one of:
 - `cart_arrive` - a cart or levy train rolled in
 - `gate` - a walker stepped through the palisade's gate (the edge
   only: standing on the tile doesn't ring it)
+- `rain` - wet weather begins (the first drops); `gale` - snow or
+  the haar begins (the wind rising), each weighted by the kind's
+  own strength
+- `festival` - a feast or a celebration's ring gathers
+- `murmur` - a meeting floor answers a ballot or a settled word
+- `bells` - a wedding's peal
+- `baying` - a wolf got into the fold in the night
+- `hens` - a fox got into the yard, the hens scatter
 
 Older servers omit it; read it as empty.
 

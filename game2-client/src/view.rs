@@ -1224,6 +1224,11 @@ impl View {
         }
 
         prof.mark("render.gulls+labels");
+        // weather over the map: overcast, falling rain or snow, the rainbow
+        // after rain. It runs before the UI chrome (convo box, banners,
+        // minimap) so their text stays at full contrast in the rain
+        draw_weather(&mut buf, m.precip, m.frame as u64, m.rainbow_from.map(|f| (m.frame - f) as u64));
+        prof.mark("render.weather");
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, W as i32 - UI_X as i32, H as i32, 32, 32, 48);
         // the manuscript frame round the whole sidebar (#1323): composed
@@ -1573,9 +1578,6 @@ impl View {
 
 
         prof.mark("render.ui-panel");
-        // weather over the map: overcast, falling rain or snow, the rainbow after rain
-        draw_weather(&mut buf, m.precip, m.frame as u64, m.rainbow_from.map(|f| (m.frame - f) as u64));
-        prof.mark("render.weather");
 
         // minimap (top-right of map area): the map in miniature, same projection
         // and colours, with villagers, the player and the visible area marked

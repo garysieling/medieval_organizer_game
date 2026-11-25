@@ -1,0 +1,25 @@
+# The traveller asks (cause-founded)
+
+- beat: OrgFounded
+- take: Warm
+- seed: 42
+- tick: 0
+- day: 0
+- seat: 0
+
+## The ask
+
+A pedlar at the well grins into his cup: "Word is the village found its voice - a cause of its own. Would you send a cousin of yours to join it?"
+
+## The answer (verbatim)
+
+"I would - I'd send a cousin to this village tomorrow."
+
+## The log's tail
+
+- Welcome to the village.
+- The village keeps the brewery - and the tavern on the green, where it all gets drunk.
+- t0: the grain - the choice is carried out, and the remembering begins.
+- t0: you tell the pedlar - "I would - I'd send a cousin to this village tomorrow."
+
+_Screenshot: survey-s0-t0-cause-founded.bmp (saved by the client when it sees the flag)_

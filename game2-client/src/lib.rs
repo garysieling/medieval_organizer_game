@@ -32,6 +32,7 @@ macro_rules! sayln {
 mod art;
 pub mod audio;
 mod bench;
+mod captions;
 mod draw;
 mod hud;
 pub mod record;
@@ -49,6 +50,7 @@ mod view;
 
 pub use art::*;
 pub use bench::*;
+pub use captions::*;
 pub(crate) use draw::*;
 pub use hud::*;
 pub use record::*;

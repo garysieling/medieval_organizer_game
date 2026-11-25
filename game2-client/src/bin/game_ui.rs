@@ -451,8 +451,13 @@ fn main() {
         // play (never while the find box has the keys)
         if let Some(m) = &cur_model {
             let (tx, ty) = session::cam_tile(view.cam_x, view.cam_y);
-            audio_host.push_with(m,
-                &game2_audio::soundscape::Listener::at(tx, ty, view.zoom));
+            let ear = game2_audio::soundscape::Listener::at(tx, ty, view.zoom);
+            let frame = game2_audio::host::AudioFrame::from_model_with(m, &ear);
+            // the same scan feeds the captions (#1508): what the ear
+            // hears, the eye reads
+            view.captions.update(&frame.emitters, &ear, m.frame,
+                settings_store.settings.captions);
+            audio_host.push_frame(&frame);
         }
         audio_host.set_muted(view.mute);
         // #1505: a blurred window fades out when the settings say so,

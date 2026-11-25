@@ -406,6 +406,18 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     if let Some(n) = std::env::var("GAME2_BENCH").ok().and_then(|v| v.parse::<u32>().ok()) {
         bench_frames(&mut game, &mut view, n, weather.is_some());
     }
+    // sound captions (#1508): the same feed the window drives every
+    // frame, primed once before the shot so a dump shows what live
+    // play would - the persisted settings file decides if it's on
+    {
+        let s = crate::audio::SettingsStore::load(
+            std::path::Path::new("game2.settings.json")).settings;
+        let m = game.ui_model();
+        let (tx, ty) = cam_tile(view.cam_x, view.cam_y);
+        let ear = game2_audio::soundscape::Listener::at(tx, ty, view.zoom);
+        let es = game2_audio::soundscape::scan(&m, &ear);
+        view.captions.update(&es, &ear, m.frame, s.captions);
+    }
     let mut buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
     // GAME2_DUMP_MENU=sound: draw the pause menu with the Sound overlay
     // over it (#1506) - screenshot checks for the panel land on the

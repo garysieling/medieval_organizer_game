@@ -1202,6 +1202,20 @@ pub const PROBE_TREE: &str = "the_audition";
 /// The tree name your own questions report as (#1189)
 pub const ASK_TREE: &str = "the_asking";
 
+/// The tree name the parting word reports as (#1604): a talk that
+/// dries up on a question's answer still closes in voice - the
+/// speaker takes their leave rather than the talk stopping on the ask
+pub const PART_TREE: &str = "the_parting";
+
+/// The parting word (#1604): the caller's in-voice close when nothing
+/// is left after your question's answer
+const PART_LINES: &[&'static str] = &[
+    "Well - I'd best be on, {other}. Fair day to {2:obj}.",
+    "That's the long of it, {other} - the work won't wait. Go well.",
+    "I'd best be off, {other} - the day's half gone already.",
+    "And that's me told, {other} - the saints keep {2:obj}.",
+];
+
 /// A too-deep ask, turned aside (E3-2): the refusal is seen, the talk
 /// goes on - and a tell seen another day may yet open it
 /// The visible turn-aside an over-deep ask earns (E3-2); E5-1 tags the
@@ -2473,6 +2487,12 @@ pub fn converse_with_at(
                                 respond: Some(Respond::PivotAsk),
                                 text: fill(qt, &pair[responder], &pair[caller], rng),
                                 concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(qt) });
+                            // the ask's its own beat (#1604): each topic
+                            // is once-a-talk fresh speech, so it counts
+                            // the talk's last advance - a run of
+                            // questions doesn't read as circling
+                            for c in tp.concepts.iter() { said.insert(*c); }
+                            last_advance = tr.turns.len();
                             if tell_topics.contains(&menu[i]) {
                                 let talkative = pair[caller].traits.contains(&Trait::Gregarious);
                                 let guarded = pair[caller].traits.contains(&Trait::Wary);
@@ -2594,6 +2614,22 @@ pub fn converse_with_at(
     }
     if tr.ending.is_none() {
         tr.ending = Some(Ending::Exhausted);
+    }
+    // the parting word (#1604): a talk that dries up on a question's
+    // answer still closes in voice - the speaker takes their leave
+    // rather than the talk stopping on the ask. Only a real end gets
+    // it: a pending pick breaks with the caller's own call last said
+    if player != usize::MAX
+        && tr.turns.last().map(|t| t.tree) == Some(ASK_TREE)
+    {
+        let (pt, _) = fresh_line(PART_LINES, &pair[caller], &pair[responder], &used, recent, true, rng)
+            .unwrap_or((PART_LINES[0], String::new()));
+        used.insert(pt);
+        tr.trees_walked.push(PART_TREE);
+        say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel, speaker: caller,
+            act: Act::Farewell, respond: Some(respond_of(Act::Farewell)),
+            text: fill(pt, &pair[caller], &pair[responder], rng),
+            concepts: vec!["farewell"], tree: PART_TREE, line: Some(pt) });
     }
     // the ear's landmark (E4-7, #1416): each speaker's phrase and habit
     // land once, on the first slots they fit - deterministic per turn,
@@ -4395,6 +4431,37 @@ mod tests {
         // and asking isn't a farewell - the talk goes on past the beat
         let at = tr.turns.iter().position(|t| t.tree == ASK_TREE).unwrap();
         assert!(at + 2 < tr.turns.len(), "the asking closed the talk: {:?}", tr.lines());
+    }
+
+    #[test]
+    fn test_a_question_never_ends_the_talk_silently() {
+        // #1604: every question the player can pick gets an answer plus
+        // a follow-up or an in-voice close - never a dead end on the ask
+        let mut caller = Speaker::new("Hob");
+        caller.open = warm_open();
+        let you = Speaker::new("Wanderer");
+        let mut parted = false;
+        for seed in 0..40 {
+            let tr = converse_with(&caller, &you, Relation::Acquaintance, None,
+                &village_library(), None, 1,
+                &mut |ch: &[Choice]| {
+                    // always ask when the slot's there; then the first
+                    // open topic; otherwise keep the talk going
+                    if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                        return Some(0);
+                    }
+                    if let Some(i) = ch.iter().position(|c| c.preview == "Put a question to them") {
+                        return Some(i);
+                    }
+                    ch.iter().position(|c| c.act != Act::Farewell).or(Some(0))
+                }, &mut Rng::new(seed));
+            assert!(tr.turns.last().map(|t| t.tree) != Some(ASK_TREE),
+                "the talk stopped on the asking (seed {seed}): {:?}", tr.lines());
+            // and when the dry-up did land on the ask, the caller
+            // took their leave in voice
+            parted |= tr.turns.last().map(|t| t.tree) == Some(PART_TREE);
+        }
+        assert!(parted, "no seed dried up on an ask - the parting never spoke");
     }
 
     #[test]

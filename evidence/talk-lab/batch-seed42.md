@@ -1,6 +1,6 @@
 # Talk lab batch: 12 conversations (seed 42)
 
-## Aldric and Wystan - Friend at churchdoor (Public) (seed 1302, picks [0, 1, 1, 1, 1, 1, 1, 1, 0])
+## Aldric and Wystan - Friend at churchdoor (Public) (seed 1302, picks [0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0])
 them: Aldric holds the manor's leases. They never miss a service.
 you : Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
 
@@ -14,7 +14,11 @@ Aldric [Question in friendship_bonds]: By the rood. Hast thou heard any whispers
 Aldric [Question in friendship_bonds]: Dost thou recall the summer the mill dam broke?
 Wystan [Question in the_asking]: How do folk fare here, to thy eyes?
 Aldric [Answer in the_asking]: Quieter than it was, and that's no bad thing.
--- Exhausted
+Aldric [Question in merchant_trade]: Dost thou have steel needles and linen thread on thy shelf?
+Wystan [Answer in merchant_trade]: Ribbon off the fair cart, and a pinch of pepper to spare, for my part.
+Aldric [Remark in merchant_trade]: The scales do not lie - a scruple light and the whole village remembers.
+Wystan [Farewell in merchant_trade]: Fair trade at the counter, trader. Good day.
+-- Farewell
 
 ## Eliza and Osric - Kin at alehouse (Backstage) (seed 1303, picks [0, 1, 1, 0, 1, 0])
 them: Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
@@ -33,7 +37,7 @@ Eliza [Remark in morning_after_drunk]: A bucket of icy well water over the skull
 Osric [Farewell in morning_after_drunk]: Walk straight, Eliza, or the reeve will notice.
 -- Farewell
 
-## Aldric and Bram - Friend at kitchen (Backstage) (seed 1304, picks [1, 1, 0, 1, 0])
+## Aldric and Bram - Friend at kitchen (Backstage) (seed 1304, picks [1, 1, 0, 1, 0, 0, 1, 0])
 them: Aldric holds the manor's leases. They never miss a service.
 you : Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
 
@@ -45,7 +49,13 @@ Aldric [Answer in the_asking]: Saints keep us. Green wood burns when it's ready 
 Aldric [Question in visiting_the_sick]: Dost thou have grain left in the bin?
 Bram [Question in the_asking]: The day's labor - how does it treat thee?
 Aldric [Answer in the_asking]: By the rood. A holding keeps a soul busy, one way and another.
--- Exhausted
+Aldric [Question in visiting_the_sick]: Saints keep us. Is there aught thou needest brought to the cottage?
+Bram [Answer in visiting_the_sick]: A jug of fresh well water would be a godsend.
+Aldric [Remark in visiting_the_sick]: Rest easy; the parish will not let thee freeze.
+Bram [Worry in visiting_the_sick]: Is the well still sweet? I heard it turned a baby ill.
+Aldric [Remark in visiting_the_sick]: God witness. I'll look in again on the morrow, rest now.
+Bram [Farewell in visiting_the_sick]: Rest well, Aldric.
+-- Farewell
 
 ## Corvin and Dagny - Rival at market (Public) (seed 1305, picks [0, 1, 1, 0, 1, 1])
 them: Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
@@ -79,7 +89,7 @@ Dagny [Remark in old_scores]: Take thy shadow off my land.
 Osric [Farewell in old_scores]: May the road be kind under thy boots.
 -- Farewell
 
-## Hob and Osric - Acquaintance at market (Public) (seed 1307, picks [0, 1, 0, 2, 1, 2, 0])
+## Hob and Osric - Acquaintance at market (Public) (seed 1307, picks [0, 1, 0, 2, 1, 2, 0, 1, 0, 0])
 them: Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
 you : Osric trades on the road between villages. They'd sooner watch the clouds than the plough. Last night's cup is still on them.
 
@@ -95,7 +105,13 @@ Hob [Answer in the_asking]: A holding keeps a soul busy, one way and another.
 Hob [Remark in village_smalltalk]: Osric - how goes the ledger with you this season?
 Osric [Question in the_asking]: What word of the village these days?
 Hob [Answer in the_asking]: There's grumbling at the well, but when isn't there, as I see it.
--- Exhausted, vibe: Mismatch
+Hob [Remark in village_smalltalk]: I hear the work keeps you busy at the ledger.
+Osric [Answer in village_smalltalk]: Honest work for honest pay at the ledger - can't complain, and wouldn't.
+Hob [Remark in village_smalltalk]: A rider from the castle came through before dawn.
+Osric [PushBack in village_smalltalk]: Ah… Let the miller and the rider sort their own affairs.
+Hob [Remark in village_smalltalk]: True enough - the fields don't gossip.
+Osric [Farewell in village_smalltalk]: Fair profit to you, trader.
+-- Farewell, vibe: Mismatch
 
 ## Marga and Osric - Friend at alehouse (Backstage) (seed 1308, picks [0, 0, 0])
 them: Marga trades on the road between villages. Their temper's shorter than a winter's day. Their purse strings are knotted tight.
@@ -109,7 +125,7 @@ Marga [Remark in friendship_bonds]: Marga says what Marga says, friend Osric.
 Osric [Farewell in friendship_bonds]: Fair day, Marga - peace on thy household.
 -- Farewell
 
-## Eliza and Gisela - Rival at field (Public) (seed 1309, picks [1, 1, 0, 1, 1, 0])
+## Eliza and Gisela - Rival at field (Public) (seed 1309, picks [1, 1, 0, 1, 1, 0, 0, 1, 0])
 them: Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
 you : Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 
@@ -121,7 +137,13 @@ Eliza [Answer in the_asking]: So thou sayest, so it is.
 Eliza [Remark in the_cleric_visits_the_sick]: The church altar is always open to the weary soul.
 Eliza [Remark in the_cleric_visits_the_sick]: Remember that honest work in the field is a holy prayer.
 Gisela [Agree in the_cleric_visits_the_sick]: We keep as best we can, father. The toil is hard.
--- Exhausted
+Eliza [Question in visiting_the_sick]: Is there aught thou needest brought to the cottage?
+Gisela [Answer in visiting_the_sick]: Some dry firewood would keep the chill out of our bones.
+Eliza [Remark in visiting_the_sick]: Rest easy; the parish will not let thee freeze.
+Gisela [Worry in visiting_the_sick]: Will the physic come dear this year? My chest's not right.
+Eliza [Remark in visiting_the_sick]: The parish keeps its own, Gisela - sleep easy.
+Gisela [Farewell in visiting_the_sick]: Rest well, Eliza.
+-- Farewell
 
 ## Wystan and Aelfric - Acquaintance at kitchen (Public) (seed 1310, picks [0, 0, 0, 0, 1, 2, 1, 0, 1, 1])
 them: Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
@@ -148,7 +170,7 @@ Wystan [Remark in village_smalltalk]: We have spoken our piece for today, or so 
 Aelfric [Farewell in village_smalltalk]: I have no leisure to stand about, Wystan, as I've cause to say, or so I hear.
 -- Farewell, vibe: Mismatch
 
-## Dagny and Aelfric - Acquaintance at alehouse (Public) (seed 1311, picks [0, 0, 1, 2, 1])
+## Dagny and Aelfric - Acquaintance at alehouse (Public) (seed 1311, picks [0, 0, 1, 2, 1, 0, 0])
 them: Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 you : Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 
@@ -161,7 +183,11 @@ Aelfric [Answer in asking_the_father]: The church will share its grain, child - 
 Dagny [Remark in asking_the_father]: Forty year I've watched that ditch, and it wants digging still.
 Aelfric [Question in the_asking]: The day's labor - how does it treat you?
 Dagny [Answer in the_asking]: A holding keeps a soul busy, one way and another.
--- Exhausted, vibe: Safe
+Dagny [Remark in asking_the_father]: Your blessing gives me heart to face the coming week, father.
+Aelfric [Agree in asking_the_father]: The parish is lucky in its father.
+Dagny [Remark in asking_the_father]: True enough - the fields don't gossip.
+Aelfric [Farewell in asking_the_father]: May the road pay your way, merchant.
+-- Farewell, vibe: Safe
 
 ## Corvin and Tilda - Friend at field (Backstage) (seed 1312, picks [1, 1, 2, 1, 1, 0, 0])
 them: Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
@@ -179,7 +205,7 @@ Corvin [Remark in the_cleric_consoles]: God witness. The haar's a fisher's blank
 Tilda [Farewell in the_cleric_consoles]: The Lord keep thee, father, and preserve thy voice, as like as not.
 -- Farewell
 
-## Eliza and Osric - Acquaintance at kitchen (Public) (seed 1313, picks [0, 1, 0, 2, 1])
+## Eliza and Osric - Acquaintance at kitchen (Public) (seed 1313, picks [0, 1, 0, 2, 1, 0, 0])
 them: Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
 you : Osric trades on the road between villages. They'd sooner watch the clouds than the plough. Last night's cup is still on them.
 
@@ -192,5 +218,9 @@ Osric [Agree in the_cleric_blesses]: I try to walk uprightly before God and my n
 Eliza [Remark in morning_after_drunk]: We do what we must while daylight holds.
 Osric [Question in the_asking]: How fares your day's work?
 Eliza [Answer in the_asking]: Heard, and heard again - aye.
--- Exhausted, vibe: Safe
+Eliza [Remark in morning_after_drunk]: They say we sang every verse of the Harvest ballad three times over, or so I make it.
+Osric [Agree in morning_after_drunk]: Aye, there is truth in what you say.
+Eliza [Remark in morning_after_drunk]: A bucket of icy well water over the skull will clear the cobwebs.
+Osric [Farewell in morning_after_drunk]: Walk straight, Eliza, or the reeve will notice.
+-- Farewell, vibe: Safe
 

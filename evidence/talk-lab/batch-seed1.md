@@ -37,7 +37,7 @@ Eliza [Remark in hunger_lean_times]: True enough - the fields don't gossip.
 Gisela [Farewell in hunger_lean_times]: My day is waiting.
 -- Farewell, vibe: Safe
 
-## Bram and Dagny - Rival at field (Public) (seed 33, picks [0, 1, 1, 1, 1])
+## Bram and Dagny - Rival at field (Public) (seed 33, picks [0, 1, 1, 1, 1, 0, 0, 2, 1])
 them: Bram holds the manor's leases. They mean to be more than they were born. Their purse strings are knotted tight. They buried one of their own last week.
 you : Dagny holds the manor's leases. They know every soul and every soul's business. The store ran out and the belly knows it.
 
@@ -49,6 +49,11 @@ Bram [Answer in the_asking]: I take what work comes, and thank the saints for it
 Bram [Remark in a_death_in_the_house]: Every corner of the cottage remembers his footsteps.
 Dagny [Question in the_asking]: The house sits heavy - who is it thou missest?
 Bram [Evade in the_asking]: Some things keep.
+Bram [Remark in a_death_in_the_house]: Forty winters together, and now only the silence, or so I make it.
+Dagny [Agree in a_death_in_the_house]: Aye, there is truth in what thou sayest.
+Bram [Remark in a_death_in_the_house]: It does a body good to speak their name aloud.
+Dagny [Agree in a_death_in_the_house]: We'll see it through, Bram - the village does.
+Bram [Remark in old_scores]: Keep thy lean cows out of our clover pasture.
 -- Exhausted, vibe: Mismatch
 
 ## Aldric and Corvin - Rival at kitchen (Public) (seed 34, picks [1, 1, 0])
@@ -63,7 +68,7 @@ Aldric [Remark in condolence_call]: I'll sit with thee a while yet, if it helps.
 Corvin [Farewell in condolence_call]: Thy coming did the house good, Aldric.
 -- Farewell
 
-## Corvin and Dagny - Rival at market (Public) (seed 35, picks [0, 1, 3, 1, 0, 1, 2, 0])
+## Corvin and Dagny - Rival at market (Public) (seed 35, picks [0, 1, 3, 1, 0, 1, 2, 0, 0, 0, 2, 0, 2, 1, 1, 1, 0])
 them: Corvin serves the village church. They mean to be more than they were born. They buried one of their own last week.
 you : Dagny holds the manor's leases. They know every soul and every soul's business. The store ran out and the belly knows it.
 
@@ -76,7 +81,21 @@ Corvin [Answer in the_asking]: Quieter than it was, and that's no bad thing.
 Corvin [Remark in a_death_in_the_house]: Every corner of the cottage remembers his footsteps, as I see it.
 Corvin [Remark in a_death_in_the_house]: She loved the smell of the damp earth after rain.
 Dagny [Agree in a_death_in_the_house]: Tell me of him - good memories are a shield against darkness.
--- Exhausted
+Corvin [Remark in a_death_in_the_house]: It does a body good to speak their name aloud.
+Dagny [Bid in a_death_in_the_house]: Sit a while longer - the kettle's still warm.
+Corvin [Remark in the_cleric_blesses]: Dost thou find peace in thy daily labor, child?
+Dagny [Agree in the_cleric_blesses]: I try to walk uprightly before God and my neighbors.
+Corvin [Remark in old_scores]: Keep thy lean cows out of our clover pasture.
+Dagny [Question in the_asking]: The day's labor - how does it treat thee?
+Corvin [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Corvin [Remark in old_scores]: I saw where thy cart rutted the lane by my ditch.
+Corvin [Remark in old_scores]: Heard about thy boundary fence. Shoddy timber, that.
+Dagny [PushBack in old_scores]: Thou hast a treacherous tongue in thy skull, and more besides, or do I hear wrong?
+Corvin [Remark in old_scores]: Thou art all mouth and no marrow.
+Dagny [Remark in old_scores]: Not worth the breath or the bruise.
+Corvin [Remark in old_scores]: We are done here.
+Dagny [Farewell in old_scores]: God's peace be upon thy cottage, Corvin.
+-- Farewell
 
 ## Hob and Wystan - Stranger at market (Public) (seed 36, picks [0, 1, 1, 0, 0, 0])
 them: Hob serves the village church. They bow to no one. Their temper's shorter than a winter's day. Their purse strings are knotted tight. The store ran out and the belly knows it.
@@ -170,7 +189,7 @@ Dagny [Remark in condolence_call]: I'll sit with you a while yet, if it helps.
 Aelfric [Farewell in condolence_call]: Your coming did the house good, Dagny, as I've cause to say.
 -- Farewell, vibe: Safe
 
-## Tilda and Osric - Acquaintance at market (Public) (seed 41, picks [0, 0, 2, 1, 0])
+## Tilda and Osric - Acquaintance at market (Public) (seed 41, picks [0, 0, 2, 1, 0, 0, 0, 0])
 them: Tilda serves the village church. They'd sooner watch the clouds than the plough. They mean to be more than they were born. Their temper's shorter than a winter's day. A cough's had them these two weeks.
 you : Osric holds the manor's leases. They never miss a service. They know every soul and every soul's business. Last night's cup is still on them.
 
@@ -183,7 +202,13 @@ Osric [Question in the_asking]: The day's labor - how does it treat you?
 Tilda [Answer in the_asking]: The fields are what they are - they want what they want, for my part!
 Tilda [Answer in the_sickness]: I'd rest in the straw if the chores would do themselves.
 Osric [Agree in the_sickness]: We labor or we go hungry, that's the hard truth of it.
--- Exhausted, vibe: Safe
+Tilda [Remark in the_cleric_blesses]: Do you find peace in your daily labor, child?
+Osric [Agree in the_cleric_blesses]: You have spoken the plain heart of the matter.
+Tilda [Question in lord_manor]: Will the bailiff hear the widow's plea for her late husband's strip?
+Osric [Answer in lord_manor]: The steward will inspect the damaged fields before the tally is set.
+Tilda [Remark in lord_manor]: The court rolls show every customary right since the grandfather's time, for my part.
+Osric [Farewell in lord_manor]: May the road be kind under your boots.
+-- Farewell, vibe: Safe
 
 ## Corvin and Osric - Kin at alehouse (Backstage) (seed 42, picks [1, 0, 0, 1, 0])
 them: Corvin serves the village church. They mean to be more than they were born. They buried one of their own last week.

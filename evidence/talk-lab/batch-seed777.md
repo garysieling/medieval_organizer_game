@@ -101,7 +101,7 @@ Dagny [Remark in morning_after_drunk]: Bread and pickled onions, that's what the
 Hob [Farewell in morning_after_drunk]: God witness. May the sun be gentle on thy poor eyes today.
 -- Farewell
 
-## Marga and Gisela - Kin at market (Public) (seed 24093, picks [0, 0, 2, 1, 0])
+## Marga and Gisela - Kin at market (Public) (seed 24093, picks [0, 0, 2, 1, 0, 1])
 them: Marga holds the manor's leases. They bow to no one. Their purse strings are knotted tight.
 you : Gisela serves the village church. Their temper's shorter than a winter's day. They bow to no one. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 
@@ -114,7 +114,9 @@ Gisela [Question in the_asking]: How fares thy day's work?
 Marga [Answer in the_asking]: The fields are what they are - they want what they want.
 Marga [Remark in asking_the_father]: Thy counsel is wise, father. We will trust in Providence.
 Gisela [Agree in asking_the_father]: The parish is lucky in its father.
--- Exhausted
+Marga [Remark in asking_the_father]: Aye, words won't fill the storehouse.
+Gisela [Farewell in asking_the_father]: I must walk on; fair day!
+-- Farewell
 
 ## Aldric and Gisela - Friend at field (Backstage) (seed 24094, picks [0, 0, 2, 0, 1, 0])
 them: Aldric holds the manor's leases. They'd sooner watch the clouds than the plough. Their purse strings are knotted tight. Their temper's shorter than a winter's day.
@@ -145,7 +147,7 @@ Dagny [Remark in morning_after_drunk]: Bread and pickled onions, that's what the
 Wystan [Farewell in morning_after_drunk]: May the road be kind under thy boots.
 -- Farewell
 
-## Wystan and Aelfric - Acquaintance at field (Public) (seed 24096, picks [1, 0, 0, 1, 1, 1, 0])
+## Wystan and Aelfric - Acquaintance at field (Public) (seed 24096, picks [1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1])
 them: Wystan holds the manor's leases. Their temper's shorter than a winter's day. Their purse strings are knotted tight. They mean to be more than they were born. The store ran out and the belly knows it.
 you : Aelfric holds the manor's leases. They know every soul and every soul's business. They buried one of their own last week.
 
@@ -161,7 +163,15 @@ Wystan [Answer in the_asking]: The fields are what they are - they want what the
 Wystan [Answer in village_smalltalk]: My knees ache with the damp, but I still walk, or so I make it.
 Aelfric [Question in the_asking]: What word of the village these days?
 Wystan [Answer in the_asking]: There's grumbling at the well, but when isn't there.
--- Exhausted, vibe: Mismatch
+Wystan [Answer in village_smalltalk]: Well enough, thank you, Aelfric.
+Aelfric [Agree in village_smalltalk]: A full hearth is a blessing in hard times, or am I mistook?
+Wystan [Remark in village_smalltalk]: Rooks are gathering thick in the elm trees!
+Aelfric [Agree in village_smalltalk]: A dry spade makes for a hungry winter.
+Wystan [Remark in village_smalltalk]: They say the miller took an extra scoop of meal again.
+Aelfric [PushBack in village_smalltalk]: I'll not repeat marketplace whispers.
+Wystan [Remark in village_smalltalk]: True enough - the fields don't gossip.
+Aelfric [Farewell in village_smalltalk]: I must walk on; fair day!
+-- Farewell, vibe: Mismatch
 
 ## Tilda and Osric - Friend at field (Backstage) (seed 24097, picks [0, 0, 0, 0])
 them: Tilda holds the manor's leases. They mean to be more than they were born. They're the first with a loaf when a house is bare. They'd sooner watch the clouds than the plough. Last night's cup is still on them.

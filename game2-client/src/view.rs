@@ -1786,6 +1786,28 @@ impl View {
             }
         }
 
+        // the conversation box, top-right of the map: a Talk under way or
+        // a house meeting's lines as they're said - and the call one
+        // leaves. Drawn over the bubbles, toasts and banner so a popup
+        // can't land on a reply mid-read; the modal overlays below
+        // (help, the board, the ledger, pause) still come out on top
+        // (#1600)
+        if let Some(c) = &m.convo {
+            // a speaker's head still: their trade's people still where
+            // they wear one (the map's sexed-token lookup), else the
+            // look's own (#1319)
+            let portrait = |who: usize| m.people.iter().find(|pv| pv.kind == PKind::Villager(who))
+                .and_then(|pv| {
+                    let look = self.art.figure_look(pv.kid, who);
+                    pv.person.as_deref()
+                        .and_then(|t| self.art.person_head(&format!("{}-{}", t, self.art.look_sex(look)))
+                            .or_else(|| self.art.person_head(t)))
+                        .or_else(|| self.art.look_head(look))
+                });
+            talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut(), m.frame, &portrait,
+                &art.ui_frame, m.season);
+        }
+
         // help overlay
         if self.help_open { draw_help(&mut buf); }
 
@@ -1813,26 +1835,6 @@ impl View {
             for (i, line) in m.debug_lines.iter().take(14).enumerate() {
                 draw_text(&mut buf, 14, 76 + i as i32 * LINE_H, line, 190, 190, 210);
             }
-        }
-
-        // the conversation box, top-right of the map: a Talk under way or
-        // a house meeting's lines as they're said - and the call one
-        // leaves. Drawn last of the content so a bubble, toast or hover
-        // card can't land on top of a reply mid-read (#1600)
-        if let Some(c) = &m.convo {
-            // a speaker's head still: their trade's people still where
-            // they wear one (the map's sexed-token lookup), else the
-            // look's own (#1319)
-            let portrait = |who: usize| m.people.iter().find(|pv| pv.kind == PKind::Villager(who))
-                .and_then(|pv| {
-                    let look = self.art.figure_look(pv.kid, who);
-                    pv.person.as_deref()
-                        .and_then(|t| self.art.person_head(&format!("{}-{}", t, self.art.look_sex(look)))
-                            .or_else(|| self.art.person_head(t)))
-                        .or_else(|| self.art.look_head(look))
-                });
-            talk::draw_convo_panel(&mut buf, c, (mx, my), &mut self.convo_pin.borrow_mut(), m.frame, &portrait,
-                &art.ui_frame, m.season);
         }
 
         // pause menu overlay

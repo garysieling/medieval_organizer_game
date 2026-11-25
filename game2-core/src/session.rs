@@ -2004,6 +2004,15 @@ pub struct Game {
     /// The day its counter-window was last waved off (#1627): the ban
     /// still stands, the offer box just isn't pressed again today
     pub emergency_declined: Option<u64>,
+    /// The day the postings were let stand (#1663): the burden still
+    /// ticks, the box just isn't pressed again today
+    pub postings_declined: Option<u64>,
+    /// The day the eyes' hold was let stand (#1663): the leverage still
+    /// holds, the box just isn't pressed again today
+    pub leverage_declined: Option<u64>,
+    /// The day the deference was paid as ever (#1663): the pressure
+    /// still builds, the box just isn't pressed again today
+    pub deference_paid: Option<u64>,
     /// Witnesses gathered inside the window: each one's a word the
     /// lord's story can't stand - at a count the scandal lands
     pub witnesses: u32,

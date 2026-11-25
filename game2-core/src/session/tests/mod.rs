@@ -139,6 +139,7 @@ mod anticolonial;
 mod drama;
 mod campaign_phase;
 mod cult;
+mod decide_cards;
 mod dilemma;
 mod relic;
 mod laws;

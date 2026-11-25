@@ -18,7 +18,7 @@
     l) take your leave
   Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
   you: Charity begins at home, and mostly stays there.
-  Wystan: Aye, the dew lay heavy on the clover this morning.
+  Wystan: Gray skies, gray days - it's the weather of us, wanderer, and nothing moves it.
     1) Enough sky-talk - how goes the work these days?
     2) And how fares your folk in this cold snap?
     3) Put a question to them

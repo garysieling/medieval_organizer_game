@@ -172,7 +172,9 @@ impl Game {
         let i = left[self.rng.below(left.len() as i32) as usize];
         if let Some(mm) = &mut self.seats[seat].mystery { mm.known |= 1 << i; }
         let def = &MYSTERIES[m.def];
-        let text = def.clues[i].text.to_string();
+        // the piece lands in the mystery's own frame - "About the face
+        // in the elder tree - ..." - not a bare clue (#1608)
+        let text = format!("About {} - {}", def.title, def.clues[i].text);
         let m2 = self.seats[seat].mystery.clone().unwrap();
         if m2.solved() {
             // the seat's band steps up on the solve itself - carrying it

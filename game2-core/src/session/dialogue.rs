@@ -1357,9 +1357,12 @@ impl Game {
             if !crate::game::desires::unrevealed(&self.world, self.seats[seat].player, v, self.tick).is_empty() {
                 villager.status.push("keeps_secret");
             }
-            // a live mystery is its own ask: what folk say of it (#1189)
-            if self.seats[seat].mystery.as_ref().map(|m| !m.solved()).unwrap_or(false) {
+            // a live mystery is its own ask: what folk say of it (#1189).
+            // The title rides the speaker so the ask can name the story
+            // itself (#1608)
+            if let Some(m) = self.seats[seat].mystery.as_ref().filter(|m| !m.solved()) {
                 villager.status.push("mystery");
+                villager.mystery = Some(crate::game::mysteries::MYSTERIES[m.def].title);
             }
             // the sheep in the cradle (#1254): she'll tell you whose
             // pot it's in; the house that has it evades until a kindness

@@ -383,6 +383,10 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
         "self" => out.push_str(&cx.speaker.name),
         "trade" => out.push_str(&trade_noun(cx.speaker)),
         "other_trade" => out.push_str(&trade_noun(cx.listener)),
+        // the seat's live mystery, whichever speaker carries it - the
+        // ask names the story itself, not "the mystery" (#1608)
+        "mystery" => push(out, cx.speaker.mystery.or(cx.listener.mystery)
+            .unwrap_or("what folk whisper of")),
         // E4-2: the address a relation earns - "m'lord", "goodwife Maud"
         "addr" => push(out, &address_form(cx)),
         // E4-2: second person - pronouns and verb agreement read `cx.tv`

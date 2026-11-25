@@ -222,9 +222,11 @@ canvas.addEventListener('pointerup', e => {
 });
 canvas.addEventListener('wheel', e => {
   // the live zoom's the base: the event camera may have set it (a
-  // meeting opens at max) since the last manual step
+  // meeting opens at max) since the last manual step. No clamp here -
+  // set_zoom clamps to the real MIN/MAX_ZOOM, so the ceiling can't
+  // drift between the wasm and this handler (#1620)
   const zoom = JSON.parse(g.cam()).zoom;
-  g.set_zoom(Math.min(2, Math.max(0.5, zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1))));
+  g.set_zoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
   e.preventDefault();
 }, { passive: false });
 

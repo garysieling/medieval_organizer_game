@@ -61,7 +61,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32, hold_weather: bool
     let (mut tu, mut tm, mut tr) = (vec![], vec![], vec![]);
     for _ in 0..n.max(1) {
         if pan { view.cam_x += 3; view.cam_y += 1; }
-        if zooming { view.zoom = (view.zoom * 1.003).min(2.0); }
+        if zooming { view.zoom = (view.zoom * 1.003).min(view::MAX_ZOOM); }
         let t0 = Instant::now();
         game.update();
         let t1 = Instant::now();

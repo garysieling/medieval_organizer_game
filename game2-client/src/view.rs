@@ -1967,9 +1967,11 @@ const FOLLOW_EASE: f32 = 0.18;
 /// Frames of stride to look ahead: the view opens where they're going
 const FOLLOW_LEAD: f32 = 45.0;
 
-/// The zoom clamps every camera path shares
+/// The zoom clamps every camera path shares - the ceiling's two more
+/// levels past the old 2.0 (#1620), and a gathering's camera rides all
+/// the way to it
 pub const MIN_ZOOM: f32 = 0.5;
-pub const MAX_ZOOM: f32 = 2.0;
+pub const MAX_ZOOM: f32 = 4.0;
 /// The breathing room an event's frame keeps from the map view's rim
 const EVENT_MARGIN: f32 = 80.0;
 /// Frames of manual camera input that hold the event camera off -

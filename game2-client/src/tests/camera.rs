@@ -135,6 +135,9 @@ fn test_a_meeting_event_lands_at_max_zoom() {
     let mut cam = EventCam::default();
     let (_, z) = cam.step(Some(&meeting(1, 20.0, 20.0)), (100, 100), 1.0);
     assert_eq!(z, MAX_ZOOM, "a meeting opens at max zoom, not its circle's fit: {z}");
+    // #1620: the ceiling's two scroll levels past the old 2.0 - the
+    // meeting's camera rides all the way to the faces
+    assert_eq!(MAX_ZOOM, 4.0);
     // a rite's a seated gathering too; a march still fits its extent
     let mut cam = EventCam::default();
     let mut rite = meeting(2, 30.0, 30.0);
@@ -143,4 +146,18 @@ fn test_a_meeting_event_lands_at_max_zoom() {
     let mut cam = EventCam::default();
     let (_, z) = cam.step(Some(&event(3, 20.0, 20.0, 40.0, true)), (0, 0), 1.0);
     assert!(z < 1.0, "a march still pulls back to frame it: {z}");
+}
+
+#[test]
+fn test_the_scroll_reaches_the_new_ceiling() {
+    // #1620: wheel-in keeps going past the old 2.0 cap, up to the new
+    // one - two more 1.1-steps clear 2.0 before the clamp bites
+    let mut z = 2.0;
+    let wheel = |z: f32| (z * 1.1).min(MAX_ZOOM);
+    assert!(wheel(z) > 2.0, "one more step already passes the old cap");
+    z = (0..8).fold(z, |z, _| wheel(z));
+    assert_eq!(z, MAX_ZOOM, "the scroll ride ends on the ceiling: {z}");
+    // and out - the floor's untouched
+    let wheel_out = |z: f32| (z / 1.1).max(MIN_ZOOM);
+    assert_eq!((0..8).fold(1.0, |z, _| wheel_out(z)), MIN_ZOOM);
 }

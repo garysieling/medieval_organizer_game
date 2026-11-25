@@ -106,8 +106,18 @@ fn test_a_shopkeepers_talk_sells_you_what_they_make() {
     assert_eq!(g.world.get_component::<Satchel>(pe).unwrap().goods.get("bread").copied().unwrap_or(0), 1,
         "the bread never reached your bag");
     assert!(g.world.get_component::<Purse>(pe).unwrap().gold < 50.0, "the purse never paid");
+    // a bought good leaves the offer rows for the rest of the talk
+    // (#1613) - it can't be re-picked even with the shelf still stocked
+    assert!(g.seats[0].talk.as_ref().unwrap().wares.iter().all(|w| w != "bread"),
+        "the sold bread still sells: {:?}", g.seats[0].talk.as_ref().unwrap().wares);
+    // a new talk rebuilds the list, so tomorrow's loaf still sells -
     // and a broke purse gets told, not robbed
+    g.talk_pick_at(0, None);
+    g.talk_to_at(0, wi);
     g.world.get_component_mut::<Purse>(pe).unwrap().gold = 0.0;
+    let i = { let t = g.seats[0].talk.as_ref().expect("the talk reopens");
+        assert_eq!(t.wares, vec!["bread".to_string()], "the stocked shelf offers again");
+        t.job as usize };
     g.talk_pick_at(0, Some(i));
     assert_eq!(g.world.get_component::<Satchel>(pe).unwrap().goods.get("bread").copied().unwrap_or(0), 1);
     assert!(g.seats[0].talk.as_ref().unwrap().notes.iter().any(|n| n.contains("can't cover")),

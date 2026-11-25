@@ -869,7 +869,7 @@ impl Game {
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
                     format!(
-                        "t{}: {} sets up by the market - a pedlar's pack, though he seems in no hurry to sell.",
+                        "t{}: {} sets up by the market - though he seems in no hurry to sell.",
                         self.tick, s.name
                     ),
                     pitch,

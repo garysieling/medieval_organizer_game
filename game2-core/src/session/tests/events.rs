@@ -3250,6 +3250,10 @@ fn test_the_pedlar_who_never_sells() {
     assert!(g.false_traveller.is_some(), "the motive's rolled under the cry");
     assert!(g.log.iter().any(|l| l.contains("no hurry to sell")),
         "the log smells it faintly");
+    // the line reads clean - the subject isn't said twice (#1626)
+    assert!(g.log.iter().any(|l| l.contains("sets up by the market - though")),
+        "the subject's doubled: {:?}", g.log.iter().find(|l| l.contains("market")));
+    assert!(!g.log.iter().any(|l| l.contains("market - a pedlar's pack")));
     // the tell's in his opening calls - the nameable wrongness sits
     // among your first replies
     g.open_player_talk(0, e, crate::game::conversation::Relation::Stranger,

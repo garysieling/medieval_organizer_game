@@ -1305,6 +1305,51 @@ fn test_the_scout_ask_names_who_the_room_follows() {
         "spent for the talk: {labels:?}");
 }
 
+/// The read prefers names it hasn't just said (#1605): three clear
+/// voices in the room, and the second ask surfaces the one the first
+/// skipped rather than restating the same two
+#[test]
+fn test_a_second_scout_read_names_who_the_first_skipped() {
+    let mut g = Game::new();
+    let (pe, talker) = (g.player, g.villagers[1]);
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: talker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    // three voices all carry the room - enough that a fresh pick can
+    // differ from the last
+    let voices = g.villagers[2..5].to_vec();
+    for &v in &voices {
+        for kin in g.villagers.iter().copied().skip(5).take(6) {
+            let r = g.world.create_entity();
+            g.world.add_component(r, Relationship { from: v, other: kin,
+                kind: RelKind::Family, strength: 0.9, interactions: 30, ..Default::default() });
+        }
+    }
+    // the talk's open: the read's what's under the ask
+    let i = g.villagers.iter().position(|&x| x == talker).unwrap();
+    let p = *g.world.get_component::<Pos>(talker).unwrap();
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+    g.seats[0].selected_target = i;
+    g.seats[0].picked = true;
+    g.act_at(0, 0);
+    assert!(g.seats[0].talk.is_some(), "the talk opened");
+    let named = |g: &Game, lines: &[String]| voices.iter()
+        .filter(|&&v| lines.iter().any(|l| l.contains(&g.name_of(v))))
+        .copied().collect::<Vec<_>>();
+    let first = g.scout_read(0);
+    let first_named = named(&g, &first);
+    assert_eq!(first_named.len(), 2, "the first read names two: {:?}", first);
+    let second = g.scout_read(0);
+    let second_named = named(&g, &second);
+    assert!(second_named.iter().any(|v| !first_named.contains(v)),
+        "the second read surfaces a fresh voice: {:?} then {:?}", first, second);
+    // and the words differ too - not the same occasion restated
+    assert_ne!(first, second, "the second read isn't the first said again");
+    // past the window every name's fair again
+    g.scout_named.clear();
+    let third = g.scout_read(0);
+    assert!(!named(&g, &third).is_empty(), "the window passed, the read names again");
+}
+
 /// A plan on the organizer with a set day and promises: the inside
 /// news the cause's members carry (#1287)
 fn plan_news(g: &mut Game) {

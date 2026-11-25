@@ -566,6 +566,43 @@ fn test_an_introduction_names_someone_to_look_at() {
 }
 
 #[test]
+fn test_an_introduction_says_who_to_see_and_why() {
+    use crate::game::desires::{Problem, Reveal, Want};
+    use crate::game::organizing::{propose, PropKind};
+    use crate::game::vocation::{craft, Vocation};
+    let mut g = Game::new();
+    let (pe, asker, plain, holder) = (g.player, g.villagers[1], g.villagers[2], g.villagers[3]);
+    // the asker knows you, and carries a trouble the cause's heard
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: asker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    let __pe = g.player; for __r in vec![
+        Reveal::Want(Want::GoodFood), Reveal::Problem(Problem::Taxed)] { crate::game::desires::note(&mut g.world, __pe, asker, __r); }
+    // "the taxes" is on the cause's ledger: the bond who carries it
+    // outranks a stronger plain one (#1609)
+    g.world.get_component_mut::<crate::game::desires::Organizer>(pe).unwrap()
+        .issues.push("the taxes".to_string());
+    g.world.add_component(asker, craft(Vocation::Weaver, 0.5));
+    g.world.add_component(plain, craft(Vocation::Weaver, 0.5));
+    g.world.add_component(holder, craft(Vocation::Weaver, 0.5));
+    relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
+        other: plain, kind: relationships::InteractionKind::Conversation, intensity: 0.8 });
+    crate::game::relationships::find_relationship(&g.world, asker, plain)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.9;
+    relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
+        other: holder, kind: relationships::InteractionKind::Conversation, intensity: 0.8 });
+    crate::game::relationships::find_relationship(&g.world, asker, holder)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.2;
+    // the weaker bond's the one with the taxes on them
+    crate::game::desires::note(&mut g.world, pe, holder, Reveal::Problem(Problem::Taxed));
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, named) = propose(&mut g.world, pe, oe, asker, PropKind::Introduce, "Eliza", 0.0, tick);
+    assert_eq!(named, Some(holder), "the cause's pick beats the bare bond: {}", msg);
+    // the who rides a slot the caller fills, the why's said plain (#1609)
+    assert!(msg.contains("go see {name}"), "names them: {}", msg);
+    assert!(msg.contains("the tax collector's cut sits on them"), "says why: {}", msg);
+}
+
+#[test]
 fn test_the_person_you_asked_comes_back_around() {
     use crate::game::desires::{Problem, Reveal, Want};
     use crate::game::organizing::{propose, PropKind, RoundBack};

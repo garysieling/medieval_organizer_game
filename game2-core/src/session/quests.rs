@@ -213,7 +213,9 @@ impl Game {
             let stale = self.seats[seat].quest.as_ref()
                 .map(|q| q.expires <= tick).unwrap_or(false);
             if stale {
-                self.seats[seat].quest = None;
+                if let Some(q) = self.seats[seat].quest.take() {
+                    self.quest_good_lose(seat, &q);
+                }
                 self.log.push_ev(
                     EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
                     format!(
@@ -232,7 +234,9 @@ impl Game {
                 } || q.pickup.map(|(x, y)| !self.map.passable(x.floor() as i32, y.floor() as i32)).unwrap_or(false);
                 if dead_end {
                     let who = self.name_of(q.giver);
-                    self.seats[seat].quest = None;
+                    if let Some(q) = self.seats[seat].quest.take() {
+                        self.quest_good_lose(seat, &q);
+                    }
                     self.log.push_ev(
                         EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
                         format!(
@@ -390,6 +394,9 @@ impl Game {
             giver: q.giver, kind: q.kind, target: q.target, stage, pickup: q.pickup,
             expires: self.tick + QUEST_DAYS, errand };
         self.say(q.giver, &self.quest_ask_line(&quest), TALK_BUBBLE_SECS * 2);
+        // the thing's in hand from the asking: a fetch's lands at the
+        // pickup instead (quest_frame)
+        if stage == QuestStage::ToCarry { self.quest_good_take(seat, quest.kind); }
         self.seats[seat].quest = Some(quest.clone());
         self.quest_rest.insert(q.giver, self.tick + REST_DAYS);
         quest
@@ -441,6 +448,7 @@ impl Game {
                         if let Some(qq) = &mut self.seats[seat].quest {
                             qq.stage = QuestStage::ToCarry;
                         }
+                        self.quest_good_take(seat, q.kind);
                         self.log.push_ev(
                             EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
                             format!("t{}: you take {}.", self.tick, self.quest_thing(&q)),
@@ -528,6 +536,46 @@ impl Game {
         }
     }
 
+    /// The thing a carry job puts in your hand, where it has one - the
+    /// parcel, the loaf, the bundle. The word, the question and the
+    /// trouble aren't goods. Their names stay out of the goods
+    /// registry: an errand's loaf isn't a loaf to trade (#1603)
+    fn quest_good(kind: QuestKind) -> Option<&'static str> {
+        match kind {
+            QuestKind::Note => Some("note"),
+            QuestKind::Parcel => Some("parcel"),
+            QuestKind::Deliver => Some("loaf"),
+            QuestKind::Keep => Some("bundle"),
+            QuestKind::Egg => Some("egg"),
+            QuestKind::Stone => Some("stone"),
+            _ => None,
+        }
+    }
+
+    /// The job's thing lands in the Wanderer's bag (#1603)
+    fn quest_good_take(&mut self, seat: usize, kind: QuestKind) {
+        let Some(g) = Self::quest_good(kind) else { return };
+        let pe = self.seats[seat].player;
+        if let Some(s) = self.world.get_component_mut::<livelihood::Satchel>(pe) {
+            *s.goods.entry(g.into()).or_insert(0) += 1;
+        }
+    }
+
+    /// and leaves it when the job's done with - done, stale or dead,
+    /// the thing was never yours to keep. A job still out on its fetch
+    /// handed nothing over yet
+    fn quest_good_lose(&mut self, seat: usize, q: &PlayerQuest) {
+        if q.stage != QuestStage::ToCarry { return; }
+        let Some(g) = Self::quest_good(q.kind) else { return };
+        let pe = self.seats[seat].player;
+        if let Some(s) = self.world.get_component_mut::<livelihood::Satchel>(pe) {
+            if let Some(n) = s.goods.get_mut(g) {
+                *n -= 1;
+                if *n == 0 { s.goods.remove(g); }
+            }
+        }
+    }
+
     /// Talking to whoever it's for hands it over: the job's done, the
     /// giver's pleased, and there's a few coins in't for the trouble
     pub fn quest_talk_done(&mut self, seat: usize, v: Entity) -> Option<String> {
@@ -542,6 +590,7 @@ impl Game {
             return None;
         }
         self.seats[seat].quest = None;
+        self.quest_good_lose(seat, &q);
         let pe = self.seats[seat].player;
         // an Ask's answer settles the ledger (E5-7's done-when): who
         // keeps the roll says it plain - the debt's written, and the
@@ -640,6 +689,7 @@ impl Game {
     /// A parcel walked out to a far village: the site's folk see it land
     fn finish_quest_site(&mut self, seat: usize, site: usize) {
         let Some(q) = self.seats[seat].quest.take() else { return };
+        self.quest_good_lose(seat, &q);
         let name = self.sites.get(site).map(|s| s.name).unwrap_or("the village");
         let giver = self.name_of(q.giver);
         let pe = self.seats[seat].player;
@@ -691,6 +741,7 @@ impl Game {
     /// settlement - the errand ends where the offering rests
     fn finish_quest_spot(&mut self, seat: usize) {
         let Some(q) = self.seats[seat].quest.take() else { return };
+        self.quest_good_lose(seat, &q);
         let giver = self.name_of(q.giver);
         let pe = self.seats[seat].player;
         if let Some(c) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(pe) { c.resources += 3.0; }

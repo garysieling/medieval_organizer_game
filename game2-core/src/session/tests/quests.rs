@@ -509,3 +509,47 @@ fn test_the_roll_question_skips_the_dead() {
         }
     }
 }
+
+/// The thing's in hand from the asking (#1603): taking a carry job puts
+/// its good in the Wanderer's satchel, the handover takes it back out -
+/// and a fetch's good only lands when it's actually picked up
+#[test]
+fn test_a_carry_job_puts_the_goods_in_your_satchel() {
+    use crate::game::livelihood::Satchel;
+    let mut g = Game::new();
+    g.seats[0].quest = None;
+    let folk = askers(&g);
+    let giver = folk[0];
+    let held = |g: &Game, good: &str| g.world.get_component::<Satchel>(g.player)
+        .map(|s| s.goods.get(good).copied().unwrap_or(0)).unwrap_or(0);
+    // a parcel job going begging, the giver picked and in earshot
+    g.pending_quests.push(pending(giver, QuestKind::Parcel, QuestTarget::Site(0), None));
+    g.seats[0].picked = true;
+    g.seats[0].selected_target = g.villagers.iter().position(|&v| v == giver).unwrap();
+    let gp = *g.world.get_component::<Pos>(giver).unwrap();
+    if let Some(p) = g.world.get_component_mut::<Pos>(g.player) { p.x = gp.x; p.y = gp.y; }
+    let msg = g.accept_quest_at(0);
+    assert!(g.seats[0].quest.is_some(), "the job's taken on: {}", msg);
+    assert_eq!(held(&g, "parcel"), 1, "the parcel's in the satchel");
+    // stand on the far village's ground: the handover empties the bag
+    let (cx, cy) = g.sites[0].centre;
+    if let Some(p) = g.world.get_component_mut::<Pos>(g.player) { p.x = cx as f32; p.y = cy as f32; }
+    g.update();
+    assert!(g.seats[0].quest.is_none(), "the parcel's delivered");
+    assert_eq!(held(&g, "parcel"), 0, "and it's out of the satchel");
+
+    // a fetch hands nothing over until the thing's picked up
+    g.pending_quests.push(pending(giver, QuestKind::Egg, QuestTarget::Villager(giver),
+        Some((g.chicken_at.0, g.chicken_at.1))));
+    g.seats[0].picked = true;
+    g.seats[0].selected_target = g.villagers.iter().position(|&v| v == giver).unwrap();
+    if let Some(p) = g.world.get_component_mut::<Pos>(g.player) { p.x = gp.x; p.y = gp.y; }
+    g.accept_quest_at(0);
+    assert_eq!(g.seats[0].quest.as_ref().map(|q| q.stage), Some(QuestStage::ToFetch));
+    assert_eq!(held(&g, "egg"), 0, "the egg's still out there, not in the bag");
+    if let Some(p) = g.world.get_component_mut::<Pos>(g.player) {
+        p.x = g.chicken_at.0; p.y = g.chicken_at.1;
+    }
+    g.update();
+    assert_eq!(held(&g, "egg"), 1, "picked up, the egg's in the satchel");
+}

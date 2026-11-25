@@ -38,11 +38,11 @@ pub(crate) const HELP_LINES: [&str; 10] = [
     "click button / key: take action",
     "click villager: select + inspect",
     "bright name: close enough to talk",
-    "1-8: select villager",
+    "0-9: select villager",
     "T talk",
     "O organize",
     "WASD: move   arrows: pan   +/-: zoom",
-    "Space: pause   0: speed 4x",
+    "Space: pause",
     "F12: screenshot   Esc: menu",
     "F11: fullscreen",
 ];
@@ -61,7 +61,7 @@ pub(crate) fn draw_help(buf: &mut Buffer) {
     draw_overlay(buf, HELP_W, "CONTROLS", (255, 220, 130), &HELP_LINES, HELP_ROW, Some("press H to close"));
 }
 
-pub(crate) const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: menu", "1-8: select villager"];
+pub(crate) const PAUSE_LINES: [&str; 3] = ["Space: resume", "Esc: menu", "0-9: select villager"];
 
 pub(crate) const PAUSE_W: i32 = 260;
 

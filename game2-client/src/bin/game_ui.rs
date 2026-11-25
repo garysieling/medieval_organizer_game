@@ -125,7 +125,7 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
     // digits press them (a reply, or the call's framing) and a digit
     // with no row is swallowed, not a villager pick under the box. A
     // press, not a hold - a held key would talk the whole way through
-    for (n, k) in [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5, Key::Key6, Key::Key7, Key::Key8].iter().enumerate() {
+    for (n, k) in [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5, Key::Key6, Key::Key7, Key::Key8, Key::Key9, Key::Key0].iter().enumerate() {
         let hit = if convo.is_some() { window.is_key_pressed(*k, minifb::KeyRepeat::No) }
             else { window.is_key_down(*k) };
         if hit {

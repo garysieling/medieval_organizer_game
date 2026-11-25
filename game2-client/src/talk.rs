@@ -26,9 +26,11 @@ pub type OptionRect = (i32, i32, i32, i32, Option<usize>);
 /// colour, rubric - day rules draw tracked capitals, the H2 tier #1321)
 pub type TalkRow = (i32, String, (u8, u8, u8), Option<(String, (u8, u8, u8))>, bool);
 
-/// Word-wrap a reply as "1) text", at most OPTION_ROWS rows
+/// Word-wrap a reply as "1) text" ("0)" for the tenth, bare past ten -
+/// #1593), at most OPTION_ROWS rows
 pub(crate) fn option_rows(n: usize, text: &str) -> Vec<String> {
-    let mut rows = super::wrap_px(&format!("{}) {}", n + 1, text), TALK_PX - 8);
+    let label = if n < 10 { format!("{}) {}", (n + 1) % 10, text) } else { text.to_string() };
+    let mut rows = super::wrap_px(&label, TALK_PX - 8);
     if rows.len() > OPTION_ROWS {
         rows.truncate(OPTION_ROWS);
         let last = rows.last_mut().unwrap();
@@ -232,7 +234,9 @@ pub fn convo_layout(p: &ConvoPanelV, pin: &mut ConvoPin, frame: u32) -> (Vec<Con
     let mut opts: Vec<Vec<String>> = vec![];
     let opt_count = p.options.len() + p.leave as usize;
     for (i, o) in p.options.iter().enumerate() {
-        let label = format!("{}) {}", i + 1, o);
+        // the digit on the row is the key that answers it: 1-9 then 0 for
+        // the tenth - past ten the row draws bare (#1593)
+        let label = if i < 10 { format!("{}) {}", (i + 1) % 10, o) } else { o.clone() };
         let mut ws = super::wrap_px(&label, CONVO_PX);
         ws.truncate(3);
         opts.push(ws);

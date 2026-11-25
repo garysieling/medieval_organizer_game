@@ -45,7 +45,10 @@ pub enum Command {
 /// do depends on where they stand and who's picked.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum CtxAct {
-    /// Pair the picked junior with a master of their trade
+    /// Pair the picked junior with a master of their trade - wire-only
+    /// now (#1598): kept so an older server's list still decodes and
+    /// clicks through; a new server never offers it, agents still
+    /// broker apprenticeships
     PairUp,
     /// Send the picked child on a paid errand
     Errand,
@@ -414,17 +417,35 @@ impl Game {
             }
             return if msg.is_empty() { Ok(()) } else { Err(msg) };
         }
+        // an apprenticeship's between them and the trade now (#1598): the
+        // button's gone, but the sim still pairs a junior for whoever asks
+        if action == AgentAction::PairUp {
+            let v = self.villagers[target_index];
+            let junior = self.world.get_component::<Kid>(v).is_none()
+                && self.world.get_component::<Craft>(v)
+                    .map(|c| vocation::level_of(c.skill) < Level::Master && c.master.is_none())
+                    .unwrap_or(false);
+            let offered = junior && self.pair_master_for(v).is_some();
+            if !offered { return Err("that action isn't available here".into()); }
+            let msg = self.pair_up_at(target_index);
+            if !msg.is_empty() {
+                self.log.push_ev(
+                    EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}", self.tick, msg));
+            }
+            return if msg.starts_with("No master") { Err(msg) } else { Ok(()) };
+        }
         let ctx = match action {
             // taken in the Talk now (#1336) - the early return above has it
             AgentAction::TakeJob => unreachable!("handled above"),
-            // and these run their own paths (#1595, #1597) - the buttons' gone
+            // and these run their own paths (#1595, #1597, #1598) - the buttons' gone
             AgentAction::Pact => unreachable!("handled above"),
             AgentAction::PickCaps => unreachable!("handled above"),
+            AgentAction::PairUp => unreachable!("handled above"),
             AgentAction::Douse => CtxAct::Douse,
             AgentAction::Tame => CtxAct::Tame,
             AgentAction::Matchmake => CtxAct::Matchmake,
             AgentAction::Errand => CtxAct::Errand,
-            AgentAction::PairUp => CtxAct::PairUp,
             AgentAction::ShareFindings => CtxAct::ShareFindings,
             AgentAction::Snowballs => CtxAct::Snowballs,
             AgentAction::PetCat => CtxAct::PetCat,

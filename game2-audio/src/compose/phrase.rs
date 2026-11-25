@@ -528,9 +528,16 @@ impl Composer {
                             -toward
                         }
                     };
-                    // a step that would leave the register turns back
+                    // a step that would leave the register turns back -
+                    // but a tail that starts already outside it (a
+                    // wide figure ran off the window) must head for the
+                    // nearest bound instead, or reflecting keeps
+                    // walking it further out
                     let next = last_deg + step;
-                    last_deg = if (dlo..=dhi).contains(&next) {
+                    last_deg = if !(dlo..=dhi).contains(&last_deg) {
+                        let toward_bound = if last_deg < dlo { 1 } else { -1 };
+                        last_deg + toward_bound * step.abs()
+                    } else if (dlo..=dhi).contains(&next) {
                         next
                     } else {
                         last_deg - step
@@ -670,11 +677,11 @@ impl Composer {
             let midi_opt = if m.cadence {
                 let (lo, hi) = inst.range();
                 let is_a = m.at16 == end16;
-                let degs: &[i8] = if is_a || !spec.resolved {
-                    &[2, 5]
-                } else {
-                    &[1]
-                };
+                // the draft already chose this cadence's degree (the
+                // fills ran toward it); search octaves for that one
+                // degree rather than re-choosing between 2 and 5, or
+                // the fill and the sounded pitch can disagree
+                let degs: &[i8] = &[m.deg];
                 let mut best: Option<(i32, i32, i32, i32, i32)> = None;
                 let mut chosen: Option<(i32, i32)> = None;
                 for &dg in degs {

@@ -354,11 +354,10 @@ const ACTION_KEYS: [char; 1] = ['T'];
 
 /// The action panel's buttons, in ACTION_KEYS order
 pub const ACTION_LABELS: [&str; 1] = ["Talk"];
-/// The action panel's buttons, laid out the same for every player
+/// The action panel's buttons - identity only (label, key, count): the
+/// Talk rect the draw and the click agree on is `talk_button` (#1599)
 pub fn action_buttons() -> [Button; 1] {
-    [
-        Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 116,  w: 130, h: 36, color: (60,60,120) },
-    ]
+    [talk_button(0)]
 }
 /// The button a contextual action draws with
 pub fn ctx_button(act: CtxAct) -> Button {
@@ -434,6 +433,16 @@ pub fn ctx_buttons(acts: &[CtxAct]) -> Vec<Button> {
         b.h = CTX_H;
         b
     }).collect()
+}
+
+/// The Talk button takes the band cell right after the ctx list - it
+/// kept the old rail's spot once the buttons around it dropped and read
+/// stranded at the panel's edge (#1599). `n_ctx` is `UiModel.ctx.len()`
+pub fn talk_button(n_ctx: usize) -> Button {
+    Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0],
+        x: UI_X as i32 + 10 + (n_ctx % CTX_COLS) as i32 * (CTX_W + CTX_GAP_X),
+        y: CTX_BAND_Y + (n_ctx / CTX_COLS) as i32 * CTX_PITCH,
+        w: CTX_W, h: CTX_H, color: (60, 60, 120) }
 }
 
 /// The band's buttons with the model's resolved labels: `labels` rides

@@ -51,6 +51,22 @@ fn test_ctx_buttons_on_a_real_frame() {
         // the campaign text below
         assert!(b.y >= CTX_BAND_Y && b.y + b.h <= 452, "{:?} sits in the band", m.ctx[i]);
     }
+    // Talk rides the band's next cell - after the last ctx button,
+    // overlapping none (#1599)
+    let talk = talk_button(m.ctx.len());
+    for b in &btns {
+        assert!(!overlap(&talk, b), "Talk meets {}", b.label);
+    }
+    if let Some(last) = btns.last() {
+        if m.ctx.len() % 2 == 1 {
+            assert_eq!(talk.y, last.y, "an open right cell takes Talk beside the last");
+            assert!(talk.x > last.x);
+        } else {
+            assert!(talk.y > last.y, "a filled row puts Talk on the next");
+        }
+    } else {
+        assert_eq!(talk.y, CTX_BAND_Y, "no ctx buttons: Talk takes the first cell");
+    }
 }
 
 /// The wire's own wording wins: `ctx_labels` overrides the static text,

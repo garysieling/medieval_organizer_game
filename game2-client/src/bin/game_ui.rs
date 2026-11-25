@@ -103,11 +103,9 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
     if typing { return vec![]; }
     let mut cmds: Vec<Command> = vec![];
     if clicked && !minimap_hit {
-        let mut done = false;
-        for (i, b) in session::action_buttons().iter().enumerate() {
-            if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h { cmds.push(Command::Act(i)); done = true; }
-        }
-        if !done { cmds.push(Command::ClickMap { mx, my, cam_x: cam.0, cam_y: cam.1, zoom: cam.2 }); }
+        // the panel's buttons answer for themselves where the model's in
+        // scope - a miss here is a map click they may still convert
+        cmds.push(Command::ClickMap { mx, my, cam_x: cam.0, cam_y: cam.1, zoom: cam.2 });
     }
     // a click or a held key between the presses breaks the double-tap
     if !cmds.is_empty() { *talk_armed = None; }
@@ -747,6 +745,13 @@ fn main() {
                     .map(|(i, _)| i) {
                     cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     cmds.push(Command::CtxAct(i));
+                }
+                // Talk rides the band's next cell (#1599): the draw and
+                // this test read the same talk_button rect
+                let tb = session::talk_button(m.ctx.len());
+                if mx >= tb.x && mx < tb.x + tb.w && my >= tb.y && my < tb.y + tb.h {
+                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    cmds.push(Command::Act(0));
                 }
                 // a reply on the TALK panel
                 if let Some(pick) = client::talk::talk_click(&m.talk, mx, my) {

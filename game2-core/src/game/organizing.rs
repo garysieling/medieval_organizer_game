@@ -267,26 +267,47 @@ fn concern_speech(concern: &str) -> (&'static str, &'static str) {
     }
 }
 
-/// The ways people put a concern when it comes up at a meeting
-fn meeting_sayings(concern: &str) -> [&'static str; 3] {
+/// The ways people put a concern when it comes up at a meeting, split
+/// by act (#1610, #1624): the airing lines answer "what's on your
+/// minds", the doing lines answer "what would make the most
+/// difference" - a resolve under the airing prompt is a non-answer
+pub(crate) fn meeting_sayings(concern: &str) -> ([&'static str; 2], [&'static str; 2]) {
     match concern {
-        "the food running short" => ["The store won't last the month.", "My children go to bed hungry.", "We need to share what grain there is."],
-        "the sickness" => ["Half the village is coughing.", "Who'll work the fields if we're all sick?", "We should look after the sick together."],
-        "fair wages" => ["A day's work hardly buys a day's bread.", "The miller takes more every season.", "If we asked together, they'd have to listen."],
-        "safe roads" => ["The roads aren't safe to travel.", "No trader comes this way any more.", "We could watch the roads in turns."],
-        "the faith" => ["We need something to hold on to.", "The church is the only thing that brings us together.", "Let's keep faith with each other."],
-        "lower rents" => ["The rents go up every season.", "I can't pay what the lord asks.", "One of us alone can't argue the rent."],
-        _ => ["If the harvest is good, we'll get through.", "We'll need every hand at harvest.", "Let's bring the harvest in together."],
+        "the food running short" => (
+            ["The store won't last the month.", "My children go to bed hungry."],
+            ["We need to share what grain there is.", "A common store, before the snow comes."]),
+        "the sickness" => (
+            ["Half the village is coughing.", "Who'll work the fields if we're all sick?"],
+            ["We should look after the sick together.", "Sit with the sick in turns - nobody coughs alone."]),
+        "fair wages" => (
+            ["A day's work hardly buys a day's bread.", "The miller takes more every season."],
+            ["If we asked together, they'd have to listen.", "Agree the rate between us, and stand on it."]),
+        "safe roads" => (
+            ["The roads aren't safe to travel.", "No trader comes this way any more."],
+            ["We could watch the roads in turns.", "Walk the carrier through the woods, two by two."]),
+        "the faith" => (
+            ["We need something to hold on to.", "The church is the only thing that brings us together."],
+            ["Let's keep faith with each other.", "Meet on the holy day, come what may."]),
+        "lower rents" => (
+            ["The rents go up every season.", "I can't pay what the lord asks."],
+            ["One of us alone can't argue the rent.", "All of us ask it, or none of us pays."]),
+        _ => (
+            ["If the harvest is good, we'll get through.", "We'll need every hand at harvest."],
+            ["Let's bring the harvest in together.", "Share the reaping and the gleaning both."]),
     }
 }
 
 /// What `name` says at a house meeting on round `round`: one of their own
-/// concerns, in words of their own (each person puts it differently)
+/// concerns, in words of their own (each person puts it differently). The
+/// round picks the act - the airing draws the grievance lines, the doing
+/// round the proposals - so the answer fits the question asked
 pub fn meeting_remark(world: &World, person: Entity, name: &str, round: usize) -> String {
     let concerns = village_concerns(world, &[person]);
     let concern = &concerns[round % concerns.len()];
     let voice = name.bytes().map(|b| b as usize).sum::<usize>();
-    meeting_sayings(concern)[(voice + round) % 3].to_string()
+    let (air, doing) = meeting_sayings(concern);
+    let pool = if round == 0 { &air } else { &doing };
+    pool[voice % pool.len()].to_string()
 }
 
 /// Small talk, for someone who has already told you what's on their mind
@@ -501,8 +522,23 @@ mod tests {
         for v in [a, b] { w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() }); }
         let (ra, rb) = (meeting_remark(&w, a, "Eliza", 0), meeting_remark(&w, b, "Bram", 0));
         assert_ne!(ra, rb, "two laborers shouldn't say the very same thing");
-        assert!(meeting_sayings("fair wages").contains(&ra.as_str()));
+        assert!(meeting_sayings("fair wages").0.contains(&ra.as_str()));
         assert_ne!(meeting_remark(&w, a, "Eliza", 0), meeting_remark(&w, a, "Eliza", 1), "nor repeat themselves");
+    }
+
+    #[test]
+    fn test_each_meeting_round_draws_its_own_act() {
+        // the airing answers "what's on your minds", the next round
+        // "what would make the most difference" (#1610, #1624): a
+        // resolve can't open the meeting, a grievance can't close it
+        let mut w = World::new();
+        let a = w.create_entity();
+        w.add_component(a, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        let (air, doing) = meeting_sayings("fair wages");
+        assert!(air.contains(&meeting_remark(&w, a, "Eliza", 0).as_str()),
+            "round one aired a resolve: {}", meeting_remark(&w, a, "Eliza", 0));
+        assert!(doing.contains(&meeting_remark(&w, a, "Eliza", 1).as_str()),
+            "round two answered with a grievance: {}", meeting_remark(&w, a, "Eliza", 1));
     }
 
     #[test]

@@ -82,7 +82,16 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
     let season = SEASONS[rng.below(4)];
     let market = rng.below(4) == 0;
     for i in 0..n {
-        let name = NAMES[i % NAMES.len()];
+        // a roster bigger than the village's names takes bynames
+        // (#1695): pairs seat by index, and a Corvin answering a
+        // Corvin reads as a monologue in the dumps
+        const BYNAMES: &[&str] = &["the younger", "the elder", "the second",
+            "the third", "the fourth", "the fifth", "the sixth", "the seventh",
+            "the eighth", "the ninth"];
+        let name: String = if i < NAMES.len() { NAMES[i].into() } else {
+            format!("{} {}", NAMES[i % NAMES.len()],
+                BYNAMES[(i / NAMES.len() - 1) % BYNAMES.len()])
+        };
         let ideology = IDEOLOGIES[rng.below(IDEOLOGIES.len())];
 
         // 1 to 3 distinct traits
@@ -114,7 +123,7 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
         }
 
         roster.push(Speaker {
-            name: name.to_string(),
+            name,
             facts: crate::game::conversation::lite_facts(&traits, i as u64),
             traits,
             ideology,

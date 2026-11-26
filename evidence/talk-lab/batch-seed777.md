@@ -25,7 +25,7 @@ Eliza [Remark in the_audition]: Idle hands, friend. The frost doesn't wait.
 Aldric [Remark in village_smalltalk]: The ditch fills one stone at a time, my mother said.
 Eliza [Question in the_asking]: What word of the village these days?
 Aldric [Answer in the_asking]: Folk do say things, if you will hear them!
-Aldric [Question in stranger_road]: What brings your footsteps into our quiet parish?
+Aldric [Question in stranger_road]: And another thing - What brings your footsteps into our quiet parish?
 Eliza [Answer in stranger_road]: It leads down to the cathedral town and the salt wharves.
 Aldric [Remark in stranger_road]: The alehouse by the bridge offers straw beds if you have coin.
 Eliza [Agree in stranger_road]: Then the parish wishes you well of it.
@@ -100,12 +100,12 @@ Gisela [Answer in asking_the_father]: The church will share its grain, child - n
 Marga [Remark in asking_the_father]: Marga minds their own affairs, thanks.
 Gisela [Question in the_asking]: How fares thy day's work?
 Marga [Answer in the_asking]: The fields are what they are - they want what they want.
-Marga [Question in kin_warmth]: How fares mother's knee in this damp spell?
+Marga [Question in kin_warmth]: While I've your ear - How fares mother's knee in this damp spell?
 Gisela [Answer in kin_warmth]: Come by with a spade after the noon bell, brother.
 Marga [Remark in kin_warmth]: Whatever befalls the village, our clan stands shoulder to shoulder.
 Gisela [Question in the_asking]: How do folk fare here, to thy eyes?
 Marga [Answer in the_asking]: Ah, the talk - there's always talk.
-Marga [Remark in the_lords_levee]: The manor court sits under the oak on Thursday - bring thy witnesses.
+Marga [Remark in the_lords_levee]: That puts me in mind - The manor court sits under the oak on Thursday - bring thy witnesses.
 Gisela [Farewell in the_lords_levee]: I'll stand at the oak on Thursday, Marga.
 -- Farewell
 
@@ -120,10 +120,10 @@ Gisela [Evade in asking_the_father]: Ask me another, for my part.
 Aldric [Remark in asking_the_father]: The ditch fills one stone at a time, my mother said.
 Gisela [Question in the_asking]: How do folk fare here, to thy eyes?
 Aldric [Answer in the_asking]: Ah, the talk - there's always talk!
-Aldric [Question in friendship_bonds]: Hah! Hast thou heard any whispers about the new taxes?
+Aldric [Question in friendship_bonds]: That puts me in mind - Hah! Hast thou heard any whispers about the new taxes?
 Gisela [Question in the_asking]: How fares thy day's work?
 Aldric [Answer in the_asking]: I take what work comes, and thank the saints for it.
-Aldric [Remark in the_lords_levee]: The rolls are kept fair; what thy father owed, thou owest, no more.
+Aldric [Remark in the_lords_levee]: And another thing - The rolls are kept fair; what thy father owed, thou owest, no more.
 Gisela [Farewell in the_lords_levee]: I'll stand at the oak on Thursday, Aldric.
 -- Farewell
 
@@ -152,10 +152,10 @@ Aelfric [Question in village_smalltalk]: Tell me true, Wystan - how goes it with
 Wystan [Answer in village_smalltalk]: The little ones keep me running from dawn to dusk.
 Aelfric [Question in the_asking]: How fares your day's work?
 Wystan [Answer in the_asking]: The fields are what they are - they want what they want.
-Wystan [Remark in hunger_lean_times]: The children went to sleep crying with empty bellies last night.
+Wystan [Remark in hunger_lean_times]: And another thing - The children went to sleep crying with empty bellies last night.
 Aelfric [Question in the_asking]: What word of the village these days?
 Wystan [Answer in the_asking]: Folk do say things, if you will hear them.
-Wystan [Remark in the_lords_levee]: The manor court sits under the oak on Thursday - bring your witnesses.
+Wystan [Remark in the_lords_levee]: That puts me in mind - The manor court sits under the oak on Thursday - bring your witnesses.
 Aelfric [Farewell in the_lords_levee]: Custom holds, m'lord - my strip, your tallage, and more besides.
 -- Farewell, vibe: Mismatch
 
@@ -182,10 +182,10 @@ Osric [PushBack in visiting_the_sick]: Nay, I see it differently, mark me.
 Wystan [Question in visiting_the_sick]: Hah! Can I fetch water or chop kindling for thy hearth?
 Osric [Question in the_asking]: How do folk fare here, to thy eyes?
 Wystan [Answer in the_asking]: Folk do say things, if thou wilt hear them.
-Wystan [Question in asking_the_father]: How dost thou find the road today, Osric?
+Wystan [Question in asking_the_father]: One thing more - How dost thou find the road today, Osric?
 Osric [Question in the_asking]: The day's labor - how does it treat thee?
 Wystan [Answer in the_asking]: A holding keeps a soul busy, one way and another!
-Wystan [Remark in hunger_lean_times]: Two pennies' worth of worry, that is.
+Wystan [Remark in hunger_lean_times]: One thing more - Two pennies' worth of worry, that is.
 Osric [Agree in hunger_lean_times]: Take half my loaf, neighbor. No child should hunger in this village.
 Wystan [Remark in hunger_lean_times]: If the rye crop ripens before the frost, we'll see another spring.
 Osric [Agree in hunger_lean_times]: Here's to a fat harvest, neighbor.

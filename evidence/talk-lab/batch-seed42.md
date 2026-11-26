@@ -9,8 +9,8 @@ Wystan [Greet in friendship_bonds]: God bless thy steps this day, Aldric.
 Aldric [Question in friendship_bonds]: God witness. Can I count on thy team when we haul the heavy timber?
 Wystan [Question in the_asking]: The day's labor - how does it treat thee?
 Aldric [Answer in the_asking]: The ditch fills one stone at a time, my mother said.
-Aldric [Question in merchant_trade]: Dost thou have steel needles and linen thread on thy shelf?
-Aldric [Remark in the_lords_levee]: The rolls are kept fair; what thy father owed, thou owest, no more.
+Aldric [Question in merchant_trade]: That puts me in mind - Dost thou have steel needles and linen thread on thy shelf?
+Aldric [Remark in the_lords_levee]: While I've your ear - The rolls are kept fair; what thy father owed, thou owest, no more.
 Wystan [Farewell in the_lords_levee]: Thy servant, Aldric.
 -- Farewell
 
@@ -23,10 +23,10 @@ Osric [Greet in the_cleric_blesses]: A blessed morning to thee, father.
 Eliza [Remark in the_cleric_blesses]: By the rood. Dost thou find peace in thy daily labor, child?
 Osric [Question in the_asking]: The day's labor - how does it treat thee?
 Eliza [Answer in the_asking]: Aye. Aye - as thou sayest, as thou sayest.
-Eliza [Remark in morning_after_drunk]: Saints keep us. Did I truly challenge the smith to a wrestling match at midnight?
+Eliza [Remark in morning_after_drunk]: One thing more - Saints keep us. Did I truly challenge the smith to a wrestling match at midnight?
 Osric [Question in the_asking]: How do folk fare here, to thy eyes?
 Eliza [Answer in the_asking]: Now, let me think what's going about...
-Eliza [Question in kin_warmth]: How fares mother's knee in this damp spell?
+Eliza [Question in kin_warmth]: While I've your ear - How fares mother's knee in this damp spell?
 Osric [Answer in kin_warmth]: She sits by the fire with warm sheep's grease; it eases the pain.
 Eliza [Remark in kin_warmth]: We do what we must while daylight holds.
 Osric [Errand in kin_warmth]: Mind the stall an hour come market day - a loaf and my thanks for it.
@@ -43,10 +43,10 @@ Bram [PushBack in visiting_the_sick]: Nay, I see it differently, mark me, or am 
 Aldric [Question in visiting_the_sick]: Does the fever ease when the sun warms the cottage?
 Bram [Question in the_asking]: What word of the village these days?
 Aldric [Answer in the_asking]: The ditch fills one stone at a time, my mother said.
-Aldric [Question in friendship_bonds]: God witness. Can I count on thy team when we haul the heavy timber?
+Aldric [Question in friendship_bonds]: One thing more - God witness. Can I count on thy team when we haul the heavy timber?
 Bram [Question in the_asking]: The day's labor - how does it treat thee?
 Aldric [Answer in the_asking]: By the rood. A holding keeps a soul busy, one way and another.
-Aldric [Remark in the_lords_levee]: The manor court sits under the oak on Thursday - bring thy witnesses.
+Aldric [Remark in the_lords_levee]: And another thing - The manor court sits under the oak on Thursday - bring thy witnesses.
 Bram [Farewell in the_lords_levee]: I'll stand at the oak on Thursday, Aldric.
 -- Farewell
 
@@ -59,7 +59,7 @@ Dagny [Greet in the_cleric_blesses]: And on thee, father.
 Corvin [Remark in the_cleric_blesses]: Red sky at night - shepherd's delight, as my gran taught.
 Dagny [Question in the_asking]: How fares thy day's work?
 Corvin [Answer in the_asking]: A holding keeps a soul busy, one way and another.
-Corvin [Remark in old_scores]: Thy lot still owes mine three groats, whatever lies thou tellest.
+Corvin [Remark in old_scores]: While I've your ear - Thy lot still owes mine three groats, whatever lies thou tellest.
 Dagny [PushBack in old_scores]: Hm… Say that again, if thou darest.
 Corvin [Remark in old_scores]: Make me.
 Dagny [PushBack in old_scores]: Well… Cur! Thou wilt regret those words.
@@ -74,12 +74,12 @@ Osric [PushBack in old_scores]: Oh… The parish got poorer the day thou drewest
 Dagny [Remark in old_scores]: Forty year I've watched that ditch, and it wants digging still.
 Osric [Question in the_asking]: What word of the village these days?
 Dagny [Answer in the_asking]: Now, let me think what's going about...
-Dagny [Remark in hunger_lean_times]: The children went to sleep crying with empty bellies last night, for my part.
+Dagny [Remark in hunger_lean_times]: One thing more - The children went to sleep crying with empty bellies last night, for my part.
 Osric [Agree in hunger_lean_times]: Aye, there is truth in what thou sayest.
 Dagny [Remark in hunger_lean_times]: We have boiled nettles and wild leeks before, and survived.
 Osric [Joke in hunger_lean_times]: My belt's a sundial now - every notch marks a leaner week.
 Dagny [Remark in hunger_lean_times]: Mm.
-Dagny [Remark in hunger_lean_times]: As thou sayest, friend.
+Dagny [Remark in hunger_lean_times]: One thing more - As thou sayest, friend.
 Osric [Farewell in hunger_lean_times]: May the road pay thy way, merchant.
 -- Farewell
 
@@ -96,7 +96,7 @@ Osric [Question in village_smalltalk]: Tell me true, Hob - how goes it with you?
 Hob [Answer in village_smalltalk]: The little ones keep me running from dawn to dusk.
 Osric [Question in the_asking]: How fares your day's work?
 Hob [Answer in the_asking]: A holding keeps a soul busy, one way and another.
-Hob [Remark in the_merchants_ledger]: The ledger forgets nothing - kindness least of all.
+Hob [Remark in the_merchants_ledger]: One thing more - The ledger forgets nothing - kindness least of all.
 Osric [Agree in the_merchants_ledger]: Aye, and debt is a chain that rattles at night.
 Hob [Remark in the_merchants_ledger]: The tally keeps honest count, and honest count brings folk back.
 Osric [Farewell in the_merchants_ledger]: Until the spring fair, merchant. Fare well.
@@ -123,8 +123,8 @@ Gisela [Greet in the_cleric_visits_the_sick]: A blessed morning to thee, father.
 Eliza [Remark in the_cleric_visits_the_sick]: How fares thy house in these lean weeks, child?
 Gisela [Question in the_asking]: How do folk fare here, to thy eyes?
 Eliza [Answer in the_asking]: Aye. Aye - as thou sayest, as thou sayest.
-Eliza [Question in visiting_the_sick]: Dost thou have grain left in the bin?
-Eliza [Remark in old_scores]: I saw where thy cart rutted the lane by my ditch.
+Eliza [Question in visiting_the_sick]: While I've your ear - Dost thou have grain left in the bin?
+Eliza [Remark in old_scores]: That puts me in mind - I saw where thy cart rutted the lane by my ditch.
 Gisela [PushBack in old_scores]: Thy pasture is mostly thistles anyway.
 Eliza [Remark in old_scores]: I have looked upon thy face long enough.
 Gisela [Farewell in old_scores]: Until we meet at the boundary ditch.
@@ -147,7 +147,7 @@ Aelfric [Agree in village_smalltalk]: Aye, work never sleeps in this valley.
 Wystan [Remark in village_smalltalk]: They say the miller took an extra scoop of meal again.
 Aelfric [Question in the_asking]: The day's labor - how does it treat you?
 Wystan [Answer in the_asking]: The fields are what they are - they want what they want.
-Wystan [Remark in the_merchants_ledger]: The price of wool has climbed a penny since the spring fair.
+Wystan [Remark in the_merchants_ledger]: That puts me in mind - The price of wool has climbed a penny since the spring fair.
 Aelfric [Agree in the_merchants_ledger]: True enough - a debt unpaid is a friend unmade, and more besides.
 Wystan [Remark in the_merchants_ledger]: A good trade leaves both men smiling when hands are struck.
 Aelfric [Farewell in the_merchants_ledger]: May your shelves never stand empty of stock.
@@ -166,12 +166,12 @@ Aelfric [Answer in asking_the_father]: The church will share its grain, child - 
 Dagny [Remark in asking_the_father]: Forty year I've watched that ditch, and it wants digging still.
 Aelfric [Question in the_asking]: The day's labor - how does it treat you?
 Dagny [Answer in the_asking]: A holding keeps a soul busy, one way and another.
-Dagny [Remark in hunger_lean_times]: We boiled a pot of turnip tops and barley chaff this noon.
+Dagny [Remark in hunger_lean_times]: That puts me in mind - We boiled a pot of turnip tops and barley chaff this noon.
 Aelfric [Agree in hunger_lean_times]: You have spoken the plain heart of the matter.
 Dagny [Remark in hunger_lean_times]: They say the monastery may open its tithe barn if hunger deepens.
 Aelfric [Joke in hunger_lean_times]: My belt's a sundial now - every notch marks a leaner week.
 Dagny [Remark in hunger_lean_times]: I heard it. I'll not repeat it.
-Dagny [Remark in hunger_lean_times]: True enough - the fields don't gossip.
+Dagny [Remark in hunger_lean_times]: That puts me in mind - True enough - the fields don't gossip.
 Aelfric [Farewell in hunger_lean_times]: I have no leisure to stand about, Dagny, as I've cause to say.
 -- Farewell, vibe: Safe
 
@@ -182,7 +182,7 @@ you : Tilda works the fields for a day's wage. Their purse strings are knotted t
 Corvin [Greet in the_cleric_consoles]: A peaceful day to thee, Tilda - mind the stile.
 Tilda [Question in the_cleric_consoles]: A blessing for my sorrowing cottage, father.
 Corvin [Question in the_cleric_consoles]: The Lord comfort thee, child. Tell me of thy affliction.
-Corvin [Remark in condolence_call]: Red sky at night - shepherd's delight, as my gran taught.
+Corvin [Remark in condolence_call]: While I've your ear - Red sky at night - shepherd's delight, as my gran taught.
 Tilda [Slip in condolence_call]: The harvest sang that year, when - it doesn't matter.
 Corvin [Remark in condolence_call]: Send for me at any hour - the latch lifts easy.
 Tilda [Farewell in condolence_call]: Thy coming did the house good, Corvin.
@@ -201,7 +201,7 @@ Osric [Agree in the_cleric_blesses]: I try to walk uprightly before God and my n
 Eliza [Remark in morning_after_drunk]: We do what we must while daylight holds.
 Osric [Question in the_asking]: The day's labor - how does it treat you?
 Eliza [Answer in the_asking]: Aye. Aye - as you say, as you say.
-Eliza [Question in merchant_trade]: Saints keep us. What exchange do you take for a bag of salt?
+Eliza [Question in merchant_trade]: While I've your ear - Saints keep us. What exchange do you take for a bag of salt?
 Osric [Answer in merchant_trade]: Fine iron needles in a bone case; two eggs or a penny each.
 Eliza [Remark in merchant_trade]: Silver coin or salted hams - sound goods are always welcome.
 Osric [Farewell in merchant_trade]: Fair trade at the counter, trader. Good day.

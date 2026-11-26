@@ -11,7 +11,7 @@ Gisela [Remark in the_audition]: The furrow's honest work enough for me, and mor
 Aldric [Remark in village_smalltalk]: The ditch fills one stone at a time, my mother said.
 Gisela [Question in the_asking]: What word of the village these days?
 Aldric [Answer in the_asking]: Now, let me think what's going about...
-Aldric [Question in merchant_trade]: Have you ribbons or a pinch of spice left from the fair?
+Aldric [Question in merchant_trade]: While I've your ear - Have you ribbons or a pinch of spice left from the fair?
 -- Exhausted, vibe: Mismatch
 
 ## Eliza and Dagny - Friend at alehouse (Backstage) (seed 3132, picks [0, 0, 0, 0])
@@ -49,7 +49,7 @@ you : Wystan's rents come due on the quarter days. No lane's gossip gets past th
 Corvin [Greet in visiting_the_sick]: A peaceful day to you, Wystan - mind the stile.
 Wystan [PushBack in visiting_the_sick]: I have weathered worse than a common cough.
 Corvin [Remark in the_audition]: Red sky at night - shepherd's delight, as my gran taught.
-Wystan [Answer in the_audition]: Poor mite - I'll ask after them tomorrow, if you will allow.
+Wystan [Remark in the_audition]: Poor mite - I'll ask after them tomorrow, if you will allow.
 Corvin [Question in visiting_the_sick]: Can I fetch water or chop kindling for your hearth?
 Wystan [Answer in visiting_the_sick]: A jug of fresh well water would be a godsend.
 Corvin [Remark in visiting_the_sick]: It is done - look for it by sundown.
@@ -103,7 +103,7 @@ you : Marga's coin moves faster than their boots. They mean to be more than they
 Hob [Greet in the_sickness]: *cough* Fair morning, Marga. Mind the breeze between us - and what of it.
 Marga [PushBack in the_sickness]: Hm… That is not the way the elders told it.
 Hob [Remark in the_audition]: They that count sheep all day shear none, friend.
-Marga [Answer in the_audition]: That's a hard row. Can I carry aught for you?
+Marga [Remark in the_audition]: That's a hard row. Can I carry aught for you?
 Hob [Remark in the_sickness]: It is not the black pestilence, keep your wits about you.
 Marga [PushBack in the_sickness]: Oh… Stay in your own yard if you are frightened.
 -- WalksOff, vibe: Safe
@@ -132,13 +132,13 @@ Wystan [Greet in the_sickness]: Morrow, Tilda - a foul chest this week - as my m
 Tilda [Question in the_sickness]: Have you seen the herb-wife for a draught, m'lord?
 Wystan [Question in the_audition]: There's talk going round the wells this week - heard it?
 Tilda [Agree in the_audition]: Come, I've an ear for it - out with it.
-Wystan [Answer in the_sickness]: Half the north lane is coughing into their sleeves.
+Wystan [Remark in the_sickness]: Two pennies' worth of worry, that is.
 Tilda [Question in the_asking]: The day's labor - how does it treat you?
 Wystan [Answer in the_asking]: I take what work comes, and thank the saints for it.
-Wystan [Question in visiting_the_sick]: Is there aught you need brought to the cottage?
-Wystan [Question in asking_the_father]: Will the parish altar provide candles for our sick neighbor, father?
+Wystan [Question in visiting_the_sick]: That puts me in mind - Is there aught you need brought to the cottage?
+Wystan [Question in asking_the_father]: One thing more - Will the parish altar provide candles for our sick neighbor, father?
 Tilda [Evade in asking_the_father]: That's not for the telling, friend.
-Wystan [Remark in asking_the_father]: Two pennies' worth of worry, that is.
+Wystan [Remark in asking_the_father]: Your counsel is wise, father. We will trust in Providence, as I've cause to say.
 Tilda [Agree in asking_the_father]: Blessings on your house, child.
 Wystan [Remark in asking_the_father]: As you say, friend!
 Tilda [Farewell in asking_the_father]: Your servant, m'lord. Good day.
@@ -150,12 +150,12 @@ you : Aelfric keeps the parish's book and bell. A neighbor's empty shelf empties
 
 Wystan [Greet in the_sickness]: *cough* Aelfric. Keep to thy side - I'd not give thee even my sickness - as my mother taught.
 Aelfric [Agree in the_sickness]: Thou shouldst be under woolen blankets, m'lord - thy folk will fret.
-Wystan [Answer in the_sickness]: The calves won't feed themselves - and I'd not ask thee for help, Aelfric.
+Wystan [Remark in the_sickness]: Two pennies' worth of worry, that is.
 Aelfric [Question in the_asking]: What word of the village these days?
 Wystan [Answer in the_asking]: Folk do say things, if thou wilt hear them!
-Wystan [Question in asking_the_father]: Must the tithe stand full when the granary is half empty, father?
+Wystan [Question in asking_the_father]: While I've your ear - Must the tithe stand full when the granary is half empty, father?
 Aelfric [Evade in asking_the_father]: We don't know each other so well as that.
-Wystan [Remark in asking_the_father]: Two pennies' worth of worry, that is.
+Wystan [Remark in asking_the_father]: Thank thee, father - that lifts a great stone from my mind.
 Aelfric [Agree in asking_the_father]: Blessings on thy house, child.
 Wystan [Remark in asking_the_father]: We have spoken our piece for today, and that's the long of it.
 Aelfric [Farewell in asking_the_father]: Thy servant, m'lord. Good day.
@@ -167,7 +167,7 @@ you : Tilda serves the village church. Their purse strings are knotted tight. Th
 
 Hob [Greet in the_sickness]: *cough* Ah, Tilda - forgive the croak. Stand off, mind; I'd not share this with a friend - and what of it.
 Tilda [Agree in the_sickness]: Poor soul. Tell me what thy house needs and it's done.
-Hob [Answer in the_sickness]: They that count sheep all day shear none, friend.
+Hob [Remark in the_sickness]: They that count sheep all day shear none, friend.
 Tilda [Remark in the_sickness]: Say the word and the chore's done, Hob - thou knowest it.
 Hob [Remark in the_sickness]: Bless thee for thinking of our small house, or so I hear.
 Tilda [Farewell in the_sickness]: Think nothing of it. We look after our own.
@@ -184,7 +184,7 @@ Osric [Agree in the_audition]: I mean to rise same as you, if the saints allow i
 Aldric [Question in visiting_the_sick]: Do you have grain left in the bin?
 Osric [Question in the_asking]: How fares your day's work?
 Aldric [Answer in the_asking]: The ditch fills one stone at a time, my mother said.
-Aldric [Question in merchant_trade]: Have you ribbons or a pinch of spice left from the fair?
+Aldric [Question in merchant_trade]: And another thing - Have you ribbons or a pinch of spice left from the fair?
 Osric [Answer in merchant_trade]: Good salt by the measure; three groats and it's yours.
 Aldric [Remark in merchant_trade]: The scales do not lie - a scruple light and the whole village remembers.
 Osric [Farewell in merchant_trade]: May the road be kind under your boots.

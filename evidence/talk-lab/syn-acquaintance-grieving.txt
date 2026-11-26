@@ -1,5 +1,5 @@
 === Talk: Probe (synthetic) vs Voice - Acquaintance ===
-  them: Probe works the fields for a day's wage. They buried one of their own last week.
+  them: Probe works the fields for a day's wage. A fresh grave sits behind their eyes.
   them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Morrow, Voice. The bell tolled for my house this week.

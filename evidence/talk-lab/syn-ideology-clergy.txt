@@ -1,5 +1,5 @@
 === Talk: Voice (synthetic) vs Voice - Acquaintance ===
-  them: Voice serves the village church. They bow to no one.
+  them: Voice serves the village church. They'd rather lose than ask.
   them's facts: archetype:climber value:freedom value:standing
   you : Voice works the fields for a day's wage.
   Voice: The peace of the saints be with you, child.

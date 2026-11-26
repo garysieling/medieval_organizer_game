@@ -1,8 +1,8 @@
 === House meeting: Reeve convenes Aldric, Eliza, Bram, Corvin (seed 9) ===
-  - Aldric [laborer]: Aldric works the fields for a day's wage. Their purse strings are knotted tight. Last night's cup is still on them.
-  - Eliza [merchant]: Eliza trades on the road between villages. They know every soul and every soul's business. They bow to no one.
-  - Bram [lord]: Bram holds the manor's leases. They know every soul and every soul's business. Their purse strings are knotted tight.
-  - Corvin [laborer]: Corvin works the fields for a day's wage. They bow to no one. They know every soul and every soul's business.
+  - Aldric [laborer]: Aldric keeps a day's work where the fields want it. Their purse strings are knotted tight. Last night's cup is still on them.
+  - Eliza [merchant]: Eliza trades on the road between villages. They've a hello for every door and a question for every hello. Their chin's set a half-inch higher than the rest of the room.
+  - Bram [lord]: Bram speaks for the manor hereabouts. They've a hello for every door and a question for every hello. A coin leaves their hand the way teeth leave a jaw.
+  - Corvin [laborer]: Corvin takes the day's wage where it's offered. They'd rather lose than ask. They've a hello for every door and a question for every hello.
   #0 Eliza [Greet/Framing]: A verse for the room: may our wants be few and our voices many.
   #1 Reeve [Question/Framing]: What ails the village most, friends? Speak true.
   #2 Corvin [Remark/Answer] (re #1): If we lose the commons, our way of life is broken forever.

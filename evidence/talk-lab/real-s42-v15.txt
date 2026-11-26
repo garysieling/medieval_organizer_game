@@ -2,10 +2,10 @@
   facts: 
   (walking over…)
   Rowena: Morrow, wanderer - a fine day to be out, isn't it?
-  (Rowena is the village tailor. They never miss a service. They keep close to the church folk. They keep close to the market folk.)
+  (The village tailor is Rowena. The bell knows their step better than their own door does. The church porch is where their counsel gathers. They keep close to the market folk.)
   Rowena: This isn't the life I pictured.   [gist]
     1) Well… Aye. Good day to you.
-    2) Out and about early today.
+    2) Fair enough, and to you.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
@@ -25,11 +25,11 @@
     l) take your leave
   you: Weather aside, Rowena - how does the season treat you?
   Rowena: I hear the work keeps you busy at the day's work.
-    1) Well enough, aye. And how does the tailor's treat you?
+    1) Never better. And yourself - is the tailor's kind to you?
     2) Well… the day's work is my affair, and it fares as it fares.
     3) Put a question to them
     l) take your leave
-  you: Well enough, aye. And how does the tailor's treat you?
+  you: Never better. And yourself - is the tailor's kind to you?
   Rowena: God witness. A rider from the castle came through before dawn.
     1) The cat catches nothing and eats like a deacon. We've a prior in the house.
     2) Hm… Idle tongues, that. It breeds mischief.
@@ -57,7 +57,7 @@
     l) take your leave
   you: Not that I've seen, friend.
     1) Fare you well until the morrow.
-    2) My day is waiting.
+    2) I have no leisure to stand about, Rowena.
     3) Ask who you should talk to next - for 6g
     l) take your leave
 REPRO: talk_lab talk --seed 42 --villager 15 --picks 0,0,0,0,0,0,0,0,0 (talk seed 1107296281)

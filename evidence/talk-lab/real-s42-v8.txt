@@ -2,14 +2,14 @@
   facts: 
   (walking over…)
   Wystan: Saints keep us. Morrow, wanderer - a fine day to be out, isn't it?
-  (Wystan is the village mason. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They cut freestone and build field walls. They're forever turning the big questions over. They keep close to the church folk. They keep close to the market folk.)
+  (Wystan is the village mason. A coin leaves their hand the way teeth leave a jaw. They never miss a service. They burn fast and cool slow. They cut freestone and build field walls. Ask them the hour and you'll get the meaning of the day. The church porch is where their counsel gathers. They keep close to the market folk.)
   Wystan: By the rood. No one to learn from. I'll be a journeyman forever.   [gist]
-    1) Fair enough, and to you.
+    1) Out and about early today.
     2) Ah… Morrow. I'd best keep moving.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  you: Fair enough, and to you.
+  you: Out and about early today.
   Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
     1) What's spent on neighbors comes back doubled in the end.
     2) Folk who give away their bread soon beg for mine.

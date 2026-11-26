@@ -1,5 +1,5 @@
 === Talk: Probe (synthetic) vs Voice - Rival ===
-  them: Probe works the fields for a day's wage. A cough's had them these two weeks.
+  them: Probe works the fields for a day's wage. There's a wheeze in their step this season.
   them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: *cough* Voice. Keep to thy side - I'd not give thee even my sickness.

@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Roderick: wanderer - good to see a familiar face about!
-  (Roderick is the village shepherd. Their temper's shorter than a winter's day. They know every soul and every soul's business. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
+  (Roderick is the village shepherd. They burn fast and cool slow. No lane's gossip gets past them twice. They herd ewes and lambs on the common pasture. They keep close to the church folk.)
   Roderick: Hah! No one to learn from. I'll be a journeyman forever, or am I mistook?   [gist]
     1) Well enough - and yours?
     2) Ah… Aye. Good day to you.
@@ -11,13 +11,13 @@
     l) take your leave
   you: Well enough - and yours?
   Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
-    1) I'll not argue it, if it pleases you.
+    1) Aye... I suppose you are right about that.
     2) I say no such thing. The miller was half to blame and more.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
   Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
-  you: I'll not argue it, if it pleases you.
+  you: Aye... I suppose you are right about that.
   Roderick: Gray skies, gray days - it's the weather of us, wanderer, and nothing moves it.
     1) Weather aside, Roderick - how does the season treat you?
     2) And how fares your folk in this cold snap?
@@ -30,7 +30,7 @@
     3) Put a question to them
     l) take your leave
   you: Oh… the day's work is my affair, and it fares as it fares.
-  Roderick: As you say, friend, and that's the long of it, or am I mistook?
+  Roderick: As you say, friend, and that's the long of it.
   Roderick: Does the alehouse keep a friendly fire?
     1) Answer plainly
     2) Reassure them

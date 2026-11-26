@@ -1,8 +1,8 @@
 === House meeting: Reeve convenes Aldric, Eliza, Bram, Corvin (seed 3) ===
-  - Aldric [lord]: Aldric holds the manor's leases. Their purse strings are knotted tight. A cough's had them these two weeks.
-  - Eliza [laborer]: Eliza works the fields for a day's wage. Their temper's shorter than a winter's day.
-  - Bram [clergy]: Bram serves the village church. They know every soul and every soul's business. Last night's cup is still on them.
-  - Corvin [clergy]: Corvin serves the village church. Their purse strings are knotted tight. They bow to no one. A cough's had them these two weeks.
+  - Aldric [lord]: Aldric speaks for the manor hereabouts. Their purse strings are knotted tight. There's a wheeze in their step this season.
+  - Eliza [laborer]: Eliza works the fields for a day's wage. A wrong word and the kettle's off.
+  - Bram [clergy]: Bram tends the village's prayers. They've a hello for every door and a question for every hello. Last night's cup is still on them.
+  - Corvin [clergy]: Corvin keeps the parish's book and bell. Their purse strings are knotted tight. They'd rather lose than ask. A cough's had them these two weeks.
   #0 Corvin [Greet/Framing]: God keep this house and all who speak plain in it.
   #1 Reeve [Question/Framing]: What ails the village most, friends? Speak true.
   #2 Eliza [Remark/Answer] (re #1): Three pennies for a week of reaping is daylight robbery.

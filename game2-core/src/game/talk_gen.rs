@@ -122,6 +122,7 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
             trade: None,
             pull: 0.8,
             sex: None,
+            mourned: None,
             // a spread of bonds so the corpus walks the openness tiers
             // (E3-2): strangers to warm friends, a few within earshot
             open: crate::game::conversation::Open {

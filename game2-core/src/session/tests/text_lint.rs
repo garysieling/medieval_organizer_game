@@ -357,3 +357,45 @@ fn test_authored_lines_use_slots_for_terms_of_address() {
 {}", bad.join("
 "));
 }
+/// #1692's done-when: once an exchange binds a third party with a
+/// `{*:dead}`-style referent slot, every pronoun for it goes through
+/// the slot - a bare "his"/"she" beside the slots is another rolled
+/// referent, the condolence that grieves two
+#[test]
+fn test_a_bound_referent_owns_its_pools_pronouns() {
+    use crate::game::conversation::Exchange;
+    fn lines_of<'a>(ex: &'a Exchange) -> Vec<&'static str> {
+        let mut ls: Vec<&'static str> = ex.calls.to_vec();
+        for v in ex.voice { ls.extend(v.lines.iter().copied()); }
+        for r in ex.replies {
+            ls.extend(r.lines.iter().copied());
+            for v in r.voice { ls.extend(v.lines.iter().copied()); }
+            if let Some(t) = &r.then { ls.extend(lines_of(t)); }
+        }
+        ls
+    }
+    let bare = |l: &str| {
+        // slots bind what they name - scan only the line's own words
+        let mut stripped = String::with_capacity(l.len());
+        let mut depth = 0;
+        for c in l.chars() {
+            match c { '{' => depth += 1, '}' => depth -= 1,
+                _ if depth == 0 => stripped.push(c), _ => {} }
+        }
+        stripped.split(|c: char| !c.is_ascii_alphabetic())
+            .any(|w| matches!(w.to_ascii_lowercase().as_str(),
+                "he" | "him" | "his" | "she" | "her" | "hers"))
+    };
+    let mut n = 0;
+    for tree in crate::game::dialogue_trees::village_library() {
+        for ex in [Some(tree.root), tree.rejoin].into_iter().flatten() {
+            let ls = lines_of(ex);
+            if !ls.iter().any(|l| l.contains(":dead}")) { continue; }
+            n += 1;
+            for l in ls {
+                assert!(!bare(l), "a bare pronoun beside the bound dead: {l}");
+            }
+        }
+    }
+    assert!(n >= 2, "the grief pool should bind the dead ({n} pools found)");
+}

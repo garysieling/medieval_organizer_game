@@ -137,6 +137,10 @@ pub struct Speaker {
     /// "male"/"female" when the world knows the body (E1-3, #1417) -
     /// the fact stream's pronoun source for `text.rs`'s {he}/{him}/{his}
     pub sex: Option<&'static str>,
+    /// The sex of the dead one they mourn, when the world knows (#1692):
+    /// the condolence pool's `{*:dead}` slots read this, so one death
+    /// keeps one pronoun across every talk - a soul binds its dead once
+    pub mourned: Option<&'static str>,
     /// The persona's fact table (E3-1, #1423): `speaker_of` fills it
     /// off the world; hand-made speakers can carry a lite profile
     /// (`lite_facts`) or none
@@ -187,7 +191,7 @@ pub struct Speaker {
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, mystery: None, slips_left: 0, joke: None, idiolect: None, story: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, mourned: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, mystery: None, slips_left: 0, joke: None, idiolect: None, story: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     pub(crate) fn own_facts(&self) -> Vec<String> {

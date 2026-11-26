@@ -466,6 +466,9 @@ fn synthetic_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
         }
         let st = STATUSES[rng.below(STATUSES.len())];
         if st != "well" { s.status.push(st); }
+        // a griever's dead keeps one body (#1692): the condolence
+        // pronouns read `mourned`, not a fresh roll per line
+        if st == "grieving" { s.mourned = Some(if i % 2 == 0 { "male" } else { "female" }); }
         // the ear's landmark (E4-7, #1416): the index deal, distinct
         // per speaker like the cast's
         s.idiolect = Some(game2_core::game::idiolect::Idiolect {

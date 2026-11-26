@@ -1025,13 +1025,13 @@ const GRIEF_ASK: Exchange = Exchange {
 const GRIEF_OPENS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:grief"],
-    calls: &["I keep setting his wooden spoon at table.", "She loved the smell of the damp earth after rain.", "Every corner of the cottage remembers his footsteps.", "Forty winters together, and now only the silence."], voice: &[],
+    calls: &["I keep setting {his:dead} wooden spoon at table.", "{he:dead} loved the smell of the damp earth after rain.", "Every corner of the cottage remembers {his:dead} footsteps.", "Forty winters together, and now only the silence."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.20, bias: &[(Kind, 1.5)],
             act: Act::Agree, concepts: &["concern:grief"],
             respond: None,
-            lines: &["Tell me of him - good memories are a shield against darkness.", "She was loved by all who knew her in the village.", "Their toil shaped this parish; their memory will outlive us.", "Aye, there is truth in what {2:subj} {2:say}.", "{2:subj} {2:have} spoken the plain heart of the matter."],
+            lines: &["Tell me of {him:dead} - good memories are a shield against darkness.", "{he:dead} was loved by all who knew {him:dead} in the village.", "{his:dead} toil shaped this parish; {his:dead} memory will outlive us.", "Aye, there is truth in what {2:subj} {2:say}.", "{2:subj} {2:have} spoken the plain heart of the matter."],
             voice: &[],
             then: Some(GRIEF_CLOSE), end: None,
         },
@@ -1049,7 +1049,7 @@ const GRIEF_OPENS: Exchange = Exchange {
 const GRIEF_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:grief"],
-    calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "A peaceful day to {2:obj}, {other}."],
+    calls: &["{other}. Forgive me - the house is very still since {he:dead} passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "A peaceful day to {2:obj}, {other}."],
     voice: &[
         // grief's the one wound the rung reads differently (#1269):
         // cold it's endured, warm it's carried
@@ -4318,15 +4318,97 @@ const CAME_GREET: Exchange = Exchange {
 };
 
 const ELDER_BLESS: Exchange = Exchange {
-    act: Act::Remark,
+    act: Act::Agree,
     concepts: &["elder"],
-    calls: &["Lords come and go, but the plough and the furrow remain.", "Listen to the land; it was here before us and will keep our graves.", "Kindness to {2:poss} neighbor is the best hedge against misfortune.", "Seasons cycle and return as they have always done."], voice: &[],
+    calls: &["{2:poss} words are gold to my ears, elder. My thanks.", "We will heed {2:poss} counsel at the village meeting, elder."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
             respond: None,
-            lines: &["{2:poss} words are gold to my ears, elder. Fair day.", "May God grant {2:obj} peace in {2:poss} old age. Farewell.", "We will heed {2:poss} counsel at the village meeting. Good day.", "May the road be kind under {2:poss} boots.", "God's peace be upon {2:poss} cottage, {other}."],
+            lines: &["Lords come and go, but the plough and the furrow remain. Fair day, {other}.", "Listen to the land, {other}; it was here before us and will keep our graves.", "Kindness to {2:poss} neighbor is the best hedge against misfortune. Good day.", "Seasons cycle and return as they have always done. May the road be kind under {2:poss} boots.", "May God grant {2:obj} peace in {2:poss} old age. Farewell.", "God's peace be upon {2:poss} cottage, {other}."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+// The caller-side mirror of ELDER_GREET/WINTERS/BLESS (#1693): the
+// player Talk replay always seats the villager as caller (self), so
+// an elder villager never reaches the listener-side `other:status:elder`
+// tree above. These three carry the same lines, calls and replies
+// swapped, for when the elder is the one who opens the exchange -
+// ambient elder-initiated chats and every player Talk with an elder.
+const ELDER_BLESS_SELF: Exchange = Exchange {
+    act: Act::Farewell,
+    concepts: &["elder"],
+    calls: &["Lords come and go, but the plough and the furrow remain. Fair day, {other}.", "Listen to the land, {other}; it was here before us and will keep our graves.", "Kindness to {2:poss} neighbor is the best hedge against misfortune. Good day.", "Seasons cycle and return as they have always done. May the road be kind under {2:poss} boots.", "May God grant {2:obj} peace in {2:poss} old age. Farewell.", "God's peace be upon {2:poss} cottage, {other}."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["{2:poss} words are gold to my ears, elder. My thanks.", "We will heed {2:poss} counsel at the village meeting, elder."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const ELDER_WINTERS_SELF: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["elder"],
+    calls: &["Aye, we ate wild acorns and shared what porridge there was, and survived.", "The boundary ran straight from the standing oak to the weeping willow.", "When the dandelions flower on the ditch bank, the frost is broken for good.", "Patience and honest toil have seen eighty winters come and go."], voice: &[],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Question, concepts: &["elder"],
+            respond: None,
+            lines: &["{2:do} {2:subj} recall the great famine fifty winters ago, grandfather?", "Where did the old village boundary run before the ditch was dug?", "What signs tell us when the frost will finally break?", "{2:do} {2:subj} recall how the great freeze broke forty years ago?"],
+            voice: &[],
+            then: Some(ELDER_BLESS_SELF), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const ELDER_GREET_SELF: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "elder"],
+    calls: &["Morrow, young soul. The sun feels good on eighty winters of bones.", "Well met, child! Another day Heaven grants to watch the fields.", "Greetings! My step is slow, but my memory is long and clear.", "God bless {2:poss} steps this day, {other}.", "Well met, friend, under the open sky."],
+    voice: &[
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["Morrow, {other} - my step is slow but my ears miss nothing, especially from {2:obj}.", "Well met, child - I know {2:poss} name and all {2:poss} doings, fondly."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, little one - the family's roots run through {2:obj}.", "Bless {2:obj}, kin. Come sit and tell me the house's news."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, stranger. Grey ears still catch new voices.", "Well met, traveler - sit, if the road is long."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, {other} - I've buried better rivals than {2:obj}.", "Morrow, {other}. Age teaches patience, even with {2:obj}."] },
+    ],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Greet, concepts: &["elder"],
+            respond: None,
+            lines: &["Good morrow to {2:obj}, venerable {other}.", "Well met, grandfather! Sitting in the sunny doorway to warm {2:poss} joints?", "Greetings, mother of the village! How fares {2:poss} health today?", "A peaceful day to {2:obj}, {other}."],
+            voice: &[
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Good morrow, {other} - eighty winters and still the sharpest tongue on the lane.", "Well met, old friend! Still warming those joints in the sun?"] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, {other} - the family's oldest lamp still burning.", "Grandmother! {2:poss} sunny doorway kept a seat for me, I hope."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, elder. The road respects grey hair.", "A fair day to {2:obj}, mother of the village."] },
+                Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["Good morrow to {2:obj}, venerable {other}.", "Well met, elder - how fares {2:poss} health?"] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Morrow, {other} - eighty winters and {2:subj} still {2:rise} to spite me.", "Well met, elder. Even rivals bow to the winters on {2:poss} head."] },
+            ],
+            then: Some(ELDER_WINTERS_SELF), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["I must be on, {other}. Fare well.", "Chores call; good day.", "Until next time, neighbor."],
             voice: &[],
             then: None, end: Some(Farewell),
         },
@@ -5665,6 +5747,11 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &GLAZIER_GREET, rejoin: Some(&GLAZIER_LEAD) },
         DialogueTree { name: "elder_wisdom", criteria: &[Has("other:status:elder")],
             root: &ELDER_GREET, rejoin: Some(&ELDER_WINTERS) },
+        // the caller-side mirror (#1693): the player Talk replay always
+        // seats the villager as self, so an elder villager only ever
+        // reaches the elder tree through this criterion
+        DialogueTree { name: "elder_wisdom_self", criteria: &[Has("self:status:elder")],
+            root: &ELDER_GREET_SELF, rejoin: Some(&ELDER_WINTERS_SELF) },
         DialogueTree { name: "newborn_cradle", criteria: &[Has("self:status:newborn")],
             root: &NEWBORN_GREET, rejoin: Some(&NEWBORN_JOY) },
         // the bond ladder: how well they know the organizer changes how

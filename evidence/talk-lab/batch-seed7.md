@@ -94,7 +94,7 @@ Hob [Remark in the_cleric_visits_the_sick]: Morrow, father.
 Corvin [Question in the_audition]: Hard work's for them as never learned better, eh?
 Hob [Remark in the_audition]: The saints gave us six days for a reason.
 Corvin [Remark in village_smalltalk]: Red sky at night - shepherd's delight, as my gran taught.
-Hob [Question in village_smalltalk]: Why, Enough sky-talk - how goes the work these days?
+Hob [Question in village_smalltalk]: Hah! Enough sky-talk - how goes the work these days?
 Corvin [Remark in village_smalltalk]: How goes it at the parish, Hob?
 Hob [Answer in village_smalltalk]: Honest work for honest pay at the parish - can't complain, and wouldn't.
 Corvin [Remark in village_smalltalk]: A rider from the castle came through before dawn.

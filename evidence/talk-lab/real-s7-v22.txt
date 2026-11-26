@@ -10,13 +10,13 @@
     4) Ask what they actually want
     l) take your leave
   you: Well enough - and yours?
-  Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
+  Roderick: Hah! The miller had the right of it in that quarrel - you will agree, surely?
     1) Aye... I suppose you are right about that.
     2) I say no such thing. The miller was half to blame and more.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
+  Roderick: Hah! The miller had the right of it in that quarrel - you will agree, surely?
   you: Aye... I suppose you are right about that.
   Roderick: Gray skies, gray days - it's the weather of us, wanderer, and nothing moves it.
     1) Weather aside, Roderick - how does the season treat you?

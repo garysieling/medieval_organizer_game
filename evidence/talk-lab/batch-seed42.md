@@ -108,7 +108,7 @@ you : Osric trades on the road between villages. Work sits down beside them and 
 
 Marga [Greet in friendship_bonds]: A peaceful day to thee, Osric - by the rood.
 Osric [Greet in friendship_bonds]: God bless thy steps this day, Marga.
-Marga [Question in friendship_bonds]: Why, Can I count on thy team when we haul the heavy timber?
+Marga [Question in friendship_bonds]: Hah! Can I count on thy team when we haul the heavy timber?
 Osric [Answer in friendship_bonds]: The bailiff spoke of three pennies per hide, but we'll contest it.
 Marga [Remark in friendship_bonds]: Marga minds their own affairs, thanks.
 Osric [Farewell in friendship_bonds]: Fair day, Marga - peace on thy household.

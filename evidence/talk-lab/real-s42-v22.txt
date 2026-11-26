@@ -10,13 +10,13 @@
     4) Ask what they actually want
     l) take your leave
   you: Fair enough, and to you.
-  Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
+  Roderick: Hah! The miller had the right of it in that quarrel - you will agree, surely?
     1) You will not put words in my mouth, friend.
     2) I'll not argue it, if it pleases you.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
-  Roderick: Why, The miller had the right of it in that quarrel - you will agree, surely?
+  Roderick: Hah! The miller had the right of it in that quarrel - you will agree, surely?
   you: You will not put words in my mouth, friend.
   Roderick: Folk say the well water runs sweet again.
     1) As do we all, neighbor.

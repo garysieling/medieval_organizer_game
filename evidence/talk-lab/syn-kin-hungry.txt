@@ -1,5 +1,5 @@
 === Talk: Probe (synthetic) vs Voice - Kin ===
-  them: Probe works the fields for a day's wage. The store ran out and the belly knows it.
+  them: Probe works the fields for a day's wage. Their belt's gone a notch inward this winter.
   them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Morrow, Voice - is there bread at thy hearth? Ours runs thin.

@@ -2,18 +2,18 @@
   facts: 
   (walking over…)
   Corvin: wanderer - good to see a familiar face about.
-  (Corvin is the village luthier. They'd sooner watch the clouds than the plough. They keep close to the church folk. They keep close to the market folk.)
+  (The village luthier is Corvin. They'd sooner watch the clouds than the plough. They keep close to the church folk. They keep close to the market folk.)
   Corvin: Not a song in the village for a year.   [gist]
     1) Out and about early today.
     2) Well… Aye. Good day to you.
-    3) Ask who folk turn to around here
+    3) Ask who you should talk to next
     4) Ask what they actually want
     l) take your leave
   you: Out and about early today.
   Corvin: Hard work's for them as never learned better, eh?
     1) Work's what keeps a body honest.
     2) A wise back knows when to unbend.
-    3) Ask who folk turn to around here
+    3) Ask who you should talk to next
     4) Ask what they actually want
     l) take your leave
   Corvin: Hard work's for them as never learned better, eh?
@@ -44,7 +44,7 @@
     l) take your leave
   you: From what I've seen - aye.
     1) My day is waiting.
-    2) Go well, Corvin, and mind the mud.
+    2) Fare you well until the morrow.
     3) Ask them to come to a meeting - press them on it
     l) take your leave
 REPRO: talk_lab talk --seed 13 --villager 3 --picks 0,0,0,0,0,0,0 (talk seed 1006632974)

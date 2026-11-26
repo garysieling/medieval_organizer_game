@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Wystan: Saints keep us. Neighbor! Out early like the rest of us, wanderer.
-  (Wystan serves the village church. Their purse strings are knotted tight. They never miss a service. Their temper's shorter than a winter's day. They keep close to the church folk.)
+  (Wystan keeps the parish's book and bell. A coin leaves their hand the way teeth leave a jaw. They never miss a service. They burn fast and cool slow. The church porch is where their counsel gathers.)
   Wystan: Not a song in the village for a year.   [gist]
     1) Ah… Morrow. I'd best keep moving.
     2) Out and about early today.
@@ -19,8 +19,8 @@
   Wystan: They say a free hand makes warm neighbors. What's thy mind on it?
   you: An open hand finds open doors, say I.
   Wystan: True enough - the fields don't gossip.
-    1) Fair day to you, Wystan - 'twas good to pass the time.
-    2) I take my leave.
+    1) The saints keep your roof whole.
+    2) My day is waiting.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave

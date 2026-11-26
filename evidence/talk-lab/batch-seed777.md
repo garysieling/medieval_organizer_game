@@ -1,8 +1,8 @@
 # Talk lab batch: 12 conversations (seed 777)
 
 ## Aldric and Hob - Kin at field (Public) (seed 24087, picks [0, 0, 0, 1])
-them: Aldric holds the manor's leases. They'd sooner watch the clouds than the plough. Their purse strings are knotted tight. Their temper's shorter than a winter's day.
-you : Hob trades on the road between villages. They never miss a service. The store ran out and the belly knows it.
+them: Aldric speaks for the manor hereabouts. Work sits down beside them and they let it wait. Their purse strings are knotted tight. Their temper's shorter than a winter's day.
+you : Hob trades on the road between villages. Every saint's day finds them first at the door. Their belt's gone a notch inward this winter.
 
 Aldric [Greet in kin_warmth]: Greetings, brother! It does my heart good to see thy face - as the mill grinds.
 Hob [Greet in kin_warmth]: Well met, friend, under the open sky.
@@ -15,19 +15,19 @@ Hob [Farewell in kin_warmth]: I take my leave.
 -- Farewell
 
 ## Aldric and Eliza - Stranger at market (Public) (seed 24088, picks [0, 1, 2, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0])
-them: Aldric holds the manor's leases. They'd sooner watch the clouds than the plough. Their purse strings are knotted tight. Their temper's shorter than a winter's day.
-you : Eliza serves the village church. They mean to be more than they were born. They'd sooner watch the clouds than the plough. They know every soul and every soul's business.
+them: Aldric speaks for the manor hereabouts. Work sits down beside them and they let it wait. Their purse strings are knotted tight. Their temper's shorter than a winter's day.
+you : Eliza serves the village church. They mean to be more than they were born. They'd sooner watch the clouds than the plough. They've a hello for every door and a question for every hello.
 
-Aldric [Greet in asking_the_father]: A word with you, father, if you can spare a moment - as the mill grinds.
+Aldric [Greet in asking_the_father]: A word with you, father, if you can spare a moment.
 Eliza [Greet in asking_the_father]: Always, child. Speak freely in the sight of God.
 Aldric [Question in the_audition]: I say a body earns their rest. You will not disagree?
 Eliza [Remark in the_audition]: Idle hands, friend. The frost doesn't wait.
 Aldric [Remark in village_smalltalk]: Green wood burns when it's ready and not before.
 Eliza [Question in the_asking]: What word of the village these days?
-Aldric [Answer in the_asking]: There's grumbling at the well, but when isn't there.
+Aldric [Answer in the_asking]: Folk do say things, if you will hear them!
 Aldric [Remark in village_smalltalk]: The sky owes my wheat a fortnight of sun!
 Eliza [Question in village_smalltalk]: And how fares your folk in this cold snap?
-Aldric [Answer in village_smalltalk]: We rub along as ever, by the saints' mercy, as I see it!
+Aldric [Answer in village_smalltalk]: We rub along as ever, by the saints' mercy!
 Eliza [Question in the_asking]: The day's labor - how does it treat you?
 Aldric [Answer in the_asking]: A holding keeps a soul busy, one way and another.
 Aldric [Answer in village_smalltalk]: The little ones keep me running from dawn to dusk.
@@ -46,8 +46,8 @@ Eliza [Farewell in village_smalltalk]: Your servant, m'lord. Good day.
 -- Farewell, vibe: Mismatch
 
 ## Bram and Gisela - Acquaintance at alehouse (Public) (seed 24089, picks [0, 1, 1, 0, 1, 0, 1, 0])
-them: Bram works the fields for a day's wage. Their temper's shorter than a winter's day. Last night's cup is still on them.
-you : Gisela serves the village church. Their temper's shorter than a winter's day. They bow to no one. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
+them: Bram keeps a day's work where the fields want it. Their temper's shorter than a winter's day. Last night's cup is still on them.
+you : Gisela keeps the parish's book and bell. Their temper's shorter than a winter's day. Their chin's set a half-inch higher than the rest of the room. Work sits down beside them and they let it wait. Their belt's gone a notch inward this winter.
 
 Bram [Greet in asking_the_father]: The saints keep you, father - saints keep us.
 Gisela [Greet in asking_the_father]: Always, child. Speak freely in the sight of God.
@@ -64,12 +64,12 @@ Gisela [Remark in village_smalltalk]: The reeve's hard but the law's the law - k
 Bram [Remark in village_smalltalk]: The herb-wife was seen out past the abbey wall at dusk.
 Gisela [Agree in village_smalltalk]: Tavern tales grow taller with each ale drawn!
 Bram [Remark in village_smalltalk]: We have spoken our piece for today!
-Gisela [Farewell in village_smalltalk]: Go well, Bram, and mind the mud, as I see it.
+Gisela [Farewell in village_smalltalk]: Go well, Bram, and mind the mud.
 -- Farewell, vibe: Mismatch
 
 ## Corvin and Wystan - Rival at market (Public) (seed 24090, picks [0, 0])
-them: Corvin trades on the road between villages. They never miss a service. Their purse strings are knotted tight. They know every soul and every soul's business. The store ran out and the belly knows it.
-you : Wystan holds the manor's leases. Their temper's shorter than a winter's day. Their purse strings are knotted tight. They mean to be more than they were born. The store ran out and the belly knows it.
+them: Corvin's coin moves faster than their boots. They never miss a service. Their purse strings are knotted tight. They've a hello for every door and a question for every hello. Their belt's gone a notch inward this winter.
+you : Wystan's rents come due on the quarter days. They burn fast and cool slow. A coin leaves their hand the way teeth leave a jaw. Their eyes are always a rung up the ladder. Their belt's gone a notch inward this winter.
 
 Corvin [Greet in old_scores]: Thou - mind the stile.
 Wystan [PushBack in old_scores]: Still breathing, I see. A great pity for the town.
@@ -78,8 +78,8 @@ Wystan [PushBack in old_scores]: Cur! Thou wilt regret those words.
 -- WalksOff
 
 ## Dagny and Aelfric - Kin at alehouse (Backstage) (seed 24091, picks [1, 1, 0])
-them: Dagny trades on the road between villages. Their purse strings are knotted tight. Last night's cup is still on them.
-you : Aelfric holds the manor's leases. They know every soul and every soul's business. They buried one of their own last week.
+them: Dagny trades on the road between villages. They count the crumbs twice before the second's swept. The tavern's tap still has their ear from yestereve.
+you : Aelfric's rents come due on the quarter days. They've a hello for every door and a question for every hello. A fresh grave sits behind their eyes.
 
 Dagny [Greet in condolence_call]: A peaceful day to thee, Aelfric - so it goes.
 Aelfric [PushBack in condolence_call]: Tears do not bring back the dead.
@@ -90,8 +90,8 @@ Aelfric [Farewell in condolence_call]: Thy coming did the house good, Dagny, as 
 -- Farewell
 
 ## Dagny and Hob - Friend at churchdoor (Public) (seed 24092, picks [0, 0, 0])
-them: Dagny trades on the road between villages. Their purse strings are knotted tight. Last night's cup is still on them.
-you : Hob trades on the road between villages. They never miss a service. The store ran out and the belly knows it.
+them: Dagny trades on the road between villages. They count the crumbs twice before the second's swept. The tavern's tap still has their ear from yestereve.
+you : Hob trades on the road between villages. Every saint's day finds them first at the door. Their belt's gone a notch inward this winter.
 
 Dagny [Greet in morning_after_drunk]: Well met, Hob - thou wouldst have warned me off that third cup, I know - so it goes.
 Hob [Answer in morning_after_drunk]: Thou lookest like death's cousin - and I should know, I feel the same.
@@ -102,8 +102,8 @@ Hob [Farewell in morning_after_drunk]: God witness. May the sun be gentle on thy
 -- Farewell
 
 ## Marga and Gisela - Kin at market (Public) (seed 24093, picks [0, 0, 2, 1, 0, 1])
-them: Marga holds the manor's leases. They bow to no one. Their purse strings are knotted tight.
-you : Gisela serves the village church. Their temper's shorter than a winter's day. They bow to no one. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
+them: Marga's rents come due on the quarter days. They'd rather lose than ask. They count the crumbs twice before the second's swept.
+you : Gisela keeps the parish's book and bell. Their temper's shorter than a winter's day. Their chin's set a half-inch higher than the rest of the room. Work sits down beside them and they let it wait. Their belt's gone a notch inward this winter.
 
 Marga [Greet in asking_the_father]: Good morrow, father - by the rood.
 Gisela [Greet in asking_the_father]: Peace to thee, Marga. How may I help thy soul?
@@ -119,16 +119,16 @@ Gisela [Farewell in asking_the_father]: I must walk on; fair day!
 -- Farewell
 
 ## Aldric and Gisela - Friend at field (Backstage) (seed 24094, picks [0, 0, 2, 0, 1, 0])
-them: Aldric holds the manor's leases. They'd sooner watch the clouds than the plough. Their purse strings are knotted tight. Their temper's shorter than a winter's day.
-you : Gisela serves the village church. Their temper's shorter than a winter's day. They bow to no one. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
+them: Aldric speaks for the manor hereabouts. Work sits down beside them and they let it wait. Their purse strings are knotted tight. Their temper's shorter than a winter's day.
+you : Gisela keeps the parish's book and bell. Their temper's shorter than a winter's day. Their chin's set a half-inch higher than the rest of the room. Work sits down beside them and they let it wait. Their belt's gone a notch inward this winter.
 
 Aldric [Greet in asking_the_father]: Greetings, holy father - I seek thy pastoral ear - as the mill grinds.
 Gisela [Greet in asking_the_father]: Always, child. Speak freely in the sight of God.
 Aldric [Question in asking_the_father]: Can the church spare a peck of grain for the hungry children, father?
 Gisela [Evade in asking_the_father]: Ask me another, for my part.
 Aldric [Remark in asking_the_father]: Green wood burns when it's ready and not before.
-Gisela [Question in the_asking]: What word of the village these days?
-Aldric [Answer in the_asking]: Quieter than it was, and that's no bad thing.
+Gisela [Question in the_asking]: How do folk fare here, to thy eyes?
+Aldric [Answer in the_asking]: Ah, the talk - there's always talk!
 Aldric [Remark in asking_the_father]: Thy counsel is wise, father. We will trust in Providence.
 Gisela [Errand in asking_the_father]: Would the parish take a letter to the bishop's man? I'll see the wax paid for, or do I hear wrong?
 Aldric [Remark in asking_the_father]: We have spoken our piece for today.
@@ -136,8 +136,8 @@ Gisela [Farewell in asking_the_father]: I must walk on; fair day!
 -- Farewell
 
 ## Dagny and Wystan - Kin at field (Backstage) (seed 24095, picks [0, 1, 0])
-them: Dagny trades on the road between villages. Their purse strings are knotted tight. Last night's cup is still on them.
-you : Wystan holds the manor's leases. Their temper's shorter than a winter's day. Their purse strings are knotted tight. They mean to be more than they were born. The store ran out and the belly knows it.
+them: Dagny trades on the road between villages. They count the crumbs twice before the second's swept. The tavern's tap still has their ear from yestereve.
+you : Wystan's rents come due on the quarter days. They burn fast and cool slow. A coin leaves their hand the way teeth leave a jaw. Their eyes are always a rung up the ladder. Their belt's gone a notch inward this winter.
 
 Dagny [Greet in morning_after_drunk]: Oof - morrow, Wystan. Don't tell our mother the state of me - so it goes.
 Wystan [Answer in morning_after_drunk]: Our grandfather drank the same way - the shame's in the blood.
@@ -148,8 +148,8 @@ Wystan [Farewell in morning_after_drunk]: May the road be kind under thy boots.
 -- Farewell
 
 ## Wystan and Aelfric - Acquaintance at field (Public) (seed 24096, picks [1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1])
-them: Wystan holds the manor's leases. Their temper's shorter than a winter's day. Their purse strings are knotted tight. They mean to be more than they were born. The store ran out and the belly knows it.
-you : Aelfric holds the manor's leases. They know every soul and every soul's business. They buried one of their own last week.
+them: Wystan's rents come due on the quarter days. They burn fast and cool slow. A coin leaves their hand the way teeth leave a jaw. Their eyes are always a rung up the ladder. Their belt's gone a notch inward this winter.
+you : Aelfric's rents come due on the quarter days. They've a hello for every door and a question for every hello. A fresh grave sits behind their eyes.
 
 Wystan [Greet in condolence_call]: The village stands beside you in this dark trial - as my mother taught.
 Aelfric [Agree in condolence_call]: The road is lonely now, but kind words help.
@@ -160,9 +160,9 @@ Aelfric [Question in village_smalltalk]: Tell me true, Wystan - how goes it with
 Wystan [Answer in village_smalltalk]: The little ones keep me running from dawn to dusk.
 Aelfric [Question in the_asking]: How fares your day's work?
 Wystan [Answer in the_asking]: The fields are what they are - they want what they want.
-Wystan [Answer in village_smalltalk]: My knees ache with the damp, but I still walk, or so I make it.
-Aelfric [Question in the_asking]: What word of the village these days?
-Wystan [Answer in the_asking]: There's grumbling at the well, but when isn't there.
+Wystan [Answer in village_smalltalk]: My knees ache with the damp, but I still walk.
+Aelfric [Question in the_asking]: How do folk fare here, to your eyes?
+Wystan [Answer in the_asking]: Now, let me think what's going about...
 Wystan [Answer in village_smalltalk]: Well enough, thank you, Aelfric.
 Aelfric [Agree in village_smalltalk]: A full hearth is a blessing in hard times, or am I mistook?
 Wystan [Remark in village_smalltalk]: Rooks are gathering thick in the elm trees!
@@ -188,14 +188,14 @@ Osric [Farewell in visiting_the_sick]: Then I'll see thee at first light, as I'v
 -- Farewell
 
 ## Wystan and Osric - Kin at market (Public) (seed 24098, picks [0, 1, 0, 0, 1, 0])
-them: Wystan holds the manor's leases. Their temper's shorter than a winter's day. Their purse strings are knotted tight. They mean to be more than they were born. The store ran out and the belly knows it.
+them: Wystan's rents come due on the quarter days. They burn fast and cool slow. A coin leaves their hand the way teeth leave a jaw. Their eyes are always a rung up the ladder. Their belt's gone a notch inward this winter.
 you : Osric serves the village church. They know every soul and every soul's business. A cough's had them these two weeks.
 
 Wystan [Greet in visiting_the_sick]: Why, Peace to this cottage, Osric. How goes the fever - as my mother taught.
 Osric [PushBack in visiting_the_sick]: Nay, I see it differently, mark me.
 Wystan [Question in visiting_the_sick]: Why, Can I fetch water or chop kindling for thy hearth?
 Osric [Question in the_asking]: How do folk fare here, to thy eyes?
-Wystan [Answer in the_asking]: There's grumbling at the well, but when isn't there.
+Wystan [Answer in the_asking]: Folk do say things, if thou wilt hear them.
 Wystan [Question in visiting_the_sick]: Dost thou have grain left in the bin?
 Osric [Answer in visiting_the_sick]: A little bread or salt, if thou canst spare it.
 Wystan [Remark in visiting_the_sick]: It'd cost thee a groat to hear worse.

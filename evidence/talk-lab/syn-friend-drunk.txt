@@ -1,5 +1,5 @@
 === Talk: Probe (synthetic) vs Voice - Friend ===
-  them: Probe works the fields for a day's wage. Last night's cup is still on them.
+  them: Probe works the fields for a day's wage. The tavern's tap still has their ear from yestereve.
   them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
   Probe: Oof - morrow, Voice. Don't laugh; my head's an anvil today.

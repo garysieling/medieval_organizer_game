@@ -1,5 +1,5 @@
 === Talk: Voice (synthetic) vs Voice - Acquaintance ===
-  them: Voice works the fields for a day's wage. They bow to no one.
+  them: Voice works the fields for a day's wage. They'd rather lose than ask.
   them's facts: archetype:climber value:freedom value:standing
   you : Voice works the fields for a day's wage.
   Voice: Fair morning to you, Voice.

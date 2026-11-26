@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Dagny: Neighbor! Out early like the rest of us, wanderer.
-  (Dagny is the village luthier. They bow to no one. They'd sooner watch the clouds than the plough. Their hand is heavy and their tongue heavier. The store ran out and the belly knows it. They keep close to the church folk.)
+  (Dagny is the village luthier. They bow to no one. Work sits down beside them and they let it wait. Their hand is heavy and their tongue heavier. Their belt's gone a notch inward this winter. The church porch is where their counsel gathers.)
   Dagny: No one to learn from. I'll be a journeyman forever.   [gist]
     1) Out and about early today.
     2) Ah… Aye. Good day to you.

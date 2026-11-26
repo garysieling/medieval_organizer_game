@@ -985,6 +985,56 @@ fn test_backing_off_mends_the_nerve_a_press_frayed() {
         "backing off paid the fray back a rung: {:?}", rung(&g));
 }
 
+#[test]
+fn test_asking_what_folk_are_saying_draws_fresh_word() {
+    // #1616's done-when: "Ask about the village" rides every talk, and
+    // each ask draws a real fact the seat hasn't heard - repeated asks
+    // keep finding new word, not the same line twice
+    let mut g = Game::new();
+    // feed the hearsay pool with troubles folk would carry a word about
+    for &i in adults(&g).iter().take(6) {
+        g.world.add_component(g.villagers[i], crate::game::desires::InnerLife {
+            wants: vec![], satisfied: vec![],
+            grievances: vec![(crate::game::desires::Problem::Taxed, 1000)] });
+    }
+    let mut heard: crate::engine::det::HashSet<String> = Default::default();
+    for &i in adults(&g).iter().take(8) {
+        let vi = g.villagers[i];
+        warm_bond(&mut g, vi);
+        let v = talk_beside(&mut g, i);
+        let mut menu: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
+        for _ in 0..30 {
+            let Some(t) = g.seats[0].talk.as_ref().cloned() else { break };
+            if let Some(i2) = t.options.iter().position(|(_, _, l)| l == "Put a question to them") {
+                g.talk_pick_at(0, Some(i2));
+                menu = Some(g.seats[0].talk.as_ref().unwrap().options.clone());
+                break;
+            }
+            match t.options.iter().position(|(a, _, _)| *a != Act::Farewell) {
+                Some(i2) => g.talk_pick_at(0, Some(i2)),
+                None => break,
+            }
+        }
+        let Some(menu) = menu else {
+            eprintln!("no ask slot for villager {} ({}), options: {:?}",
+                i, g.name_of(v),
+                g.seats[0].talk.as_ref().map(|t| t.options.iter().map(|o| o.2.clone()).collect::<Vec<_>>()));
+            g.close_player_talk(0, Some("You take your leave."));
+            continue;
+        };
+        let p = menu.iter().position(|(_, _, l)| l == "Ask about the village")
+            .expect("the village ask rides every talk");
+        g.talk_pick_at(0, Some(p));
+        let t = g.seats[0].talk.as_ref().expect("the talk goes on").clone();
+        let rec = g.talk_log.iter().find(|r| r.id == t.id).unwrap();
+        let line = rec.lines.iter().rev().find(|l| l.who == Some(v))
+            .expect("the ask drew a word").text.clone();
+        heard.insert(line);
+        g.close_player_talk(0, Some("You take your leave."));
+    }
+    assert!(heard.len() >= 5, "repeated asks kept finding new word: {:?}", heard);
+}
+
 /// The doorknob drive (E5-3): take the first live reply while one's on
 /// offer and the farewell once that's all that's left - true when the
 /// worry's own menu showed and `pick` was taken from it

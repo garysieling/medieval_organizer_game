@@ -5258,6 +5258,10 @@ pub enum Draw {
     /// (E4-8, #1426): the answer is composed off the speaker's
     /// `story` seed, not picked from `tell`
     Story,
+    /// A thing folk are saying (#1616): a real fact the speaker could
+    /// know - a carried word about a third party, the sky, talk seen
+    /// in the lanes - drawn session-side after the answer
+    Gossip,
 }
 
 /// The topics a Talk's ask-slot can open (#1189). Personal questions
@@ -5268,10 +5272,13 @@ pub const ASK_TOPICS: &[Topic] = &[
         label: "the village",
         area: crate::game::conversation::Area::Village,
         tier: 0, needs: &[], any: &[], not: &["visitor"],
-        ask: &["What word of the village these days?", "How do folk fare here, to {2:poss} eyes?"],
-        tell: &["Folk fare as folk do - some well, some not so.", "The village keeps its own counsel, mostly.",
-            "There's grumbling at the well, but when isn't there.", "Quieter than it was, and that's no bad thing."],
-        concepts: &["village", "gossip"], draws: Draw::No,
+        // the village's own ear (#1616): the answer's a real thing folk
+        // say - a carried word, the sky, talk seen in the lanes -
+        // not one of the stock "folk fare as folk do" hedges
+        ask: &["Tell me what folk are saying.", "What word of the village these days?", "How do folk fare here, to {2:poss} eyes?"],
+        tell: &["Now, let me think what's going about...", "Ah, the talk - there's always talk.",
+            "Folk do say things, if {2:subj} {2:will} hear them."],
+        concepts: &["village", "gossip"], draws: Draw::Gossip,
     },
     Topic {
         label: "the road",

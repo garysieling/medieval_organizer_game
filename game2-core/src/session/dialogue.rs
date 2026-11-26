@@ -1850,6 +1850,11 @@ impl Game {
                         }
                     }
                 }
+                Draw::Gossip => {
+                    if let Some(line) = self.gossip_line(seat, t.who) {
+                        drawn.push(TalkLine { who: Some(t.who), name: vname.clone(), text: line, gist: false });
+                    }
+                }
             }
         }
         // a draw's lines ride the talk's argued record (#1347): pushed
@@ -2941,6 +2946,92 @@ impl Game {
             Reveal::Problem(_) => (t.said("Say a man kept back a sack from the tithe - what should be done with him, {2:think} {2:subj}?",
                 false), bare(SafetyBidKind::Hypothetical)),
         }
+    }
+
+    /// The word going about the village (#1616): asking "what folk are
+    /// saying" draws a real thing the speaker could know - a carried
+    /// word about a third party's live trouble (filed on the seat's
+    /// ledger as hearsay, the way the safety-bid's probe lands), the
+    /// sky folk stood under all day, talk seen in the lanes, what the
+    /// last meeting aired. Each bit tells a seat once: repeated asks
+    /// keep finding new talk.
+    fn gossip_line(&mut self, seat: usize, who: Entity) -> Option<String> {
+        use crate::game::desires::{self, Source};
+        let pe = self.seats[seat].player;
+        let pick = self.rng.next();
+        // each bit carries a dedup key, its line, and - for a carried
+        // word - the (subject, reveal) the ledger files as hearsay
+        let mut pool: Vec<(String, String, Option<(Entity, desires::Reveal)>)> = vec![];
+        // a carried word about a third party: a live trouble they hold,
+        // heard second-hand - the asker can only hear what the ledger's
+        // yet to, so a fresh ask finds fresh word
+        for &v in self.villagers.iter() {
+            if v == who || v == pe || villager::is_dead(&self.world, v)
+                || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+            let r = desires::next_reveal(&self.world, pe, v, self.tick, pick)
+                .or_else(|| desires::catchup_reveal(&self.world, pe, v, self.tick, pick));
+            if let Some(r) = r {
+                let (did, _) = desires::reveal_speech(&self.name_of(v), &r);
+                pool.push((format!("{:?}:{}", v, desires::reveal_key(&r)),
+                    format!("Word is, {} - or so it's carried.", did), Some((v, r))));
+            }
+        }
+        // the sky folk stood under all day
+        let climate = self.world.query::<crate::sim::climate::Climate>().first()
+            .and_then(|&e| self.world.get_component::<crate::sim::climate::Climate>(e));
+        let (wx_key, wx_line) = match climate.and_then(crate::sim::precipitation::precip_kind) {
+            Some(k) if k.is_snow() => ("wx:snow", "More snow's on the way, folk say - the thatch won't take another wet."),
+            Some(crate::sim::precipitation::PrecipKind::Haar) => ("wx:haar",
+                "The haar sat on the fields till noon - folk saw shapes moving in it."),
+            Some(_) => ("wx:rain", "The rain's set in for a spell, folk say - the lanes are soup already."),
+            None => ("wx:fair", "A fair stretch at last - folk are saying the season's turned kind."),
+        };
+        pool.push((wx_key.into(), wx_line.into(), None));
+        // talk seen in the lanes: who was thick in it these last days
+        for rec in self.talk_log.iter().rev().take(60) {
+            if rec.tick + 3 < self.tick { break; }
+            match rec.kind {
+                TalkKind::Chat => {
+                    let pair: Vec<Entity> = rec.with.iter().copied()
+                        .filter(|&v| v != who && v != pe && !villager::is_dead(&self.world, v))
+                        .take(2).collect();
+                    if pair.len() == 2 {
+                        let (a, b) = (pair[0].min(pair[1]), pair[0].max(pair[1]));
+                        pool.push((format!("seen:{}:{}", a, b),
+                            format!("{} and {} had their heads together - folk saw them at it.",
+                                self.name_of(pair[0]), self.name_of(pair[1])), None));
+                    }
+                }
+                // one meeting bit is enough - the line names no meeting,
+                // so a second copy could repeat word for word
+                TalkKind::Meeting => {
+                    pool.push(("meet".into(),
+                        "The last meeting's still in folk's mouths - what was said there carries.".into(), None));
+                }
+                _ => {}
+            }
+        }
+        // what the last meeting aired - the grievance and whose it was
+        for (v, tag) in self.voiced.iter() {
+            if *v == who || villager::is_dead(&self.world, *v) { continue; }
+            pool.push((format!("aired:{:?}:{}", v, tag),
+                format!("{} stood up about {} - folk haven't stopped on it.",
+                    self.name_of(*v), desires::issue_name(tag.clone())), None));
+        }
+        pool.retain(|(key, _, _)| !self.seats[seat].gossip_told.contains(key));
+        if pool.is_empty() { return None; }
+        let (key, line, filing) = pool.swap_remove((pick % pool.len() as u64) as usize);
+        self.seats[seat].gossip_told.insert(key);
+        if let Some((v, r)) = filing {
+            use crate::session::gamelog::{EvTag, Sev, Thread, Valence};
+            if let Some(issue) = desires::hear_via(&mut self.world, pe, v, r, self.tick,
+                    Source::Gossip { speaker: who }) {
+                self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                self.log_entity_ev(EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                    pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+            }
+        }
+        Some(line)
     }
 
     /// The test answered (E5-4, #1436): a turn toward brings the held

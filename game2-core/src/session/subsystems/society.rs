@@ -598,7 +598,8 @@ impl Game {
                         text: "stand beside them".into(), debt: 0.0, victim: condemned },
                     crate::session::events::DilemmaBranch {
                         text: "let the cause keep its distance".into(), debt: 0.0, victim: condemned },
-                ] });
+                ],
+                offered: self.tick });
         }
     }
 
@@ -696,7 +697,8 @@ impl Game {
                     text: "speak for mercy".into(), debt: 0.0, victim: condemned },
                 crate::session::events::DilemmaBranch {
                     text: "let it stand".into(), debt: 0.0, victim: condemned },
-            ] });
+            ],
+            offered: self.tick });
         true
     }
 
@@ -4496,8 +4498,10 @@ impl Game {
             }
         }
         // the proposal: at the campaign's own action peak, the plant
-        // speaks for the violent step - the player's call after that
-        if self.plant.is_some() && self.proposal.is_none() {
+        // speaks for the violent step - the player's call after that.
+        // The cadence's own slot (#1688): an unanswered one lapses and
+        // the word doesn't come back round till the next drumbeat
+        if self.plant.is_some() && self.proposal.is_none() && tick % 40 == 25 {
             let acting = self.world.query::<crate::game::campaign::Campaign>().iter()
                 .any(|&c| self.world.get_component::<crate::game::campaign::Campaign>(c)
                     .map(|cc| cc.phase == crate::game::campaign::CampaignPhase::Action).unwrap_or(false));

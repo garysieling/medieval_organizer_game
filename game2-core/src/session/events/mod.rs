@@ -76,6 +76,9 @@ pub enum EventId {
 pub struct VaxOffer {
     /// the officer riding the district
     pub authority: Entity,
+    /// The tick he read the order - an officer unanswered too long
+    /// enforces it as read (#1688)
+    pub offered: u64,
 }
 
 /// The moral knot the burdened man brings: two ways to be wrong, and
@@ -89,6 +92,9 @@ pub struct MoralKnot {
     /// remembering is fixed when a seat answers - whoever's hands made
     /// the pick (#962)
     pub branches: Vec<DilemmaBranch>,
+    /// The tick the knot went on the card - one the moment's passed
+    /// can't squat the box for weeks (#1688)
+    pub offered: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -802,7 +808,8 @@ impl Game {
                             debt: 0.6, victim },
                         DilemmaBranch { text: "the children - let the grain burn".into(),
                             debt: 0.3, victim },
-                    ] });
+                    ],
+                    offered: self.tick });
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
                     format!(
@@ -827,7 +834,7 @@ impl Game {
                         None,
                     );
                 } else {
-                    self.vax_offer = Some(VaxOffer { authority: e.unwrap_or(0) });
+                    self.vax_offer = Some(VaxOffer { authority: e.unwrap_or(0), offered: self.tick });
                     if let Some(e) = e { let cry = self.pair_said(e, self.player, s.cry);
                     self.say(e, &cry, TALK_BUBBLE_SECS * 2); }
                     self.log.push_ev_at_who(EvTag::new(Thread::Illness, Valence::Neutral, Sev::Notable), format!("t{}: {} reads the vaccination act on the square - the lancet's offered for the infants, the refusers pay the fine, and a third way's whispered in the crowd.", self.tick, s.name), pitch, None);

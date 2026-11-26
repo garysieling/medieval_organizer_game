@@ -657,7 +657,8 @@ impl Game {
                     debt: 0.0, victim },
                 DilemmaBranch { text: "keep the name - a word in his ear another day".into(),
                     debt: 0.0, victim },
-            ] });
+            ],
+            offered: self.tick });
     }
 
     /// The ewe's fork resolves (#1254): the name goes public and his

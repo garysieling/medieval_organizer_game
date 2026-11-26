@@ -9,7 +9,9 @@ fn test_the_choice_comes_home() {
         branches: vec![
             crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
-        ] });
+        ],
+            offered: g.tick
+         });
     g.decide_at(0, 0);
     assert!(g.dilemma.is_none(), "the knot never answered");
     assert_eq!(g.dilemma_debts.len(), 1, "the debt never wrote");
@@ -33,7 +35,9 @@ fn test_the_remembering_lands_on_who_answered() {
         branches: vec![
             crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
-        ] });
+        ],
+            offered: g.tick
+         });
     g.decide_at(s1, 0);
     assert_eq!(g.dilemma_debts.len(), 1);
     assert_eq!(g.dilemma_debts[0].witness, g.seats[s1].player,
@@ -78,7 +82,9 @@ fn test_the_knot_shows_its_own_card_and_echoes_the_pick() {
         branches: vec![
             crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
-        ] });
+        ],
+            offered: g.tick
+         });
     let panel = g.convo_panel_at(0).expect("the knot's card never showed");
     assert_eq!(panel.title, "THE KNOT");
     assert!(panel.decides && panel.options.len() == 2, "{:?}", panel.options);
@@ -103,7 +109,9 @@ fn test_a_standing_knot_cant_eat_the_travellers_ask() {
         branches: vec![
             crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
-        ] });
+        ],
+            offered: g.tick
+         });
     // the knot's card outranks the ask - the box that shows is the box
     // that answers
     assert_eq!(g.convo_panel_at(0).map(|p| p.title).as_deref(), Some("THE KNOT"));

@@ -227,7 +227,9 @@ fn test_a_panel_pick_reaches_only_members_at_hand() {
         branches: vec![
             crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
-        ] });
+        ],
+            offered: g.tick
+         });
     g.decide_at(0, 0);
     assert_eq!(weight(&g, near, Line::Exacting), 1.5,
         "the wounding branch is the hard line - and a sworn member leans in");
@@ -237,7 +239,9 @@ fn test_a_panel_pick_reaches_only_members_at_hand() {
         branches: vec![
             crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
-        ] });
+        ],
+            offered: g.tick
+         });
     g.decide_at(0, 1);
     // the member's read already leaned Exacting: the mercy pick drifts
     // them further into the hard line rather than counting as mercy (#1310)

@@ -154,6 +154,120 @@ impl Game {
                 self.seats[seat].testimony_offer = None;
             }
         }
+        // a standing card the moment's passed can't squat the box for
+        // weeks (#1688): every kind of offer answers itself unanswered,
+        // each on its own terms - the knot's let be, the Act's read as
+        // written, the charter's man and the herald ride back
+        if self.dilemma.as_ref()
+            .map(|k| tick.saturating_sub(k.offered) >= FOUNDING_OFFER_EXPIRY_DAYS)
+            .unwrap_or(false)
+        {
+            // the shared knot lapses under whoever's card it was: each
+            // fork that mounts it cleans its own state, same as a card
+            // lost to a louder one in decide_at
+            if self.ewe_theft.as_ref().map(|t| t.fork_open).unwrap_or(false) {
+                self.dilemma = None;
+                self.resolve_ewe_fork(1);
+            } else if match (self.reckoning, &self.dilemma) {
+                (Some(c), Some(k)) => k.branches.len() == 2
+                    && k.branches.iter().all(|b| b.victim == c),
+                _ => false,
+            } {
+                self.dilemma = None;
+                self.reckoning = None;
+            } else if match (self.plea, &self.dilemma) {
+                (Some(p), Some(k)) => k.branches.len() == 2
+                    && k.branches.iter().all(|b| b.victim == p.condemned),
+                _ => false,
+            } {
+                // a begging never heard: the sentence lands as read
+                self.dilemma = None;
+                if let Some(p) = self.plea { self.land_sentence(p, tick); }
+                self.plea = None;
+            } else if match (self.false_traveller, &self.dilemma) {
+                (Some(ft), Some(k)) => ft.card != 0
+                    && k.branches.iter().all(|b| b.victim == ft.e),
+                _ => false,
+            } {
+                self.dilemma = None;
+                if let Some(ft) = self.false_traveller {
+                    self.false_traveller = Some(
+                        crate::session::events::FalseTraveller { card: 0, ..ft });
+                }
+            } else if match (&self.survey_pick, &self.dilemma) {
+                (Some((c, issues)), Some(k)) => k.branches.len() == issues.len()
+                    && k.branches.iter().all(|b| b.victim == *c),
+                _ => false,
+            } {
+                self.dilemma = None;
+                self.survey_pick = None;
+            } else {
+                self.dilemma = None;
+            }
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the knot's let be - the answer never landed, and the man moves on.", tick),
+            );
+        }
+        // the Act's officer unanswered enforces the order as read - he
+        // wasn't asking permission, the third way was the offer
+        if self.vax_offer.as_ref()
+            .map(|o| tick.saturating_sub(o.offered) >= FOUNDING_OFFER_EXPIRY_DAYS)
+            .unwrap_or(false)
+        {
+            let o = self.vax_offer.take().unwrap();
+            self.resolve_vaccination(o, 0);
+        }
+        if self.incorporation_offer
+            .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+            self.incorporation_offer = None;
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the crown's man rides back unanswered - the charter's off the table.", tick),
+            );
+        }
+        if self.parley
+            .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+            self.parley = None;
+            self.log.push_ev(
+                EvTag::new(Thread::Law, Valence::Neutral, Sev::Minor),
+                format!("t{}: the herald rides home - no talk, no trap.", tick),
+            );
+        }
+        if self.mystic
+            .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+            self.mystic = None;
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the marked one walks on - the fold's answer never came.", tick),
+            );
+        }
+        if self.council
+            .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+            self.council = None;
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the stall outlasts the call - the silence stands.", tick),
+            );
+        }
+        if self.proposal
+            .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+            self.proposal = None;
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the torch-word cools unanswered - the moment for it's passed.", tick),
+            );
+        }
+        if self.seat_offer.as_ref()
+            .map(|o| tick.saturating_sub(o.offered) >= FOUNDING_OFFER_EXPIRY_DAYS)
+            .unwrap_or(false)
+        {
+            self.seat_offer = None;
+            self.log.push_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: the board's offer's withdrawn - it stood long enough.", tick),
+            );
+        }
         // what the probing question planted ripens into a want they
         // carry; one who's warm to the asker comes a step nearer (#1267)
         for v in self.villagers.clone() {

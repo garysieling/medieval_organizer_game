@@ -3498,6 +3498,41 @@ impl Game {
     /// then the seat's Talk
     pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
         let s = &self.seats[seat];
+        // a live floor owns the box (#1688): a meeting under way
+        // renders ahead of every standing card - the stale dilemma
+        // can't squat over the room the world's actually in. A talk
+        // keeps its old place: the forks it mounts land as standing
+        // cards on top of it, and those cards lapse on their own week
+        if let Some(m) = &self.meeting {
+            if m.seat == seat {
+                let mut rows = self.record_rows(seat, m.talk_id);
+                if m.talk_from.is_none() {
+                    rows.push(TalkRowV { name: None, gist: false, you: false, rule: false, who: None, mood: 0,
+                        text: "folk are on their way".into() });
+                }
+                // the floor's first round is heard and the script holds
+                // (#1611): press the matter, open the floor, or name the
+                // next step - the organizer's steer, not the room's
+                if s.steer_offer.is_some() {
+                    rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                        text: "The floor's heard them once round - your steer, organizer.".into() });
+                    // the label names what the pick presses (#1611):
+                    // the same target steer_meeting_at will take
+                    let press = self.steer_press_target().map(|t| format!("Press it - {} on the table",
+                            crate::game::desires::issue_name(t)))
+                        .unwrap_or_else(|| "Press the matter - put it to them plain".into());
+                    let options = vec![press,
+                        "Open the floor - let them talk it out".into(),
+                        "Name the next step - bring it home".into()];
+                    return Some(ConvoPanelV {
+                        title: format!("HOUSE MEETING - {}", m.label.to_uppercase()),
+                        rows, options, decides: true, leave: false });
+                }
+                return Some(ConvoPanelV {
+                    title: format!("HOUSE MEETING - {}", m.label.to_uppercase()),
+                    rows, options: vec![], decides: false, leave: false });
+            }
+        }
         if self.vax_offer.is_some() {
             return Some(ConvoPanelV {
                 title: "THE VACCINATION ACT".into(),
@@ -3814,36 +3849,6 @@ impl Game {
                 rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
                     text: format!("{} stand with the cause - what do they take up?", n) }],
                 options, decides: true, leave: false });
-        }
-        if let Some(m) = &self.meeting {
-            if m.seat == seat {
-                let mut rows = self.record_rows(seat, m.talk_id);
-                if m.talk_from.is_none() {
-                    rows.push(TalkRowV { name: None, gist: false, you: false, rule: false, who: None, mood: 0,
-                        text: "folk are on their way".into() });
-                }
-                // the floor's first round is heard and the script holds
-                // (#1611): press the matter, open the floor, or name the
-                // next step - the organizer's steer, not the room's
-                if s.steer_offer.is_some() {
-                    rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
-                        text: "The floor's heard them once round - your steer, organizer.".into() });
-                    // the label names what the pick presses (#1611):
-                    // the same target steer_meeting_at will take
-                    let press = self.steer_press_target().map(|t| format!("Press it - {} on the table",
-                            crate::game::desires::issue_name(t)))
-                        .unwrap_or_else(|| "Press the matter - put it to them plain".into());
-                    let options = vec![press,
-                        "Open the floor - let them talk it out".into(),
-                        "Name the next step - bring it home".into()];
-                    return Some(ConvoPanelV {
-                        title: format!("HOUSE MEETING - {}", m.label.to_uppercase()),
-                        rows, options, decides: true, leave: false });
-                }
-                return Some(ConvoPanelV {
-                    title: format!("HOUSE MEETING - {}", m.label.to_uppercase()),
-                    rows, options: vec![], decides: false, leave: false });
-            }
         }
         if let Some(t) = &s.talk {
             return Some(ConvoPanelV {

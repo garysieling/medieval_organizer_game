@@ -133,7 +133,9 @@ fn test_a_knot_outranks_the_standing_asks() {
         branches: vec![
             crate::session::events::DilemmaBranch { text: "the grain".into(), debt: 0.6, victim },
             crate::session::events::DilemmaBranch { text: "the children".into(), debt: 0.3, victim },
-        ] });
+        ],
+            offered: g.tick
+         });
     assert_eq!(card(&g).map(|(t, _)| t).as_deref(), Some("THE KNOT"),
         "the knot's card didn't outrank the standing asks");
     g.decide_at(0, 0);
@@ -183,4 +185,59 @@ fn test_the_arcs_contest_rides_the_eyes_card() {
         "the contest never landed");
     assert!(!g.log.iter().any(|l| l.contains("false word")),
         "the contest's pick fed the watcher instead");
+}
+
+/// A standing Decide can't squat the box (#1688): a meeting under way
+/// renders ahead of every standing card, and an offer the moment's
+/// passed answers itself unanswered - the class, not one card
+#[test]
+fn test_a_live_floor_outranks_a_standing_card_and_the_card_lapses() {
+    // the knot the road brings stands on the box
+    let mut g = Game::new();
+    g.dilemma = Some(crate::session::events::MoralKnot {
+        text: "the granary's caught - which do you carry out first?".into(),
+        branches: vec![
+            crate::session::events::DilemmaBranch {
+                text: "the grain - the village starves else".into(),
+                debt: 0.6, victim: g.villagers[0] },
+            crate::session::events::DilemmaBranch {
+                text: "the children - let the grain burn".into(),
+                debt: 0.3, victim: g.villagers[1] },
+        ],
+        offered: g.tick,
+    });
+    assert_eq!(card(&g).map(|(t, _)| t).as_deref(), Some("THE KNOT"));
+
+    // a meeting convening underneath takes the panel - the stale
+    // dilemma can't cover the room the world's actually in
+    g.meeting = Some(Meeting {
+        label: "Bram's house".into(), venue: (10, 10), born: g.tick,
+        invited: vec![g.villagers[0], g.villagers[1]],
+        spots: vec![(10, 10); 2], paths: vec![None; 2],
+        frames: 0, talk_from: None,
+        lines: vec![(g.villagers[0], "Friends - you came.".into())],
+        talk_id: 0, seat: 0,
+        roles: (false, false, false, false, false),
+        role_people: [None; 5],
+        bought: vec![], probe: false, testimony: None,
+        agenda: None, steer_at: None, steer_wait: 0, steered: false,
+        promised: vec![], marks: vec![], impromptu: false,
+    });
+    let p = g.convo_panel_at(0).expect("the floor never rendered");
+    assert!(p.title.starts_with("HOUSE MEETING"),
+        "a standing card covered the live floor: {}", p.title);
+    // a pick while the floor shows can't be eaten by the hidden card
+    g.decide_at(0, 0);
+    assert!(g.dilemma.is_some(), "a card not showing took the floor's pick");
+    g.meeting = None;
+
+    // the card comes back when the floor's done - the offer still stands
+    assert_eq!(card(&g).map(|(t, _)| t).as_deref(), Some("THE KNOT"),
+        "the knot never came back once the floor cleared");
+
+    // but the moment passes: the week out, an unanswered offer lapses
+    g.livelihood_tick(g.tick + FOUNDING_OFFER_EXPIRY_DAYS - 1);
+    assert!(g.dilemma.is_some(), "the knot lapsed before its week was out");
+    g.livelihood_tick(g.tick + FOUNDING_OFFER_EXPIRY_DAYS);
+    assert!(g.dilemma.is_none(), "the knot squatted the box past its week");
 }

@@ -2488,24 +2488,33 @@ pub fn converse_with_at(
                 sampled.push(chosen_pool_idx);
             }
             let mut rolled: Vec<(&'static str, Choice)> = vec![];
+            let mut kept: Vec<usize> = vec![];
             // the label is the utterance (#1622): the stance ops a pick
             // earns are baked into the preview, so what the player reads
             // is what they're heard to say
             let st = crate::game::text::stance_of(&pair[responder], &pair[caller]);
+            // a menu never shows the same string twice (#1689): each
+            // pick's template is spent toward the next option's draw,
+            // and a realized echo folds into the row it repeats
+            let mut menu_used = used.clone();
             for &i in &sampled {
                 let r = pool[i];
-                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &used, recent, false, rng)
+                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &menu_used, recent, false, rng)
                     .map(|(t, s)| (t, s))
                     .unwrap_or((r.lines[0], fill(r.lines[0], &pair[responder], &pair[caller], rng)));
                 let ops = crate::game::text::shape(r.act, &st, None);
+                let preview = crate::game::text::shaped(&ops, &preview, None, &st, rng);
+                if rolled.iter().any(|(_, c)| c.preview == preview) { continue; }
+                menu_used.insert(t);
+                kept.push(i);
                 rolled.push((t, Choice { act: r.act, respond: r.respond.unwrap_or_else(|| respond_of(r.act)),
-                    preview: crate::game::text::shaped(&ops, &preview, None, &st, rng) }));
+                    preview }));
             }
             // a farewell's the tail of a talk, not a per-turn option (#1179):
             // it only sits on the list once the talk's run dry - while
             // anything live's on offer, the exits stay off it
             let mut pairs: Vec<(usize, (&'static str, Choice))> =
-                sampled.iter().copied().zip(rolled.into_iter()).collect();
+                kept.iter().copied().zip(rolled.into_iter()).collect();
             if pairs.iter().any(|(_, (_, c))| c.act != Act::Farewell) {
                 pairs.retain(|(_, (_, c))| c.act != Act::Farewell);
             }
@@ -4546,6 +4555,36 @@ mod tests {
                 }
                 ch.iter().position(|c| c.act != Act::Farewell).or(Some(0))
             }, &mut Rng::new(7))
+    }
+
+
+    #[test]
+    fn a_menu_never_shows_the_same_label_twice() {
+        // #1689: every menu offered to a pick holds distinct previews -
+        // two forks that would read alike fold into one row
+        let lib = village_library();
+        for seed in 1..200u64 {
+            for status in ["sick", "grieving", "elder", "hoarse", "exhausted"] {
+                let mut caller = Speaker::new("Hob");
+                caller.status.push(status);
+                caller.open = warm_open();
+                let mut you = Speaker::new("Wanderer");
+                you.open = warm_open();
+                converse_with(&caller, &you, Relation::Acquaintance, None, &lib, None, 1,
+                    &mut |ch: &[Choice]| {
+                        let mut seen = crate::engine::det::HashSet::default();
+                        for c in ch {
+                            assert!(seen.insert(c.preview.as_str()),
+                                "menu repeated \"{}\" in {:?}", c.preview,
+                                ch.iter().map(|c| c.preview.as_str()).collect::<Vec<_>>());
+                        }
+                        // walk the asks too - the submenu answers to the
+                        // same rule
+                        ch.iter().position(|c| c.preview == "Put a question to them")
+                            .or(Some(0))
+                    }, &mut Rng::new(seed));
+            }
+        }
     }
 
     #[test]

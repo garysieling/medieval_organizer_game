@@ -289,15 +289,37 @@ fn marked(text: &str, template: &str, speaker: &Speaker) -> String {
     apply_marks(text, &fired, &mut r)
 }
 
+/// Whether the line's last clause already reads as a tagged aside -
+/// authored or marked (#1679): a small comma-borne qualifier on the
+/// sentence's tail, or one of the marker tails themselves. A line so
+/// dressed takes no further tag, else the tells stack on each other
+pub(crate) fn ends_in_tag(out: &str) -> bool {
+    let body = out.trim_end_matches(['.', '?', '!']);
+    let Some((_, last)) = body.rsplit_once(',') else { return false };
+    let last = last.trim();
+    if last.is_empty() { return false; }
+    for set in [&VERBOSE_TAILS, &HEDGE_TAILS, &ASKBACK_TAILS, &SELFTALK_TAILS] {
+        for t in *set {
+            if last == t.trim_start_matches(", ").trim_end_matches(['.', '?']) { return true; }
+        }
+    }
+    let words = last.split_whitespace().count();
+    (3..=6).contains(&words) && last.len() <= 32
+        && last.chars().next().is_some_and(|c| c.is_lowercase())
+}
+
 /// The marks land in an order that keeps every pick visible: the
-/// comma-tails chain while a '.' stands, the question-back last of
-/// them since its '?' takes no follower; then the bang settles the
-/// stop that's left, and the oath fronts it all.
+/// comma-tails take the first '.', the question-back last of them
+/// since its '?' takes no follower - but one tail only, and never on
+/// a line already tagged (#1679); then the bang settles the stop
+/// that's left, and the oath fronts it all.
 fn apply_marks(text: &str, fired: &[Marker], r: &mut Rng) -> String {
     let mut out = text.to_string();
     let tail = |out: &mut String, set: &[&'static str], r: &mut Rng| {
-        // a tail joins on a comma; a line without its stop is left be
-        if out.ends_with('.') {
+        // a tail joins on a comma; a line without its stop is left be -
+        // and a line already wearing a tagged clause takes no second
+        // (#1679): the tells were never meant to stack
+        if out.ends_with('.') && !ends_in_tag(out) {
             out.replace_range(out.len() - 1.., set[r.below(set.len())]);
         }
     };
@@ -924,6 +946,31 @@ mod tests {
     use super::*;
     use crate::game::conversation::{Relation, Speaker};
 
+    /// Two tells on one line was the playtest's stumble (#1679): the
+    /// comma-tails never stack, and a line already wearing a tagged
+    /// clause takes none at all
+    #[test]
+    fn a_line_takes_one_tag_and_a_dressed_one_takes_none() {
+        let mut r = Rng::new(1);
+        // two fired comma-tails stay one tag
+        let out = apply_marks("I'd not have it spoke of.", &[Marker::Verbose, Marker::SelfTalk], &mut r);
+        let tails: Vec<String> = [VERBOSE_TAILS, HEDGE_TAILS, ASKBACK_TAILS, SELFTALK_TAILS].concat()
+            .iter().map(|t| t.trim_start_matches(", ").trim_end_matches(['.', '?']).to_string()).collect();
+        let n = tails.iter().filter(|t| out.contains(t.as_str())).count();
+        assert_eq!(n, 1, "the tells stacked: {out}");
+        assert!(ends_in_tag(&out), "the one that landed is a tag: {out}");
+        // an authored tagged tail turns the markers away entirely
+        let out = apply_marks("The calves won't feed themselves, fever or no.",
+            &[Marker::SelfTalk, Marker::AskBack], &mut r);
+        assert_eq!(out, "The calves won't feed themselves, fever or no.",
+            "a tagged tail takes no second: {out}");
+        // and the detector's own edges: an address is no tag, a lone
+        // clause is no tag
+        assert!(!ends_in_tag("I'll carry thy pail, friend."));
+        assert!(!ends_in_tag("The field answers work, not wishes."));
+        assert!(ends_in_tag("Word is, he owes the miller, or so I hear."));
+    }
+
     fn pair() -> (Speaker, Speaker) {
         let mut alys = Speaker::new("Alys");
         alys.status.push("miller");
@@ -1438,11 +1485,12 @@ mod tests {
                 &[Marker::Exclaim, Marker::SelfTalk], &mut r);
             assert!(out.ends_with('!') && out.starts_with("The field wants sowing,"),
                 "exclaim + tail: {out}");
-            // and the question-back lands last, so a fellow tail still
-            // has its '.' to join on
+            // and two comma-tails never stack (#1679): the first dressed
+            // clause is the one tag the line gets - the question-back
+            // stands down rather than pile on
             let out = apply_marks("The field wants sowing.",
                 &[Marker::AskBack, Marker::SelfTalk], &mut r);
-            assert!(out.ends_with('?') && out.matches(',').count() >= 2,
+            assert!(out.ends_with('.') && out.matches(',').count() == 1,
                 "askback + tail: {out}");
         }
 

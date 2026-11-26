@@ -392,7 +392,10 @@ pub fn apply(tr: &mut Transcript, pair: &[Speaker; 2], player: usize) {
         // habit skips it and lands on the next slot it fits (E4-8,
         // #1426: the tale you asked for keeps its words)
         if !habit_done[t.speaker] && id.habit.acts().contains(&t.act)
-            && !(t.line.is_none() && matches!(id.habit.how(), How::Whole)) {
+            && !(t.line.is_none() && matches!(id.habit.how(), How::Whole))
+            // a tailing habit leaves a dressed line alone (#1679): the
+            // coda lands on the next slot that isn't already tagged
+            && !(matches!(id.habit.how(), How::Coda) && crate::game::text::ends_in_tag(&t.text)) {
             let lines = id.habit.lines();
             let v = lines[n % lines.len()];
             let mut rng = conversation::Rng::new(n as u64 + 1);
@@ -412,7 +415,8 @@ pub fn apply(tr: &mut Transcript, pair: &[Speaker; 2], player: usize) {
             }
             habit_done[t.speaker] = true;
         }
-        if !phrase_done[t.speaker] && phrase_slot(t.act) {
+        if !phrase_done[t.speaker] && phrase_slot(t.act)
+            && !crate::game::text::ends_in_tag(&t.text) {
             t.text = format!("{} - {}.",
                 t.text.trim_end_matches(['.', '?', '!']),
                 id.phrase.trim_end_matches('.'));

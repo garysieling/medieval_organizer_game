@@ -450,7 +450,7 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
         // the legacy fills replace verbatim - no cap, or a trade
         // after a full stop would render "The mill" where the old
         // chain left "the mill"
-        "other" => out.push_str(&cx.listener.name),
+        "other" => out.push_str(addressable(cx.listener)),
         "self" => out.push_str(&cx.speaker.name),
         "trade" => out.push_str(&trade_noun(cx.speaker)),
         "other_trade" => out.push_str(&trade_noun(cx.listener)),
@@ -507,6 +507,76 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
     }
 }
 
+/// The station a vocative asks of the one it's said to (#1693): a
+/// line's "father" is the cleric's to hear, "child" the cleric's or
+/// elder's to give a youngster - read off the line's literal address
+/// words at pick time, so a courtesy thrown over the wrong shoulders
+/// can never air
+pub(crate) fn vocative_fits(line: &str, speaker: &Speaker, listener: &Speaker) -> bool {
+    let bytes = line.as_bytes();
+    let mut toks: Vec<(usize, usize)> = Vec::new(); // byte span of each word
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_alphabetic() || bytes[i] == b'\'' {
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_alphabetic() || bytes[i] == b'\'') { i += 1; }
+            toks.push((start, i));
+        } else { i += 1; }
+    }
+    // a possessive's noun ("my father", "{2:poss} child"), an article's
+    // ("the miller's lad") or a named man ("Father Anselm") is a
+    // referent, not a vocative - but the next clause's capital
+    // ("child! Another…") is a name of nothing
+    const MODIFIERS: &[&str] = &["my", "our", "his", "her", "your", "thy", "their",
+        "the", "a", "an", "this", "that", "every", "some", "no", "of", "to",
+        "for", "as", "like", "by", "than", "or", "poss", "own", "self", "s"];
+    let vocative = |i: usize| -> bool {
+        let prev = i.checked_sub(1).map(|j| line[toks[j].0..toks[j].1].to_ascii_lowercase());
+        if prev.as_deref().is_some_and(|p| MODIFIERS.contains(&p) || p.ends_with("'s")) { return false; }
+        if let Some(&(ns, _)) = toks.get(i + 1) {
+            let gap = &line[toks[i].1..ns];
+            if !gap.bytes().any(|b| matches!(b, b'.' | b'!' | b'?'))
+                && line[ns..].chars().next().is_some_and(|c| c.is_uppercase()) {
+                return false;
+            }
+        }
+        true
+    };
+    let clergy = |l: &Speaker| l.ideology == "clergy" || station(l) == 2;
+    let elder = |l: &Speaker| l.status.contains(&"elder");
+    let child = |l: &Speaker| l.status.contains(&"child");
+    for (i, &(ws, we)) in toks.iter().enumerate() {
+        let ok = match line[ws..we].to_ascii_lowercase().as_str() {
+            "father" | "priest" | "pastor" | "vicar" =>
+                !vocative(i) || clergy(listener),
+            "sister" => !vocative(i) || (clergy(listener) && listener.sex == Some("female")),
+            "child" | "lad" | "lass" =>
+                !vocative(i) || child(listener) || clergy(speaker) || elder(speaker),
+            "m'lord" => !vocative(i) || (station(listener) >= 3 && listener.sex != Some("female")),
+            "m'lady" => !vocative(i) || (station(listener) >= 3 && listener.sex == Some("female")),
+            "goodwife" | "goody" => !vocative(i) || (listener.sex == Some("female")
+                && station(listener) <= 1 && !child(listener)),
+            "goodman" | "gaffer" => !vocative(i) || (listener.sex == Some("male")
+                && station(listener) <= 1 && !child(listener)),
+            "grandfather" | "grandmother" =>
+                !vocative(i) || elder(listener) || clergy(listener),
+            _ => true,
+        };
+        if !ok { return false; }
+    }
+    true
+}
+
+/// The name a courtesy may carry (#1693): an article-led label - "a
+/// newcomer", "the tinker" - is a display tag, not something to call
+/// a soul. The unnamed answer with the road's words
+fn addressable(l: &Speaker) -> &str {
+    let n = l.name.as_str();
+    if n.starts_with("a ") || n.starts_with("an ") || n.starts_with("the ") {
+        if l.status.contains(&"visitor") { "traveler" } else { "stranger" }
+    } else { n }
+}
+
 /// The station a speaker's standing implies (Brown & Gilman's power
 /// axis): the manor over the church over the moneyed over the common
 /// sort; a child sits under all of it
@@ -540,13 +610,18 @@ pub fn tv_for(speaker: &Speaker, listener: &Speaker, rel: Relation, contempt: bo
 /// station, body and bond earn in the speaker's mouth
 fn address_form(cx: &Cx) -> String {
     let l = cx.listener;
-    let name = l.name.as_str();
+    // #1693: "a newcomer" is a label, not a name - the courtesy bars
+    // to its bare title for the unnamed, never "goodwife a newcomer"
+    let name = addressable(l);
+    let named = name != "stranger" && name != "traveler";
     let female = l.sex == Some("female");
     let close = matches!(cx.rel, Relation::Kin | Relation::Friend);
     match station(l) {
         // the high-born get their title - from intimates, their name
         3.. => return if close { name.into() } else if female { "m'lady".into() } else { "m'lord".into() },
-        2 => return if female { format!("sister {name}") } else { "father".into() },
+        2 => return if female {
+            if named { format!("sister {name}") } else { "sister".into() }
+        } else { "father".into() },
         _ => {}
     }
     if l.status.contains(&"child") {
@@ -555,12 +630,14 @@ fn address_form(cx: &Cx) -> String {
     if close {
         return match cx.rel {
             Relation::Kin => name.into(),
-            _ => format!("friend {name}"),
+            _ => if named { format!("friend {name}") } else { "friend".into() },
         };
     }
     if matches!(cx.rel, Relation::Rival) { return name.into(); }
     if l.status.contains(&"elder") {
-        return if female { format!("goody {name}") } else { format!("gaffer {name}") };
+        return if female {
+            if named { format!("goody {name}") } else { "goody".into() }
+        } else if named { format!("gaffer {name}") } else { "gaffer".into() };
     }
     // a caller off the road is a traveler, and the village's own
     // shopkeeper a trader - the named courtesy, not a bare title (#1371)
@@ -568,11 +645,13 @@ fn address_form(cx: &Cx) -> String {
     if l.ideology == "merchant" { return "trader".into(); }
     // a child minds their betters however they stand
     let courtesy = if station(l) == 1 || cx.speaker.status.contains(&"child") {
-        if female { format!("mistress {name}") } else { format!("master {name}") }
+        if female {
+            if named { format!("mistress {name}") } else { "mistress".into() }
+        } else if named { format!("master {name}") } else { "master".into() }
     } else if female {
-        format!("goodwife {name}")
+        if named { format!("goodwife {name}") } else { "goodwife".into() }
     } else if l.sex == Some("male") {
-        format!("goodman {name}")
+        if named { format!("goodman {name}") } else { "goodman".into() }
     } else {
         name.into()
     };
@@ -641,7 +720,7 @@ fn named_ref<'a>(tail: &str, cx: &'a Cx<'a>) -> Option<Referent> {
         return Some(r.clone());
     }
     match tail {
-        "other" => Some(Referent { slot: "other", text: cx.listener.name.clone(),
+        "other" => Some(Referent { slot: "other", text: addressable(cx.listener).to_string(),
             sex: cx.listener.sex, alive: true, count: 1 }),
         "self" | "speaker" => Some(Referent { slot: "self", text: cx.speaker.name.clone(),
             sex: cx.speaker.sex, alive: true, count: 1 }),
@@ -1074,6 +1153,62 @@ mod tests {
             "of {kittens} we say naught");
         // and a brace that never closes renders as it always did
         assert_eq!(realize_plain("an open {", &alys, &corvin, &[]), "an open {");
+    }
+
+    #[test]
+    fn a_vocative_asks_the_addressees_station() {
+        // #1693: "father" hears clergy only, "child" comes from a
+        // cleric or an elder to a youngster - the wrong shoulders
+        // fail the line, the right ones pass it
+        let mut priest = Speaker::new("Tobias");
+        priest.ideology = "clergy";
+        let mut knight = Speaker::new("Petra");
+        knight.ideology = "lord";
+        knight.sex = Some("female");
+        let miner = Speaker::new("Hob");
+        let mut elder = Speaker::new("Nan");
+        elder.status.push("elder");
+        elder.sex = Some("female");
+        let mut kid = Speaker::new("Will");
+        kid.status.push("child");
+        let line = "Blessings on {2:poss} house, father.";
+        assert!(vocative_fits(line, &miner, &priest));
+        assert!(!vocative_fits(line, &priest, &knight));
+        // the priest's own register, an elder's fondness, a real kid
+        let child = "Well met, child! Another day Heaven grants.";
+        assert!(!vocative_fits(child, &miner, &knight));
+        assert!(vocative_fits(child, &priest, &knight));
+        assert!(vocative_fits(child, &elder, &knight));
+        assert!(vocative_fits(child, &miner, &kid));
+        // a referent's "father" is not a vocative at all
+        assert!(vocative_fits("my father would tan my hide.", &miner, &knight));
+        assert!(vocative_fits("the miller's lad took ill.", &miner, &knight));
+        // a named father reads as a man, not an address
+        assert!(vocative_fits("I'll ask Father Anselm to light a candle.", &miner, &knight));
+        // and the courtesy words keep their stations
+        assert!(!vocative_fits("God keep {2:obj}, m'lord.", &miner, &priest));
+        assert!(!vocative_fits("God keep {2:obj}, m'lord.", &miner, &knight));
+        assert!(vocative_fits("God keep {2:obj}, m'lady.", &miner, &knight));
+        let mut sir = Speaker::new("Ralf");
+        sir.ideology = "lord";
+        assert!(vocative_fits("God keep {2:obj}, m'lord.", &miner, &sir));
+        assert!(!vocative_fits("Well met, goodwife.", &miner, &priest));
+        assert!(vocative_fits("Well met, goodwife.", &miner, &elder));
+    }
+
+    #[test]
+    fn the_unnamed_take_the_roads_words() {
+        // #1693: a label isn't a name - "a newcomer" never stands in
+        // a courtesy's name slot or a {other} greet
+        let mut traveller = Speaker::new("a newcomer");
+        traveller.sex = Some("female");
+        let alys = Speaker::new("Alys");
+        assert_eq!(address_form(&Cx::plain(&alys, &traveller, &[])), "goodwife");
+        assert_eq!(realize_plain("Morrow, {other}.", &alys, &traveller, &[]),
+            "Morrow, stranger.");
+        traveller.status.push("visitor");
+        assert_eq!(realize_plain("Morrow, {other}.", &alys, &traveller, &[]),
+            "Morrow, traveler.");
     }
 
     /// The done-when: every authored line renders through the realizer

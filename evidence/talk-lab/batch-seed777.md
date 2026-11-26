@@ -123,7 +123,7 @@ Aldric [Answer in the_asking]: Ah, the talk - there's always talk!
 Aldric [Question in friendship_bonds]: Hah! Hast thou heard any whispers about the new taxes?
 Gisela [Question in the_asking]: How fares thy day's work?
 Aldric [Answer in the_asking]: I take what work comes, and thank the saints for it.
-Aldric [Remark in the_lords_levee]: A lord's word is the law of the lane, goodman.
+Aldric [Remark in the_lords_levee]: The rolls are kept fair; what thy father owed, thou owest, no more.
 Gisela [Farewell in the_lords_levee]: I'll stand at the oak on Thursday, Aldric.
 -- Farewell
 
@@ -155,7 +155,7 @@ Wystan [Answer in the_asking]: The fields are what they are - they want what the
 Wystan [Remark in hunger_lean_times]: The children went to sleep crying with empty bellies last night.
 Aelfric [Question in the_asking]: What word of the village these days?
 Wystan [Answer in the_asking]: Folk do say things, if you will hear them.
-Wystan [Remark in the_lords_levee]: The rolls are kept fair; what your father owed, you owe, no more.
+Wystan [Remark in the_lords_levee]: The manor court sits under the oak on Thursday - bring your witnesses.
 Aelfric [Farewell in the_lords_levee]: Custom holds, m'lord - my strip, your tallage, and more besides.
 -- Farewell, vibe: Mismatch
 

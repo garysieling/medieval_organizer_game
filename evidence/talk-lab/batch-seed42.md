@@ -10,7 +10,7 @@ Aldric [Question in friendship_bonds]: God witness. Can I count on thy team when
 Wystan [Question in the_asking]: The day's labor - how does it treat thee?
 Aldric [Answer in the_asking]: The ditch fills one stone at a time, my mother said.
 Aldric [Question in merchant_trade]: Dost thou have steel needles and linen thread on thy shelf?
-Aldric [Remark in the_lords_levee]: Custom binds us both, goodman - thy strip, my tallage.
+Aldric [Remark in the_lords_levee]: The rolls are kept fair; what thy father owed, thou owest, no more.
 Wystan [Farewell in the_lords_levee]: Thy servant, Aldric.
 -- Farewell
 

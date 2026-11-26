@@ -81,7 +81,7 @@ Dagny [Greet in kin_warmth]: Well met, dear cousin. Thou art looking hale and he
 Eliza [Question in kin_warmth]: How fares mother's knee in this damp spell?
 Dagny [Question in the_asking]: The day's labor - how does it treat thee?
 Eliza [Answer in the_asking]: Aye. Aye - as thou sayest, as thou sayest.
-Eliza [Remark in the_lords_levee]: The rolls are kept fair; what thy father owed, thou owest, no more.
+Eliza [Remark in the_lords_levee]: The manor court sits under the oak on Thursday - bring thy witnesses, or so I make it.
 Dagny [Farewell in the_lords_levee]: Custom holds, Eliza - my strip, thy tallage.
 -- Farewell
 

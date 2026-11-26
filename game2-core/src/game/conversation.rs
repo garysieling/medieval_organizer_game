@@ -2045,17 +2045,39 @@ pub(crate) fn fill(t: &str, speaker: &Speaker, other: &Speaker, rng: &mut Rng) -
     crate::game::text::realize(t, &crate::game::text::Cx::plain(speaker, other, &[]), rng)
 }
 
+/// The first clause a line hangs on (#1679): two templates that share
+/// an opening stem read as the same line to the ear however their tails
+/// differ - "The calves won't feed themselves - and I'd not ask" and
+/// "The calves won't feed themselves, fever or no" are one saying. A
+/// stem too short to mean anything ("Aye", "Morrow") shares nothing
+fn stem_of(l: &str) -> &str {
+    let mut end = l.len();
+    for d in [", ", " - ", "; ", ": ", ". ", "? ", "! "] {
+        if let Some(i) = l.find(d) { end = end.min(i); }
+    }
+    l[..end].trim_end_matches(['.', '?', '!'])
+}
+
+/// Whether `l` shares a meaningful opening stem with something in `set`
+fn stem_shared(l: &'static str, set: &HashSet<&'static str>) -> bool {
+    let s = stem_of(l);
+    s.len() >= 10 && set.iter().any(|u| stem_of(u) == s)
+}
+
 /// An unused variant of a line set: the template (so it can be spent) and
 /// the rendered text with the pair's slots filled. `strict` also keeps
 /// the village's memory (#1369): a content line someone said lately is
 /// passed over for fresher words - the stock phrases are common
 /// property. Loose keeps only this talk's spending, for ritual speech
-/// and the talk's last resort.
+/// and the talk's last resort. A shared stem counts as said in both
+/// (#1679): the ear hears the repeat whether the tail differs or not
 fn spare_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, strict: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
-    let fresh: Vec<&'static str> = lines.iter().copied().filter(|l| !used.contains(*l)).collect();
+    let fresh: Vec<&'static str> = lines.iter().copied()
+        .filter(|l| !used.contains(*l) && !stem_shared(l, used)).collect();
     let pick: Vec<&'static str> = if strict {
         fresh.iter().copied()
-            .filter(|l| !recent.contains(*l) || crate::game::dialogue_trees::STOCK_LINES.contains(l)).collect()
+            .filter(|l| (!recent.contains(*l) && !stem_shared(l, recent))
+                || crate::game::dialogue_trees::STOCK_LINES.contains(l)).collect()
     } else { fresh };
     if pick.is_empty() { return None; }
     pick.get(rng.below(pick.len())).map(|&t| (t, fill(t, speaker, other, rng)))
@@ -4209,6 +4231,38 @@ mod tests {
         let friend = Facts::for_roles(&a, &b, Relation::Friend);
         let (t, _) = fresh_voiced(&["Base line"], &voice, &friend, &a, &b, &empty, &HashSet::default(), false, &mut rng).unwrap();
         assert_eq!(t, "Base line");
+    }
+
+    /// Two templates on one opening stem are the same saying to the ear
+    /// (#1679): "The calves won't feed themselves - and I'd not ask" and
+    /// "...fever or no" can't both land in one talk, or again this week
+    #[test]
+    fn a_shared_stem_counts_as_the_line_already_said() {
+        let a = Speaker::new("Bram");
+        let b = Speaker::new("Hob");
+        let pool: &[&'static str] = &[
+            "The calves won't feed themselves, fever or no.",
+            "The well's gone sour again, I hear.",
+        ];
+        let mut used: HashSet<&'static str> = HashSet::default();
+        used.insert("The calves won't feed themselves - and I'd not ask thee for help, Hob.");
+        let recent: HashSet<&'static str> = HashSet::default();
+        let mut rng = Rng::new(7);
+        // the stem-mate's spent: only the other line can come out
+        let (t, _) = spare_line(pool, &a, &b, &used, &recent, false, &mut rng).unwrap();
+        assert_eq!(t, "The well's gone sour again, I hear.");
+        // and the village's own memory works the same: last week's
+        // saying keeps its stem-mates off the table in the strict pass
+        let mut recent: HashSet<&'static str> = HashSet::default();
+        recent.insert("The calves won't feed themselves - and I'd not ask thee for help, Hob.");
+        let (t, _) = spare_line(pool, &a, &b, &HashSet::default(), &recent, true, &mut rng).unwrap();
+        assert_eq!(t, "The well's gone sour again, I hear.");
+        // a short shared opening is no stem at all: "Aye" belongs to all
+        let mut used: HashSet<&'static str> = HashSet::default();
+        used.insert("Aye, that's the way of it.");
+        let (t, _) = spare_line(&["Aye, so I've heard tell."], &a, &b, &used, &recent, false, &mut rng)
+            .expect("a word as small as 'Aye' shares nothing");
+        assert_eq!(t, "Aye, so I've heard tell.");
     }
 
     #[test]

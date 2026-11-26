@@ -2,7 +2,7 @@
   them: Voice holds the manor's leases. They'd rather lose than ask.
   them's facts: archetype:climber value:freedom value:standing
   you : Voice works the fields for a day's wage.
-  Voice: Morrow, Voice. Your hedge wants mending on the north side.
+  Voice: Well met, tenant - the manor hears its people.
     1) [Question] M'lord - might the hail damage weigh on the tallage?
     2) [Greet] Aye, m'lord - good morrow to the manor.
   Voice: M'lord - might the hail damage weigh on the tallage?
@@ -10,7 +10,7 @@
     1) [Agree] I've heard, and I mind my manners accordingly.
     2) [Remark] Can't say the name reached me - I keep to my own lane.
   Voice: I've heard, and I mind my manners accordingly.
-  Voice: The rolls are kept fair; what your father owed, you owe, no more.
+  Voice: The manor court sits under the oak on Thursday - bring your witnesses.
     1) [Farewell] Custom holds, m'lord - my strip, your tallage.
   Voice: Custom holds, m'lord - my strip, your tallage.
   -- Farewell (trees: ["the_lords_levee", "the_audition"], vibe: Safe)

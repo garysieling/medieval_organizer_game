@@ -2077,7 +2077,10 @@ fn stem_shared(l: &'static str, set: &HashSet<&'static str>) -> bool {
 /// (#1679): the ear hears the repeat whether the tail differs or not
 fn spare_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashMap<&'static str, u64>, strict: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
     let fresh: Vec<&'static str> = lines.iter().copied()
-        .filter(|l| !used.contains(*l) && !stem_shared(l, used)).collect();
+        .filter(|l| !used.contains(*l) && !stem_shared(l, used)
+            // #1693: a vocative that names the wrong shoulders never
+            // airs - "father" to a layman, "child" from a layman
+            && crate::game::text::vocative_fits(l, speaker, other)).collect();
     let pick: Vec<&'static str> = if strict {
         let rkeys: HashSet<&'static str> = recent.keys().copied().collect();
         fresh.iter().copied()

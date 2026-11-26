@@ -160,7 +160,7 @@ Dagny [Question in the_audition]: Have heard what they say of the reeve's new ho
 Aelfric [Agree in the_audition]: Not I - do tell, then. I love a good tale.
 Dagny [Remark in condolence_call]: Forty year I've watched that ditch, and it wants digging still.
 Dagny [Remark in hunger_lean_times]: The children went to sleep crying with empty bellies last night, or am I mistook?
-Dagny [Remark in the_lords_levee]: Custom binds us both, goodman - your strip, my tallage.
+Dagny [Remark in the_lords_levee]: The rolls are kept fair; what your father owed, you owe, no more.
 Aelfric [Farewell in the_lords_levee]: I'll stand at the oak on Thursday, m'lord.
 -- Farewell, vibe: Safe
 

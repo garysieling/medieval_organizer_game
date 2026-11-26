@@ -37,7 +37,7 @@ Bram [Greet in asking_the_father]: The saints keep thee, Aldric. What weighs on 
 Aldric [Question in asking_the_father]: How dost thou find the road today, Bram?
 Bram [Evade in asking_the_father]: Ask me another.
 Aldric [Remark in asking_the_father]: The ditch fills one stone at a time, my mother said.
-Bram [Agree in asking_the_father]: The parish is lucky in its father, and more besides.
+Bram [Agree in asking_the_father]: The parish is blessed in souls like thine.
 Aldric [Remark in asking_the_father]: As thou sayest, friend.
 Bram [Farewell in asking_the_father]: My day is waiting, or is that not the way of it?
 -- Farewell
@@ -139,7 +139,7 @@ Wystan [Question in visiting_the_sick]: Is there aught you need brought to the c
 Wystan [Question in asking_the_father]: Will the parish altar provide candles for our sick neighbor, father?
 Tilda [Evade in asking_the_father]: That's not for the telling, friend.
 Wystan [Remark in asking_the_father]: Two pennies' worth of worry, that is.
-Tilda [Agree in asking_the_father]: Blessings on your house, father.
+Tilda [Agree in asking_the_father]: Blessings on your house, child.
 Wystan [Remark in asking_the_father]: As you say, friend!
 Tilda [Farewell in asking_the_father]: Your servant, m'lord. Good day.
 -- Farewell, vibe: Safe
@@ -156,7 +156,7 @@ Wystan [Answer in the_asking]: Folk do say things, if thou wilt hear them!
 Wystan [Question in asking_the_father]: Must the tithe stand full when the granary is half empty, father?
 Aelfric [Evade in asking_the_father]: We don't know each other so well as that.
 Wystan [Remark in asking_the_father]: Two pennies' worth of worry, that is.
-Aelfric [Agree in asking_the_father]: Blessings on thy house, father.
+Aelfric [Agree in asking_the_father]: Blessings on thy house, child.
 Wystan [Remark in asking_the_father]: We have spoken our piece for today, and that's the long of it.
 Aelfric [Farewell in asking_the_father]: Thy servant, m'lord. Good day.
 -- Farewell

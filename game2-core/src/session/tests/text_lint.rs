@@ -333,7 +333,7 @@ fn test_authored_lines_use_slots_for_terms_of_address() {
     // station not guaranteed)
     let known: &[(&str, &str, u32)] = &[
         ("father", "idiolect", 5),
-        ("father", "meeting", 6), ("father", "scenes", 1), ("father", "trees", 31),
+        ("father", "meeting", 6), ("father", "scenes", 1), ("father", "trees", 29),
         ("goodman", "trees", 6),
         ("merchant", "arc", 5), ("merchant", "meeting", 1), ("merchant", "trees", 7),
         ("pedlar", "meeting", 2), ("pedlar", "scenes", 2), ("pedlar", "trees", 4),

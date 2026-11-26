@@ -22,7 +22,7 @@
 //! `converse` walks both sides; `converse_with` hands the player's turns
 //! to a chooser that sees two sampled options and may end it early.
 
-use crate::engine::det::HashSet;
+use crate::engine::det::{HashMap, HashSet};
 use crate::engine::ecs::Entity;
 use crate::game::relationships::RelKind;
 
@@ -798,7 +798,7 @@ fn worry_beat(
     responder: usize,
     channel: crate::game::setting::Channel,
     used: &mut HashSet<&'static str>,
-    recent: &HashSet<&'static str>,
+    recent: &HashMap<&'static str, u64>,
     choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
     rng: &mut Rng,
 ) -> bool {
@@ -1213,7 +1213,7 @@ pub const PART_TREE: &str = "the_parting";
 
 /// The parting word (#1604): the caller's in-voice close when nothing
 /// is left after your question's answer
-const PART_LINES: &[&'static str] = &[
+pub(crate) const PART_LINES: &[&'static str] = &[
     "Well - I'd best be on, {other}. Fair day to {2:obj}.",
     "That's the long of it, {other} - the work won't wait. Go well.",
     "I'd best be off, {other} - the day's half gone already.",
@@ -1427,7 +1427,7 @@ fn joke_beat(
     responder: usize,
     channel: crate::game::setting::Channel,
     used: &mut HashSet<&'static str>,
-    recent: &HashSet<&'static str>,
+    recent: &HashMap<&'static str, u64>,
     player: usize,
     cap: usize,
     tree: &'static str,
@@ -2071,21 +2071,31 @@ fn stem_shared(l: &'static str, set: &HashSet<&'static str>) -> bool {
 /// property. Loose keeps only this talk's spending, for ritual speech
 /// and the talk's last resort. A shared stem counts as said in both
 /// (#1679): the ear hears the repeat whether the tail differs or not
-fn spare_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, strict: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
+fn spare_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashMap<&'static str, u64>, strict: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
     let fresh: Vec<&'static str> = lines.iter().copied()
         .filter(|l| !used.contains(*l) && !stem_shared(l, used)).collect();
     let pick: Vec<&'static str> = if strict {
+        let rkeys: HashSet<&'static str> = recent.keys().copied().collect();
         fresh.iter().copied()
-            .filter(|l| (!recent.contains(*l) && !stem_shared(l, recent))
+            .filter(|l| (!recent.contains_key(*l) && !stem_shared(l, &rkeys))
                 || crate::game::dialogue_trees::STOCK_LINES.contains(l)).collect()
-    } else { fresh };
+    } else {
+        // spent material: the oldest saying is the freshest word left
+        // (#1690) - a line aired yesterday is the last resort, not the
+        // routine pick
+        let oldest = fresh.iter()
+            .map(|l| recent.get(l).copied().unwrap_or(0)).min().unwrap_or(0);
+        fresh.iter().copied()
+            .filter(|l| recent.get(l).copied().unwrap_or(0) == oldest)
+            .collect()
+    };
     if pick.is_empty() { return None; }
     pick.get(rng.below(pick.len())).map(|&t| (t, fill(t, speaker, other, rng)))
 }
 
 /// An unused variant, passing lately-said lines over (#1369); when the
 /// set's all repeats the talk repeats rather than starve
-fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
+fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashMap<&'static str, u64>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
     if ritual { spare_line(lines, speaker, other, used, recent, false, rng) } else {
         spare_line(lines, speaker, other, used, recent, true, rng)
             .or_else(|| spare_line(lines, speaker, other, used, recent, false, rng))
@@ -2098,7 +2108,7 @@ fn fresh_line(lines: &[&'static str], speaker: &Speaker, other: &Speaker, used: 
 /// freshness pass runs over all the fitting sets before any repeat is
 /// allowed (#1623): a spent voice set falls through to wider words
 /// rather than echo a line the village just heard
-fn fresh_voiced(lines: &[&'static str], voice: &[Voice], facts: &Facts, speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashSet<&'static str>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
+fn fresh_voiced(lines: &[&'static str], voice: &[Voice], facts: &Facts, speaker: &Speaker, other: &Speaker, used: &HashSet<&'static str>, recent: &HashMap<&'static str, u64>, ritual: bool, rng: &mut Rng) -> Option<(&'static str, String)> {
     for v in voice {
         if v.criteria.iter().all(|c| c.holds(facts)) {
             if let Some(f) = spare_line(v.lines, speaker, other, used, recent, !ritual, rng) { return Some(f); }
@@ -2150,7 +2160,7 @@ pub fn converse(
     rel: Relation,
     kind: Option<RelKind>,
     library: &[DialogueTree],
-    recent: Option<&HashSet<&'static str>>,
+    recent: Option<&HashMap<&'static str, u64>>,
     rng: &mut Rng,
 ) -> Transcript {
     converse_at(a, b, rel, kind, library, recent, &crate::game::setting::STREET, rng)
@@ -2166,7 +2176,7 @@ pub fn converse_at(
     rel: Relation,
     kind: Option<RelKind>,
     library: &[DialogueTree],
-    recent: Option<&HashSet<&'static str>>,
+    recent: Option<&HashMap<&'static str, u64>>,
     setting: &crate::game::setting::Setting,
     rng: &mut Rng,
 ) -> Transcript {
@@ -2184,7 +2194,7 @@ pub fn converse_with(
     rel: Relation,
     kind: Option<RelKind>,
     library: &[DialogueTree],
-    recent: Option<&HashSet<&'static str>>,
+    recent: Option<&HashMap<&'static str, u64>>,
     player: usize,
     choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
     rng: &mut Rng,
@@ -2201,7 +2211,7 @@ pub fn converse_with_at(
     rel: Relation,
     kind: Option<RelKind>,
     library: &[DialogueTree],
-    recent: Option<&HashSet<&'static str>>,
+    recent: Option<&HashMap<&'static str, u64>>,
     player: usize,
     setting: &crate::game::setting::Setting,
     choose: &mut dyn FnMut(&[Choice]) -> Option<usize>,
@@ -2213,7 +2223,7 @@ pub fn converse_with_at(
     let mut setting = *setting;
     setting.invited |= matches!(rel, Relation::Friend | Relation::Kin);
     // no village memory (synthetic talks): nothing reads as a repeat
-    let no_recent = HashSet::default();
+    let no_recent = HashMap::default();
     let recent = recent.unwrap_or(&no_recent);
     // owned clones: a landed telling deepens `open.shared` mid-loop
     // (E3-3) - the snapshot callers passed stays immutable for replay
@@ -2242,6 +2252,12 @@ pub fn converse_with_at(
         setting,
     };
     let mut used: HashSet<&'static str> = HashSet::default();
+    // a beat speaks once a talk (#1690): the walk marks each exchange
+    // it has already spoken (matched on its call sheet - two sheets
+    // with the same words are one beat anyway) so a loop back walks on
+    // to fresh material rather than rehearse the same gossip three
+    // turns apart
+    let mut spent_calls: Vec<&'static [&'static str]> = vec![];
     // topics already asked this talk - each one's a beat, once
     let mut asked: HashSet<usize> = HashSet::default();
     // the slip's own stream (E5-8, #1439): forked before the walk
@@ -2306,7 +2322,10 @@ pub fn converse_with_at(
         if audition && !probed && tr.turns.len() == 2 {
             probed = true;
             if let Some(p) = probe_for(&pair[caller]) {
-                if let Some((ct, call)) = fresh_line(p.calls, &pair[caller], &pair[responder], &used, recent, false, rng) {
+                // the screen asks once per pool (#1690): a spent call
+                // sheet skips the audition rather than re-asking the
+                // same question talk after talk
+                if let Some((ct, call)) = spare_line(p.calls, &pair[caller], &pair[responder], &used, recent, true, rng) {
                     used.insert(ct);
                     tr.trees_walked.push(PROBE_TREE);
                     say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: p.act, respond: None, text: call,
@@ -2366,6 +2385,14 @@ pub fn converse_with_at(
         // budget a call and answer would
         if tr.turns.len() != had { continue; }
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
+        // a spent beat re-entered walks on like an empty one (#1690)
+        if spent_calls.iter().any(|s| *s == ex.calls) {
+            match advance_to_rejoin(&mut trees) {
+                Some((name, rej)) => { tr.trees_walked.push(name); node = Some(rej); node_tree = name; }
+                None => tr.ending = Some(Ending::Exhausted),
+            }
+            continue;
+        }
         // a joke's echo (E5-6): when the reply just taken was one of
         // the trees' own jokes (the beat forks its own receipt), the
         // caller answers the joke before the exchange speaks - laugh,
@@ -2406,6 +2433,7 @@ pub fn converse_with_at(
             continue;
         };
         used.insert(call_t);
+        spent_calls.push(ex.calls);
         say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: ex.act, respond: None, text: call,
             concepts: ex.concepts.to_vec(), tree: node_tree, line: Some(call_t) });
 
@@ -2699,7 +2727,7 @@ pub fn converse_with_at(
     // the ear's landmark (E4-7, #1416): each speaker's phrase and habit
     // land once, on the first slots they fit - deterministic per turn,
     // so the replay this builds from keeps its prefix
-    crate::game::idiolect::apply(&mut tr, &pair, player);
+    crate::game::idiolect::apply(&mut tr, &pair, player, Some(recent));
     tr
 }
 
@@ -3052,7 +3080,7 @@ pub fn run_meeting<'a>(
         } else {
             attendees[record[target].speaker]
         };
-        let Some((t, text)) = fresh_line(floor_lines(line, other_sp), attendees[speaker], other_sp, &used, &HashSet::default(), false, rng) else { continue };
+        let Some((t, text)) = fresh_line(floor_lines(line, other_sp), attendees[speaker], other_sp, &used, &HashMap::default(), false, rng) else { continue };
         used.insert(t);
         if target == Q { answers += 1; }
         // A reply is about what it shares with its target: a stock "aye,
@@ -4218,18 +4246,18 @@ mod tests {
 
         // Fresh voice wins over fresh base
         let rival = Facts::for_roles(&a, &b, Relation::Rival);
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &empty, &HashSet::default(), false, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &empty, &HashMap::default(), false, &mut rng).unwrap();
         assert_eq!(t, "Cold line");
 
         // Spent voice hands the floor back to the base lines
         let mut used: HashSet<&'static str> = HashSet::default();
         used.insert("Cold line");
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &used, &HashSet::default(), false, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &rival, &a, &b, &used, &HashMap::default(), false, &mut rng).unwrap();
         assert_eq!(t, "Base line");
 
         // A voice for another register never speaks
         let friend = Facts::for_roles(&a, &b, Relation::Friend);
-        let (t, _) = fresh_voiced(&["Base line"], &voice, &friend, &a, &b, &empty, &HashSet::default(), false, &mut rng).unwrap();
+        let (t, _) = fresh_voiced(&["Base line"], &voice, &friend, &a, &b, &empty, &HashMap::default(), false, &mut rng).unwrap();
         assert_eq!(t, "Base line");
     }
 
@@ -4246,15 +4274,15 @@ mod tests {
         ];
         let mut used: HashSet<&'static str> = HashSet::default();
         used.insert("The calves won't feed themselves - and I'd not ask thee for help, Hob.");
-        let recent: HashSet<&'static str> = HashSet::default();
+        let recent: HashMap<&'static str, u64> = HashMap::default();
         let mut rng = Rng::new(7);
         // the stem-mate's spent: only the other line can come out
         let (t, _) = spare_line(pool, &a, &b, &used, &recent, false, &mut rng).unwrap();
         assert_eq!(t, "The well's gone sour again, I hear.");
         // and the village's own memory works the same: last week's
         // saying keeps its stem-mates off the table in the strict pass
-        let mut recent: HashSet<&'static str> = HashSet::default();
-        recent.insert("The calves won't feed themselves - and I'd not ask thee for help, Hob.");
+        let mut recent: HashMap<&'static str, u64> = HashMap::default();
+        recent.insert("The calves won't feed themselves - and I'd not ask thee for help, Hob.", 1);
         let (t, _) = spare_line(pool, &a, &b, &HashSet::default(), &recent, true, &mut rng).unwrap();
         assert_eq!(t, "The well's gone sour again, I hear.");
         // a short shared opening is no stem at all: "Aye" belongs to all
@@ -4323,18 +4351,18 @@ mod tests {
         let mut rng = Rng::new(0);
         let used: HashSet<&'static str> = HashSet::default();
         let (_, text) = fresh_line(&["How goes it at {other_trade}, {other}?"],
-            &smith, &fisher, &used, &HashSet::default(), false, &mut rng).unwrap();
+            &smith, &fisher, &used, &HashMap::default(), false, &mut rng).unwrap();
         assert_eq!(text, "How goes it at the weir, Wat?");
         let (_, text) = fresh_line(&["{trade} keeps my hands full."],
-            &smith, &fisher, &used, &HashSet::default(), false, &mut rng).unwrap();
+            &smith, &fisher, &used, &HashMap::default(), false, &mut rng).unwrap();
         assert_eq!(text, "the forge keeps my hands full.");
 
         // No craft named: the day's wage fills the slot, not a raw "{trade}"
         let (_, text) = fresh_line(&["Hard at it down at {other_trade}?"],
-            &hand, &fisher, &used, &HashSet::default(), false, &mut rng).unwrap();
+            &hand, &fisher, &used, &HashMap::default(), false, &mut rng).unwrap();
         assert_eq!(text, "Hard at it down at the weir?");
         let (_, text) = fresh_line(&["{trade} keeps my hands full."],
-            &hand, &fisher, &used, &HashSet::default(), false, &mut rng).unwrap();
+            &hand, &fisher, &used, &HashMap::default(), false, &mut rng).unwrap();
         assert_eq!(text, "the day's work keeps my hands full.");
     }
 
@@ -4935,8 +4963,8 @@ mod tests {
         let mut rng = Rng::new(11);
         let mut repeats = 0usize;
         for _ in 0..30 {
-            let recent: HashSet<&'static str> =
-                said.iter().flatten().copied().collect();
+            let recent: HashMap<&'static str, u64> =
+                said.iter().flatten().copied().map(|l| (l, 1)).collect();
             let a = Speaker::new(names[rng.below(names.len())]);
             let b = Speaker::new(names[rng.below(names.len())]);
             let rel = [Relation::Stranger, Relation::Acquaintance,
@@ -4944,7 +4972,7 @@ mod tests {
             let tr = converse(&a, &b, rel, None, &library, Some(&recent), &mut rng);
             for turn in &tr.turns {
                 let Some(l) = turn.line else { continue };
-                if recent.contains(l) && !crate::game::dialogue_trees::STOCK_LINES.contains(&l)
+                if recent.contains_key(l) && !crate::game::dialogue_trees::STOCK_LINES.contains(&l)
                     && !matches!(turn.act, Act::Greet | Act::Farewell) {
                     repeats += 1;
                 }
@@ -4974,7 +5002,7 @@ mod tests {
         const WORN_TREE: DialogueTree = DialogueTree {
             name: "worn", criteria: &[], root: &WORN, rejoin: None,
         };
-        let recent: HashSet<&'static str> = ["Grey sky again.", "Aye, all week."].into_iter().collect();
+        let recent: HashMap<&'static str, u64> = ["Grey sky again.", "Aye, all week."].into_iter().map(|l| (l, 1)).collect();
         let tr = converse(&Speaker::new("Hob"), &Speaker::new("Tilda"),
             Relation::Acquaintance, None, &[WORN_TREE], Some(&recent), &mut Rng::new(3));
         assert_eq!(tr.turns.len(), 2,

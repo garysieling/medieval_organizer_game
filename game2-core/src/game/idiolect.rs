@@ -382,7 +382,8 @@ fn phrase_slot(act: Act) -> bool {
 /// player's own words are left alone - their choices are already how
 /// they sound. Deterministic per turn, so a replayed talk keeps every
 /// line where it landed
-pub fn apply(tr: &mut Transcript, pair: &[Speaker; 2], player: usize) {
+pub fn apply(tr: &mut Transcript, pair: &[Speaker; 2], player: usize,
+             recent: Option<&crate::engine::det::HashMap<&'static str, u64>>) {
     let mut phrase_done = [false; 2];
     let mut habit_done = [false; 2];
     for (n, t) in tr.turns.iter_mut().enumerate() {
@@ -397,20 +398,34 @@ pub fn apply(tr: &mut Transcript, pair: &[Speaker; 2], player: usize) {
             // coda lands on the next slot that isn't already tagged
             && !(matches!(id.habit.how(), How::Coda) && crate::game::text::ends_in_tag(&t.text)) {
             let lines = id.habit.lines();
-            let v = lines[n % lines.len()];
-            let mut rng = conversation::Rng::new(n as u64 + 1);
-            let other = &pair[1 - t.speaker];
-            match id.habit.how() {
-                How::Whole => {
-                    t.text = conversation::fill(v, &pair[t.speaker], other, &mut rng);
-                }
-                How::Preface => {
-                    let pre = conversation::fill(v, &pair[t.speaker], other, &mut rng);
-                    t.text = format!("{}{}", pre, t.text);
-                }
-                How::Coda => {
-                    let coda = conversation::fill(v, &pair[t.speaker], other, &mut rng);
-                    t.text = format!("{}{}", t.text.trim_end_matches('.'), coda);
+            // a landmark that keeps its freshness (#1690): the whole
+            // line prefers a variant the pair hasn't just heard, and a
+            // spent pool leaves the turn its own words rather than
+            // rehearse the same proverb talk after talk
+            let pick: Option<&'static str> = if matches!(id.habit.how(), How::Whole) {
+                lines.iter().copied().find(|l|
+                    recent.map(|r| !r.contains_key(*l)).unwrap_or(true))
+            } else {
+                Some(lines[n % lines.len()])
+            };
+            if let Some(v) = pick {
+                let mut rng = conversation::Rng::new(n as u64 + 1);
+                let other = &pair[1 - t.speaker];
+                match id.habit.how() {
+                    How::Whole => {
+                        t.text = conversation::fill(v, &pair[t.speaker], other, &mut rng);
+                        // the variant itself stays spent on the pair's
+                        // memory - its template is the line they heard
+                        t.line = Some(v);
+                    }
+                    How::Preface => {
+                        let pre = conversation::fill(v, &pair[t.speaker], other, &mut rng);
+                        t.text = format!("{}{}", pre, t.text);
+                    }
+                    How::Coda => {
+                        let coda = conversation::fill(v, &pair[t.speaker], other, &mut rng);
+                        t.text = format!("{}{}", t.text.trim_end_matches('.'), coda);
+                    }
                 }
             }
             habit_done[t.speaker] = true;
@@ -477,7 +492,7 @@ mod tests {
             setting: crate::game::setting::STREET,
             evasions: vec![], worry_told: None, slips: vec![], jokes: vec![],
         };
-        apply(&mut tr, &[a, b], usize::MAX);
+        apply(&mut tr, &[a, b], usize::MAX, None);
         assert_eq!(tr.turns[0].text, "Morrow, Tilda - as the mill grinds.");
         assert!(tr.turns[2].text.ends_with("The ditch wants digging.")
             && tr.turns[2].text != "The ditch wants digging.",
@@ -511,7 +526,7 @@ mod tests {
             setting: crate::game::setting::STREET,
             evasions: vec![], worry_told: None, slips: vec![], jokes: vec![],
         };
-        apply(&mut tr, &[a, b], usize::MAX);
+        apply(&mut tr, &[a, b], usize::MAX, None);
         assert_eq!(tr.turns[0].text,
             "It took what it took, and I've not stopped counting it.");
         // the habit still fires once - on the next line it fits

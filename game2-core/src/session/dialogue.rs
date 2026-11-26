@@ -621,9 +621,16 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     if world.get_component::<Hunger>(who).map(|h| h.value < 30.0).unwrap_or(false) { s.status.push("hungry"); }
     if world.get_component::<villager::Drunk>(who).map(|d| tick < d.until).unwrap_or(false) { s.status.push("drunk"); }
     if world.get_component::<Age>(who).map(|a| a.stage == LifeStage::Elder).unwrap_or(false) { s.status.push("elder"); }
-    let grieving = world.get_component::<AttachmentHistory>(who).map(|h| h.episodes.iter()
-        .any(|e| matches!(e.kind, EpisodeKind::Loss) && villager::is_dead(world, e.with))).unwrap_or(false);
-    if grieving { s.status.push("grieving"); }
+    let mourned = world.get_component::<AttachmentHistory>(who).and_then(|h| h.episodes.iter()
+        .rev().find(|e| matches!(e.kind, EpisodeKind::Loss) && villager::is_dead(world, e.with))
+        .map(|e| e.with));
+    if let Some(dead) = mourned {
+        s.status.push("grieving");
+        // #1692: the condolence pool's `{*:dead}` pronouns bind to this
+        // one's body - his spoon stays his in every telling
+        s.mourned = world.get_component::<villager::Sex>(dead).map(|sex|
+            match sex { villager::Sex::Female => "female", villager::Sex::Male => "male" });
+    }
     // where they stand on the road out of helplessness - the same
     // issue reads resigned till their interest's connected (#1269)
     s.status.push(crate::game::desires::thaw_status(crate::game::desires::rung_of(world, who)));

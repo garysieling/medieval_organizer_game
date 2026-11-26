@@ -1025,13 +1025,13 @@ const GRIEF_ASK: Exchange = Exchange {
 const GRIEF_OPENS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:grief"],
-    calls: &["I keep setting his wooden spoon at table.", "She loved the smell of the damp earth after rain.", "Every corner of the cottage remembers his footsteps.", "Forty winters together, and now only the silence."], voice: &[],
+    calls: &["I keep setting {his:dead} wooden spoon at table.", "{he:dead} loved the smell of the damp earth after rain.", "Every corner of the cottage remembers {his:dead} footsteps.", "Forty winters together, and now only the silence."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.20, bias: &[(Kind, 1.5)],
             act: Act::Agree, concepts: &["concern:grief"],
             respond: None,
-            lines: &["Tell me of him - good memories are a shield against darkness.", "She was loved by all who knew her in the village.", "Their toil shaped this parish; their memory will outlive us.", "Aye, there is truth in what {2:subj} {2:say}.", "{2:subj} {2:have} spoken the plain heart of the matter."],
+            lines: &["Tell me of {him:dead} - good memories are a shield against darkness.", "{he:dead} was loved by all who knew {him:dead} in the village.", "{his:dead} toil shaped this parish; {his:dead} memory will outlive us.", "Aye, there is truth in what {2:subj} {2:say}.", "{2:subj} {2:have} spoken the plain heart of the matter."],
             voice: &[],
             then: Some(GRIEF_CLOSE), end: None,
         },
@@ -1049,7 +1049,7 @@ const GRIEF_OPENS: Exchange = Exchange {
 const GRIEF_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:grief"],
-    calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "A peaceful day to {2:obj}, {other}."],
+    calls: &["{other}. Forgive me - the house is very still since {he:dead} passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "A peaceful day to {2:obj}, {other}."],
     voice: &[
         // grief's the one wound the rung reads differently (#1269):
         // cold it's endured, warm it's carried

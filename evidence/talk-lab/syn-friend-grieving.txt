@@ -6,7 +6,7 @@
     1) [Agree] My heart breaks with thine, Probe. Always.
     2) [Question] What can I take off thy hands, Probe? Name it.
   Voice: My heart breaks with thine, Probe. Always.
-  Probe: I keep setting his wooden spoon at table.
+  Probe: I keep setting their wooden spoon at table.
     1) [Agree] Their toil shaped this parish; their memory will outlive us.
     2) [Question] Put a question to them
   Voice: Their toil shaped this parish; their memory will outlive us.

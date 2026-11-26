@@ -2306,7 +2306,7 @@ pub fn converse_with_at(
         if audition && !probed && tr.turns.len() == 2 {
             probed = true;
             if let Some(p) = probe_for(&pair[caller]) {
-                if let Some((ct, call)) = fresh_line(p.calls, &pair[caller], &pair[responder], &used, recent, matches!(p.act, Act::Greet | Act::Farewell), rng) {
+                if let Some((ct, call)) = fresh_line(p.calls, &pair[caller], &pair[responder], &used, recent, false, rng) {
                     used.insert(ct);
                     tr.trees_walked.push(PROBE_TREE);
                     say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: p.act, respond: None, text: call,
@@ -2316,7 +2316,7 @@ pub fn converse_with_at(
                     let mut choices: Vec<Choice> = vec![];
                     let mut forks: Vec<(&'static str, bool)> = vec![];
                     for ((act, lines), vibe) in [(p.pass, true), (p.fail, false)] {
-                        let (t, preview) = fresh_line(lines, &pair[responder], &pair[caller], &used, recent, matches!(act, Act::Greet | Act::Farewell), rng)
+                        let (t, preview) = fresh_line(lines, &pair[responder], &pair[caller], &used, recent, false, rng)
                             .unwrap_or((lines[0], fill(lines[0], &pair[responder], &pair[caller], rng)));
                         choices.push(Choice { act, respond: respond_of(act), preview });
                         forks.push((t, vibe));
@@ -2396,7 +2396,7 @@ pub fn converse_with_at(
         // The floor-holder opens the beat, in the register their own
         // facts put them in (a lord's condescension, a rival's chill)
         let call_facts = Facts::for_roles_setting(&pair[caller], &pair[responder], rel, kind, &setting);
-        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, &pair[caller], &pair[responder], &used, recent, matches!(ex.act, Act::Greet | Act::Farewell), rng) else {
+        let Some((call_t, call)) = fresh_voiced(ex.calls, ex.voice, &call_facts, &pair[caller], &pair[responder], &used, recent, false, rng) else {
             // Nothing fresh to call with: fall through to the next rejoinable tree,
             // or dry up entirely at the generic tail
             match advance_to_rejoin(&mut trees) {
@@ -2459,7 +2459,7 @@ pub fn converse_with_at(
             let st = crate::game::text::stance_of(&pair[responder], &pair[caller]);
             for &i in &sampled {
                 let r = pool[i];
-                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(r.act, Act::Greet | Act::Farewell), rng)
+                let (t, preview) = fresh_voiced(r.lines, r.voice, &facts, &pair[responder], &pair[caller], &used, recent, false, rng)
                     .map(|(t, s)| (t, s))
                     .unwrap_or((r.lines[0], fill(r.lines[0], &pair[responder], &pair[caller], rng)));
                 let ops = crate::game::text::shape(r.act, &st, None);
@@ -2624,7 +2624,7 @@ pub fn converse_with_at(
             }
         } else {
             let i = rng.weighted(&weights);
-            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, &pair[responder], &pair[caller], &used, recent, matches!(pool[i].act, Act::Greet | Act::Farewell), rng) {
+            match fresh_voiced(pool[i].lines, pool[i].voice, &facts, &pair[responder], &pair[caller], &used, recent, false, rng) {
                 Some((t, _)) => (i, t, None),
                 None => { tr.ending = Some(Ending::Exhausted); break; }
             }

@@ -2895,3 +2895,43 @@ fn test_a_villagers_temperament_signs_their_lines() {
         }).count();
     assert_eq!(marked, 0, "a trait-less speaker marks nothing: {marked}");
 }
+
+#[test]
+fn test_two_talks_one_day_dont_rehearse_the_same_lines() {
+    // #1677: a line said is said for the day. Greetings and partings
+    // treated themselves as ritual speech - loose of the village's
+    // memory - and the same hello rang round talk after talk
+    use crate::game::conversation::{fill, Rng};
+    use crate::game::dialogue_trees::STOCK_LINES;
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    bond_to(&mut g, v, 0.2);
+    let mut ids = vec![];
+    for _ in 0..2 {
+        talk_beside(&mut g, i);
+        if let Some(t) = g.seats[0].talk.as_ref() { ids.push(t.id); }
+        for _ in 0..8 {
+            if g.seats[0].talk.is_none() { break; }
+            let labels = g.seats[0].talk.as_ref().unwrap().choice_labels(&g.world);
+            let pick = labels.iter().position(|l| !l.starts_with("Ask ") && !l.contains("leave")).unwrap_or(0);
+            g.talk_pick_at(0, Some(pick));
+        }
+        g.close_player_talk(0, None);
+    }
+    assert_eq!(ids.len(), 2, "both talks should have opened");
+    // stock phrases are common property - they may ring again
+    let vs = speaker_of(&g.world, v, &g.name_of(v), g.tick);
+    let ps = g.player_speaker(g.player);
+    let stock: Vec<String> = STOCK_LINES.iter()
+        .map(|t| fill(t, &vs, &ps, &mut Rng::new(0))).collect();
+    let said: Vec<String> = ids.iter().flat_map(|&id|
+        g.talk_log.iter().find(|r| r.id == id).map(|r| r.lines.iter()
+            .filter(|l| l.who == Some(v) && !l.gist && l.text != "Still here, then.")
+            .map(|l| l.text.clone()).collect::<Vec<_>>()).unwrap_or_default())
+        .filter(|t| !stock.contains(t))
+        .collect();
+    let mut seen = crate::engine::det::HashSet::default();
+    let rehearsed: Vec<&String> = said.iter().filter(|t| !seen.insert((*t).clone())).collect();
+    assert!(rehearsed.is_empty(), "lines rehearsed across the day's talks: {rehearsed:?}");
+}

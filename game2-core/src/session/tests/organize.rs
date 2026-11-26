@@ -2241,3 +2241,26 @@ fn test_the_ask_ladders_first_rung_opens_inside_a_few_talks() {
     assert_eq!(stage_of(&g.world, pe, v2), RelStage::Follower);
     assert_eq!(stage_gap(&g.world, pe, v2).as_deref(), Some("no part taken on yet"));
 }
+
+/// The ladder shows (#1621): the box's few slots go to the earned ask
+/// first - the rung the bond already climbed - ahead of the standing
+/// asks and the purse's price, or unlocking it buys nothing visible
+#[test]
+fn test_the_earned_asks_lead_the_asks_list() {
+    use crate::game::organizing::{ask_offers, PropKind, AskKey};
+    use crate::game::desires::{self, Reveal, Want};
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[1]);
+    record_interaction(&mut g.world, pe, Interaction {
+        other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
+    let __pe = g.player; for __r in vec![Reveal::Want(Want::GoodFood)] { desires::note(&mut g.world, __pe, v, __r); }
+    let kinds: Vec<(PropKind, AskKey)> = ask_offers(&g.world, g.org, v, 0, g.tick)
+        .iter().map(|o| (o.kind, o.key)).collect();
+    // the earned acquaintance ask is first on the table - the standing
+    // read and the probing question ride behind it
+    assert_eq!(kinds[0], (PropKind::Introduce, AskKey::Earned), "{:?}", kinds);
+    // and every earned offer sits ahead of every nerve press and price
+    let first_priced = kinds.iter().position(|(_, k)| *k != AskKey::Earned).unwrap_or(kinds.len());
+    assert!(kinds[..first_priced].iter().all(|(_, k)| *k == AskKey::Earned), "{:?}", kinds);
+}

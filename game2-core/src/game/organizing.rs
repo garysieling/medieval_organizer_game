@@ -1432,6 +1432,15 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u
     // the argument's no ask at all now (#1348): the words carry it -
     // an argumentative line in the ordinary picks opens the same
     // machinery the offer once did (persuasion::ARGUMENTATIVE_LINES)
+    for p in ask_candidates(world, org, person) {
+        if proven && ask_tier(p) <= reached {
+            out.push(AskOffer { kind: p, key: AskKey::Earned, price: 0.0 });
+            continue;
+        }
+        if heard { out.push(AskOffer { kind: p, key: AskKey::Nerve, price: 0.0 }); }
+        let price = ask_price(p, stage);
+        if purse >= price { out.push(AskOffer { kind: p, key: AskKey::Coin, price }); }
+    }
     // the scouting read (#1249): an acquaintance will tell you who the
     // room follows - the answer's the talk's yield, so it's earned or
     // not offered; you don't pay for a picture of the room
@@ -1444,15 +1453,6 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u
         && leader.map(|l| crate::game::desires::probe_open(world, l, person, tick)).unwrap_or(false) {
         out.push(AskOffer { kind: PropKind::Probe, key: AskKey::Earned, price: 0.0 });
     }
-    for p in ask_candidates(world, org, person) {
-        if proven && ask_tier(p) <= reached {
-            out.push(AskOffer { kind: p, key: AskKey::Earned, price: 0.0 });
-            continue;
-        }
-        if heard { out.push(AskOffer { kind: p, key: AskKey::Nerve, price: 0.0 }); }
-        let price = ask_price(p, stage);
-        if purse >= price { out.push(AskOffer { kind: p, key: AskKey::Coin, price }); }
-    }
     // once they've signed on, the counter can be named before it lands
     // (#1246) - offered while some counter's still unreadied. It comes
     // last so a saved talk's pick numbers still reach the asks they did
@@ -1463,6 +1463,10 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u
     // a refused ask cools off for the season (#1347) - it re-qualifies
     // when its days are out, not before
     out.retain(|o| !declined_cooling(world, org, person, o, tick));
+    // the box's slots are few and the replies crowd them (#1621): the
+    // earned asks lead - the rung the bond already climbed - ahead of
+    // the nerve press and the purse's price, or the ladder's invisible
+    out.sort_by_key(|o| match o.key { AskKey::Earned => 0, AskKey::Nerve => 1, AskKey::Coin => 2 });
     out
 }
 

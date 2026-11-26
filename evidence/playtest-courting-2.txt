@@ -1,0 +1,58 @@
+=== Sandbox: seed 42 ===
+commands: who | sel N | talk | act N | pick <text> | card | ctx | ctx N | 1-9 (answer the box) |
+          leave | frame [N] | day [N] | log | quit
+  | Welcome to the village.
+  | The village keeps the brewery - and the tavern on the green, where it all gets drunk.
+sandbox> sandbox>   | t0: You walk over to Bram.
+sandbox>   Bram: Morrow, wanderer - a fine day to be out, isn't it?
+  —: The village luthier is Bram. They keep count of who's risen, and mean to pass them. They'd give the coat off their back and call it lending. A coin leaves their hand the way teeth leave a jaw. Ask them the hour and you'll get the meaning of the day. The church porch is where their counsel gathers. The market stalls know them by name.
+  Bram: No one to learn from. I'll be a journeyman forever, and more besides, as I see it.
+    1) Out and about early today.
+    2) Oh… Morrow. I'd best keep moving.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
+    l) take your leave
+sandbox>   (no option holds 'fair')
+    1) Out and about early today.
+    2) Oh… Morrow. I'd best keep moving.
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
+    l) take your leave
+sandbox>   You: Who do folk turn to around here, when the roof leaks?
+  Bram: Folk keep their own counsel here - nobody the whole room looks to.
+  Bram: Me? Nobody much minds me.
+    1) Out and about early today.
+    2) Oh… Morrow. I'd best keep moving.
+    3) Ask what they actually want
+    l) take your leave
+sandbox>   You: What do you actually want, when all's said and done?
+  Bram: I ... I'd like better tools, I'd warrant. I'd never thought to ask myself that.
+    1) Out and about early today.
+    2) Oh… Morrow. I'd best keep moving.
+    3) Ask who you should talk to next - for 6g
+    l) take your leave
+sandbox> sandbox> sandbox> sandbox>   | t0: You walk over to Eliza.
+sandbox>   Eliza: Morrow, wanderer - a fine day to be out, isn't it?
+  —: Eliza is the village farmer. A neighbor's empty shelf empties theirs first. A coin leaves their hand the way teeth leave a jaw. They're forever turning the big questions over. They keep close to the church folk. The market stalls know them by name.
+  Eliza: A roof of my own. That's all I ask.
+    1) Hm… Morrow. I'd best keep moving.
+    2) Well enough - and yours?
+    3) Ask who folk turn to around here
+    4) Ask what they actually want
+    l) take your leave
+sandbox>   You: Who do folk turn to around here, when the roof leaks?
+  Eliza: Nobody's word carries far here - every house minds its own.
+  Eliza: Me? My word doesn't travel far.
+    1) Hm… Morrow. I'd best keep moving.
+    2) Well enough - and yours?
+    3) Ask what they actually want
+    l) take your leave
+sandbox>   You: Hm… Morrow. I'd best keep moving.
+  Eliza: These damp mornings set my knees aching something awful.
+    1) Children cough. They grow out of it.
+    2) I'm sorry for it - a warm stone at the joint helps, they say.
+    3) Ask what they actually want
+    l) take your leave
+sandbox> sandbox> sandbox> REPRO: talk_lab sandbox --seed 42 -- then: sel 2; talk; frame 400; pick fair; pick turn to; pick actually; leave; frame 10; sel 1; talk; frame 400; pick turn to; 1; leave; frame 10; quit
+
+verdict (what was wrong/odd, or blank to skip)> 

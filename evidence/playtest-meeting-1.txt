@@ -1,0 +1,11 @@
+=== Sandbox: seed 42, StrongOrg ===
+commands: who | sel N | talk | act N | pick <text> | card | meet | ctx | ctx N | 1-9 (answer the box) |
+          leave | frame [N] | day [N] | log | quit
+  | Welcome to the village.
+  | The village keeps the brewery - and the tavern on the green, where it all gets drunk.
+sandbox>   Word goes out - Aldric, Eliza, Bram, Corvin, Dagny, Hob, Marga, Gisela, Nell gather at the square - 1 of those asked stayed home.
+  —: folk are on their way
+  | t0: Word goes out - Aldric, Eliza, Bram, Corvin, Dagny, Hob, Marga, Gisela, Nell gather at the square - 1 of those asked stayed home.
+sandbox> sandbox> sandbox> sandbox> sandbox> sandbox> sandbox> sandbox> REPRO: talk_lab sandbox --seed 42 --stage StrongOrg -- then: meet; frame 600; 1; 1; 1; 1; 1; 1; quit
+
+verdict (what was wrong/odd, or blank to skip)> 

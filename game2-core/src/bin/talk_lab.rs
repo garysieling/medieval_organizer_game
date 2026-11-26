@@ -55,6 +55,8 @@ struct Args {
     traits: Vec<Trait>,
     statuses: Vec<String>,
     stage: Option<Stage>,
+    /// --plan: a ready MeetingPlan sits on the org at start
+    plan: bool,
     days: u64,
     n: usize,
     /// The arc runner's talk count (E0-4, #1405): 20, the Appendix A
@@ -75,7 +77,7 @@ fn parse_args() -> Args {
     let mut a = Args {
         mode: "help".into(), seed: MAP_SEED, villager: None, name: None,
         ideology: None, rel: None, traits: vec![], statuses: vec![],
-        stage: None, days: 0, n: 10, talks: 20, policy: None,
+        stage: None, days: 0, n: 10, talks: 20, policy: None, plan: false,
         picks: VecDeque::new(), auto: false,
         feedback: true, out: None, folk: 4, warm: false, seeded_cast: false,
     };
@@ -101,6 +103,9 @@ fn parse_args() -> Args {
             }
             "--rel" => a.rel = Some(rel_of(&take(&mut i))),
             "--stage" => a.stage = Some(stage_of(&take(&mut i))),
+            // the asks' yield, staged (#1621): the plan a courting run
+            // builds to, so the meeting arc's reachable from the shell
+            "--plan" => a.plan = true,
             "--days" => a.days = take(&mut i).parse().unwrap_or(0),
             "-n" => a.n = take(&mut i).parse().unwrap_or(10),
             "--talks" => a.talks = take(&mut i).parse().unwrap_or(20),
@@ -150,6 +155,22 @@ fn stage_of(s: &str) -> Stage {
         "unrest" => Stage::Unrest, "flush" => Stage::Flush,
         "bereft" => Stage::Bereft, _ => Stage::Ordinary,
     }
+}
+
+/// The asks' yield, staged (#1621): a ready-to-call MeetingPlan on the
+/// org, the way a courting run's asks would have left it - the meeting
+/// arc's reach, without an hour of setup talk
+fn stage_plan(g: &mut Game) {
+    let oe = g.org;
+    let coming: Vec<game2_core::engine::ecs::Entity> =
+        g.villagers.iter().take(8).copied().collect();
+    let plan = game2_core::game::organizing::plan_for(&mut g.world, oe);
+    plan.coming = coming;
+    plan.venue = Some(game2_core::game::organizing::Venue::Square);
+    let pe = g.seats[0].player;
+    g.world.add_component(pe, game2_core::game::org_skills::Organizing::default());
+    g.world.get_component_mut::<game2_core::game::org_skills::Organizing>(pe)
+        .unwrap().turnout = 2.0;
 }
 
 // ------------------------------------------------------ output + picks
@@ -464,10 +485,11 @@ fn synthetic_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
 fn run_sandbox(a: &Args, out: &mut Out, stdin: &io::Stdin) {
     let mut g = Game::new_seeded(a.seed);
     if let Some(s) = a.stage { stage(&mut g, s); }
+    if a.plan { stage_plan(&mut g); }
     if a.days > 0 { run_days(&mut g, a.days); }
     out.emit(&format!("=== Sandbox: seed {}{} ===", a.seed,
         a.stage.map(|s| format!(", {s:?}")).unwrap_or_default()));
-    out.emit("commands: who | sel N | talk | act N | ctx | ctx N | 1-9 (answer the box) |");
+    out.emit("commands: who | sel N | talk | act N | pick <text> | card | meet | ctx | ctx N | 1-9 (answer the box) |");
     out.emit("          leave | frame [N] | day [N] | log | quit");
     let mut seen = 0usize;
     let mut log_head: Option<String> = None;
@@ -534,6 +556,33 @@ fn run_sandbox(a: &Args, out: &mut Out, stdin: &io::Stdin) {
                         out.emit(&format!("  {i}: {label}{blocked}"));
                     }
                 }
+            }
+            "pick" => {
+                // the option whose text holds the rest of the line -
+                // a scripted playtest names the pick a player'd mean,
+                // not the slot it happened to land in
+                let want = line[4..].trim().to_ascii_lowercase();
+                if let Some(c) = g.ui_model().convo.clone() {
+                    match c.options.iter().position(|o| o.to_ascii_lowercase().contains(&want)) {
+                        Some(p) => {
+                            taken.push(p);
+                            if c.decides { g.command(Command::Decide(p)); }
+                            else { g.command(Command::TalkPick(Some(p))); }
+                        }
+                        None => out.emit(&format!("  (no option holds '{want}')")),
+                    }
+                }
+            }
+            "card" => {
+                // the selection's inspector card as the client reads it
+                match g.ui_model().inspector {
+                    Some(ins) => for l in &ins.lines { out.emit(&format!("  | {}", l.text)); },
+                    None => out.emit("  (nothing picked)"),
+                }
+            }
+            "meet" => {
+                let msg = g.call_meeting();
+                out.emit(&format!("  {msg}"));
             }
             "leave" | "l" => g.command(Command::TalkPick(None)),
             "frame" | "f" => {

@@ -1,0 +1,147 @@
+# Talk lab batch: 8 conversations (seed 42)
+
+## Aldric and Dagny - Rival at field (Public) (seed 1302, picks [1, 1, 0])
+them: Aldric speaks for the manor hereabouts. They never miss a service.
+you : Dagny trades on the road between villages. They keep count of who's risen, and mean to pass them. Their belt's gone a notch inward this winter.
+
+Aldric [Greet in old_scores]: God witness. What business brings thy ugly mug across my path - as the mill grinds.
+Dagny [PushBack in old_scores]: Well… The years have only made thee sourer.
+Aldric [Remark in old_scores]: All things ripen that are let be, Dagny.
+Dagny [Remark in old_scores]: Not worth the breath or the bruise.
+Aldric [Remark in old_scores]: Take thy shadow off my land.
+Dagny [Farewell in old_scores]: Aye. Done.
+-- Farewell
+
+## Eliza and Marga - Acquaintance at alehouse (Public) (seed 1303, picks [0, 1, 1, 2, 0, 2, 0, 2, 1, 0, 0])
+them: Eliza serves the village church. Every saint's day finds them first at the door. Their chin's set a half-inch higher than the rest of the room. Last night's cup is still on them.
+you : Marga's coin moves faster than their boots. They burn fast and cool slow. They count the crumbs twice before the second's swept.
+
+Eliza [Greet in the_cleric_blesses]: God's grace light upon your steps, Marga - God send it.
+Marga [Greet in the_cleric_blesses]: A blessed morning to you, father.
+Eliza [Question in the_audition]: God witness. Some say the old prayers are only words. And you?
+Marga [Agree in the_audition]: I keep the faith as my mother taught me, and gladly!
+Eliza [Remark in the_cleric_blesses]: Remember that honest work in the field is a holy prayer.
+Eliza [Remark in the_cleric_blesses]: By the rood. Do you find peace in your daily labor, child?
+Marga [Agree in the_cleric_blesses]: I try to walk uprightly before God and my neighbors.
+Eliza [Remark in morning_after_drunk]: Saints keep us. Did I truly challenge the smith to a wrestling match at midnight?
+Marga [Question in the_asking]: Tell me what folk are saying.
+Eliza [Answer in the_asking]: Aye. Aye - as you say, as you say.
+Eliza [Remark in morning_after_drunk]: They say we sang every verse of the Harvest ballad three times over, or so I make it.
+Eliza [Remark in morning_after_drunk]: We do what we must while daylight holds.
+Marga [Agree in morning_after_drunk]: You have spoken the plain heart of the matter.
+Eliza [Remark in morning_after_drunk]: The plough handles won't hold themselves, headache or no.
+Marga [Farewell in morning_after_drunk]: No more brown ale for you until Sunday! Fare well.
+-- Farewell, vibe: Safe
+
+## Bram and Hob - Rival at field (Public) (seed 1304, picks [1, 2, 0, 2, 0, 1, 0])
+them: Bram speaks for the manor hereabouts. They've a hello for every door and a question for every hello. The bell knows their step better than their own door does. There's a wheeze in their step this season.
+you : Hob trades on the road between villages. They bow to no one. They keep count of who's risen, and mean to pass them. A cough's had them these two weeks.
+
+Bram [Greet in the_sickness]: The saints keep thee, Hob - saints keep us.
+Hob [Agree in the_sickness]: Poor soul - get thee back to the manor's warm hearth, m'lord, or so I make it.
+Bram [Answer in the_sickness]: I'd rest, but who'd do it? Not thee, I reckon.
+Hob [Question in the_asking]: How do folk fare here, to thy eyes?
+Bram [Answer in the_asking]: Folk do say things, if thou wilt hear them.
+Bram [Answer in the_sickness]: The calves won't feed themselves - and I'd not ask thee for help, Hob, or is that not the way of it?
+Hob [Question in the_asking]: How fares thy day's work?
+Bram [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Bram [Answer in the_sickness]: The calves won't feed themselves, fever or no.
+Hob [Remark in the_sickness]: I'll carry thy pail - once - and I'd not have it spoke of, as I've cause to say, or so I make it.
+Bram [Remark in the_sickness]: My thanks. A warm bowl does more than herbs.
+Hob [Farewell in the_sickness]: Think nothing of it. We look after our own, and that's the long of it.
+-- Farewell
+
+## Corvin and Marga - Rival at alehouse (Public) (seed 1305, picks [0, 1, 1, 0, 1, 1, 0])
+them: Corvin keeps the parish's book and bell. They burn fast and cool slow. They never miss a service. They'd sooner watch the clouds than the plough. Their belt's gone a notch inward this winter.
+you : Marga's coin moves faster than their boots. They burn fast and cool slow. They count the crumbs twice before the second's swept.
+
+Corvin [Greet in the_cleric_blesses]: God's grace light upon thy steps, Marga - mind the stile.
+Marga [Greet in the_cleric_blesses]: And on thee, father.
+Corvin [Remark in the_cleric_blesses]: God witness. The haar's a fisher's blanket - keeps the cold off, mind.
+Marga [Question in the_asking]: How fares thy day's work?
+Corvin [Answer in the_asking]: A holding keeps a soul busy, one way and another.
+Corvin [Remark in the_cleric_blesses]: The church altar is always open to the weary soul.
+Marga [Agree in the_cleric_blesses]: The season has been lean, father, but faith sustains us.
+Corvin [Remark in old_scores]: Thy lot still owes mine three groats, whatever lies thou tellest.
+Marga [PushBack in old_scores]: Thou hast a treacherous tongue in thy skull.
+Corvin [Remark in old_scores]: I have no words to waste on a crooked knave.
+Marga [Remark in old_scores]: This quarrel's older than thy fence, and twice as rotten.
+Corvin [Remark in old_scores]: Take thy shadow off my land.
+Marga [Farewell in old_scores]: Gladly. The sight of thee sours my stomach.
+-- Farewell
+
+## Bram and Dagny - Friend at alehouse (Backstage) (seed 1306, picks [1, 2, 0, 0, 1, 0, 0, 0])
+them: Bram speaks for the manor hereabouts. They've a hello for every door and a question for every hello. The bell knows their step better than their own door does. There's a wheeze in their step this season.
+you : Dagny trades on the road between villages. They keep count of who's risen, and mean to pass them. Their belt's gone a notch inward this winter.
+
+Bram [Greet in the_sickness]: The saints keep thee, friend Dagny - saints keep us.
+Dagny [Question in the_sickness]: How long has the fever held thee, Bram?
+Bram [Answer in the_sickness]: Aye, since the heavy frost. The fever burns at dusk and chills at dawn.
+Dagny [Question in the_asking]: How do folk fare here, to thy eyes?
+Bram [Answer in the_asking]: Now, let me think what's going about...
+Bram [Answer in the_sickness]: Saints keep us. My lungs feel like wet wool on a rainy morning.
+Dagny [Agree in the_sickness]: Thou hast spoken the plain heart of the matter.
+Bram [Question in friendship_bonds]: Hast thou heard any whispers about the new taxes?
+Dagny [Question in the_asking]: How fares thy day's work?
+Bram [Answer in the_asking]: A holding keeps a soul busy, one way and another.
+Bram [Question in friendship_bonds]: Saints keep us. Can I count on thy strong arm when we raise the barn?
+Dagny [Answer in friendship_bonds]: My oxen are thine whenever thou needest them, friend.
+Bram [Remark in friendship_bonds]: A good friend is worth more than a pouch of silver.
+Dagny [Farewell in friendship_bonds]: May the road be kind under thy boots.
+-- Farewell
+
+## Hob and Marga - Friend at field (Backstage) (seed 1307, picks [0, 2, 0, 2, 0, 0, 0, 0])
+them: Hob trades on the road between villages. They bow to no one. They keep count of who's risen, and mean to pass them. A cough's had them these two weeks.
+you : Marga's coin moves faster than their boots. They burn fast and cool slow. They count the crumbs twice before the second's swept.
+
+Hob [Greet in the_sickness]: *cough* Ah, Marga - forgive the croak. Stand off, mind; I'd not share this with a friend - and what of it.
+Marga [Agree in the_sickness]: Poor soul. Tell me what thy house needs and it's done.
+Hob [Answer in the_sickness]: Caution's a warm cloak, and a heavy one.
+Marga [Question in the_asking]: How do folk fare here, to thy eyes?
+Hob [Answer in the_asking]: Folk do say things, if thou wilt hear them.
+Hob [Answer in the_sickness]: The calves won't feed themselves, friend - fever or no, for my part, or do I hear wrong?
+Marga [Question in the_asking]: How fares thy day's work?
+Hob [Answer in the_asking]: I take what work comes, and thank the saints for it.
+Hob [Answer in the_sickness]: The calves won't feed themselves, fever or no, or so I make it, or do I hear wrong?
+Marga [Agree in the_sickness]: Aye, and I'd carry half thy load if thou wouldst let me.
+Hob [Question in friendship_bonds]: Can I count on thy team when we haul the heavy timber?
+Marga [Answer in friendship_bonds]: Hah! Aye, we were waist-deep in mud until midnight saving the sacks!
+Hob [Remark in friendship_bonds]: Thy word has never failed me, Marga.
+Marga [Farewell in friendship_bonds]: We will share a cup of cider when the work is done.
+-- Farewell
+
+## Marga and Gisela - Rival at alehouse (Public) (seed 1308, picks [1, 0, 2, 2, 1, 0])
+them: Marga's coin moves faster than their boots. They burn fast and cool slow. They count the crumbs twice before the second's swept.
+you : Gisela's rents come due on the quarter days. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
+
+Marga [Greet in visiting_the_sick]: A peaceful day to thee, Gisela - by the rood.
+Gisela [PushBack in visiting_the_sick]: That is not the way the elders told it.
+Marga [Question in visiting_the_sick]: Dost thou have grain left in the bin?
+Gisela [Answer in visiting_the_sick]: A little bread or salt, if thou canst spare it, as I've cause to say.
+Marga [Remark in visiting_the_sick]: Marga says what Marga says, m'lord.
+Marga [Remark in visiting_the_sick]: It is done - look for it by sundown.
+Gisela [Worry in visiting_the_sick]: Will the physic come dear this year? My chest's not right.
+Marga [Remark in visiting_the_sick]: The parish keeps its own, Gisela - sleep easy!
+Gisela [Farewell in visiting_the_sick]: Rest well, Marga.
+-- Farewell
+
+## Bram and Gisela - Acquaintance at kitchen (Public) (seed 1309, picks [1, 1, 0, 0, 0, 0, 0])
+them: Bram speaks for the manor hereabouts. They've a hello for every door and a question for every hello. The bell knows their step better than their own door does. There's a wheeze in their step this season.
+you : Gisela's rents come due on the quarter days. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
+
+Bram [Greet in the_sickness]: The saints keep you, m'lord - saints keep us.
+Gisela [Agree in the_sickness]: You should be under woolen blankets, m'lord - your folk will fret.
+Bram [Question in the_audition]: Have heard what they say of the reeve's new hound?
+Gisela [Remark in the_audition]: Wells talk empties a mind faster than a sieve.
+Bram [Remark in village_smalltalk]: Saints keep us. The weather keeps my stewards busy, I'll warrant, or is that not the way of it?
+Gisela [Question in village_smalltalk]: Weather aside, Bram - how does the season treat you?
+Bram [Remark in village_smalltalk]: My steward spoke well of the manor. Keep at it.
+Gisela [Answer in village_smalltalk]: Honest work for honest pay at the manor - can't complain, and wouldn't.
+Bram [Remark in village_smalltalk]: The peddler's cart lost a wheel at the bridge.
+Gisela [Remark in village_smalltalk]: The lord's a fair master, as lords go - I'll say that anywhere.
+Bram [Remark in village_smalltalk]: A stranger with two laden mules passed by the weir at noon, and that's the long of it.
+Gisela [Agree in village_smalltalk]: Tavern tales grow taller with each ale drawn, as I see it!
+Bram [Remark in village_smalltalk]: We have spoken our piece for today, and that's the long of it.
+Gisela [Farewell in village_smalltalk]: Enough chatter. Good day.
+-- Farewell, vibe: Mismatch
+

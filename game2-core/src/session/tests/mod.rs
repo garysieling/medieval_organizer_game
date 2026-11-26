@@ -270,6 +270,9 @@ mod talk_checks;
 /// (#1337): the cadence's own date sits the floor - the slate opens
 /// the way the day's tick opens it. A slate still open from the last
 /// call clears first, the way the next due day's own lapse would.
+/// When the members come calling instead (#1615), the gathering is
+/// driven through to its resolve - the floor the call opens is the
+/// same slate the bare date used to carry.
 pub fn sit_floor(g: &mut crate::session::Game, seat: usize) {
     let c = crate::game::campaign::campaign_of(&g.world, g.seats[seat].org).unwrap();
     g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
@@ -277,4 +280,16 @@ pub fn sit_floor(g: &mut crate::session::Game, seat: usize) {
     g.seats[seat].pending_agenda = None;
     let tick = g.tick;
     g.campaign_meeting_tick(tick);
+    // when the members come calling (#1615) the call's a real
+    // gathering: let it convene, hear its talk and resolve - its
+    // resolve joins the work asks to the slate the date left. The
+    // steer's answered only while the floor isn't showing - a slate
+    // on the box eats the pick otherwise
+    for _ in 0..120 * crate::session::FPS {
+        if g.meeting.is_none() { break; }
+        if g.seats[seat].steer_offer.is_some()
+            && g.seats[seat].pending_agenda.is_none()
+            && g.seats[seat].pending_founding.is_none() { g.decide_at(seat, 1); }
+        g.update();
+    }
 }

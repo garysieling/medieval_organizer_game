@@ -1418,6 +1418,7 @@ impl Game {
             postings_declined: None,
             leverage_declined: None,
             deference_paid: None,
+            work_call_stamp: None,
             witnesses: 0,
             counter_intel: 0,
             counter_played: None,

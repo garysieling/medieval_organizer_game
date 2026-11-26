@@ -124,7 +124,7 @@ struct SaveFile {
 // entry would replay as a no-op and the world would diverge from its digest.
 // Bumped past 3: the floor's slate carries more motions now (#1337), so an
 // old save's Decide(n) could land on a different row on replay
-const SAVE_VERSION: u32 = 7;
+const SAVE_VERSION: u32 = 8;
 
 impl ServerHandle {
     /// Stop the world loop and the listeners; connections close as their

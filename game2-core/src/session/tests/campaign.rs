@@ -61,6 +61,9 @@ fn test_the_cause_sits_the_floor_on_its_own_dates() {
         .issues.push("the taxes".into());
     g.maybe_found_campaign(0).unwrap();
     let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    // no party's ground to take: the work asks bring their own call
+    // (#1615) and this test reads the cadence dates alone
+    g.mush_patches.clear();
     // the founding cadence is three days: on its day the slate opens -
     // the room waits on the seat's word, it doesn't just run
     for _ in 0..3 { g.tick += 1; }
@@ -1203,4 +1206,65 @@ fn test_a_motion_the_room_walks_out_on_falls() {
     g.decide_at(0, pick);
     assert!(g.formation.is_none(), "the column formed off an emptied floor");
     assert!(g.log.iter().any(|l| l.contains("storms out")), "{:?}", g.log.last());
+}
+
+/// The work asks never sit on a bare box (#1615): a cause come due
+/// with a party's ground to take doesn't press the slate on the
+/// organizer - the members come calling with it instead
+#[test]
+fn test_the_work_ask_comes_by_the_call_not_the_box() {
+    let mut g = Game::new();
+    use crate::game::campaign::Motion;
+    let _c = tax_cause(&mut g, 4);
+    // a good patch flushed and waiting on the pickers
+    g.mush_patches[0].kind = crate::game::mycology::MushKind::FieldMushroom;
+    for p in g.mush_patches.iter_mut() { p.next_ready = 0; }
+    let tick = g.tick;
+    g.campaign_meeting_tick(tick);
+    let work_on_box = g.seats[0].pending_agenda.as_ref()
+        .map(|(ms, _)| ms.iter().any(|m| matches!(m, Motion::WorkParty(_))))
+        .unwrap_or(false);
+    assert!(!work_on_box, "no work ask on the bare box: {:?}", g.seats[0].pending_agenda);
+    let m = g.meeting.as_ref().expect("the impromptu call convenes");
+    let members = g.world.get_component::<Organization>(g.org).unwrap().members.clone();
+    assert!(m.invited.len() >= 2 && m.invited.iter().all(|v| members.contains(v)),
+        "the callers are the cause's own: {:?}", m.invited);
+    assert_eq!(g.work_call_stamp, Some(tick), "the call's stamped against the cadence");
+}
+
+/// The impromptu call puts the work to the organizer gathered (#1615):
+/// the gathering resolves, the cause's floor opens on it, and the
+/// party ask sits there - the prompt lives inside a meeting
+#[test]
+fn test_the_gathered_call_puts_the_work_to_you() {
+    let mut g = Game::new();
+    use crate::game::campaign::{Motion, PartyKind};
+    let _c = tax_cause(&mut g, 4);
+    g.mush_patches[0].kind = crate::game::mycology::MushKind::FieldMushroom;
+    for p in g.mush_patches.iter_mut() { p.next_ready = 0; }
+    sit_floor(&mut g, 0);
+    let (slate, _) = g.seats[0].pending_agenda.clone().expect("the call's floor sits");
+    let pick = slate.iter().position(|m| matches!(m, Motion::WorkParty(PartyKind::Forage)))
+        .expect("the gathered floor carries the work: {slate:?}");
+    g.decide_at(0, pick);
+    assert_eq!(g.work_parties.len(), 1, "the party's under way");
+}
+
+/// When the call was just made - or nobody could come - the bare
+/// floor still never carries a work ask (#1615): the slate opens for
+/// the cause's other business and the work waits for a gathering
+#[test]
+fn test_the_bare_floor_carries_no_work_asks() {
+    let mut g = Game::new();
+    use crate::game::campaign::Motion;
+    let _c = tax_cause(&mut g, 4);
+    g.mush_patches[0].kind = crate::game::mycology::MushKind::FieldMushroom;
+    for p in g.mush_patches.iter_mut() { p.next_ready = 0; }
+    g.work_call_stamp = Some(g.tick); // they called already today
+    let tick = g.tick;
+    g.campaign_meeting_tick(tick);
+    let (slate, _) = g.seats[0].pending_agenda.clone().expect("the floor still sits");
+    assert!(!slate.iter().any(|m| matches!(m, Motion::WorkParty(_))),
+        "the bare floor carries no work asks: {slate:?}");
+    assert!(g.meeting.is_none(), "no second call inside the window");
 }

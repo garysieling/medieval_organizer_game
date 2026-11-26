@@ -387,7 +387,29 @@ impl Game {
                 .map(|m| tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
             if !due { continue; }
             if let Some(s) = seat.filter(|&s| !self.seats[s].agent) {
-                self.seats[s].pending_agenda = Some((self.agenda_motions(s, c), tick));
+                let motions = self.agenda_motions(s, c);
+                // the work asks never sit on a bare box (#1615): a party
+                // worth calling brings the members round to put it to
+                // the organizer gathered - the call's own resolve adds
+                // them to the floor, inside the meeting
+                let work_waiting = motions.iter().any(|m|
+                    matches!(m, crate::game::campaign::Motion::WorkParty(_)));
+                if work_waiting {
+                    let cadence = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+                        .map(|m| m.cadence_days).unwrap_or(1).max(1);
+                    let callable = self.meeting.is_none()
+                        && self.seats[s].talk.is_none()
+                        && self.work_call_stamp
+                            .map_or(true, |t| tick.saturating_sub(t) >= cadence);
+                    if callable {
+                        self.work_call_stamp = Some(tick);
+                        let _ = self.call_work_gathering(s);
+                    }
+                }
+                let bare: Vec<crate::game::campaign::Motion> = motions.into_iter()
+                    .filter(|m| !matches!(m, crate::game::campaign::Motion::WorkParty(_)))
+                    .collect();
+                self.seats[s].pending_agenda = Some((bare, tick));
                 continue;
             }
             let player = seat.map(|s| self.seats[s].player);
@@ -560,8 +582,92 @@ impl Game {
         // the plan's spent by the call - its promise-holders are
         // snapshotted on the meeting so a keeper's arrival still counts
         let promised = plan.holders();
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised, marks: vec![] });
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised, marks: vec![], work_call: false });
         msg
+    }
+
+    /// The impromptu call (#1615): the cause's work isn't put to the
+    /// organizer on a bare box - the members gather round where they
+    /// stand and put it to them there, and the cause's floor opens on
+    /// the gathering's resolve like any called meeting's. The callers
+    /// are the members themselves: they convene, nobody's invited.
+    /// False when too few can come for it to be a call.
+    pub(in crate::session) fn call_work_gathering(&mut self, seat: usize) -> bool {
+        let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
+        let callers: Vec<Entity> = self.world.get_component::<Organization>(oe)
+            .map(|o| o.members.iter().copied().filter(|&v|
+                v != pe
+                && self.villagers.contains(&v)
+                && !villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && self.world.get_component::<rebels::Rebel>(v).is_none()
+                && !self.in_player_talk(v)
+                // a hand already bound somewhere keeps their own errand -
+                // pulling them off it strands what they're walking for
+                && !self.travels.iter().any(|t| t.who == v))
+                .take(6).collect())
+            .unwrap_or_default();
+        if callers.len() < 2 { return false; }
+        // they come to where the organizer stands - the venue's the
+        // tile under them, the ring its neighbours
+        let Some(pp) = self.world.get_component::<Pos>(pe).copied() else { return false };
+        let venue = (pp.x.round() as i32, pp.y.round() as i32);
+        let mut ground: Vec<(i32, i32)> = (-3..=3).flat_map(|dy| (-3..=3).map(move |dx| (venue.0 + dx, venue.1 + dy)))
+            .filter(|&at| at != venue && self.map.passable(at.0, at.1)).collect();
+        ground.sort_by_key(|&(x, y)| (x - venue.0).abs() + (y - venue.1).abs());
+        if ground.is_empty() { return false; }
+        let spots: Vec<(i32, i32)> = (0..callers.len()).map(|i| *ground.get(i).unwrap_or(&venue)).collect();
+        let paths = callers.iter().zip(&spots).map(|(v, &spot)| {
+            let p = self.world.get_component::<Pos>(*v).copied()?;
+            let from = (p.x.round() as i32, p.y.round() as i32);
+            if from == spot { Some(vec![spot]) } else { self.trail_path(from, spot) }
+        }).collect();
+        // a Talk one of them is standing in gives way to the call
+        for s in 0..self.seats.len() {
+            if self.seats[s].talk.as_ref().map(|t| callers.contains(&t.who)).unwrap_or(false) {
+                self.close_player_talk(s, None);
+            }
+        }
+        let names: Vec<&str> = callers.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| self.cast_name(i))).collect();
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+            format!("t{}: {} come calling - the cause's work wants putting to you.", self.tick, names.join(", ")),
+            Some((pp.x, pp.y)),
+            None,
+        );
+        self.meeting = Some(Meeting { label: "the street".into(), venue, born: self.tick,
+            invited: callers, spots, paths, frames: 0, talk_from: None, lines: vec![],
+            talk_id: 0, seat, roles: (false, false, false, false, false),
+            role_people: [None; 5], probe: false, testimony: None, agenda: None,
+            steer_at: None, steer_wait: 0, steered: false, bought: vec![],
+            promised: vec![], marks: vec![], work_call: true });
+        true
+    }
+
+    /// The impromptu call's own resolve (#1615): no house-meeting
+    /// business - the members came to put the cause's work to the
+    /// organizer, so the party asks join the floor's slate while the
+    /// gathering stands there to be answered
+    fn resolve_work_call(&mut self, m: &Meeting) -> String {
+        use crate::game::campaign::Motion;
+        let s = m.seat;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[s].org) else {
+            return "The call's cause is gone - the work goes unanswered.".into();
+        };
+        let mut work: Vec<Motion> = self.agenda_motions(s, c).into_iter()
+            .filter(|m| matches!(m, Motion::WorkParty(_))).collect();
+        if work.is_empty() {
+            return "The work went by while they gathered - there's nothing to put.".into();
+        }
+        match self.seats[s].pending_agenda.as_mut() {
+            Some((ms, _)) => ms.append(&mut work),
+            None => self.seats[s].pending_agenda = Some((work, self.tick)),
+        }
+        let names: Vec<&str> = m.invited.iter()
+            .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| self.cast_name(i)))
+            .collect();
+        format!("{} put the work to you where you stand - the floor's yours.", names.join(", "))
     }
 
     /// What's said at a meeting: the player opens, each villager there says
@@ -1222,6 +1328,7 @@ impl Game {
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
+                    else if m.work_call { self.resolve_work_call(&m) }
                     else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.credit_roles()) };
                 let at = toast_spot(&self.world, self.seats[m.seat].player);
                 self.log.push_ev_at_who(

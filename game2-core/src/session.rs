@@ -635,6 +635,10 @@ pub struct Meeting {
     /// `lines`, the effect) - a reveal's voice lands on airing, so a
     /// steered-away turn carries nothing to the tally or the ledger
     pub marks: Vec<(usize, MeetMark)>,
+    /// The members' own impromptu call (#1615): they gathered to put
+    /// the cause's work to the organizer, so its resolve opens the
+    /// work asks on the floor - not the usual meeting's business
+    pub work_call: bool,
 }
 
 /// What a scripted meeting line does when it airs (#1611): the script
@@ -2013,6 +2017,9 @@ pub struct Game {
     /// The day the deference was paid as ever (#1663): the pressure
     /// still builds, the box just isn't pressed again today
     pub deference_paid: Option<u64>,
+    /// The day the members last came calling with the work (#1615):
+    /// the impromptu gathering can't convene twice inside a cadence
+    pub work_call_stamp: Option<u64>,
     /// Witnesses gathered inside the window: each one's a word the
     /// lord's story can't stand - at a count the scandal lands
     pub witnesses: u32,

@@ -108,8 +108,11 @@ impl Game {
 /// stall, mystic, charter, the eyes' hold, parley, the unsworn oath -
 /// answer on their own cards now (#1663), so an old journal's Decide(n)
 /// resolves the box it was recorded against, not the standing state
-/// that used to eat it)
-pub const JOURNAL_VERSION: u32 = 17;
+/// that used to eat it; and the cause's floor no longer carries the
+/// work asks on a bare cadence date (#1615) - they wait for the
+/// gathering the members call - so an old journal's Decide(n) sits
+/// rows later than it was recorded against)
+pub const JOURNAL_VERSION: u32 = 18;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

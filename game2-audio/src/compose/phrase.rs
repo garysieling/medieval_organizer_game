@@ -344,6 +344,21 @@ impl Composer {
             if v.degrees == base.degrees {
                 v = v.transpose(1);
             }
+            // The body's arch (#1618): the middle bar's figure climbs
+            // over the statement - toward the strain's climax - and
+            // the last body bar's eases back toward the cadence. A
+            // variation that lands on the wrong side of the arch is
+            // walked over by thirds until it sits right.
+            if figures.len() == 1 {
+                while med(&v) < med0 {
+                    v = v.transpose(2);
+                }
+            } else {
+                let m1 = med(&figures[1]);
+                while med(&v) > m1 {
+                    v = v.transpose(-2);
+                }
+            }
             // A variation sings in the motif's register: an inversion
             // that dives or soars comes back by octaves (seven steps,
             // same pitch class) so the lead instrument can hold the
@@ -356,6 +371,13 @@ impl Composer {
             }
             figures.push(v);
         }
+
+        // The singable band (#1618): a figure's tail may wander a
+        // third or so past the motif's own compass, no further - a
+        // wide enough berth that a well-joined head is never traded
+        // for tessitura.
+        let dlo = motif.degrees.iter().min().copied().unwrap_or(0) as i32 - 4;
+        let dhi = motif.degrees.iter().max().copied().unwrap_or(0) as i32 + 4;
 
         // How much of the body sings: low density states the motif and
         // falls silent; past a quarter the variations join; past .45
@@ -383,22 +405,33 @@ impl Composer {
             };
             if want != fig.degrees[0] {
                 fig = fig.transpose(want - fig.degrees[0]);
+            } else {
+                // and stays singable (#1618): a figure entering on its
+                // own degree may still sit a register out - its tail
+                // may wander a step or two past the motif's compass,
+                // never vault into a new tessitura. A snapped entry
+                // skips this: the seam's needs already placed it.
+                for _ in 0..8 {
+                    let lo = fig.degrees.iter().min().copied().unwrap_or(0) as i32;
+                    let hi = fig.degrees.iter().max().copied().unwrap_or(0) as i32;
+                    if lo < dlo && hi - 1 <= dhi {
+                        fig = fig.transpose(1);
+                    } else if hi > dhi && lo + 1 >= dlo {
+                        fig = fig.transpose(-1);
+                    } else {
+                        break;
+                    }
+                }
             }
             let base16 = bar as i32 * bar16;
-            // The figure fills its bar whatever the meter holds: in a
-            // short bar the rhythm compresses onto the sixteenth grid,
-            // notes stay ordered, nothing spills into the next strain.
-            // A busy strain sings faster still - it compresses into
-            // the front of the bar so free notes can fill the tail;
-            // but if the squeeze costs the figure a note it takes the
-            // full bar instead.
+            // The figure keeps its own rhythm (#1618): it spans its
+            // authored length, capped at the bar - a short bar still
+            // compresses onto the sixteenth grid, but nothing squeezes
+            // a fitting figure just to make room to noodle. If the
+            // squeeze costs a note it takes the full bar instead.
             let total16: i32 = fig.rhythm.iter().map(|&r| r as i32).sum();
-            let want_free = d > 0.45;
-            let mut span16 = if want_free {
-                bar16 - (bar16 / 4).max(2)
-            } else {
-                bar16
-            };
+            let ornate = d > 0.45;
+            let mut span16 = bar16.min(total16);
             let mark = events.len();
             loop {
                 let mut t16 = 0i32;
@@ -411,12 +444,26 @@ impl Composer {
                     }
                     let next16 = base16 + (t16 + fig.rhythm[i] as i32) * span16 / total16;
                     let dur16 = (next16 - at16).max(1).min(base16 + span16 - at16);
-                    events.push(MelodyNote { at16, dur16, deg, cadence: false, fig: true });
-                    last_deg = deg;
+                    // melisma (#1618): a busy strain ornaments a long
+                    // note with a turn - the note halves and its second
+                    // half steps up a degree. The statement stays pure;
+                    // only variations take the ornament, so the motif's
+                    // own shape is always heard once clean.
+                    if ornate && bar > 0 && dur16 >= 4 && rng.chance(0.6) {
+                        let h = dur16 / 2;
+                        events.push(MelodyNote { at16, dur16: h, deg, cadence: false, fig: true });
+                        events.push(MelodyNote {
+                            at16: at16 + h, dur16: dur16 - h, deg: deg + 1,
+                            cadence: false, fig: true });
+                        last_deg = deg + 1;
+                    } else {
+                        events.push(MelodyNote { at16, dur16, deg, cadence: false, fig: true });
+                        last_deg = deg;
+                    }
                     prev16 = at16;
                     t16 += fig.rhythm[i] as i32;
                 }
-                if !want_free
+                if !ornate
                     || events.len() - mark >= fig.degrees.len()
                     || span16 == bar16
                 {
@@ -427,12 +474,14 @@ impl Composer {
             }
             // Free notes fill what the figure left: step 70%, a 3rd
             // 20%, a leap of at most a 5th 10%, each leap resolved by
-            // a step the other way.
-            if d > 0.45 {
+            // a step the other way. They keep out of the bar's last
+            // eighth - the line breathes before the next bar's entry.
+            if ornate {
                 let mut fill16 = events.last().map_or(0, |m| {
                     if m.at16 / bar16 == bar as i32 { m.at16 - base16 + m.dur16 } else { 0 }
                 });
-                while fill16 + 2 <= bar16 {
+                let mut prev_deg = last_deg;
+                while fill16 + 4 <= bar16 {
                     let pending = resolve_step.is_some();
                     let mut step = free_step(rng, &mut resolve_step);
                     // the wandering walks home: a free note straying
@@ -447,15 +496,27 @@ impl Composer {
                             *r = -*r;
                         }
                     }
+                    // no see-sawing (#1618): a step that lands back on
+                    // the note before last walks onward instead
+                    if !pending && last_deg + step == prev_deg {
+                        step = -step;
+                        if let Some(r) = resolve_step.as_mut() {
+                            *r = -*r;
+                        }
+                    }
+                    prev_deg = last_deg;
                     last_deg += step;
+                    // a note starting on a quarter boundary holds it;
+                    // the others run eighths
+                    let dur16 = if fill16 % 4 == 0 { 4 } else { 2 };
                     events.push(MelodyNote {
                         at16: base16 + fill16,
-                        dur16: 2,
+                        dur16: dur16.min(bar16 - fill16),
                         deg: last_deg,
                         cadence: false,
                         fig: false,
                     });
-                    fill16 += 2;
+                    fill16 += dur16;
                 }
             }
         }
@@ -747,7 +808,15 @@ impl Composer {
                     dur_samples: (at(m.at16 + m.dur16.max(1)) - start) as u32,
                     voice: Voice::Melody,
                     midi: midi as f32,
-                    vel: if m.cadence { 0.6 + 0.3 * d } else { 0.5 + 0.3 * d },
+                    // the phrase breathes (#1618): downbeats lean in,
+                    // free notes sit under the stated figures, and the
+                    // cadence still sings over it all
+                    vel: if m.cadence {
+                        0.6 + 0.3 * d
+                    } else {
+                        0.5 + 0.3 * d + if m.at16 % bar16 == 0 { 0.08 } else { 0.0 }
+                            - if m.fig { 0.0 } else { 0.06 }
+                    },
                     patch,
                 });
                 cadence.push(m.cadence);
@@ -788,6 +857,29 @@ impl Composer {
                     false
                 };
                 if bad {
+                    // A leap that lands on a cadence can't rest it -
+                    // and resting the line back note by note cascades
+                    // into losing the strain. The ending re-voices by
+                    // octaves toward the tail instead (#1618).
+                    if cadence[i + 1] {
+                        let (rlo, rhi) = inst.range();
+                        let mut revoiced = false;
+                        for &shift in &[12.0f32, -12.0, 24.0, -24.0] {
+                            let c = notes[i + 1].midi + shift;
+                            if (rlo as f32..=rhi as f32).contains(&c)
+                                && (notes[i].midi - c).abs() <= 7.0
+                            {
+                                notes[i + 1].midi = c;
+                                revoiced = true;
+                                break;
+                            }
+                        }
+                        if revoiced {
+                            changed = true;
+                            i += 1;
+                            continue;
+                        }
+                    }
                     // cadences never rest; at a bar boundary the old
                     // strain's tail vault goes, never the new bar's
                     // head

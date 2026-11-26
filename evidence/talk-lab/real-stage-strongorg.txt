@@ -41,15 +41,15 @@
     4) Ask how they think the lord will answer
     l) take your leave
   you: God keep the lord and his men. They keep the peace, they say.
-  Dagny: Old Wulfric swore he saw an owl perched on the tavern roof.
-    1) Ha! I'll believe the half of it and no more.
+  Dagny: They do say the reeve counts the sheep twice over.
+    1) Tavern tales grow taller with each ale drawn.
     2) Oh… Nay, I see it differently, mark me. - a quarrel
     3) Put a question to them
     4) Ask how they think the lord will answer
     l) take your leave
-  you: Ha! I'll believe the half of it and no more.
+  you: Tavern tales grow taller with each ale drawn.
   Dagny: As you say, friend.
-    1) Go well, Dagny, and mind the mud.
+    1) Fair day to you, Dagny - 'twas good to pass the time.
     2) I have no leisure to stand about, Dagny.
     3) Ask how they think the lord will answer
     l) take your leave

@@ -30,7 +30,7 @@
     3) Put a question to them
     l) take your leave
   you: Never better. And yourself - is the tailor's kind to you?
-  Rowena: The peddler's cart lost a wheel at the bridge.
+  Rowena: God witness. A rider from the castle came through before dawn.
     1) The cat catches nothing and eats like a deacon. We've a prior in the house.
     2) Hm… Idle tongues, that. It breeds mischief.
     3) Put a question to them
@@ -45,7 +45,7 @@
   you: Aye, so they are - I'd not have seen it.
   Rowena: Saints keep us. Old Wulfric swore he saw an owl perched on the tavern roof.
     1) Ah… Nay, I see it differently, mark me. - a quarrel
-    2) Tavern tales grow taller with each ale drawn.
+    2) Ha! I'll believe the half of it and no more.
     3) Put a question to them
     l) take your leave
   you: Ah… Nay, I see it differently, mark me.
@@ -56,7 +56,7 @@
     3) Ask why
     l) take your leave
   you: Not that I've seen, friend.
-    1) Fair day to you, Rowena - 'twas good to pass the time.
+    1) Fare you well until the morrow.
     2) I have no leisure to stand about, Rowena.
     3) Ask who you should talk to next - for 6g
     l) take your leave

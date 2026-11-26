@@ -2,23 +2,15 @@
   them: Probe works the fields for a day's wage. They remember three lords back, and say the first was worse.
   them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
-  Probe: Morrow, Voice.
-    1) [Greet] Good day to you.
-    2) [Remark] Morrow.
-  Voice: Good day to you.
-  Probe: Cold wind off the moor this morning.
-    1) [Question] Enough sky-talk - how goes the work these days?
-    2) [Question] Tell me true, Probe - how goes it with you?
-    3) [Question] Put a question to them
-  Voice: Enough sky-talk - how goes the work these days?
-  Probe: Hard at it down at the day's wage, are we?
-    1) [PushBack] Well… Ask the reeve about the day's wage, not me. I keep my own count.
-    2) [Answer] The lord's acres are kind to a steady hand, gaffer Probe - I'll say it anywhere.
-    3) [Question] Put a question to them
-  Voice: Well… Ask the reeve about the day's wage, not me. I keep my own count.
-  Probe: As you say, friend.
-    1) [Farewell] Fair day to you, Probe - 'twas good to pass the time.
-    2) [Farewell] I take my leave.
-  Voice: Fair day to you, Probe - 'twas good to pass the time.
-  -- Farewell (trees: ["village_smalltalk"])
-REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Acquaintance --picks 0,0,0,0
+  Probe: Well met, child! Another day Heaven grants to watch the fields.
+    1) [Greet] Good morrow to you, venerable Probe.
+  Voice: Good morrow to you, venerable Probe.
+  Probe: The boundary ran straight from the standing oak to the weeping willow.
+    1) [Question] Do you recall the great famine fifty winters ago, grandfather?
+    2) [Question] Put a question to them
+  Voice: Do you recall the great famine fifty winters ago, grandfather?
+  Probe: Listen to the land, Voice; it was here before us and will keep our graves.
+    1) [Farewell] We will heed your counsel at the village meeting, elder.
+  Voice: We will heed your counsel at the village meeting, elder.
+  -- Farewell (trees: ["elder_wisdom_self"])
+REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Acquaintance --picks 0,0,0

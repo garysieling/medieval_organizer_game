@@ -5425,26 +5425,26 @@ mod e3_3 {
     /// law's ear, and the bond's way in
     #[test]
     fn the_setting_rides_the_facts() {
-        use crate::game::setting::{Place, Setting};
+        use crate::game::setting::{Place, Pressure, Setting};
         let a = Speaker::new("Hob");
         let b = Speaker::new("Nissa");
         // the law's ear flips an invited backstage room public again
         let heard = Facts::for_roles_setting(&a, &b, Relation::Friend, None,
-            &Setting { place: Place::Alehouse, law_earshot: true, invited: true });
+            &Setting { place: Place::Alehouse, law_earshot: true, invited: true, pressure: Pressure::NONE });
         assert!(heard.has("pair:place:alehouse"));
         assert!(heard.has("pair:channel:public"), "the ear turns it public");
         assert!(heard.has("pair:earshot:law"));
         // the same room, no ear, the bond's bought the way in
         let hushed = Facts::for_roles_setting(&a, &b, Relation::Friend, None,
-            &Setting { place: Place::Alehouse, law_earshot: false, invited: true });
+            &Setting { place: Place::Alehouse, law_earshot: false, invited: true, pressure: Pressure::NONE });
         assert!(hushed.has("pair:channel:backstage"));
         // a stranger at the same table still hears the street voice
         let cold = Facts::for_roles_setting(&a, &b, Relation::Stranger, None,
-            &Setting { place: Place::Alehouse, law_earshot: false, invited: false });
+            &Setting { place: Place::Alehouse, law_earshot: false, invited: false, pressure: Pressure::NONE });
         assert!(cold.has("pair:channel:public"), "the invitation's the gate");
         // and the market's public whatever the bond
         let square = Facts::for_roles_setting(&a, &b, Relation::Kin, None,
-            &Setting { place: Place::Market, law_earshot: false, invited: true });
+            &Setting { place: Place::Market, law_earshot: false, invited: true, pressure: Pressure::NONE });
         assert!(square.has("pair:place:market"));
         assert!(square.has("pair:channel:public"));
     }
@@ -5454,11 +5454,11 @@ mod e3_3 {
     /// keeps a stranger at the street voice
     #[test]
     fn the_bond_is_the_invitation() {
-        use crate::game::setting::{Channel, Place, Setting};
+        use crate::game::setting::{Channel, Place, Pressure, Setting};
         let a = Speaker::new("Hob");
         let b = Speaker::new("Nissa");
         let lib = village_library();
-        let corner = Setting { place: Place::Alehouse, law_earshot: false, invited: false };
+        let corner = Setting { place: Place::Alehouse, law_earshot: false, invited: false, pressure: Pressure::NONE };
         let warm = converse_at(&a, &b, Relation::Friend, None, &lib, None,
             &corner, &mut Rng::new(3));
         assert_eq!(warm.setting.channel(), Channel::Backstage);
@@ -5469,19 +5469,46 @@ mod e3_3 {
             "a stranger gets the street voice even at the table");
     }
 
+    /// the village's own weather bends the topics (#1696): a setting
+    /// under a famine's pressure walks the hard-times tree - the talk
+    /// opens on the empty stores, not the sky; the same street with
+    /// nothing amiss never walks it
+    #[test]
+    fn the_villages_weather_bends_the_topics() {
+        use crate::game::setting::{Place, Pressure, Setting};
+        let a = Speaker::new("Hob");
+        let b = Speaker::new("Nissa");
+        let lib = village_library();
+        let starved = Setting { place: Place::Street, law_earshot: false,
+            invited: false, pressure: Pressure::FAMINE };
+        for seed in 1..10 {
+            let tr = converse_at(&a, &b, Relation::Acquaintance, None, &lib, None,
+                &starved, &mut Rng::new(seed));
+            assert!(tr.trees_walked.contains(&"the_hard_times"),
+                "under famine the parish's weather walks: {:?}", tr.trees_walked);
+        }
+        let calm = Setting { pressure: Pressure::NONE, ..starved };
+        for seed in 1..10 {
+            let tr = converse_at(&a, &b, Relation::Acquaintance, None, &lib, None,
+                &calm, &mut Rng::new(seed));
+            assert!(!tr.trees_walked.contains(&"the_hard_times"),
+                "nothing amiss, no weather-beating: {:?}", tr.trees_walked);
+        }
+    }
+
     /// the same pair, the same seed (E5-9, #1446): in the market the
     /// talk defers; invited backstage it bites - the hidden transcript
     /// reads differently and the turns carry which face each was said in
     #[test]
     fn the_place_picks_the_transcript() {
-        use crate::game::setting::{Channel, Place, Setting};
+        use crate::game::setting::{Channel, Place, Pressure, Setting};
         let a = Speaker::new("Hob");
         let b = Speaker::new("Nissa");
         let lib = village_library();
-        let square = Setting { place: Place::Market, law_earshot: false, invited: false };
+        let square = Setting { place: Place::Market, law_earshot: false, invited: false, pressure: Pressure::NONE };
         // an acquaintance let backstage the other way - the safety
         // rung's Challenger, which the engine can't see from the rel
-        let corner = Setting { place: Place::Alehouse, law_earshot: false, invited: true };
+        let corner = Setting { place: Place::Alehouse, law_earshot: false, invited: true, pressure: Pressure::NONE };
         let mut differ = 0;
         for seed in 1..10 {
             let front = converse_at(&a, &b, Relation::Acquaintance, None, &lib, None,

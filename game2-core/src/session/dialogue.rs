@@ -429,6 +429,7 @@ pub(in crate::session) const HOUSE_SETTING: crate::game::setting::Setting =
         place: crate::game::setting::Place::Kitchen,
         law_earshot: false,
         invited: true,
+        pressure: crate::game::setting::Pressure::NONE,
     };
 
 impl PlayerTalk {
@@ -2177,13 +2178,78 @@ impl Game {
     }
 
     /// The setting a talk at `at` between `a` and `b` carries (E5-9):
-    /// the place, the law's ear, and the bond's way backstage
+    /// the place, the law's ear, the bond's way backstage - and the
+    /// village's standing weather, so the talk's topics bend toward the
+    /// weight the whole parish lives under (#1696)
     fn talk_setting_at(&self, at: (f32, f32), a: Entity, b: Entity) -> crate::game::setting::Setting {
         crate::game::setting::Setting {
             place: self.place_at(at),
             law_earshot: self.law_near(at),
             invited: self.backstage_invited(a, b),
+            pressure: self.village_pressure(),
         }
+    }
+
+    /// What the whole parish lives under this stretch (#1696): read off
+    /// the world, not the two speakers - a single belly's hunger flickers
+    /// with the last meal, but empty stores are the village's weather.
+    /// The talk's trees read the bits as `village:*` facts
+    pub(in crate::session) fn village_pressure(&self) -> crate::game::setting::Pressure {
+        use crate::game::setting::Pressure;
+        let living: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<super::country::Outlander>(v).is_none())
+            .collect();
+        let heads = living.len().max(1) as f32;
+        let mut p = Pressure::NONE;
+        // famine: the table's thin - under half a serving a mouth on the
+        // pile and the fields, or a quarter of the village's bellies empty
+        let table = self.world.get_component::<villager::FoodSource>(self.market_food)
+            .map(|f| f.servings).unwrap_or(0)
+            + self.crop_fields.iter()
+                .filter_map(|&f| self.world.get_component::<villager::FoodSource>(f)
+                    .map(|f| f.servings)).sum::<u32>();
+        let hungry = living.iter().filter(|&&v|
+            self.world.get_component::<Hunger>(v)
+                .map(|h| h.value < 30.0).unwrap_or(false)).count();
+        if table as f32 / heads < 0.4 || hungry as f32 * 4.0 > heads {
+            p = Pressure(p.0 | Pressure::FAMINE.0);
+        }
+        // fever: the sickness's in more than one bed at once - a case
+        // still mending is the one shape that doesn't count; brewing
+        // and burning both keep the doors barred
+        let fever_beds = self.world.query::<crate::sim::illness::Disease>().iter()
+            .filter(|&&d| self.world.get_component::<crate::sim::illness::Disease>(d)
+                .map(|x| x.stage != crate::sim::illness::Stage::Recovering)
+                .unwrap_or(false))
+            .count();
+        if fever_beds >= 2 { p = Pressure(p.0 | Pressure::FEVER.0); }
+        if self.harsh_winter { p = Pressure(p.0 | Pressure::WINTER.0); }
+        // unrest: a live grievance abroad on a sixth of the roll
+        let aggrieved = living.iter().filter(|&&v|
+            self.world.get_component::<crate::game::desires::InnerLife>(v)
+                .map(|l| l.grievances.iter().any(|(_, u)| self.tick <= *u))
+                .unwrap_or(false)).count();
+        if aggrieved as f32 * 6.0 > heads { p = Pressure(p.0 | Pressure::UNREST.0); }
+        // bereft: two fresh graves inside a fortnight, or grief abroad -
+        // the roster's fresh dead and the mourners' open wounds both count
+        let fresh_graves = self.dead_since.iter()
+            .filter(|(_, &d)| self.tick < d + 14).count()
+            + self.died_on.iter().flatten().filter(|&&d| self.tick < d + 14).count();
+        let grieving = self.villagers.iter().filter(|&&v|
+            self.world.get_component::<crate::game::desires::InnerLife>(v)
+                .map(|l| l.grievances.iter().any(|(g, u)|
+                    matches!(g, crate::game::desires::Problem::Grief
+                        | crate::game::desires::Problem::Bereaved)
+                    && self.tick <= *u))
+                .unwrap_or(false)).count();
+        if fresh_graves >= 2 || grieving >= 2 { p = Pressure(p.0 | Pressure::BEREFT.0); }
+        // a fat year: three purses in four stand full
+        let fat = living.iter().filter(|&&v|
+            self.world.get_component::<crate::game::livelihood::Purse>(v)
+                .map(|x| x.gold >= 40.0).unwrap_or(false)).count();
+        if fat as f32 * 4.0 >= heads * 3.0 { p = Pressure(p.0 | Pressure::FLUSH.0); }
+        p
     }
 
     /// Whether they've already slipped in front of `hearer` (E5-8,

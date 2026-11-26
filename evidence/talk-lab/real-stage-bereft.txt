@@ -5,7 +5,7 @@
   (Dagny is the village luthier. They bow to no one. Work sits down beside them and they let it wait. Their hand is heavy and their tongue heavier. The church porch is where their counsel gathers. They keep close to the market folk.)
   Dagny: A fifth of all he had. For dying.   [gist]
     1) Hm… Morrow. I'd best keep moving.
-    2) Well enough - and yours?
+    2) Out and about early today.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave
@@ -27,7 +27,7 @@
     l) take your leave
   you: From what I've seen - aye.
     1) Go well, Dagny, and mind the mud.
-    2) Enough chatter. Good day.
+    2) I have no leisure to stand about, Dagny.
     3) Ask who folk turn to around here
     4) Ask what they actually want
     l) take your leave

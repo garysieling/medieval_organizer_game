@@ -75,3 +75,75 @@ fn no_source_pushes_a_timestamped_line_untagged() {
         offenders.join("\n")
     );
 }
+
+/// A log line's tick stamp parsed back: "t<n>:" -> n.
+fn tick_of(l: &str) -> Option<u64> {
+    l.strip_prefix('t')?.split(':').next()?.parse().ok()
+}
+
+/// One event, one line (#1696): a villager's passing gets one telling a
+/// tick - a death can't run once from an event's own line and again
+/// from the frame check, a foundling can't be a basket and a birth
+/// both. The tags make it checkable: same tick, same mouth, same
+/// thread = the same event told twice. Mouth-less lines legitimately
+/// crowd a tick (the holy day's four beats, the visitors' comings and
+/// goings), so only `who`-carrying lines are keyed.
+#[test]
+fn no_event_is_logged_twice() {
+    let mut g = Game::new();
+    while g.tick < 40 {
+        g.update();
+    }
+    let mut seen: crate::engine::det::HashMap<(u64, usize, Thread), Vec<usize>> =
+        Default::default();
+    for i in 0..g.log.len() {
+        let (Some(tick), Some(ev), Some(who)) =
+            (tick_of(&g.log[i]), g.log.ev(i), g.log.meta(i).who)
+        else {
+            continue;
+        };
+        seen.entry((tick, who, ev.thread)).or_default().push(i);
+    }
+    let doubled: Vec<Vec<String>> = seen
+        .values()
+        .filter(|v| v.len() > 1)
+        .map(|v| v.iter().map(|&i| g.log[i].clone()).collect())
+        .collect();
+    assert!(doubled.is_empty(),
+        "same tick, same mouth, same braid - the event told twice:\n{doubled:?}");
+}
+
+/// The repro itself (#1696): a foundling is one event - the basket's
+/// telling stands in for the crib's, not alongside it
+#[test]
+fn a_foundling_is_one_event_one_line() {
+    let mut g = Game::new();
+    g.force_event(crate::session::events::EventId::Foundling);
+    let born: Vec<&String> = g
+        .log
+        .iter()
+        .filter(|l| l.contains("foundling") || l.contains("is born"))
+        .collect();
+    assert_eq!(born.len(), 1, "one foundling, one line: {born:?}");
+}
+
+/// ...and a death (#1696): the frame check's telling is the only one -
+/// the manner's own line, once
+#[test]
+fn a_death_is_one_event_one_line() {
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    if let Some(h) = g.world.get_component_mut::<Health>(v) {
+        h.condition = 0.0;
+    }
+    while g.tick < 3 {
+        g.update();
+    }
+    let name = g.cast_name(0);
+    let deaths: Vec<&String> = g
+        .log
+        .iter()
+        .filter(|l| l.contains(&name) && l.contains("die"))
+        .collect();
+    assert_eq!(deaths.len(), 1, "one death, one line: {deaths:?}");
+}

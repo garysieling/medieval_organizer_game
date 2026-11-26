@@ -60,6 +60,55 @@ impl Place {
     }
 }
 
+/// The village's standing weather (#1696): what the whole parish lives
+/// under this stretch, whoever's talking - empty stores, a fever in the
+/// beds, the lord's squeeze, fresh graves, the long snow. The talk
+/// carries it the way it carries the day's sky: the trees read the
+/// `village:*` facts and bend their topics toward the weight. A
+/// bitmask - a famine can stand in a hard winter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Pressure(pub u8);
+
+impl Pressure {
+    /// Nothing amiss
+    pub const NONE: Pressure = Pressure(0);
+    /// The stores are out, the bellies know it
+    pub const FAMINE: Pressure = Pressure(1);
+    /// The sickness is in more than one bed
+    pub const FEVER: Pressure = Pressure(2);
+    /// The cold's settled in for the season
+    pub const WINTER: Pressure = Pressure(4);
+    /// Grievances abroad - taxed, blamed, shorted
+    pub const UNREST: Pressure = Pressure(8);
+    /// Fresh graves in the churchyard
+    pub const BEREFT: Pressure = Pressure(16);
+    /// A fat year - full purses, full cellar
+    pub const FLUSH: Pressure = Pressure(32);
+
+    pub fn contains(self, p: Pressure) -> bool { self.0 & p.0 != 0 }
+
+    /// The weights a talk can open on. `village:hard` is the umbrella
+    /// every hard axis shares, so one tree hears them all
+    pub fn facts(self) -> Vec<String> {
+        let mut v: Vec<String> = vec![];
+        let mut put = |bit: Pressure, slug: &str| if self.contains(bit) {
+            v.push(format!("village:{slug}"));
+        };
+        put(Pressure::FAMINE, "famine");
+        put(Pressure::FEVER, "fever");
+        put(Pressure::WINTER, "winter");
+        put(Pressure::UNREST, "unrest");
+        put(Pressure::BEREFT, "bereft");
+        put(Pressure::FLUSH, "flush");
+        if self.0 & (Pressure::FAMINE.0 | Pressure::FEVER.0 | Pressure::WINTER.0
+            | Pressure::UNREST.0 | Pressure::BEREFT.0) != 0
+        {
+            v.push("village:hard".into());
+        }
+        v
+    }
+}
+
 /// A talk's setting: the place, the ears, the bond (E5-9, #1446)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Setting {
@@ -72,17 +121,22 @@ pub struct Setting {
     /// The listener's been let past the public face. The invitation is
     /// a trust milestone: a cold bond hears the street voice anywhere
     pub invited: bool,
+    /// The village's standing weather (#1696): the weight the whole
+    /// parish lives under - the talk's topics bend toward it
+    pub pressure: Pressure,
 }
 
 /// The street, unmarked: the face every talk wears by default
 pub const STREET: Setting = Setting {
     place: Place::Street, law_earshot: false, invited: false,
+    pressure: Pressure::NONE,
 };
 
 /// The warm backstage, no ears about: what a trusted talk at the
 /// alehouse or the kitchen table carries
 pub const BACKSTAGE: Setting = Setting {
     place: Place::Alehouse, law_earshot: false, invited: true,
+    pressure: Pressure::NONE,
 };
 
 impl Setting {
@@ -109,6 +163,7 @@ impl Setting {
             }),
         ];
         if self.law_earshot { v.push("pair:earshot:law".into()); }
+        v.extend(self.pressure.facts());
         v
     }
 }

@@ -187,6 +187,48 @@ mod tests {
         assert!(g.tick >= t0 + 5, "five days passed (got {} from {})", g.tick, t0);
     }
 
+    /// The stage's own weather reaches the talk (#1696): a staged world
+    /// reads the parish's standing weight off the state - empty stores,
+    /// sick beds, fresh graves, fat purses - so a famine's talks bend
+    /// toward the famine, not the sky
+    #[test]
+    fn test_the_stage_marks_the_village_pressure() {
+        use crate::game::setting::Pressure;
+        for (s, bit) in [
+            (Stage::Famine, Pressure::FAMINE),
+            (Stage::Fever, Pressure::FEVER),
+            (Stage::HardWinter, Pressure::WINTER),
+            (Stage::Unrest, Pressure::UNREST),
+            (Stage::Bereft, Pressure::BEREFT),
+            (Stage::Flush, Pressure::FLUSH),
+        ] {
+            let g = staged(s);
+            assert!(g.village_pressure().contains(bit),
+                "{s:?} should mark its axis: {:?}", g.village_pressure());
+        }
+        // an ordinary parish doesn't open on its weather
+        let g = staged(Stage::Ordinary);
+        assert!(!g.village_pressure().facts().iter().any(|f| f == "village:hard"),
+            "nothing amiss: {:?}", g.village_pressure());
+    }
+
+    /// ...and the pressure rides a real chat's setting: what the staged
+    /// world computes is what the talk's record carries back (#1696)
+    #[test]
+    fn test_the_pressure_rides_the_talk_record() {
+        use crate::game::setting::Pressure;
+        use crate::session::Kid;
+        let mut g = staged(Stage::Famine);
+        let ad: Vec<usize> = (0..g.villagers.len())
+            .filter(|&i| g.world.get_component::<Kid>(g.villagers[i]).is_none()
+                && !villager::is_dead(&g.world, g.villagers[i]))
+            .collect();
+        assert!(g.villagers_chat(g.villagers[ad[0]], g.villagers[ad[1]]));
+        let r = g.talk_log.last().unwrap();
+        assert!(r.setting.pressure.contains(Pressure::FAMINE),
+            "the chat's setting carries the famine: {:?}", r.setting);
+    }
+
     /// force puts a semi-rare event on now, whatever the schedule says
     #[test]
     fn test_forcing_an_event() {

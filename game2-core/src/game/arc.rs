@@ -14,7 +14,6 @@
 //! the villager, the per-talk seeds, the policy's picks - so a seed and
 //! a policy give one byte-identical transcript of the whole arc.
 
-use crate::engine::det::HashSet;
 use crate::game::conversation::{
     converse_with_at, Act, Choice, DialogueTree, Open, Relation, Respond,
     Rng, Speaker, Transcript, Vibe,
@@ -167,13 +166,20 @@ pub fn run_arc(
 ) -> (Speaker, Vec<ArcTalk>) {
     let mut them = them.clone();
     let mut you = you.clone();
-    // the village's memory of what's said (E0-4): every template the
-    // arc's spent stays spent - the repetition metric measures what's
-    // left to say
-    let mut recent: HashSet<&'static str> = HashSet::default();
+    // the village's memory of what's said (E0-4): a spent template
+    // stays spent - with a decay window, the same span the session's
+    // `said_lines` holds (FRESH_LINE_DAYS). The arc's days run about
+    // two talks apiece, so the window spans the last six talks'
+    // lines (#1690): a saying returns once its days are out
+    const FRESH_TALKS: usize = 6;
+    let mut said_at: crate::engine::det::HashMap<&'static str, u64> =
+        crate::engine::det::HashMap::default();
     let mut out = Vec::with_capacity(talks);
     for i in 0..talks {
         let tseed = seed.wrapping_mul(31).wrapping_add(i as u64);
+        let recent: crate::engine::det::HashMap<&'static str, u64> = said_at.iter()
+            .filter(|&(_, &at)| (i as u64) - at < FRESH_TALKS as u64)
+            .map(|(&l, &at)| (l, at)).collect();
         let mut picks: Vec<usize> = vec![];
         let mut made: Vec<(Act, Respond, String)> = vec![];
         let tr = converse_with_at(&them, &you, rel, kind, library,
@@ -184,7 +190,9 @@ pub fn run_arc(
                     p
                 })
             }, &mut Rng::new(tseed));
-        recent.extend(tr.turns.iter().filter_map(|t| t.line));
+        for l in tr.turns.iter().filter_map(|t| t.line) {
+            said_at.insert(l, i as u64);
+        }
         // the arc's one slip (E5-8, #1439): the engine reports what
         // fired, the caller spends the pair's budget on it - once to
         // a relationship's whole run of talks
@@ -272,8 +280,8 @@ mod tests {
         for t in arc.iter().take(6) {
             let blank = converse_with_at(&them0, &you, Relation::Acquaintance, None,
                 &lib, None, 1, &STREET, &mut |_| Some(0), &mut Rng::new(t.seed));
-            let heard: HashSet<&'static str> = blank.turns.iter()
-                .filter_map(|t| t.line).collect();
+            let heard: crate::engine::det::HashMap<&'static str, u64> = blank.turns.iter()
+                .filter_map(|t| t.line).map(|l| (l, 1)).collect();
             let again = converse_with_at(&them0, &you, Relation::Acquaintance, None,
                 &lib, Some(&heard), 1, &STREET, &mut |_| Some(0), &mut Rng::new(t.seed));
             if again.lines() != blank.lines() { moved += 1; }
@@ -312,5 +320,57 @@ mod tests {
             }
         }
         assert!(saw > 0, "a prone ghost never leaked in 12 arcs");
+    }
+
+    /// the landmark keeps its freshness (#1690): a whole-line habit
+    /// airs a fresh variant while one remains and goes quiet when the
+    /// pool's spent - it can't open every talk of an arc with the same
+    /// saying, and nothing the villager speaks airs in back-to-back
+    /// talks (the parting rite and stock courtesies excepted - they're
+    /// liturgy, not speech)
+    #[test]
+    fn a_signature_line_stays_spent_between_talks() {
+        let (mut them, you) = pair();
+        them.idiolect = Some(crate::game::idiolect::Idiolect {
+            phrase: "as the mill grinds",
+            habit: crate::game::idiolect::Habit::ProverbPatience });
+        let habit: crate::engine::det::HashSet<&'static str> =
+            crate::game::idiolect::Habit::ProverbPatience.lines()
+                .iter().copied().collect();
+        let lib = village_library();
+        for &seed in &[3u64, 42, 99] {
+            for &policy in &[Policy::Curious, Policy::Greedy, Policy::Responsive] {
+                let (_them, arc) = run_arc(&them, &you, Relation::Acquaintance, None,
+                    20, policy, &lib, &STREET, seed);
+                let mut last_habit: Option<&'static str> = None;
+                // template -> (last talk it aired, consecutive run)
+                let mut runs: crate::engine::det::HashMap<&'static str, (usize, usize)> =
+                    crate::engine::det::HashMap::default();
+                for (i, talk) in arc.iter().enumerate() {
+                    let tpls: crate::engine::det::HashSet<&'static str> = talk.transcript.turns.iter()
+                        .filter(|t| t.speaker == 0)
+                        .filter_map(|t| t.line).collect();
+                    let aired: Vec<&'static str> =
+                        habit.intersection(&tpls).copied().collect();
+                    assert!(aired.len() <= 1,
+                        "two proverbs in one talk ({i})");
+                    if let Some(&v) = aired.first() {
+                        assert!(Some(&v) != last_habit.as_ref(),
+                            "the same proverb {v} aired in back-to-back \
+                             talks ({i}; seed {seed} {policy:?})");
+                    }
+                    last_habit = aired.first().copied();
+                    for l in tpls.iter().copied()
+                        .filter(|l| !crate::game::dialogue_trees::STOCK_LINES.contains(l)
+                            && !crate::game::conversation::PART_LINES.contains(l)) {
+                        let (last, run) = runs.get(&l).copied().unwrap_or((usize::MAX, 0));
+                        let run = if last == i.wrapping_sub(1) { run + 1 } else { 1 };
+                        assert!(run <= 2,
+                            "a line aired {run} talks running (talk {i}): {l}");
+                        runs.insert(l, (i, run));
+                    }
+                }
+            }
+        }
     }
 }

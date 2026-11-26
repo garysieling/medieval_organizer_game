@@ -230,7 +230,7 @@ pub struct PlayerTalk {
     /// The village's memory of said lines, frozen when the talk opened
     /// (#1622): every replay draws against it, so the options a pick
     /// was shown are the options the pick lands on
-    pub fresh: crate::engine::det::HashSet<&'static str>,
+    pub fresh: crate::engine::det::HashMap<&'static str, u64>,
     /// Which tree's fork offered them - a greeting on old_scores is no
     /// greeting
     pub opt_tree: Option<&'static str>,
@@ -709,7 +709,7 @@ pub(in crate::session) fn talk_said(villager: &Speaker, player: &Speaker, rel: R
         &mut crate::game::conversation::Rng::new(0))
 }
 
-fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static str>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>, Option<crate::game::desires::Reveal>, Vec<(usize, crate::game::conversation::SlipKind)>, Vec<crate::game::conversation::JokeBeat>) {
+fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashMap<&'static str, u64>>) -> (Vec<(usize, String, Option<&'static str>)>, Option<Vec<(Act, crate::game::conversation::Respond, String)>>, Option<Ending>, Option<&'static str>, Option<Vibe>, Vec<&'static str>, u8, u8, Option<Act>, Vec<(usize, crate::game::conversation::Area)>, Option<crate::game::desires::Reveal>, Vec<(usize, crate::game::conversation::SlipKind)>, Vec<crate::game::conversation::JokeBeat>) {
     let mut n = 0;
     let mut offered: Option<Vec<(Act, crate::game::conversation::Respond, String)>> = None;
     let tr = converse_with_at(&t.villager, &t.player, t.rel, t.kind, library(), recent, 1, &t.setting, &mut |ch: &[Choice]| {
@@ -732,10 +732,10 @@ fn replay(t: &PlayerTalk, recent: Option<&crate::engine::det::HashSet<&'static s
 
 impl Game {
     /// Tree lines the village has spoken lately - still fresh in ears (#1369)
-    fn fresh_lines(&self) -> crate::engine::det::HashSet<&'static str> {
+    fn fresh_lines(&self) -> crate::engine::det::HashMap<&'static str, u64> {
         self.said_lines.iter()
             .filter(|(_, day)| *day + FRESH_LINE_DAYS >= self.tick)
-            .map(|(t, _)| *t).collect()
+            .map(|(t, day)| (*t, *day)).collect()
     }
 
     /// Mark the transcript's tree lines as spoken today, and let the

@@ -365,3 +365,39 @@ fn test_the_dead_s_card_names_their_mourners() {
         "the mourner never showed: {:?}",
         ins.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_shared_traits_dont_share_the_profiles_words() {
+    // #1629: Eliza and Bram's cards shared 5 of 7 lines - same traits,
+    // same phrasing. Each profile fact keeps a few wordings now, picked
+    // off the speaker's name, so a shared trait still reads differently
+    let g = Game::new();
+    use crate::game::dialogue_trees::backstory;
+    use crate::game::conversation::Speaker;
+    // every trait's pool produces more than one phrasing across names
+    for t in crate::game::traits::TRAITS {
+        let texts: crate::engine::det::HashSet<String> =
+            ["Eliza", "Bram", "Corvin", "Dagny", "Hob", "Marga", "Wulfric", "Anselm"]
+            .iter().map(|n| {
+                let mut s = Speaker::new(n);
+                s.traits = vec![t];
+                backstory(&s)
+            }).collect();
+        assert!(texts.len() > 1, "{:?} reads the same on every villager", t);
+    }
+    // and on the real cast, no two same-make villagers read as a copy
+    let mut same_make = 0;
+    for &a in &g.villagers {
+        for &b in &g.villagers {
+            if a >= b || villager::is_dead(&g.world, a) || villager::is_dead(&g.world, b) { continue; }
+            let (na, nb) = (g.name_of(a), g.name_of(b));
+            let sa = crate::session::dialogue::speaker_of(&g.world, a, &na, g.tick);
+            let sb = crate::session::dialogue::speaker_of(&g.world, b, &nb, g.tick);
+            if sa.traits != sb.traits || sa.status != sb.status || sa.ideology != sb.ideology { continue; }
+            same_make += 1;
+            assert_ne!(backstory(&sa), backstory(&sb),
+                "same make should still read differently: {} vs {}", na, nb);
+        }
+    }
+    assert!(same_make > 0, "the cast offered no same-make pair to check");
+}

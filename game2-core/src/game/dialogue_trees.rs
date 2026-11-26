@@ -5768,6 +5768,15 @@ pub fn trade_noun(s: &Speaker) -> &'static str {
     }
 }
 
+/// The phrasing a profile fact lands in for this speaker (#1629): each
+/// fact keeps a few wordings and the pick rides the speaker's name, so
+/// two villagers sharing a trait don't share all of its phrasing
+fn profile_line(pool: &[&'static str], name: &str, salt: u64) -> &'static str {
+    let seed = name.bytes().fold(0u64, |a, b|
+        a.wrapping_mul(0x0100_0000_01B3).wrapping_add(b as u64));
+    pool[(crate::game::persona::draw(seed, salt) * pool.len() as f32) as usize % pool.len()]
+}
+
 /// A one-line backstory from a speaker's profile
 pub fn backstory(s: &Speaker) -> String {
     let mut parts: Vec<String> = vec![];
@@ -5779,81 +5788,213 @@ pub fn backstory(s: &Speaker) -> String {
         | "fisher" | "charcoal_burner" | "farmer" | "tailor" | "luthier"
         | "printer" | "glazier"));
     if s.status.iter().any(|st| *st == "child") {
-        parts.push(format!("{} is still a child.", s.name));
+        parts.push(profile_line(&[
+            "{} is still a child.",
+            "{} has yet to see a dozen summers.",
+            "{} is young yet, and quicker for it."], &s.name, 1)
+            .replace("{}", &s.name));
     } else if let Some(tr) = trade {
-        parts.push(format!("{} is the village {}.", s.name, tr.replace('_', " ")));
+        parts.push(profile_line(&[
+            "{} is the village {t}.",
+            "The village {t} is {}.",
+            "{} keeps the village's {t} trade."], &s.name, 2)
+            .replace("{}", &s.name).replace("{t}", &tr.replace('_', " ")));
     } else {
-        parts.push(match s.ideology {
-            "clergy" => format!("{} serves the village church.", s.name),
-            "merchant" => format!("{} trades on the road between villages.", s.name),
-            "lord" => format!("{} holds the manor's leases.", s.name),
-            _ => format!("{} works the fields for a day's wage.", s.name),
-        });
+        parts.push(profile_line(match s.ideology {
+            "clergy" => &[
+                "{} serves the village church.",
+                "{} keeps the parish's book and bell.",
+                "{} tends the village's prayers."] as &[&'static str],
+            "merchant" => &[
+                "{} trades on the road between villages.",
+                "{}'s coin moves faster than their boots.",
+                "{} carries wares up and down the road."],
+            "lord" => &[
+                "{} holds the manor's leases.",
+                "{}'s rents come due on the quarter days.",
+                "{} speaks for the manor hereabouts."],
+            _ => &[
+                "{} works the fields for a day's wage.",
+                "{} takes the day's wage where it's offered.",
+                "{} keeps a day's work where the fields want it."],
+        }, &s.name, 3).replace("{}", &s.name));
     }
     for t in &s.traits {
-        parts.push(match t {
-            Trait::Lazy => "They'd sooner watch the clouds than the plough.".into(),
-            Trait::Ambitious => "They mean to be more than they were born.".into(),
-            Trait::Kind => "They're the first with a loaf when a house is bare.".into(),
-            Trait::Stingy => "Their purse strings are knotted tight.".into(),
-            Trait::Pious => "They never miss a service.".into(),
-            Trait::Hotheaded => "Their temper's shorter than a winter's day.".into(),
-            Trait::Gregarious => "They know every soul and every soul's business.".into(),
-            Trait::Proud => "They bow to no one.".into(),
-            Trait::Steady => "They'll finish the furrow before they curse the stone.".into(),
-            Trait::Wary => "They weigh a stranger twice before a word.".into(),
-            Trait::Stolid => "They keep their own counsel, and keep it well.".into(),
-            Trait::Cruel => "Their hand is heavy and their tongue heavier.".into(),
-            Trait::SelfAbsorbed => "They'll talk {2:poss} ear off and never once ask after {2:own}.".into(),
-        });
+        let pool: &[&'static str] = match t {
+            Trait::Lazy => &[
+                "They'd sooner watch the clouds than the plough.",
+                "Work sits down beside them and they let it wait.",
+                "A sunny bench argues better than a hoe."],
+            Trait::Ambitious => &[
+                "They mean to be more than they were born.",
+                "Their eyes are always a rung up the ladder.",
+                "They keep count of who's risen, and mean to pass them."],
+            Trait::Kind => &[
+                "They're the first with a loaf when a house is bare.",
+                "A neighbor's empty shelf empties theirs first.",
+                "They'd give the coat off their back and call it lending."],
+            Trait::Stingy => &[
+                "Their purse strings are knotted tight.",
+                "A coin leaves their hand the way teeth leave a jaw.",
+                "They count the crumbs twice before the second's swept."],
+            Trait::Pious => &[
+                "They never miss a service.",
+                "The bell knows their step better than their own door does.",
+                "Every saint's day finds them first at the door."],
+            Trait::Hotheaded => &[
+                "Their temper's shorter than a winter's day.",
+                "A wrong word and the kettle's off.",
+                "They burn fast and cool slow."],
+            Trait::Gregarious => &[
+                "They know every soul and every soul's business.",
+                "No lane's gossip gets past them twice.",
+                "They've a hello for every door and a question for every hello."],
+            Trait::Proud => &[
+                "They bow to no one.",
+                "Their chin's set a half-inch higher than the rest of the room.",
+                "They'd rather lose than ask."],
+            Trait::Steady => &[
+                "They'll finish the furrow before they curse the stone.",
+                "The plough's line runs true under their hands, whatever the weather.",
+                "Slow to start, impossible to stop."],
+            Trait::Wary => &[
+                "They weigh a stranger twice before a word.",
+                "New faces get the back of their eye first.",
+                "Trust comes to them the long way round."],
+            Trait::Stolid => &[
+                "They keep their own counsel, and keep it well.",
+                "Their face tells you the weather, not what they're thinking.",
+                "Ask twice and you'll still get the same short answer."],
+            Trait::Cruel => &[
+                "Their hand is heavy and their tongue heavier.",
+                "The dog knows to give their path a wide berth.",
+                "A small thing done mean gives them a good morning."],
+            Trait::SelfAbsorbed => &[
+                "They'll talk your ear off and never once ask after you.",
+                "The world's a mirror they happen to live in.",
+                "Every tale you start becomes a tale of theirs."],
+        };
+        parts.push(profile_line(pool, &s.name, *t as u64 + 10).into());
     }
     for st in &s.status {
         if *st == "child" { continue; }
-        parts.push(match *st {
-            "sick" => "A cough's had them these two weeks.".into(),
-            "hungry" => "The store ran out and the belly knows it.".into(),
-            "grieving" => "They buried one of their own last week.".into(),
-            "drunk" => "Last night's cup is still on them.".into(),
-            "cold" => "Their hearth went out and fuel is spent.".into(),
-            "elder" => "Eighty winters of village memories are in their bones.".into(),
-            "newborn" => "A new babe was born to their house this month.".into(),
+        let salt = st.bytes().fold(40u64, |a, b| a.wrapping_mul(31).wrapping_add(b as u64));
+        let pool: &[&'static str] = match *st {
+            "sick" => &[
+                "A cough's had them these two weeks.",
+                "There's a wheeze in their step this season."],
+            "hungry" => &[
+                "The store ran out and the belly knows it.",
+                "Their belt's gone a notch inward this winter."],
+            "grieving" => &[
+                "They buried one of their own last week.",
+                "A fresh grave sits behind their eyes."],
+            "drunk" => &[
+                "Last night's cup is still on them.",
+                "The tavern's tap still has their ear from yestereve."],
+            "cold" => &[
+                "Their hearth went out and fuel is spent.",
+                "Their breath fogs indoors and the woodpile's bare."],
+            "elder" => &[
+                "Eighty winters of village memories are in their bones.",
+                "They remember three lords back, and say the first was worse."],
+            "newborn" => &[
+                "A new babe was born to their house this month.",
+                "There's a cradle by their hearth keeping everyone up."],
             // the soul's name, read not as a score but as what folk
             // have learned to expect of them (#950)
-            "kind_soul" => "Their table's never bare to a neighbor.".into(),
-            "upright" => "They deal straight where another man would bend.".into(),
-            "steady" => "Nothing much ruffles them.".into(),
-            "shrewd" => "They weigh a thing thrice before they speak on it.".into(),
-            "devout" => "They keep the holy days like a second trade.".into(),
-            "hopeful" => "They expect the morning to bring good.".into(),
-            "bold" => "They step forward when the rest step back.".into(),
-            "hard" => "Their door stays shut when a neighbor's pot runs empty.".into(),
-            "smith" => "They work the village anvil and forge.".into(),
-            "miller" => "They run the watermill at the weir.".into(),
-            "baker" => "They tend the communal bread oven.".into(),
-            "weaver" => "They weave russet cloth on the loom.".into(),
-            "carpenter" => "They square timber and cut mortise joints.".into(),
-            "mason" => "They cut freestone and build field walls.".into(),
-            "shepherd" => "They herd ewes and lambs on the common pasture.".into(),
-            "brewer" => "They brew ale and tend the village vats.".into(),
-            "taverner" => "They keep the tavern on the green and buy the drink trades out by the barrel.".into(),
-            "beekeeper" => "They keep straw skeps in the clover meadow.".into(),
-            "herb_wife" => "They gather roots and brew fever draughts.".into(),
-            "fisher" => "They set eel traps in the river current.".into(),
-            "charcoal_burner" => "They watch the slow-burning earth mounds in the deep wood.".into(),
+            "kind_soul" => &[
+                "Their table's never bare to a neighbor.",
+                "Folk name them when the pot runs low."],
+            "upright" => &[
+                "They deal straight where another man would bend.",
+                "Their word's worth a seal, ask anyone."],
+            "steady" => &[
+                "Nothing much ruffles them.",
+                "You could set a plough-line by their temper."],
+            "shrewd" => &[
+                "They weigh a thing thrice before they speak on it.",
+                "They hear the price before they hear the tale."],
+            "devout" => &[
+                "They keep the holy days like a second trade.",
+                "The fast days find them already fasting."],
+            "hopeful" => &[
+                "They expect the morning to bring good.",
+                "Ask them and the season's always about to turn."],
+            "bold" => &[
+                "They step forward when the rest step back.",
+                "First through a door nobody else wanted to open."],
+            "hard" => &[
+                "Their door stays shut when a neighbor's pot runs empty.",
+                "A plea tends to die on their doorstep."],
+            "smith" => &[
+                "They work the village anvil and forge.",
+                "The forge's smoke marks their door."],
+            "miller" => &[
+                "They run the watermill at the weir.",
+                "The mill wheel's never far from their talk."],
+            "baker" => &[
+                "They tend the communal bread oven.",
+                "Their mornings start with the oven's first fire."],
+            "weaver" => &[
+                "They weave russet cloth on the loom.",
+                "The loom's clatter keeps their house's time."],
+            "carpenter" => &[
+                "They square timber and cut mortise joints.",
+                "Their joints hold without a nail to brag of."],
+            "mason" => &[
+                "They cut freestone and build field walls.",
+                "Their walls stand straighter than the lane."],
+            "shepherd" => &[
+                "They herd ewes and lambs on the common pasture.",
+                "The flock knows their whistle on the common."],
+            "brewer" => &[
+                "They brew ale and tend the village vats.",
+                "The village vats answer to their mash fork."],
+            "taverner" => &[
+                "They keep the tavern on the green and buy the drink trades out by the barrel.",
+                "The tavern on the green keeps them, barrel and bench."],
+            "beekeeper" => &[
+                "They keep straw skeps in the clover meadow.",
+                "The skeps hum for them in the clover meadow."],
+            "herb_wife" => &[
+                "They gather roots and brew fever draughts.",
+                "Half the village's cures started in their basket."],
+            "fisher" => &[
+                "They set eel traps in the river current.",
+                "The river pays them in eels."],
+            "charcoal_burner" => &[
+                "They watch the slow-burning earth mounds in the deep wood.",
+                "The wood's smoke follows them home."],
             // the powers they run with (#969): the talk can name the pull,
             // the profile says it in words, not tokens
-            "parish_faction" => "They keep close to the church folk.".into(),
-            "market_faction" => "They keep close to the market folk.".into(),
-            "guild_faction" => "They keep close to the guild's masters.".into(),
-            "kin_faction" => "Their kin's name opens doors here.".into(),
-            "seeker" => "They're forever turning the big questions over.".into(),
-            "mystic" => "They speak of God like a neighbor they've met.".into(),
-            "sage" => "Their faith seems to hold the whole wide world.".into(),
+            "parish_faction" => &[
+                "They keep close to the church folk.",
+                "The church porch is where their counsel gathers."],
+            "market_faction" => &[
+                "They keep close to the market folk.",
+                "The market stalls know them by name."],
+            "guild_faction" => &[
+                "They keep close to the guild's masters.",
+                "The guild's tables set their company."],
+            "kin_faction" => &[
+                "Their kin's name opens doors here.",
+                "Say their surname and doors come open."],
+            "seeker" => &[
+                "They're forever turning the big questions over.",
+                "Ask them the hour and you'll get the meaning of the day."],
+            "mystic" => &[
+                "They speak of God like a neighbor they've met.",
+                "They talk to the Almighty like he's at the fence."],
+            "sage" => &[
+                "Their faith seems to hold the whole wide world.",
+                "Their belief has room for every doubt put to it."],
             // a status the talk keys on that says nothing about who they
             // are (bond stage, already-spoken, visitor plumbing) stays
             // out of the prose
             _ => continue,
-        });
+        };
+        parts.push(profile_line(pool, &s.name, salt).into());
     }
     parts.join(" ")
 }

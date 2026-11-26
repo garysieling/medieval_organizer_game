@@ -623,3 +623,136 @@ fn tempo_bands_enforced() {
         }
     }
 }
+
+#[test]
+fn climax_lands_inside_the_strain() {
+    // the strain's peak should be reached in the body, not saved
+    // entirely for the last bar's cadence: across seeds most phrases
+    // touch their high point before the final bar (#1618)
+    let n = 60u64;
+    let mut inside = 0;
+    for seed in 0..n {
+        let mut rng = Rng::new(seed ^ 0x0C11);
+        let mut s = rand_spec(&mut rng, seed);
+        s.density[Voice::Melody as usize] = 0.9;
+        let m = melody(&Composer::new().compose_phrase(&s).notes);
+        if m.is_empty() {
+            continue;
+        }
+        let bar = bar_samples(&s);
+        let peak = m.iter().map(|x| x.midi).fold(f32::MIN, f32::max);
+        let last_peak_bar = m
+            .iter()
+            .filter(|x| x.midi == peak)
+            .map(|x| x.at_sample / bar)
+            .max()
+            .unwrap();
+        if last_peak_bar < 7 {
+            inside += 1;
+        }
+    }
+    assert!(
+        inside * 2 >= n as usize,
+        "only {inside}/{n} phrases climax before the last bar"
+    );
+}
+
+#[test]
+fn cadence_notes_take_the_downbeat() {
+    // an ending note opens its bar - nothing so long slips onto a
+    // weak sixteenth
+    for seed in 0..200u64 {
+        let mut rng = Rng::new(seed ^ 0x0CAD);
+        let s = rand_spec(&mut rng, seed);
+        let bar = bar_samples(&s);
+        for n in melody(&Composer::new().compose_phrase(&s).notes) {
+            if n.dur_samples as u64 >= bar {
+                assert_eq!(
+                    n.at_sample % bar,
+                    0,
+                    "seed {seed}: cadence-length note off the downbeat"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn the_line_moves_mostly_by_step() {
+    // a singable line steps: authored cells like Cause leap by design,
+    // so the bound runs over the ensemble - on average at least half
+    // the intervals stay within a third (#1618)
+    let mut near = 0;
+    let mut tot = 0;
+    for seed in 0..200u64 {
+        let mut rng = Rng::new(seed ^ 0x0573);
+        let s = rand_spec(&mut rng, seed);
+        let m = melody(&Composer::new().compose_phrase(&s).notes);
+        for w in m.windows(2) {
+            if (w[1].midi - w[0].midi).abs() <= 4.0 {
+                near += 1;
+            }
+            tot += 1;
+        }
+    }
+    assert!(
+        near * 2 >= tot,
+        "only {near}/{tot} intervals within a third"
+    );
+}
+
+#[test]
+fn the_line_does_not_see_saw() {
+    // an immediate A-B-A retraction is a figure's turn at its arch -
+    // and OldFaith circles by design - so the bound runs over the
+    // ensemble: on average no more than a fifth of the line seesaws
+    // (#1618)
+    let mut see = 0;
+    let mut notes = 0;
+    for seed in 0..200u64 {
+        let mut rng = Rng::new(seed ^ 0x05E5);
+        let s = rand_spec(&mut rng, seed);
+        let m = melody(&Composer::new().compose_phrase(&s).notes);
+        for w in m.windows(3) {
+            if w[0].midi == w[2].midi && w[0].midi != w[1].midi {
+                see += 1;
+            }
+        }
+        notes += m.len();
+    }
+    assert!(
+        see * 5 <= notes,
+        "{see} see-saws across {notes} melody notes"
+    );
+}
+
+#[test]
+fn downbeats_carry_the_accent() {
+    // bar onsets sing stronger than the notes between them - the
+    // velocity contour marks the meter (#1618)
+    let mut down = 0f32;
+    let mut d_n = 0usize;
+    let mut off = 0f32;
+    let mut o_n = 0usize;
+    for seed in 0..40u64 {
+        let mut rng = Rng::new(seed ^ 0x0ACC);
+        let s = rand_spec(&mut rng, seed);
+        let bar = bar_samples(&s);
+        for n in melody(&Composer::new().compose_phrase(&s).notes) {
+            if n.at_sample % bar == 0 {
+                down += n.vel;
+                d_n += 1;
+            } else {
+                off += n.vel;
+                o_n += 1;
+            }
+        }
+    }
+    assert!(d_n > 0 && o_n > 0);
+    assert!(
+        down / d_n as f32 > off / o_n as f32,
+        "downbeat {:.3} not above off-beat {:.3}",
+        down / d_n as f32,
+        off / o_n as f32
+    );
+}

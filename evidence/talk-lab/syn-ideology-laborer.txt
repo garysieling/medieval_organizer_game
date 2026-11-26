@@ -26,7 +26,7 @@
     3) [Question] Put a question to them
   Voice: I told the rain to stop and it came down the harder. So much for commanding the weather.
   Voice: Ha! Aye - and the half of it's left unsaid.
-  Voice: Walk with me a moment, Voice - the light's good this hour, or do I hear wrong?
+  Voice: One thing more - Walk with me a moment, Voice - the light's good this hour, or do I hear wrong?
     1) [PushBack] Hm… Keep your swallows. I've troubles enough.
     2) [Question] Put a question to them
   Voice: Hm… Keep your swallows. I've troubles enough.

@@ -413,14 +413,26 @@ pub fn apply(tr: &mut Transcript, pair: &[Speaker; 2], player: usize,
                 let other = &pair[1 - t.speaker];
                 match id.habit.how() {
                     How::Whole => {
-                        t.text = conversation::fill(v, &pair[t.speaker], other, &mut rng);
+                        // a dressed turn keeps its seam (#1695): the
+                        // pivot the walk marked rides ahead of the
+                        // habit's words too
+                        let pivot = conversation::PIVOTS.iter()
+                            .find(|p| t.text.starts_with(**p))
+                            .map(|p| *p).unwrap_or("");
+                        t.text = format!("{}{}",
+                            pivot, conversation::fill(v, &pair[t.speaker], other, &mut rng));
                         // the variant itself stays spent on the pair's
                         // memory - its template is the line they heard
                         t.line = Some(v);
                     }
                     How::Preface => {
                         let pre = conversation::fill(v, &pair[t.speaker], other, &mut rng);
-                        t.text = format!("{}{}", pre, t.text);
+                        // a marked seam stays at the head (#1695): the
+                        // habit's words tuck in behind the pivot
+                        match conversation::PIVOTS.iter().find(|p| t.text.starts_with(**p)) {
+                            Some(p) => t.text = format!("{}{}{}", p, pre, &t.text[p.len()..]),
+                            None => t.text = format!("{}{}", pre, t.text),
+                        }
                     }
                     How::Coda => {
                         let coda = conversation::fill(v, &pair[t.speaker], other, &mut rng);

@@ -887,13 +887,32 @@ fn worry_beat(
 /// corrupted, and its act marks the slip. The roll rides its own rng
 /// stream (`say`'s caller forks it once a walk) so the same turns
 /// roll the same way on every replay, however many picks stand
+/// The seams a second breath needs (#1695): when the floor comes back
+/// to the same speaker with no answer landed, the next line marks the
+/// turn it's taking, never silently swapping topics
+pub(crate) const PIVOTS: &[&str] = &["And another thing - ", "That puts me in mind - ",
+    "While I've your ear - ", "One thing more - "];
+
 fn say(
     tr: &mut Transcript,
     pair: &[Speaker; 2],
     slip_rng: &mut Rng,
     slipped: &mut bool,
-    t: Turn,
+    mut t: Turn,
 ) {
+    // #1695: two turns in a row from one mouth read as a monologue's
+    // jump unless the second owns the pivot
+    if tr.turns.last().map(|l| l.speaker) == Some(t.speaker)
+        && !PIVOTS.iter().any(|p| t.text.starts_with(p)) {
+        t.text = format!("{}{}", PIVOTS[slip_rng.below(PIVOTS.len())], t.text);
+    }
+    // an unsolicited statement isn't an answer (#1695): the tag
+    // follows what the turn does - nothing asked, nothing answered
+    if t.act == Act::Answer
+        && !matches!(tr.turns.last().map(|l| l.act),
+            Some(Act::Question) | Some(Act::Greet) | Some(Act::Joke)) {
+        t.act = Act::Remark;
+    }
     tr.turns.push(t);
     let t = tr.turns.last_mut().unwrap();
     let sp = t.speaker;
@@ -4557,6 +4576,33 @@ mod tests {
             }, &mut Rng::new(7))
     }
 
+
+    #[test]
+    fn a_second_breath_marks_its_pivot() {
+        // #1695: a floor that comes back to the same mouth names the
+        // turn it takes - and an Answer never stands with nothing asked
+        let lib = village_library();
+        for seed in 1..120u64 {
+            let mut a = Speaker::new("Hob");
+            a.status.push("sick");
+            a.open = warm_open();
+            let b = Speaker::new("Wanderer");
+            let tr = converse(&a, &b, Relation::Acquaintance, None, &lib, None,
+                &mut Rng::new(seed));
+            for w in tr.turns.windows(2) {
+                if w[0].speaker == w[1].speaker && w[1].act != Act::Slip {
+                    assert!(PIVOTS.iter().any(|p| w[1].text.starts_with(p)),
+                        "unmarked second breath: {:?} | {:?}",
+                        w[0].text, w[1].text);
+                }
+                if w[1].act == Act::Answer {
+                    assert!(matches!(w[0].act, Act::Question | Act::Greet | Act::Joke),
+                        "answer to nothing: {:?} -> {:?} in {:?}",
+                        w[0].act, w[1].act, w[1].text);
+                }
+            }
+        }
+    }
 
     #[test]
     fn a_menu_never_shows_the_same_label_twice() {

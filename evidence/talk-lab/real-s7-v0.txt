@@ -2,18 +2,18 @@
   facts: 
   (walking over…)
   Aldric: Well met, wanderer - how does the morning find thee?
-  (Aldric holds the manor's leases. Their purse strings are knotted tight. They keep close to the church folk.)
+  (Aldric speaks for the manor hereabouts. Their purse strings are knotted tight. They keep close to the church folk.)
   Aldric: I bar my door at night and still don't sleep.   [gist]
     1) Fair enough, and to you.
     2) Well… Morrow. I'd best keep moving.
-    3) Ask who folk turn to around here
+    3) Ask who you should talk to next
     4) Ask what they actually want
     l) take your leave
   you: Fair enough, and to you.
   Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
     1) An open hand finds open doors, say I.
     2) Folk who give away their bread soon beg for mine.
-    3) Ask who folk turn to around here
+    3) Ask who you should talk to next
     4) Ask what they actually want
     l) take your leave
   Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and thou?
@@ -21,7 +21,7 @@
   Aldric: The lane's quieter since the rain, thank goodness.
     1) As do we all, neighbor.
     2) Put a question to them
-    3) Ask who folk turn to around here
+    3) Ask who you should talk to next
     4) Ask what they actually want
     l) take your leave
   you: As do we all, neighbor.
@@ -33,9 +33,9 @@
     4) Ask what they actually want
     l) take your leave
   you: I couldn't say truly.
-    1) Your servant, m'lady. Good day.
-    2) Enough chatter. Good day.
-    3) Ask who folk turn to around here
+    1) Fair day to you, Aldric - 'twas good to pass the time.
+    2) I have no leisure to stand about, Aldric.
+    3) Ask who you should talk to next
     4) Ask what they actually want
     l) take your leave
 REPRO: talk_lab talk --seed 7 --villager 0 --picks 0,0,0,0,0 (talk seed 905969685)

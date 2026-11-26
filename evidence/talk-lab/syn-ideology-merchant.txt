@@ -1,5 +1,5 @@
 === Talk: Voice (synthetic) vs Voice - Acquaintance ===
-  them: Voice trades on the road between villages. They bow to no one.
+  them: Voice trades on the road between villages. They'd rather lose than ask.
   them's facts: archetype:climber value:freedom value:standing
   you : Voice works the fields for a day's wage.
   Voice: Fair day! Prices move like the river these weeks.

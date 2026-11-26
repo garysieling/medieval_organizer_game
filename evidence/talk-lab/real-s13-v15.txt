@@ -2,7 +2,7 @@
   facts: 
   (walking over…)
   Rowena: Well met, wanderer - how does the morning find you?
-  (Rowena is the village farmer. They never miss a service. They keep close to the church folk.)
+  (The village farmer is Rowena. The bell knows their step better than their own door does. The church porch is where their counsel gathers.)
   Rowena: No bench, no hearth - I work in the street.   [gist]
     1) Out and about early today.
     2) Ah… Aye. Good day to you.
@@ -50,7 +50,7 @@
   you: Every tongue in the parish wags before sunset.
   Rowena: By the rood. True enough - the fields don't gossip.
     1) Go well, Rowena, and mind the mud.
-    2) I have no leisure to stand about, Rowena.
+    2) I take my leave.
     3) Ask them to come to a meeting - for 18g
     l) take your leave
 REPRO: talk_lab talk --seed 13 --villager 15 --picks 0,0,0,0,0,0,0,0 (talk seed 1207959566)

@@ -1,8 +1,8 @@
 === House meeting: Reeve convenes Aldric, Eliza, Bram, Corvin (seed 27) ===
-  - Aldric [clergy]: Aldric serves the village church. They're the first with a loaf when a house is bare. They'd sooner watch the clouds than the plough. Their temper's shorter than a winter's day. A cough's had them these two weeks.
+  - Aldric [clergy]: Aldric tends the village's prayers. They'd give the coat off their back and call it lending. Work sits down beside them and they let it wait. Their temper's shorter than a winter's day. There's a wheeze in their step this season.
   - Eliza [lord]: Eliza holds the manor's leases. They mean to be more than they were born. Last night's cup is still on them.
-  - Bram [lord]: Bram holds the manor's leases. They're the first with a loaf when a house is bare. They never miss a service. Their purse strings are knotted tight. They buried one of their own last week.
-  - Corvin [lord]: Corvin holds the manor's leases. They bow to no one. Their temper's shorter than a winter's day. They'd sooner watch the clouds than the plough. A cough's had them these two weeks.
+  - Bram [lord]: Bram speaks for the manor hereabouts. They'd give the coat off their back and call it lending. The bell knows their step better than their own door does. A coin leaves their hand the way teeth leave a jaw. A fresh grave sits behind their eyes.
+  - Corvin [lord]: Corvin's rents come due on the quarter days. They'd rather lose than ask. They burn fast and cool slow. They'd sooner watch the clouds than the plough. A cough's had them these two weeks.
   #0 Bram [Greet/Framing]: May the words said here do more good than harm. Amen.
   #1 Reeve [Question/Framing]: What ails the village most, friends? Speak true.
   #2 Bram [Remark/Answer] (re #1): We buried two souls this season; the churchyard grows crowded.

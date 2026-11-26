@@ -3770,12 +3770,17 @@ impl Game {
                     if !d.meet_again.is_empty() { opts.push("Meet again - they'll come back".into()); }
                     // a concrete step past the agreement (#1614): the
                     // willing sign on as the team for the work
-                    if !self.team_prospects(seat, &d.meet_again).is_empty() {
-                        opts.push("Form a team for it - the willing sign on".into());
-                    }
+                    let team = !self.team_prospects(seat, &d.meet_again).is_empty();
+                    if team { opts.push("Form a team for it - the willing sign on".into()); }
                     if d.street { opts.push("Take it to the street - show the numbers".into()); }
                     opts.push("Let it rest - keep talking".into());
-                    ("They'd gather again - or take it further. Your call.".to_string(), opts)
+                    // the prose only promises what the options list (#1678)
+                    let lean = if team || d.street {
+                        "They'd gather again - or take it further. Your call."
+                    } else {
+                        "They'd gather again. Your call."
+                    };
+                    (lean.to_string(), opts)
                 }
             };
             rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0, text: lean });

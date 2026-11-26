@@ -196,7 +196,7 @@ you : Tilda holds the manor's leases. Their purse strings are knotted tight. The
 Wystan [Greet in a_death_in_the_house]: Well met, dear friend. The days feel longer now - as my mother taught.
 Tilda [Agree in a_death_in_the_house]: They were the best of us, Wystan - I'll miss them beside thee.
 Wystan [Remark in a_death_in_the_house]: Two pennies' worth of worry, that is.
-Tilda [Agree in a_death_in_the_house]: She was loved by all who knew her in the village.
+Tilda [Agree in a_death_in_the_house]: He was loved by all who knew him in the village.
 Wystan [Remark in a_death_in_the_house]: The sorrow will ease as the seasons turn and heal, and that's the long of it.
 Tilda [Bid in a_death_in_the_house]: Walk with me to the well a moment, Wystan.
 Wystan [Question in friendship_bonds]: Can I count on thy team when we haul the heavy timber?

@@ -641,6 +641,11 @@ fn named_ref<'a>(tail: &str, cx: &'a Cx<'a>) -> Option<Referent> {
         return Some(r.clone());
     }
     match tail {
+        // the dead one a mourner carries (#1692): sex bound on the
+        // mourning speaker, neutral "they" when the world doesn't say
+        "dead" => Some(Referent { slot: "dead", text: "the dead".into(),
+            sex: cx.speaker.mourned.or(cx.listener.mourned),
+            alive: false, count: 1 }),
         "other" => Some(Referent { slot: "other", text: cx.listener.name.clone(),
             sex: cx.listener.sex, alive: true, count: 1 }),
         "self" | "speaker" => Some(Referent { slot: "self", text: cx.speaker.name.clone(),
@@ -1061,6 +1066,25 @@ mod tests {
         assert_eq!(realize_plain("an open {", &alys, &corvin, &[]), "an open {");
     }
 
+    #[test]
+    fn the_mourned_dead_keep_their_one_pronoun() {
+        // #1692: the condolence's `{*:dead}` slots read the mourner's
+        // bound dead - his spoon stays his, hers stays hers, and an
+        // unbound telling says their
+        let mut mourner = Speaker::new("Widow Ash");
+        mourner.mourned = Some("male");
+        let friend = Speaker::new("Corvin");
+        let t = "{he:dead} kept bees; I still set {his:dead} spoon, God keep {him:dead}.";
+        assert_eq!(realize_plain(t, &mourner, &friend, &[]),
+            "He kept bees; I still set his spoon, God keep him.");
+        mourner.mourned = Some("female");
+        assert_eq!(realize_plain(t, &mourner, &friend, &[]),
+            "She kept bees; I still set her spoon, God keep her.");
+        mourner.mourned = None;
+        assert_eq!(realize_plain(t, &mourner, &friend, &[]),
+            "They kept bees; I still set their spoon, God keep them.");
+    }
+
     /// The done-when: every authored line renders through the realizer
     /// exactly as the old replace chain made it
     fn all_library_lines() -> Vec<&'static str> {
@@ -1079,7 +1103,9 @@ mod tests {
                 || t.contains("{someone}") || t.contains("{name}")
                 || t.contains("{issue}") || t.contains("{label}")
                 || t.contains("{grievance}") || t.contains("{lads}")
-                || t.contains("{grandda}") || t.contains("{mystery}") {
+                || t.contains("{he:") || t.contains("{him:") || t.contains("{his:")
+                || t.contains("{is:") || t.contains("{was:") || t.contains("{n:")
+                || t.contains("{list:") || t.contains("{grandda}") || t.contains("{mystery}") {
                 // E4-2/E4-4/E4-7 migrated this line - the old fills never
                 // owned these slots (the referent slots leak through
                 // them, which is why #1606 gives them plain-word

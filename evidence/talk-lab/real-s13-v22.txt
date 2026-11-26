@@ -20,7 +20,7 @@
   you: I'll not argue it, if it pleases you.
   Roderick: A fine morning - the kind the hay wishes for.
     1) And how fares your folk in this cold snap?
-    2) And the day's work - does it treat you kindly?
+    2) And the day's labor - does it treat you kindly?
     3) Put a question to them
     l) take your leave
   you: And how fares your folk in this cold snap?

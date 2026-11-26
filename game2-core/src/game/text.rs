@@ -1036,7 +1036,22 @@ mod tests {
         let (alys, corvin) = pair();
         let t = "{other}, the mill keeps me - and how goes {other_trade}? My own is {trade}.";
         let got = realize_plain(t, &alys, &corvin, &[]);
-        assert_eq!(got, "Corvin, the mill keeps me - and how goes the day's work? My own is the mill.");
+        assert_eq!(got, "Corvin, the mill keeps me - and how goes the day's wage? My own is the mill.");
+    }
+
+    #[test]
+    fn the_work_noun_names_a_craft_or_a_wage() {
+        // #1691: a speaker whose craft has no status tag still names its
+        // ground from `trade` - only a true laborer falls to the wage,
+        // and never to a menu label
+        let mut cobbler = Speaker::new("Piers");
+        cobbler.trade = Some("shoemaker");
+        assert_eq!(trade_noun(&cobbler), "the last");
+        let mut digger = Speaker::new("Tom");
+        digger.trade = Some("miner");
+        assert_eq!(trade_noun(&digger), "the pit");
+        let hand = Speaker::new("Hob");
+        assert_eq!(trade_noun(&hand), "the day's wage");
     }
 
     #[test]

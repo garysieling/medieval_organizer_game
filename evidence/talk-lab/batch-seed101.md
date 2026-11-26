@@ -85,7 +85,7 @@ Gisela [Agree in the_sickness]: You look pale, Hob. Best be indoors.
 Hob [Remark in the_audition]: They that count sheep all day shear none, friend.
 Gisela [Remark in the_audition]: Knees ache. Such is age, friend, or is that not the way of it?
 Hob [Remark in village_smalltalk]: Rain means mud, and mud means slow wagons.
-Gisela [Question in village_smalltalk]: And the day's work - does it treat you kindly?
+Gisela [Question in village_smalltalk]: God witness. And the day's labor - does it treat you kindly?
 Hob [Remark in village_smalltalk]: Gisela - how goes the ledger with you this season?
 Gisela [Question in village_smalltalk]: Well enough, aye. And how does the ledger treat you?
 Hob [Remark in village_smalltalk]: Did you hear who was seen down by the mill?

@@ -21,15 +21,15 @@
   Dagny: Folk here know to speak fair to me. You will have heard as much?
   you: We all muck the same stalls here, high or low.
   Dagny: Aye, the dew lay heavy on the clover this morning, or do I hear wrong?
-    1) And the day's work - does it treat you kindly?
+    1) And the day's labor - does it treat you kindly?
     2) And how fares your folk in this cold snap?
     3) Put a question to them
     4) Ask how they think the lord will answer
     l) take your leave
-  you: And the day's work - does it treat you kindly?
-  Dagny: Hard at it down at the day's work, are we?
+  you: And the day's labor - does it treat you kindly?
+  Dagny: Hard at it down at the day's wage, are we?
     1) Well enough, aye. And how does the workshop treat you?
-    2) Oh… Ask the reeve about the day's work, not me. I keep my own count.
+    2) Oh… Ask the reeve about the day's wage, not me. I keep my own count.
     3) Put a question to them
     4) Ask how they think the lord will answer
     l) take your leave

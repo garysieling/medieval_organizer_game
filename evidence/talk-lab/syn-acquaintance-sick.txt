@@ -13,7 +13,7 @@
   Voice: A poor man's bed is a luxury he can rarely afford.
   Probe: The sky does what it does, Voice.
     1) [Question] Has your brother returned from the market town?
-    2) [Question] And the day's work - does it treat you kindly?
+    2) [Question] And the day's labor - does it treat you kindly?
     3) [Question] Put a question to them
   Voice: Has your brother returned from the market town?
   Probe: Well enough, thank you, Voice.

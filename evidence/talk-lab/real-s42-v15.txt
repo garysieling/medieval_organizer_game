@@ -24,9 +24,9 @@
     3) Put a question to them
     l) take your leave
   you: Weather aside, Rowena - how does the season treat you?
-  Rowena: I hear the work keeps you busy at the day's work.
+  Rowena: I hear the work keeps you busy at the day's wage.
     1) Never better. And yourself - is the tailor's kind to you?
-    2) Well… the day's work is my affair, and it fares as it fares.
+    2) Well… the day's wage is my affair, and it fares as it fares.
     3) Put a question to them
     l) take your leave
   you: Never better. And yourself - is the tailor's kind to you?

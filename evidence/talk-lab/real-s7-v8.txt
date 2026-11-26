@@ -24,12 +24,12 @@
     3) Put a question to them
     l) take your leave
   you: Enough sky-talk - how goes the work these days?
-  Wystan: I hear the work keeps you busy at the day's work.
-    1) Honest work for honest pay at the day's work - can't complain, and wouldn't.
+  Wystan: I hear the work keeps you busy at the day's wage.
+    1) Honest work for honest pay at the day's wage - can't complain, and wouldn't.
     2) Well enough, aye. And how does the fields treat you?
     3) Put a question to them
     l) take your leave
-  you: Honest work for honest pay at the day's work - can't complain, and wouldn't.
+  you: Honest work for honest pay at the day's wage - can't complain, and wouldn't.
   Wystan: They say the miller took an extra scoop of meal again.
     1) Aye, the tithe's the tithe. It was ever so, and ever will be.
     2) Careful - walls have ears, goodwife Wystan.

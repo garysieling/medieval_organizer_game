@@ -479,6 +479,42 @@ fn test_a_meeting_with_a_cause_ends_in_next_steps() {
         .unwrap().for_day, Some(g.tick + 2), "the follow-up's dated");
 }
 
+/// The call's prose only advertises paths the options list (#1678):
+/// no cause for the street and no one left to sign on means the line
+/// stops at "gather again" - and a cause's street puts "further" back
+#[test]
+fn test_the_calls_prose_promises_only_what_the_options_list() {
+    let mut g = Game::new();
+    // no issue heard, no cause founded, and every attendee already a
+    // member: there's no vote to take, no team to form, no street to
+    // take it to - only meet again or let it rest
+    g.world.get_component_mut::<crate::sim::community::Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    let came = g.villagers[..3].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    let call = g.convo_panel_at(0).expect("the call on the box");
+    let prose = &call.rows.last().unwrap().text;
+    assert!(!prose.contains("further"), "no further path, none promised: {}", prose);
+    assert!(!call.options.iter().any(|o| o.contains("street") || o.contains("team")),
+        "{:?}", call.options);
+    assert!(call.options.iter().any(|o| o.contains("Meet again")), "{:?}", call.options);
+    // a cause found puts the street back - and the prose with it
+    let mut g2 = Game::new();
+    org_ready(&mut g2);
+    let (oe, tick) = (g2.org, g2.tick);
+    let _c = crate::game::campaign::found_campaign(&mut g2.world, oe,
+        &crate::game::campaign::IssueVote { winner: "the taxes".into(), ballots: vec![] },
+        crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
+    let came = g2.villagers[..3].to_vec();
+    let id = g2.open_meeting_record(g2.player, &came);
+    g2.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    let call = g2.convo_panel_at(0).expect("the call on the box");
+    let prose = &call.rows.last().unwrap().text;
+    assert!(prose.contains("further"), "the street's on the table, so's the word: {}", prose);
+    assert!(call.options.iter().any(|o| o.contains("street")), "{:?}", call.options);
+}
+
 #[test]
 fn test_a_follower_greets_you_differently() {
     let mut g = Game::new();

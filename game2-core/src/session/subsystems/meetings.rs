@@ -256,6 +256,9 @@ impl Game {
         let org = self.seats[seat].org;
         if came.is_empty() { return None; }
         let street = crate::game::campaign::campaign_of(&self.world, org).is_some();
+        // "further" is only a promise the options can keep (#1678): a
+        // street to take it to, or folk willing to sign on as the team
+        let further = street || !self.team_prospects(seat, came).is_empty();
         let (vote, oname) = match self.founding_vote(seat) {
             Some((v, n)) => (Some(v), n),
             None => (None, self.world.get_component::<Organization>(org).map(|o| o.name.clone()).unwrap_or_default()),
@@ -275,7 +278,11 @@ impl Game {
                 format!("{} lean to {} - {} - your call.", oname,
                     desires::issue_name(v.winner.clone()), ballot_tally(v))
             }
-            None => "They'd gather again - or take it further. Your call.".into(),
+            None => if further {
+                "They'd gather again - or take it further. Your call.".into()
+            } else {
+                "They'd gather again. Your call.".into()
+            },
         };
         self.seats[seat].pending_founding = Some(PendingFounding {
             record, vote, org_name: oname, meet_again: came.to_vec(), street, offered_tick: self.tick });

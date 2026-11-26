@@ -1998,6 +1998,33 @@ fn test_the_probing_question_thaws_them_through_the_talk() {
         "the probing question is asked once: {:?}", labels);
 }
 
+/// The ask ladder's dead rung (#1625): the probe's answer is a telling
+/// the day it's voiced, so one probing question is enough to put the
+/// acquaintance-tier asks on the table - the playtest's month of
+/// courting that bought nothing now buys the first rung
+#[test]
+fn test_the_probes_answer_puts_the_earned_asks_on_the_table() {
+    use crate::game::organizing::{props_on_offer, PropKind};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    bond_to(&mut g, v, 0.2);
+    // the playtest's dead end: spoken to, nothing real heard, no asks
+    assert!(props_on_offer(&g.world, g.org, v).is_empty());
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    let pick = t.choice_labels(&g.world).iter().position(|l| l == "Ask what they actually want")
+        .expect("the probing question's the ladder's first step");
+    g.talk_pick_at(0, Some(pick));
+    // the want they voice lands on the seat's ledger that day - and the
+    // acquaintance ask it proves comes on the table
+    assert!(!crate::game::desires::known(&g.world, g.player, v).is_empty(),
+        "they said the want out loud - the seat heard it");
+    let asks = props_on_offer(&g.world, g.org, v);
+    assert!(asks.contains(&PropKind::Introduce),
+        "one telling opens the ladder's first rung: {:?}", asks);
+}
+
 #[test]
 fn test_the_probe_leaves_the_offer_when_theres_nothing_left_to_hear() {
     let mut g = Game::new();

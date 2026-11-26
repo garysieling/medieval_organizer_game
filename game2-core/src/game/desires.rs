@@ -1673,6 +1673,12 @@ pub fn plant_want(world: &mut World, e: Entity, asker: Entity, tick: u64, seed: 
     let w = open[(seed % open.len() as u64) as usize];
     if world.get_component::<Planted>(e).is_none() { world.add_component(e, Planted::default()); }
     world.get_component_mut::<Planted>(e).unwrap().wants.push((w, tick + PLANT_RIPEN_DAYS, asker));
+    // the question's answer is itself a telling (#1625): they said the
+    // want out loud, so the asker's ledger holds it from that day -
+    // ripening only decides when it's a want they carry, not when
+    // the seat got to hear of it
+    let r = Reveal::Want(w);
+    record(world, asker, e, reveal_key(&r), Some(r), Source::Told { speaker: e }, tick);
     Some(w)
 }
 

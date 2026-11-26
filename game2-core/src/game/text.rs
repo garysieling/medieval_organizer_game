@@ -261,8 +261,9 @@ const EXCLAIM_OPENERS: [&str; 2] = ["Hah! ", "Why, "];
 /// The mouths an opener can't swallow (#1694): a greeting already
 /// leads its line - "Why, Hail," is no hello, and "Hah! Morrow" is no
 /// better
-const GREETING_HEADS: [&str; 8] = ["Hail", "Well met", "Morrow",
-    "Good morrow", "God's peace", "Fair day", "Fair morning", "Good day"];
+const GREETING_HEADS: [&str; 9] = ["Hail", "Well met", "Morrow",
+    "Good morrow", "God's peace", "Fair day", "Fair morning", "Good day",
+    "Peace to this cottage"];
 
 /// The line opens on a greeting's own head - an opener marker has no
 /// business in front of it
@@ -381,7 +382,13 @@ fn apply_marks(text: &str, fired: &[Marker], r: &mut Rng) -> String {
             if mark == Some('?') {
                 out = format!("Hah! {out}");
             } else {
-                let opener = EXCLAIM_OPENERS[r.below(EXCLAIM_OPENERS.len())];
+                // a question earlier in the line (an opening "Who,
+                // then?" ahead of the sentence this bang settles) is
+                // still a question's own mark - "Why," can't lean in
+                // front of it, so only the whole cry may (#1694)
+                let opener = if out.contains('?') { "Hah! " } else {
+                    EXCLAIM_OPENERS[r.below(EXCLAIM_OPENERS.len())]
+                };
                 let pronoun = out.starts_with('I')
                     && out.chars().nth(1).is_none_or(|c| !c.is_alphabetic());
                 if opener == "Why, " && !pronoun {
@@ -1568,13 +1575,24 @@ mod tests {
                 if out.starts_with("Why, ") { saw_why = true; }
             }
             assert!(saw_why, "the lean-in never fired in 40 tries");
-            // and neither opener fronts a greeting's own head
+            // and neither opener fronts a greeting's own head - the
+            // sick-visit salutation included (#1694 follow-up: Wystan's
+            // "Hah! Peace to this cottage, Osric")
             for line in ["Hail, tiller of the soil!", "Well met, neighbor!",
-                         "Morrow, friend!"] {
+                         "Morrow, friend!",
+                         "Peace to this cottage, Osric. How goes the fever?"] {
                 for _ in 0..20 {
                     let out = apply_marks(line, &[Marker::Exclaim], &mut r);
                     assert_eq!(out, line, "an opener swallowed a greeting: {out}");
                 }
+            }
+            // a question that isn't the line's last sentence still
+            // wears its own mark - "Why," can't lean in front of it
+            // (#1694 follow-up: "Why, who, then? Point!")
+            for _ in 0..40 {
+                let out = apply_marks("Who, then? Point!", &[Marker::Exclaim], &mut r);
+                assert!(!marker_seam_fault(&out), "{out}");
+                assert!(!out.starts_with("Why, "), "lean-in fronted a question: {out}");
             }
         }
 

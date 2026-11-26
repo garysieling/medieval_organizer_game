@@ -5,7 +5,7 @@
 use crate::game::conversation::{Relation, Rng, Speaker};
 use crate::game::campaign_dialogue::fill;
 use crate::game::text::{agreement_faults, authored_lines, authored_lines_by_source,
-    realize, tv_for, typed_second_person, Cx, Referent};
+    marker_seam_fault, realize, tv_for, typed_second_person, Cx, Referent};
 
 #[test]
 fn test_no_authored_line_crosses_the_forms() {
@@ -53,6 +53,44 @@ fn test_every_realized_line_agrees() {
         }
     }
     assert!(checked > 60_000, "only {checked} renderings checked");
+}
+
+/// #1694's seam lint: a lean-in marker can't front a clause it can't
+/// carry (`Why,` wants a lowercase tail), and no opener stands before a
+/// greeting's head - over every authored line, every station, every bond
+#[test]
+fn test_no_marker_stammers_onto_a_clause() {
+    let stations: Vec<Speaker> = {
+        let mut lord = Speaker::new("Edmund");
+        lord.ideology = "lord";
+        let mut priest = Speaker::new("Tobias");
+        priest.ideology = "clergy";
+        let mut trader = Speaker::new("Sibb");
+        trader.ideology = "merchant";
+        trader.sex = Some("female");
+        let mut hand = Speaker::new("Hob");
+        hand.archaism = 2;
+        let mut child = Speaker::new("Will");
+        child.status.push("child");
+        vec![lord, priest, trader, hand, child]
+    };
+    let mut rng = Rng::new(17);
+    let mut bad = vec![];
+    for t in authored_lines() {
+        for a in &stations {
+            for b in &stations {
+                for rel in [Relation::Stranger, Relation::Friend, Relation::Rival] {
+                    let mut cx = Cx::plain(a, b, &[]);
+                    cx.tv = tv_for(a, b, rel, matches!(rel, Relation::Rival));
+                    let got = realize(t, &cx, &mut rng);
+                    if marker_seam_fault(&got) {
+                        bad.push(format!("{got} <- {t}"));
+                    }
+                }
+            }
+        }
+    }
+    assert!(bad.is_empty(), "marker seams:\n{}", bad.join("\n"));
 }
 
 #[test]

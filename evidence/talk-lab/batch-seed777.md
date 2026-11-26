@@ -39,9 +39,9 @@ you : Gisela keeps the parish's book and bell. Their temper's shorter than a win
 
 Bram [Greet in asking_the_father]: The saints keep you, father - saints keep us.
 Gisela [Greet in asking_the_father]: Always, child. Speak freely in the sight of God.
-Bram [Question in the_audition]: Why, The miller had the right of it in that quarrel - you will agree, surely?
+Bram [Question in the_audition]: Hah! The miller had the right of it in that quarrel - you will agree, surely?
 Gisela [Agree in the_audition]: Aye... I suppose you are right about that.
-Bram [Remark in village_smalltalk]: Why, Is it raining, or is that the ale talking? *hic*
+Bram [Remark in village_smalltalk]: Hah! Is it raining, or is that the ale talking? *hic*
 Gisela [Question in village_smalltalk]: Has your brother returned from the market town?
 Bram [Answer in village_smalltalk]: We rub along as ever, by the saints' mercy.
 Gisela [Agree in village_smalltalk]: Aye, children grow like weeds in the summer ditch, or am I mistook?
@@ -177,9 +177,9 @@ Osric [Farewell in visiting_the_sick]: Then I'll see thee at first light, as I'v
 them: Wystan's rents come due on the quarter days. They burn fast and cool slow. A coin leaves their hand the way teeth leave a jaw. Their eyes are always a rung up the ladder. Their belt's gone a notch inward this winter.
 you : Osric serves the village church. They know every soul and every soul's business. A cough's had them these two weeks.
 
-Wystan [Greet in visiting_the_sick]: Why, Peace to this cottage, Osric. How goes the fever - as my mother taught.
+Wystan [Greet in visiting_the_sick]: Hah! Peace to this cottage, Osric. How goes the fever - as my mother taught.
 Osric [PushBack in visiting_the_sick]: Nay, I see it differently, mark me.
-Wystan [Question in visiting_the_sick]: Why, Can I fetch water or chop kindling for thy hearth?
+Wystan [Question in visiting_the_sick]: Hah! Can I fetch water or chop kindling for thy hearth?
 Osric [Question in the_asking]: How do folk fare here, to thy eyes?
 Wystan [Answer in the_asking]: Folk do say things, if thou wilt hear them.
 Wystan [Question in asking_the_father]: How dost thou find the road today, Osric?

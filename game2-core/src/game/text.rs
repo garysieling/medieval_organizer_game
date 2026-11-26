@@ -258,6 +258,34 @@ fn marker_seed(template: &str, speaker: &Speaker) -> u64 {
 
 const OATH_OPENERS: [&str; 3] = ["Saints keep us. ", "By the rood. ", "God witness. "];
 const EXCLAIM_OPENERS: [&str; 2] = ["Hah! ", "Why, "];
+/// The mouths an opener can't swallow (#1694): a greeting already
+/// leads its line - "Why, Hail," is no hello, and "Hah! Morrow" is no
+/// better
+const GREETING_HEADS: [&str; 8] = ["Hail", "Well met", "Morrow",
+    "Good morrow", "God's peace", "Fair day", "Fair morning", "Good day"];
+
+/// The line opens on a greeting's own head - an opener marker has no
+/// business in front of it
+pub(crate) fn starts_like_a_greeting(out: &str) -> bool {
+    GREETING_HEADS.iter().any(|h| out.starts_with(h))
+}
+
+/// The seam a bad join leaves (#1694): a lean-in marker fronting a
+/// clause it can't carry - `Why,` wants a lowercase tail (the pronoun
+/// "I" excepted), and no opener stands before a greeting's head
+#[cfg(test)]
+pub(crate) fn marker_seam_fault(line: &str) -> bool {
+    if let Some(rest) = line.strip_prefix("Why, ") {
+        let pronoun = rest.starts_with('I')
+            && rest.chars().nth(1).is_none_or(|c| !c.is_alphabetic());
+        if (!pronoun && rest.chars().next().is_some_and(|c| c.is_uppercase()))
+            || rest.contains('?') {
+            return true;
+        }
+    }
+    ["Why, ", "Hah! "].iter().any(|o| line.starts_with(o)
+        && starts_like_a_greeting(&line[o.len()..]))
+}
 const VERBOSE_TAILS: [&str; 3] = [", and that's the long of it.", ", and more besides.", ", as I've cause to say."];
 const HEDGE_TAILS: [&str; 3] = [", or so I hear.", ", as like as not.", ", by my reckoning."];
 const ASKBACK_TAILS: [&str; 3] = [", or am I mistook?", ", or is that not the way of it?", ", or do I hear wrong?"];
@@ -336,10 +364,31 @@ fn apply_marks(text: &str, fired: &[Marker], r: &mut Rng) -> String {
     // the bang settles the line once the tails have had theirs; a
     // question keeps its own mark and wears the cry up front instead
     if fired.contains(&Marker::Exclaim) {
-        if out.ends_with('.') {
-            out.replace_range(out.len() - 1.., "!");
-        } else {
-            out = format!("{}{}", EXCLAIM_OPENERS[r.below(EXCLAIM_OPENERS.len())], out);
+        // the mark the last sentence closed with - a trailing aside
+        // (*hic*) doesn't change the line's shape (#1694)
+        let tail = out.trim_end();
+        let end = tail.strip_suffix('*')
+            .and_then(|t| t.rfind('*')).unwrap_or(tail.len());
+        let mark = tail[..end].trim_end().chars().last();
+        if mark == Some('.') {
+            let at = tail[..end].trim_end().len() - 1;
+            out.replace_range(at..at + 1, "!");
+        } else if !starts_like_a_greeting(&out) {
+            // "Hah!" is a whole cry - it stands before anything. "Why,"
+            // is a lean-in and needs a clause it can carry (#1694):
+            // never a question's own mark, and it lowers the tail it
+            // fronts - the pronoun "I" keeps its head
+            if mark == Some('?') {
+                out = format!("Hah! {out}");
+            } else {
+                let opener = EXCLAIM_OPENERS[r.below(EXCLAIM_OPENERS.len())];
+                let pronoun = out.starts_with('I')
+                    && out.chars().nth(1).is_none_or(|c| !c.is_alphabetic());
+                if opener == "Why, " && !pronoun {
+                    if let Some(head) = out.get_mut(..1) { head.make_ascii_lowercase(); }
+                }
+                out = format!("{opener}{out}");
+            }
         }
     }
     if fired.contains(&Marker::Oath) {
@@ -1492,6 +1541,41 @@ mod tests {
                 &[Marker::AskBack, Marker::SelfTalk], &mut r);
             assert!(out.ends_with('.') && out.matches(',').count() == 1,
                 "askback + tail: {out}");
+        }
+
+        /// the marker carries the clause it fronts (#1694): "Why," is a
+        /// lean-in, never a stammer - it can't sit on a question's own
+        /// mark, can't lead a greeting, and lowers the tail it takes
+        #[test]
+        fn test_an_opener_fits_the_clause_it_fronts() {
+            let mut r = Rng::new(5);
+            // a question keeps its mark: only the whole cry may front it
+            for _ in 0..20 {
+                let out = apply_marks("Can I buy a pot of honey?",
+                    &[Marker::Exclaim], &mut r);
+                assert_eq!(out, "Hah! Can I buy a pot of honey?", "out");
+            }
+            // a trailing aside doesn't hide the question's mark
+            let out = apply_marks("Is it raining? *hic*",
+                &[Marker::Exclaim], &mut r);
+            assert!(out.starts_with("Hah! "), "the aside hid the mark: {out}");
+            // the lean-in lowers the clause it carries
+            let mut saw_why = false;
+            for _ in 0..40 {
+                let out = apply_marks("A fair day for it!",
+                    &[Marker::Exclaim], &mut r);
+                assert!(!marker_seam_fault(&out), "{out}");
+                if out.starts_with("Why, ") { saw_why = true; }
+            }
+            assert!(saw_why, "the lean-in never fired in 40 tries");
+            // and neither opener fronts a greeting's own head
+            for line in ["Hail, tiller of the soil!", "Well met, neighbor!",
+                         "Morrow, friend!"] {
+                for _ in 0..20 {
+                    let out = apply_marks(line, &[Marker::Exclaim], &mut r);
+                    assert_eq!(out, line, "an opener swallowed a greeting: {out}");
+                }
+            }
         }
 
         #[test]

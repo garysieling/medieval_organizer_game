@@ -74,11 +74,9 @@ fn batch_one_shots_shipped() {
 }
 
 #[test]
-#[ignore = "needs A4b assets: sheep_bleat, chicken, dog_bark, crow"]
 fn batch_animal_shots_shipped() { assert_shipped(&["sheep_bleat", "chicken", "dog_bark", "crow"]); }
 
 #[test]
-#[ignore = "needs A4b assets: the seven sampled beds"]
 fn batch_beds_shipped() {
     assert_shipped(&["birds", "insects", "bees", "river",
         "village_murmur", "market_crowd", "fire_crackle"]);

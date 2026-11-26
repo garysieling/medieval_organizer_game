@@ -1,1222 +1,1343 @@
 [
- {
-  "id": "anvil_hit",
-  "path": "oneshots/anvil_hit.ogg",
-  "source_url": "https://kenney.nl/assets/impact-sounds",
-  "author": "Kenney (www.kenney.nl)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "sha256": "e58180115bf669ff639e2f85cb583183af6cc7ab951b3032b39970c0886486ab",
-  "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bagpipe-as4",
-  "path": "instruments/bagpipe-as4.ogg",
-  "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/A%234_31.flac",
-  "author": "FreePats project",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
-  "sha256": "17ed59d8b38a315a7d376c3deb34856966960afa5138d5ab80f96e27169a9766",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bagpipe-d5",
-  "path": "instruments/bagpipe-d5.ogg",
-  "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/D5_31.flac",
-  "author": "FreePats project",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
-  "sha256": "96e446e93377407d3fd94900c6f1ff86b9c3f0cf3cd362e5932b27275472d2c0",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bagpipe-drone-g2",
-  "path": "instruments/bagpipe-drone-g2.ogg",
-  "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/drone_G2_1.flac",
-  "author": "FreePats project",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
-  "sha256": "f060256e51d17794c3eec47a933a3a821e25f28c9c86b27d5d74a350ccc9d67b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bagpipe-drone-g3",
-  "path": "instruments/bagpipe-drone-g3.ogg",
-  "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/drone_G3_3.flac",
-  "author": "FreePats project",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
-  "sha256": "a7bd477960b2f30966a8ff7c362d5610ad3cd5a20b8b58718ca3187f04fb4709",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bagpipe-f4",
-  "path": "instruments/bagpipe-f4.ogg",
-  "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/F4_31.flac",
-  "author": "FreePats project",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
-  "sha256": "4320a03c0d1ad70b6e9d190602dc3d5ab204979bdadf80bfe305b3b3d7d55087",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bagpipe-f5",
-  "path": "instruments/bagpipe-f5.ogg",
-  "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/F5_31.flac",
-  "author": "FreePats project",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
-  "sha256": "8fc785757b23af7546edd87a428797221847a1b404cd27d87ad674e2e6b4a5cc",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bagpipe-g5",
-  "path": "instruments/bagpipe-g5.ogg",
-  "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/G5_31.flac",
-  "author": "FreePats project",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
-  "sha256": "c907c0a8e25258d3b1e1f3ae3061420391209629c6517410d7a7da3dacd51afa",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bass-drum-1",
-  "path": "instruments/bass-drum-1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Bass%20Drum%202/bassdrum_hit_mf1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "b32688c66916741fbb05a2572ef5acf0ed81bcc90d091f244d6e3846bc6baf92",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "bass-drum-2",
-  "path": "instruments/bass-drum-2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Bass%20Drum%202/bassdrum_hit_f.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "ca8f72dbcf0bfbdef089f24497040e75b76ad945f8e79d17ec9f900c4bd6525c",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "cart_wheel",
-  "path": "oneshots/cart_wheel.ogg",
-  "source_url": "https://kenney.nl/assets/impact-sounds",
-  "author": "Kenney (www.kenney.nl)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "sha256": "974e5157da2dceb56360bc5d9385fe7332c3826a5f823d6b4920b8de4d4a1612",
-  "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "church_bell",
-  "path": "oneshots/church_bell.ogg",
-  "source_url": "https://kenney.nl/assets/impact-sounds",
-  "author": "Kenney (www.kenney.nl)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "sha256": "c1de3c5e27aa728e994c1e7e85fffacb1113582dbed7e1b14c4ae465fdfc7aa2",
-  "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "door_creak",
-  "path": "oneshots/door_creak.ogg",
-  "source_url": "https://kenney.nl/assets/rpg-audio",
-  "author": "Kenney (www.kenney.nl)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "sha256": "40a2f8647f2840b31ac2d6cb381f7da477f9a4619f9dcd486ab04c4186b05fbb",
-  "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "fife-c6",
-  "path": "instruments/fife-c6.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Piccolo/Sus/piccolo_C6_sustain1.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "fd91a7f81492dfc8a95a6f5250ec8e8a26831c5066ad500e764cc8403637b860",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "fife-g6",
-  "path": "instruments/fife-g6.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Piccolo/Sus/piccolo_G6_sustain1.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "48c1919720c6801a7462efb61bab6c60fd29ef216d3a945433b65ea0344a688c",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "finger-cymbals-1",
-  "path": "instruments/finger-cymbals-1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Finger%20Cymbals/Fing_Cymb.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "601b111491c58f5e8fcdd8c93f7fdf9295ddce5426196f34c5f4202ee6cbe8b3",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "frame-drum-1",
-  "path": "instruments/frame-drum-1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Frame%20Drum/HDrumL_Hit_v2_rr1_Sum.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "16937d8a863a7dc371de906c2bb689526666e166112822f53be847e7082fbfbf",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "frame-drum-2",
-  "path": "instruments/frame-drum-2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Frame%20Drum/HDrumL_Hit_v3_rr1_Sum.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "c2e44ae3f3f1019d56dce3d9430a2905ad504dc69e6d3dc80d6d70660a565c72",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "gate_creak",
-  "path": "oneshots/gate_creak.ogg",
-  "source_url": "https://kenney.nl/assets/rpg-audio",
-  "author": "Kenney (www.kenney.nl)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "sha256": "ce02f51440a7dad69543a2114f52a5429a658feebcb2616bc7e4291855ad3b62",
-  "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "hand-bells-as5",
-  "path": "instruments/hand-bells-as5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_A%235_r01_main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "4eeef26ece0d8401703ca399fdd4fd75d20399bb4199da80f1627ef99da66134",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "hand-bells-c4",
-  "path": "instruments/hand-bells-c4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_C4_r01_main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "e8be026fd563c46c10a7d07432f7c137abccab66685a673dbe26ad42bc59ce8f",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "hand-bells-c5",
-  "path": "instruments/hand-bells-c5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_C5_r01_main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "cb8e169bc3093d607fb943b7ad01af7f192a84ac1b889cc9775ee816a41aace4",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "hand-bells-c6",
-  "path": "instruments/hand-bells-c6.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_C6_r01_main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "1e33a58bb912081b0437fb0e448185dd9f209c6abdd8adb20c337ab9ace8784e",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "hand-bells-e5",
-  "path": "instruments/hand-bells-e5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_E5_r01_main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "b24f19416f421a3293d9a5108d38088dc604ad23eb7862320327a4d2507663b3",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "hand-bells-fs4",
-  "path": "instruments/hand-bells-fs4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_F%234_r01_main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "e8e4cb925818b3c37c04d633792affa8587ba0f506a4a30b6707592b5cfd2123",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "hand-bells-gs5",
-  "path": "instruments/hand-bells-gs5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_G%235_r01_main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "de960415a0c8c1a2d2ea3c5e094b224ef566dc16470dc7cc3c5fcc542e146938",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-as2",
-  "path": "instruments/harp-as2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_A%232_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "c5d2efbe050d537801637830d89543a333b629515365cccc3eb21b4858aa4340",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-as3",
-  "path": "instruments/harp-as3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_A%233_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "a95c442f74963506911ed63e035fe72b6c25e4de9bac7095b66d642a280aba52",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-as4",
-  "path": "instruments/harp-as4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_A%234_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "49c1b5f66348548b5e7fcb1f2b4aa505a29bc6098db29f0534df07f1997e2c76",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-c2",
-  "path": "instruments/harp-c2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C2_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "41f91924f498a2b864ba4c68685a35a14e2accc48a13104477633a0c3a9cda57",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-c3",
-  "path": "instruments/harp-c3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C3_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "0a0197433c413aafbc7e8f0bfe4b5bca6a23fe3d195d21e59b547b37f27ca43b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-d4",
-  "path": "instruments/harp-d4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_D4_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "3ad22b6293b12a99b64f08326d473e40fcb004c7962653b753ab19b95807d908",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-d5",
-  "path": "instruments/harp-d5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_D5_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "14a8c1b5aefb002c547afe7ce9a7daadcb4291713ae57edb932639909ce8bc22",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-e2",
-  "path": "instruments/harp-e2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_E2_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "a65264ccd42104f619bbca99aabefd64813da628c51da9d7a699c1ab05d2ad37",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-fs3",
-  "path": "instruments/harp-fs3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_F%233_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "ed1b048016eb625994e1724196de0df4a23dfda4f2dd198a1b26de0809483fb5",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-fs4",
-  "path": "instruments/harp-fs4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_F%234_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "1200adf25aa5e7f83aae7e31a6ef4a4d0127f3146fb77a8ffa4da1a844f5a07f",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-fs5",
-  "path": "instruments/harp-fs5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_F%235_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "ca6e5d1062b219940ccdc7be429b3f0570c1e5c73acc672dfdb0de0b37b54b05",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "harp-gs5",
-  "path": "instruments/harp-gs5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_G%235_v2_RR1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "65f901c91a7e22461a0cfe977eae17a3ce294e58e62d467e4a12b773afa12665",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "hoofbeat",
-  "path": "oneshots/hoofbeat.ogg",
-  "source_url": "https://kenney.nl/assets/impact-sounds",
-  "author": "Kenney (www.kenney.nl)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "sha256": "9060c038a709b6a874b3bc287161e1ac58bff808cece3fa5621b54ac4f97e997",
-  "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-a1",
-  "path": "instruments/organ-a1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_A1_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "67cfbdad63b3983af40d77e42fbf6d859a60bdbe893f38fbd81639d12a766e7a",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-a3",
-  "path": "instruments/organ-a3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_A3_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "c5e633af15a13ce7108ff98afa03e1fdb39e345cbaa81bde8f6a026b34580efa",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-a4",
-  "path": "instruments/organ-a4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_A4_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "4e5740fe11aa4be474601d94c586647e739207b151a67d7043704ce5ebbfbbc2",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-as2",
-  "path": "instruments/organ-as2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_A%232_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "08f5edcb78d8f2d0639f47588d3ee45418f435dd5bacdd984edd93dfd2d37913",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-as3",
-  "path": "instruments/organ-as3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_A%233_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "eea38142e5892388bf279048949f3980ff26c653f6ac203ca344a16eeaf63241",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-as4",
-  "path": "instruments/organ-as4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_A%234_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "5a4cd39c8ed4785ff99bfef55271e920bf7ea1d6edc38220011f8422838e1c2e",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-c1",
-  "path": "instruments/organ-c1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_C1_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "55f95bc05828c5cc85821c8988a94119e19c32c624836497f5b5d3dd99c9df9c",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-c2",
-  "path": "instruments/organ-c2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_C2_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "62af3c30975091fa3c45f955f4e6de4b34955cd6b262128ae1ae452f48293326",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-c5",
-  "path": "instruments/organ-c5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_C5_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "91372031d9bde94fcb16dccb4891556ee64f2dea87fcdbbffa84ed86abc0d49b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-d3",
-  "path": "instruments/organ-d3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_D3_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "7af2c1566b5d225c90b43e8fb5611ff693c3d2a320687747333c6060e39daae9",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-d4",
-  "path": "instruments/organ-d4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_D4_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "abc9c3b9e5f73e4d8371b07822b6f4856348beed16d65ead8d38d875674f68f1",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-d5",
-  "path": "instruments/organ-d5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_D5_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "29c9dfdbd6af198e0c203039f8cb0a9446ee312494b1bdc75c2da9fdc8ffb840",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-ds3",
-  "path": "instruments/organ-ds3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_D%233_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "751e2c1ca0baa9fa8668793b00cc60e76ceaf3477a6d2131afeaf46beda2d916",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-ds4",
-  "path": "instruments/organ-ds4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_D%234_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "2465c29142dc05d0f339ff0033e493a062ccc955b10149294f5a96fc5c988045",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "organ-fs2",
-  "path": "instruments/organ-fs2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_F%232_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "2b2c1bb3b291f9996cd7362c53f007e3f7ea15e0b7221af0ef203c8768ac82cf",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-as3",
-  "path": "instruments/psaltery-as3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_A%233_Main_Pluck_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "e6f11413112d2206850668a8f4730b0e3897ddc16d281358d35fe6bfa8a01218",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-as4",
-  "path": "instruments/psaltery-as4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_A%234_Main_Pluck_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "74b142358aae34cd66e9dbdacfecec7edbd0006ee221f524efef1d822722fb7b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-c4",
-  "path": "instruments/psaltery-c4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_C4_Main_Pluck_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "f4621d7be048051c0686e5ffb809b4134209ea2ecece746da45cbe19033174d5",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-c5",
-  "path": "instruments/psaltery-c5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_C5_Main_Pluck_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "95b0dd492dfdbb3b694bb317bd35610e24ddc5b1b09b8a52ed5048f6d51a86f5",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-d4",
-  "path": "instruments/psaltery-d4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_D4_Main_Pluck_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "e49db7e39ba9ec8233c21f4f335f04982896518eb099b691d7705f16de090ac1",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-e4",
-  "path": "instruments/psaltery-e4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_E4_Main_Pluck_rr2.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "ba987a32374bf87002091aff5d59d399ad4ca14bf8d402ba4380fb9c7e1c24ae",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-e5",
-  "path": "instruments/psaltery-e5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_E5_Main_Pluck_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "e6960afd805d308065ec74d9d76b9719ede015927d80a2bb68905f175c9533a6",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-fs4",
-  "path": "instruments/psaltery-fs4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_F%234_Main_Pluck_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "99ad7d61ca749b4d8cb21a5e34e44c771090ab456b4276da8f66a137b1c4f75e",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "psaltery-fs5",
-  "path": "instruments/psaltery-fs5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_F%235_Main_Pluck_rr3.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "7f3761038efed700e277fb46e6283a21a8337636e6bebf6101d9ddd930b41cae",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-alt-as3",
-  "path": "instruments/recorder-alt-as3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_A%233_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "44b684c724d1a677906183fcb263fc761ad44c30d8875f3d4133c8fed3d72e80",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-alt-as4",
-  "path": "instruments/recorder-alt-as4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_A%234_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "7eed83861320c67aad10c7595ce58717da9eccbad5a3737413e0d82b7beee74b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-alt-d4",
-  "path": "instruments/recorder-alt-d4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_D4_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "5e30084eb80ce16ead239e742c73ece08de2420c179a91c35ba494b239c9d135",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-alt-d5",
-  "path": "instruments/recorder-alt-d5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_D5_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "8928e1140b9487b7354fa083c10c148b0ab0eb207e7f46e571a3c367b9a4a2db",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-alt-e5",
-  "path": "instruments/recorder-alt-e5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_E5_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "5b043d4c885d482a9b065d7c74c9296bdeba3e5b550f578da1ec98f7a35604b3",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-alt-f3",
-  "path": "instruments/recorder-alt-f3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_F3_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "832c9cd5d9e2b4467d80e80ebb93cafca191da7e3e478b2fba68b4889ea1caad",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-alt-fs4",
-  "path": "instruments/recorder-alt-fs4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_F%234_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "c1f5f6eb3d7208edc9fd8853b560ba3ba97c0820060034d64cace0955e3c8001",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-bass-as2",
-  "path": "instruments/recorder-bass-as2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_A%232_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "ec54d3e14902d3bfc791909fec661aa87bba9eb3d235611a3f5670ff6933d64d",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-bass-as3",
-  "path": "instruments/recorder-bass-as3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_A%233_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "9b08e8f46f38d25ac5786dba97bc1e1955d61292c4ec1e4fa4cd49838927eb92",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-bass-d3",
-  "path": "instruments/recorder-bass-d3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_D3_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "1452ebfd7ef8c7d43a33fea879aecee57edd456b624e3b7055a14353d84fc9a3",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-bass-d4",
-  "path": "instruments/recorder-bass-d4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_D4_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "7d1c2f8b5e016aea8a87bc322ad76b6780401b61cfcc33be24bbfdd3a816830e",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-bass-e4",
-  "path": "instruments/recorder-bass-e4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_E4_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "67b8ac9b710bc0b3c9a6c0e2c879d724e4a848ebe12eecf5fdfe6afc8cc23688",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-bass-f2",
-  "path": "instruments/recorder-bass-f2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/SusVib/BassRecorder_SusVib_F2_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "9aa75e37478d7d196ff60db543fb8b826a5729512d98f47b1ad13073aa468344",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-bass-f3",
-  "path": "instruments/recorder-bass-f3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/SusVib/BassRecorder_SusVib_F3_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "933af97edb4dbd7205c76db750976758e3e104e568b6aaffff16396e2e4726d7",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-bass-fs3",
-  "path": "instruments/recorder-bass-fs3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_F%233_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "28523937ca48cc2660b25157346c60e21ca185a4613c2fbfcb0301f09a503a22",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-sop-c4",
-  "path": "instruments/recorder-sop-c4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_C4_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "c14be8645ae2afab15602c4315e0696dc02f3d6df3e15e6f5c93457b1b435809",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-sop-c5",
-  "path": "instruments/recorder-sop-c5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_C5_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "3c5d7aedb48d06e025143b66b51cbaa9039c1d2f0dcf56dae8ab1d27acc734b8",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-sop-c6",
-  "path": "instruments/recorder-sop-c6.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_C6_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "308e7e0ae3a688880c89b1c69da660006027c5c8303f852a63cf7404b56b2f86",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-sop-e4",
-  "path": "instruments/recorder-sop-e4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_E4_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "6b59d3bba394eecabf039cec8737b38417791c921f027e6998d784ec1694a480",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-sop-fs5",
-  "path": "instruments/recorder-sop-fs5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_F%235_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "117534149a328330fc7e0fee5a300290ea440eef296c39d2653969090ce0e8d3",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-sop-gs4",
-  "path": "instruments/recorder-sop-gs4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_G%234_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "f1a18e50e4a0419c96efb9237ec417effdfb2909f929bbf19094f6d1893d8640",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-as3",
-  "path": "instruments/recorder-ten-as3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_A%233_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "256386357e8a7e1ceefd52d40a11a86cbceea4a6a03e4998bf0ee82100bb1add",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-c3",
-  "path": "instruments/recorder-ten-c3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_C3_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "71190a6e064d9f678f6d895a787ab9a5e80b4a3a4f324e49bdf4c07c29aad139",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-c4",
-  "path": "instruments/recorder-ten-c4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_C4_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "bd01a719e3cdd8c62f8c1df33fdbe5ad0fb34e635571b397f3bd83b5374e9d3c",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-c5",
-  "path": "instruments/recorder-ten-c5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_C5_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "7b8764ccc083d76b22f846dddb3412d5c34eac66e566215ddaa9276125a26730",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-d4",
-  "path": "instruments/recorder-ten-d4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_D4_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "6ca8a54632cae4c4d7011f9f2c4a76257e73709dd1f489a487eb6e7ae02a6598",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-e3",
-  "path": "instruments/recorder-ten-e3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_E3_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "2e0124e36bc5db1123c0aeb4f2db01a35f2d14a9338d0bf17b34d6f19b6e763e",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-e4",
-  "path": "instruments/recorder-ten-e4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_E4_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "0f8f1bfecdbf0c43a1a60fecd897d8e576450441b99c91b223bb9b096f91de4e",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-gs3",
-  "path": "instruments/recorder-ten-gs3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_G%233_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "34c27a3f7c9d16f3cca4e0e1ccbf1e83c1e7e36df1eef64464f0e5084dfcd801",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "recorder-ten-gs4",
-  "path": "instruments/recorder-ten-gs4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_G%234_rr1_Main.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "816c5aa06d96a21f6f0adc2ef9e65a12a90e80a887971f75bce0a5dbaf82ac68",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "shawm-as2",
-  "path": "instruments/shawm-as2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_A%232_v1_Main.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "ead614bae6913b6f98f4063b7750b6ecaa02bd9449ed361b295be13758276c20",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "shawm-as3",
-  "path": "instruments/shawm-as3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_A%233_v1_Main.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "332bf69a91017960452bb6376fb314906b5bd85a28a9f6a7b2b1d4fc52733f4b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "shawm-as4",
-  "path": "instruments/shawm-as4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_A%234_v1_Main.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "747cd6a198c4b008155e7c3ed2ed23bd87f8c5023ed6ca2119f78dbc7dcf35fe",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "shawm-d4",
-  "path": "instruments/shawm-d4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_D4_v1_Main.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "27ab12f2b06831f099399d46f7ca7200c0f501ff46e7e71c7d25db031114eb98",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "shawm-d5",
-  "path": "instruments/shawm-d5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_D5_v1_Main.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "4f946e248ba0286ed473e4e4e1117b115ed30d9abcb0d7d47f459c64cd81edab",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "shawm-f3",
-  "path": "instruments/shawm-f3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_F3_v1_Main.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "0ec16cd1d4890305e3de1fc4b91d262290f6ca9b995ff25fb04da6a0a589a57e",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "shawm-f4",
-  "path": "instruments/shawm-f4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_F4_v1_Main.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "969075cb8947a1aa920125de960ad8770b24ebcafba0d8f0ca4a332dbbaa629b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "shawm-f5",
-  "path": "instruments/shawm-f5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_F5_v1_Main.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "6ccdee4c87ddad721d078ab2d1ae17ac27a854fce0473153133463b4d63f77b2",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "sleigh-1",
-  "path": "instruments/sleigh-1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Sleigh%20Bells/Sleighbells_Hit_rr1_Mid.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "025ad7a5914f47c0c280dbf1cf66a030377ff03273f52701506fce14b976e94b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "sleigh-2",
-  "path": "instruments/sleigh-2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Sleigh%20Bells/sleighbell2_hit_loud.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "132abfb2cfc4660d4c16a3b6a0f6fa8f72e501e37b009b60c5f74a74f7e3d554",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "strumstick-a2",
-  "path": "instruments/strumstick-a2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str2_Main_A2_vl1_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "a9de1f0b58e31e8664803b0957c412c38311f541c8a985d7666fafd7bf0823d8",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "strumstick-a3",
-  "path": "instruments/strumstick-a3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str3_Main_A3_vl1_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "b92fbfa4b5d03d07ccfc259a2c8a5b6c14810efdbd94dd021cc11d8bce8fdc0b",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "strumstick-d2",
-  "path": "instruments/strumstick-d2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str1_Main_D2_vl1_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "0606125acbde0b9dff68dd610391419d7b3605b0a65774967174a7cd354c1ce8",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "strumstick-e3",
-  "path": "instruments/strumstick-e3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str3_Main_E3_vl1_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "e9d8788b4632fc3aec77532c4f69ce8d5966904dc1674180a111ae5372fc8fc1",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "strumstick-g4",
-  "path": "instruments/strumstick-g4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str3_Main_G4_vl1_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "48aa91d59cded810415a106a29636b63a0e0127c0504578ea11b7dd7117e1cf0",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "tabor-1",
-  "path": "instruments/tabor-1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Rope%20Tension/Low/RopeSnare_low_sn_Main_vl2_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "ee2b2f0e44d9907266429806ea5f788dc4956313915bfe7776e8493ee77dfcf1",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "tabor-2",
-  "path": "instruments/tabor-2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Rope%20Tension/Low/RopeSnare_low_tsn_Main_vl2_rr1.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "d8144919960b4fdc3e0f96a10756f03642fdc91351f0d49c91275ad1b0604f56",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "tambourine-1",
-  "path": "instruments/tambourine-1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Tambourine%201/Tamb1_Hit_v2_rr1_Mid.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "d97336771bb6a4f1c5f4e18239222a72da062c0c27ef9a8cc0d45dd62dab333d",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "tambourine-2",
-  "path": "instruments/tambourine-2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Tambourine%201/Tamb1_Shake_rr1_Mid.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "cef58fde1221ca2431d6456b394b96b17a02e8d28c0971e54ae71588e7405247",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "timpani-1",
-  "path": "instruments/timpani-1.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Timpani%201/Hit/Timpani1_Hit_v3_rr3_Sum.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "2b5da0bbfa5c0681e8aeb69c25e198cd58520fb9b3e5df7052fe9f9be439acc4",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "timpani-2",
-  "path": "instruments/timpani-2.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Timpani%201/Hit/Timpani3_Hit_v3_rr1_Sum.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "5928fda2012ec0955b9da86735b2e4c4ce2fa582ce2d3cefe687c763e51de7dc",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "tubular-c4",
-  "path": "instruments/tubular-c4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Tubular%20Bells%201/chimes_C4_ff_rr2.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "ba1f9085a52f31ead8ceac780b918db07f3b7022b8a800d575ce842681e50d30",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "tubular-e4",
-  "path": "instruments/tubular-e4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Tubular%20Bells%201/chimes_E4_ff_rr2.wav",
-  "author": "Versilian Studios (VCSL)",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
-  "sha256": "5b1e3a1d2124ebd56f18a961a32fdb30404f737a953a7ab1d2db30d4c453cd7d",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "vielle-a4",
-  "path": "instruments/vielle-a4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_A4_f.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "eff71a3ea727b1afc8f2f23ff6bb3c293610d536060200573b6031c6e3331ce1",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "vielle-c4",
-  "path": "instruments/vielle-c4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_C4_f.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "f032711538b3de51db99beb3e4665b41548f7b47e06418d126c5a92890f41c53",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "vielle-e4",
-  "path": "instruments/vielle-e4.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_E4_f.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "0335f556acc4cef9fc30a01b655f737578ae8e5be984a944bc1bece35642f61c",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "vielle-e5",
-  "path": "instruments/vielle-e5.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_E5_f.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "75a42e072c933152174812b4ef65f432165c601ef18dabaf69706b325249238e",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "vielle-e6",
-  "path": "instruments/vielle-e6.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_E6_f.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "2a52fb3b7cef53c73ee41c84e076e9093cb2b9903b2c263acd049aa4d4c41b98",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- },
- {
-  "id": "vielle-g3",
-  "path": "instruments/vielle-g3.ogg",
-  "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_G3_f.wav",
-  "author": "Versilian Studios Chamber Orchestra 2 CE",
-  "license": "CC0-1.0",
-  "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
-  "sha256": "5bed8c4cbb21ee14285a7615846170d6119747f60e680a2af4787f392f10731d",
-  "processing": "trim; mono; 44.1kHz ogg q5"
- }
+  {
+    "id": "anvil_hit",
+    "path": "oneshots/anvil_hit.ogg",
+    "source_url": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "e58180115bf669ff639e2f85cb583183af6cc7ab951b3032b39970c0886486ab",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bagpipe-as4",
+    "path": "instruments/bagpipe-as4.ogg",
+    "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/A%234_31.flac",
+    "author": "FreePats project",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
+    "sha256": "17ed59d8b38a315a7d376c3deb34856966960afa5138d5ab80f96e27169a9766",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bagpipe-d5",
+    "path": "instruments/bagpipe-d5.ogg",
+    "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/D5_31.flac",
+    "author": "FreePats project",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
+    "sha256": "96e446e93377407d3fd94900c6f1ff86b9c3f0cf3cd362e5932b27275472d2c0",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bagpipe-drone-g2",
+    "path": "instruments/bagpipe-drone-g2.ogg",
+    "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/drone_G2_1.flac",
+    "author": "FreePats project",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
+    "sha256": "f060256e51d17794c3eec47a933a3a821e25f28c9c86b27d5d74a350ccc9d67b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bagpipe-drone-g3",
+    "path": "instruments/bagpipe-drone-g3.ogg",
+    "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/drone_G3_3.flac",
+    "author": "FreePats project",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
+    "sha256": "a7bd477960b2f30966a8ff7c362d5610ad3cd5a20b8b58718ca3187f04fb4709",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bagpipe-f4",
+    "path": "instruments/bagpipe-f4.ogg",
+    "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/F4_31.flac",
+    "author": "FreePats project",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
+    "sha256": "4320a03c0d1ad70b6e9d190602dc3d5ab204979bdadf80bfe305b3b3d7d55087",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bagpipe-f5",
+    "path": "instruments/bagpipe-f5.ogg",
+    "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/F5_31.flac",
+    "author": "FreePats project",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
+    "sha256": "8fc785757b23af7546edd87a428797221847a1b404cd27d87ad674e2e6b4a5cc",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bagpipe-g5",
+    "path": "instruments/bagpipe-g5.ogg",
+    "source_url": "https://raw.githubusercontent.com/freepats/bagpipe/main/samples/small/G5_31.flac",
+    "author": "FreePats project",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/freepats/bagpipe/blob/main/LICENSE.txt",
+    "sha256": "c907c0a8e25258d3b1e1f3ae3061420391209629c6517410d7a7da3dacd51afa",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bass-drum-1",
+    "path": "instruments/bass-drum-1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Bass%20Drum%202/bassdrum_hit_mf1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "b32688c66916741fbb05a2572ef5acf0ed81bcc90d091f244d6e3846bc6baf92",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bass-drum-2",
+    "path": "instruments/bass-drum-2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Bass%20Drum%202/bassdrum_hit_f.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "ca8f72dbcf0bfbdef089f24497040e75b76ad945f8e79d17ec9f900c4bd6525c",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "cart_wheel",
+    "path": "oneshots/cart_wheel.ogg",
+    "source_url": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "974e5157da2dceb56360bc5d9385fe7332c3826a5f823d6b4920b8de4d4a1612",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "church_bell",
+    "path": "oneshots/church_bell.ogg",
+    "source_url": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "c1de3c5e27aa728e994c1e7e85fffacb1113582dbed7e1b14c4ae465fdfc7aa2",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "door_creak",
+    "path": "oneshots/door_creak.ogg",
+    "source_url": "https://kenney.nl/assets/rpg-audio",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "40a2f8647f2840b31ac2d6cb381f7da477f9a4619f9dcd486ab04c4186b05fbb",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "fife-c6",
+    "path": "instruments/fife-c6.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Piccolo/Sus/piccolo_C6_sustain1.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "fd91a7f81492dfc8a95a6f5250ec8e8a26831c5066ad500e764cc8403637b860",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "fife-g6",
+    "path": "instruments/fife-g6.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Piccolo/Sus/piccolo_G6_sustain1.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "48c1919720c6801a7462efb61bab6c60fd29ef216d3a945433b65ea0344a688c",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "finger-cymbals-1",
+    "path": "instruments/finger-cymbals-1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Finger%20Cymbals/Fing_Cymb.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "601b111491c58f5e8fcdd8c93f7fdf9295ddce5426196f34c5f4202ee6cbe8b3",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "frame-drum-1",
+    "path": "instruments/frame-drum-1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Frame%20Drum/HDrumL_Hit_v2_rr1_Sum.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "16937d8a863a7dc371de906c2bb689526666e166112822f53be847e7082fbfbf",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "frame-drum-2",
+    "path": "instruments/frame-drum-2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Frame%20Drum/HDrumL_Hit_v3_rr1_Sum.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "c2e44ae3f3f1019d56dce3d9430a2905ad504dc69e6d3dc80d6d70660a565c72",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "gate_creak",
+    "path": "oneshots/gate_creak.ogg",
+    "source_url": "https://kenney.nl/assets/rpg-audio",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "ce02f51440a7dad69543a2114f52a5429a658feebcb2616bc7e4291855ad3b62",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hand-bells-as5",
+    "path": "instruments/hand-bells-as5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_A%235_r01_main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "4eeef26ece0d8401703ca399fdd4fd75d20399bb4199da80f1627ef99da66134",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hand-bells-c4",
+    "path": "instruments/hand-bells-c4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_C4_r01_main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "e8be026fd563c46c10a7d07432f7c137abccab66685a673dbe26ad42bc59ce8f",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hand-bells-c5",
+    "path": "instruments/hand-bells-c5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_C5_r01_main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "cb8e169bc3093d607fb943b7ad01af7f192a84ac1b889cc9775ee816a41aace4",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hand-bells-c6",
+    "path": "instruments/hand-bells-c6.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_C6_r01_main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "1e33a58bb912081b0437fb0e448185dd9f209c6abdd8adb20c337ab9ace8784e",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hand-bells-e5",
+    "path": "instruments/hand-bells-e5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_E5_r01_main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "b24f19416f421a3293d9a5108d38088dc604ad23eb7862320327a4d2507663b3",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hand-bells-fs4",
+    "path": "instruments/hand-bells-fs4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_F%234_r01_main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "e8e4cb925818b3c37c04d633792affa8587ba0f506a4a30b6707592b5cfd2123",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hand-bells-gs5",
+    "path": "instruments/hand-bells-gs5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_G%235_r01_main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "de960415a0c8c1a2d2ea3c5e094b224ef566dc16470dc7cc3c5fcc542e146938",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-as2",
+    "path": "instruments/harp-as2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_A%232_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "c5d2efbe050d537801637830d89543a333b629515365cccc3eb21b4858aa4340",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-as3",
+    "path": "instruments/harp-as3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_A%233_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "a95c442f74963506911ed63e035fe72b6c25e4de9bac7095b66d642a280aba52",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-as4",
+    "path": "instruments/harp-as4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_A%234_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "49c1b5f66348548b5e7fcb1f2b4aa505a29bc6098db29f0534df07f1997e2c76",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-c2",
+    "path": "instruments/harp-c2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C2_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "41f91924f498a2b864ba4c68685a35a14e2accc48a13104477633a0c3a9cda57",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-c3",
+    "path": "instruments/harp-c3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_C3_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "0a0197433c413aafbc7e8f0bfe4b5bca6a23fe3d195d21e59b547b37f27ca43b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-d4",
+    "path": "instruments/harp-d4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_D4_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "3ad22b6293b12a99b64f08326d473e40fcb004c7962653b753ab19b95807d908",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-d5",
+    "path": "instruments/harp-d5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_D5_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "14a8c1b5aefb002c547afe7ce9a7daadcb4291713ae57edb932639909ce8bc22",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-e2",
+    "path": "instruments/harp-e2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_E2_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "a65264ccd42104f619bbca99aabefd64813da628c51da9d7a699c1ab05d2ad37",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-fs3",
+    "path": "instruments/harp-fs3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_F%233_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "ed1b048016eb625994e1724196de0df4a23dfda4f2dd198a1b26de0809483fb5",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-fs4",
+    "path": "instruments/harp-fs4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_F%234_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "1200adf25aa5e7f83aae7e31a6ef4a4d0127f3146fb77a8ffa4da1a844f5a07f",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-fs5",
+    "path": "instruments/harp-fs5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_F%235_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "ca6e5d1062b219940ccdc7be429b3f0570c1e5c73acc672dfdb0de0b37b54b05",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "harp-gs5",
+    "path": "instruments/harp-gs5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Folk%20Harp/EWHarp_Normal_G%235_v2_RR1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "65f901c91a7e22461a0cfe977eae17a3ce294e58e62d467e4a12b773afa12665",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "hoofbeat",
+    "path": "oneshots/hoofbeat.ogg",
+    "source_url": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney (www.kenney.nl)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "9060c038a709b6a874b3bc287161e1ac58bff808cece3fa5621b54ac4f97e997",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-a1",
+    "path": "instruments/organ-a1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_A1_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "67cfbdad63b3983af40d77e42fbf6d859a60bdbe893f38fbd81639d12a766e7a",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-a3",
+    "path": "instruments/organ-a3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_A3_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "c5e633af15a13ce7108ff98afa03e1fdb39e345cbaa81bde8f6a026b34580efa",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-a4",
+    "path": "instruments/organ-a4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_A4_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "4e5740fe11aa4be474601d94c586647e739207b151a67d7043704ce5ebbfbbc2",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-as2",
+    "path": "instruments/organ-as2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_A%232_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "08f5edcb78d8f2d0639f47588d3ee45418f435dd5bacdd984edd93dfd2d37913",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-as3",
+    "path": "instruments/organ-as3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_A%233_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "eea38142e5892388bf279048949f3980ff26c653f6ac203ca344a16eeaf63241",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-as4",
+    "path": "instruments/organ-as4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_A%234_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "5a4cd39c8ed4785ff99bfef55271e920bf7ea1d6edc38220011f8422838e1c2e",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-c1",
+    "path": "instruments/organ-c1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_C1_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "55f95bc05828c5cc85821c8988a94119e19c32c624836497f5b5d3dd99c9df9c",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-c2",
+    "path": "instruments/organ-c2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_C2_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "62af3c30975091fa3c45f955f4e6de4b34955cd6b262128ae1ae452f48293326",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-c5",
+    "path": "instruments/organ-c5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_C5_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "91372031d9bde94fcb16dccb4891556ee64f2dea87fcdbbffa84ed86abc0d49b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-d3",
+    "path": "instruments/organ-d3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_D3_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "7af2c1566b5d225c90b43e8fb5611ff693c3d2a320687747333c6060e39daae9",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-d4",
+    "path": "instruments/organ-d4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_D4_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "abc9c3b9e5f73e4d8371b07822b6f4856348beed16d65ead8d38d875674f68f1",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-d5",
+    "path": "instruments/organ-d5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/8%27/RenOrgan_8foot_Room_D5_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "29c9dfdbd6af198e0c203039f8cb0a9446ee312494b1bdc75c2da9fdc8ffb840",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-ds3",
+    "path": "instruments/organ-ds3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_D%233_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "751e2c1ca0baa9fa8668793b00cc60e76ceaf3477a6d2131afeaf46beda2d916",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-ds4",
+    "path": "instruments/organ-ds4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_D%234_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "2465c29142dc05d0f339ff0033e493a062ccc955b10149294f5a96fc5c988045",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "organ-fs2",
+    "path": "instruments/organ-fs2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Quiet/NT5_Man3Quiet_F%232_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "2b2c1bb3b291f9996cd7362c53f007e3f7ea15e0b7221af0ef203c8768ac82cf",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-as3",
+    "path": "instruments/psaltery-as3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_A%233_Main_Pluck_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "e6f11413112d2206850668a8f4730b0e3897ddc16d281358d35fe6bfa8a01218",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-as4",
+    "path": "instruments/psaltery-as4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_A%234_Main_Pluck_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "74b142358aae34cd66e9dbdacfecec7edbd0006ee221f524efef1d822722fb7b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-c4",
+    "path": "instruments/psaltery-c4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_C4_Main_Pluck_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "f4621d7be048051c0686e5ffb809b4134209ea2ecece746da45cbe19033174d5",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-c5",
+    "path": "instruments/psaltery-c5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_C5_Main_Pluck_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "95b0dd492dfdbb3b694bb317bd35610e24ddc5b1b09b8a52ed5048f6d51a86f5",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-d4",
+    "path": "instruments/psaltery-d4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_D4_Main_Pluck_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "e49db7e39ba9ec8233c21f4f335f04982896518eb099b691d7705f16de090ac1",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-e4",
+    "path": "instruments/psaltery-e4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_E4_Main_Pluck_rr2.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "ba987a32374bf87002091aff5d59d399ad4ca14bf8d402ba4380fb9c7e1c24ae",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-e5",
+    "path": "instruments/psaltery-e5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_E5_Main_Pluck_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "e6960afd805d308065ec74d9d76b9719ede015927d80a2bb68905f175c9533a6",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-fs4",
+    "path": "instruments/psaltery-fs4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_F%234_Main_Pluck_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "99ad7d61ca749b4d8cb21a5e34e44c771090ab456b4276da8f66a137b1c4f75e",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "psaltery-fs5",
+    "path": "instruments/psaltery-fs5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Zithers/Psaltery%2C%20Bowed%20and%20Plucked/Pluck/BowedPsaltery_F%235_Main_Pluck_rr3.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "7f3761038efed700e277fb46e6283a21a8337636e6bebf6101d9ddd930b41cae",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-alt-as3",
+    "path": "instruments/recorder-alt-as3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_A%233_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "44b684c724d1a677906183fcb263fc761ad44c30d8875f3d4133c8fed3d72e80",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-alt-as4",
+    "path": "instruments/recorder-alt-as4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_A%234_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "7eed83861320c67aad10c7595ce58717da9eccbad5a3737413e0d82b7beee74b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-alt-d4",
+    "path": "instruments/recorder-alt-d4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_D4_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "5e30084eb80ce16ead239e742c73ece08de2420c179a91c35ba494b239c9d135",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-alt-d5",
+    "path": "instruments/recorder-alt-d5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_D5_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "8928e1140b9487b7354fa083c10c148b0ab0eb207e7f46e571a3c367b9a4a2db",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-alt-e5",
+    "path": "instruments/recorder-alt-e5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_E5_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "5b043d4c885d482a9b065d7c74c9296bdeba3e5b550f578da1ec98f7a35604b3",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-alt-f3",
+    "path": "instruments/recorder-alt-f3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_F3_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "832c9cd5d9e2b4467d80e80ebb93cafca191da7e3e478b2fba68b4889ea1caad",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-alt-fs4",
+    "path": "instruments/recorder-alt-fs4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Alto%20Recorder/Sustain/AltRecorder_Sus_F%234_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "c1f5f6eb3d7208edc9fd8853b560ba3ba97c0820060034d64cace0955e3c8001",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-bass-as2",
+    "path": "instruments/recorder-bass-as2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_A%232_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "ec54d3e14902d3bfc791909fec661aa87bba9eb3d235611a3f5670ff6933d64d",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-bass-as3",
+    "path": "instruments/recorder-bass-as3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_A%233_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "9b08e8f46f38d25ac5786dba97bc1e1955d61292c4ec1e4fa4cd49838927eb92",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-bass-d3",
+    "path": "instruments/recorder-bass-d3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_D3_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "1452ebfd7ef8c7d43a33fea879aecee57edd456b624e3b7055a14353d84fc9a3",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-bass-d4",
+    "path": "instruments/recorder-bass-d4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_D4_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "7d1c2f8b5e016aea8a87bc322ad76b6780401b61cfcc33be24bbfdd3a816830e",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-bass-e4",
+    "path": "instruments/recorder-bass-e4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_E4_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "67b8ac9b710bc0b3c9a6c0e2c879d724e4a848ebe12eecf5fdfe6afc8cc23688",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-bass-f2",
+    "path": "instruments/recorder-bass-f2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/SusVib/BassRecorder_SusVib_F2_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "9aa75e37478d7d196ff60db543fb8b826a5729512d98f47b1ad13073aa468344",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-bass-f3",
+    "path": "instruments/recorder-bass-f3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/SusVib/BassRecorder_SusVib_F3_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "933af97edb4dbd7205c76db750976758e3e104e568b6aaffff16396e2e4726d7",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-bass-fs3",
+    "path": "instruments/recorder-bass-fs3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Bass%20Recorder/Sustain/BassRecorder_Sus_F%233_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "28523937ca48cc2660b25157346c60e21ca185a4613c2fbfcb0301f09a503a22",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-sop-c4",
+    "path": "instruments/recorder-sop-c4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_C4_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "c14be8645ae2afab15602c4315e0696dc02f3d6df3e15e6f5c93457b1b435809",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-sop-c5",
+    "path": "instruments/recorder-sop-c5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_C5_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "3c5d7aedb48d06e025143b66b51cbaa9039c1d2f0dcf56dae8ab1d27acc734b8",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-sop-c6",
+    "path": "instruments/recorder-sop-c6.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_C6_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "308e7e0ae3a688880c89b1c69da660006027c5c8303f852a63cf7404b56b2f86",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-sop-e4",
+    "path": "instruments/recorder-sop-e4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_E4_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "6b59d3bba394eecabf039cec8737b38417791c921f027e6998d784ec1694a480",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-sop-fs5",
+    "path": "instruments/recorder-sop-fs5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_F%235_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "117534149a328330fc7e0fee5a300290ea440eef296c39d2653969090ce0e8d3",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-sop-gs4",
+    "path": "instruments/recorder-sop-gs4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Soprano%20Recorder/Sustain/SopRecorder_Sus_G%234_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "f1a18e50e4a0419c96efb9237ec417effdfb2909f929bbf19094f6d1893d8640",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-as3",
+    "path": "instruments/recorder-ten-as3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_A%233_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "256386357e8a7e1ceefd52d40a11a86cbceea4a6a03e4998bf0ee82100bb1add",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-c3",
+    "path": "instruments/recorder-ten-c3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_C3_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "71190a6e064d9f678f6d895a787ab9a5e80b4a3a4f324e49bdf4c07c29aad139",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-c4",
+    "path": "instruments/recorder-ten-c4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_C4_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "bd01a719e3cdd8c62f8c1df33fdbe5ad0fb34e635571b397f3bd83b5374e9d3c",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-c5",
+    "path": "instruments/recorder-ten-c5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_C5_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "7b8764ccc083d76b22f846dddb3412d5c34eac66e566215ddaa9276125a26730",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-d4",
+    "path": "instruments/recorder-ten-d4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_D4_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "6ca8a54632cae4c4d7011f9f2c4a76257e73709dd1f489a487eb6e7ae02a6598",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-e3",
+    "path": "instruments/recorder-ten-e3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_E3_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "2e0124e36bc5db1123c0aeb4f2db01a35f2d14a9338d0bf17b34d6f19b6e763e",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-e4",
+    "path": "instruments/recorder-ten-e4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_E4_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "0f8f1bfecdbf0c43a1a60fecd897d8e576450441b99c91b223bb9b096f91de4e",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-gs3",
+    "path": "instruments/recorder-ten-gs3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_G%233_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "34c27a3f7c9d16f3cca4e0e1ccbf1e83c1e7e36df1eef64464f0e5084dfcd801",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "recorder-ten-gs4",
+    "path": "instruments/recorder-ten-gs4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_G%234_rr1_Main.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "816c5aa06d96a21f6f0adc2ef9e65a12a90e80a887971f75bce0a5dbaf82ac68",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "shawm-as2",
+    "path": "instruments/shawm-as2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_A%232_v1_Main.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "ead614bae6913b6f98f4063b7750b6ecaa02bd9449ed361b295be13758276c20",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "shawm-as3",
+    "path": "instruments/shawm-as3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_A%233_v1_Main.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "332bf69a91017960452bb6376fb314906b5bd85a28a9f6a7b2b1d4fc52733f4b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "shawm-as4",
+    "path": "instruments/shawm-as4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_A%234_v1_Main.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "747cd6a198c4b008155e7c3ed2ed23bd87f8c5023ed6ca2119f78dbc7dcf35fe",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "shawm-d4",
+    "path": "instruments/shawm-d4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_D4_v1_Main.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "27ab12f2b06831f099399d46f7ca7200c0f501ff46e7e71c7d25db031114eb98",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "shawm-d5",
+    "path": "instruments/shawm-d5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_D5_v1_Main.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "4f946e248ba0286ed473e4e4e1117b115ed30d9abcb0d7d47f459c64cd81edab",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "shawm-f3",
+    "path": "instruments/shawm-f3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_F3_v1_Main.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "0ec16cd1d4890305e3de1fc4b91d262290f6ca9b995ff25fb04da6a0a589a57e",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "shawm-f4",
+    "path": "instruments/shawm-f4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_F4_v1_Main.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "969075cb8947a1aa920125de960ad8770b24ebcafba0d8f0ca4a332dbbaa629b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "shawm-f5",
+    "path": "instruments/shawm-f5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Woodwinds/Oboe/Sus/Oboe_Sus_F5_v1_Main.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "6ccdee4c87ddad721d078ab2d1ae17ac27a854fce0473153133463b4d63f77b2",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "sleigh-1",
+    "path": "instruments/sleigh-1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Sleigh%20Bells/Sleighbells_Hit_rr1_Mid.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "025ad7a5914f47c0c280dbf1cf66a030377ff03273f52701506fce14b976e94b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "sleigh-2",
+    "path": "instruments/sleigh-2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Sleigh%20Bells/sleighbell2_hit_loud.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "132abfb2cfc4660d4c16a3b6a0f6fa8f72e501e37b009b60c5f74a74f7e3d554",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "strumstick-a2",
+    "path": "instruments/strumstick-a2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str2_Main_A2_vl1_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "a9de1f0b58e31e8664803b0957c412c38311f541c8a985d7666fafd7bf0823d8",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "strumstick-a3",
+    "path": "instruments/strumstick-a3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str3_Main_A3_vl1_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "b92fbfa4b5d03d07ccfc259a2c8a5b6c14810efdbd94dd021cc11d8bce8fdc0b",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "strumstick-d2",
+    "path": "instruments/strumstick-d2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str1_Main_D2_vl1_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "0606125acbde0b9dff68dd610391419d7b3605b0a65774967174a7cd354c1ce8",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "strumstick-e3",
+    "path": "instruments/strumstick-e3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str3_Main_E3_vl1_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "e9d8788b4632fc3aec77532c4f69ce8d5966904dc1674180a111ae5372fc8fc1",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "strumstick-g4",
+    "path": "instruments/strumstick-g4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Strumstick/Finger/Strumstick_Finger_Str3_Main_G4_vl1_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "48aa91d59cded810415a106a29636b63a0e0127c0504578ea11b7dd7117e1cf0",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "tabor-1",
+    "path": "instruments/tabor-1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Rope%20Tension/Low/RopeSnare_low_sn_Main_vl2_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "ee2b2f0e44d9907266429806ea5f788dc4956313915bfe7776e8493ee77dfcf1",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "tabor-2",
+    "path": "instruments/tabor-2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Rope%20Tension/Low/RopeSnare_low_tsn_Main_vl2_rr1.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "d8144919960b4fdc3e0f96a10756f03642fdc91351f0d49c91275ad1b0604f56",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "tambourine-1",
+    "path": "instruments/tambourine-1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Tambourine%201/Tamb1_Hit_v2_rr1_Mid.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "d97336771bb6a4f1c5f4e18239222a72da062c0c27ef9a8cc0d45dd62dab333d",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "tambourine-2",
+    "path": "instruments/tambourine-2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Tambourine%201/Tamb1_Shake_rr1_Mid.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "cef58fde1221ca2431d6456b394b96b17a02e8d28c0971e54ae71588e7405247",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "timpani-1",
+    "path": "instruments/timpani-1.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Timpani%201/Hit/Timpani1_Hit_v3_rr3_Sum.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "2b5da0bbfa5c0681e8aeb69c25e198cd58520fb9b3e5df7052fe9f9be439acc4",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "timpani-2",
+    "path": "instruments/timpani-2.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Membranophones/Struck%20Membranophones/Timpani%201/Hit/Timpani3_Hit_v3_rr1_Sum.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "5928fda2012ec0955b9da86735b2e4c4ce2fa582ce2d3cefe687c763e51de7dc",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "tubular-c4",
+    "path": "instruments/tubular-c4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Tubular%20Bells%201/chimes_C4_ff_rr2.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "ba1f9085a52f31ead8ceac780b918db07f3b7022b8a800d575ce842681e50d30",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "tubular-e4",
+    "path": "instruments/tubular-e4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VCSL/master/Idiophones/Struck%20Idiophones/Tubular%20Bells%201/chimes_E4_ff_rr2.wav",
+    "author": "Versilian Studios (VCSL)",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VCSL/blob/master/LICENSE",
+    "sha256": "5b1e3a1d2124ebd56f18a961a32fdb30404f737a953a7ab1d2db30d4c453cd7d",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "vielle-a4",
+    "path": "instruments/vielle-a4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_A4_f.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "eff71a3ea727b1afc8f2f23ff6bb3c293610d536060200573b6031c6e3331ce1",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "vielle-c4",
+    "path": "instruments/vielle-c4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_C4_f.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "f032711538b3de51db99beb3e4665b41548f7b47e06418d126c5a92890f41c53",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "vielle-e4",
+    "path": "instruments/vielle-e4.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_E4_f.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "0335f556acc4cef9fc30a01b655f737578ae8e5be984a944bc1bece35642f61c",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "vielle-e5",
+    "path": "instruments/vielle-e5.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_E5_f.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "75a42e072c933152174812b4ef65f432165c601ef18dabaf69706b325249238e",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "vielle-e6",
+    "path": "instruments/vielle-e6.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_E6_f.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "2a52fb3b7cef53c73ee41c84e076e9093cb2b9903b2c263acd049aa4d4c41b98",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "vielle-g3",
+    "path": "instruments/vielle-g3.ogg",
+    "source_url": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Solo%20Violin/Arco%20Vib/LLVln_ArcoVib_G3_f.wav",
+    "author": "Versilian Studios Chamber Orchestra 2 CE",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://github.com/sgossner/VSCO-2-CE/blob/master/LICENSE",
+    "sha256": "5bed8c4cbb21ee14285a7615846170d6119747f60e680a2af4787f392f10731d",
+    "processing": "trim; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "birds",
+    "path": "beds/birds.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Birdsong_mild_sunny_day.ogg",
+    "author": "stephan",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Birdsong_mild_sunny_day.ogg",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "5c1bd8edbc79c709f1b3a2169b30c3107eb8eed5266a0c1dd1dc5e1fa60b318e",
+    "processing": "trim; loudnorm I=-20 TP=-2; crossfade 2.0s loop; 44.1kHz ogg q5"
+  },
+  {
+    "id": "insects",
+    "path": "beds/insects.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Cicada_20200619.wav",
+    "author": "Shyamal",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Cicada_20200619.wav",
+    "grant_quote": "",
+    "sha256": "534ced493a8a733a64189ea8224c9559456b52a0ede5d41ff9a678916963fad5",
+    "processing": "trim; loudnorm I=-20 TP=-2; crossfade 2.0s loop; 44.1kHz ogg q5"
+  },
+  {
+    "id": "bees",
+    "path": "beds/bees.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Honeybee-hive.ogg",
+    "author": "Skinkie",
+    "license": "CC0-1.0",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Honeybee-hive.ogg",
+    "grant_quote": "",
+    "sha256": "ac2e3ed1da985a958f9c4c5d000338f99e9b29068faa954f97f4ad8e10e24f27",
+    "processing": "trim; loudnorm I=-20 TP=-2; crossfade 2.0s loop; 44.1kHz ogg q5"
+  },
+  {
+    "id": "river",
+    "path": "beds/river.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Hemlock_stream.ogg",
+    "author": "Dirtslayer",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Hemlock_stream.ogg",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "c3068da004a8712ede981ae517266de26ebc23641dab57278f1c001e7205cb9b",
+    "processing": "trim; loudnorm I=-20 TP=-2; crossfade 2.0s loop; 44.1kHz ogg q5"
+  },
+  {
+    "id": "village_murmur",
+    "path": "beds/village_murmur.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Festival_concert_people_crowd.ogg",
+    "author": "stephan",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Festival_concert_people_crowd.ogg",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "4f9b0634396d57cc68a714fb0e7e1358e28d5eab283c9757f730ef2296ee8e14",
+    "processing": "trim; loudnorm I=-20 TP=-2; crossfade 2.0s loop; 44.1kHz ogg q5"
+  },
+  {
+    "id": "market_crowd",
+    "path": "beds/market_crowd.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Flea_market_in_the_rain.ogg",
+    "author": "stephan",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Flea_market_in_the_rain.ogg",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "d8452e623f5bb5b8737742e692b8d98e0f63a82053c61c3276ace7db747a7d29",
+    "processing": "trim; loudnorm I=-20 TP=-2; crossfade 2.0s loop; 44.1kHz ogg q5"
+  },
+  {
+    "id": "sheep_bleat",
+    "path": "oneshots/sheep_bleat.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Sheep_bleating.ogg",
+    "author": "earthcalling",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Sheep_bleating.ogg",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "def1de355abb092f646d52d9bc61948cac7ab0d2cad7623e2492918dd5361886",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "chicken",
+    "path": "oneshots/chicken.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Chickens_demanding_food.ogg",
+    "author": "alys",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Chickens_demanding_food.ogg",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "f31e9f448d2789d1b6b1fcf3d71902421974ba635cd600423f2e539da246a2fe",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "dog_bark",
+    "path": "oneshots/dog_bark.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Dog.ogg",
+    "author": "soerena",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Dog.ogg",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "184942d1524af318d1cdca143aa5b53046dfca108e6142b5d5506d305d3d0339",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "crow",
+    "path": "oneshots/crow.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Yellowstone_sound_library_-_Common_Raven_-_001.mp3",
+    "author": "NPS/David Restivo",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Yellowstone_sound_library_-_Common_Raven_-_001.mp3",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "d3f99229425c78f2174d0b569b1e2961ba8e28ce781e9abc40bb569b51363e0a",
+    "processing": "trim; peak-normalise -3 dBFS; mono; 44.1kHz ogg q5"
+  },
+  {
+    "id": "fire_crackle",
+    "path": "beds/fire_crackle.ogg",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Dry_grass_burning_in_open_fireplace.ogg",
+    "author": "ezwa",
+    "license": "unrestricted",
+    "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Dry_grass_burning_in_open_fireplace.ogg",
+    "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
+    "sha256": "2b8fb22bf12aba33c63065e12819dbcd109e2962bb2e35b198c92b602747c8d8",
+    "processing": "lowpass=f=1800,lowpass=f=1800; trim; loudnorm I=-20 TP=-2; crossfade 2.0s loop; 44.1kHz ogg q5"
+  }
 ]

@@ -70,8 +70,19 @@ def main():
     ap.add_argument("incoming_id", help="the _incoming/<id>.ogg to process")
     ap.add_argument("--name", required=True, help="asset id, e.g. church-bell")
     ap.add_argument("--kind", required=True, choices=["bed", "oneshot", "instrument"])
+    ap.add_argument("--license", default="CC0-1.0",
+                    help="ledger license id (default CC0-1.0; 'unrestricted' needs --grant)")
+    ap.add_argument("--grant", default="",
+                    help="the grant's own words - required when --license is 'unrestricted'")
+    ap.add_argument("--af", default="",
+                    help="extra -af chain run BEFORE the kind recipe (e.g. a lowpass to "
+                         "tame a crackly source)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+    if args.license not in ("CC0-1.0", "unrestricted", "own-synth"):
+        die(f"license {args.license!r} is off the allowlist (CC0-1.0 | unrestricted | own-synth)")
+    if args.license == "unrestricted" and not args.grant.strip():
+        die("'unrestricted' needs --grant quoting the grant's own words")
 
     src = os.path.join(SOUND, "_incoming", f"{args.incoming_id}.ogg")
     if not os.path.isfile(src):
@@ -92,7 +103,19 @@ def main():
         return
     if not shutil_which("ffmpeg"):
         die("ffmpeg not found - on Windows run scripts/get-ffmpeg.ps1")
+    if args.af:
+        # pre-filter the source into a temp file - safe ahead of either
+        # the -af or -filter_complex recipe paths
+        pre = src + ".prefilter.ogg"
+        r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", src,
+                            "-af", args.af, pre])
+        if r.returncode != 0:
+            die(f"prefilter ffmpeg failed ({r.returncode})")
+        src, note_pre = pre, f"{args.af}; "
+    else:
+        note_pre = ""
     argv, note = recipe(args.kind, src, dst, probe_duration(src))
+    note = note_pre + note
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     r = subprocess.run(argv)
     if r.returncode != 0:
@@ -104,8 +127,9 @@ def main():
         "path": rel,
         "source_url": sidecar.get("source_url", ""),
         "author": sidecar.get("author", ""),
-        "license": "CC0-1.0",
+        "license": args.license,
         "license_evidence_url": sidecar.get("license", ""),
+        "grant_quote": args.grant,
         "sha256": sha,
         "processing": note,
     }

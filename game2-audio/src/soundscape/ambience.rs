@@ -31,8 +31,11 @@ const GAIN_JITTER_DB: f32 = 2.0;
 /// busy scene's sum under the mix bar
 const SHOT_LEVEL: f32 = 0.562;
 /// Bed headroom: a scene runs several beds at once - the eased target
-/// is `weight * gain` scaled so the sum sits inside -20±3 LUFS
-const BED_LEVEL: f32 = 0.7;
+/// is `weight * gain` scaled so the sum sits inside -20±3 LUFS.
+/// Calibrated on the real A4b batch: recorded beds carry dynamics
+/// (quiet stretches gate out of the LUFS sum) where the synth/fake
+/// beds were steady-state, so the real batch needs ~+1.5 dB on 0.7.
+const BED_LEVEL: f32 = 0.84;
 /// A bed this quiet is faded out - `stop` frees its slot
 const GONE: f32 = 0.001;
 

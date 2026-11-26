@@ -2025,6 +2025,35 @@ fn test_the_probes_answer_puts_the_earned_asks_on_the_table() {
         "one telling opens the ladder's first rung: {:?}", asks);
 }
 
+/// The priced ask reads earned the moment the telling lands (#1680):
+/// the probing question writes the seat's ledger itself, so the rung it
+/// just proved sheds its "for Ng" on the very next option set - not a
+/// beat later, not next talk
+#[test]
+fn test_a_telling_reprices_the_asks_row_in_the_same_talk() {
+    use crate::game::organizing::AskKey;
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    bond_to(&mut g, v, 0.2);
+    // the priced variants only table what the purse can pay (#1225)
+    g.world.get_component_mut::<crate::game::livelihood::Purse>(g.player).unwrap().gold = 60.0;
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap();
+    use crate::game::organizing::PropKind;
+    assert!(t.asks.iter().any(|o| o.kind == PropKind::Introduce && o.key == AskKey::Coin),
+        "unproven, the introduce ask opens at the coin's price: {:?}", t.asks);
+    let labels = t.choice_labels(&g.world);
+    let pick = labels.iter().position(|l| l == "Ask what they actually want")
+        .expect("the probing question's the ladder's first step");
+    g.talk_pick_at(0, Some(pick));
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(t.asks.iter().any(|o| o.kind == PropKind::Introduce && o.key == AskKey::Earned),
+        "the telling's landed - the introduce ask reads earned: {:?}", t.asks);
+    assert!(!t.asks.iter().any(|o| o.kind == PropKind::Introduce && o.key == AskKey::Coin),
+        "and the priced variant's off the row: {:?}", t.asks);
+}
+
 #[test]
 fn test_the_probe_leaves_the_offer_when_theres_nothing_left_to_hear() {
     let mut g = Game::new();

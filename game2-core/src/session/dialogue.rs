@@ -1878,12 +1878,28 @@ impl Game {
             if let Some(cur) = self.seats[seat].talk.as_mut() { cur.backed_off = true; }
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asked_seen = asked.len(); }
+        // a telling that landed this refresh moves the asks on the table
+        // with it (#1680): the ledger a probe or a drawn worry just wrote
+        // proves the earned rung where its priced variant stood. Recast at
+        // the shift the talk's own reads dealt - a frayed nerve still a
+        // rung down, spent asks staying spent, a cold or pressed talk
+        // keeping its empty list
+        if self.talk_mood_of(t.who) != Some(TalkMood::Slighted) && t.tired < 2 {
+            let shift = crate::game::rhetoric::ask_shift(&self.world, t.who, self.seats[seat].org)
+                + if t.forward_seen > 0 && t.vibe == Some(Vibe::Safe) { -1 }
+                else { t.vibe.map(|v| if v == Vibe::Safe { 1 } else { -1 }).unwrap_or(0) };
+            let mut asks = crate::game::organizing::ask_offers(
+                &self.world, self.seats[seat].org, t.who, shift, self.tick);
+            asks.retain(|o| !t.asks_taken.iter().any(|d| d.kind == o.kind));
+            if let Some(cur) = self.seats[seat].talk.as_mut() { cur.asks = asks; }
+        }
         self.warm_exchange(t.id);
         // the talk's spent when every reply left is an exit and there's no
         // ask to hang on (#1179): they take their leave as much as you do,
         // so close on a mutual parting rather than an exit menu
         if let Some(opts) = &offered {
-            if !opts.is_empty() && t.asks.is_empty() && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating && t.tell.is_none()
+            let no_asks = self.seats[seat].talk.as_ref().map(|c| c.asks.is_empty()).unwrap_or(true);
+            if !opts.is_empty() && no_asks && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating && t.tell.is_none()
                 && !bid_pending
                 && opts.iter().all(|(a, _, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");

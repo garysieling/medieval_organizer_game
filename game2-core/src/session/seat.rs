@@ -247,6 +247,9 @@ pub struct Seat {
     pub table: Option<crate::session::subsystems::table::Table>,
     /// (home, day) of the tables eaten at lately - each household's cooldown
     pub tables_laid: Vec<(Entity, u64)>,
+    /// The word this seat's already heard (#1616): asking "what folk
+    /// are saying" keeps finding new talk, not the same line twice
+    pub gossip_told: crate::engine::det::HashSet<String>,
 }
 
 impl Default for Seat {
@@ -262,7 +265,8 @@ impl Default for Seat {
                focus: None, last_pos: None, facing: 2, walking: false,
                player_passed: false, survey: None, survey_wait: 0, survey_seen: 0,
                quests_done: 0, survey_capture: None,
-               ambient_bench: 0.0, bench_nudged: u64::MAX }
+               ambient_bench: 0.0, bench_nudged: u64::MAX,
+               gossip_told: crate::engine::det::HashSet::default() }
     }
 }
 

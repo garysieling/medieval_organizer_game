@@ -1260,8 +1260,8 @@
     "license": "unrestricted",
     "license_evidence_url": "https://commons.wikimedia.org/wiki/File:Hemlock_stream.ogg",
     "grant_quote": "Declared \"Public domain\" on the Wikimedia Commons file page",
-    "sha256": "c3068da004a8712ede981ae517266de26ebc23641dab57278f1c001e7205cb9b",
-    "processing": "trim; loudnorm I=-20 TP=-2; crossfade 2.0s loop; 44.1kHz ogg q5"
+    "sha256": "aa628e779a4c71390049b0c06479d67bdcb3c249daed65a45c9941182898d051",
+    "processing": "trim; loudnorm I=-20 TP=-2; 44.1kHz ogg q5; loop point shifted by 2.0s with tail-into-head crossfade (seam continuous, not an internal mid-file splice)"
   },
   {
     "id": "village_murmur",

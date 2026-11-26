@@ -46,10 +46,16 @@ def api(**params):
                 time.sleep(2 ** attempt + 1)
                 continue
             raise
-        lag = (data.get("error") or {}).get("code", "")
-        if lag != "maxlag":
-            return data
-        time.sleep(2 ** attempt + 1)
+        err = data.get("error") or {}
+        if err.get("code") == "maxlag":
+            time.sleep(2 ** attempt + 1)
+            continue
+        if err:
+            # a real API error (e.g. "toomanyvalues") - surface it instead
+            # of letting the caller read the missing "query" key as "no
+            # results"
+            die(f"Commons API error ({err.get('code', '?')}): {err.get('info', '')}")
+        return data
     die("Commons API kept us waiting too long - try again later")
 
 
@@ -70,17 +76,48 @@ def search(query, limit):
 
 
 def info(titles):
-    """One imageinfo call for every candidate title (pipe-joined) -
-    keeps the request count at 2 per search."""
-    if not titles:
-        return {}
-    data = api(action="query", titles="|".join(titles), prop="imageinfo",
-               iiprop="url|size|mime|extmetadata")
+    """Metadata for every candidate title, batched to Commons' 50-title
+    cap per imageinfo request (over that the API answers "toomanyvalues",
+    which api() now surfaces instead of looking like an empty result).
+    Indexes results under both the canonical (returned) title and
+    whatever title was actually asked for, since MediaWiki normalises
+    titles (underscores -> spaces, first letter) before answering, so a
+    title copied verbatim from a Commons URL must still find its match."""
     out = {}
-    for page in data.get("query", {}).get("pages", {}).values():
-        for ii in page.get("imageinfo", []):
-            out[page.get("title", "")] = (page["pageid"], ii)
+    for i in range(0, len(titles), 50):
+        batch = titles[i:i + 50]
+        data = api(action="query", titles="|".join(batch), prop="imageinfo",
+                   iiprop="url|size|mime|extmetadata")
+        alias = {n.get("to"): n.get("from")
+                 for n in data.get("query", {}).get("normalized", [])}
+        for page in data.get("query", {}).get("pages", {}).values():
+            canonical = page.get("title", "")
+            for ii in page.get("imageinfo", []):
+                out[canonical] = (page["pageid"], ii)
+                original = alias.get(canonical)
+                if original:
+                    out[original] = (page["pageid"], ii)
     return out
+
+
+def is_audio(ii):
+    """Reject known non-audio media (an image title slipping through
+    --title, say) while still allowing audio reported as the generic
+    "application/ogg" container mime that Commons gives some Ogg
+    Vorbis uploads."""
+    mime = (ii.get("mime") or "").lower()
+    return mime.startswith("audio/") or mime == "application/ogg"
+
+
+def has_audio_stream(path):
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-select_streams", "a", "-show_entries",
+             "stream=codec_type", "-of", "csv=p=0", path],
+            capture_output=True, text=True, check=True)
+        return bool(out.stdout.strip())
+    except Exception:
+        return False
 
 
 def cc0_only(ii):
@@ -107,6 +144,9 @@ def save(idd, ii):
             subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", t.name, dst], check=True)
         finally:
             os.unlink(t.name)
+    if not has_audio_stream(dst):
+        os.unlink(dst)
+        raise RuntimeError(f"no audio stream in the downloaded file (mime {ii.get('mime', '?')})")
     sidecar = {
         "source_url": ii.get("descriptionurl", ""),
         "author": text(meta, "Artist") or text(meta, "Attribution"),
@@ -131,9 +171,13 @@ def main():
 
     got = 0
     titles = [args.title] if args.title else search(args.query, args.max)
+    info_map = info(titles)
     for title in titles:
-        pageid, ii = info(titles).get(title, (None, None))
+        pageid, ii = info_map.get(title, (None, None))
         if ii is None or not cc0_only(ii):
+            continue
+        if not is_audio(ii):
+            print(f"    skip {title}: not audio (mime {ii.get('mime', '?')})", file=sys.stderr)
             continue
         meta = ii.get("extmetadata", {})
         print(f"  {pageid:>9}  {title[5:][:56]:56}  [{text(meta, 'LicenseShortName')}]")

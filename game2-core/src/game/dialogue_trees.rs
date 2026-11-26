@@ -4342,13 +4342,13 @@ const ELDER_BLESS: Exchange = Exchange {
 const ELDER_BLESS_SELF: Exchange = Exchange {
     act: Act::Farewell,
     concepts: &["elder"],
-    calls: &["Lords come and go, but the plough and the furrow remain. Fair day, {other}.", "Listen to the land, {other}; it was here before us and will keep our graves.", "Kindness to {2:poss} neighbor is the best hedge against misfortune. Good day.", "Seasons cycle and return as they have always done. May the road be kind under {2:poss} boots.", "May God grant {2:obj} peace in {2:poss} old age. Farewell.", "God's peace be upon {2:poss} cottage, {other}."], voice: &[],
+    calls: &["Lords may come and lords may go, but the plough and the furrow remain, {other}.", "Mark the land well; it stood before us, and it will keep our graves after.", "Kindness to {2:poss} neighbor is still the best hedge against hard fortune.", "The seasons turn and return as ever they have - go on now, with my blessing.", "May the Lord grant {2:obj} peace in {2:poss} own old age, when it comes.", "God's peace rest upon {2:poss} cottage, {other}."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
             respond: None,
-            lines: &["{2:poss} words are gold to my ears, elder. My thanks.", "We will heed {2:poss} counsel at the village meeting, elder."],
+            lines: &["{2:poss} words are worth more than gold to me, elder. My thanks, and fair day.", "We shall carry {2:poss} counsel to the village meeting, and gladly, elder."],
             voice: &[],
             then: None, end: Some(Farewell),
         },
@@ -4356,15 +4356,15 @@ const ELDER_BLESS_SELF: Exchange = Exchange {
 };
 
 const ELDER_WINTERS_SELF: Exchange = Exchange {
-    act: Act::Remark,
+    act: Act::Answer,
     concepts: &["elder"],
-    calls: &["Aye, we ate wild acorns and shared what porridge there was, and survived.", "The boundary ran straight from the standing oak to the weeping willow.", "When the dandelions flower on the ditch bank, the frost is broken for good.", "Patience and honest toil have seen eighty winters come and go."], voice: &[],
+    calls: &["Aye, acorns and thin porridge saw us through the great hunger, and we lived on.", "The old boundary ran clean from the standing oak down to the weeping willow.", "When dandelions bloom along the ditch bank, {2:subj} {2:may} trust the frost has broken.", "Patience and honest toil - that's seen near eighty winters come and go for me."], voice: &[],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Question, concepts: &["elder"],
             respond: None,
-            lines: &["{2:do} {2:subj} recall the great famine fifty winters ago, grandfather?", "Where did the old village boundary run before the ditch was dug?", "What signs tell us when the frost will finally break?", "{2:do} {2:subj} recall how the great freeze broke forty years ago?"],
+            lines: &["{2:do} {2:subj} truly recall the great famine, fifty winters gone, grandfather?", "Where did the old boundary run, before ever the ditch was dug?", "What sign tells {2:obj} the frost will finally break?", "{2:do} {2:subj} recall how the great freeze finally broke, forty years back?"],
             voice: &[],
             then: Some(ELDER_BLESS_SELF), end: None,
         },
@@ -4382,25 +4382,25 @@ const ELDER_WINTERS_SELF: Exchange = Exchange {
 const ELDER_GREET_SELF: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "elder"],
-    calls: &["Morrow, young soul. The sun feels good on eighty winters of bones.", "Well met, child! Another day Heaven grants to watch the fields.", "Greetings! My step is slow, but my memory is long and clear.", "God bless {2:poss} steps this day, {other}.", "Well met, friend, under the open sky."],
+    calls: &["Morrow, young soul - good to feel the sun on these old bones.", "Well met, little one! Heaven grants me yet another day to mind the fields.", "Ah, good day - my step is slow, but my memory still runs clear and long.", "God keep {2:poss} road safe this day, {other}.", "Well met indeed, friend - a fine sky we share this morning."],
     voice: &[
-        Voice { criteria: &[Has("pair:relation:friend")], lines: &["Morrow, {other} - my step is slow but my ears miss nothing, especially from {2:obj}.", "Well met, child - I know {2:poss} name and all {2:poss} doings, fondly."] },
-        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, little one - the family's roots run through {2:obj}.", "Bless {2:obj}, kin. Come sit and tell me the house's news."] },
-        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, stranger. Grey ears still catch new voices.", "Well met, traveler - sit, if the road is long."] },
-        Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, {other} - I've buried better rivals than {2:obj}.", "Morrow, {other}. Age teaches patience, even with {2:obj}."] },
+        Voice { criteria: &[Has("pair:relation:friend")], lines: &["Morrow there, {other} - slow of step, but these old ears still catch everything of {2:obj}.", "Well met, little one - I know {2:poss} name and all {2:poss} doings, and gladly."] },
+        Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, young one - our family's roots run straight through {2:obj}.", "Bless {2:obj}, child of this house. Sit a while and tell me its news."] },
+        Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, wanderer. These grey ears still take to new voices well enough.", "Well met, traveler - rest here, if the road's run long."] },
+        Voice { criteria: &[Has("pair:relation:rival")], lines: &["Aye, {other} - I've outlasted better rivals than {2:obj} in my day.", "Morrow, {other}. These long years teach patience, even toward {2:obj}."] },
     ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Greet, concepts: &["elder"],
             respond: None,
-            lines: &["Good morrow to {2:obj}, venerable {other}.", "Well met, grandfather! Sitting in the sunny doorway to warm {2:poss} joints?", "Greetings, mother of the village! How fares {2:poss} health today?", "A peaceful day to {2:obj}, {other}."],
+            lines: &["A fair morrow to {2:obj}, venerable {other}.", "Well met, grandfather - sat in the sun to ease {2:poss} old joints?", "Greetings, mother of this village. How does {2:poss} health hold up today?", "A peaceful morrow to {2:obj}, {other}."],
             voice: &[
-                Voice { criteria: &[Has("pair:relation:friend")], lines: &["Good morrow, {other} - eighty winters and still the sharpest tongue on the lane.", "Well met, old friend! Still warming those joints in the sun?"] },
-                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, {other} - the family's oldest lamp still burning.", "Grandmother! {2:poss} sunny doorway kept a seat for me, I hope."] },
-                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["Morrow, elder. The road respects grey hair.", "A fair day to {2:obj}, mother of the village."] },
-                Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["Good morrow to {2:obj}, venerable {other}.", "Well met, elder - how fares {2:poss} health?"] },
-                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Morrow, {other} - eighty winters and {2:subj} still {2:rise} to spite me.", "Well met, elder. Even rivals bow to the winters on {2:poss} head."] },
+                Voice { criteria: &[Has("pair:relation:friend")], lines: &["A fair morrow, {other} - eighty winters gone, and still the sharpest tongue on this lane.", "Well met, old friend! Still warming those joints in the sun, I see."] },
+                Voice { criteria: &[Has("pair:relation:kin")], lines: &["Morrow, {other} - the oldest lamp of our family, burning on still.", "Grandmother! I do hope {2:poss} sunny doorway's kept a seat for me."] },
+                Voice { criteria: &[Has("pair:relation:stranger")], lines: &["A morrow to {2:obj}, elder - the road gives grey hair its due.", "A fine morrow to {2:obj}, mother of this village."] },
+                Voice { criteria: &[Has("pair:relation:acquaintance")], lines: &["A fair morrow to {2:obj}, venerable {other}.", "Well met, elder - how does {2:poss} health hold up?"] },
+                Voice { criteria: &[Has("pair:relation:rival")], lines: &["Morrow, {other} - eighty winters gone, and {2:subj} still {2:rise} to spite me yet.", "Well met, elder. Even rivals must bow to the winters on {2:poss} head."] },
             ],
             then: Some(ELDER_WINTERS_SELF), end: None,
         },

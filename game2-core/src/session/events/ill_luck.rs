@@ -232,9 +232,10 @@ impl Game {
                         && !crate::game::dungeon::unavailable(&self.world, v)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&v) = able.get((roll as usize / 5) % able.len().max(1)) {
-                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
-                        h.condition = 0.0;
-                    }
+                    // its own line names the manner - mark the death
+                    // told so the frame check doesn't tell it again
+                    // under the bare word (#1696)
+                    self.mark_dead_told(v, "drowned in the pond".into());
                     let house = household::home_of(&self.world, v);
                     if let Some(hh) = house {
                         for &o in self.world.get_component::<household::Building>(hh)

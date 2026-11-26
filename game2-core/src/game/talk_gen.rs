@@ -204,6 +204,18 @@ fn spread_setting(rng: &mut Rng) -> crate::game::setting::Setting {
         },
         law_earshot: rng.below(8) == 0,
         invited: false,
+        // the village's own weather gets a fifth of the draws (#1696):
+        // one hard axis at a time, so the corpus hears each register
+        pressure: match rng.below(5) {
+            0 => [
+                crate::game::setting::Pressure::FAMINE,
+                crate::game::setting::Pressure::FEVER,
+                crate::game::setting::Pressure::WINTER,
+                crate::game::setting::Pressure::UNREST,
+                crate::game::setting::Pressure::BEREFT,
+            ][rng.below(5)],
+            _ => crate::game::setting::Pressure::NONE,
+        },
     }
 }
 

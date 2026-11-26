@@ -147,6 +147,22 @@ fn rel_of(s: &str) -> Relation {
     }
 }
 
+/// The village weather a stage stands the talk under (#1696): what a
+/// staged world would compute for `village_pressure`, forced onto the
+/// batch's settings so its transcripts bend the same way
+fn pressure_of_stage(s: Option<Stage>) -> game2_core::game::setting::Pressure {
+    use game2_core::game::setting::Pressure;
+    match s {
+        Some(Stage::Famine) => Pressure::FAMINE,
+        Some(Stage::Fever) => Pressure::FEVER,
+        Some(Stage::HardWinter) => Pressure::WINTER,
+        Some(Stage::Unrest) => Pressure::UNREST,
+        Some(Stage::Bereft) => Pressure::BEREFT,
+        Some(Stage::Flush) => Pressure::FLUSH,
+        _ => Pressure::NONE,
+    }
+}
+
 fn stage_of(s: &str) -> Stage {
     match s.to_ascii_lowercase().as_str() {
         "fever" => Stage::Fever, "famine" => Stage::Famine,
@@ -650,6 +666,9 @@ fn run_batch(a: &Args, out: &mut Out) {
             },
             law_earshot: rng.below(8) == 0,
             invited: false,
+            // --stage stands the batch under the same village weather a
+            // staged world would carry (#1696)
+            pressure: pressure_of_stage(a.stage),
         };
         let cseed = a.seed.wrapping_mul(31).wrapping_add(i as u64);
         // auto-pick with the run's own rng, recording the picks

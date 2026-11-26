@@ -30,13 +30,13 @@
     3) Put a question to them
     l) take your leave
   you: Well enough, aye. And how does the workshop treat you?
-  Dagny: A rider from the castle came through before dawn.
+  Dagny: Folk have more than the miller's scoop to whisper of these days.
     1) God keep the lord and his men. They keep the peace, they say.
     2) I told the rain to stop and it came down the harder. So much for commanding the weather.
     3) Put a question to them
     l) take your leave
   you: God keep the lord and his men. They keep the peace, they say.
-  Dagny: They do say the reeve counts the sheep twice over.
+  Dagny: Every door's got its own trouble to tell of, this stretch.
     1) Tavern tales grow taller with each ale drawn.
     2) Oh… Nay, I see it differently, mark me. - a quarrel
     3) Put a question to them

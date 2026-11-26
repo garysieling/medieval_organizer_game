@@ -2134,6 +2134,19 @@ impl Game {
         self.log.push_ev_at_who(ev, line, at, i);
     }
 
+    /// A passing the caller already named (#1696): the bookkeeping the
+    /// frame's death check would do - the marker, the day, the spent
+    /// Health, the tale's record - so the caller's own line is the only
+    /// telling
+    pub(in crate::session) fn mark_dead_told(&mut self, v: Entity, telling: String) {
+        let Some(i) = self.villagers.iter().position(|&x| x == v) else { return };
+        self.died_on[i] = Some(self.tick);
+        self.world.add_component(v, villager::Dead);
+        self.world.remove_component::<Health>(v);
+        note_story(&mut self.tales, &mut self.tales_told, &mut self.log, &self.names,
+            i, self.tick, crate::sim::story::EventKind::Death, telling);
+    }
+
     pub fn ticks_per_frame(&self) -> u32 {
         // frames per day: ~21s/day normal, ~3.8s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
@@ -2512,19 +2525,34 @@ impl Game {
 
         drop(_pull);
 
-        // death check: health <= 0 -> grave + log
+        // death check: health <= 0 -> grave + log; a death the event
+        // already named (died_on set upstream, #1696) isn't told again
         let _checks = crate::infra::perf::scope("sim.frame_checks");
         let died_on = &mut self.died_on;
         for (i, v) in villagers.iter().enumerate() {
             if let Some(h) = world.get_component::<Health>(*v) {
-                if h.condition <= 0.0 {
+                if h.condition <= 0.0 && died_on[i].is_none() {
+                    // one event, one line (#1696): the manner names it -
+                    // an old age answers for its winters, the rest take
+                    // the bare word
+                    let cause = world.get_component::<crate::game::lifecycle::Vitality>(*v)
+                        .and_then(|x| x.cause_of_death.clone());
+                    let line = match cause.as_deref() {
+                        Some("old age") => {
+                            let winters = world.get_component::<crate::game::lifecycle::Age>(*v)
+                                .map(|a| a.years.round() as u32).unwrap_or(0);
+                            format!("t{}: {} dies at {} winters, of old age.",
+                                tick, cast_of(&self.names, i), winters)
+                        }
+                        _ => format!("t{}: {} died.", tick, cast_of(&self.names, i)),
+                    };
                     toasts.push_at(
                         (format!("{} has died.", cast_of(&self.names, i)), tick + 60),
                         toast_spot(world, *v),
                     );
                     log.push_ev_at_who(
                         EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Major),
-                        format!("t{}: {} died.", tick, cast_of(&self.names, i)),
+                        line,
                         toast_spot(world, *v),
                         Some(i),
                     );

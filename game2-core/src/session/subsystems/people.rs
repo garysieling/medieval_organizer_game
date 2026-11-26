@@ -104,11 +104,6 @@ impl Game {
         self.was_sick.push(None);
         self.died_on.push(None);
         let born_name = self.cast_name(self.villagers.len() - 1);
-        self.log_villager_ev(
-            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
-            self.villagers.len() - 1,
-            format!("t{}: a child is born - {}.", tick, born_name),
-        );
         note_story(
             &mut self.tales,
             &mut self.tales_told,
@@ -173,7 +168,19 @@ impl Game {
                     .map(|h| h.value < 40.0).unwrap_or(false);
             }
             if grown < 2 || hungry { continue; }
-            if self.rng.next() % odds == 0 { self.spawn_kid(b, tick); return; }
+            if self.rng.next() % odds == 0 {
+                self.spawn_kid(b, tick);
+                // a crib birth gets the plain line; a foundling's own
+                // telling is the basket on the step - one event, one
+                // line (#1696)
+                self.log_villager_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+                    self.villagers.len() - 1,
+                    format!("t{}: a child is born - {}.", tick,
+                        self.cast_name(self.villagers.len() - 1)),
+                );
+                return;
+            }
         }
     }
 
@@ -669,14 +676,14 @@ impl Game {
             let span = self.world.get_component::<crate::game::lifecycle::Vitality>(v)
                 .map(|x| x.max_age).unwrap_or(f32::MAX);
             if years >= span {
-                if let Some(h) = self.world.get_component_mut::<Health>(v) {
-                    h.condition = 0.0;
-                } else {
-                    self.world.add_component(v, villager::Dead);
-                }
                 if let Some(vx) = self.world.get_component_mut::<crate::game::lifecycle::Vitality>(v) {
                     vx.cause_of_death.get_or_insert_with(|| "old age".into());
                 }
+                // its own line names it, winters and all - the death's
+                // marked told so the frame check doesn't tell it again
+                // under the bare word (#1696)
+                self.mark_dead_told(v, format!("{} dies at {} winters, of old age.",
+                    self.cast_name(i), years.round() as u32));
                 self.log_entity_ev(
                     EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Notable),
                     v,

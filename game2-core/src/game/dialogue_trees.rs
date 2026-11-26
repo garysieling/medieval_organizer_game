@@ -27,7 +27,15 @@ pub const STOCK_LINES: &[&'static str] = &[
 const SMALL_FADE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk"],
-    calls: &["As {2:subj} {2:say}, friend.", "True enough - the fields don't gossip.", "Aye, words won't fill the storehouse.", "We have spoken our piece for today."], voice: &[],
+    calls: &["As {2:subj} {2:say}, friend.", "True enough - the fields don't gossip.", "Aye, words won't fill the storehouse.", "We have spoken our piece for today."],
+    voice: &[
+        // the village's own weather (#1696): under a parish weight the
+        // fade reads lean - the axis-specific registers live up in
+        // the_hard_times; the tails just stop sounding fat
+        Voice { criteria: &[Has("village:hard")], lines: &[
+            "Aye - we bear it the same as all the rest.",
+            "Words won't fill what's empty - but aye, as {2:subj} {2:say}."] },
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -61,7 +69,13 @@ const SMALL_FADE: Exchange = Exchange {
 const SMALL_GOSSIP_MORE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["gossip"],
-    calls: &["They do say the reeve counts the sheep twice over.", "The herb-wife was seen out past the abbey wall at dusk.", "Old Wulfric swore he saw an owl perched on the tavern roof.", "A stranger with two laden mules passed by the weir at noon."], voice: &[],
+    calls: &["They do say the reeve counts the sheep twice over.", "The herb-wife was seen out past the abbey wall at dusk.", "Old Wulfric swore he saw an owl perched on the tavern roof.", "A stranger with two laden mules passed by the weir at noon."],
+    voice: &[
+        // the parish's own weather is the talk under a weight (#1696)
+        Voice { criteria: &[Has("village:hard")], lines: &[
+            "Every door's got its own trouble to tell of, this stretch.",
+            "They do say half the parish's whispering the same worry."] },
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -158,7 +172,12 @@ const SMALL_WORK: Exchange = Exchange {
 const SMALL_GOSSIP: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["gossip", "smalltalk"],
-    calls: &["{2:did} {2:subj} hear who was seen down by the mill?", "They say the miller took an extra scoop of meal again.", "The peddler's cart lost a wheel at the bridge.", "A rider from the castle came through before dawn."], voice: &[],
+    calls: &["{2:did} {2:subj} hear who was seen down by the mill?", "They say the miller took an extra scoop of meal again.", "The peddler's cart lost a wheel at the bridge.", "A rider from the castle came through before dawn."],
+    voice: &[
+        Voice { criteria: &[Has("village:hard")], lines: &[
+            "{2:did} {2:subj} hear what's come over the parish this week?",
+            "Folk have more than the miller's scoop to whisper of these days."] },
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[(Gregarious, 2.0)],
@@ -295,7 +314,12 @@ const SMALL_BID: Exchange = Exchange {
 const SMALL_SEASON: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk", "harvest"],
-    calls: &["We must thatch the hayrick before the clouds burst.", "The kitchen gardens are dry as a bone this month.", "Rooks are gathering thick in the elm trees.", "The ditch along the south pasture needs clearing."], voice: &[],
+    calls: &["We must thatch the hayrick before the clouds burst.", "The kitchen gardens are dry as a bone this month.", "Rooks are gathering thick in the elm trees.", "The ditch along the south pasture needs clearing."],
+    voice: &[
+        Voice { criteria: &[Has("village:hard")], lines: &[
+            "The fields can wait - there's weightier wants than ditches this week.",
+            "Work all the day, and it doesn't touch what ails us."] },
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -343,7 +367,12 @@ const SMALL_FARES: Exchange = Exchange {
 const SMALL_VOLLEY: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk"],
-    calls: &["Even so, we will manage as we always do.", "Aye, the year will turn and bring what it brings.", "My bones say the rain will hold off till evening.", "No use fretting over skies we cannot steer."], voice: &[],
+    calls: &["Even so, we will manage as we always do.", "Aye, the year will turn and bring what it brings.", "My bones say the rain will hold off till evening.", "No use fretting over skies we cannot steer."],
+    voice: &[
+        Voice { criteria: &[Has("village:hard")], lines: &[
+            "We bear what's laid on us - what else is there?",
+            "Lean years teach lean talk, {other}."] },
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -443,6 +472,15 @@ pub const SMALL_CHAT: Exchange = Exchange {
         Voice { criteria: &[Has("self:status:hook:burnt_barn")], lines: &["Dry weather. I can't abide the smell of smoke, not since."] },
         Voice { criteria: &[Has("self:status:hook:blamed_neighbor")], lines: &["Hob looks at me across the lane like he knows something, {other}."] },
         Voice { criteria: &[Has("self:status:hook:broken_troth")], lines: &["The road to the next valley - I've not walked it in years."] },
+        // the village's own weather (#1696): under a parish weight the
+        // polite tail keeps the thread - the sky's the same sky, but it's
+        // read through empty stores and fresh graves. These sit behind a
+        // speaker's own states, ahead of the plain registers
+        Voice { criteria: &[Has("village:famine")], lines: &["The sky can do what it likes - it's the empty pile that weighs on us.", "Fair skies or foul, the market's crumbs either way."] },
+        Voice { criteria: &[Has("village:fever")], lines: &["Fair skies, and half the doors barred for the fever. Strange times."] },
+        Voice { criteria: &[Has("village:winter")], lines: &["The frost sits late on the furrows again - the season won't let go."] },
+        Voice { criteria: &[Has("village:unrest")], lines: &["Bright enough for drying - though folk have more than weather on their minds."] },
+        Voice { criteria: &[Has("village:bereft")], lines: &["A gray morning for a gray parish, {other}."] },
         Voice { criteria: &[Has("self:status:cold")], lines: &["The hearth's been out a week - a cold wind feels personal now."] },
         Voice { criteria: &[Has("self:status:drunk")], lines: &["Is it raining, or is that the ale talking? *hic*"] },
         Voice { criteria: &[Has("self:ideology:lord")], lines: &["The sky owes my wheat a fortnight of sun.", "The weather keeps my stewards busy, I'll warrant."] },
@@ -1618,6 +1656,117 @@ const HUNGER_GREET: Exchange = Exchange {
                 Voice { criteria: &[Has("pair:relation:rival")], lines: &["Talk fills no bellies - least of all {2:own}.", "I must seek greens. Keep {2:poss} hands off my patch."] },
             ],
             then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+/// The parish's weather (#1696): while the village stands under a
+/// weight - the stores out, the fever in the beds, the lord's squeeze,
+/// fresh graves, the long snow - a talk opens on it ahead of the
+/// shop-talk. One tree serves every axis: the `village:*` facts pick
+/// which register the calls and answers are heard in, so a famine and
+/// a fever don't share a mouth
+const HARD_TIMES_SHARE: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["village", "pressure"],
+    calls: &["We bear it the same as all the rest, {other} - what else is there?",
+        "Day by day, {other}. That's all anyone's doing."],
+    voice: &[
+        Voice { criteria: &[Has("village:famine")], lines: &[
+            "We stretch what's left - chaff bread, thin pottage. It holds, barely.",
+            "The children sleep hungry. I tell them the fasting saints did the same."] },
+        Voice { criteria: &[Has("village:fever")], lines: &[
+            "We air the bedding and keep the sick apart - it's all there is to do.",
+            "We burn what the sick touched and pray the rest of us stand."] },
+        Voice { criteria: &[Has("village:winter")], lines: &[
+            "We burn the furniture's scrap before the good beams - the cold doesn't care.",
+            "We hole up close and count the woodpile twice a day."] },
+        Voice { criteria: &[Has("village:unrest")], lines: &[
+            "We count what's owed and what's been took, {other} - the sums don't sit right.",
+            "We talk of it low - but we talk of it."] },
+        Voice { criteria: &[Has("village:bereft")], lines: &[
+            "We keep the candles and say their names - what else is there?",
+            "The empty beds don't fill themselves. We visit who's left."] },
+    ],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["village", "pressure"],
+            respond: None,
+            lines: &["Aye - and it'll pass, as all things pass.", "Aye. That's the size of it, {other}."],
+            voice: &[
+                Voice { criteria: &[Has("village:famine")], lines: &["The first green shoots can't come soon enough."] },
+                Voice { criteria: &[Has("village:unrest")], lines: &["Not forever, {other} - not if folk say it plain."] },
+                Voice { criteria: &[Has("village:bereft")], lines: &["God keep their souls - and ours while He's at it."] },
+            ],
+            then: Some(SMALL_CHAT), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["Go well, {other} - mind what's left of the week.", "I should be about it. Keep {2:poss} door warm, {other}.", "May the road be kind under {2:poss} boots."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const HARD_TIMES_GREET: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["village", "pressure"],
+    calls: &["These are thin days, {other}.",
+        "Hard times on the parish - {2:have} {2:subj} felt it?"],
+    voice: &[
+        Voice { criteria: &[Has("village:famine")], lines: &[
+            "The pile's near out, {other} - my pot's been water and prayer this week.",
+            "Bread's a memory already. What's left at the market wouldn't feed a sparrow.",
+            "The fields gave nothing, and now the store gives nothing. Thin days, {other}."] },
+        Voice { criteria: &[Has("village:fever")], lines: &[
+            "The sweat's in three beds and counting - God keep it from {2:poss} door.",
+            "Every other door's shut these days, {other}. The fever takes who it will."] },
+        Voice { criteria: &[Has("village:winter")], lines: &[
+            "The cold's settled for good - it'll take the weak before it's done, {other}.",
+            "Snow past the sill and the year's hardly turned. Hard season, this."] },
+        Voice { criteria: &[Has("village:unrest")], lines: &[
+            "Every door's got a grievance these days, {other} - the parish's patience wears thin.",
+            "The lord's tally grows and the bread shrinks. Something will give, mark me."] },
+        Voice { criteria: &[Has("village:bereft")], lines: &[
+            "Fresh earth in the churchyard, {other} - the bell's been at it this week.",
+            "Too many empty chairs of late. The parish grieves."] },
+    ],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["village", "pressure"],
+            respond: None,
+            lines: &["Aye - thin days make thin talk. But we bear them together."],
+            voice: &[
+                Voice { criteria: &[Has("village:famine")], lines: &[
+                    "Aye - the children crying keeps me up more than the cold.",
+                    "Aye. We boiled chaff this noon; tomorrow's thinner."] },
+                Voice { criteria: &[Has("village:fever")], lines: &[
+                    "Aye - burn the bedding, they say. I keep my door barred.",
+                    "Aye - and pray it passes our house by, {other}."] },
+                Voice { criteria: &[Has("village:winter")], lines: &[
+                    "Aye - the woodpile's thin as the larder.",
+                    "Aye - and the lambing's still to come in it."] },
+                Voice { criteria: &[Has("village:unrest")], lines: &[
+                    "Aye - taxed, blamed, shorted. Folk are talking of it, {other}.",
+                    "Aye - I've a tally of my own that needs saying."] },
+                Voice { criteria: &[Has("village:bereft")], lines: &[
+                    "Aye - three candles lit on the lane. God rest them.",
+                    "Aye - the churchyard's fuller than the pews this week."] },
+            ],
+            then: Some(HARD_TIMES_SHARE), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.60, bias: &[(Gregarious, 1.5)],
+            act: Act::Question, concepts: &["village", "pressure"],
+            respond: None,
+            lines: &["Aye - and how does {2:poss} house weather it?"],
+            voice: &[],
+            then: Some(HARD_TIMES_SHARE), end: None,
         },
     ],
 };
@@ -5701,6 +5850,11 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &FRIEND_GREET, rejoin: Some(&FRIEND_TRUST) },
         DialogueTree { name: "stranger_road", criteria: &[Has("pair:relation:stranger")],
             root: &STRANGER_GREET, rejoin: Some(&STRANGER_PATH) },
+        // the village's own weather (#1696): what the whole parish lives
+        // under outranks the shop-talk - a famine, a fever, fresh graves
+        // color every talk in the street, whichever mouths carry them
+        DialogueTree { name: "the_hard_times", criteria: &[Has("village:hard")],
+            root: &HARD_TIMES_GREET, rejoin: Some(&HARD_TIMES_GREET) },
         DialogueTree { name: "smith_forge", criteria: &[Has("other:status:smith")],
             root: &SMITH_GREET, rejoin: Some(&SMITH_WORK) },
         DialogueTree { name: "miller_grain", criteria: &[Has("other:status:miller")],
@@ -6144,7 +6298,13 @@ const NEIGHBOR_CHAT: Exchange = Exchange {
         "Keep an eye on the sky - there's weather in it yet.",
         "Saw {2:poss} lass helping at the press yesterday.",
     ],
-    voice: &[],
+    voice: &[
+        // the parish's own weather, mid-chain (#1696): the lanes and
+        // roofs talk reads lean while the village's under a weight
+        Voice { criteria: &[Has("village:hard")], lines: &[
+            "Thin days on every lane, {other} - {2:have} {2:subj} felt it?",
+            "The lane's quiet - folk keep close when times run lean."] },
+    ],
     replies: &[
         Reply { criteria: &[], weight: 1.00, bias: &[],
             act: Act::Agree, concepts: &["smalltalk"],

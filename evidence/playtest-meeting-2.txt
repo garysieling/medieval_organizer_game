@@ -1,0 +1,35 @@
+=== Sandbox: seed 42, StrongOrg ===
+commands: who | sel N | talk | act N | pick <text> | card | meet | ctx | ctx N | 1-9 (answer the box) |
+          leave | frame [N] | day [N] | log | quit
+  | Welcome to the village.
+  | The village keeps the brewery - and the tavern on the green, where it all gets drunk.
+sandbox>   Word goes out - Aldric, Eliza, Bram, Corvin, Dagny, Hob, Marga, Gisela, Nell gather at the square - 1 of those asked stayed home.
+  —: folk are on their way
+  | t0: Word goes out - Aldric, Eliza, Bram, Corvin, Dagny, Hob, Marga, Gisela, Nell gather at the square - 1 of those asked stayed home.
+sandbox>   You: Thanks for coming. What's on your minds?
+  Aldric: The miller takes more every season.
+  Eliza: A day's work hardly buys a day's bread.
+  Bram: The store won't last the month, as I've cause to say.
+  Corvin: My children go to bed hungry.
+  Dagny: Who'll work the fields if we're all sick?
+  Hob: Half the village is coughing.
+  Marga: Let us walk the boundary markers on Rogation days as our fathers did!
+  Gisela: I bar my door at night and still don't sleep!
+  Nell: Stand together on harvest morning, or take starvation wages alone.
+  You: That's for another fire - what ails us most?
+  —: The floor's heard them once round - your steer, organizer.
+    1) Press it - folk who feel unsafe on the table
+    2) Open the floor - let them talk it out
+    3) Name the next step - bring it home
+  | t1: the smithy stands derelict - nobody works it.
+  | t1: the wives' petition goes up to the castle - drink's toll on the village, and the strangers who bring it.
+  | t1: Sturmy rides out of Ravensholt to fetch provisions from Ashby.
+  | t1: rain begins
+  | t1: The Merchant Guild formed!
+sandbox> sandbox> sandbox> sandbox> sandbox>   (no option holds 'next step')
+sandbox>   Aldric: Agree the rate between us, and stand on it, for my part.
+sandbox> sandbox>   Eliza: One decent garment. Is that so much?
+sandbox>   Bram: The ditch enclosing the common wood has been unlawfully fenced off.
+sandbox> REPRO: talk_lab sandbox --seed 42 --stage StrongOrg -- then: meet; frame 3000; pick open the floor; frame 100; 1; 1; pick next step; frame 200; 1; 1; frame 200; quit
+
+verdict (what was wrong/odd, or blank to skip)> 

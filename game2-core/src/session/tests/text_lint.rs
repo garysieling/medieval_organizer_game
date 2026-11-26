@@ -47,6 +47,16 @@ fn test_every_realized_line_agrees() {
                     let got = realize(t, &cx, &mut rng);
                     assert!(agreement_faults(&got).is_empty(), "{:?}->{:?} {:?}: {got} <- {t}",
                         a.ideology, b.ideology, rel);
+                    // #1691: a menu label is menu-speak, never spoken text -
+                    // any slot resolving to a topic's slug is a leak (the
+                    // allowlist holds labels that are also plain speech)
+                    const PLAIN: &[&str] = &["the village", "the road", "their work",
+                        "their sickness", "their hunger", "their grief", "themselves",
+                        "the old days"];
+                    for tp in crate::game::dialogue_trees::ASK_TOPICS {
+                        assert!(PLAIN.contains(&tp.label) || !got.contains(tp.label),
+                            "topic slug {:?} reached a line: {got} <- {t}", tp.label);
+                    }
                     checked += 1;
                 }
             }

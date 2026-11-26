@@ -1659,7 +1659,7 @@ pub fn worry_of_reveal(r: crate::game::desires::Reveal) -> Option<Worry> {
         ], ..w },
         R::Want(W::Joy) => Worry { area: Heart, asks: &[
             "Do children still get their games here?",
-            "Is there any frolic left after the day's work?",
+            "Is there any frolic left after the day's labor?",
         ], truths: &[
             "Everything's work - I'd forgot a day could ring.",
         ], ..w },
@@ -4363,7 +4363,7 @@ mod tests {
         assert_eq!(text, "Hard at it down at the weir?");
         let (_, text) = fresh_line(&["{trade} keeps my hands full."],
             &hand, &fisher, &used, &HashMap::default(), false, &mut rng).unwrap();
-        assert_eq!(text, "the day's work keeps my hands full.");
+        assert_eq!(text, "the day's wage keeps my hands full.");
     }
 
     #[test]

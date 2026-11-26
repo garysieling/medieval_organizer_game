@@ -20,11 +20,11 @@
     2) [Question] Tell me true, Probe - how goes it with you?
     3) [Question] Put a question to them
   Voice: Enough sky-talk - how goes the work these days?
-  Probe: Voice - how goes the day's work with you this season?
-    1) [Question] Never better. And yourself - is the day's work kind to you?
-    2) [Answer] Honest work for honest pay at the day's work - can't complain, and wouldn't.
+  Probe: Voice - how goes the day's wage with you this season?
+    1) [Question] Never better. And yourself - is the day's wage kind to you?
+    2) [Answer] Honest work for honest pay at the day's wage - can't complain, and wouldn't.
     3) [Question] Put a question to them
-  Voice: Never better. And yourself - is the day's work kind to you?
+  Voice: Never better. And yourself - is the day's wage kind to you?
   Probe: They say the miller took an extra scoop of meal again.
     1) [PushBack] Oh… That is not the way the elders told it.
     2) [Evade] Hush - some things are best said where the law can't hear.

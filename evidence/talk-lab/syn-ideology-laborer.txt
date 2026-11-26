@@ -15,9 +15,9 @@
     2) [Question] Has your brother returned from the market town?
     3) [Question] Put a question to them
   Voice: Enough sky-talk - how goes the work these days?
-  Voice: I hear the work keeps you busy at the day's work.
+  Voice: I hear the work keeps you busy at the day's wage.
     1) [Answer] The lord's acres are kind to a steady hand, Voice - I'll say it anywhere.
-    2) [PushBack] Hm… the day's work is my affair, and it fares as it fares.
+    2) [PushBack] Hm… the day's wage is my affair, and it fares as it fares.
     3) [Question] Put a question to them
   Voice: The lord's acres are kind to a steady hand, Voice - I'll say it anywhere.
   Voice: The peddler's cart lost a wheel at the bridge.

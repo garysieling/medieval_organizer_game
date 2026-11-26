@@ -24,12 +24,12 @@
     3) Put a question to them
     l) take your leave
   you: Weather aside, Roderick - how does the season treat you?
-  Roderick: wanderer - how goes the day's work with you this season?
-    1) Oh… the day's work is my affair, and it fares as it fares.
+  Roderick: wanderer - how goes the day's wage with you this season?
+    1) Oh… the day's wage is my affair, and it fares as it fares.
     2) The lord's acres are kind to a steady hand, goodman Roderick - I'll say it anywhere.
     3) Put a question to them
     l) take your leave
-  you: Oh… the day's work is my affair, and it fares as it fares.
+  you: Oh… the day's wage is my affair, and it fares as it fares.
   Roderick: As you say, friend, and that's the long of it.
   Roderick: Does the alehouse keep a friendly fire?
     1) Answer plainly

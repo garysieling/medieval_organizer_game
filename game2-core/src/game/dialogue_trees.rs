@@ -418,7 +418,7 @@ pub const SMALL_CHAT: Exchange = Exchange {
         // one drying lines - the day's own weather rides as wx-*
         Voice { criteria: &[Has("self:status:wx-rain")], lines: &["Looks like rain again, doesn't it?", "Gray clouds gathering over the western hill.", "The rain's been at it since matins, hasn't it?"] },
         Voice { criteria: &[Has("self:status:wx-snow")], lines: &["The frost sat late on the furrows this morning.", "Snow again - the lane's white to the gate.", "It came down in the night; drifts against the byre."] },
-        Voice { criteria: &[Has("self:status:wx-fog")], lines: &["A gray dawn, but the day's work won't wait for it.", "The haar's rolled in thick - the steeple's gone clean out of sight.", "Pale and close this morning - can't see past the hedge."] },
+        Voice { criteria: &[Has("self:status:wx-fog")], lines: &["A gray dawn, but the day's labor won't wait for it.", "The haar's rolled in thick - the steeple's gone clean out of sight.", "Pale and close this morning - can't see past the hedge."] },
         Voice { criteria: &[Has("self:status:wx-fair")], lines: &["Aye, the dew lay heavy on the clover this morning.", "Bright enough for drying, thank God.", "A fine morning - the kind the hay wishes for."] },
         // helplessness as a delivery mode (#1269): the same issue lands
         // resigned while they're cold, and warms rung by rung - these
@@ -534,7 +534,7 @@ pub const SMALL_CHAT: Exchange = Exchange {
             criteria: &[], weight: 0.60, bias: &[(Ambitious, 1.5)],
             act: Act::Question, concepts: &["work", "smalltalk"],
             respond: None,
-            lines: &["Enough sky-talk - how goes the work these days?", "Weather aside, {other} - how does the season treat {2:obj}?", "And the day's work - does it treat {2:obj} kindly?"],
+            lines: &["Enough sky-talk - how goes the work these days?", "Weather aside, {other} - how does the season treat {2:obj}?", "And the day's labor - does it treat {2:obj} kindly?"],
             voice: &[],
             then: Some(SMALL_WORK), end: None,
         },
@@ -5734,11 +5734,14 @@ pub fn village_library() -> Vec<DialogueTree> {
 /// slots, #1181): their craft's haunts if they have one, else whatever the
 /// day's wage is for someone of their standing
 pub fn trade_noun(s: &Speaker) -> &'static str {
-    if let Some(tr) = s.status.iter().copied().find(|st| matches!(*st,
+    if let Some(tr) = s.status.iter().copied().chain(s.trade)
+        .find(|st| matches!(*st,
         "smith" | "miller" | "baker" | "weaver" | "carpenter" | "mason"
         | "shepherd" | "brewer" | "taverner" | "beekeeper" | "herb_wife"
         | "fisher" | "charcoal_burner" | "farmer" | "tailor" | "luthier"
-        | "printer" | "glazier")) {
+        | "printer" | "glazier" | "knight" | "priest" | "perfumer"
+        | "painter" | "shoemaker" | "bookbinder" | "miner" | "vintner"
+        | "distiller" | "cooper" | "alewife")) {
         return match tr {
             "smith" => "the forge",
             "miller" => "the mill",
@@ -5757,6 +5760,17 @@ pub fn trade_noun(s: &Speaker) -> &'static str {
             "luthier" => "the workshop",
             "printer" => "the press",
             "glazier" => "the glazier's",
+            "knight" => "the lists",
+            "priest" => "the parish",
+            "perfumer" => "the scents",
+            "painter" => "the panels",
+            "shoemaker" => "the last",
+            "bookbinder" => "the binding",
+            "miner" => "the pit",
+            "vintner" => "the vines",
+            "distiller" => "the still",
+            "cooper" => "the hoops",
+            "alewife" => "the kettle",
             _ => "the mounds",
         };
     }
@@ -5764,7 +5778,7 @@ pub fn trade_noun(s: &Speaker) -> &'static str {
         "clergy" => "the parish",
         "merchant" => "the ledger",
         "lord" => "the manor",
-        _ => "the day's work",
+        _ => "the day's wage",
     }
 }
 

@@ -16,7 +16,7 @@
   Voice: You have spoken the plain heart of the matter.
   Voice: Cold wind off the moor this morning.
     1) [Question] Has your brother returned from the market town?
-    2) [Question] And the day's work - does it treat you kindly?
+    2) [Question] And the day's labor - does it treat you kindly?
     3) [Question] Put a question to them
   Voice: Has your brother returned from the market town?
   Voice: My knees ache with the damp, but I still walk.

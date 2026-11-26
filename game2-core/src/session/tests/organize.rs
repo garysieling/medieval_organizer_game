@@ -2191,3 +2191,53 @@ fn test_no_team_step_when_the_willing_are_all_in() {
     g.decide_at(0, call.options.len());
     assert!(g.log.last().unwrap().contains("The talk stays talk"), "{:?}", g.log.last());
 }
+
+/// The ladder's first rung (#1625): a month of courting a stranger used
+/// to unlock nothing - the earned asks all waited on a piece of them
+/// heard that the ordinary paths rarely landed. The probing question's
+/// answer now lands on the seat's ledger the day it's voiced, and a
+/// bond already proven by deeds doesn't wait on the ledger at all
+#[test]
+fn test_the_ask_ladders_first_rung_opens_inside_a_few_talks() {
+    use crate::game::organizing::{props_on_offer, ask_offers, stage_gap, stage_of,
+        PropKind, AskKey, RelStage, Deeds};
+    use crate::game::desires;
+    use crate::game::relationships::{record_interaction, find_relationship,
+        Interaction, InteractionKind, Relationship};
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[1]);
+    // the playtest's dead end: spoken to, but nothing real heard - no
+    // earned asks, and the card couldn't say why
+    record_interaction(&mut g.world, pe, Interaction {
+        other: v, kind: InteractionKind::Conversation, intensity: 0.3 });
+    assert!(props_on_offer(&g.world, g.org, v).is_empty());
+    assert_eq!(stage_gap(&g.world, pe, v).as_deref(), Some("nothing real heard yet"));
+    // ask what they actually want: the want they voice lands on the
+    // ledger the same day - the first rung lets go inside one ask
+    let w = desires::plant_want(&mut g.world, v, pe, g.tick, 0)
+        .expect("a want left to plant");
+    assert!(desires::known(&g.world, pe, v).contains(&desires::Reveal::Want(w)),
+        "the probe's answer is a telling the day it's voiced");
+    let asks = props_on_offer(&g.world, g.org, v);
+    assert!(asks.contains(&PropKind::Introduce), "the telling opens the ladder: {:?}", asks);
+    assert!(ask_offers(&g.world, g.org, v, 0, g.tick).iter()
+        .any(|o| o.kind == PropKind::Introduce && o.key == AskKey::Earned));
+    assert_eq!(stage_gap(&g.world, pe, v).as_deref(), Some("1 of 3 heard"));
+    // work done for them is its own proof: a deed-Known bond earns asks
+    // with the ledger still empty
+    let v2 = g.villagers[2];
+    record_interaction(&mut g.world, pe, Interaction {
+        other: v2, kind: InteractionKind::Conversation, intensity: 0.3 });
+    let bond = find_relationship(&g.world, pe, v2).unwrap();
+    g.world.add_component(bond, Deeds { n: 1 });
+    assert_eq!(stage_of(&g.world, pe, v2), RelStage::Known);
+    assert!(desires::known(&g.world, pe, v2).is_empty());
+    let asks = props_on_offer(&g.world, g.org, v2);
+    assert!(asks.contains(&PropKind::Introduce), "deeds prove the bond: {:?}", asks);
+    assert_eq!(stage_gap(&g.world, pe, v2).as_deref(), Some("the bond's still cool"));
+    // a follower who's taken nothing on still hears what's missing
+    find_relationship(&g.world, pe, v2)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.6;
+    assert_eq!(stage_of(&g.world, pe, v2), RelStage::Follower);
+    assert_eq!(stage_gap(&g.world, pe, v2).as_deref(), Some("no part taken on yet"));
+}

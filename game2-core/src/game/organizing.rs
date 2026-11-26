@@ -891,6 +891,25 @@ pub fn stage_label(s: RelStage) -> &'static str {
     }
 }
 
+/// What the next rung still wants (#1625): the inspector's short read
+/// on the gap - pieces of them heard, a warmer bond, a part taken on.
+/// None for strangers (nothing to climb from) and co-leaders (the top)
+pub fn stage_gap(world: &World, organizer: Entity, who: Entity) -> Option<String> {
+    match stage_of(world, organizer, who) {
+        RelStage::Stranger | RelStage::CoLeader => None,
+        RelStage::Acquaintance => {
+            let pieces = crate::game::desires::known(world, organizer, who).len();
+            let deeds = crate::game::relationships::find_relationship(world, organizer, who)
+                .and_then(|r| world.get_component::<Deeds>(r)).map(|d| d.n).unwrap_or(0);
+            if deeds > 0 || pieces >= KNOWN_PIECES { None }
+            else if pieces == 0 { Some("nothing real heard yet".into()) }
+            else { Some(format!("{} of {} heard", pieces, KNOWN_PIECES)) }
+        }
+        RelStage::Known => Some("the bond's still cool".into()),
+        RelStage::Follower => Some("no part taken on yet".into()),
+    }
+}
+
 /// How much evidence the seat's read stands on (E7-3, #1432): the
 /// band the card shows beside its 1-5 guess
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1178,7 +1197,9 @@ fn bumped(s: RelStage, shift: i8) -> RelStage {
 /// Which asks are on the table: those you haven't already secured, and
 /// no deeper than the stage they hold with you (shifted by the talk's
 /// read) - a stranger hears nothing, a follower hears the meeting asks.
-/// Everything needs at least one piece of their self-interest heard.
+/// Below Known everything needs at least one piece of their
+/// self-interest heard; the higher rungs' own proof (a deed, the tie)
+/// stands in for it.
 pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKind> {
     props_on_offer_shifted(world, org, person, 0)
 }
@@ -1192,7 +1213,11 @@ pub fn props_on_offer_shifted(world: &World, org: Entity, person: Entity, shift:
         .map(|o| (stage_of(world, o.leader, person),
             !crate::game::desires::known(world, o.leader, person).is_empty()))
         .unwrap_or((RelStage::Stranger, false));
-    if !heard { return vec![]; }
+    // the first rung still wants a piece of them heard; past it, the
+    // stage's own proof (deeds done, the tie itself) carries the asks -
+    // else a villager who knows you by work alone waits on a ledger
+    // entry the deed already stands for (#1625)
+    if !heard && stage < RelStage::Known { return vec![]; }
     let reached = bumped(stage, shift);
     // nothing deeper than the rung they've reached with you
     let mut out = ask_candidates(world, org, person);
@@ -1397,6 +1422,11 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u
         .unwrap_or((RelStage::Stranger, 0.0, None));
     let heard = leader.map(|l| !crate::game::desires::known(world, l, person).is_empty())
         .unwrap_or(false);
+    // the earned ask rides on the bond's proof (#1625): a piece of them
+    // heard, or the stage's own evidence - a deed done, the tie that
+    // holds. The nerve's press still needs a thread they let you see,
+    // so only it keys off `heard` itself
+    let proven = heard || stage >= RelStage::Known;
     let reached = bumped(stage, shift);
     let mut out = vec![];
     // the argument's no ask at all now (#1348): the words carry it -
@@ -1415,7 +1445,7 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u
         out.push(AskOffer { kind: PropKind::Probe, key: AskKey::Earned, price: 0.0 });
     }
     for p in ask_candidates(world, org, person) {
-        if heard && ask_tier(p) <= reached {
+        if proven && ask_tier(p) <= reached {
             out.push(AskOffer { kind: p, key: AskKey::Earned, price: 0.0 });
             continue;
         }

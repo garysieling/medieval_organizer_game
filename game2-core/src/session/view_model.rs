@@ -1399,7 +1399,12 @@ impl Game {
             _ => "",
         };
         if stage > crate::game::organizing::RelStage::Stranger {
-            let tail = if hope.is_empty() { String::new() } else { format!(" \u{00b7} {}", hope) };
+            let mut tail = if hope.is_empty() { String::new() } else { format!(" \u{00b7} {}", hope) };
+            // the ladder's next rung, named (#1625): the card owns up
+            // to what a bond's still missing
+            if let Some(gap) = crate::game::organizing::stage_gap(world, self.seats[seat].player, v) {
+                tail += &format!(" \u{00b7} {}", gap);
+            }
             lines.push(Line { x: 150, y: 330,
                 text: format!("{}{}", crate::game::organizing::stage_label(stage), tail), rgb: (170, 200, 160) });
         } else if !hope.is_empty() {

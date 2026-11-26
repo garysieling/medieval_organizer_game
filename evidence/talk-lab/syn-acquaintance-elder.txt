@@ -2,15 +2,15 @@
   them: Probe works the fields for a day's wage. They remember three lords back, and say the first was worse.
   them's facts: archetype:quiet_hand value:custom value:adventure
   you : Voice works the fields for a day's wage.
-  Probe: Well met, child! Another day Heaven grants to watch the fields.
-    1) [Greet] Good morrow to you, venerable Probe.
-  Voice: Good morrow to you, venerable Probe.
-  Probe: The boundary ran straight from the standing oak to the weeping willow.
-    1) [Question] Do you recall the great famine fifty winters ago, grandfather?
+  Probe: Well met, little one! Heaven grants me yet another day to mind the fields.
+    1) [Greet] A fair morrow to you, venerable Probe.
+  Voice: A fair morrow to you, venerable Probe.
+  Probe: The old boundary ran clean from the standing oak down to the weeping willow.
+    1) [Question] Do you truly recall the great famine, fifty winters gone, grandfather?
     2) [Question] Put a question to them
-  Voice: Do you recall the great famine fifty winters ago, grandfather?
-  Probe: Listen to the land, Voice; it was here before us and will keep our graves.
-    1) [Farewell] We will heed your counsel at the village meeting, elder.
-  Voice: We will heed your counsel at the village meeting, elder.
+  Voice: Do you truly recall the great famine, fifty winters gone, grandfather?
+  Probe: Mark the land well; it stood before us, and it will keep our graves after.
+    1) [Farewell] We shall carry your counsel to the village meeting, and gladly, elder.
+  Voice: We shall carry your counsel to the village meeting, and gladly, elder.
   -- Farewell (trees: ["elder_wisdom_self"])
 REPRO: talk_lab talk --name Probe --status elder --seed 11 --rel Acquaintance --picks 0,0,0

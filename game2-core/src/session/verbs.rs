@@ -2084,6 +2084,15 @@ impl Game {
             self.survey_answered(seat, pick);
             return;
         }
+        // a live floor owns the box (#1688): a meeting under way sits
+        // above every standing card, so a pick while it shows answers
+        // the floor's own steer or nothing at all
+        if self.meeting.as_ref().map_or(false, |m| m.seat == seat) {
+            if self.seats[seat].steer_offer.is_some() {
+                self.steer_meeting_at(seat, pick);
+            }
+            return;
+        }
         // the Act's officer waits on his answer: the scratch, the
         // fine, or the village's own counter-institution
         if let Some(offer) = self.vax_offer.take() {
@@ -2745,17 +2754,6 @@ impl Game {
                     format!("t{}: {}", self.tick, msg));
                 return;
             }
-        }
-        // the live meeting's own pause (#1611): the floor waits on the
-        // organizer's steer - it sits under a pending call or floor
-        // slate, matching what the box shows
-        if self.seats[seat].pending_founding.is_none()
-            && self.seats[seat].pending_agenda.is_none()
-            && self.seats[seat].steer_offer.is_some()
-            && self.meeting.as_ref().map_or(false, |m| m.seat == seat)
-        {
-            self.steer_meeting_at(seat, pick);
-            return;
         }
         // the traveller's ask (#1085): it shows past every real
         // decision and past a live talk or meeting, so it answers only
@@ -3760,6 +3758,7 @@ impl Game {
             branches: issues.iter().map(|i| crate::session::events::DilemmaBranch {
                 text: format!("ask about {}", crate::game::desires::issue_name(i.clone())),
                 debt: 0.0, victim: c }).collect(),
+            offered: self.tick,
         });
         "the vote carries the asking - now the floor picks the question.".into()
     }

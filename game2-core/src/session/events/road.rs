@@ -1659,7 +1659,8 @@ impl Game {
                     debt: 0.0, victim: ft.e },
                 DilemmaBranch { text: "feed him a story to carry home".into(),
                     debt: 0.0, victim: ft.e },
-            ] });
+            ],
+            offered: self.tick });
     }
 
     /// The card's answered (#1258): `stage` 1 is the plays, `stage` 2
@@ -1689,7 +1690,8 @@ impl Game {
                                 debt: 0.0, victim: ft.e },
                             DilemmaBranch { text: "they gather at the stones, not the hall".into(),
                                 debt: 0.0, victim: ft.e },
-                        ] });
+                        ],
+                        offered: self.tick });
                 }
             },
             _ => self.false_fed(seat, pick),

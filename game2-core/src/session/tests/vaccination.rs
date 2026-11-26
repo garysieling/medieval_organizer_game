@@ -20,7 +20,7 @@ fn taxed(g: &Game, v: Entity) -> bool {
 #[test]
 fn test_the_officer_offer_waits_on_the_call() {
     let mut g = Game::new();
-    g.vax_offer = Some(crate::session::events::VaxOffer { authority: g.player });
+    g.vax_offer = Some(crate::session::events::VaxOffer { authority: g.player, offered: g.tick });
     let panel = g.convo_panel_at(0).expect("the offer never reached the box");
     assert_eq!(panel.title, "THE VACCINATION ACT");
     assert!(panel.decides && panel.options.len() == 3, "three ways to answer");
@@ -30,7 +30,7 @@ fn test_the_officer_offer_waits_on_the_call() {
 fn test_comply_marks_the_infants_and_remembers_the_compulsion() {
     let mut g = Game::new();
     make_infant(&mut g, 0);
-    g.vax_offer = Some(crate::session::events::VaxOffer { authority: g.player });
+    g.vax_offer = Some(crate::session::events::VaxOffer { authority: g.player, offered: g.tick });
     g.decide_at(0, 0);
     assert!(g.vax_offer.is_none() && g.vax_done, "the offer's spent once answered");
     let baby = g.villagers[0];
@@ -51,7 +51,7 @@ fn test_resist_fines_the_refusers_and_the_league_forms() {
     let before: Vec<f32> = members.iter()
         .map(|&m| g.world.get_component::<crate::game::livelihood::Purse>(m).map(|p| p.gold).unwrap_or(0.0))
         .collect();
-    g.vax_offer = Some(crate::session::events::VaxOffer { authority: g.player });
+    g.vax_offer = Some(crate::session::events::VaxOffer { authority: g.player, offered: g.tick });
     g.decide_at(0, 1);
     assert!(g.vax_done);
     assert!(g.world.get_component::<SmallpoxVaccine>(baby).is_none(),
@@ -68,7 +68,7 @@ fn test_resist_fines_the_refusers_and_the_league_forms() {
 #[test]
 fn test_the_leicester_way_is_backed_then_built_by_the_village() {
     let mut g = Game::new();
-    g.vax_offer = Some(crate::session::events::VaxOffer { authority: g.player });
+    g.vax_offer = Some(crate::session::events::VaxOffer { authority: g.player, offered: g.tick });
     g.decide_at(0, 2);
     assert!(g.leicester_backing.is_some(), "the backing never registered");
     assert!(g.world.query::<LeicesterInstitution>().is_empty(),

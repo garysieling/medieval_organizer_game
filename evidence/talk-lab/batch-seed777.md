@@ -42,7 +42,7 @@ Gisela [Greet in asking_the_father]: Always, child. Speak freely in the sight of
 Bram [Question in the_audition]: Hah! The miller had the right of it in that quarrel - you will agree, surely?
 Gisela [Agree in the_audition]: Aye... I suppose you are right about that.
 Bram [Remark in village_smalltalk]: Hah! Is it raining, or is that the ale talking? *hic*
-Gisela [Question in village_smalltalk]: Has your brother returned from the market town?
+Gisela [Question in village_smalltalk]: Do your folk keep well through the snap?
 Bram [Answer in village_smalltalk]: We rub along as ever, by the saints' mercy.
 Gisela [Agree in village_smalltalk]: Aye, children grow like weeds in the summer ditch, or am I mistook?
 Bram [Remark in village_smalltalk]: Rooks are gathering thick in the elm trees!

@@ -12,7 +12,7 @@
   Voice: I've heard, and I mind my manners accordingly.
   Voice: Cold wind off the moor this morning.
     1) [Question] Enough sky-talk - how goes the work these days?
-    2) [Question] Has your brother returned from the market town?
+    2) [Question] Do your folk keep well through the snap?
     3) [Question] Put a question to them
   Voice: Enough sky-talk - how goes the work these days?
   Voice: I hear the work keeps you busy at the day's wage.

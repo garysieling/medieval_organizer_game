@@ -20,7 +20,7 @@
   you: Folk who give away their bread soon beg for mine.
   Aldric: Bright enough for drying, thank God.
     1) Tell me true, Aldric - how goes it with you?
-    2) Weather aside, Aldric - how does the season treat you?
+    2) Any word of your kin at Marrowdale, Aldric?
     3) Put a question to them
     l) take your leave
   you: Tell me true, Aldric - how goes it with you?

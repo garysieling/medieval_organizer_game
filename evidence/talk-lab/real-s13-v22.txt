@@ -19,17 +19,17 @@
   Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
   you: I'll not argue it, if it pleases you.
   Roderick: A fine morning - the kind the hay wishes for.
-    1) And how fares your folk in this cold snap?
+    1) Has your brother returned from Thornford?
     2) And the day's labor - does it treat you kindly?
     3) Put a question to them
     l) take your leave
-  you: And how fares your folk in this cold snap?
-  Roderick: We rub along as ever, by the saints' mercy!
-    1) Good to hear it - long may health stay under your roof.
+  you: Has your brother returned from Thornford?
+  Roderick: Not yet - the cart's looked for back from Thornford come the week's end.
+    1) May he come home safe and heavier-pursed than he went.
     2) Put a question to them
     3) Ask them to come to a meeting - for 18g
     l) take your leave
-  you: Good to hear it - long may health stay under your roof.
+  you: May he come home safe and heavier-pursed than he went.
   Roderick: The kitchen gardens are dry as a bone this month.
     1) Aye, work never sleeps in this valley.
     2) Hm… Nay, I see it differently, mark me. - a quarrel

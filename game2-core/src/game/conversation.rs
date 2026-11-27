@@ -169,6 +169,11 @@ pub struct Speaker {
     /// `{mystery}` slots and the ask's label read it so asks name the
     /// actual story, not "the mystery". Set beside `status: mystery`
     pub mystery: Option<&'static str>,
+    /// The market town their folk deal in (#1707): `speaker_of` reads it
+    /// off the `MarketTown` component so `{town}` names a real place;
+    /// hand-made speakers carry none and the slot falls back to
+    /// "the market town"
+    pub abroad: Option<&'static str>,
     /// Whether the arc's one slip is still unspent (E5-8): the caller
     /// enforces the budget - 0 for hand-made speakers until a caller
     /// opts in; the transcript's `slips` reports what fired so the
@@ -191,7 +196,7 @@ pub struct Speaker {
 
 impl Speaker {
     pub fn new(name: &str) -> Self {
-        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, mourned: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, mystery: None, slips_left: 0, joke: None, idiolect: None, story: None }
+        Speaker { name: name.to_string(), traits: vec![], ideology: "laborer", status: vec![], trade: None, pull: 0.8, sex: None, mourned: None, facts: FactTable::default(), open: Open::default(), tv: crate::game::text::Tv::You, archaism: 1, rel: Relation::Stranger, worry: None, slip: None, mystery: None, abroad: None, slips_left: 0, joke: None, idiolect: None, story: None }
     }
     /// Fact strings this speaker contributes ("trait:hotheaded", ...)
     pub(crate) fn own_facts(&self) -> Vec<String> {

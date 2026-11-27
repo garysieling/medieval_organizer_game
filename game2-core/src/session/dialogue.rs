@@ -607,6 +607,13 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
         s.sex = Some(match sex { villager::Sex::Female => "female", villager::Sex::Male => "male" });
     }
     if world.get_component::<Kid>(who).is_some() { s.status.push("child"); return s; }
+    // the market town their folk deal in (#1707): the nearest site to
+    // their roof, so "{town}" names a real place and the kin-abroad
+    // asks gate on folk whose kin actually run the roads
+    if let Some(t) = world.get_component::<super::country::MarketTown>(who) {
+        s.abroad = Some(t.0);
+        s.status.push("kin_abroad");
+    }
     let craft = world.get_component::<Craft>(who).map(|c| c.vocation);
     s.ideology = match craft {
         Some(Vocation::Priest) => "clergy",

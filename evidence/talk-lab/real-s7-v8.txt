@@ -19,38 +19,32 @@
   Wystan: Some folk give till it hurts. Thin soup for the giver, say I - and you?
   you: Charity begins at home, and mostly stays there.
   Wystan: Gray skies, gray days - it's the weather of us, wanderer, and nothing moves it.
-    1) Enough sky-talk - how goes the work these days?
-    2) And how fares your folk in this cold snap?
+    1) Has your brother returned from Wenlock?
+    2) Enough sky-talk - how goes the work these days?
     3) Put a question to them
     l) take your leave
-  you: Enough sky-talk - how goes the work these days?
-  Wystan: I hear the work keeps you busy at the day's wage.
-    1) Honest work for honest pay at the day's wage - can't complain, and wouldn't.
-    2) Well enough, aye. And how does the fields treat you?
-    3) Put a question to them
+  you: Has your brother returned from Wenlock?
+  Wystan: Not yet - the cart's looked for back from Wenlock come the week's end.
+    1) May he come home safe and heavier-pursed than he went.
+    2) Put a question to them
+    3) Ask them to come to a meeting - for 18g
     l) take your leave
-  you: Honest work for honest pay at the day's wage - can't complain, and wouldn't.
-  Wystan: They say the miller took an extra scoop of meal again.
-    1) Aye, the tithe's the tithe. It was ever so, and ever will be.
-    2) Careful - walls have ears, goodwife Wystan.
-    3) Put a question to them
-    l) take your leave
-  you: Aye, the tithe's the tithe. It was ever so, and ever will be.
-  Wystan: A stranger with two laden mules passed by the weir at noon.
-    1) Every tongue in the parish wags before sunset.
+  you: May he come home safe and heavier-pursed than he went.
+  Wystan: By the rood. The kitchen gardens are dry as a bone this month.
+    1) Every hand will be needed when the grain ripens.
     2) Ah… Nay, I see it differently, mark me. - a quarrel
     3) Put a question to them
     l) take your leave
-  you: Every tongue in the parish wags before sunset.
-  Wystan: God witness. As you say, friend.
-  Wystan: Does a master beat his learners much?
-    1) Answer plainly
-    2) Reassure them
-    3) Ask why
+  you: Every hand will be needed when the grain ripens.
+  Wystan: A rider from the castle came through before dawn.
+    1) Oh… Let the miller and the rider sort their own affairs.
+    2) God keep the lord and his men. They keep the peace, they say.
+    3) Put a question to them
     l) take your leave
-  you: I couldn't say truly.
-    1) Fair day to you, Wystan - 'twas good to pass the time.
-    2) I have no leisure to stand about, Wystan.
+  you: Oh… Let the miller and the rider sort their own affairs.
+  Wystan: True enough - the fields don't gossip.
+    1) I take my leave.
+    2) Fair day to you, Wystan - 'twas good to pass the time.
     3) Ask them to come to a meeting - for 18g
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 8 --picks 0,0,0,0,0,0,0,0 (talk seed 1040187414)
+REPRO: talk_lab talk --seed 7 --villager 8 --picks 0,0,0,0,0,0,0 (talk seed 1040187414)

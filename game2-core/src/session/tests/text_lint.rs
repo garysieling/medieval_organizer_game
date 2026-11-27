@@ -47,6 +47,9 @@ fn test_every_realized_line_agrees() {
                     let got = realize(t, &cx, &mut rng);
                     assert!(agreement_faults(&got).is_empty(), "{:?}->{:?} {:?}: {got} <- {t}",
                         a.ideology, b.ideology, rel);
+                    // #1706: no slot survives the fill - a `{` in spoken
+                    // text is always a leak
+                    assert!(!got.contains('{'), "unresolved slot reached a line: {got} <- {t}");
                     // #1691: a menu label is menu-speak, never spoken text -
                     // any slot resolving to a topic's slug is a leak (the
                     // allowlist holds labels that are also plain speech)

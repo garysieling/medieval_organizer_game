@@ -1772,6 +1772,21 @@ impl Game {
         // 1-1 unless ears are near. `talks` is the count before this
         // talk's own greeting deepened the bond
         villager.open = self.open_toward(v, pe, true, talks);
+        // a name passed on opens the door (#1711): the word carried
+        // ahead reads as time spent and a piece of yourself already
+        // given - the asks sit a rung up, their hello names the sender
+        let referred_by = if rare.is_none() {
+            crate::game::organizing::open_referral(&self.world, pe, v)
+        } else { None };
+        if let Some(by) = referred_by {
+            villager.open.talks += 2;
+            villager.open.shared = villager.open.shared.saturating_add(1);
+            let by_name = self.name_of(by);
+            opening.push(format!("{}: \"{} sent word you might come - I'm listening.\"",
+                villager.name, by_name));
+            // the word's spent on the hello: the door was walked
+            crate::game::organizing::referral_kept(&mut self.world, pe, v);
+        }
         // the doorknob worry (E5-3, #1435): what they'd ask as you go -
         // seeded off the talk's own seed so the replays land the same
         // question; a visitor carries no life to worry over

@@ -1757,6 +1757,51 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
     }
 }
 
+/// A name passed on (#1711): `from` sent the organizer to see `to` -
+/// the door stays open until the meeting happens, then `done`
+#[derive(Debug, Clone, Copy)]
+pub struct Referral {
+    pub from: Entity,
+    pub to: Entity,
+    pub made: u64,
+    pub done: bool,
+}
+
+/// Who this seat's been sent to see (#1711): the cause's introductions
+/// kept as open doors on the organizer - the panel lists them, and
+/// walking in on one opens the referred talk
+#[derive(Debug, Default)]
+pub struct Referrals(pub Vec<Referral>);
+
+/// Record an introduction (#1711): an open door to the same name is
+/// just re-sent, not doubled - the new sender takes the credit
+fn note_referral(world: &mut World, organizer: Entity, from: Entity, to: Entity, tick: u64) {
+    let mut rs = world.get_component::<Referrals>(organizer)
+        .map(|r| r.0.clone()).unwrap_or_default();
+    match rs.iter_mut().find(|r| r.to == to && !r.done) {
+        Some(r) => { r.from = from; r.made = tick; }
+        None => rs.push(Referral { from, to, made: tick, done: false }),
+    }
+    world.add_component(organizer, Referrals(rs));
+}
+
+/// The open door this seat holds to `to` (#1711): who sent them, while
+/// the word still stands
+pub fn open_referral(world: &World, organizer: Entity, to: Entity) -> Option<Entity> {
+    world.get_component::<Referrals>(organizer)?
+        .0.iter().find(|r| r.to == to && !r.done).map(|r| r.from)
+}
+
+/// The door's walked through (#1711): the word's spent - the meeting
+/// itself is the payoff
+pub fn referral_kept(world: &mut World, organizer: Entity, to: Entity) {
+    if let Some(rs) = world.get_component_mut::<Referrals>(organizer) {
+        for r in rs.0.iter_mut() {
+            if r.to == to && !r.done { r.done = true; }
+        }
+    }
+}
+
 /// "Who should I talk to?": the strongest of their bonds that shares
 /// something with them - the same trade, or a trouble you've heard them
 /// voice. The word of a friend opens a door: the named person starts a
@@ -1819,9 +1864,11 @@ fn introduce(world: &mut World, organizer: Entity, org: Entity, person: Entity, 
     cands.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
     match cands.first() {
         Some(&(_, friend, ref why)) => {
-            // a friend's word opens a door: a little warmth to start on
+            // a friend's word opens a door: a little warmth to start on,
+            // and the door kept on the seat's list until it's walked in
             record_interaction(world, organizer, Interaction {
                 other: friend, kind: InteractionKind::Conversation, intensity: 0.6 });
+            note_referral(world, organizer, person, friend, tick);
             // {name} is the friend's slot - the caller fills it
             (format!("{} names a friend - go see {{name}}; {}. A word from {} opens the door.", name, why, name), Some(friend))
         }
@@ -1831,7 +1878,8 @@ fn introduce(world: &mut World, organizer: Entity, org: Entity, person: Entity, 
             Some((p, office)) => {
                 record_interaction(world, organizer, Interaction {
                     other: p, kind: InteractionKind::Conversation, intensity: 0.6 });
-                (format!("{} can't think of anyone - but \"go and tell the {} your piece, {}.\"", name, office, name), Some(p))
+                note_referral(world, organizer, person, p, tick);
+                (format!("{} can't think of anyone - but \"go and tell the {} your piece.\"", name, office), Some(p))
             }
             None => (format!("{} can't think of anyone to send you to.", name), None),
         },

@@ -45,6 +45,7 @@ mod person;
 mod picker;
 mod quest_marker;
 mod rain;
+mod referral_click;
 mod reach_name;
 mod real_frame;
 mod rival;

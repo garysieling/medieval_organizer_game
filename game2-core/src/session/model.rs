@@ -241,6 +241,10 @@ pub struct PanelV {
     /// of the gossip is in ("Mystery: ... - 3/5 whispers")
     #[serde(default)]
     pub mystery: Option<MysteryV>,
+    /// Who the seat's been sent to see (#1711): names passed on that
+    /// still stand - each a door to walk through
+    #[serde(default)]
+    pub referrals: Vec<ReferralV>,
     /// Who the seat has gotten to know, by how far each bond runs
     #[serde(default)]
     pub social: SocialV,
@@ -528,6 +532,24 @@ impl<'de> Deserialize<'de> for MysteryV {
                 MysteryV { title, heard, total, dims, asker_name, asker, asker_at },
         })
     }
+}
+
+/// One open door on the seat's referrals list (#1711): the name to go
+/// see, who sent the seat there, and the target's villager index and
+/// spot so the name can draw and click like the mystery's asker
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferralV {
+    /// "go see Hob" - the referred target
+    pub name: String,
+    /// "Willa sent" - who passed the name on
+    pub from: String,
+    /// The target's villager index (like `Command::Select`), when
+    /// they're still on the roll
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<usize>,
+    /// Where they stood this frame
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<(f32, f32)>,
 }
 
 /// An event the seat's player is part of, for the camera: a march

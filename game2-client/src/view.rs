@@ -143,6 +143,30 @@ pub(crate) fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
     Some((row, col, col + mz.asker_name.chars().count()))
 }
 
+/// Where the referrals block starts (#1711): under the mystery block
+/// when one's up - its marks sit fixed four rows below the top, so the
+/// base tracks exactly what the draw pass burns
+fn referral_base_y(m: &UiModel) -> i32 {
+    let Some(mz) = &m.panel.mystery else { return 90 };
+    let rows = if mz.title.is_empty() {
+        wrap_px(&mystery_line(mz), 170).iter().take(4).count()
+    } else {
+        4 + mystery_marks(mz)
+            .map(|mk| wrap_px(&mk, 170).iter().take(3).count()).unwrap_or(0)
+    };
+    90 + rows as i32 * LINE_H
+}
+
+/// One row per open door (#1711): "see Hob - Willa sent". Each row's
+/// (line, first name col, one past last) so the name's cells can draw
+/// bright and click, the way the mystery's asker does
+fn referral_rows(m: &UiModel) -> Vec<(String, usize, usize)> {
+    m.panel.referrals.iter().take(4).map(|r| {
+        let line = format!("see {} - {} sent", r.name, r.from);
+        (line, 4, 4 + r.name.chars().count())
+    }).collect()
+}
+
 /// The asker-name span as drawn, in pixels: (row, x0, x1). Char columns
 /// aren't a fixed pitch under per-glyph advance, so anything clicking or
 /// highlighting the name measures the wrapped line's prefix (#1562)
@@ -283,6 +307,23 @@ impl View {
                     return (entry.at.is_some() || entry.who.is_some()).then_some(i);
                 }
                 row += 1;
+            }
+        }
+        None
+    }
+
+    /// Which referral name the mouse is over, as their villager index
+    /// (#1711): only the name's own cells answer, same as the mystery's
+    /// asker; a door the target left the roll for has nothing to select
+    pub fn referral_hit(&self, m: &UiModel, mx: i32, my: i32) -> Option<usize> {
+        let base = referral_base_y(m);
+        for (n, (line, c0, c1)) in referral_rows(m).iter().enumerate() {
+            let y = base + n as i32 * LINE_H;
+            if my < y || my >= y + LINE_H { continue; }
+            let x_at = |k: usize| UI_X as i32 + 150
+                + measure(&line.chars().take(k).collect::<String>());
+            if mx >= x_at(*c0) && mx < x_at(*c1) {
+                return m.panel.referrals.get(n).and_then(|r| r.target);
             }
         }
         None
@@ -1303,6 +1344,21 @@ impl View {
                     draw_text(&mut buf, UI_X as i32 + 150, 90 + (4 + n) as i32 * LINE_H, l, 200, 180, 235);
                 }
             }
+        }
+        // the doors still open (#1711): names passed on, right under the
+        // mystery block. Each name's a button, like the asker's -
+        // referral_hit knows the same rows
+        for (n, (line, c0, c1)) in referral_rows(m).iter().enumerate() {
+            let y = referral_base_y(m) + n as i32 * LINE_H;
+            let x_at = |k: usize| UI_X as i32 + 150
+                + measure(&line.chars().take(k).collect::<String>());
+            let hovered = mx >= x_at(*c0) && mx < x_at(*c1)
+                && my >= y && my < y + LINE_H;
+            draw_text(&mut buf, UI_X as i32 + 150, y, line, 200, 180, 235);
+            let chars: Vec<char> = line.chars().collect();
+            let name: String = chars[*c0..(*c1).min(chars.len())].iter().collect();
+            let (r, g, b) = if hovered { (255, 240, 160) } else { (255, 220, 120) };
+            draw_text(&mut buf, x_at(*c0), y, &name, r, g, b);
         }
         // the powers' standing words on the org - one line, so a
         // stack of them can't run under the buttons

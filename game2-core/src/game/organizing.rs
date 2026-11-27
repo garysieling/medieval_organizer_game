@@ -1151,6 +1151,10 @@ pub enum PropKind {
     /// plants a want that ripens in its own time, the talk-side share
     /// of the thaw move meetings carry
     Probe,
+    /// "Here's a thing I've heard" - a confidence spoken (#1709): your
+    /// ledger's facts about third parties and the cause's own news,
+    /// landed on their ledger by how the telling lands on them
+    Tell,
 }
 
 /// The ask as the player sees it in the talk options
@@ -1170,6 +1174,7 @@ pub fn prop_label(p: PropKind) -> &'static str {
         PropKind::Inoculate => "Ask how they think the lord will answer",
         PropKind::Scout => "Ask who folk turn to around here",
         PropKind::Probe => "Ask what they actually want",
+        PropKind::Tell => "Tell them what you've heard",
     }
 }
 
@@ -1180,6 +1185,7 @@ pub fn prop_label(p: PropKind) -> &'static str {
 fn ask_tier(p: PropKind) -> RelStage {
     match p {
         PropKind::Introduce => RelStage::Acquaintance,
+        PropKind::Tell => RelStage::Acquaintance,
         PropKind::InviteFriends | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate => RelStage::Known,
         _ => RelStage::Follower,
     }
@@ -1220,14 +1226,16 @@ pub fn props_on_offer_shifted(world: &World, org: Entity, person: Entity, shift:
     if !heard && stage < RelStage::Known { return vec![]; }
     let reached = bumped(stage, shift);
     // nothing deeper than the rung they've reached with you
-    let mut out = ask_candidates(world, org, person);
+    // no tick on the preview: the cause's news counts regardless,
+    // the tell menu itself rebuilds the pieces at pick time
+    let mut out = ask_candidates(world, org, person, 0);
     out.retain(|p| ask_tier(*p) <= reached);
     out
 }
 
 /// The asks the plan could still use, before any gating: the standing
 /// asks, the venue for a householder, the unfilled roles, the pull.
-fn ask_candidates(world: &World, org: Entity, person: Entity) -> Vec<PropKind> {
+fn ask_candidates(world: &World, org: Entity, person: Entity, tick: u64) -> Vec<PropKind> {
     let mut out = vec![PropKind::ComeAlong, PropKind::Introduce];
     let empty = MeetingPlan::default();
     let plan = world.get_component::<MeetingPlan>(org).unwrap_or(&empty);
@@ -1255,7 +1263,21 @@ fn ask_candidates(world: &World, org: Entity, person: Entity) -> Vec<PropKind> {
             out.push(PropKind::SignPetition);
         }
     }
+    // the tell (#1709): offered only while the ledger holds a piece
+    // they could hear - a third party's business, or the cause's own
+    if has_tellables(world, org, person, tick) { out.push(PropKind::Tell); }
     out
+}
+
+/// Whether the org's ledger holds a piece `person` could be told
+/// (#1709): a fact heard about a third party (never about them or the
+/// seat itself), or inside news on the live table
+pub fn has_tellables(world: &World, org: Entity, person: Entity, tick: u64) -> bool {
+    let leader = world.get_component::<crate::sim::community::Organization>(org)
+        .map(|o| o.leader);
+    let facts = leader.and_then(|l| world.get_component::<crate::game::desires::Known>(l)
+        .map(|k| k.entries.keys().any(|&s| s != person && s != l))).unwrap_or(false);
+    facts || crate::game::rumor::has_inside_news(world, org, tick)
 }
 
 /// What a proposition's put with (#1225): the earned ask a warm bond
@@ -1369,7 +1391,7 @@ pub fn ask_price(p: PropKind, stage: RelStage) -> f32 {
         PropKind::InviteFriends => 12.0,
         PropKind::Introduce => 6.0,
         PropKind::SignPetition => 8.0,
-        PropKind::Argue | PropKind::Inoculate | PropKind::Scout | PropKind::Probe => 0.0,
+        PropKind::Argue | PropKind::Inoculate | PropKind::Scout | PropKind::Probe | PropKind::Tell => 0.0,
     };
     let at = LADDER.iter().position(|r| *r == stage).unwrap_or(0) as i8;
     let need = LADDER.iter().position(|r| *r == ask_tier(p)).unwrap_or(0) as i8;
@@ -1432,7 +1454,7 @@ pub fn ask_offers(world: &World, org: Entity, person: Entity, shift: i8, tick: u
     // the argument's no ask at all now (#1348): the words carry it -
     // an argumentative line in the ordinary picks opens the same
     // machinery the offer once did (persuasion::ARGUMENTATIVE_LINES)
-    for p in ask_candidates(world, org, person) {
+    for p in ask_candidates(world, org, person, tick) {
         if proven && ask_tier(p) <= reached {
             out.push(AskOffer { kind: p, key: AskKey::Earned, price: 0.0 });
             continue;
@@ -1482,7 +1504,7 @@ fn ask_suits(p: PropKind, r: &crate::game::desires::Reveal) -> bool {
         PropKind::BringSnacks => matches!(r, Reveal::Want(Want::GoodFood) | Reveal::Problem(Problem::LongWinter)),
         PropKind::LendVenue => matches!(r, Reveal::Want(Want::Shelter) | Reveal::Problem(Problem::NoHome)),
         PropKind::ComeAlong => matches!(r, Reveal::Problem(_) | Reveal::Want(Want::Love)),
-        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate | PropKind::Scout | PropKind::Probe => false,
+        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce | PropKind::SignPetition | PropKind::Argue | PropKind::Inoculate | PropKind::Scout | PropKind::Probe | PropKind::Tell => false,
     }
 }
 
@@ -1731,6 +1753,7 @@ fn land_ask(world: &mut World, org: Entity, person: Entity, p: PropKind, name: &
         PropKind::Inoculate => unreachable!("the inoculation plays out in the talk, not through propose"),
         PropKind::Scout => unreachable!("the scouting read plays out in the talk, not through propose"),
         PropKind::Probe => unreachable!("the probing question plants in the talk, not through propose"),
+        PropKind::Tell => unreachable!("the telling plays out in the talk, not through propose"),
     }
 }
 

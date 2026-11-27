@@ -221,7 +221,7 @@ pub fn ask_cost(p: crate::game::organizing::PropKind) -> f32 {
         LendVenue => 0.55,
         // the name on paper is the dearest ask there is
         SignPetition => 0.80,
-        Argue | Inoculate | Scout | Probe => 0.30,
+        Argue | Inoculate | Scout | Probe | Tell => 0.30,
     }
 }
 

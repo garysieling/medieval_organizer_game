@@ -1375,6 +1375,46 @@ fn test_the_turnout_round_puts_the_words_on_the_plan() {
     assert!(tally.contains("You promised 2"), "the organizer's word reads the same: {}", tally);
 }
 
+/// A pledge's pull skips the organizer and the already-confirmed
+/// (#1713 review): when a pledger's strongest bond is the organizer
+/// themselves, that slot must go to the next eligible friend instead
+/// of being spent on someone who was never a guest to bring
+#[test]
+fn test_a_pledges_pull_skips_the_organizer() {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let (pe, p0, neighbor) = (g.player, g.villagers[0], g.villagers[5]);
+    // p0's strongest bond is the organizer - the slot that bond would
+    // have spent must fall through to the next one instead
+    record_interaction(&mut g.world, p0,
+        Interaction { other: pe, kind: InteractionKind::Aid, intensity: 1.0 });
+    record_interaction(&mut g.world, p0,
+        Interaction { other: neighbor, kind: InteractionKind::Aid, intensity: 0.5 });
+    let came = g.villagers[..2].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
+    g.decide_at(0, 0); // the turnout round
+    g.decide_at(0, 1); // the organizer's own count
+    g.decide_at(0, 0); // the day
+    g.decide_at(0, 0); // the question
+    g.call_meeting_at(0);
+    let m = g.meeting.as_ref().expect("the room convenes");
+    let (_, _, pulled) = m.pledged.iter().find(|&&(p, ..)| p == p0)
+        .expect("p0's word is on the record");
+    assert!(!pulled.contains(&pe),
+        "the organizer was never a guest to bring: {:?}", pulled);
+    assert!(pulled.contains(&neighbor),
+        "the eligible friend takes the slot the organizer can't: {:?}", pulled);
+}
+
 /// The report reads promised against brought (#1713): a kept count
 /// hears PromiseKept, a shortfall confirms "promises are for those
 /// who can keep them", and the organizer's own word reads the same

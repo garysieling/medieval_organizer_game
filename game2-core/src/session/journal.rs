@@ -108,8 +108,11 @@ impl Game {
 /// stall, mystic, charter, the eyes' hold, parley, the unsworn oath -
 /// answer on their own cards now (#1663), so an old journal's Decide(n)
 /// resolves the box it was recorded against, not the standing state
-/// that used to eat it)
-pub const JOURNAL_VERSION: u32 = 17;
+/// that used to eat it; and a thin room's meet-again now opens a
+/// turnout count card ahead of the day picker (#1713), so an old
+/// journal's Decide(n) for "meet again" can land on the count instead
+/// of the day it was recorded against)
+pub const JOURNAL_VERSION: u32 = 18;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -2740,6 +2740,10 @@ impl Game {
             let n = (pick.min(2) + 1) as u8;
             let pe = self.seats[seat].player;
             crate::game::organizing::plan_for(&mut self.world, oe).pledges.push((pe, n));
+            // the date picker gets a fresh week from here, not whatever
+            // was left of the count card's own (#1713 review) - answering
+            // late shouldn't land straight on an already-lapsed day ask
+            self.seats[seat].meet_offer = Some(self.tick);
             self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
                 format!("t{}: you gave your word on {}.", self.tick, n));
             return;
@@ -2843,8 +2847,14 @@ impl Game {
                 // reach they actually have - and the organizer's count
                 // is asked next, on its own card
                 let pledges: Vec<(Entity, u8)> = if d.turnout {
+                    // the count offered is bounded by who's actually
+                    // eligible to pull in - the organizer and everyone
+                    // already coming are off the table, same as at the
+                    // door (#1713 review)
+                    let mut exclude = d.meet_again.clone();
+                    exclude.push(self.seats[seat].player);
                     d.meet_again.iter().map(|&e| {
-                        (e, crate::game::organizing::friends_of(&self.world, e, usize::MAX)
+                        (e, crate::game::organizing::pledgeable_friends_of(&self.world, e, &exclude, usize::MAX)
                             .len().clamp(1, 3) as u8)
                     }).collect()
                 } else { vec![] };

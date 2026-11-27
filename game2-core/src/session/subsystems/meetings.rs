@@ -623,8 +623,14 @@ impl Game {
         // meeting snapshots who was owed so the report can read
         // promised against brought
         let mut pledged: Vec<(Entity, u8, Vec<Entity>)> = vec![];
+        // the same eligibility as when the count was offered: the
+        // organizer and everyone already on the plan aren't a pledger's
+        // to pull, so a slot promised against them doesn't silently
+        // vanish into a dedup and still read as brought (#1713 review)
+        let mut exclude = plan.holders();
+        exclude.push(pe);
         for &(p, n) in &plan.pledges {
-            let pulled = org::friends_of(&self.world, p, n as usize);
+            let pulled = org::pledgeable_friends_of(&self.world, p, &exclude, n as usize);
             for &f in &pulled { pool.push((f, org::Invite::Pulled)); }
             pledged.push((p, n, pulled));
         }

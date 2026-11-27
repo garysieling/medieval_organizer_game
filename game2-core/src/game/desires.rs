@@ -305,9 +305,12 @@ pub fn record(world: &mut World, knower: Entity, e: Entity, fact: String,
         contradicted,
     });
     // a telling from their own mouth makes the seat a co-owner
-    // (E5-5): what's confided is now the seat's to keep
+    // (E5-5): what's confided is now the seat's to keep - but only a
+    // genuine Reveal (a want, a problem) is a confidence; a plain
+    // person:* fact (#1712's trade, kin, trait, hook) is firsthand
+    // knowledge, not a secret entrusted to keep (#1721)
     if let Source::Told { speaker } = source {
-        if speaker == e {
+        if speaker == e && reveal.is_some() {
             k.confidences.push(Confidence {
                 fact, owner: e, rule: Rule::TellNoOne,
                 kept: true, day, honored: false,
@@ -379,11 +382,14 @@ fn person_known(world: &World, knower: Entity, e: Entity, fact: &str) -> bool {
 
 /// The kin they'd name first: a Family bond, else who shares their roof
 fn first_kin(world: &World, v: Entity) -> Option<Entity> {
-    use crate::game::relationships::{bonds_of, find_relationship, RelKind, Relationship};
+    use crate::game::relationships::{bonds_of, RelKind, Relationship};
+    // bonds_of hands back bond entities, not the people on them - read
+    // each bond's own Relationship to find the Family one and its far
+    // end, rather than asking find_relationship about the bond itself
     bonds_of(world, v).into_iter()
-        .find(|&o| find_relationship(world, v, o)
-            .and_then(|r| world.get_component::<Relationship>(r))
-            .map(|r| r.kind == RelKind::Family).unwrap_or(false))
+        .filter_map(|bond| world.get_component::<Relationship>(bond))
+        .find(|r| r.kind == RelKind::Family)
+        .map(|r| if r.from == v { r.other } else { r.from })
         .or_else(|| crate::game::household::home_of(world, v)
             .and_then(|h| world.get_component::<crate::game::household::Building>(h))
             .and_then(|b| b.occupants.iter().copied().find(|&o| o != v)))
@@ -1655,6 +1661,42 @@ mod tests {
             Source::Told { speaker: other }, 5);
         leak(&mut w, knower, other, "problem:broke");
         assert_eq!(honor_confidences(&mut w, knower, 999), 0);
+    }
+
+    #[test]
+    fn test_a_plain_person_fact_pays_no_kept_word_reward() {
+        // #1721: learn_in_talk's person:* facts (trade, kin, trait,
+        // hook) carry no Reveal - they're firsthand knowledge, not a
+        // secret entrusted to keep, so they mint no confidence to honor
+        let mut w = World::new();
+        let (knower, owner) = (w.create_entity(), person(&mut w, &[]));
+        record(&mut w, knower, owner, "person:craft:Weaver".to_string(), None,
+            Source::Told { speaker: owner }, 5);
+        assert!(confidences(&w, knower, owner).is_empty(),
+            "a trade learned firsthand is no confidence");
+        assert_eq!(honor_confidences(&mut w, knower, 5 + CONFIDENCE_MARK_DAYS), 0,
+            "nothing was confided, so nothing pays a kept-word reward");
+    }
+
+    #[test]
+    fn test_first_kin_reads_the_bond_not_the_bond_entity() {
+        use crate::game::relationships::{RelKind, Relationship};
+        let mut w = World::new();
+        let (v, kin, housemate) =
+            (person(&mut w, &[]), person(&mut w, &[]), person(&mut w, &[]));
+        // a housemate who isn't kin would win by the fallback alone -
+        // the Family bond must beat it even though the kin lives elsewhere
+        let b = w.create_entity();
+        w.add_component(b, Building {
+            kind: BuildingKind::Home, name: "a house".into(),
+            occupants: vec![v, housemate], worker: None, overseer: None,
+            stock: Default::default(), capacity: 20, flyer: None,
+        });
+        let bond = w.create_entity();
+        w.add_component(bond, Relationship {
+            from: v, other: kin, kind: RelKind::Family, ..Default::default() });
+        assert_eq!(first_kin(&w, v), Some(kin),
+            "the family bond names the kin themselves, not the bond entity or a housemate");
     }
 
     #[test]

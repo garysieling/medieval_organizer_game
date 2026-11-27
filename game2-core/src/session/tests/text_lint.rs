@@ -185,7 +185,7 @@ fn test_the_migration_leaves_no_typed_forms_in_the_trees() {
 // `list:` referent grammar - plus the names a `refs`/`fill` carries
 const SLOT_FAMILIES: &[&str] = &["2", "2p", "he", "him", "his", "is", "was",
     "n", "a", "list", "other", "other_trade", "trade", "addr",
-    "someone", "lads", "grandda", "issue", "self", "grievance", "mystery", "town"];
+    "someone", "lads", "grandda", "issue", "self", "grievance", "mystery", "town", "their_town"];
 
 fn slot_known(s: &str) -> bool {
     let s = s.trim_start_matches('{').trim_end_matches('}');

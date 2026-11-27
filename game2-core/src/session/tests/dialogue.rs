@@ -812,6 +812,9 @@ fn test_asking_what_weighs_on_them_draws_it_out() {
     warm_bond(&mut g, v);
     g.world.add_component(v, InnerLife {
         wants: vec![], grievances: vec![(Problem::Taxed, 1000)], satisfied: vec![] });
+    // a telling wants a private ear (E3-2): in the lane the same ask
+    // hedges - "I'd not set it down here" (#1710)
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 200.0, y: 200.0 };
     talk_beside(&mut g, i);
     let menu = open_ask_menu(&mut g);
     let p = menu.iter().position(|(_, _, l)| l == "Ask about what weighs on them")
@@ -2573,9 +2576,11 @@ fn test_the_responsive_guest_outbonds_the_greedy_one() {
         "the greedy guest left marks the bond keeps: {greedy:?}");
 }
 
-/// Warm but untested (E5-4, #1436): the parts reach the private layer
-/// the way `warm_bond`'s do, but the nerve's never climbed - a fresh
-/// telling still tests before it moves
+/// Warm but untested (E5-4, #1436): the worn secret's ask is theirs to
+/// put - a seen tell carries it onto the menu where the bare reach
+/// wouldn't - but the nerve's never climbed, so a fresh telling still
+/// tests before it moves. (An Inclusion nerve's reach caps under the
+/// private bar: the tell-carried ask was always the road in.)
 fn untested_bond(g: &mut Game, v: Entity) {
     let pe = g.player;
     crate::game::relationships::add_relationship(&mut g.world,

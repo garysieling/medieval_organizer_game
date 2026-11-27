@@ -785,6 +785,18 @@ fn main() {
                     }
                     cmds.push(Command::Select(i));
                 }
+                // a referral's name does the same (#1711): select the
+                // one to go see and put them on camera
+                if let Some(i) = view.referral_hit(m, mx, my) {
+                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    if let Some(r) = m.panel.referrals.iter().find(|r| r.target == Some(i)) {
+                        if let Some(at) = r.at {
+                            (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                            manual_cam = true;
+                        }
+                    }
+                    cmds.push(Command::Select(i));
+                }
                 // the conversation box: a speaker's line selects them, a
                 // choice button answers it (a reply, leave, or the call)
                 if let Some(c) = &m.convo {

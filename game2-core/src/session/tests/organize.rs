@@ -719,6 +719,71 @@ fn test_an_intro_with_no_friend_sends_you_to_the_village_ear() {
 }
 
 #[test]
+fn test_an_introduction_puts_a_name_on_the_door() {
+    use crate::game::organizing::{open_referral, propose, PropKind, Referrals};
+    use crate::game::vocation::{craft, Vocation};
+    let mut g = Game::new();
+    let (pe, asker, friend) = (g.player, g.villagers[1], g.villagers[2]);
+    // a follower of the cause with a friend to name - the yes is certain
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: asker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    crate::game::relationships::find_relationship(&g.world, pe, asker)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
+    g.world.add_component(asker, craft(Vocation::Weaver, 0.5));
+    g.world.add_component(friend, craft(Vocation::Weaver, 0.5));
+    relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
+        other: friend, kind: relationships::InteractionKind::Conversation, intensity: 0.8 });
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, named) = propose(&mut g.world, pe, oe, asker, PropKind::Introduce, "Eliza", 0.0, tick);
+    let friend = named.expect("a friend named");
+    // the name lands on the seat's list, still open - and re-sending
+    // the same one doesn't double it
+    let rs = g.world.get_component::<Referrals>(pe).expect("the door's noted");
+    assert_eq!(rs.0.iter().filter(|r| r.to == friend && !r.done).count(), 1);
+    assert_eq!(open_referral(&g.world, pe, friend), Some(asker), "{}", msg);
+    // and the panel lists it: the name to see, who sent the seat
+    let panel = g.ui_model().panel;
+    let row = panel.referrals.iter().find(|r| r.target == g.villagers.iter().position(|&v| v == friend))
+        .expect("the door's on the panel");
+    assert_eq!(row.name, g.name_of(friend));
+    assert_eq!(row.from, g.name_of(asker));
+    assert!(row.at.is_some(), "they can be jumped to");
+}
+
+#[test]
+fn test_walking_in_on_a_name_names_the_sender() {
+    use crate::game::organizing::{open_referral, propose, PropKind};
+    use crate::game::vocation::{craft, Vocation};
+    let mut g = Game::new();
+    let (pe, asker, friend) = (g.player, g.villagers[1], g.villagers[2]);
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: asker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    crate::game::relationships::find_relationship(&g.world, pe, asker)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
+    g.world.add_component(asker, craft(Vocation::Weaver, 0.5));
+    g.world.add_component(friend, craft(Vocation::Weaver, 0.5));
+    relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
+        other: friend, kind: relationships::InteractionKind::Conversation, intensity: 0.8 });
+    let (oe, tick) = (g.org, g.tick);
+    propose(&mut g.world, pe, oe, asker, PropKind::Introduce, "Eliza", 0.0, tick);
+    // walk in on them: their hello names the one who sent you, the
+    // door reads warmer, and the name comes off the list
+    g.open_player_talk(0, friend, crate::game::conversation::Relation::Acquaintance, "the day's work");
+    let t = g.seats[0].talk.as_ref().expect("the talk's open");
+    let sent = format!("{} sent word you might come", g.name_of(asker));
+    assert!(t.notes.iter().any(|n| n.contains(&sent)), "{:?}", t.notes);
+    assert!(t.villager.open.talks >= 2, "the word carried warms the door");
+    assert!(open_referral(&g.world, pe, friend).is_none(), "the word's spent on the hello");
+    assert!(g.ui_model().panel.referrals.is_empty(), "the door's off the list");
+    // a stranger the word wasn't sent to opens cold
+    g.seats[0].talk = None;
+    let cold = g.villagers[5];
+    g.open_player_talk(0, cold, crate::game::conversation::Relation::Acquaintance, "the day's work");
+    let t = g.seats[0].talk.as_ref().unwrap();
+    assert!(!t.notes.iter().any(|n| n.contains("sent word")), "{:?}", t.notes);
+}
+
+#[test]
 fn test_a_remote_chaplain_isnt_the_village_ear() {
     use crate::game::organizing::{propose, PropKind};
     use crate::game::vocation::{Craft, TownRole, Vocation};

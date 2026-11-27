@@ -92,7 +92,7 @@ fn test_a_house_meeting_ends_in_the_organizers_call_not_a_done_deal() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
     // the room leans, but nothing is founded until the organizer says so
     assert!(g.seats[0].pending_founding.is_some(), "{}", msg);
     assert!(game2_core::game::campaign::campaign_of(&g.world, g.org).is_none());
@@ -170,7 +170,7 @@ fn test_escape_routes_off_the_real_boxes() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
     assert_eq!(crate::esc_route(&g.ui_model()), crate::EscRoute::Swallow);
 }
 
@@ -180,7 +180,7 @@ fn test_the_calls_rows_take_the_digit_keys_too() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
     let c = g.convo_panel_at(0).expect("the call on the box");
     assert!(c.decides && c.options.len() == 4);
     // the founding call's framings answer digits as Decide, not TalkPick

@@ -708,6 +708,16 @@ impl Game {
                 members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
                 mystery: self.mystery_panel_line(seat),
+                // the doors still open (#1711): each name's a button,
+                // like the mystery's asker
+                referrals: self.world.get_component::<crate::game::organizing::Referrals>(self.seats[seat].player)
+                    .map(|rs| rs.0.iter().filter(|r| !r.done).map(|r| ReferralV {
+                        name: self.name_of(r.to),
+                        from: self.name_of(r.from),
+                        target: self.villagers.iter().position(|&v| v == r.to),
+                        at: self.world.get_component::<Pos>(r.to).map(|p| (p.x, p.y)),
+                    }).collect())
+                    .unwrap_or_default(),
                 social, meeting,
                 drama: self.drama_at(seat),
             },

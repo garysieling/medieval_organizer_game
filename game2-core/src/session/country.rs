@@ -592,49 +592,71 @@ impl Game {
 
     }
 
-    /// The market a house's folk deal in (#1707): every grown occupant
-    /// without one yet gets the Town site nearest their roof - but the
-    /// roll is once a household, not once a head, so housemates never
-    /// name two different markets. Called at world creation for the
-    /// seeded village, and again whenever new adults join it (coming of
-    /// age, settling in), so later folk earn the family dialogue too.
+    /// The market a house's folk deal in (#1707): one roll a household,
+    /// not one a head, shared by every grown occupant under that roof
+    /// (a roofless adult is a household of one) - so housemates never
+    /// name two different markets, whether they rolled together at
+    /// world creation or a new one (coming of age, settling in) joined
+    /// a roof that had already settled on its own.
     pub(super) fn assign_market_towns(&mut self, rng: &mut Rng) {
         let towns: Vec<((i32, i32), &'static str)> = self.sites.iter()
             .filter(|s| s.kind == SiteKind::Town).map(|s| (s.centre, s.name)).collect();
         if towns.is_empty() { return; }
         let villagers = self.villagers.clone();
-        let mut home_town: crate::engine::det::HashMap<Entity, &'static str> = Default::default();
-        for &v in &villagers {
-            if self.world.get_component::<MarketTown>(v).is_some() { continue; }
-            if self.world.get_component::<crate::game::vocation::Kid>(v).is_some()
-                || self.world.get_component::<Outlander>(v).is_some() { continue; }
-            let home = crate::game::household::home_of(&self.world, v);
-            if let Some(name) = home.and_then(|h| home_town.get(&h).copied()) {
-                self.world.add_component(v, MarketTown(name));
+        let eligible: Vec<Entity> = villagers.iter().copied().filter(|&v|
+            self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+                && self.world.get_component::<Outlander>(v).is_none()).collect();
+        // group by roof - keyed on the home, or on themselves when
+        // nobody's housing them, so a solo adult still gets their own
+        // unit rather than being lumped in with every other roofless
+        // soul in the village
+        let mut order: Vec<Entity> = vec![];
+        let mut members: crate::engine::det::HashMap<Entity, Vec<Entity>> = Default::default();
+        for &v in &eligible {
+            let key = crate::game::household::home_of(&self.world, v).unwrap_or(v);
+            if !members.contains_key(&key) { order.push(key); }
+            members.entry(key).or_default().push(v);
+        }
+        for &key in &order {
+            let unit = members[&key].clone();
+            // a housemate (old or new) who already carries one settles
+            // the whole roof on it, rather than rolling their own
+            if let Some(name) = unit.iter().find_map(|&v|
+                self.world.get_component::<MarketTown>(v).map(|t| t.0)) {
+                for &v in &unit {
+                    if self.world.get_component::<MarketTown>(v).is_none() {
+                        self.world.add_component(v, MarketTown(name));
+                    }
+                }
                 continue;
             }
-            let at = home.and_then(|h| self.world.get_component::<Pos>(h))
-                .map(|p| (p.x as i32, p.y as i32))
-                .or_else(|| self.world.get_component::<Pos>(v).map(|p| (p.x as i32, p.y as i32)))
-                .unwrap_or(self.village);
+            let at = self.world.get_component::<Pos>(key)
+                .map(|p| (p.x as i32, p.y as i32)).unwrap_or(self.village);
             let mut by_dist: Vec<&((i32, i32), &'static str)> = towns.iter().collect();
             by_dist.sort_by_key(|((tx, ty), _)| (tx - at.0).abs() + (ty - at.1).abs());
             let far = rng.below(4) == 0;
             let Some(&(_, name)) = by_dist.get(if far { by_dist.len() - 1 } else { 0 }) else { continue };
-            self.world.add_component(v, MarketTown(name));
-            if let Some(h) = home { home_town.insert(h, name); }
+            for &v in &unit { self.world.add_component(v, MarketTown(name)); }
         }
-        // a roll that leaves a town unspoken for gives its first
-        // villager's custom away - both markets get talked about
+        // a roll that leaves a town unspoken for gives a whole
+        // household's custom away, not just one voice of it - both
+        // markets get talked about, and no roof names two towns for
+        // it. The donor's own town must still have another household
+        // speaking for it, or covering one town just uncovers the next
         for &(_, name) in &towns {
-            let dealt = self.villagers.iter().any(|&v|
-                self.world.get_component::<MarketTown>(v).map(|t| t.0 == name).unwrap_or(false));
-            if !dealt {
-                if let Some(&v) = self.villagers.iter().find(|&&v|
-                    self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
-                        && self.world.get_component::<Outlander>(v).is_none()
-                        && self.world.get_component::<MarketTown>(v)
-                            .map(|t| t.0 != name).unwrap_or(false)) {
+            let dealt = order.iter().any(|&key| members[&key].iter().any(|&v|
+                self.world.get_component::<MarketTown>(v).map(|t| t.0 == name).unwrap_or(false)));
+            if dealt { continue; }
+            let donor = order.iter().copied().find(|&key| {
+                let unit = &members[&key];
+                let Some(theirs) = unit.first()
+                    .and_then(|&v| self.world.get_component::<MarketTown>(v).map(|t| t.0)) else { return false };
+                theirs != name && order.iter().any(|&other| other != key
+                    && members[&other].iter().any(|&v| self.world.get_component::<MarketTown>(v)
+                        .map(|t| t.0 == theirs).unwrap_or(false)))
+            });
+            if let Some(key) = donor {
+                for &v in members[&key].clone().iter() {
                     self.world.add_component(v, MarketTown(name));
                 }
             }

@@ -19,12 +19,12 @@
   Roderick: I'd have thumped the steward myself. You would have done the same, no doubt?
   you: I'll not argue it, if it pleases you.
   Roderick: A fine morning - the kind the hay wishes for.
-    1) Has your brother returned from Thornford?
+    1) Has your brother returned from Ashby?
     2) And the day's labor - does it treat you kindly?
     3) Put a question to them
     l) take your leave
-  you: Has your brother returned from Thornford?
-  Roderick: Not yet - the cart's looked for back from Thornford come the week's end.
+  you: Has your brother returned from Ashby?
+  Roderick: Not yet - the cart's looked for back from Ashby come the week's end.
     1) May he come home safe and heavier-pursed than he went.
     2) Put a question to them
     3) Ask them to come to a meeting - for 18g

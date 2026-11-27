@@ -51,8 +51,8 @@ fn test_every_realized_line_agrees() {
                     // any slot resolving to a topic's slug is a leak (the
                     // allowlist holds labels that are also plain speech)
                     const PLAIN: &[&str] = &["the village", "the road", "their work",
-                        "their sickness", "their hunger", "their grief", "themselves",
-                        "the old days"];
+                        "their sickness", "their hunger", "their grief", "their family",
+                        "themselves", "the old days"];
                     for tp in crate::game::dialogue_trees::ASK_TOPICS {
                         assert!(PLAIN.contains(&tp.label) || !got.contains(tp.label),
                             "topic slug {:?} reached a line: {got} <- {t}", tp.label);
@@ -182,7 +182,7 @@ fn test_the_migration_leaves_no_typed_forms_in_the_trees() {
 // `list:` referent grammar - plus the names a `refs`/`fill` carries
 const SLOT_FAMILIES: &[&str] = &["2", "2p", "he", "him", "his", "is", "was",
     "n", "a", "list", "other", "other_trade", "trade", "addr",
-    "someone", "lads", "grandda", "issue", "self", "grievance", "mystery"];
+    "someone", "lads", "grandda", "issue", "self", "grievance", "mystery", "town"];
 
 fn slot_known(s: &str) -> bool {
     let s = s.trim_start_matches('{').trim_end_matches('}');

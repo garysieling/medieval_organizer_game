@@ -19,26 +19,44 @@
   Roderick: Hah! The miller had the right of it in that quarrel - you will agree, surely?
   you: Aye... I suppose you are right about that.
   Roderick: Gray skies, gray days - it's the weather of us, wanderer, and nothing moves it.
-    1) Weather aside, Roderick - how does the season treat you?
-    2) And how fares your folk in this cold snap?
+    1) Any word of your kin at Wenlock, Roderick?
+    2) Enough sky-talk - how goes the work these days?
     3) Put a question to them
     l) take your leave
-  you: Weather aside, Roderick - how does the season treat you?
-  Roderick: wanderer - how goes the day's wage with you this season?
-    1) Oh… the day's wage is my affair, and it fares as it fares.
-    2) The lord's acres are kind to a steady hand, goodman Roderick - I'll say it anywhere.
+  you: Any word of your kin at Wenlock, Roderick?
+  Roderick: Aye, home since Tuesday, and full of Wenlock talk!
+    1) The saints keep him on the road, Roderick.
+    2) Put a question to them
+    3) Ask them to come to a meeting - for 18g
+    l) take your leave
+  you: The saints keep him on the road, Roderick.
+  Roderick: The kitchen gardens are dry as a bone this month.
+    1) Aye, work never sleeps in this valley.
+    2) Well… Nay, I see it differently, mark me. - a quarrel
     3) Put a question to them
     l) take your leave
-  you: Oh… the day's wage is my affair, and it fares as it fares.
-  Roderick: As you say, friend, and that's the long of it.
+  you: Aye, work never sleeps in this valley.
+  Roderick: A rider from the castle came through before dawn.
+    1) The lord's a fair master, as lords go - I'll say that anywhere.
+    2) Oh… Let the miller and the rider sort their own affairs.
+    3) Put a question to them
+    l) take your leave
+  you: The lord's a fair master, as lords go - I'll say that anywhere.
+  Roderick: The herb-wife was seen out past the abbey wall at dusk!
+    1) Well, that is talk enough for one morning.
+    2) Oh… That is not the way the elders told it. - a quarrel
+    3) Put a question to them
+    l) take your leave
+  you: Well, that is talk enough for one morning.
+  Roderick: True enough - the fields don't gossip.
   Roderick: Does the alehouse keep a friendly fire?
     1) Answer plainly
     2) Reassure them
     3) Ask why
     l) take your leave
-  you: Aye - take it for so.
-    1) I have no leisure to stand about, Roderick.
-    2) Fare you well until the morrow.
+  you: I couldn't say truly.
+    1) I take my leave.
+    2) Fair day to you, Roderick - 'twas good to pass the time.
     3) Ask them to come to a meeting - for 18g
     l) take your leave
-REPRO: talk_lab talk --seed 7 --villager 22 --picks 0,0,0,0,0,0 (talk seed 1275068438)
+REPRO: talk_lab talk --seed 7 --villager 22 --picks 0,0,0,0,0,0,0,0,0 (talk seed 1275068438)

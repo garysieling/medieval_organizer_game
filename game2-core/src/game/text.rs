@@ -458,6 +458,10 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
         // ask names the story itself, not "the mystery" (#1608)
         "mystery" => push(out, cx.speaker.mystery.or(cx.listener.mystery)
             .unwrap_or("what folk whisper of")),
+        // the market town the pair's folk deal in (#1707): the speaker's
+        // own roof's town first, the listener's if they carry none
+        "town" => push(out, cx.speaker.abroad
+            .or(cx.listener.abroad).unwrap_or("the market town")),
         // E4-2: the address a relation earns - "m'lord", "goodwife Maud"
         "addr" => push(out, &address_form(cx)),
         // E4-2: second person - pronouns and verb agreement read `cx.tv`
@@ -1147,6 +1151,23 @@ mod tests {
     }
 
     #[test]
+    fn the_town_slot_names_their_market() {
+        // #1707: "{town}" is the speaker's market town, the listener's
+        // when the speaker has none, and a named place never a leak
+        let (mut alys, mut corvin) = pair();
+        alys.abroad = Some("Ashby");
+        assert_eq!(realize_plain("carted off to {town}.", &alys, &corvin, &[]),
+            "carted off to Ashby.");
+        corvin.abroad = Some("Kelby");
+        alys.abroad = None;
+        assert_eq!(realize_plain("carted off to {town}.", &alys, &corvin, &[]),
+            "carted off to Kelby.");
+        corvin.abroad = None;
+        assert_eq!(realize_plain("carted off to {town}.", &alys, &corvin, &[]),
+            "carted off to the market town.");
+    }
+
+    #[test]
     fn a_slot_nobody_owns_stays_for_the_next_fill() {
         let (alys, corvin) = pair();
         // a known referent the caller didn't fill reads as a plain
@@ -1255,7 +1276,8 @@ mod tests {
                 || t.contains("{grievance}") || t.contains("{lads}")
                 || t.contains("{he:") || t.contains("{him:") || t.contains("{his:")
                 || t.contains("{is:") || t.contains("{was:") || t.contains("{n:")
-                || t.contains("{list:") || t.contains("{grandda}") || t.contains("{mystery}") {
+                || t.contains("{list:") || t.contains("{grandda}") || t.contains("{mystery}")
+                || t.contains("{town}") {
                 // E4-2/E4-4/E4-7 migrated this line - the old fills never
                 // owned these slots (the referent slots leak through
                 // them, which is why #1606 gives them plain-word

@@ -12,10 +12,10 @@
     3) [Question] Put a question to them
   Voice: A poor man's bed is a luxury he can rarely afford.
   Probe: The sky does what it does, Voice.
-    1) [Question] Has your brother returned from the market town?
+    1) [Question] Do your folk keep well through the snap?
     2) [Question] And the day's labor - does it treat you kindly?
     3) [Question] Put a question to them
-  Voice: Has your brother returned from the market town?
+  Voice: Do your folk keep well through the snap?
   Probe: Well enough, thank you, Voice.
     1) [Agree] A full hearth is a blessing in hard times.
     2) [Question] Put a question to them

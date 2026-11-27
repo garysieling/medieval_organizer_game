@@ -364,6 +364,36 @@ const SMALL_FARES: Exchange = Exchange {
     ],
 };
 
+/// The kin abroad (#1707): "has your brother returned" earns a real
+/// answer - the market town's named because the speaker's folk deal
+/// there; lean years keep the cart away longer
+const SMALL_KIN: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["family", "smalltalk"],
+    calls: &["Not yet - the cart's looked for back from {town} come the week's end.", "He's there still, buying salt - home by holy day, God willing.", "Aye, home since Tuesday, and full of {town} talk."],
+    voice: &[
+        Voice { criteria: &[Has("village:hard")], lines: &["Not yet - thin pickings in {town} keep him longer than he'd like.", "Still there - the roads are hard this year, and harder coming home."] },
+    ],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["family"],
+            respond: None,
+            lines: &["The saints keep him on the road, {other}.", "A full cart home is worth the waiting.", "May he come home safe and heavier-pursed than he went."],
+            voice: &[],
+            then: Some(SMALL_SEASON), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.50, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            respond: None,
+            lines: &["Give my best to {2:poss} household. Fare well.", "God keep {2:poss} folk in peace, {other}.", "I must see to my own broth. Good day."],
+            voice: &[],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
 const SMALL_VOLLEY: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk"],
@@ -564,9 +594,19 @@ pub const SMALL_CHAT: Exchange = Exchange {
             criteria: &[], weight: 0.80, bias: &[(Gregarious, 2.0)],
             act: Act::Question, concepts: &["family", "smalltalk"],
             respond: None,
-            lines: &["And how fares {2:poss} folk in this cold snap?", "Tell me true, {other} - how goes it with {2:obj}?", "Has {2:poss} brother returned from the market town?"],
+            lines: &["And how fares {2:poss} folk in this cold snap?", "Tell me true, {other} - how goes it with {2:obj}?", "Do {2:poss} folk keep well through the snap?"],
             voice: &[],
             then: Some(SMALL_FARES), end: None,
+        },
+        // the kin abroad (#1707): only asked of a house whose folk run
+        // the roads, and the town's named - the answer answers it
+        Reply {
+            criteria: &[Has("other:status:kin_abroad")], weight: 0.80, bias: &[(Gregarious, 2.0)],
+            act: Act::Question, concepts: &["family", "smalltalk"],
+            respond: None,
+            lines: &["Has {2:poss} brother returned from {town}?", "Any word of {2:poss} kin at {town}, {other}?", "Does the road bring {2:poss} brother back from {town} soon?"],
+            voice: &[],
+            then: Some(SMALL_KIN), end: None,
         },
         Reply {
             criteria: &[], weight: 0.60, bias: &[(Ambitious, 1.5)],
@@ -5545,6 +5585,17 @@ pub const ASK_TOPICS: &[Topic] = &[
         tell: &["A holding keeps a soul busy, one way and another.", "The fields are what they are - they want what they want.",
             "I take what work comes, and thank the saints for it."],
         concepts: &["work"], draws: Draw::No,
+    },
+    // the kin abroad (#1707): the family ask names the real town their
+    // folk run to, only of a house whose kin ride the roads
+    Topic {
+        label: "their family",
+        area: crate::game::conversation::Area::Heart,
+        tier: 1, needs: &["kin_abroad"], any: &[], not: &[],
+        ask: &["How do {2:poss} folk fare - is there word of them?", "Any word of {2:poss} kin abroad, friend?"],
+        tell: &["They rub along - my brother carts to {town} twice a season, saints keep him.",
+            "A letter's looked for from {town}, any week now.", "They're scattered - one at {town}, the rest under this roof."],
+        concepts: &["family"], draws: Draw::No,
     },
     Topic {
         label: "their sickness",

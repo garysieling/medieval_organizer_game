@@ -1,5 +1,6 @@
 use crate::session::*;
 use crate::session::country::SiteKind;
+use crate::session::dialogue::speaker_of;
 use crate::session::routine::{Mode, Routine};
 use crate::game::livelihood::Purse;
 use crate::game::vocation::Kid;
@@ -282,4 +283,37 @@ fn test_a_field_ripens_as_a_patch() {
     assert_eq!(g.map.crop_stage(x, y, 130), 2, "half-grown");
     assert_eq!(g.map.crop_stage(x, y, 170), 3, "ripe");
     assert_eq!(g.map.crop_stage(x, y, 365 + 5), 0, "the year wraps to the furrow again");
+}
+
+/// The market town their folk deal in (#1707): the village's grown
+/// folk each carry the Town site nearest their roof - the name is a
+/// real place on the map, both towns come up, and the speaker the talk
+/// system builds names it (the brother-question's "{town}" answers true)
+#[test]
+fn test_the_market_town_is_a_real_place() {
+    let mut named = crate::engine::det::HashSet::default();
+    let mut towns_seen = crate::engine::det::HashSet::default();
+    for seed in [5u64, 9, 42] {
+        let g = Game::new_seeded(seed);
+        let town_names: Vec<&str> = g.sites.iter()
+            .filter(|s| s.kind == SiteKind::Town).map(|s| s.name).collect();
+        assert_eq!(town_names.len(), 2, "the country plants two towns");
+        towns_seen.extend(town_names.iter().copied());
+        let mut adults = 0;
+        for &v in &g.villagers {
+            if g.world.get_component::<Kid>(v).is_some()
+                || g.world.get_component::<crate::session::country::Outlander>(v).is_some() { continue; }
+            let t = g.world.get_component::<crate::session::country::MarketTown>(v)
+                .unwrap_or_else(|| panic!("{:?} has no market town", v));
+            adults += 1;
+            named.insert(t.0);
+            assert!(town_names.contains(&t.0), "'{}' is no site on seed {seed}", t.0);
+            let s = speaker_of(&g.world, v, "Test", 1);
+            assert_eq!(s.abroad.as_deref(), Some(t.0));
+            assert!(s.status.contains(&"kin_abroad"));
+        }
+        assert!(adults > 20, "the village's grown folk all deal abroad");
+    }
+    assert_eq!(named.len(), towns_seen.len(),
+        "every town answers for somebody on some seed: {:?}", named);
 }

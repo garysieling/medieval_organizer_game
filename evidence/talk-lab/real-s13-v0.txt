@@ -19,39 +19,51 @@
   Aldric: Some folk give till it hurts. Thin soup for the giver, say I - and you?
   you: Folk who give away their bread soon beg for mine.
   Aldric: Aye, the dew lay heavy on the clover this morning, or so I make it.
-    1) Enough sky-talk - how goes the work these days?
-    2) Has your brother returned from the market town?
+    1) Has your brother returned from Thornford?
+    2) Do your folk keep well through the snap?
     3) Put a question to them
     l) take your leave
-  you: Enough sky-talk - how goes the work these days?
-  Aldric: Hard at it down at the day's wage, are we?
-    1) Honest work for honest pay at the day's wage - can't complain, and wouldn't.
-    2) Never better. And yourself - is the forge kind to you?
-    3) Put a question to them
-    l) take your leave
-  you: Honest work for honest pay at the day's wage - can't complain, and wouldn't.
-  Aldric: Did you hear who was seen down by the mill?
-    1) The cat catches nothing and eats like a deacon. We've a prior in the house.
-    2) Careful - walls have ears, goodwife Aldric.
-    3) Put a question to them
-    l) take your leave
-  you: The cat catches nothing and eats like a deacon. We've a prior in the house.
-  Aldric: Mm. As you say.
-  Aldric: And another thing - Mind how the mist sits on the lower field. I never tire of it.
-    1) Hm. There's work waiting yet.
+  you: Has your brother returned from Thornford?
+  Aldric: Not yet - the cart's looked for back from Thornford come the week's end.
+    1) A full cart home is worth the waiting.
     2) Put a question to them
     3) Ask them to come to a meeting - for 18g
     l) take your leave
-  you: Hm. There's work waiting yet.
-  Aldric: Old Wulfric swore he saw an owl perched on the tavern roof.
-    1) Oh… I have heard that lie three times this week. - a quarrel
-    2) Ha! I'll believe the half of it and no more.
+  you: A full cart home is worth the waiting.
+  Aldric: We must thatch the hayrick before the clouds burst.
+    1) A dry spade makes for a hungry winter.
+    2) Oh… The hay will wait until tomorrow, surely.
     3) Put a question to them
     l) take your leave
-  you: Oh… I have heard that lie three times this week.
-  Aldric: True enough - the fields don't gossip.
-    1) Fare you well until the morrow.
-    2) My day is waiting.
+  you: A dry spade makes for a hungry winter.
+  Aldric: The peddler's cart lost a wheel at the bridge.
+    1) My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
+    2) God keep the lord and his men. They keep the peace, they say.
+    3) Put a question to them
+    l) take your leave
+  you: My wife says I snore like the mill at full grind. I tell her the mill learned it from me.
+  Aldric: Mm. As you say.
+  Aldric: And another thing - Can you keep a thing quiet, just between us?
+    1) Aye, the light's the light.
+    2) Put a question to them
     3) Ask them to come to a meeting - for 18g
     l) take your leave
-REPRO: talk_lab talk --seed 13 --villager 0 --picks 0,0,0,0,0,0,0,0 (talk seed 956301326)
+  you: Aye, the light's the light.
+  Aldric: They do say the reeve counts the sheep twice over.
+    1) Ha! I'll believe the half of it and no more.
+    2) Hm… Folk will invent dragons where there's only sheep.
+    3) Put a question to them
+    l) take your leave
+  you: Ha! I'll believe the half of it and no more.
+  Aldric: True enough - the fields don't gossip.
+  Aldric: Does a master beat his learners much?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    l) take your leave
+  you: Aye - take it for so.
+    1) I must walk on; fair day.
+    2) Fare you well until the morrow.
+    3) Ask them to come to a meeting - for 18g
+    l) take your leave
+REPRO: talk_lab talk --seed 13 --villager 0 --picks 0,0,0,0,0,0,0,0,0,0 (talk seed 956301326)

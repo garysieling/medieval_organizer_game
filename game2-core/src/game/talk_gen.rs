@@ -150,6 +150,10 @@ pub fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
             worry: None,
             slip: None,
             mystery: None,
+            // the market town their folk deal in (#1707): a spread of
+            // real names so the corpus hears the {town} fills
+            abroad: Some(["Ashby", "Thornford", "Marrowdale", "Kelby",
+                "Holloway"][i % 5]),
             slips_left: 0,
             joke: None,
             story: None,

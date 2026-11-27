@@ -19,32 +19,38 @@
   Dagny: Folk here know to speak fair to me. You will have heard as much?
   you: We all muck the same stalls here, high or low.
   Dagny: A fine morning - the kind the hay wishes for.
-    1) Weather aside, Dagny - how does the season treat you?
+    1) Any word of your kin at Marrowdale, Dagny?
     2) And how fares your folk in this cold snap?
     3) Put a question to them
     l) take your leave
-  you: Weather aside, Dagny - how does the season treat you?
-  Dagny: How goes it at the day's wage, wanderer?
-    1) Well enough, aye. And how does the workshop treat you?
-    2) Oh… Ask the reeve about the day's wage, not me. I keep my own count.
-    3) Put a question to them
-    l) take your leave
-  you: Well enough, aye. And how does the workshop treat you?
-  Dagny: Folk have more than the miller's scoop to whisper of these days.
-    1) Aye? And what else did folk see?
-    2) I told the rain to stop and it came down the harder. So much for commanding the weather.
-    3) Put a question to them
-    l) take your leave
-  you: Aye? And what else did folk see?
-  Dagny: Every door's got its own trouble to tell of, this stretch.
-    1) Tavern tales grow taller with each ale drawn.
-    2) Oh… Better to tend your own hearth than watch the road.
-    3) Put a question to them
-    l) take your leave
-  you: Tavern tales grow taller with each ale drawn.
-  Dagny: True enough - the fields don't gossip.
-    1) Go well, Dagny, and mind the mud.
-    2) My day is waiting.
+  you: Any word of your kin at Marrowdale, Dagny?
+  Dagny: Not yet - thin pickings in Marrowdale keep him longer than he'd like.
+    1) The saints keep him on the road, Dagny.
+    2) Put a question to them
     3) Ask who you should talk to next - for 6g
     l) take your leave
-REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0,0,0 (talk seed 922746905)
+  you: The saints keep him on the road, Dagny.
+  Dagny: We must thatch the hayrick before the clouds burst.
+    1) I'll lend a pitchfork if you have timber to spare.
+    2) Hm… Let the rain fall; my bones need a day's rest.
+    3) Put a question to them
+    l) take your leave
+  you: I'll lend a pitchfork if you have timber to spare.
+  Dagny: Did you hear what's come over the parish this week?
+    1) Well… That is not the way the elders told it. - a quarrel
+    2) Aye? And what else did folk see?
+    3) Put a question to them
+    l) take your leave
+  you: Well… That is not the way the elders told it.
+  Dagny: True enough - the fields don't gossip.
+  Dagny: Does anyone here play of an evening?
+    1) Answer plainly
+    2) Reassure them
+    3) Ask why
+    l) take your leave
+  you: Not that I've seen, friend.
+    1) The saints keep your roof whole.
+    2) I must walk on; fair day.
+    3) Ask who you should talk to next - for 6g
+    l) take your leave
+REPRO: talk_lab talk --seed 42 --villager 4 --picks 0,0,0,0,0,0,0,0 (talk seed 922746905)

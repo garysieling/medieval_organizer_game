@@ -369,6 +369,69 @@ pub fn known(world: &World, knower: Entity, e: Entity) -> Vec<Reveal> {
     entries(world, knower, e).into_iter().filter_map(|en| en.reveal).collect()
 }
 
+/// A `person:*` ledger fact already held (#1712): the learned-facts
+/// ladder reads its own rungs off the ledger so nothing lands twice
+fn person_known(world: &World, knower: Entity, e: Entity, fact: &str) -> bool {
+    world.get_component::<Known>(knower)
+        .and_then(|k| k.entries.get(&e))
+        .map(|v| v.iter().any(|en| en.fact == fact)).unwrap_or(false)
+}
+
+/// The kin they'd name first: a Family bond, else who shares their roof
+fn first_kin(world: &World, v: Entity) -> Option<Entity> {
+    use crate::game::relationships::{bonds_of, find_relationship, RelKind, Relationship};
+    bonds_of(world, v).into_iter()
+        .find(|&o| find_relationship(world, v, o)
+            .and_then(|r| world.get_component::<Relationship>(r))
+            .map(|r| r.kind == RelKind::Family).unwrap_or(false))
+        .or_else(|| crate::game::household::home_of(world, v)
+            .and_then(|h| world.get_component::<crate::game::household::Building>(h))
+            .and_then(|b| b.occupants.iter().copied().find(|&o| o != v)))
+}
+
+/// What a talk teaches (#1712): each conversation's close reads one
+/// more thing about them onto the seat's ledger - the trade on their
+/// hands, who they keep house with, then the bend of their nature, and
+/// the shape of what they carry only when the bond's deep enough for
+/// it to show. One fact a talk: the shallowest unlearned rung their
+/// stage affords. Returns the fact id that landed, if any
+pub fn learn_in_talk(world: &mut World, knower: Entity, v: Entity, tick: u64) -> Option<String> {
+    use crate::game::organizing::{stage_of, RelStage};
+    let stage = stage_of(world, knower, v);
+    let learn = |world: &mut World, fact: String| {
+        record(world, knower, v, fact.clone(), None, Source::Told { speaker: v }, tick);
+        Some(fact)
+    };
+    // the trade on their hands reads first
+    if let Some(c) = world.get_component::<crate::game::vocation::Craft>(v) {
+        let fact = format!("person:craft:{}", crate::game::vocation::vocation_name(c.vocation));
+        if !person_known(world, knower, v, &fact) { return learn(world, fact); }
+    }
+    // who they keep house with
+    if let Some(kin) = first_kin(world, v) {
+        let fact = format!("person:kin:{kin}");
+        if !person_known(world, knower, v, &fact) { return learn(world, fact); }
+    }
+    // the bend of their nature takes knowing them a little - a pair of
+    // signature reads, the second a talk later
+    if stage >= RelStage::Acquaintance {
+        if let Some(p) = world.get_component::<crate::game::traits::Personality>(v) {
+            for &t in p.traits.iter().take(2) {
+                let fact = format!("person:trait:{t:?}");
+                if !person_known(world, knower, v, &fact) { return learn(world, fact); }
+            }
+        }
+    }
+    // and the shape of what they carry only shows to the ones they know
+    if stage >= RelStage::Known {
+        if let Some(id) = crate::game::hooks::open(world, v) {
+            let fact = format!("person:hook:{id}");
+            if !person_known(world, knower, v, &fact) { return learn(world, fact); }
+        }
+    }
+    None
+}
+
 /// Mark `r` known to `knower` about `e`, as if `e` said it themselves,
 /// without `hear`'s ledger and issue bookkeeping - tests and seeded
 /// knowledge take this road

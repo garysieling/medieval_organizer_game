@@ -2495,6 +2495,12 @@ impl Game {
     pub fn close_player_talk(&mut self, seat: usize, note: Option<&str>) {
         let Some(t) = self.seats[seat].talk.take() else { return };
         self.world.add_component(t.who, TalkMemory { mood: t.mood, tick: self.tick });
+        // every talk teaches something of them (#1712): one more
+        // person-fact on the seat's ledger, deep as the bond affords -
+        // a visitor carries no life here to learn
+        if self.villagers.contains(&t.who) {
+            crate::game::desires::learn_in_talk(&mut self.world, self.seats[seat].player, t.who, self.tick);
+        }
         // what they were told stays told (E3-3): keyed under this
         // seat's player, refreshed only when the talk told something -
         // small talk neither revives an expired telling nor rewinds it

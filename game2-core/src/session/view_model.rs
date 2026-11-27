@@ -1528,16 +1528,23 @@ impl Game {
                     &format!("{} +{}", first, rest.len()), (220, 200, 160)),
             }
         }
-        // what they're made of, once they've let you close enough to see:
-        // each trait and what it does to their day, their temperament
-        // under it all - a word the village would use
-        if known {
+        // what they're made of: the talks teach the bend of their
+        // nature a read at a time (#1712), and a bond close enough sees
+        // the whole of it - each trait and what it does to their day,
+        // their temperament under it all
+        {
+            let learned: Vec<crate::game::traits::Trait> = desires::entries(world, self.seats[seat].player, v)
+                .iter().filter_map(|e| e.fact.strip_prefix("person:trait:"))
+                .filter_map(|slug| crate::game::traits::TRAITS.iter().copied()
+                    .find(|t| format!("{t:?}") == slug)).collect();
             let mut told: Vec<String> = world.get_component::<crate::game::traits::Personality>(v)
-                .map(|p| p.traits.iter().map(|&t|
-                    format!("{} ({})", trait_word(t), trait_hint(t))).collect())
+                .map(|p| p.traits.iter().filter(|&&t| known || learned.contains(&t))
+                    .map(|&t| format!("{} ({})", trait_word(t), trait_hint(t))).collect())
                 .unwrap_or_default();
-            if let Some(p) = world.get_component::<crate::sim::psychology::Personality>(v) {
-                told.push(crate::sim::psychology::disposition_word(p).into());
+            if known {
+                if let Some(p) = world.get_component::<crate::sim::psychology::Personality>(v) {
+                    told.push(crate::sim::psychology::disposition_word(p).into());
+                }
             }
             if !told.is_empty() {
                 card_head(&mut lines, &mut y, "TRAITS");
@@ -1626,12 +1633,21 @@ impl Game {
                         format!("{}: {} \u{b7} {} \u{b7} newest {}", area, mine.len(),
                             srcs.join(" + "), age_word), (210, 190, 150));
                 }
+                // what the talks have taught of them (#1712): the
+                // person-facts read off their own page, plain words
+                for e in ledger.iter()
+                    .filter(|e| e.reveal.is_none() && e.fact.starts_with("person:")) {
+                    if let Some(text) = self.person_label(&e.fact) {
+                        card_bullet(&mut lines, &mut y, text, (215, 200, 160));
+                    }
+                }
                 // the village's talk about them, flagged where it cuts
                 // against what the seat saw - a claim and its negation
                 // read as the one story
                 let mut seen: Vec<String> = vec![];
                 let mut talk: Vec<&LedgerEntry> = vec![];
-                for e in ledger.iter().filter(|e| e.reveal.is_none()) {
+                for e in ledger.iter()
+                    .filter(|e| e.reveal.is_none() && !e.fact.starts_with("person:")) {
                     let base = e.fact.trim_start_matches('!').to_string();
                     if !seen.contains(&base) {
                         seen.push(base);
@@ -2118,6 +2134,29 @@ pub struct CharacterNotes {
     pub secrets: Vec<String>,
     /// The inspector's biography line, as seat 0 would read it
     pub life: Option<String>,
+}
+
+impl Game {
+    /// A `person:*` ledger fact in plain words (#1712): the trade, the
+    /// housemate, the bend of their nature, the weight they carry -
+    /// each read off its slug, never the slug itself
+    fn person_label(&self, fact: &str) -> Option<String> {
+        let (kind, slug) = fact.strip_prefix("person:")?.split_once(':')?;
+        match kind {
+            "craft" => crate::game::vocation::vocation_named(slug)
+                .map(|v| format!("their trade's the {}'s",
+                    crate::game::vocation::vocation_name(v).to_lowercase())),
+            "kin" => slug.parse::<Entity>().ok()
+                .map(|e| format!("keeps house with {}", self.name_of(e))),
+            "trait" => crate::game::traits::TRAITS.iter().copied()
+                .find(|t| format!("{t:?}") == slug)
+                .map(|t| format!("a {} sort ({})", trait_word(t), trait_hint(t))),
+            "hook" => slug.parse::<usize>().ok()
+                .and_then(|id| crate::game::hooks::HOOKS.get(id))
+                .map(|h| format!("carries {}", h.subject)),
+            _ => None,
+        }
+    }
 }
 
 /// A trait in plain words, for the biography line

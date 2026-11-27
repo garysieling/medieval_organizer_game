@@ -2643,6 +2643,29 @@ pub fn converse_with_at(
                                         concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(dt) });
                                     continue;
                                 }
+                                // the tell, not the bond, is what opened
+                                // it (#1710): the answer reads the true
+                                // depth - guarded off the hedged register,
+                                // and nothing deeper draws until the
+                                // bond's really there. A kept secret's own
+                                // guard is the nerve test (E5-4): an untested
+                                // bond takes the full path so the bid can
+                                // stand - that test IS its guarded middle
+                                let untested_nerve =
+                                    matches!(tp.draws, crate::game::dialogue_trees::Draw::Secret)
+                                        && pair[caller].open.safety <= 0.0;
+                                if !untested_nerve
+                                    && !pair[caller].open.reached(tp.tier, talkative, guarded, false)
+                                    && !tp.hedged.is_empty() {
+                                    let (ht, _) = fresh_line(tp.hedged, &pair[caller], &pair[responder], &used, recent, false, rng)
+                                        .unwrap_or((tp.hedged[0], String::new()));
+                                    used.insert(ht);
+                                    say(&mut tr, &pair, &mut slip_rng, &mut slipped, Turn { channel,  speaker: caller, act: Act::Answer,
+                                        respond: Some(Respond::Deflect),
+                                        text: fill(ht, &pair[caller], &pair[responder], rng),
+                                        concepts: tp.concepts.to_vec(), tree: ASK_TREE, line: Some(ht) });
+                                    continue;
+                                }
                             }
                             tr.asked.push(tp.label);
                             // a covered fact tells in its own words at
@@ -5187,11 +5210,12 @@ mod e3_2 {
     }
 
     /// naming a tell the asker saw earns the bonus: grief worn openly
-    /// opens what the bare reach wouldn't
+    /// opens the ask what the bare reach wouldn't - but the answer reads
+    /// the true depth (#1710): guarded, no deeper draw, no turn-aside
     #[test]
-    fn a_named_tell_opens_the_tier() {
+    fn a_named_tell_opens_the_ask_to_a_guarded_answer() {
         // just under the private bar: .15 + .10 + .04 = .29 closed;
-        // the .2 bonus carries it
+        // the .2 bonus carries the ask, and only the ask
         let mut caller = Speaker::new("Hob");
         caller.status.push("grieving");
         caller.open = Open { intimacy: 0.5, benevolence: 0.4, integrity: 0.2,
@@ -5206,8 +5230,112 @@ mod e3_2 {
                 ch.iter().position(|c| c.preview == "Put a question to them")
                     .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
             }, &mut Rng::new(7));
+        // the ask landed - the bond read as forward would have counted
         assert_eq!(tr.forward, 0, "{:?}", tr.lines());
+        assert_eq!(tr.vibe, None, "{:?}", tr.lines());
+        // the guarded register answered, and held the deep draw back:
+        // a hedged ask isn't asked
+        let a = tr.turns.iter().find(|t| t.tree == ASK_TREE && t.speaker == 0)
+            .expect("they answered it");
+        assert_eq!(a.act, Act::Answer, "{:?}", tr.lines());
+        assert_eq!(a.respond, Some(Respond::Deflect), "{:?}", tr.lines());
+        assert!(crate::game::dialogue_trees::ASK_TOPICS.iter()
+            .find(|t| t.label == "their grief").unwrap().hedged
+            .contains(&a.line.unwrap()), "the hedged line: {:?}", tr.lines());
+        assert!(tr.asked.is_empty(), "the tell's depth waits on the bond: {:?}", tr.asked);
+        assert!(tr.evasions.is_empty(), "an answered ask isn't a turn-aside");
+    }
+
+    /// the core asks read the bond the same way (#1710): a tell-carried
+    /// ask at tier 3 gets the guarded register, not the never-told
+    #[test]
+    fn the_nearest_bone_answers_guarded_to_a_tell_ear() {
+        // under the core bar but over it with the bonus: reach .57
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("keeps_secret");
+        caller.open = Open { intimacy: 0.7, benevolence: 0.6, integrity: 0.6,
+            safety: 0.6, mood: 0.0, talks: 4, earshot: false, shared: 2 };
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..20u64 {
+            let tr = converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
+                &mut |ch: &[Choice]| {
+                    if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                        return ch.iter().position(|c| c.preview == "Ask about what they never told")
+                            .or_else(|| ch.iter().position(|c| c.preview == "Say nothing of it"));
+                    }
+                    ch.iter().position(|c| c.preview == "Put a question to them")
+                        .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+                }, &mut Rng::new(seed));
+            if let Some(a) = tr.turns.iter().find(|t| t.tree == ASK_TREE && t.speaker == 0) {
+                saw = true;
+                assert_eq!(a.act, Act::Answer, "{:?}", tr.lines());
+                assert_eq!(tr.forward, 0, "{:?}", tr.lines());
+                assert!(tr.asked.is_empty(), "the never-told stays kept: {:?}", tr.asked);
+                break;
+            }
+        }
+        assert!(saw, "the ask never landed in 20 seeds");
+    }
+
+    /// the bond really there answers fully (#1710): the same ask at a
+    /// reach the bar passes unaided draws the whole of it
+    #[test]
+    fn the_bond_itself_answers_the_deep_ask_whole() {
+        // over the private bar without the bonus: reach .46
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("grieving");
+        caller.open = Open { intimacy: 0.6, benevolence: 0.5, integrity: 0.4,
+            safety: 0.5, mood: 0.0, talks: 3, earshot: false, shared: 1 };
+        let you = Speaker::new("Wanderer");
+        let tr = converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
+            &mut |ch: &[Choice]| {
+                if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                    return ch.iter().position(|c| c.preview == "Ask about their grief")
+                        .or_else(|| ch.iter().position(|c| c.preview == "Say nothing of it"));
+                }
+                ch.iter().position(|c| c.preview == "Put a question to them")
+                    .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+            }, &mut Rng::new(7));
         assert_eq!(tr.asked, vec!["their grief"], "{:?}", tr.lines());
+        let a = tr.turns.iter().find(|t| t.tree == ASK_TREE && t.speaker == 0).unwrap();
+        assert_eq!(a.respond, Some(Respond::Reflect), "the full tell: {:?}", tr.lines());
+    }
+
+    /// a kept secret's guarded middle is the nerve test itself (#1710,
+    /// E5-4): an untested bond's tell-carried secret ask still takes
+    /// the disclosure path - the session's bid stands in the hedged
+    /// line's place
+    #[test]
+    fn a_kept_secret_still_tests_an_untested_nerve() {
+        // tell-carried (reach .29 under the bar) with the nerve never
+        // climbed: safety 0 is what `open_toward` reads off Inclusion
+        let mut caller = Speaker::new("Hob");
+        caller.status.push("keeps_secret");
+        caller.open = Open { intimacy: 0.5, benevolence: 0.4, integrity: 0.2,
+            safety: 0.0, mood: 0.0, talks: 3, earshot: false, shared: 1 };
+        let you = Speaker::new("Wanderer");
+        let mut saw = false;
+        for seed in 0..20u64 {
+            let tr = converse_with(&caller, &you, Relation::Acquaintance, None, &village_library(), None, 1,
+                &mut |ch: &[Choice]| {
+                    if ch.last().map(|c| c.preview == "Say nothing of it").unwrap_or(false) {
+                        return ch.iter().position(|c| c.preview == "Ask about what weighs on them")
+                            .or_else(|| ch.iter().position(|c| c.preview == "Say nothing of it"));
+                    }
+                    ch.iter().position(|c| c.preview == "Put a question to them")
+                        .or_else(|| ch.iter().position(|c| c.act != Act::Farewell)).or(Some(0))
+                }, &mut Rng::new(seed));
+            if tr.asked.contains(&"what weighs on them") {
+                saw = true;
+                // the ask landed whole: the seat's own gate (the bid)
+                // decides what the telling does, not the hedge
+                assert_eq!(tr.forward, 0, "{:?}", tr.lines());
+                assert!(tr.evasions.is_empty(), "{:?}", tr.lines());
+                break;
+            }
+        }
+        assert!(saw, "the ask never reached the disclosure path in 20 seeds");
     }
 
     /// nothing unseen opens the named ask: a closed area with no wear

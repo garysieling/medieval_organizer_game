@@ -5508,6 +5508,10 @@ pub struct Topic {
     pub ask: &'static [&'static str],
     /// What they tell back
     pub tell: &'static [&'static str],
+    /// The guarded register (#1710): a tell-named ask that only the
+    /// seen tell carried past the bar gets this - an answer that keeps
+    /// its depth for a truer ear
+    pub hedged: &'static [&'static str],
     /// Thread tags the exchange carries
     pub concepts: &'static [&'static str],
     /// What asking it draws out, beyond the tell lines
@@ -5549,6 +5553,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["Tell me what folk are saying.", "What word of the village these days?", "How do folk fare here, to {2:poss} eyes?"],
         tell: &["Now, let me think what's going about...", "Ah, the talk - there's always talk.",
             "Folk do say things, if {2:subj} {2:will} hear them."],
+        hedged: &[],
         concepts: &["village", "gossip"], draws: Draw::Gossip,
     },
     Topic {
@@ -5558,6 +5563,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["What word from the road?", "What news do the roads carry?"],
         tell: &["The roads are what they are - long, and thin of comfort.", "Word travels: the country's unsettled of late.",
             "I've seen worse lanes and better company."],
+        hedged: &[],
         concepts: &["road", "news"], draws: Draw::No,
     },
     Topic {
@@ -5571,6 +5577,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["How fares the work, friend?", "Tell me of {2:poss} craft - how goes it?"],
         tell: &["It keeps me, as honest work keeps any.", "Well enough - the hands know their business.",
             "Slower than I'd like this season, but it pays.", "A craft's a craft - it fills the day and the purse, mostly."],
+        hedged: &[],
         concepts: &["work", "trade"], draws: Draw::No,
     },
     Topic {
@@ -5584,6 +5591,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["How fares {2:poss} day's work?", "The day's labor - how does it treat {2:obj}?"],
         tell: &["A holding keeps a soul busy, one way and another.", "The fields are what they are - they want what they want.",
             "I take what work comes, and thank the saints for it."],
+        hedged: &[],
         concepts: &["work"], draws: Draw::No,
     },
     // the kin abroad (#1707): the family ask names the real town their
@@ -5595,6 +5603,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["How do {2:poss} folk fare - is there word of them?", "Any word of {2:poss} kin abroad, friend?"],
         tell: &["They rub along - my brother carts to {town} twice a season, saints keep him.",
             "A letter's looked for from {town}, any week now.", "They're scattered - one at {town}, the rest under this roof."],
+        hedged: &[],
         concepts: &["family"], draws: Draw::No,
     },
     Topic {
@@ -5604,6 +5613,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["How does the sickness fare with {2:obj}?", "{2:subj} {2:look} pale - is the illness past?"],
         tell: &["It lingers - worse some days than others.", "I mend, slowly. The herb-wife says patience.",
             "The cough keeps me nights, truth be told."],
+        hedged: &[],
         concepts: &["sickness", "health"], draws: Draw::No,
     },
     Topic {
@@ -5613,6 +5623,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["When {2:did} {2:subj} last eat a full meal?", "Is bread short at {2:poss} table?"],
         tell: &["A belly remembers bread better than days.", "We make do - there's always less to make do with.",
             "The store's thin. The winter's long."],
+        hedged: &[],
         concepts: &["hunger", "bread"], draws: Draw::No,
     },
     Topic {
@@ -5622,6 +5633,8 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["Who was it {2:subj} {2:lost}?", "The house sits heavy - who is it {2:subj} {2:miss}?"],
         tell: &["Someone the house still feels the lack of.", "I don't say the name much - it keeps.",
             "The chair by the fire's empty now. That's the whole of it."],
+        hedged: &["A grief, aye - I'll not lay the whole of it out yet.",
+            "Someone close. More than that's for a truer ear, friend."],
         concepts: &["grief", "family"], draws: Draw::No,
     },
     Topic {
@@ -5631,6 +5644,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["That trouble {2:subj} {2:spoke} of - what weighs on {2:obj}?", "{2:subj} {2:said} something of it once - how goes it now?"],
         tell: &["Aye, it sits with me still.", "The same as was - the asking's kind, though.",
             "It hasn't eased, if that's the truth of it."],
+        hedged: &[],
         concepts: &["trouble", "burden"], draws: Draw::Secret,
     },
     Topic {
@@ -5639,6 +5653,8 @@ pub const ASK_TOPICS: &[Topic] = &[
         tier: 2, needs: &[], any: &["keeps_secret", "keeps_wound"], not: &[],
         ask: &["Is aught weighing on {2:obj}? {2:subj} {2:will} tell me, if there is.", "Something sits behind {2:poss} eyes - what is it?"],
         tell: &["Ah. {2:subj} {2:be} sharp-eyed, then.", "I had hoped it didn't show.", "If anyone's to hear it, {2:subj} {2:be} as good as any."],
+        hedged: &["Something sits, as {2:subj} saw - I'll not name it here.",
+            "Aye, there's a weight. I'd keep the shape of it a while longer."],
         concepts: &["trouble", "secret"], draws: Draw::Secret,
     },
     Topic {
@@ -5649,6 +5665,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         // which story they're chasing (#1608)
         ask: &["Folk whisper of {mystery} - what do they say?", "There's talk of {mystery} round the village - what's said of it?"],
         tell: &["Ah, {mystery} - {2:subj} {2:have} heard the asking too.", "Aye, {mystery} - folk do talk, and some of it's true.", "I've a piece of {mystery}, if {2:subj} {2:want} the hearing."],
+        hedged: &[],
         concepts: &["mystery", "gossip"], draws: Draw::Mystery,
     },
     Topic {
@@ -5658,6 +5675,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["Tell me of {2:self} - how {2:did} {2:subj} come here?", "What's {2:poss} tale, then?"],
         tell: &["Born under this roof, like most of us.", "I've no great tale - the years just keep.",
             "Same story as the next one's, only mine.", "I came for the work and stayed for the quiet."],
+        hedged: &[],
         concepts: &["self", "history"], draws: Draw::No,
     },
     // the tale itself (E4-8, #1426): a prehistory story told in Labov's
@@ -5668,6 +5686,7 @@ pub const ASK_TOPICS: &[Topic] = &[
         tier: 1, needs: &["has_a_past"], any: &[], not: &["visitor"],
         ask: &["Tell me of the old days - what do {2:subj} keep of them?", "What years does {2:poss} memory still carry?"],
         tell: &["The old days keep what they keep.", "Long years back - the mind wanders there."],
+        hedged: &[],
         concepts: &["self", "history", "past"], draws: Draw::Story,
     },
     // the deepest asks (E3-4, #1425): tier 3 - a kept secret tells in
@@ -5679,6 +5698,8 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["{2:subj} {2:carry} something, friend - what is it weighs on {2:obj}?"],
         tell: &["It's a weight, is all - I carry it as I can.",
             "Some things a body just keeps carrying."],
+        hedged: &["A weight, as {2:subj} say - I'd not set it down in the lane.",
+            "It rides with me. The telling of it's for a nearer ear."],
         concepts: &["grief", "burden"], draws: Draw::Secret,
     },
     Topic {
@@ -5688,6 +5709,8 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["There's something {2:subj} {2:have} never told a soul - what is it?"],
         tell: &["{2:subj} {2:be} the first to ask it plain. I don't know that I can.",
             "That's not a thing I've said aloud."],
+        hedged: &["Never told is never told - not yet, even to a kind ear.",
+            "That's a door I'd keep shut a while longer."],
         concepts: &["trouble", "secret"], draws: Draw::Secret,
     },
     Topic {
@@ -5697,6 +5720,8 @@ pub const ASK_TOPICS: &[Topic] = &[
         ask: &["What sits nearest the bone with {2:obj}, if {2:subj} {2:will} tell it?"],
         tell: &["The thing nearest the bone stays there, mostly.",
             "If I say it, it stops being only mine."],
+        hedged: &["Near the bone it stays - a little less so, for the asking.",
+            "{2:subj} {2:saw} it plain. I'd keep it wrapped a while still."],
         concepts: &["grief", "secret"], draws: Draw::Secret,
     },
 ];

@@ -1372,7 +1372,7 @@ fn test_the_turnout_round_puts_the_words_on_the_plan() {
     let tally = g.log.iter().find(|l| l.contains(" promised ")).cloned()
         .expect("the turnout report lands in the log");
     assert!(tally.contains(" brought "), "promised reads against brought: {}", tally);
-    assert!(tally.contains("you promised 2"), "the organizer's word reads the same: {}", tally);
+    assert!(tally.contains("You promised 2"), "the organizer's word reads the same: {}", tally);
 }
 
 /// The report reads promised against brought (#1713): a kept count
@@ -1412,7 +1412,7 @@ fn test_the_turnout_report_reads_promised_against_brought() {
     let n1 = g.name_of(v1);
     assert!(msg.contains(&format!("{} promised 2, brought 2", n0)), "{}", msg);
     assert!(msg.contains(&format!("{} promised 1, brought 0", n1)), "{}", msg);
-    assert!(msg.contains("you promised 2, brought 1"), "{}", msg);
+    assert!(msg.contains("You promised 2, brought 1"), "{}", msg);
     // the kept word hears PromiseKept, the blown one confirms the ghost
     let s0 = g.world.get_component::<Persona>(v0).unwrap().ghosts.iter()
         .find(|gh| gh.lie == Belief::PromisesForKeepers).unwrap().strength;

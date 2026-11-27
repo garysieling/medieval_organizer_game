@@ -1368,32 +1368,41 @@ impl Game {
     }
 
     /// The pieces your ledger can speak to `who` (#1709): each fact
-    /// heard about a third party, newest first, then the cause's own
-    /// news where the table's live. The pick's consequence lands in
-    /// `tell_pick_at`
+    /// heard about a third party, newest first across every subject,
+    /// then the cause's own news where the table's live. News is kept
+    /// whole - a full ledger crowds out facts, not the cause's own
+    /// word - so the fact list alone yields to the page cap. The
+    /// pick's consequence lands in `tell_pick_at`
     fn tell_items(&self, seat: usize, who: Entity) -> Vec<TellItem> {
         use crate::game::desires as d;
         use crate::game::rumor as rum;
+        const PAGE: usize = 6;
         let pe = self.seats[seat].player;
-        let mut out = vec![];
+        let news: Vec<TellItem> = rum::news_of(&self.world, self.seats[seat].org, self.tick, &|e| self.name_of(e))
+            .into_iter()
+            .map(|n| TellItem::OrgNews { label: rum::line_of(&n), news: n })
+            .collect();
+        let mut facts = vec![];
         if let Some(k) = self.world.get_component::<d::Known>(pe) {
             for (subject, entries) in &k.entries {
                 if *subject == who || *subject == pe { continue; }
-                for e in entries.iter().rev() {
+                for e in entries.iter() {
                     if let Some(r) = e.reveal {
                         let name = self.name_of(*subject);
-                        out.push(TellItem::Fact {
-                            subject: *subject, name, reveal: r,
-                            label: format!("About {} - {}", self.name_of(*subject), tell_label(&r)),
-                        });
+                        facts.push((e.day, *subject, TellItem::Fact {
+                            subject: *subject, name: name.clone(), reveal: r,
+                            label: format!("About {} - {}", name, tell_label(&r)),
+                        }));
                     }
                 }
             }
         }
-        for n in rum::news_of(&self.world, self.seats[seat].org, self.tick, &|e| self.name_of(e)) {
-            out.push(TellItem::OrgNews { label: rum::line_of(&n), news: n });
-        }
-        out.truncate(6);
+        // newest first; a deterministic tie-break on the subject so
+        // the order never depends on the ledger's hash iteration
+        facts.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+        let fact_budget = PAGE.saturating_sub(news.len()).max(1);
+        let mut out: Vec<TellItem> = facts.into_iter().take(fact_budget).map(|(.., item)| item).collect();
+        out.extend(news);
         out
     }
 
@@ -1417,8 +1426,20 @@ impl Game {
             TellItem::Fact { subject, name, reveal, .. } => {
                 self.argue_line(seat, Some(pe),
                     format!("About {name} - {}.", tell_label(&reveal)));
+                let fact_key = d::reveal_key(&reveal);
+                // this piece may be one `subject` told you in confidence
+                // (E5-5): telling it to a barred ear breaks that trust,
+                // so the reward for "kept" can't pay out
+                let breaks_confidence = d::confidences(&self.world, pe, subject).iter()
+                    .any(|c| c.kept && c.fact == fact_key && match c.rule {
+                        d::Rule::TellNoOne => true,
+                        d::Rule::NotTo(barred) => who == barred,
+                    });
+                if breaks_confidence {
+                    d::leak(&mut self.world, pe, subject, &fact_key);
+                }
                 // it lands on their ledger as hearsay - you carried it
-                d::record(&mut self.world, who, subject, d::reveal_key(&reveal),
+                d::record(&mut self.world, who, subject, fact_key,
                     Some(reveal), d::Source::Gossip { speaker: pe }, self.tick);
                 // the wrong ear reads your telling: the subject's rival
                 // marks you a gossip, their friend hears it as care
@@ -2082,7 +2103,7 @@ impl Game {
         if let Some(opts) = &offered {
             let no_asks = self.seats[seat].talk.as_ref().map(|c| c.asks.is_empty()).unwrap_or(true);
             if !opts.is_empty() && no_asks && !t.picks.is_empty() && t.argue.is_none() && !t.inoculating && t.tell.is_none()
-                && !bid_pending
+                && !bid_pending && t.telling.is_none()
                 && opts.iter().all(|(a, _, _)| *a == Act::Farewell) {
                 let note = format!("The talk runs its course. You and {vname} part on a kind word.");
                 // a spent talk parts kindly - unless the last word chosen

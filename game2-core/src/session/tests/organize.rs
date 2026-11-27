@@ -2353,3 +2353,197 @@ fn test_the_earned_asks_lead_the_asks_list() {
     let first_priced = kinds.iter().position(|(_, k)| *k != AskKey::Earned).unwrap_or(kinds.len());
     assert!(kinds[..first_priced].iter().all(|(_, k)| *k == AskKey::Earned), "{:?}", kinds);
 }
+
+/// #1709: the tell opens while the ledger holds a piece they could
+/// hear - a friend of the subject warms to the word, and the telling
+/// lands on their own ledger as hearsay with you as its source
+#[test]
+fn test_telling_their_friend_a_fact_warms_and_carries() {
+    use crate::game::desires::{self, Problem, Reveal};
+    use crate::game::organizing::PropKind;
+    use crate::game::relationships::{find_relationship, Relationship};
+    let mut g = Game::new();
+    let pe = g.player;
+    let (v, s) = (g.villagers[0], g.villagers[1]);
+    // v stands a friend of s's; the player's earned an acquaintance ask
+    let r = g.world.create_entity();
+    g.world.add_component(r, Relationship {
+        from: pe, other: v, kind: RelKind::Friend, strength: 0.6,
+        interactions: 5, ..Default::default() });
+    find_relationship(&g.world, v, s)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r))
+        .map(|r| { r.kind = RelKind::Friend; r.strength = 0.8; })
+        .or_else(|| {
+            let r = g.world.create_entity();
+            g.world.add_component(r, Relationship {
+                from: v, other: s, kind: RelKind::Friend, strength: 0.8,
+                interactions: 5, ..Default::default() });
+            Some(())
+        });
+    desires::note(&mut g.world, pe, s, Reveal::Problem(Problem::Taxed));
+    let p = *g.world.get_component::<Pos>(v).unwrap();
+    *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+    g.seats[0].selected_target = 0;
+    g.seats[0].picked = true;
+    g.act_at(0, 0);
+    let before = find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
+    let mut items = None;
+    for _ in 0..60 {
+        let Some(t) = g.seats[0].talk.as_ref() else { break };
+        let (n, shown) = (t.options.len(), t.asks_shown());
+        match t.asks.iter().take(shown).position(|a| a.kind == PropKind::Tell) {
+            Some(k) => g.talk_pick_at(0, Some(n + k)),
+            None => g.talk_pick_at(0, Some(if shown > 0 { n } else { 0 })),
+        }
+        if let Some(t) = g.seats[0].talk.as_ref() {
+            if let Some(its) = t.telling.clone() { items = Some(its); break; }
+        }
+    }
+    let items = items.expect("the tell opens on a talk with the ledger full");
+    // the menu's the ledger's pieces, never about the hearer themselves
+    let at = items.iter().position(|it| matches!(it,
+        crate::session::dialogue::TellItem::Fact { subject, .. } if *subject == s))
+        .expect("the fact about their friend is on the menu");
+    g.talk_pick_at(0, Some(at));
+    let after = find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
+    assert!(after > before, "their friend hears it as care: {before:.2} -> {after:.2}");
+    // and the word's theirs now, marked as the gossip it was
+    assert!(desires::known(&g.world, v, s).iter()
+        .any(|r| matches!(r, Reveal::Problem(Problem::Taxed))),
+        "the telling landed on their ledger as hearsay");
+}
+
+/// #1709: the wrong ear reads the telling - the subject's rival marks
+/// you a gossip and the bond chills
+#[test]
+fn test_telling_their_rival_a_fact_chills_the_bond() {
+    use crate::game::desires::{self, Problem, Reveal};
+    use crate::game::organizing::PropKind;
+    use crate::game::relationships::{find_relationship, Relationship};
+    let mut g = Game::new();
+    let pe = g.player;
+    let (v, s) = (g.villagers[0], g.villagers[1]);
+    let r = g.world.create_entity();
+    g.world.add_component(r, Relationship {
+        from: pe, other: v, kind: RelKind::Friend, strength: 0.6,
+        interactions: 5, ..Default::default() });
+    // v stands the subject's rival - on every bond the pair may carry
+    let mut bound = false;
+    let pair = |r: &Relationship| (r.from == v && r.other == s) || (r.from == s && r.other == v);
+    let mut rs = vec![]; g.world.iter::<Relationship>(|e, r| if pair(r) { rs.push(e) });
+    for e in rs { bound = true;
+        let r = g.world.get_component_mut::<Relationship>(e).unwrap();
+        r.kind = RelKind::Rival; r.strength = -0.5; }
+    if !bound {
+        let r = g.world.create_entity();
+        g.world.add_component(r, Relationship {
+            from: v, other: s, kind: RelKind::Rival, strength: -0.5,
+            interactions: 3, ..Default::default() });
+    }
+    desires::note(&mut g.world, pe, s, Reveal::Problem(Problem::Taxed));
+    let p = *g.world.get_component::<Pos>(v).unwrap();
+    *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+    g.seats[0].selected_target = 0;
+    g.seats[0].picked = true;
+    g.act_at(0, 0);
+    let bond = |g: &Game| find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component::<Relationship>(r))
+        .map(|r| (r.trust.integrity, r.intimacy)).unwrap_or((0.0, 0.0));
+    let before = bond(&g);
+    let mut told = false;
+    for _ in 0..60 {
+        let Some(t) = g.seats[0].talk.as_ref() else { break };
+        if let Some(items) = t.telling.clone() {
+            let at = items.iter().position(|it| matches!(it,
+                crate::session::dialogue::TellItem::Fact { subject, .. } if *subject == s)).unwrap();
+            g.talk_pick_at(0, Some(at));
+            told = true;
+            break;
+        }
+        let (n, shown) = (t.options.len(), t.asks_shown());
+        match t.asks.iter().take(shown).position(|a| a.kind == PropKind::Tell) {
+            Some(k) => g.talk_pick_at(0, Some(n + k)),
+            None => g.talk_pick_at(0, Some(if shown > 0 { n } else { 0 })),
+        }
+    }
+    assert!(told, "the tell opened and the piece was spoken");
+    // the wrong word lands on the bond's trust: what they'll take your
+    // word for is the part a gossip spends
+    let (integrity, intimacy) = bond(&g);
+    assert!(integrity < before.0 && intimacy < before.1,
+        "the subject's rival trusts your word the less: {:?} -> {:?}",
+        before, (integrity, intimacy));
+}
+
+/// #1709: the cause's own news on a wrong ear is a leak they now carry -
+/// the fact lands in their Rumor store marked, and the bond pays for it
+#[test]
+fn test_telling_inside_news_to_a_wrong_ear_marks_the_leak() {
+    use crate::game::organizing::PropKind;
+    use crate::game::relationships::{find_relationship, Relationship};
+    let mut g = Game::new();
+    let pe = g.player;
+    let (v, host) = (g.villagers[0], g.villagers[2]);
+    for (from, other, kind, strength) in
+        [(pe, v, RelKind::Rival, -0.4)] {
+        let r = g.world.create_entity();
+        g.world.add_component(r, Relationship {
+            from, other, kind, strength, interactions: 5, ..Default::default() });
+    }
+    // a meet on the books gives the tell inside news to carry
+    plan_ready_meeting(&mut g, host, (17.0, 16.0), &[]);
+    let p = *g.world.get_component::<Pos>(v).unwrap();
+    *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+    g.seats[0].selected_target = 0;
+    g.seats[0].picked = true;
+    g.act_at(0, 0);
+    let mut told = false;
+    for _ in 0..60 {
+        let Some(t) = g.seats[0].talk.as_ref() else { break };
+        if let Some(items) = t.telling.clone() {
+            let at = items.iter().position(|it| matches!(it,
+                crate::session::dialogue::TellItem::OrgNews { .. }))
+                .expect("inside news is on the tell menu");
+            g.talk_pick_at(0, Some(at));
+            told = true;
+            break;
+        }
+        let (n, shown) = (t.options.len(), t.asks_shown());
+        match t.asks.iter().take(shown).position(|a| a.kind == PropKind::Tell) {
+            Some(k) => g.talk_pick_at(0, Some(n + k)),
+            None => g.talk_pick_at(0, Some(if shown > 0 { n } else { 0 })),
+        }
+    }
+    assert!(told, "the tell opened and the news was spoken");
+    let rum = g.world.get_component::<crate::game::rumor::Rumor>(v)
+        .expect("they carry what they heard");
+    assert!(rum.facts.iter().any(|f| f.wrong_ear),
+        "the ear's marked a wrong one: {:?}", rum.facts);
+    assert!(find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component::<Relationship>(r))
+        .map(|r| r.strength < -0.4).unwrap_or(false),
+        "the wrong word cost the bond");
+}
+
+/// #1709: the tell's only on the table while the ledger speaks - nothing
+/// heard, nothing planned, and a fact about the hearer themselves all
+/// keep it off
+#[test]
+fn test_the_tell_is_only_on_offer_while_the_ledger_speaks() {
+    use crate::game::desires::{self, Problem, Reveal};
+    use crate::game::organizing::has_tellables;
+    let mut g = Game::new();
+    let pe = g.player;
+    let (v, s) = (g.villagers[0], g.villagers[1]);
+    // no charter, no meet on the books, nothing heard
+    g.world.get_component_mut::<Organization>(g.org).unwrap().charter = String::new();
+    assert!(!has_tellables(&g.world, g.org, v, g.tick), "an empty ledger tells nothing");
+    // a fact about the hearer themselves isn't a piece for their ear
+    desires::note(&mut g.world, pe, v, Reveal::Problem(Problem::Taxed));
+    assert!(!has_tellables(&g.world, g.org, v, g.tick), "their own business isn't told to them");
+    // a third party's business is
+    desires::note(&mut g.world, pe, s, Reveal::Problem(Problem::Taxed));
+    assert!(has_tellables(&g.world, g.org, v, g.tick), "a third party's piece opens the tell");
+}

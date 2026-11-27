@@ -66,7 +66,8 @@ impl Rumor {
 pub fn news_of(world: &World, org: Entity, tick: u64, name: &dyn Fn(Entity) -> String) -> Vec<News> {
     let mut out = vec![];
     let Some(o) = world.get_component::<Organization>(org) else { return out };
-    if let Some(p) = world.get_component::<MeetingPlan>(o.leader) {
+    if let Some(p) = world.get_component::<MeetingPlan>(org)
+        .or_else(|| world.get_component::<MeetingPlan>(o.leader)) {
         if let Some(day) = p.for_day.filter(|&d| d > tick) {
             let at = match p.venue {
                 Some(crate::game::organizing::Venue::House(h, _)) => name(h),
@@ -98,6 +99,20 @@ pub fn news_of(world: &World, org: Entity, tick: u64, name: &dyn Fn(Entity) -> S
         _ => {}
     }
     out
+}
+
+/// Whether the table holds a piece worth telling (#1709): the same
+/// check `news_of` runs, with no names to fill - the gating for the
+/// player's own "tell them what you've heard". The static charter's
+/// public business - it opens no tell on its own; a live meet, a
+/// promise given, or a campaign's named issue is the news
+pub fn has_inside_news(world: &World, org: Entity, tick: u64) -> bool {
+    news_of(world, org, tick, &|_| String::new()).iter().any(|n| match n {
+        News::IssueIs { .. } => world.query::<crate::game::campaign::Campaign>().iter()
+            .any(|&c| world.get_component::<crate::game::campaign::Campaign>(c)
+                .map(|cc| cc.org == org).unwrap_or(false)),
+        _ => true,
+    })
 }
 
 /// A hop's drift (#1287): one small swap per telling, seeded - the day

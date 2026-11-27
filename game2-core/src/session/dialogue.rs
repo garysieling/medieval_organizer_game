@@ -309,6 +309,11 @@ pub struct PlayerTalk {
     /// The meeting invite's follow-up (#1337): while it's open the
     /// choices are the call's - when they gather, then where
     pub inviting: Option<InviteStep>,
+    /// The tell under way (#1709): while it is, the choices are the
+    /// pieces of your ledger you can speak - a third party's business,
+    /// or the cause's own news. Saying the wrong thing to the wrong
+    /// person lands on the bond
+    pub telling: Option<Vec<TellItem>>,
     /// The safety test a disclosure's waiting on (E5-4, #1436): while
     /// it rides, the choices are its answers - the secret holds until
     /// one's picked
@@ -338,6 +343,30 @@ pub enum InviteStep {
     /// venue list's already resolved with its labels: the public
     /// spots, the org's learned homes, and "their call" riding last
     Where { days: u64, venues: Vec<(crate::game::organizing::Venue, String)> },
+}
+
+/// A piece you can speak in the tell (#1709): a fact the ledger holds
+/// about a third party, or a piece of the cause's inside news you hold
+/// as its leader. `label` is the menu row, built at pick time where the
+/// names resolve
+#[derive(Debug, Clone)]
+pub enum TellItem {
+    /// A reveal heard about `subject` - lands on the hearer's ledger as
+    /// hearsay, read against their stake in the subject
+    Fact { subject: Entity, name: String, reveal: crate::game::desires::Reveal, label: String },
+    /// The cause's own news - lands in their Rumor store, marked when
+    /// the ear's a wrong one
+    OrgNews { news: crate::game::rumor::News, label: String },
+}
+
+/// The words a reveal tells in (#1709): "they'd like good bread" /
+/// "has no home" - the row the tell menu shows and the line you speak
+fn tell_label(r: &crate::game::desires::Reveal) -> String {
+    use crate::game::desires as d;
+    match r {
+        d::Reveal::Want(w) => format!("they'd like {}", d::want_phrase(*w)),
+        d::Reveal::Problem(p) => d::problem_label(p),
+    }
 }
 
 /// A bid for safety (E5-4, #1436): the test a villager runs before a
@@ -482,6 +511,13 @@ impl PlayerTalk {
                 InviteStep::Where { venues, .. } => venues.iter().map(|(_, l)| l.clone())
                     .chain(std::iter::once("Their call - they'll pick where".into())).collect(),
             };
+        }
+        // the tell's pieces, while one's open (#1709): what your ledger
+        // can speak, then the out
+        if let Some(items) = &self.telling {
+            return items.iter().map(|i| match i {
+                TellItem::Fact { label, .. } | TellItem::OrgNews { label, .. } => label.clone(),
+            }).chain(std::iter::once("Nothing worth repeating".to_string())).collect();
         }
         // the safety test's answers, while it stands (E5-4): the
         // transcript's replies wait underneath until it's settled
@@ -1331,6 +1367,121 @@ impl Game {
         Some(rum::line_of(&news))
     }
 
+    /// The pieces your ledger can speak to `who` (#1709): each fact
+    /// heard about a third party, newest first, then the cause's own
+    /// news where the table's live. The pick's consequence lands in
+    /// `tell_pick_at`
+    fn tell_items(&self, seat: usize, who: Entity) -> Vec<TellItem> {
+        use crate::game::desires as d;
+        use crate::game::rumor as rum;
+        let pe = self.seats[seat].player;
+        let mut out = vec![];
+        if let Some(k) = self.world.get_component::<d::Known>(pe) {
+            for (subject, entries) in &k.entries {
+                if *subject == who || *subject == pe { continue; }
+                for e in entries.iter().rev() {
+                    if let Some(r) = e.reveal {
+                        let name = self.name_of(*subject);
+                        out.push(TellItem::Fact {
+                            subject: *subject, name, reveal: r,
+                            label: format!("About {} - {}", self.name_of(*subject), tell_label(&r)),
+                        });
+                    }
+                }
+            }
+        }
+        for n in rum::news_of(&self.world, self.seats[seat].org, self.tick, &|e| self.name_of(e)) {
+            out.push(TellItem::OrgNews { label: rum::line_of(&n), news: n });
+        }
+        out.truncate(6);
+        out
+    }
+
+    /// The tell resolves (#1709): the piece lands on the hearer, and the
+    /// telling reads their stake - a friend of the subject hears it as
+    /// care, the subject's rival marks you a gossip, and the cause's
+    /// own news on a wrong ear is a leak they now carry
+    fn tell_pick_at(&mut self, seat: usize, i: usize) {
+        use crate::game::desires as d;
+        use crate::game::rumor as rum;
+        let Some(t) = self.seats[seat].talk.as_ref() else { return };
+        let (who, pe) = (t.who, self.seats[seat].player);
+        let item = t.telling.as_ref().and_then(|items| items.get(i)).cloned();
+        if let Some(cur) = self.seats[seat].talk.as_mut() { cur.telling = None; }
+        let Some(item) = item else {
+            // "Nothing worth repeating" - the mode just folds away
+            self.refresh_player_talk(seat);
+            return;
+        };
+        match item {
+            TellItem::Fact { subject, name, reveal, .. } => {
+                self.argue_line(seat, Some(pe),
+                    format!("About {name} - {}.", tell_label(&reveal)));
+                // it lands on their ledger as hearsay - you carried it
+                d::record(&mut self.world, who, subject, d::reveal_key(&reveal),
+                    Some(reveal), d::Source::Gossip { speaker: pe }, self.tick);
+                // the wrong ear reads your telling: the subject's rival
+                // marks you a gossip, their friend hears it as care
+                let line = match self.rel_kind(who, subject) {
+                    Some(relationships::RelKind::Rival) => {
+                        relationships::record_interaction(&mut self.world, who,
+                            relationships::Interaction { other: pe,
+                                kind: relationships::InteractionKind::Conflict, intensity: 0.6 });
+                        format!("You'd carry {name}'s business to the likes of me? \
+                            I'll remember what your word's worth.")
+                    }
+                    Some(relationships::RelKind::Friend)
+                        | Some(relationships::RelKind::Family)
+                        | Some(relationships::RelKind::Lover) => {
+                        relationships::record_interaction(&mut self.world, who,
+                            relationships::Interaction { other: pe,
+                                kind: relationships::InteractionKind::Aid, intensity: 0.5 });
+                        format!("Poor {name} - it's good somebody minds them. \
+                            Thank you for the word.")
+                    }
+                    _ => "Mm. The street's full of such talk.".to_string(),
+                };
+                self.argue_line(seat, Some(who), line);
+            }
+            TellItem::OrgNews { news, .. } => {
+                use crate::sim::community::Organization;
+                self.argue_line(seat, Some(pe),
+                    format!("Word is - {}.", rum::line_of(&news)));
+                let org = self.seats[seat].org;
+                let member = self.world.get_component::<Organization>(org)
+                    .map(|o| o.members.contains(&who)).unwrap_or(false);
+                // the ear's wrong when it rivals the cause's own head -
+                // the same read the rumor pass makes (#1287), so a leak
+                // told is a leak carried home the same way
+                let wrong_ear = !member
+                    && self.rel_kind(who, pe) == Some(relationships::RelKind::Rival);
+                let line = if member {
+                    "Aye - keep it close, mind.".to_string()
+                } else {
+                    if self.world.get_component::<rum::Rumor>(who).is_none() {
+                        self.world.add_component(who, rum::Rumor::default());
+                    }
+                    self.world.get_component_mut::<rum::Rumor>(who).unwrap()
+                        .hear(rum::RumorFact { news: news.clone(), wrong_ear, carried: false });
+                    if wrong_ear {
+                        relationships::record_interaction(&mut self.world, who,
+                            relationships::Interaction { other: pe,
+                                kind: relationships::InteractionKind::Conflict, intensity: 0.6 });
+                        "You say the cause's business to the likes of me? \
+                            Either you're a fool, or you think me one.".to_string()
+                    } else {
+                        relationships::record_interaction(&mut self.world, who,
+                            relationships::Interaction { other: pe,
+                                kind: relationships::InteractionKind::Aid, intensity: 0.4 });
+                        "News of the cause - I'll hold it close, friend.".to_string()
+                    }
+                };
+                self.argue_line(seat, Some(who), line);
+            }
+        }
+        self.refresh_player_talk(seat);
+    }
+
     /// The player has just talked with `v` (Talk's own effects are done):
     /// open the conversation on the TALK panel - their opening line, then
     /// `gist` (what Talk drew out of them), then the player's replies.
@@ -1643,7 +1794,7 @@ impl Game {
             let_run: self.world.get_component::<crate::game::traits::Personality>(v)
                 .map(|p| p.traits.contains(&crate::game::traits::Trait::SelfAbsorbed))
                 .unwrap_or(false),
-            job, wares, inviting: None,
+            job, wares, inviting: None, telling: None,
             safety_bid: None, bid_passed: false, call_act: None,
         });
         self.refresh_player_talk(seat);
@@ -2343,6 +2494,8 @@ impl Game {
         if let (Some(_), Some(i)) = (&t.argue, pick) { self.argue_pick_at(seat, i); return; }
         if let (true, Some(i)) = (t.inoculating, pick) { self.inoculate_pick_at(seat, i); return; }
         if let (Some(_), Some(i)) = (&t.inviting, pick) { self.invite_pick_at(seat, i); return; }
+        // the tell's pieces are the picks while one's open (#1709)
+        if let (Some(_), Some(i)) = (&t.telling, pick) { self.tell_pick_at(seat, i); return; }
         // a safety test standing takes its own answers (E5-4, #1436)
         if let (Some(b), Some(i)) = (t.safety_bid, pick) { self.safety_bid_pick_at(seat, i, b); return; }
         // and walking out on one is the miss itself: they reached and
@@ -2409,6 +2562,27 @@ impl Game {
                 }
                 let il = self.player_line(seat, who, "How {2:do} {2:subj} think the lord will answer, when he hears {2:subj} {2:have} signed on?");
                 self.argue_line(seat, Some(self.seats[seat].player), il);
+                self.refresh_player_talk(seat);
+                return;
+            }
+            // the tell (#1709): your ledger's pieces are the picks now -
+            // what lands on the hearer reads their stake in the telling
+            if o.kind == crate::game::organizing::PropKind::Tell {
+                let items = self.tell_items(seat, who);
+                if let Some(cur) = self.seats[seat].talk.as_mut() {
+                    cur.asks.retain(|a| *a != o);
+                    cur.asks_taken.push(o);
+                }
+                if items.is_empty() {
+                    self.argue_line(seat, None,
+                        "Nothing worth repeating - your ledger's quiet on it.".into());
+                } else {
+                    if let Some(cur) = self.seats[seat].talk.as_mut() {
+                        cur.telling = Some(items);
+                    }
+                    self.argue_line(seat, Some(self.seats[seat].player),
+                        "Here's a thing I've heard - mind where it goes.".into());
+                }
                 self.refresh_player_talk(seat);
                 return;
             }

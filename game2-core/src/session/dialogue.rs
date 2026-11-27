@@ -4143,13 +4143,19 @@ impl Game {
                     if team { opts.push("Form a team for it - the willing sign on".into()); }
                     if d.street { opts.push("Take it to the street - show the numbers".into()); }
                     opts.push("Let it rest - keep talking".into());
-                    // the prose only promises what the options list (#1678)
-                    let lean = if d.turnout {
-                        "A thin room. They'd gather again - and bring folk, if you hold them to it. Your call."
-                    } else if team || d.street {
-                        "They'd gather again - or take it further. Your call."
-                    } else {
-                        "They'd gather again. Your call."
+                    // the prose only promises what the options list
+                    // (#1678) - a thin room's own line still has to say
+                    // so when the street or a team is also on offer, or
+                    // "further" is promised in the list but never said
+                    // (#1713 review)
+                    let further = team || d.street;
+                    let lean = match (d.turnout, further) {
+                        (true, true) => "A thin room. They'd gather again - and bring folk, \
+                            if you hold them to it - or take it further. Your call.",
+                        (true, false) => "A thin room. They'd gather again - and bring folk, \
+                            if you hold them to it. Your call.",
+                        (false, true) => "They'd gather again - or take it further. Your call.",
+                        (false, false) => "They'd gather again. Your call.",
                     };
                     (lean.to_string(), opts)
                 }

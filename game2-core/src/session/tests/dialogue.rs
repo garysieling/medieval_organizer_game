@@ -2968,7 +2968,8 @@ fn test_each_talk_teaches_one_more_thing_about_them() {
     talk(&mut g);
     assert_eq!(learned(&g), vec!["person:craft:Weaver".to_string()], "{:?}", learned(&g));
     talk(&mut g);
-    assert!(learned(&g).iter().any(|f| f.starts_with("person:kin:")), "{:?}", learned(&g));
+    assert!(learned(&g).iter().any(|f| *f == format!("person:kin:{kin}")),
+        "the kin fact names the Family bond, not a housemate: {:?}", learned(&g));
     // knowing them a little, the bend of their nature reads - a pair
     // of signature traits, a talk apiece
     g.world.add_component(v, crate::game::traits::Personality {
@@ -3007,7 +3008,14 @@ fn test_each_talk_teaches_one_more_thing_about_them() {
     let ins = g.ui_model().inspector.expect("the card's up");
     let all: Vec<String> = ins.lines.iter().map(|l| l.text.clone()).collect();
     assert!(all.iter().any(|t| t.contains("their trade's the weaver's")), "{all:?}");
-    assert!(all.iter().any(|t| t.contains("keeps house with")), "{all:?}");
+    // kin is a Family bond, not a roof - Bram lives elsewhere, so the
+    // card must not claim they keep house together (#1721)
+    assert!(crate::game::household::home_of(&g.world, v) != crate::game::household::home_of(&g.world, kin),
+        "this test means to cover kin who don't share a roof");
+    let kin_name = g.name_of(kin);
+    assert!(all.iter().any(|t| t.contains(&format!("their kin is {kin_name}"))), "{all:?}");
+    assert!(!all.iter().any(|t| t.contains("keeps house with")),
+        "kin living elsewhere must not be read as a housemate: {all:?}");
     assert!(all.iter().any(|t| t.contains("gregarious")), "{all:?}");
     assert!(all.iter().any(|t| t.contains("carries the brother who went to soldier")), "{all:?}");
 }

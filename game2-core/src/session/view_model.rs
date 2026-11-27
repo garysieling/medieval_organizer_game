@@ -1637,7 +1637,7 @@ impl Game {
                 // person-facts read off their own page, plain words
                 for e in ledger.iter()
                     .filter(|e| e.reveal.is_none() && e.fact.starts_with("person:")) {
-                    if let Some(text) = self.person_label(&e.fact) {
+                    if let Some(text) = self.person_label(v, &e.fact) {
                         card_bullet(&mut lines, &mut y, text, (215, 200, 160));
                     }
                 }
@@ -2138,16 +2138,23 @@ pub struct CharacterNotes {
 
 impl Game {
     /// A `person:*` ledger fact in plain words (#1712): the trade, the
-    /// housemate, the bend of their nature, the weight they carry -
-    /// each read off its slug, never the slug itself
-    fn person_label(&self, fact: &str) -> Option<String> {
+    /// kin (a housemate, or a relative living elsewhere), the bend of
+    /// their nature, the weight they carry - each read off its slug,
+    /// never the slug itself. `v` is whose page the fact's on, so the
+    /// kin line can tell a shared roof from one kept at a distance
+    fn person_label(&self, v: Entity, fact: &str) -> Option<String> {
         let (kind, slug) = fact.strip_prefix("person:")?.split_once(':')?;
         match kind {
             "craft" => crate::game::vocation::vocation_named(slug)
-                .map(|v| format!("their trade's the {}'s",
-                    crate::game::vocation::vocation_name(v).to_lowercase())),
-            "kin" => slug.parse::<Entity>().ok()
-                .map(|e| format!("keeps house with {}", self.name_of(e))),
+                .map(|vo| format!("their trade's the {}'s",
+                    crate::game::vocation::vocation_name(vo).to_lowercase())),
+            "kin" => slug.parse::<Entity>().ok().map(|e| {
+                let shares_roof = crate::game::household::home_of(&self.world, v)
+                    .zip(crate::game::household::home_of(&self.world, e))
+                    .map(|(a, b)| a == b).unwrap_or(false);
+                if shares_roof { format!("keeps house with {}", self.name_of(e)) }
+                else { format!("their kin is {}", self.name_of(e)) }
+            }),
             "trait" => crate::game::traits::TRAITS.iter().copied()
                 .find(|t| format!("{t:?}") == slug)
                 .map(|t| format!("a {} sort ({})", trait_word(t), trait_hint(t))),

@@ -177,7 +177,7 @@ impl Game {
         let mut tally = String::new();
         for &(p, n, ref pulled) in pledged {
             let brought = pulled.iter().filter(|f| invited.contains(f)).count();
-            let who = if p == pe { "you".to_string() } else {
+            let who = if p == pe { "You".to_string() } else {
                 self.villagers.iter().position(|&v| v == p)
                     .map(|i| self.cast_name(i).to_string())
                     .unwrap_or_else(|| "someone".into())

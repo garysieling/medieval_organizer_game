@@ -460,9 +460,9 @@ fn test_a_meeting_with_a_cause_ends_in_next_steps() {
         &crate::game::campaign::IssueVote { winner: "the taxes".into(), ballots: vec![] },
         crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
     let _ = c;
-    // five at the door keeps this a plain room (#1713): this test's
-    // about the day-picker flow, not the turnout round
-    let came = g.villagers[..5].to_vec();
+    // a full enough room - six at the door keeps the meet-again a wait,
+    // not the turnout round a thin one offers (#1713)
+    let came = g.villagers[..6].to_vec();
     let id = g.open_meeting_record(g.player, &came);
     g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let call = g.convo_panel_at(0).expect("the call on the box");
@@ -489,12 +489,12 @@ fn test_the_calls_prose_promises_only_what_the_options_list() {
     let mut g = Game::new();
     // no issue heard, no cause founded, and every attendee already a
     // member: there's no vote to take, no team to form, no street to
-    // take it to - only meet again or let it rest. Five at the door
-    // (not three) keeps this a plain room (#1713): this test's about
-    // the street/team prose, not the turnout round
+    // take it to - only meet again or let it rest
     g.world.get_component_mut::<crate::sim::community::Organization>(g.org).unwrap().members =
-        g.villagers[..5].to_vec();
-    let came = g.villagers[..5].to_vec();
+        g.villagers[..6].to_vec();
+    // a full enough room - six at the door keeps the meet-again a wait,
+    // not the turnout round a thin one offers (#1713)
+    let came = g.villagers[..6].to_vec();
     let id = g.open_meeting_record(g.player, &came);
     g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let call = g.convo_panel_at(0).expect("the call on the box");
@@ -510,7 +510,7 @@ fn test_the_calls_prose_promises_only_what_the_options_list() {
     let _c = crate::game::campaign::found_campaign(&mut g2.world, oe,
         &crate::game::campaign::IssueVote { winner: "the taxes".into(), ballots: vec![] },
         crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
-    let came = g2.villagers[..3].to_vec();
+    let came = g2.villagers[..6].to_vec();
     let id = g2.open_meeting_record(g2.player, &came);
     g2.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let call = g2.convo_panel_at(0).expect("the call on the box");

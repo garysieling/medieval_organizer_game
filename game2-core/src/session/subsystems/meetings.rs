@@ -51,7 +51,7 @@ impl Game {
     /// know you a little better (organizing::house_meeting). The meeting
     /// belongs to the seat that called it; `record` is its talk_log id, so
     /// a founding call can keep its tail showing on the conversation box.
-    pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize, record: u64, roles: (bool, bool, bool, bool, bool), impromptu: bool) -> String {
+    pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize, record: u64, roles: (bool, bool, bool, bool, bool), pledged: &[(Entity, u8, Vec<Entity>)], impromptu: bool) -> String {
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
         let members_before = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()).unwrap_or_default();
         let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited, self.tick);
@@ -169,8 +169,32 @@ impl Game {
                 true
             } else { false }
         } else { false };
-        format!("House meeting - {} came. {}{}{}{}", invited.len(), outcome, found, founded,
-            if floor { " The cause's business sits - the floor's yours." } else { "" })
+        // the turnout report (#1713): each pledged word read back
+        // against who made the room - a kept count hears PromiseKept,
+        // a shortfall confirms "promises are for those who can keep
+        // them"; the organizer's own count reads the same, there's
+        // just no ghost to move
+        let mut tally = String::new();
+        for &(p, n, ref pulled) in pledged {
+            let brought = pulled.iter().filter(|f| invited.contains(f)).count();
+            let who = if p == pe { "you".to_string() } else {
+                self.villagers.iter().position(|&v| v == p)
+                    .map(|i| self.cast_name(i).to_string())
+                    .unwrap_or_else(|| "someone".into())
+            };
+            tally += &format!(" {} promised {}, brought {}.", who, n, brought);
+            if p != pe {
+                crate::game::beliefs::tested_by(&mut self.world, p,
+                    if brought >= n as usize { crate::game::beliefs::Tested::PromiseKept }
+                        else { crate::game::beliefs::Tested::PromiseBroken },
+                    Some(pe), self.tick);
+            }
+        }
+        // the room hears its own tally: the report goes on the
+        // meeting's record, not just the log
+        if !tally.is_empty() { self.note_talk(record, None, tally.trim()); }
+        format!("House meeting - {} came. {}{}{}{}{}", invited.len(), outcome, found, founded,
+            if floor { " The cause's business sits - the floor's yours." } else { "" }, tally)
     }
 
     /// The founding vote, when the org can take one: enough living
@@ -284,8 +308,15 @@ impl Game {
                 "They'd gather again. Your call.".into()
             },
         };
+        // a thin room offers the turnout work (#1713): sparse is under
+        // five souls at the door, or less than half the cause's own -
+        // either way the next one's a pull, not a wait
+        let living = self.world.get_component::<Organization>(org)
+            .map(|o| o.members.iter().filter(|&&m| !villager::is_dead(&self.world, m)).count())
+            .unwrap_or(0);
+        let turnout = !came.is_empty() && (came.len() < 5 || came.len() * 2 < living);
         self.seats[seat].pending_founding = Some(PendingFounding {
-            record, vote, org_name: oname, meet_again: came.to_vec(), street, offered_tick: self.tick });
+            record, vote, org_name: oname, meet_again: came.to_vec(), street, turnout, offered_tick: self.tick });
         Some(lean)
     }
 
@@ -481,7 +512,7 @@ impl Game {
             probe: false, testimony: None, agenda: None,
             steer_at: None, steer_wait: 0, steered: false,
             bought: vec![], promised: vec![], marks: vec![],
-            impromptu: true,
+            impromptu: true, pledged: vec![],
         });
         let oname = self.world.get_component::<Organization>(oe)
             .map(|o| o.name.clone()).unwrap_or_default();
@@ -586,6 +617,17 @@ impl Game {
             if plan.bought.contains(&h) { continue; }
             for f in org::friends_of(&self.world, h, 1) { pool.push((f, org::Invite::Pulled)); }
         }
+        // the pledged pull (#1713): a thin room's word on this one -
+        // each pledger draws their friends up to the count they gave
+        // their word on (the organizer's own rides with them), and the
+        // meeting snapshots who was owed so the report can read
+        // promised against brought
+        let mut pledged: Vec<(Entity, u8, Vec<Entity>)> = vec![];
+        for &(p, n) in &plan.pledges {
+            let pulled = org::friends_of(&self.world, p, n as usize);
+            for &f in &pulled { pool.push((f, org::Invite::Pulled)); }
+            pledged.push((p, n, pulled));
+        }
         pool.retain(|(e, _)| *e != pe && self.villagers.contains(e)
             // the woods' bands don't answer village calls
             && self.world.get_component::<rebels::Rebel>(*e).is_none());
@@ -644,7 +686,7 @@ impl Game {
         // the plan's spent by the call - its promise-holders are
         // snapshotted on the meeting so a keeper's arrival still counts
         let promised = plan.holders();
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised, marks: vec![], impromptu: false });
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people, probe: plan.probe, testimony: plan.testimony, agenda: plan.agenda, steer_at: None, steer_wait: 0, steered: false, bought: plan.bought, promised, marks: vec![], impromptu: false, pledged });
         msg
     }
 
@@ -1306,7 +1348,7 @@ impl Game {
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
-                    else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.credit_roles(), m.impromptu) };
+                    else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.credit_roles(), &m.pledged, m.impromptu) };
                 let at = toast_spot(&self.world, self.seats[m.seat].player);
                 self.log.push_ev_at_who(
                     EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),

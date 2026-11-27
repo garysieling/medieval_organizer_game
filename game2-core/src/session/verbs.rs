@@ -2733,6 +2733,17 @@ impl Game {
             }
             return;
         }
+        // the organizer's own turnout count (#1713): the word they
+        // give rides the plan with the members' - the next door pulls
+        // their friends on it, and the report reads it like the rest
+        if self.seats[seat].pledge_offer.take().is_some() {
+            let n = (pick.min(2) + 1) as u8;
+            let pe = self.seats[seat].player;
+            crate::game::organizing::plan_for(&mut self.world, oe).pledges.push((pe, n));
+            self.log.push_ev(EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                format!("t{}: you gave your word on {}.", self.tick, n));
+            return;
+        }
         // the call's own day: two days out, four, or a week - the plan
         // keeps taking yeses and roles until the door
         if self.seats[seat].meet_offer.take().is_some() {
@@ -2827,12 +2838,32 @@ impl Game {
         if !d.meet_again.is_empty() {
             if pick == idx {
                 let oe = self.seats[seat].org;
+                // the turnout round (#1713): each attendee names the
+                // count they'll bring - their own word, bounded by the
+                // reach they actually have - and the organizer's count
+                // is asked next, on its own card
+                let pledges: Vec<(Entity, u8)> = if d.turnout {
+                    d.meet_again.iter().map(|&e| {
+                        (e, crate::game::organizing::friends_of(&self.world, e, usize::MAX)
+                            .len().clamp(1, 3) as u8)
+                    }).collect()
+                } else { vec![] };
                 let plan = crate::game::organizing::plan_for(&mut self.world, oe);
                 for &e in &d.meet_again { if !plan.coming.contains(&e) { plan.coming.push(e); } }
+                plan.pledges.extend(pledges.iter().copied());
+                if d.turnout { self.seats[seat].pledge_offer = Some(self.tick); }
                 // the button that asked the day's gone (#1596): the
                 // yeses are already in, so the box asks the day itself
                 self.seats[seat].meet_offer = Some(self.tick);
-                let msg = "They'll gather again - you'll need a place to meet.".to_string();
+                let msg = if d.turnout {
+                    let words: Vec<String> = pledges.iter().map(|&(e, n)| {
+                        format!("{} brings {}", self.villagers.iter().position(|&v| v == e)
+                            .map(|i| self.cast_name(i).to_string()).unwrap_or_else(|| "someone".into()), n)
+                    }).collect();
+                    format!("They gave their word - {} - and yours?", words.join(", "))
+                } else {
+                    "They'll gather again - you'll need a place to meet.".to_string()
+                };
                 self.log.push_ev(
                     EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
                     format!("t{}: {}", self.tick, msg),

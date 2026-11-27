@@ -107,7 +107,7 @@ fn test_the_box_that_shows_is_the_box_that_answers() {
     g.parley = Some(g.tick);
     g.seats[0].pending_founding = Some(PendingFounding {
         record: 0, vote: None, org_name: "the cause".into(),
-        meet_again: vec![g.villagers[0]], street: false, offered_tick: g.tick });
+        meet_again: vec![g.villagers[0]], street: false, turnout: false, offered_tick: g.tick });
     let (t, _) = card(&g).expect("no card showed at all");
     assert_eq!(t, "THE PARLEY", "the parley stood but a lower box showed");
     g.decide_at(0, 1); // the pick lands on the shown card: hold the distance
@@ -221,7 +221,7 @@ fn test_a_live_floor_outranks_a_standing_card_and_the_card_lapses() {
         role_people: [None; 5],
         bought: vec![], probe: false, testimony: None,
         agenda: None, steer_at: None, steer_wait: 0, steered: false,
-        promised: vec![], marks: vec![], impromptu: false,
+        promised: vec![], marks: vec![], impromptu: false, pledged: vec![],
     });
     let p = g.convo_panel_at(0).expect("the floor never rendered");
     assert!(p.title.starts_with("HOUSE MEETING"),

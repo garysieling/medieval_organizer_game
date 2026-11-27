@@ -4075,6 +4075,25 @@ impl Game {
                 options,
                 decides: true, leave: false });
         }
+        // the organizer's own count (#1713): a thin room's turnout
+        // round asks the seat's number ahead of the day - the box
+        // shows in the order decide_at answers
+        if s.pledge_offer.is_some() {
+            return Some(ConvoPanelV {
+                title: "THE CALL - YOUR OWN COUNT".into(),
+                rows: vec![
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                        text: "They've each named what they'll bring - what's your word worth?".into() },
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None, mood: 0,
+                        text: "Your friends answer your number the way theirs answer them - and the room reads it back the same.".into() },
+                ],
+                options: vec![
+                    "I'll bring one more".into(),
+                    "I'll bring two".into(),
+                    "I'll bring three".into(),
+                ],
+                decides: true, leave: false });
+        }
         // the day pick sits under the asks (#1663): decide_at resolves
         // testimony, then the question, then the day - the box shows in
         // the same order so the shown card's the one that answers
@@ -4108,7 +4127,16 @@ impl Game {
                 }
                 None => {
                     let mut opts = vec![];
-                    if !d.meet_again.is_empty() { opts.push("Meet again - they'll come back".into()); }
+                    if !d.meet_again.is_empty() {
+                        // a thin room's meet-again is the turnout round
+                        // (#1713): the same yeses, plus each one held to
+                        // a count they gave their word on
+                        opts.push(if d.turnout {
+                            "Work the turnout - they'll come back, and bring folk".into()
+                        } else {
+                            "Meet again - they'll come back".into()
+                        });
+                    }
                     // a concrete step past the agreement (#1614): the
                     // willing sign on as the team for the work
                     let team = !self.team_prospects(seat, &d.meet_again).is_empty();
@@ -4116,7 +4144,9 @@ impl Game {
                     if d.street { opts.push("Take it to the street - show the numbers".into()); }
                     opts.push("Let it rest - keep talking".into());
                     // the prose only promises what the options list (#1678)
-                    let lean = if team || d.street {
+                    let lean = if d.turnout {
+                        "A thin room. They'd gather again - and bring folk, if you hold them to it. Your call."
+                    } else if team || d.street {
                         "They'd gather again - or take it further. Your call."
                     } else {
                         "They'd gather again. Your call."

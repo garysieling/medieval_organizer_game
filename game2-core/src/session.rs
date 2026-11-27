@@ -639,6 +639,12 @@ pub struct Meeting {
     /// called it, so the resolve opens the campaign's slate instead of
     /// the generic meet-again call - the slate IS this room's business
     pub impromptu: bool,
+    /// The turnout pledges this call honored (#1713): pledger, the
+    /// count they gave their word on, and the friends that word pulled
+    /// at the door - snapshotted at call_meeting_at because the plan's
+    /// consumed there, so the resolve can read promised against
+    /// brought
+    pub pledged: Vec<(Entity, u8, Vec<Entity>)>,
 }
 
 /// What a scripted meeting line does when it airs (#1611): the script
@@ -692,6 +698,10 @@ pub struct PendingFounding {
     pub meet_again: Vec<Entity>,
     /// Whether "take it to the street" is on offer (a cause exists)
     pub street: bool,
+    /// The room came thin (#1713): the meet-again option can be a
+    /// turnout round - each attendee names a count they'll bring, and
+    /// the organizer's held to a count of their own
+    pub turnout: bool,
     /// The day the call was left, so an unanswered one can time out
     pub offered_tick: u64,
 }

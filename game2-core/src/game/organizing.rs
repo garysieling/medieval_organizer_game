@@ -1059,6 +1059,12 @@ pub struct MeetingPlan {
     /// The agenda the organizer set on the call (#1611): the heard
     /// issue they'll press in the room - its carriers get called on
     pub agenda: Option<crate::game::desires::IssueTag>,
+    /// The turnout pledges a thin room left (#1713): each pledger's
+    /// word on a head-count for this call - at the door they pull
+    /// their friends up to the number they gave, the organizer's own
+    /// count rides with them, and the report reads promised against
+    /// brought
+    pub pledges: Vec<(Entity, u8)>,
 }
 
 impl MeetingPlan {

@@ -26,6 +26,8 @@ pub enum Tested {
     Decided,
     /// A promise was kept where the keeper said it would be
     PromiseKept,
+    /// A pledged word didn't hold - the count came up short (#1713)
+    PromiseBroken,
 }
 
 /// The signed shift an outcome lands on a lie (E8-2): negative weakens
@@ -63,8 +65,10 @@ pub fn hears(lie: Belief, t: Tested) -> f32 {
         (MillOwnsUs, WritDefied) => -0.10,
         (MillOwnsUs, VictoryWalked) => -0.12,
         // "promises are for those who can keep them" - a kept promise
-        // is the direct counter-proof
+        // is the direct counter-proof; a word that came up short is
+        // the ghost's own confirmation
         (PromisesForKeepers, PromiseKept) => -0.14,
+        (PromisesForKeepers, PromiseBroken) => 0.12,
         (PromisesForKeepers, MemberLost) => 0.08,
         // "keep your true self hidden" - a member marked and carried
         // through is the counter-proof; one taken proves the rule

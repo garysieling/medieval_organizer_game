@@ -162,6 +162,10 @@ pub struct Seat {
     /// Gather button's gone (#1596). The tick it was asked, so an
     /// unanswered one can lapse like the founding's
     pub meet_offer: Option<u64>,
+    /// The organizer's own turnout count (#1713): the pledge round a
+    /// thin room's call leaves open - the members named theirs, this
+    /// asks the seat's number, waiting on their pick (Command::Decide)
+    pub pledge_offer: Option<u64>,
     /// The question-question the day pick leaves open (#1267): put the
     /// matter or probe what they want, waiting on their pick
     /// (Command::Decide). The tick it was asked; it lapses like the day's
@@ -258,7 +262,7 @@ impl Default for Seat {
                player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
-               pending_founding: None, meet_offer: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
+               pending_founding: None, meet_offer: None, pledge_offer: None, frame_offer: None, testimony_offer: None, last_testimony: None, pending_agenda: None,
                frame_issues: vec![], steer_offer: None,
                quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, mystery_solved: 0, notice_panel: false, aboard: None,

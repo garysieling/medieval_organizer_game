@@ -317,3 +317,52 @@ fn test_the_market_town_is_a_real_place() {
     assert_eq!(named.len(), towns_seen.len(),
         "every town answers for somebody on some seed: {:?}", named);
 }
+
+/// #1718: a late adult settling in beside housemates who already name
+/// a market (a migrant moving in, or a child's coming-of-age roll)
+/// must share their roof's town, not roll one of its own - the
+/// household-to-market map `assign_market_towns` rebuilds has to seed
+/// itself from whoever's already assigned, not just the newly placed
+#[test]
+fn test_a_late_adult_shares_the_housemates_market() {
+    use crate::session::country::{MarketTown, Outlander};
+    use crate::game::household::{home_of, Building, BuildingKind};
+    let mut g = Game::new_seeded(5);
+    let towns: Vec<&'static str> = g.sites.iter()
+        .filter(|s| s.kind == SiteKind::Town).map(|s| s.name).collect();
+    assert_eq!(towns.len(), 2, "the country plants two towns");
+    // a village home with at least two grown, non-outlander occupants
+    let (home, a, b) = g.world.query::<Building>().into_iter().find_map(|h| {
+        let bb = g.world.get_component::<Building>(h)?;
+        if bb.kind != BuildingKind::Home { return None; }
+        let adults: Vec<Entity> = bb.occupants.iter().copied()
+            .filter(|&v| g.villagers.contains(&v)
+                && g.world.get_component::<Kid>(v).is_none()
+                && g.world.get_component::<Outlander>(v).is_none())
+            .collect();
+        (adults.len() >= 2).then(|| (h, adults[0], adults[1]))
+    }).expect("some village home holds two grown adults");
+    assert_eq!(home_of(&g.world, a), Some(home));
+    // the roof's farther town, by the same reckoning `assign_market_towns`
+    // uses - forcing the housemates onto it means an unseeded roll (near
+    // three times in four) would very likely land the newcomer elsewhere
+    let at = g.world.get_component::<Pos>(home).map(|p| (p.x as i32, p.y as i32)).unwrap();
+    let far_town = g.sites.iter().filter(|s| s.kind == SiteKind::Town)
+        .map(|s| (s.centre, s.name))
+        .max_by_key(|((tx, ty), _)| (tx - at.0).abs() + (ty - at.1).abs())
+        .unwrap().1;
+    g.world.add_component(a, MarketTown(far_town));
+    g.world.add_component(b, MarketTown(far_town));
+    // a new adult settles under the same roof, market still unassigned -
+    // as a migrant lands before `maybe_migrant` asks, or a child the
+    // moment `lifecycle_tick` drops their `Kid` marker
+    let newcomer = g.world.create_entity();
+    let hp = *g.world.get_component::<Pos>(home).unwrap();
+    g.world.add_component(newcomer, hp);
+    g.world.get_component_mut::<Building>(home).unwrap().occupants.push(newcomer);
+    g.villagers.push(newcomer);
+    let mut rng = crate::session::Rng(5 ^ 0x5173_C0DE);
+    g.assign_market_towns(&mut rng);
+    assert_eq!(g.world.get_component::<MarketTown>(newcomer).map(|t| t.0), Some(far_town),
+        "the newcomer should share the housemates' market, not roll their own");
+}

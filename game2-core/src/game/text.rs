@@ -459,9 +459,16 @@ fn push_slot(out: &mut String, slot: &str, cx: &Cx) {
         "mystery" => push(out, cx.speaker.mystery.or(cx.listener.mystery)
             .unwrap_or("what folk whisper of")),
         // the market town the pair's folk deal in (#1707): the speaker's
-        // own roof's town first, the listener's if they carry none
+        // own roof's town first, the listener's if they carry none - for
+        // the answer, spoken by the one whose kin run the roads
         "town" => push(out, cx.speaker.abroad
             .or(cx.listener.abroad).unwrap_or("the market town")),
+        // the same town, but asked of the listener (#1715): the question
+        // is spoken about the listener's kin, not the asker's own, so it
+        // has to read the listener's market first or two housemates with
+        // different towns put the wrong one in each other's mouths
+        "their_town" => push(out, cx.listener.abroad
+            .or(cx.speaker.abroad).unwrap_or("the market town")),
         // E4-2: the address a relation earns - "m'lord", "goodwife Maud"
         "addr" => push(out, &address_form(cx)),
         // E4-2: second person - pronouns and verb agreement read `cx.tv`
@@ -1168,6 +1175,24 @@ mod tests {
     }
 
     #[test]
+    fn their_town_asks_after_the_listeners_market() {
+        // #1715: a question about the listener's own kin has to name
+        // the listener's market, even when the asker has a different
+        // one of their own - the asker's is only a fallback
+        let (mut alys, mut corvin) = pair();
+        alys.abroad = Some("Ashby");
+        corvin.abroad = Some("Kelby");
+        assert_eq!(realize_plain("back from {their_town}?", &alys, &corvin, &[]),
+            "back from Kelby?");
+        corvin.abroad = None;
+        assert_eq!(realize_plain("back from {their_town}?", &alys, &corvin, &[]),
+            "back from Ashby?");
+        alys.abroad = None;
+        assert_eq!(realize_plain("back from {their_town}?", &alys, &corvin, &[]),
+            "back from the market town?");
+    }
+
+    #[test]
     fn a_slot_nobody_owns_stays_for_the_next_fill() {
         let (alys, corvin) = pair();
         // a known referent the caller didn't fill reads as a plain
@@ -1277,7 +1302,7 @@ mod tests {
                 || t.contains("{he:") || t.contains("{him:") || t.contains("{his:")
                 || t.contains("{is:") || t.contains("{was:") || t.contains("{n:")
                 || t.contains("{list:") || t.contains("{grandda}") || t.contains("{mystery}")
-                || t.contains("{town}") {
+                || t.contains("{town}") || t.contains("{their_town}") {
                 // E4-2/E4-4/E4-7 migrated this line - the old fills never
                 // owned these slots (the referent slots leak through
                 // them, which is why #1606 gives them plain-word

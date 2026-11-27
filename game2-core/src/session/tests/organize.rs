@@ -1535,6 +1535,59 @@ fn test_a_wrong_ear_gets_the_news_marked() {
         "the mark the counter-intel seam reads: {:?}", r.facts);
 }
 
+/// The wrong ear carries it home (#1708): inside news on ears that
+/// shouldn't have it is a leak the castle's watchers feed on - told
+/// once, then spent
+#[test]
+fn test_a_wrong_ear_carries_the_news_home() {
+    use crate::game::rumor as rum;
+    let mut g = Game::new();
+    org_ready(&mut g);
+    let b = g.villagers[9];
+    g.world.add_component(b, rum::Rumor { facts: vec![
+        rum::RumorFact { news: rum::News::MeetOn { days: 3, at: "Aldric".into() },
+            wrong_ear: true, carried: false },
+    ]});
+    let watcher = g.sites.iter().find(|s| s.kind == crate::session::country::SiteKind::Castle)
+        .and_then(|s| s.lord).or_else(|| g.sites.iter().find_map(|s| s.lord))
+        .expect("a site has a lord");
+    if g.world.get_component::<crate::session::subsystems::society::Watcher>(watcher).is_none() {
+        g.world.add_component(watcher, crate::session::subsystems::society::Watcher {
+            paranoia: 0.0, legitimacy: 0.7 });
+    }
+    let paranoia_of = |g: &Game| g.world.get_component::<
+        crate::session::subsystems::society::Watcher>(watcher).unwrap().paranoia;
+    let p0 = paranoia_of(&g);
+    g.surveillance_tick(g.tick);
+    let d1 = paranoia_of(&g) - p0;
+    assert!(g.world.get_component::<rum::Rumor>(b).unwrap().facts[0].carried,
+        "the telling's done once");
+    let p1 = paranoia_of(&g);
+    g.surveillance_tick(g.tick);
+    let d2 = paranoia_of(&g) - p1;
+    assert!(d1 > d2, "the leaked piece weighed on the first tick only: {d1} vs {d2}");
+}
+
+/// The street tells the player what it heard (#1708): a villager
+/// holding the rumor pass's news hands it on in a talk - the meet's
+/// set, the issue named - and doesn't repeat it inside the week
+#[test]
+fn test_the_street_tells_the_player_what_it_heard() {
+    use crate::game::rumor as rum;
+    let mut g = Game::new();
+    let b = g.villagers[9];
+    g.world.add_component(b, rum::Rumor { facts: vec![
+        rum::RumorFact { news: rum::News::IssueIs { name: "the tithe".into() },
+            wrong_ear: false, carried: false },
+    ]});
+    let line = g.rumor_fact_at(g.player, b).expect("they share what the street told them");
+    assert!(line.contains("the tithe"), "the piece itself: {line}");
+    assert!(g.rumor_fact_at(g.player, b).is_none(),
+        "a pair doesn't re-share inside the week");
+    g.tick += 7;
+    assert!(g.rumor_fact_at(g.player, b).is_some(), "the week's out, it's fresh again");
+}
+
 #[test]
 fn test_a_stranger_hears_no_inside_news() {
     let mut g = Game::new();

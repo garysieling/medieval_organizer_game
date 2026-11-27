@@ -256,10 +256,12 @@ impl Game {
             // still smarting: what's on their mind is you
             None if mood == Some(dialogue::TalkMood::Slighted) =>
                 crate::game::organizing::cold_gist(self.cast_name(who)),
-            None => match if hog { None } else { self.mystery_fact_at(seat) } {
-                // gossip carries a piece of the mystery, now and then
-                Some(text) => {
-                    whispered = true;
+            None => match if hog { None } else { self.mystery_fact_at(seat) }.map(|t| (t, true))
+                .or_else(|| self.rumor_fact_at(pe, v).map(|t| (t, false))) {
+                // gossip carries a piece of the mystery, now and then -
+                // or the street's own news, bent as it reached them (#1708)
+                Some((text, is_mystery)) => {
+                    whispered = is_mystery;
                     (format!("{} passes on a rumor", self.cast_name(who)), text)
                 }
                 // a sworn villager's opening is the cause's weather, not

@@ -4708,6 +4708,16 @@ impl Game {
                     .map(|p| p.gold < 1.0).unwrap_or(false);
             if weak { leaks += 1; }
         }
+        // the street's leaks (#1708): inside news that landed on a wrong
+        // ear gets carried home to the castle - a piece of the cause's
+        // own table out where it shouldn't be weighs like two sightings,
+        // and once told it's told
+        for v in self.villagers.clone() {
+            let Some(r) = self.world.get_component_mut::<crate::game::rumor::Rumor>(v) else { continue };
+            for f in &mut r.facts {
+                if f.wrong_ear && !f.carried { f.carried = true; leaks += 2; }
+            }
+        }
         // the discipline cuts the leaks; a practiced org keeps its own
         let mut effective = leaks as f32 * (1.0 - skill * 0.8);
         // the vetting: a deep-read org slows the eyes' accrual

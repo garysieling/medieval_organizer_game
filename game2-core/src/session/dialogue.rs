@@ -1292,7 +1292,7 @@ impl Game {
                         self.world.add_component(hearer, rum::Rumor::default());
                     }
                     self.world.get_component_mut::<rum::Rumor>(hearer).unwrap()
-                        .hear(rum::RumorFact { news: spoken.clone(), wrong_ear });
+                        .hear(rum::RumorFact { news: spoken.clone(), wrong_ear, carried: false });
                 }
                 self.rumor_marks.insert(key, self.tick);
                 let tn = self.name_of(teller);
@@ -1306,6 +1306,22 @@ impl Game {
                 return;
             }
         }
+    }
+
+    /// The street's news reaches the player (#1708): what a villager's
+    /// heard through the rumor pass is gossip they'll hand on in a talk -
+    /// the meet's set, the issue named, who promised what, bent however
+    /// it reached them. A pair doesn't re-share inside the week
+    pub(in crate::session) fn rumor_fact_at(&mut self, pe: Entity, v: Entity) -> Option<String> {
+        use crate::game::rumor as rum;
+        const RUMOR_COOLDOWN: u64 = 7;
+        let key = (pe.min(v), pe.max(v));
+        let fresh = self.rumor_marks.get(&key).map(|t| self.tick >= t + RUMOR_COOLDOWN).unwrap_or(true);
+        if !fresh { return None; }
+        let news = self.world.get_component::<rum::Rumor>(v)
+            .and_then(|r| r.facts.first().map(|f| f.news.clone()))?;
+        self.rumor_marks.insert(key, self.tick);
+        Some(rum::line_of(&news))
     }
 
     /// The player has just talked with `v` (Talk's own effects are done):

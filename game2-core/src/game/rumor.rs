@@ -31,11 +31,14 @@ impl News {
 }
 
 /// A fact as carried: the piece, and whether this copy's landed on a
-/// wrong ear (#1287) - the mark the counter-intel seam reads
+/// wrong ear (#1287) - the mark the counter-intel seam reads. A
+/// wrong-ear piece is told home to the castle once, then it's spent
+/// (#1708): `carried` is the telling done
 #[derive(Debug, Clone, PartialEq)]
 pub struct RumorFact {
     pub news: News,
     pub wrong_ear: bool,
+    pub carried: bool,
 }
 
 /// The inside news a non-member holds (#1287): what the street told

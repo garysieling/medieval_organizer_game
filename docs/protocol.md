@@ -82,9 +82,15 @@ The same inputs the window sends, one frame's worth each.
 {"Command":{"Board":false}}
 ```
 
+```json client
+{"Command":{"SelectReferral":3}}
+```
+
 `Act(i)` is the action button (0 Talk);
 `CtxAct(i)` the i-th context action the scene lists
-in `ctx`; `Select(i)` picks a villager; `Unselect` lets the pick go - the
+in `ctx`; `Select(i)` picks a villager; `SelectReferral(i)` does the same
+for a referral's name, letting go of any building selected first (#1711);
+`Unselect` lets the pick go - the
 ring, the walk-over and the talk under way; `TalkPick(n)` answers mid-Talk
 (`null` to take your leave); `Decide(i)` answers a founding call.
 `Board(open)` sets the seat's market-board postings panel - the Esc and

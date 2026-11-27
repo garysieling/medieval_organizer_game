@@ -108,8 +108,10 @@ impl Game {
 /// stall, mystic, charter, the eyes' hold, parley, the unsworn oath -
 /// answer on their own cards now (#1663), so an old journal's Decide(n)
 /// resolves the box it was recorded against, not the standing state
-/// that used to eat it)
-pub const JOURNAL_VERSION: u32 = 17;
+/// that used to eat it; and a passed-on name now opens the door before
+/// the Talk it leads to (#1711), so an old journal's referred Talk would
+/// replay with disclosure bonuses it never had)
+pub const JOURNAL_VERSION: u32 = 18;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

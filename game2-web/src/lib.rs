@@ -291,6 +291,20 @@ impl RenderHost {
         self.model = Some(m);
     }
 
+    /// A referral's name under the mouse (#1711), with the camera
+    /// already asked over to them - mirrors the desktop click handler's
+    /// `view.referral_hit` so both browser modes answer the click alike
+    fn referral_hit(&mut self, mx: i32, my: i32) -> Option<usize> {
+        let (view, m) = (self.view.as_ref()?, self.model.as_ref()?);
+        let i = view.referral_hit(m, mx, my)?;
+        if let Some(at) = m.panel.referrals.iter().find(|r| r.target == Some(i)).and_then(|r| r.at) {
+            if let Some(view) = self.view.as_mut() {
+                (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+            }
+        }
+        Some(i)
+    }
+
     fn frame_ptr(&self) -> *const u8 {
         self.frame
             .as_ref()
@@ -508,6 +522,19 @@ impl WasmGame {
                 true
             }
             Err(_) => false,
+        }
+    }
+
+    /// A referral's name under the mouse (#1711): picks them, clearing
+    /// any building selection, and swings the camera over, same as the
+    /// window's click handler. -1 when the click missed the name.
+    pub fn referral_click(&mut self, mx: i32, my: i32) -> i32 {
+        match self.host.referral_hit(mx, my) {
+            Some(i) => {
+                self.game.command(Command::SelectReferral(i));
+                i as i32
+            }
+            None => -1,
         }
     }
 
@@ -791,6 +818,17 @@ impl WasmClient {
     /// (empty when it presses nothing)
     pub fn digit_command(&self, n: usize) -> String {
         self.host.digit_command(n)
+    }
+
+    /// A referral's name under the mouse (#1711): swings the camera over
+    /// and hands back their villager index, same as `WasmGame`'s. There's
+    /// no local sim here to command - the page sends `SelectReferral` on
+    /// the websocket itself when this answers >= 0. -1 on a miss.
+    pub fn referral_click(&mut self, mx: i32, my: i32) -> i32 {
+        self.host
+            .referral_hit(mx, my)
+            .map(|i| i as i32)
+            .unwrap_or(-1)
     }
 
     /// The first gesture opens the page's AudioContext and swaps the

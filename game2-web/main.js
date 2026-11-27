@@ -213,10 +213,16 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointerup', e => {
   if (down_at && Math.hypot(e.clientX - down_at.x, e.clientY - down_at.y) < 4
       && performance.now() - down_at.t < 300 && phase === 'play') {
-    const s = scale(), cam = JSON.parse(g.cam());
-    send({ ClickMap: {
-      mx: Math.round(e.offsetX * s), my: Math.round(e.offsetY * s),
-      cam_x: cam.x, cam_y: cam.y, zoom: cam.zoom }});
+    const s = scale(), mx = Math.round(e.offsetX * s), my = Math.round(e.offsetY * s);
+    // a referral's name (#1711) is a button, not a map tile - same as
+    // the window's click handler, it wins over ClickMap
+    const ri = g.referral_click(mx, my);
+    if (ri >= 0) {
+      send({ SelectReferral: ri });
+    } else {
+      const cam = JSON.parse(g.cam());
+      send({ ClickMap: { mx, my, cam_x: cam.x, cam_y: cam.y, zoom: cam.zoom }});
+    }
   }
   drag = null; down_at = null;
 });

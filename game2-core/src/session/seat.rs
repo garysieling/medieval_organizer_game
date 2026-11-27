@@ -22,6 +22,10 @@ pub enum Command {
     Walk(f32, f32),
     /// Pick a villager by index (the 1-8 keys)
     Select(usize),
+    /// A referral's name (#1711): pick them, letting go of any building
+    /// selection - the name passed on is the one to go see, not whatever
+    /// sat selected before
+    SelectReferral(usize),
     /// Click the map through this camera (select villager or building)
     ClickMap { mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32 },
     TogglePause,
@@ -284,6 +288,14 @@ impl Game {
                 // an index off the list is refused, not stored - a client
                 // that sends one can't crash the next scene
                 if i < self.villagers.len() {
+                    self.seats[seat].selected_target = i;
+                    self.seats[seat].picked = true;
+                    self.seats[seat].pick_near = self.dist_to_at(seat, i) <= SHOUT_DIST;
+                }
+            }
+            Command::SelectReferral(i) => {
+                if i < self.villagers.len() {
+                    self.seats[seat].selected_building = None;
                     self.seats[seat].selected_target = i;
                     self.seats[seat].picked = true;
                     self.seats[seat].pick_near = self.dist_to_at(seat, i) <= SHOUT_DIST;

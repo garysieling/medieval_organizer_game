@@ -786,7 +786,9 @@ fn main() {
                     cmds.push(Command::Select(i));
                 }
                 // a referral's name does the same (#1711): select the
-                // one to go see and put them on camera
+                // one to go see and put them on camera - clearing any
+                // building selection, so Talk doesn't fall back to
+                // whoever's nearby the inspected building instead
                 if let Some(i) = view.referral_hit(m, mx, my) {
                     cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     if let Some(r) = m.panel.referrals.iter().find(|r| r.target == Some(i)) {
@@ -795,7 +797,7 @@ fn main() {
                             manual_cam = true;
                         }
                     }
-                    cmds.push(Command::Select(i));
+                    cmds.push(Command::SelectReferral(i));
                 }
                 // the conversation box: a speaker's line selects them, a
                 // choice button answers it (a reply, leave, or the call)

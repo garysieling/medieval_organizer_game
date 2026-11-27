@@ -523,38 +523,7 @@ impl Game {
         // folk each get the Town site nearest their roof - a line's
         // "{town}" names a real place - but a house in four sends its
         // kin to the farther market, so both towns come up in talk
-        let towns: Vec<((i32, i32), &'static str)> = self.sites.iter()
-            .filter(|s| s.kind == SiteKind::Town).map(|s| (s.centre, s.name)).collect();
-        for &v in self.villagers.clone().iter() {
-            if self.world.get_component::<crate::game::vocation::Kid>(v).is_some()
-                || self.world.get_component::<Outlander>(v).is_some() { continue; }
-            let at = crate::game::household::home_of(&self.world, v)
-                .and_then(|h| self.world.get_component::<Pos>(h))
-                .map(|p| (p.x as i32, p.y as i32))
-                .or_else(|| self.world.get_component::<Pos>(v).map(|p| (p.x as i32, p.y as i32)))
-                .unwrap_or(self.village);
-            let mut by_dist: Vec<&((i32, i32), &'static str)> = towns.iter().collect();
-            by_dist.sort_by_key(|((tx, ty), _)| (tx - at.0).abs() + (ty - at.1).abs());
-            let far = rng.below(4) == 0;
-            if let Some(&(_, name)) = by_dist.get(if far { by_dist.len() - 1 } else { 0 }) {
-                self.world.add_component(v, MarketTown(name));
-            }
-        }
-        // a roll that leaves a town unspoken for gives its first
-        // villager's custom away - both markets get talked about
-        for &(_, name) in &towns {
-            let dealt = self.villagers.iter().any(|&v|
-                self.world.get_component::<MarketTown>(v).map(|t| t.0 == name).unwrap_or(false));
-            if !dealt {
-                if let Some(&v) = self.villagers.iter().find(|&&v|
-                    self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
-                        && self.world.get_component::<Outlander>(v).is_none()
-                        && self.world.get_component::<MarketTown>(v)
-                            .map(|t| t.0 != name).unwrap_or(false)) {
-                    self.world.add_component(v, MarketTown(name));
-                }
-            }
-        }
+        self.assign_market_towns(&mut rng);
 
         // the post: an office at each town and castle, and a rider to
         // keep it - the village hands its letters off at the market
@@ -621,6 +590,55 @@ impl Game {
                 leader, charter: name, risk: 0.0 });
         }
 
+    }
+
+    /// The market a house's folk deal in (#1707): every grown occupant
+    /// without one yet gets the Town site nearest their roof - but the
+    /// roll is once a household, not once a head, so housemates never
+    /// name two different markets. Called at world creation for the
+    /// seeded village, and again whenever new adults join it (coming of
+    /// age, settling in), so later folk earn the family dialogue too.
+    pub(super) fn assign_market_towns(&mut self, rng: &mut Rng) {
+        let towns: Vec<((i32, i32), &'static str)> = self.sites.iter()
+            .filter(|s| s.kind == SiteKind::Town).map(|s| (s.centre, s.name)).collect();
+        if towns.is_empty() { return; }
+        let villagers = self.villagers.clone();
+        let mut home_town: crate::engine::det::HashMap<Entity, &'static str> = Default::default();
+        for &v in &villagers {
+            if self.world.get_component::<MarketTown>(v).is_some() { continue; }
+            if self.world.get_component::<crate::game::vocation::Kid>(v).is_some()
+                || self.world.get_component::<Outlander>(v).is_some() { continue; }
+            let home = crate::game::household::home_of(&self.world, v);
+            if let Some(name) = home.and_then(|h| home_town.get(&h).copied()) {
+                self.world.add_component(v, MarketTown(name));
+                continue;
+            }
+            let at = home.and_then(|h| self.world.get_component::<Pos>(h))
+                .map(|p| (p.x as i32, p.y as i32))
+                .or_else(|| self.world.get_component::<Pos>(v).map(|p| (p.x as i32, p.y as i32)))
+                .unwrap_or(self.village);
+            let mut by_dist: Vec<&((i32, i32), &'static str)> = towns.iter().collect();
+            by_dist.sort_by_key(|((tx, ty), _)| (tx - at.0).abs() + (ty - at.1).abs());
+            let far = rng.below(4) == 0;
+            let Some(&(_, name)) = by_dist.get(if far { by_dist.len() - 1 } else { 0 }) else { continue };
+            self.world.add_component(v, MarketTown(name));
+            if let Some(h) = home { home_town.insert(h, name); }
+        }
+        // a roll that leaves a town unspoken for gives its first
+        // villager's custom away - both markets get talked about
+        for &(_, name) in &towns {
+            let dealt = self.villagers.iter().any(|&v|
+                self.world.get_component::<MarketTown>(v).map(|t| t.0 == name).unwrap_or(false));
+            if !dealt {
+                if let Some(&v) = self.villagers.iter().find(|&&v|
+                    self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+                        && self.world.get_component::<Outlander>(v).is_none()
+                        && self.world.get_component::<MarketTown>(v)
+                            .map(|t| t.0 != name).unwrap_or(false)) {
+                    self.world.add_component(v, MarketTown(name));
+                }
+            }
+        }
     }
 
     /// The lordly map: castles answer to the crown (off the map, so

@@ -243,6 +243,13 @@ impl Game {
                 }
             }
         }
+        // a settler earns the family dialogue too (#1707): their own
+        // roof's market, shared with any housemate who already has one
+        {
+            let mut rng = crate::session::Rng(self.rng.0);
+            self.assign_market_towns(&mut rng);
+            self.rng.0 = rng.0;
+        }
         self.log_villager_ev(
             EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
             self.villagers.len() - 1,
@@ -620,6 +627,7 @@ impl Game {
         for s in &self.seats {
             if !s.agent { growing.push(s.player); }
         }
+        let mut came_of_age = false;
         for &v in growing.iter() {
             if villager::is_dead(&self.world, v) { continue; }
             let Some(g) = self.world.get_component_mut::<KidGrowth>(v) else { continue };
@@ -628,6 +636,7 @@ impl Game {
             let errands = g.errands.clone();
             self.world.remove_component::<Kid>(v);
             self.world.remove_component::<KidGrowth>(v);
+            came_of_age = true;
             // grown, the picked figure is a grown one too
             if let Some(a) = self.world.get_component_mut::<crate::game::player::Avatar>(v) {
                 a.kid = false;
@@ -662,6 +671,14 @@ impl Game {
                 self.world.add_component(v, villager::Initiated);
                 self.celebrate_person(tick, v, &format!("{} comes of age", name));
             }
+        }
+        // a grown adult earns the family dialogue too (#1707): their
+        // own roof's market, shared with any housemate who already has
+        // one, rather than going without it till the world's end
+        if came_of_age {
+            let mut rng = crate::session::Rng(self.rng.0);
+            self.assign_market_towns(&mut rng);
+            self.rng.0 = rng.0;
         }
         // and the years keep count: a day of the village is about a week
         // of life (a youngster's 730 days is their fourteenth year);

@@ -357,8 +357,11 @@ impl Game {
             .and_then(|en| self.world.get_component::<crate::game::relationships::Relationship>(en))
             .map(|r| r.interactions).unwrap_or(0);
         act_talk(&mut self.world, pe, e, self.tick);
-        self.say(e, s.cry, TALK_BUBBLE_SECS);
-        self.open_player_talk_familiar(seat, e, crate::game::conversation::Relation::Stranger, s.cry,
+        // the cry's slots resolve against the pair before it's said or
+        // stood as the talk's gist - raw, its {2p:…} leaked (#1706)
+        let cry = self.pair_said(e, pe, s.cry);
+        self.say(e, &cry, TALK_BUBBLE_SECS);
+        self.open_player_talk_familiar(seat, e, crate::game::conversation::Relation::Stranger, &cry,
             Some(talks));
         format!("You talk with {}.", s.name)
     }

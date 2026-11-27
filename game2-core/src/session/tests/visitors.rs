@@ -447,3 +447,27 @@ fn test_the_beggar_asks_and_takes_alms() {
     assert!(rec.lines.iter().any(|l| l.text.contains("beggar's palm")),
         "the alms note never went on the record");
 }
+
+/// A visitor's cry is said in the pair's voice, not in slots (#1706):
+/// every road figure's Talk opens on the resolved cry - no `{2p:…}`
+/// or any other slot may reach the bubble or the talk's gist
+#[test]
+fn test_no_visitor_cry_leaks_a_slot() {
+    let mut g = Game::new();
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: -40.0, y: -40.0 };
+    for s in events::EVENTS {
+        if s.kind != events::EventKind::Visitor || s.cry.is_empty()
+            || events::visit_slug(s.id).is_none() { continue; }
+        let _e = land_event(&mut g, s.id);
+        g.seats[0].picked = false;
+        g.act_at(0, 0);
+        let t = g.seats[0].talk.as_ref().expect("the Talk opened");
+        for line in std::iter::once(t.gist.as_str())
+            .chain(t.notes.iter().map(String::as_str))
+            .chain(g.bubbles.iter().map(|b| b.1.as_str())) {
+            assert!(!line.contains('{'), "{:?}'s cry leaked a slot: {line}", s.id);
+        }
+        g.talk_pick_at(0, None);
+        g.rare.retain(|r| r.id != s.id);
+    }
+}

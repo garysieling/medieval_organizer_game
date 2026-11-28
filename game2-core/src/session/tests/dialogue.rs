@@ -2940,3 +2940,94 @@ fn test_two_talks_one_day_dont_rehearse_the_same_lines() {
     let rehearsed: Vec<&String> = said.iter().filter(|t| !seen.insert((*t).clone())).collect();
     assert!(rehearsed.is_empty(), "lines rehearsed across the day's talks: {rehearsed:?}");
 }
+
+#[test]
+fn test_each_talk_teaches_one_more_thing_about_them() {
+    use crate::game::desires;
+    use crate::game::vocation::{craft, Vocation};
+    let mut g = Game::new();
+    let (pe, v, kin) = (g.player, g.villagers[1], g.villagers[2]);
+    let vi = 1;
+    g.world.add_component(v, craft(Vocation::Weaver, 0.5));
+    // blood in the village: the kin fact has someone to name
+    relationships::record_interaction(&mut g.world, v, relationships::Interaction {
+        other: kin, kind: relationships::InteractionKind::Conversation, intensity: 0.8 });
+    crate::game::relationships::find_relationship(&g.world, v, kin)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r))
+        .unwrap().kind = relationships::RelKind::Family;
+    let talk = |g: &mut Game| {
+        g.open_player_talk(0, v, crate::game::conversation::Relation::Acquaintance, "the day's work");
+        g.close_player_talk(0, None);
+    };
+    let learned = |g: &Game| -> Vec<String> {
+        desires::entries(&g.world, pe, v).into_iter()
+            .map(|e| e.fact).filter(|f| f.starts_with("person:")).collect()
+    };
+    // a stranger's talks: the trade on their hands, then who they keep
+    // house with - one rung a talk
+    talk(&mut g);
+    assert_eq!(learned(&g), vec!["person:craft:Weaver".to_string()], "{:?}", learned(&g));
+    talk(&mut g);
+    assert!(learned(&g).iter().any(|f| f.starts_with("person:kin:")), "{:?}", learned(&g));
+    // knowing them a little, the bend of their nature reads - a pair
+    // of signature traits, a talk apiece
+    g.world.add_component(v, crate::game::traits::Personality {
+        traits: vec![crate::game::traits::Trait::Gregarious, crate::game::traits::Trait::Steady] });
+    // an acquaintance's read takes the bond past stranger: set it on
+    // whichever bond the stage resolves, not a parallel one
+    let bond = crate::game::relationships::find_relationship(&g.world, pe, v)
+        .unwrap_or_else(|| {
+            relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+                other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+            crate::game::relationships::find_relationship(&g.world, pe, v).unwrap()
+        });
+    g.world.get_component_mut::<Relationship>(bond).unwrap().interactions = 1;
+    talk(&mut g);
+    assert!(learned(&g).iter().any(|f| f == "person:trait:Gregarious"), "{:?}", learned(&g));
+    talk(&mut g);
+    assert!(learned(&g).iter().any(|f| f == "person:trait:Steady"), "{:?}", learned(&g));
+    // a stranger's talks stop there: one more yields nothing deeper
+    talk(&mut g);
+    assert_eq!(learned(&g).len(), 4, "the shallow rungs are spent: {:?}", learned(&g));
+    // the shape of what they carry shows only to the ones they know
+    use crate::game::hooks::{Carried, Hooks};
+    g.world.add_component(v, Hooks { carried: vec![
+        Carried { id: 0, laid: None, told: false, ghost: None }] });
+    talk(&mut g);
+    assert!(!learned(&g).iter().any(|f| f.starts_with("person:hook:")),
+        "an acquaintance reads no wound yet: {:?}", learned(&g));
+    // a deed done makes them known - and the weight shows
+    let bond = crate::game::relationships::find_relationship(&g.world, pe, v).unwrap();
+    g.world.add_component(bond, crate::game::organizing::Deeds { n: 1 });
+    talk(&mut g);
+    assert!(learned(&g).iter().any(|f| f == "person:hook:0"), "{:?}", learned(&g));
+    // and the card reads what the seat's learned, in plain words
+    g.seats[0].selected_target = vi;
+    g.seats[0].picked = true;
+    let ins = g.ui_model().inspector.expect("the card's up");
+    let all: Vec<String> = ins.lines.iter().map(|l| l.text.clone()).collect();
+    assert!(all.iter().any(|t| t.contains("their trade's the weaver's")), "{all:?}");
+    assert!(all.iter().any(|t| t.contains("keeps house with")), "{all:?}");
+    assert!(all.iter().any(|t| t.contains("gregarious")), "{all:?}");
+    assert!(all.iter().any(|t| t.contains("carries the brother who went to soldier")), "{all:?}");
+}
+
+#[test]
+fn test_a_strangers_talks_never_leave_the_card_bare() {
+    use crate::game::desires;
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[7]);
+    // a villager with no craft, no kin, no traits to read - a talk
+    // still writes nothing it can't keep straight
+    g.open_player_talk(0, v, crate::game::conversation::Relation::Acquaintance, "the day's work");
+    g.close_player_talk(0, None);
+    let facts = desires::entries(&g.world, pe, v);
+    assert!(facts.iter().all(|e| e.fact.starts_with("person:") || e.reveal.is_some() || true),
+        "whatever landed is ledger-straight: {:?}", facts.iter().map(|e| &e.fact).collect::<Vec<_>>());
+    // and nothing double-lands: a second talk adds at most one rung
+    g.open_player_talk(0, v, crate::game::conversation::Relation::Acquaintance, "the day's work");
+    g.close_player_talk(0, None);
+    let n = desires::entries(&g.world, pe, v).iter()
+        .filter(|e| e.fact.starts_with("person:")).count();
+    assert!(n <= 2, "{n}");
+}

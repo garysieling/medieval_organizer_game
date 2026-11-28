@@ -604,7 +604,7 @@ pub const SMALL_CHAT: Exchange = Exchange {
             criteria: &[Has("other:status:kin_abroad")], weight: 0.80, bias: &[(Gregarious, 2.0)],
             act: Act::Question, concepts: &["family", "smalltalk"],
             respond: None,
-            lines: &["Has {2:poss} brother returned from {town}?", "Any word of {2:poss} kin at {town}, {other}?", "Does the road bring {2:poss} brother back from {town} soon?"],
+            lines: &["Has {2:poss} brother returned from {their_town}?", "Any word of {2:poss} kin at {their_town}, {other}?", "Does the road bring {2:poss} brother back from {their_town} soon?"],
             voice: &[],
             then: Some(SMALL_KIN), end: None,
         },

@@ -108,11 +108,15 @@ impl Game {
 /// stall, mystic, charter, the eyes' hold, parley, the unsworn oath -
 /// answer on their own cards now (#1663), so an old journal's Decide(n)
 /// resolves the box it was recorded against, not the standing state
-/// that used to eat it; and a thin room's meet-again now opens a
-/// turnout count card ahead of the day picker (#1713), so an old
-/// journal's Decide(n) for "meet again" can land on the count instead
-/// of the day it was recorded against)
-pub const JOURNAL_VERSION: u32 = 18;
+/// that used to eat it; and village_smalltalk grew a new weighted reply
+/// and a "their family" ask topic (#1707), so an old journal's TalkPick
+/// after SMALL_CHAT - or a numbered ask topic past it - can land on a
+/// different reply or topic row than the one it was recorded against;
+/// and a thin room's meet-again now opens a turnout count card ahead
+/// of the day picker (#1713), so an old journal's Decide(n) for "meet
+/// again" can land on the count instead of the day it was recorded
+/// against)
+pub const JOURNAL_VERSION: u32 = 19;
 
 /// A world's seed and every input it took
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -1059,6 +1059,12 @@ pub struct MeetingPlan {
     /// The agenda the organizer set on the call (#1611): the heard
     /// issue they'll press in the room - its carriers get called on
     pub agenda: Option<crate::game::desires::IssueTag>,
+    /// The turnout pledges a thin room left (#1713): each pledger's
+    /// word on a head-count for this call - at the door they pull
+    /// their friends up to the number they gave, the organizer's own
+    /// count rides with them, and the report reads promised against
+    /// brought
+    pub pledges: Vec<(Entity, u8)>,
 }
 
 impl MeetingPlan {
@@ -1980,6 +1986,19 @@ pub fn friends_of(world: &World, spreader: Entity, n: usize) -> Vec<Entity> {
     }).collect();
     out.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
     out.into_iter().take(n).map(|(_, e)| e).collect()
+}
+
+/// Who a turnout pledger can actually bring: `friends_of`, minus anyone
+/// already on the plan (the organizer, and everyone already committed to
+/// attend). A pledge shouldn't cost a guest slot on someone who was
+/// never going to be a new face at the door, and the same exclusion is
+/// used when the count is offered and when it's cashed in, so the
+/// number asked for is the number that can be met (#1713 review)
+pub fn pledgeable_friends_of(world: &World, spreader: Entity, exclude: &[Entity], n: usize) -> Vec<Entity> {
+    friends_of(world, spreader, usize::MAX).into_iter()
+        .filter(|f| !exclude.contains(f))
+        .take(n)
+        .collect()
 }
 
 /// Who stands over an issue - the target a cut issue can name. The

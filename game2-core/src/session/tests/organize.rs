@@ -96,7 +96,7 @@ fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     assert!(g.seats[0].pending_founding.is_some());
     // held open: the calendar runs at the house-meeting's half pace
     let base = if g.speed == 1 { 21 * FPS } else { 15 * FPS / 4 };
@@ -123,7 +123,7 @@ fn test_a_founding_vote_shows_its_tally() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let d = g.seats[0].pending_founding.as_ref().expect("the call's on the table");
     assert!(d.vote.is_some(), "a room with a heard issue takes the vote");
     // each member's pick named in the transcript
@@ -152,7 +152,7 @@ fn test_a_house_meeting_counts_toward_the_bond_ledger() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let m = g.ui_model();
     assert_eq!(m.panel.social.met, 3, "everyone who spoke at the meeting counts");
 }
@@ -460,9 +460,11 @@ fn test_a_meeting_with_a_cause_ends_in_next_steps() {
         &crate::game::campaign::IssueVote { winner: "the taxes".into(), ballots: vec![] },
         crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
     let _ = c;
-    let came = g.villagers[..3].to_vec();
+    // a full enough room - six at the door keeps the meet-again a wait,
+    // not the turnout round a thin one offers (#1713)
+    let came = g.villagers[..6].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let call = g.convo_panel_at(0).expect("the call on the box");
     assert!(call.options.iter().any(|o| o.contains("Meet again")), "{:?}", call.options);
     assert!(call.options.iter().any(|o| o.contains("street")), "{:?}", call.options);
@@ -489,10 +491,12 @@ fn test_the_calls_prose_promises_only_what_the_options_list() {
     // member: there's no vote to take, no team to form, no street to
     // take it to - only meet again or let it rest
     g.world.get_component_mut::<crate::sim::community::Organization>(g.org).unwrap().members =
-        g.villagers[..3].to_vec();
-    let came = g.villagers[..3].to_vec();
+        g.villagers[..6].to_vec();
+    // a full enough room - six at the door keeps the meet-again a wait,
+    // not the turnout round a thin one offers (#1713)
+    let came = g.villagers[..6].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let call = g.convo_panel_at(0).expect("the call on the box");
     let prose = &call.rows.last().unwrap().text;
     assert!(!prose.contains("further"), "no further path, none promised: {}", prose);
@@ -506,9 +510,9 @@ fn test_the_calls_prose_promises_only_what_the_options_list() {
     let _c = crate::game::campaign::found_campaign(&mut g2.world, oe,
         &crate::game::campaign::IssueVote { winner: "the taxes".into(), ballots: vec![] },
         crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
-    let came = g2.villagers[..3].to_vec();
+    let came = g2.villagers[..6].to_vec();
     let id = g2.open_meeting_record(g2.player, &came);
-    g2.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    g2.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let call = g2.convo_panel_at(0).expect("the call on the box");
     let prose = &call.rows.last().unwrap().text;
     assert!(prose.contains("further"), "the street's on the table, so's the word: {}", prose);
@@ -2308,7 +2312,7 @@ fn test_the_calls_form_a_team_signs_on_the_willing() {
     let prospects = g.team_prospects(0, &came);
     assert!(!prospects.is_empty(), "someone new came to sign on");
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     // the step's on the box between gathering again and the street
     let call = g.convo_panel_at(0).expect("the call on the box");
     let pick = call.options.iter().position(|o| o.contains("Form a team"))
@@ -2338,7 +2342,7 @@ fn test_no_team_step_when_the_willing_are_all_in() {
         crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
     let came = g.villagers[..3].to_vec(); // all members already
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     let call = g.convo_panel_at(0).expect("the call on the box");
     assert!(call.options.iter().all(|o| !o.contains("Form a team")), "{:?}", call.options);
     // and a pick past the listed rows is the rest, not a phantom team

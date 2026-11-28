@@ -5287,16 +5287,16 @@ const RITE_PLAIN: &[&str] = &[
 ];
 const CLOSE_BLESSING: &[&str] = &[
     "Go in peace - and keep what was said here.",
-    "God go with {2:obj} all, and bring {2:obj} back next time.",
+    "God go with {2p:obj} all, and bring {2p:obj} back next time.",
     "May what we spoke of take root. Amen, and good night.",
 ];
 const CLOSE_OLD: &[&str] = &[
-    "The stones watch {2:obj} home.",
+    "The stones watch {2p:obj} home.",
     "Keep the old ways, and keep each other.",
 ];
 const CLOSE_PLAIN: &[&str] = &[
     "That's the whole of it. Go well.",
-    "Home safe, all of {2:obj} - and thank {2:obj} for coming.",
+    "Home safe, all of {2p:obj} - and thank {2p:obj} for coming.",
 ];
 // the organizer owns the thread: when the floor drifts, they call it
 // back to the matter (#1186)

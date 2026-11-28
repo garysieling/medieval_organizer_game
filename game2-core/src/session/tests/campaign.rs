@@ -848,7 +848,7 @@ fn test_the_founding_call_enrolls_everyone_who_came() {
         .issues.push("the taxes".into());
     let came = g.villagers[..4].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     assert!(g.seats[0].pending_founding.is_some(), "the founding call's on the table");
     let listener = g.villagers[3];
     let was = g.world.get_component::<Organization>(g.org).unwrap()
@@ -1030,7 +1030,7 @@ fn test_the_gathered_meeting_holds_the_cadence() {
     g.meeting = None;
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false), false);
+    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
     assert!(msg.contains("the floor's yours"), "{}", msg);
     assert!(g.seats[0].pending_agenda.is_some(), "the slate never sat");
     assert!(g.seats[0].pending_founding.is_some(), "the room's call should queue ahead");
@@ -1276,4 +1276,192 @@ fn test_a_cause_with_no_room_sits_the_slate_directly() {
     g.campaign_meeting_tick(g.tick);
     assert!(g.meeting.is_none(), "nobody to convene: no meeting stands");
     assert!(g.seats[0].pending_agenda.is_some(), "the slate sits the old way");
+}
+
+/// A thin room offers the turnout round (#1713): under five souls at
+/// the door and the meet-again option becomes each naming a count -
+/// and the organizer's held to one of their own
+#[test]
+fn test_a_thin_room_offers_the_turnout_round() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    // two souls at the door is a thin room
+    let came = g.villagers[..2].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
+    let d = g.seats[0].pending_founding.as_ref().expect("the call's on the table");
+    assert!(d.vote.is_none(), "a founded cause leaves no vote");
+    assert!(d.turnout, "a thin room offers the turnout round");
+    let p = g.convo_panel_at(0).expect("the call renders");
+    assert!(p.options[0].contains("turnout"),
+        "the first option works the turnout: {:?}", p.options);
+    // a fuller room keeps the bare meet-again
+    g.seats[0].pending_founding = None;
+    let came = g.villagers[..6].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
+    let d = g.seats[0].pending_founding.as_ref().expect("the call's on the table");
+    assert!(!d.turnout, "six at the door is no thin room");
+    let p = g.convo_panel_at(0).expect("the call renders");
+    assert_eq!(p.options[0], "Meet again - they'll come back");
+}
+
+/// The pledged count is their own word (#1713): each attendee names a
+/// count bounded by the reach they have, the organizer names theirs
+/// on the next card, and the plan holds them all until the door -
+/// where each word pulls the friends it can actually reach
+#[test]
+fn test_the_turnout_round_puts_the_words_on_the_plan() {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    // a thin room of two; the organizer knows the third by name
+    let (pe, v5) = (g.player, g.villagers[5]);
+    record_interaction(&mut g.world, pe,
+        Interaction { other: v5, kind: InteractionKind::Aid, intensity: 1.0 });
+    let came = g.villagers[..2].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
+    // the first card option is the turnout round
+    g.decide_at(0, 0);
+    let plan = g.world.get_component::<crate::game::organizing::MeetingPlan>(g.org)
+        .expect("the plan's made");
+    assert_eq!(plan.pledges.len(), 2, "each who came gave a count: {:?}", plan.pledges);
+    for &(e, n) in &plan.pledges {
+        assert!(came.contains(&e), "a pledge belongs to the room");
+        assert!((1..=3).contains(&n), "their word's a workable count: {}", n);
+    }
+    assert!(g.seats[0].pledge_offer.is_some(), "the organizer's count is asked next");
+    // the organizer's own count: "I'll bring two"
+    let card = g.convo_panel_at(0).expect("the count card renders");
+    assert_eq!(card.title, "THE CALL - YOUR OWN COUNT");
+    g.decide_at(0, 1);
+    let plan = g.world.get_component::<crate::game::organizing::MeetingPlan>(g.org).unwrap();
+    assert_eq!(plan.pledges.len(), 3, "the organizer's word rides with theirs");
+    assert_eq!(plan.pledges[2], (g.player, 2));
+    // the day, then the question - the call's made
+    g.decide_at(0, 0);
+    g.decide_at(0, 0);
+    // at the door each word pulls the friends it can reach
+    let msg = g.call_meeting_at(0);
+    assert!(msg.contains("gather"), "{}", msg);
+    let m = g.meeting.as_ref().expect("the room convenes");
+    assert_eq!(m.pledged.len(), 3, "every word's snapshotted for the report");
+    for &(p, n, ref pulled) in &m.pledged {
+        assert!(pulled.len() <= n as usize, "a pull can't outrun the word");
+        let friends = crate::game::organizing::friends_of(&g.world, p, usize::MAX);
+        assert!(pulled.iter().all(|f| friends.contains(f)),
+            "a word only pulls the friends they have");
+    }
+    // the room talks and resolves - and the log reads the tally
+    while g.meeting.is_some() { g.advance_meeting(); }
+    let tally = g.log.iter().find(|l| l.contains(" promised ")).cloned()
+        .expect("the turnout report lands in the log");
+    assert!(tally.contains(" brought "), "promised reads against brought: {}", tally);
+    assert!(tally.contains("You promised 2"), "the organizer's word reads the same: {}", tally);
+}
+
+/// A pledge's pull skips the organizer and the already-confirmed
+/// (#1713 review): when a pledger's strongest bond is the organizer
+/// themselves, that slot must go to the next eligible friend instead
+/// of being spent on someone who was never a guest to bring
+#[test]
+fn test_a_pledges_pull_skips_the_organizer() {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let (pe, p0, neighbor) = (g.player, g.villagers[0], g.villagers[5]);
+    // p0's strongest bond is the organizer - the slot that bond would
+    // have spent must fall through to the next one instead
+    record_interaction(&mut g.world, p0,
+        Interaction { other: pe, kind: InteractionKind::Aid, intensity: 1.0 });
+    record_interaction(&mut g.world, p0,
+        Interaction { other: neighbor, kind: InteractionKind::Aid, intensity: 0.5 });
+    let came = g.villagers[..2].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &[], false);
+    g.decide_at(0, 0); // the turnout round
+    g.decide_at(0, 1); // the organizer's own count
+    g.decide_at(0, 0); // the day
+    g.decide_at(0, 0); // the question
+    g.call_meeting_at(0);
+    let m = g.meeting.as_ref().expect("the room convenes");
+    let (_, _, pulled) = m.pledged.iter().find(|&&(p, ..)| p == p0)
+        .expect("p0's word is on the record");
+    assert!(!pulled.contains(&pe),
+        "the organizer was never a guest to bring: {:?}", pulled);
+    assert!(pulled.contains(&neighbor),
+        "the eligible friend takes the slot the organizer can't: {:?}", pulled);
+}
+
+/// The report reads promised against brought (#1713): a kept count
+/// hears PromiseKept, a shortfall confirms "promises are for those
+/// who can keep them", and the organizer's own word reads the same
+#[test]
+fn test_the_turnout_report_reads_promised_against_brought() {
+    use crate::game::persona::{Belief, EventId, EventKind, Fear, Ghost, Need, Persona};
+    // the seeded cast deals each villager a persona the ghost can ride
+    let mut g = Game::new_seeded_cast(77);
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let (v0, v1, v3, v4, v5, v6) =
+        (g.villagers[0], g.villagers[1], g.villagers[3], g.villagers[4], g.villagers[5], g.villagers[6]);
+    // both carry the ghost a pledged word tests
+    let ghost = |lie| Ghost { event: EventId(0), kind: EventKind::Levy, hook: None,
+        lie, strength: 0.6, fear: Fear::BailiffKnowsMyFace, need: Need::ToBeSafe, turned: false };
+    g.world.get_component_mut::<Persona>(v0).unwrap().ghosts.push(ghost(Belief::PromisesForKeepers));
+    g.world.get_component_mut::<Persona>(v1).unwrap().ghosts.push(ghost(Belief::PromisesForKeepers));
+    // the room: v0's two came, v1's one stayed home, the organizer's
+    // one of their two
+    let came = vec![v0, v1, v3, v4, v5];
+    let pledged = vec![
+        (v0, 2u8, vec![v3, v4]),
+        (v1, 1u8, vec![v6]),
+        (g.player, 2u8, vec![v5]),
+    ];
+    let id = g.open_meeting_record(g.player, &came);
+    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false), &pledged, false);
+    let n0 = g.name_of(v0);
+    let n1 = g.name_of(v1);
+    assert!(msg.contains(&format!("{} promised 2, brought 2", n0)), "{}", msg);
+    assert!(msg.contains(&format!("{} promised 1, brought 0", n1)), "{}", msg);
+    assert!(msg.contains("You promised 2, brought 1"), "{}", msg);
+    // the kept word hears PromiseKept, the blown one confirms the ghost
+    let s0 = g.world.get_component::<Persona>(v0).unwrap().ghosts.iter()
+        .find(|gh| gh.lie == Belief::PromisesForKeepers).unwrap().strength;
+    let s1 = g.world.get_component::<Persona>(v1).unwrap().ghosts.iter()
+        .find(|gh| gh.lie == Belief::PromisesForKeepers).unwrap().strength;
+    assert!(s0 < 0.6, "a kept count weakens the ghost: {}", s0);
+    assert!(s1 > 0.6, "a blown count confirms it: {}", s1);
+    // and the room hears its own tally on the record
+    let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
+    assert!(rec.lines.iter().any(|l| l.text.contains(" promised ") && l.text.contains(" brought ")),
+        "the tally rides the meeting's record");
 }

@@ -141,9 +141,19 @@ impl Game {
         }
         // a date question nobody answers lapses like any unanswered call
         for seat in 0..self.seats.len() {
+            // the turnout's own count card rides with the date picker as
+            // one round (#1713 review): either lapsing unanswered takes
+            // the other with it, so an answered-late count never finds
+            // the date picker already gone
+            if self.seats[seat].pledge_offer
+                .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+                self.seats[seat].pledge_offer = None;
+                self.seats[seat].meet_offer = None;
+            }
             if self.seats[seat].meet_offer
                 .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
                 self.seats[seat].meet_offer = None;
+                self.seats[seat].pledge_offer = None;
             }
             if self.seats[seat].frame_offer
                 .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {

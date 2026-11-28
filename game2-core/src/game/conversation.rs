@@ -3037,11 +3037,22 @@ pub fn run_meeting<'a>(
     // hang off Q, and nobody replies to the rite - its "ritual" concept
     // meets nothing in a pool line
     const Q: usize = 1;
+    // the rite and send-off carry room slots ({2p:…}): realize them like
+    // a floor line, over the pair that gives them - the room's the "you"
+    // either way, so the listener slot only feeds the pair's own grammar
+    let ritual_speaker = |by: usize| -> &Speaker {
+        if by == usize::MAX { organizer } else { attendees[by] }
+    };
+    let ritual_cx = |by: usize| -> crate::game::text::Cx {
+        let sp = ritual_speaker(by);
+        let other = if by == usize::MAX { attendees.first().copied().unwrap_or(organizer) } else { organizer };
+        crate::game::text::Cx::plain(sp, other, &[])
+    };
     let mut record: Vec<Statement> = vec![
         Statement {
             speaker: rite_by, // usize::MAX: the organizer isn't an attendee
             act: Act::Greet,
-            text: rite.to_string(),
+            text: crate::game::text::realize(rite, &ritual_cx(rite_by), rng),
             concepts: vec!["ritual"],
             replying_to: None,
             kind: ReplyKind::Framing,
@@ -3186,7 +3197,7 @@ pub fn run_meeting<'a>(
     record.push(Statement {
         speaker: close_by,
         act: Act::Farewell,
-        text: close.to_string(),
+        text: crate::game::text::realize(close, &ritual_cx(close_by), rng),
         concepts: vec!["ritual"],
         replying_to: None,
         kind: ReplyKind::Framing,
@@ -4214,6 +4225,16 @@ mod tests {
             let pools: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
             run_meeting(&organizer, attendees, &[], &MEET_PROMPT, &pools, &MEET_RITES, &mut Rng::new(7))
         };
+        // the ritual lines air realized (the close's {2p:obj} reads the
+        // room): the pool's membership test runs on realized constants
+        let plain = Speaker::new("Corvin");
+        let realized = |pool: &[&'static str], sp: &Speaker| -> Vec<String> {
+            pool.iter().map(|t| crate::game::text::realize(t,
+                &crate::game::text::Cx::plain(sp, &plain, &[]), &mut Rng::new(0))).collect()
+        };
+        let in_pool = |pool: &[&'static str], sp: &Speaker, text: &str| {
+            realized(pool, sp).iter().any(|r| r == text)
+        };
         let mut pious = Speaker::new("Anselm");
         pious.traits.push(Trait::Pious);
         let mut old_pious = Speaker::new("Morag");
@@ -4221,34 +4242,33 @@ mod tests {
         old_pious.status.push("old_ways");
         let mut greg = Speaker::new("Hob");
         greg.traits.push(Trait::Gregarious);
-        let plain = Speaker::new("Corvin");
 
         // a pious attendee brings the prayer and gives the benediction
         let rec = run(&[&pious, &plain]);
         assert_eq!(rec[0].speaker, 0);
-        assert!(MEET_RITES.prayers.contains(&rec[0].text.as_str()), "rite: {}", rec[0].text);
+        assert!(in_pool(MEET_RITES.prayers, &pious, &rec[0].text), "rite: {}", rec[0].text);
         assert_eq!(rec.last().unwrap().speaker, 0);
-        assert!(MEET_RITES.blessings.contains(&rec.last().unwrap().text.as_str()));
+        assert!(in_pool(MEET_RITES.blessings, &pious, &rec.last().unwrap().text));
 
         // old-ways folk get their own words, opening and closing
         let rec = run(&[&old_pious, &plain]);
-        assert!(MEET_RITES.old_rites.contains(&rec[0].text.as_str()), "rite: {}", rec[0].text);
-        assert!(MEET_RITES.old_closes.contains(&rec.last().unwrap().text.as_str()),
+        assert!(in_pool(MEET_RITES.old_rites, &old_pious, &rec[0].text), "rite: {}", rec[0].text);
+        assert!(in_pool(MEET_RITES.old_closes, &old_pious, &rec.last().unwrap().text),
             "close: {}", rec.last().unwrap().text);
 
         // nobody devout: a gregarious one offers a verse, but the
         // send-off falls to the organizer
         let rec = run(&[&greg, &plain]);
         assert_eq!(rec[0].speaker, 0);
-        assert!(MEET_RITES.verses.contains(&rec[0].text.as_str()), "rite: {}", rec[0].text);
+        assert!(in_pool(MEET_RITES.verses, &greg, &rec[0].text), "rite: {}", rec[0].text);
         assert_eq!(rec.last().unwrap().speaker, usize::MAX);
-        assert!(MEET_RITES.plain_closes.contains(&rec.last().unwrap().text.as_str()));
+        assert!(in_pool(MEET_RITES.plain_closes, &organizer, &rec.last().unwrap().text));
 
         // a bare room: the organizer does it all
         let rec = run(&[&plain]);
         assert_eq!(rec[0].speaker, usize::MAX);
-        assert!(MEET_RITES.plain_opens.contains(&rec[0].text.as_str()), "rite: {}", rec[0].text);
-        assert!(MEET_RITES.plain_closes.contains(&rec.last().unwrap().text.as_str()));
+        assert!(in_pool(MEET_RITES.plain_opens, &organizer, &rec[0].text), "rite: {}", rec[0].text);
+        assert!(in_pool(MEET_RITES.plain_closes, &organizer, &rec.last().unwrap().text));
     }
 
     #[test]

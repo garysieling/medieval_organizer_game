@@ -141,10 +141,11 @@ impl Game {
             BeatKind::Loss => Thread::Lifecycle,
             _ => Thread::Other,
         };
+        let who = self.name_of(v).to_string();
         self.log_entity_ev(
             EvTag::new(thread, Valence::Neutral, Sev::Minor),
             v,
-            format!("t{}: {}", tick, line),
+            format!("t{}: {}: {}", tick, who, line),
         );
         mem.last_major = tick;
         mem.of_kind.push((kind, tick));
